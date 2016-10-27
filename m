@@ -1,222 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C23816B028D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 06:24:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e6so6242871pfk.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 03:24:06 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id c19si7137029pfe.138.2016.10.27.03.24.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CAEC96B0270
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 06:55:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m83so8023389wmc.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 03:55:31 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id uq5si7719236wjc.264.2016.10.27.03.55.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 03:24:05 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id u84so2287525pfj.1
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 03:24:05 -0700 (PDT)
-Subject: Re: [RFC 0/8] Define coherent device memory node
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <20161024170902.GA5521@gmail.com> <877f8xaurp.fsf@linux.vnet.ibm.com>
- <20161025153256.GB6131@gmail.com> <87shrkjpyb.fsf@linux.vnet.ibm.com>
- <20161025185247.GA7188@gmail.com> <5810A7E2.9070901@linux.vnet.ibm.com>
- <20161026162842.GB13638@gmail.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <5abe2075-f07e-e6a6-983b-2c4f3b4db2ba@gmail.com>
-Date: Thu, 27 Oct 2016 21:23:41 +1100
+        Thu, 27 Oct 2016 03:55:30 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id c17so2067994wmc.3
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 03:55:30 -0700 (PDT)
+Date: Thu, 27 Oct 2016 12:55:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: add locked parameter to get_user_pages_remote()
+Message-ID: <20161027105527.GG6454@dhcp22.suse.cz>
+References: <20161027095141.2569-1-lstoakes@gmail.com>
+ <20161027095141.2569-2-lstoakes@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20161026162842.GB13638@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161027095141.2569-2-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org, linux-rdma@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org
 
-
-
-On 27/10/16 03:28, Jerome Glisse wrote:
-> On Wed, Oct 26, 2016 at 06:26:02PM +0530, Anshuman Khandual wrote:
->> On 10/26/2016 12:22 AM, Jerome Glisse wrote:
->>> On Tue, Oct 25, 2016 at 11:01:08PM +0530, Aneesh Kumar K.V wrote:
->>>> Jerome Glisse <j.glisse@gmail.com> writes:
->>>>
->>>>> On Tue, Oct 25, 2016 at 10:29:38AM +0530, Aneesh Kumar K.V wrote:
->>>>>> Jerome Glisse <j.glisse@gmail.com> writes:
->>>>>>> On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
->>>>>
->>>>> [...]
->>>>>
->>>>>>> You can take a look at hmm-v13 if you want to see how i do non LRU page
->>>>>>> migration. While i put most of the migration code inside hmm_migrate.c it
->>>>>>> could easily be move to migrate.c without hmm_ prefix.
->>>>>>>
->>>>>>> There is 2 missing piece with existing migrate code. First is to put memory
->>>>>>> allocation for destination under control of who call the migrate code. Second
->>>>>>> is to allow offloading the copy operation to device (ie not use the CPU to
->>>>>>> copy data).
->>>>>>>
->>>>>>> I believe same requirement also make sense for platform you are targeting.
->>>>>>> Thus same code can be use.
->>>>>>>
->>>>>>> hmm-v13 https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v13
->>>>>>>
->>>>>>> I haven't posted this patchset yet because we are doing some modifications
->>>>>>> to the device driver API to accomodate some new features. But the ZONE_DEVICE
->>>>>>> changes and the overall migration code will stay the same more or less (i have
->>>>>>> patches that move it to migrate.c and share more code with existing migrate
->>>>>>> code).
->>>>>>>
->>>>>>> If you think i missed anything about lru and page cache please point it to
->>>>>>> me. Because when i audited code for that i didn't see any road block with
->>>>>>> the few fs i was looking at (ext4, xfs and core page cache code).
->>>>>>>
->>>>>>
->>>>>> The other restriction around ZONE_DEVICE is, it is not a managed zone.
->>>>>> That prevents any direct allocation from coherent device by application.
->>>>>> ie, we would like to force allocation from coherent device using
->>>>>> interface like mbind(MPOL_BIND..) . Is that possible with ZONE_DEVICE ?
->>>>>
->>>>> To achieve this we rely on device fault code path ie when device take a page fault
->>>>> with help of HMM it will use existing memory if any for fault address but if CPU
->>>>> page table is empty (and it is not file back vma because of readback) then device
->>>>> can directly allocate device memory and HMM will update CPU page table to point to
->>>>> newly allocated device memory.
->>>>>
->>>>
->>>> That is ok if the device touch the page first. What if we want the
->>>> allocation touched first by cpu to come from GPU ?. Should we always
->>>> depend on GPU driver to migrate such pages later from system RAM to GPU
->>>> memory ?
->>>>
->>>
->>> I am not sure what kind of workload would rather have every first CPU access for
->>> a range to use device memory. So no my code does not handle that and it is pointless
->>> for it as CPU can not access device memory for me.
->>
->> If the user space application can explicitly allocate device memory directly, we
->> can save one round of migration when the device start accessing it. But then one
->> can argue what problem statement the device would work on on a freshly allocated
->> memory which has not been accessed by CPU for loading the data yet. Will look into
->> this scenario in more detail.
->>
->>>
->>> That said nothing forbid to add support for ZONE_DEVICE with mbind() like syscall.
->>> Thought my personnal preference would still be to avoid use of such generic syscall
->>> but have device driver set allocation policy through its own userspace API (device
->>> driver could reuse internal of mbind() to achieve the end result).
->>
->> Okay, the basic premise of CDM node is to have a LRU based design where we can
->> avoid use of driver specific user space memory management code altogether.
+On Thu 27-10-16 10:51:40, Lorenzo Stoakes wrote:
+> This patch adds a int *locked parameter to get_user_pages_remote() to allow
+> VM_FAULT_RETRY faulting behaviour similar to get_user_pages_[un]locked().
 > 
-> And i think it is not a good fit, at least not for GPU. GPU device driver have a
-> big chunk of code dedicated to memory management. You can look at drm/ttm and at
-> userspace (most is in userspace). It is not because we want to reinvent the wheel
-> it is because they are some unique constraint.
+> Taking into account the previous adjustments to get_user_pages*() functions
+> allowing for the passing of gup_flags, we are now in a position where
+> __get_user_pages_unlocked() need only be exported for his ability to allow
+> VM_FAULT_RETRY behaviour, this adjustment allows us to subsequently unexport
+> __get_user_pages_unlocked() as well as allowing for future flexibility in the
+> use of get_user_pages_remote().
+
+I would also add that this shouldn't introduce any functional change.
+
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  drivers/gpu/drm/etnaviv/etnaviv_gem.c   |  2 +-
+>  drivers/gpu/drm/i915/i915_gem_userptr.c |  2 +-
+>  drivers/infiniband/core/umem_odp.c      |  2 +-
+>  fs/exec.c                               |  2 +-
+>  include/linux/mm.h                      |  2 +-
+>  kernel/events/uprobes.c                 |  4 ++--
+>  mm/gup.c                                | 12 ++++++++----
+>  mm/memory.c                             |  2 +-
+>  security/tomoyo/domain.c                |  2 +-
+>  9 files changed, 17 insertions(+), 13 deletions(-)
 > 
-
-Could you elaborate on the unique constraints a bit more? I looked at ttm briefly
-(specifically ttm_memory.c), I can see zones being replicated, it feels like a mini-mm
-is embedded in there.
-
+> diff --git a/drivers/gpu/drm/etnaviv/etnaviv_gem.c b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
+> index 0370b84..0c69a97f 100644
+> --- a/drivers/gpu/drm/etnaviv/etnaviv_gem.c
+> +++ b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
+> @@ -763,7 +763,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
+>  	down_read(&mm->mmap_sem);
+>  	while (pinned < npages) {
+>  		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
+> -					    flags, pvec + pinned, NULL);
+> +					    flags, pvec + pinned, NULL, NULL);
+>  		if (ret < 0)
+>  			break;
 > 
->>>
->>> I am not saying that eveything you want to do is doable now with HMM but, nothing
->>> preclude achieving what you want to achieve using ZONE_DEVICE. I really don't think
->>> any of the existing mm mechanism (kswapd, lru, numa, ...) are nice fit and can be reuse
->>> with device memory.
->>
->> With CDM node based design, the expectation is to get all/maximum core VM mechanism
->> working so that, driver has to do less device specific optimization.
+> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> index c6f780f..836b525 100644
+> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
+> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> @@ -522,7 +522,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
+>  					 obj->userptr.ptr + pinned * PAGE_SIZE,
+>  					 npages - pinned,
+>  					 flags,
+> -					 pvec + pinned, NULL);
+> +					 pvec + pinned, NULL, NULL);
+>  				if (ret < 0)
+>  					break;
 > 
-> I think this is a bad idea, today, for GPU but i might be wrong.
-
-Why do you think so? What aspects do you think are wrong? I am guessing you
-mean that the GPU driver via the GEM/DRM/TTM layers should interact with the
-mm and manage their own memory and use some form of TTM mm abstraction? I'll
-study those systems if possible as well.
-
->  
->>>
->>> Each device is so different from the other that i don't believe in a one API fit all.
->>
->> Right, so as I had mentioned in the cover letter, pglist_data->coherent_device actually
->> can become a bit mask indicating the type of coherent device the node is and that can
->> be used to implement multiple types of requirement in core mm for various kinds of
->> devices in the future.
+> diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+> index 1f0fe32..6b079a3 100644
+> --- a/drivers/infiniband/core/umem_odp.c
+> +++ b/drivers/infiniband/core/umem_odp.c
+> @@ -578,7 +578,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
+>  		 */
+>  		npages = get_user_pages_remote(owning_process, owning_mm,
+>  				user_virt, gup_num_pages,
+> -				flags, local_page_list, NULL);
+> +				flags, local_page_list, NULL, NULL);
+>  		up_read(&owning_mm->mmap_sem);
 > 
-> I really don't want to move GPU memory management into core mm, if you only concider GPGPU
-> then it _might_ make sense but for graphic side i definitly don't think so. There are way
-> to much device specific consideration to have in respect of memory management for GPU
-> (not only in between different vendor but difference between different generation).
+>  		if (npages < 0)
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 4e497b9..2cf049d 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -209,7 +209,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+>  	 * doing the exec and bprm->mm is the new process's mm.
+>  	 */
+>  	ret = get_user_pages_remote(current, bprm->mm, pos, 1, gup_flags,
+> -			&page, NULL);
+> +			&page, NULL, NULL);
+>  	if (ret <= 0)
+>  		return NULL;
 > 
-
-Yes, GPGPU is of interest. We don't look at it as GPU memory management. The memory
-on the device is coherent, it is a part of the system. It comes online later and we would
-like to hotplug it out if required. Since it's sitting on a bus, we do need optimizations
-and the ability to migrate to and from it. I don't think it makes sense to replicate a
-lot of the mm core logic to manage this memory, IMHO.
-
-I think I'd like to point out is that it is wrong to assume only a GPU having coherent
-memory, the RFC clarifies.
-
->  
->>> The drm GPU subsystem of the kernel is a testimony of how little can be share when it
->>> comes to GPU. The only common code is modesetting. Everything that deals with how to
->>> use GPU to compute stuff is per device and most of the logic is in userspace. So i do
->>
->> Whats the basic reason which prevents such code/functionality sharing ?
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a92c8d7..cc15445 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1274,7 +1274,7 @@ extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
+>  long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+>  			    unsigned long start, unsigned long nr_pages,
+>  			    unsigned int gup_flags, struct page **pages,
+> -			    struct vm_area_struct **vmas);
+> +			    struct vm_area_struct **vmas, int *locked);
+>  long get_user_pages(unsigned long start, unsigned long nr_pages,
+>  			    unsigned int gup_flags, struct page **pages,
+>  			    struct vm_area_struct **vmas);
+> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> index f9ec9ad..215871b 100644
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -301,7 +301,7 @@ int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr,
+>  retry:
+>  	/* Read the page with vaddr into memory */
+>  	ret = get_user_pages_remote(NULL, mm, vaddr, 1, FOLL_FORCE, &old_page,
+> -			&vma);
+> +			&vma, NULL);
+>  	if (ret <= 0)
+>  		return ret;
 > 
-> While the higher level API (OpenGL, OpenCL, Vulkan, Cuda, ...) offer an abstraction model,
-> they are all different abstractions. They are just no way to have kernel expose a common
-> API that would allow all of the above to be implemented.
+> @@ -1712,7 +1712,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
+>  	 * essentially a kernel access to the memory.
+>  	 */
+>  	result = get_user_pages_remote(NULL, mm, vaddr, 1, FOLL_FORCE, &page,
+> -			NULL);
+> +			NULL, NULL);
+>  	if (result < 0)
+>  		return result;
 > 
-> Each GPU have complex memory management and requirement (not only differ between vendor
-> but also between generation of same vendor). They have different isa for each generation.
-> They have different way to schedule job for each generation. They offer different sync
-> mechanism. They have different page table format, mmu, ...
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ec4f827..0567851 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -920,6 +920,9 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
+>   *		only intends to ensure the pages are faulted in.
+>   * @vmas:	array of pointers to vmas corresponding to each page.
+>   *		Or NULL if the caller does not require them.
+> + * @locked:	pointer to lock flag indicating whether lock is held and
+> + *		subsequently whether VM_FAULT_RETRY functionality can be
+> + *		utilised. Lock must initially be held.
+>   *
+>   * Returns number of pages pinned. This may be fewer than the number
+>   * requested. If nr_pages is 0 or negative, returns 0. If no pages
+> @@ -963,10 +966,10 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
+>  long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+>  		unsigned long start, unsigned long nr_pages,
+>  		unsigned int gup_flags, struct page **pages,
+> -		struct vm_area_struct **vmas)
+> +		struct vm_area_struct **vmas, int *locked)
+>  {
+>  	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
+> -				       NULL, false,
+> +				       locked, true,
+>  				       gup_flags | FOLL_TOUCH | FOLL_REMOTE);
+>  }
+>  EXPORT_SYMBOL(get_user_pages_remote);
+> @@ -974,8 +977,9 @@ EXPORT_SYMBOL(get_user_pages_remote);
+>  /*
+>   * This is the same as get_user_pages_remote(), just with a
+>   * less-flexible calling convention where we assume that the task
+> - * and mm being operated on are the current task's.  We also
+> - * obviously don't pass FOLL_REMOTE in here.
+> + * and mm being operated on are the current task's and don't allow
+> + * passing of a locked parameter.  We also obviously don't pass
+> + * FOLL_REMOTE in here.
+>   */
+>  long get_user_pages(unsigned long start, unsigned long nr_pages,
+>  		unsigned int gup_flags, struct page **pages,
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e18c57b..2f3949b 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3883,7 +3883,7 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+>  		struct page *page = NULL;
 > 
+>  		ret = get_user_pages_remote(tsk, mm, addr, 1,
+> -				gup_flags, &page, &vma);
+> +				gup_flags, &page, &vma, NULL);
+>  		if (ret <= 0) {
+>  #ifndef CONFIG_HAVE_IOREMAP_PROT
+>  			break;
+> diff --git a/security/tomoyo/domain.c b/security/tomoyo/domain.c
+> index 682b73a..838ffa7 100644
+> --- a/security/tomoyo/domain.c
+> +++ b/security/tomoyo/domain.c
+> @@ -881,7 +881,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
+>  	 * the execve().
+>  	 */
+>  	if (get_user_pages_remote(current, bprm->mm, pos, 1,
+> -				FOLL_FORCE, &page, NULL) <= 0)
+> +				FOLL_FORCE, &page, NULL, NULL) <= 0)
+>  		return false;
+>  #else
+>  	page = bprm->page[pos / PAGE_SIZE];
+> --
+> 2.10.1
 
-Agreed
-
-> Basicly each GPU generation is a platform on it is own, like arm, ppc, x86, ... so i do
-> not see a way to expose a common API and i don't think anyone who as work on any number
-> of GPU see one either. I wish but it is just not the case.
-> 
-
-We are trying to leverage the ability to see coherent memory (across a set of devices 
-plus system RAM) to keep memory management as simple as possible
-
->  
->>> not see any commonality that could be abstracted at syscall level. I would rather let
->>> device driver stack (kernel and userspace) take such decision and have the higher level
->>> API (OpenCL, Cuda, C++17, ...) expose something that make sense for each of them.
->>> Programmer target those high level API and they intend to use the mechanism each offer
->>> to manage memory and memory placement. I would say forcing them to use a second linux
->>> specific API to achieve the latter is wrong, at lest for now.
->>
->> But going forward dont we want a more closely integrated coherent device solution
->> which does not depend too much on a device driver stack ? and can be used from a
->> basic user space program ?
-> 
-> That is something i want, but i strongly believe we are not there yet, we have no real
-> world experience. All we have in the open source community is the graphic stack (drm)
-> and the graphic stack clearly shows that today there is no common denominator between
-> GPU outside of modesetting.
-> 
-
-:)
-
-> So while i share the same aim, i think for now we need to have real experience. Once we
-> have something like OpenCL >= 2.0, C++17 and couple other userspace API being actively
-> use on linux with different coherent devices then we can start looking at finding a
-> common denominator that make sense for enough devices.
-> 
-> I am sure device driver would like to get rid of their custom memory management but i
-> don't think this is applicable now. I fear existing mm code would always make the worst
-> decision when it comes to memory placement, migration and reclaim.
-> 
-
-Agreed, we don't want to make either placement/migration or reclaim slow. As I said earlier
-we should not restrict our thinking to just GPU devices.
-
-Balbir Singh.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
