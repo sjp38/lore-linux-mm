@@ -1,66 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8090B6B027A
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 12:31:10 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b75so10582543lfg.3
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 09:31:10 -0700 (PDT)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id g37si5211928ljg.40.2016.10.27.09.31.08
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B416B0278
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:11:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u84so11075492pfj.6
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 10:11:50 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0117.outbound.protection.outlook.com. [104.47.1.117])
+        by mx.google.com with ESMTPS id y77si8781763pff.233.2016.10.27.10.11.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 09:31:08 -0700 (PDT)
-Received: by mail-lf0-x242.google.com with SMTP id i187so1566999lfe.1
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 09:31:08 -0700 (PDT)
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: [PATCH v3 0/1] mm/mempolicy.c: forbid static or relative flags for local NUMA mode
-Date: Thu, 27 Oct 2016 18:30:37 +0200
-Message-Id: <20161027163037.4089-1-kwapulinski.piotr@gmail.com>
-In-Reply-To: <20160927132532.12110-1-kwapulinski.piotr@gmail.com>
-References: <20160927132532.12110-1-kwapulinski.piotr@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 27 Oct 2016 10:11:49 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv3 0/8] powerpc/mm: refactor vDSO mapping code
+Date: Thu, 27 Oct 2016 20:09:40 +0300
+Message-ID: <20161027170948.8279-1-dsafonov@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mhocko@suse.com, liangchen.linux@gmail.com, mgorman@techsingularity.net, dave.hansen@linux.intel.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, kwapulinski.piotr@gmail.com
+To: linux-kernel@vger.kernel.org
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Andy Lutomirski <luto@amacapital.net>, Oleg Nesterov <oleg@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
-when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy
-or mbind.
-Return the "invalid argument" from set_mempolicy and mbind whenever
-any of these flags is passed along with MPOL_LOCAL.
-It is consistent with MPOL_PREFERRED passed with empty nodemask.
-It slightly shortens the execution time in paths where these flags
-are used e.g. when trying to rebind the NUMA nodes for changes in
-cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
-the mempolicy structure (/proc/PID/numa_maps).
-Isolated tests done.
+Changes since v1, v2:
+- use vdso64_pages only under CONFIG_PPC64 (32-bit build fix)
+- remove arch_vma_name helper as not needed anymore,
+  simplify vdso_base pointer initializing in map_vdso()
 
-Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
----
-Changes since V2:
-Information from Documentation/vm/numa_memory_policy.txt removed.
-Please let me know what else I should do to let this patch to be
-accepted.
----
- mm/mempolicy.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+Cleanup patches for vDSO on powerpc.
+Originally, I wanted to add vDSO remapping on arm/aarch64 and
+I decided to cleanup that part on powerpc.
+I've add a hook for vm_ops for vDSO just like I did for x86,
+which makes cross-arch arch_mremap hook no more needed.
+Other changes - reduce exhaustive code duplication by
+separating the common vdso code.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0b859af..266893e 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 				return ERR_PTR(-EINVAL);
- 		}
- 	} else if (mode == MPOL_LOCAL) {
--		if (!nodes_empty(*nodes))
-+		if (!nodes_empty(*nodes) ||
-+		    (flags & MPOL_F_STATIC_NODES) ||
-+		    (flags & MPOL_F_RELATIVE_NODES))
- 			return ERR_PTR(-EINVAL);
- 		mode = MPOL_PREFERRED;
- 	} else if (nodes_empty(*nodes))
+No visible to userspace changes expected.
+Tested on qemu with buildroot rootfs.
+
+Dmitry Safonov (8):
+  powerpc/vdso: unify return paths in setup_additional_pages
+  powerpc/vdso: remove unused params in vdso_do_func_patch{32,64}
+  powerpc/vdso: separate common code in vdso_common
+  powerpc/vdso: introduce init_vdso{32,64}_pagelist
+  powerpc/vdso: split map_vdso from arch_setup_additional_pages
+  powerpc/vdso: switch from legacy_special_mapping_vmops
+  mm: kill arch_mremap
+  powerpc/vdso: remove arch_vma_name
+
+ arch/alpha/include/asm/Kbuild            |   1 -
+ arch/arc/include/asm/Kbuild              |   1 -
+ arch/arm/include/asm/Kbuild              |   1 -
+ arch/arm64/include/asm/Kbuild            |   1 -
+ arch/avr32/include/asm/Kbuild            |   1 -
+ arch/blackfin/include/asm/Kbuild         |   1 -
+ arch/c6x/include/asm/Kbuild              |   1 -
+ arch/cris/include/asm/Kbuild             |   1 -
+ arch/frv/include/asm/Kbuild              |   1 -
+ arch/h8300/include/asm/Kbuild            |   1 -
+ arch/hexagon/include/asm/Kbuild          |   1 -
+ arch/ia64/include/asm/Kbuild             |   1 -
+ arch/m32r/include/asm/Kbuild             |   1 -
+ arch/m68k/include/asm/Kbuild             |   1 -
+ arch/metag/include/asm/Kbuild            |   1 -
+ arch/microblaze/include/asm/Kbuild       |   1 -
+ arch/mips/include/asm/Kbuild             |   1 -
+ arch/mn10300/include/asm/Kbuild          |   1 -
+ arch/nios2/include/asm/Kbuild            |   1 -
+ arch/openrisc/include/asm/Kbuild         |   1 -
+ arch/parisc/include/asm/Kbuild           |   1 -
+ arch/powerpc/include/asm/mm-arch-hooks.h |  28 --
+ arch/powerpc/kernel/vdso.c               | 502 +++++--------------------------
+ arch/powerpc/kernel/vdso_common.c        | 248 +++++++++++++++
+ arch/s390/include/asm/Kbuild             |   1 -
+ arch/score/include/asm/Kbuild            |   1 -
+ arch/sh/include/asm/Kbuild               |   1 -
+ arch/sparc/include/asm/Kbuild            |   1 -
+ arch/tile/include/asm/Kbuild             |   1 -
+ arch/um/include/asm/Kbuild               |   1 -
+ arch/unicore32/include/asm/Kbuild        |   1 -
+ arch/x86/include/asm/Kbuild              |   1 -
+ arch/xtensa/include/asm/Kbuild           |   1 -
+ include/asm-generic/mm-arch-hooks.h      |  16 -
+ include/linux/mm-arch-hooks.h            |  25 --
+ mm/mremap.c                              |   4 -
+ 36 files changed, 324 insertions(+), 529 deletions(-)
+ delete mode 100644 arch/powerpc/include/asm/mm-arch-hooks.h
+ create mode 100644 arch/powerpc/kernel/vdso_common.c
+ delete mode 100644 include/asm-generic/mm-arch-hooks.h
+ delete mode 100644 include/linux/mm-arch-hooks.h
+
 -- 
-2.10.0
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
