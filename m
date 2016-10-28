@@ -1,160 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D16E56B027A
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 02:26:06 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id w3so65398983ywg.1
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 23:26:06 -0700 (PDT)
-Received: from mail-yb0-x236.google.com (mail-yb0-x236.google.com. [2607:f8b0:4002:c09::236])
-        by mx.google.com with ESMTPS id q142si4440711ywg.16.2016.10.27.23.26.04
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D19216B027A
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 02:46:00 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hm5so37895943pac.4
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 23:46:00 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id l5si12053122pgj.98.2016.10.27.23.45.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 23:26:04 -0700 (PDT)
-Received: by mail-yb0-x236.google.com with SMTP id f97so32197795ybi.1
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 23:26:04 -0700 (PDT)
+        Thu, 27 Oct 2016 23:45:59 -0700 (PDT)
+Date: Thu, 27 Oct 2016 23:45:56 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/3] iopmem : Add a block device driver for PCIe attached
+ IO memory.
+Message-ID: <20161028064556.GA3231@infradead.org>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+ <1476826937-20665-3-git-send-email-sbates@raithlin.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
- <1447181081-30056-2-git-send-email-aarcange@redhat.com> <1459974829.28435.6.camel@redhat.com>
- <20160406220202.GA2998@redhat.com> <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
- <20160921153421.GA4716@redhat.com> <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
-From: Gavin Guo <gavin.guo@canonical.com>
-Date: Fri, 28 Oct 2016 14:26:03 +0800
-Message-ID: <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1476826937-20665-3-git-send-email-sbates@raithlin.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Jay Vosburgh <jay.vosburgh@canonical.com>
+To: Stephen Bates <stephen.bates@microsemi.com>
+Cc: linux-kernel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, willy@linux.intel.com, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, hch@infradead.org, axboe@fb.com, corbet@lwn.net, jim.macdonald@everspin.com, sbates@raithin.com, logang@deltatee.com
 
-Hi Andrea,
+> Signed-off-by: Stephen Bates <sbates@raithlin.com>
 
-On Thu, Sep 22, 2016 at 6:48 PM, Gavin Guo <gavin.guo@canonical.com> wrote:
->
-> Hi Andrea,
->
-> On Wed, Sep 21, 2016 at 11:34 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> > Hello Gavin,
-> >
-> > On Wed, Sep 21, 2016 at 11:12:19PM +0800, Gavin Guo wrote:
-> >> Recently, a similar bug can also be observed under the numad process
-> >> with the v4.4 Ubuntu kernel or the latest upstream kernel. However, I
-> >> think the patch should be useful to mitigate the symptom. I tried to
-> >> search the mailing list and found the patch finally didn't be merged
-> >> into the upstream kernel. If there are any problems which drop the
-> >> patch?
-> >
-> > Zero known problems, in fact it's running in production in both RHEL7
-> > and RHEL6 for a while. The RHEL customers are not affected anymore for
-> > a while now.
-> >
-> > It's a critical computational complexity fix, if using KSM in
-> > enterprise production. Hugh already Acked it as well.
-> >
-> > It's included in -mm and Andrew submitted it once upstream, but it
-> > bounced probably perhaps it was not the right time in the merge window
-> > cycle.
-> >
-> > Or perhaps because it's complex but I wouldn't know how to simplify it
-> > but there's no bug at all in the code.
-> >
-> > I would suggest Andrew to send it once again when he feels it's a good
-> > time to do so.
-> >
-> >> The numad process tried to migrate a qemu process of 33GB memory.
-> >> Finally, it stuck in the csd_lock_wait function which causes the qemu
-> >> process hung and the virtual machine has high CPU usage and hung also.
-> >> With KSM disabled, the symptom disappeared.
-> >
-> > Until it's merged upstream you can cherrypick from my aa.git tree
-> > these three commits:
-> >
-> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=9384142e4ce830898abcefc4f0479c4533fa5bbc
-> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=4b293be7e20c8e8731a4fdc3c3bf6047304d0cc8
-> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=44c0d79c2c223c54ffe3fabc893963fc5963d611
-> >
-> > They're in -mm too.
-> >
-> >> What happens here is that do_migrate_pages (frame #10) acquires the
-> >> mmap_sem semaphore that everything else is waiting for (and that
-> >> eventually produce the hang warnings), and it holds that semaphore for
-> >> the duration of the page migration.
-> >>
-> >> crash> bt 2950
-> >> PID: 2950   TASK: ffff885f97745280  CPU: 49  COMMAND: "numad"
-> >>     [exception RIP: smp_call_function_single+219]
-> >>     RIP: ffffffff81103a0b  RSP: ffff885f8fb4fb28  RFLAGS: 00000202
-> >>     RAX: 0000000000000000  RBX: 0000000000000013  RCX: 0000000000000000
-> >>     RDX: 0000000000000003  RSI: 0000000000000100  RDI: 0000000000000286
-> >>     RBP: ffff885f8fb4fb70   R8: 0000000000000000   R9: 0000000000080000
-> >>     R10: 0000000000000000  R11: ffff883faf917c88  R12: ffffffff810725f0
-> >>     R13: 0000000000000013  R14: ffffffff810725f0  R15: ffff885f8fb4fbc8
-> >>     CS: 0010  SS: 0018
-> >>  #0 [ffff885f8fb4fb30] kvm_unmap_rmapp at ffffffffc01f1c3e [kvm]
-> >>  #1 [ffff885f8fb4fb78] smp_call_function_many at ffffffff81103db3
-> >>  #2 [ffff885f8fb4fbc0] native_flush_tlb_others at ffffffff8107279d
-> >>  #3 [ffff885f8fb4fc08] flush_tlb_page at ffffffff81072a95
-> >>  #4 [ffff885f8fb4fc30] ptep_clear_flush at ffffffff811d048e
-> >>  #5 [ffff885f8fb4fc60] try_to_unmap_one at ffffffff811cb1c7
-> >>  #6 [ffff885f8fb4fcd0] rmap_walk_ksm at ffffffff811e6f91
-> >>  #7 [ffff885f8fb4fd28] rmap_walk at ffffffff811cc1bf
-> >>  #8 [ffff885f8fb4fd80] try_to_unmap at ffffffff811cc46b
-> >>  #9 [ffff885f8fb4fdc8] migrate_pages at ffffffff811f26d8
-> >> #10 [ffff885f8fb4fe80] do_migrate_pages at ffffffff811e15f7
-> >> #11 [ffff885f8fb4fef8] sys_migrate_pages at ffffffff811e187d
-> >> #12 [ffff885f8fb4ff50] entry_SYSCALL_64_fastpath at ffffffff818244f2
-> >>
-> >> After some investigations, I've tried to disassemble the coredump and
-> >> finally find the stable_node->hlist is as long as 2306920 entries.
-> >
-> > Yep, this is definitely getting fixed by the three commits above and
-> > the problem is in rmap_walk_ksm like you found above. With that
-> > applied you can't ever run into hangs anymore with KSM enabled, no
-> > matter the workload and the amount of memory in guest and host.
-> >
-> > numad isn't required to reproduce it, some swapping is enough.
-> >
-> > It limits the de-duplication factor to 256 times, like a x256 times
-> > compression, a x256 compression factor is clearly more than enough. So
-> > effectively the list you found that was too long, gets hard-limited to
-> > 256 entries with my patch applied. The limit is configurable at runtime:
-> >
-> > /* Maximum number of page slots sharing a stable node */
-> > static int ksm_max_page_sharing = 256;
-> >
-> > If you want to increase the limit (careful: that will increase
-> > the rmap_walk_ksm computation time) you can echo $newsharinglimit >
-> > /sys/kernel/mm/ksm/max_page_sharing.
-> >
-> > Hope this helps,
-> > Andrea
->
-> Thank you for the detail explanation. I've cherry-picked these patches
-> and now doing the verification. I'll get back to you if there is any
-> problem. Thanks!
+FYI, that address has bounced throught the whole thread for me,
+replacing it with a known good one for now.
 
-Andrea,
 
-I have tried verifying these patches. However, the default 256
-bytes max_page_sharing still suffers the hung task issue. Then, the
-following sequence has been tried to mitigate the symptom. When the
-value is decreased, it took more time to reproduce the symptom.
-Finally, the value 8 has been tried and I didn't continue with lower
-value.
+> + * This driver is heavily based on drivers/block/pmem.c.
+> + * Copyright (c) 2014, Intel Corporation.
+> + * Copyright (C) 2007 Nick Piggin
+> + * Copyright (C) 2007 Novell Inc.
 
-128 -> 64 -> 32 -> 16 -> 8
+Is there anything left of it actually?  I didn't spot anything
+obvious.  Nevermind that we don't have a file with that name anymore :)
 
-The crashdump has also been investigated.
+> +  /*
+> +   * We can only access the iopmem device with full 32-bit word
+> +   * accesses which cannot be gaurantee'd by the regular memcpy
+> +   */
 
-stable_node: 0xffff880d36413040 stable_node->hlist->first = 0xffff880e4c9f4cf0
-crash> list hlist_node.next 0xffff880e4c9f4cf0  > rmap_item.lst
+Odd comment formatting. 
 
-$ wc -l rmap_item.lst
-$ 8 rmap_item.lst
+> +static void memcpy_from_iopmem(void *dst, const void *src, size_t sz)
+> +{
+> +	u64 *wdst = dst;
+> +	const u64 *wsrc = src;
+> +	u64 tmp;
+> +
+> +	while (sz >= sizeof(*wdst)) {
+> +		*wdst++ = *wsrc++;
+> +		sz -= sizeof(*wdst);
+> +	}
+> +
+> +	if (!sz)
+> +		return;
+> +
+> +	tmp = *wsrc;
+> +	memcpy(wdst, &tmp, sz);
+> +}
 
-This shows that the list is actually reduced to 8 items. I wondered if the
-loop is still consuming a lot of time and hold the mmap_sem too long.
+And then we dod a memcpy here anyway.  And no volatile whatsover, so
+the compiler could do anything to it.  I defintively feel a bit uneasy
+about having this in the driver as well.  Can we define the exact
+semantics for this and define it by the system, possibly in an arch
+specific way?
+
+> +static void iopmem_do_bvec(struct iopmem_device *iopmem, struct page *page,
+> +			   unsigned int len, unsigned int off, bool is_write,
+> +			   sector_t sector)
+> +{
+> +	phys_addr_t iopmem_off = sector * 512;
+> +	void *iopmem_addr = iopmem->virt_addr + iopmem_off;
+> +
+> +	if (!is_write) {
+> +		read_iopmem(page, off, iopmem_addr, len);
+> +		flush_dcache_page(page);
+> +	} else {
+> +		flush_dcache_page(page);
+> +		write_iopmem(iopmem_addr, page, off, len);
+> +	}
+
+How about moving the  address and offset calculation as well as the
+cache flushing into read_iopmem/write_iopmem and removing this function?
+
+> +static blk_qc_t iopmem_make_request(struct request_queue *q, struct bio *bio)
+> +{
+> +	struct iopmem_device *iopmem = q->queuedata;
+> +	struct bio_vec bvec;
+> +	struct bvec_iter iter;
+> +
+> +	bio_for_each_segment(bvec, bio, iter) {
+> +		iopmem_do_bvec(iopmem, bvec.bv_page, bvec.bv_len,
+> +			    bvec.bv_offset, op_is_write(bio_op(bio)),
+> +			    iter.bi_sector);
+
+op_is_write just checks the data direction.  I'd feel much more
+comfortable with a switch on the op, e.g.
+
+	switch (bio_op(bio))) {
+	case REQ_OP_READ:
+		bio_for_each_segment(bvec, bio, iter)
+			read_iopmem(iopmem, bvec, iter.bi_sector);
+		break;
+	case REQ_OP_READ:
+		bio_for_each_segment(bvec, bio, iter)
+			write_iopmem(iopmem, bvec, iter.bi_sector);
+	defualt:
+		WARN_ON_ONCE(1);
+		bio->bi_error = -EIO;
+		break;
+	}
+			
+
+> +static long iopmem_direct_access(struct block_device *bdev, sector_t sector,
+> +			       void **kaddr, pfn_t *pfn, long size)
+> +{
+> +	struct iopmem_device *iopmem = bdev->bd_queue->queuedata;
+> +	resource_size_t offset = sector * 512;
+> +
+> +	if (!iopmem)
+> +		return -ENODEV;
+
+I don't think this can ever happen, can it?
+
+> +static DEFINE_IDA(iopmem_instance_ida);
+> +static DEFINE_SPINLOCK(ida_lock);
+> +
+> +static int iopmem_set_instance(struct iopmem_device *iopmem)
+> +{
+> +	int instance, error;
+> +
+> +	do {
+> +		if (!ida_pre_get(&iopmem_instance_ida, GFP_KERNEL))
+> +			return -ENODEV;
+> +
+> +		spin_lock(&ida_lock);
+> +		error = ida_get_new(&iopmem_instance_ida, &instance);
+> +		spin_unlock(&ida_lock);
+> +
+> +	} while (error == -EAGAIN);
+> +
+> +	if (error)
+> +		return -ENODEV;
+> +
+> +	iopmem->instance = instance;
+> +	return 0;
+> +}
+> +
+> +static void iopmem_release_instance(struct iopmem_device *iopmem)
+> +{
+> +	spin_lock(&ida_lock);
+> +	ida_remove(&iopmem_instance_ida, iopmem->instance);
+> +	spin_unlock(&ida_lock);
+> +}
+> +
+
+Just use ida_simple_get/ida_simple_remove instead to take care
+of the locking and preloading, and get rid of these two functions.
+
+
+> +static int iopmem_attach_disk(struct iopmem_device *iopmem)
+> +{
+> +	struct gendisk *disk;
+> +	int nid = dev_to_node(iopmem->dev);
+> +	struct request_queue *q = iopmem->queue;
+> +
+> +	blk_queue_write_cache(q, true, true);
+
+You don't handle flush commands or the fua bit in make_request, so
+this setting seems wrong.
+
+> +	int err = 0;
+> +	int nid = dev_to_node(&pdev->dev);
+> +
+> +	if (pci_enable_device_mem(pdev) < 0) {
+
+propagate the actual error code, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
