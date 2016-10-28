@@ -1,89 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6C26B0276
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 14:09:28 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id f78so132358359oih.7
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:09:28 -0700 (PDT)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id g7si9874008otd.293.2016.10.28.11.09.27
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B0BB26B0282
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 14:31:17 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id x11so106510536qka.5
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:31:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w23si8940273qka.222.2016.10.28.11.31.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Oct 2016 11:09:27 -0700 (PDT)
-Received: by mail-oi0-x243.google.com with SMTP id e12so1566343oib.3
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:09:27 -0700 (PDT)
+        Fri, 28 Oct 2016 11:31:16 -0700 (PDT)
+Date: Fri, 28 Oct 2016 20:31:13 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
+Message-ID: <20161028183113.GB4611@redhat.com>
+References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
+ <1447181081-30056-2-git-send-email-aarcange@redhat.com>
+ <1459974829.28435.6.camel@redhat.com>
+ <20160406220202.GA2998@redhat.com>
+ <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+ <20160921153421.GA4716@redhat.com>
+ <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
+ <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20161028173430.GE5112@char.us.oracle.com>
-References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
- <20161025153703.4815.13673.stgit@ahduyck-blue-test.jf.intel.com> <20161028173430.GE5112@char.us.oracle.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 28 Oct 2016 11:09:26 -0700
-Message-ID: <CAKgT0UeG7HXCx7xpyFa5u5ytUEd4s3oor5AX-8b8UbDrqvOgUw@mail.gmail.com>
-Subject: Re: [net-next PATCH 03/27] swiotlb: Add support for DMA_ATTR_SKIP_CPU_SYNC
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Alexander Duyck <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, intel-wired-lan <intel-wired-lan@lists.osuosl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>
+To: Gavin Guo <gavin.guo@canonical.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Jay Vosburgh <jay.vosburgh@canonical.com>
 
-On Fri, Oct 28, 2016 at 10:34 AM, Konrad Rzeszutek Wilk
-<konrad.wilk@oracle.com> wrote:
-> On Tue, Oct 25, 2016 at 11:37:03AM -0400, Alexander Duyck wrote:
->> As a first step to making DMA_ATTR_SKIP_CPU_SYNC apply to architectures
->> beyond just ARM I need to make it so that the swiotlb will respect the
->> flag.  In order to do that I also need to update the swiotlb-xen since it
->> heavily makes use of the functionality.
->>
->> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
->
-> I am pretty sure I acked it the RFC. Was there a particular
-> reason (this is very different from the RFC?) you dropped my ACk?
->
-> Thanks.
+On Fri, Oct 28, 2016 at 02:26:03PM +0800, Gavin Guo wrote:
+> I have tried verifying these patches. However, the default 256
+> bytes max_page_sharing still suffers the hung task issue. Then, the
+> following sequence has been tried to mitigate the symptom. When the
+> value is decreased, it took more time to reproduce the symptom.
+> Finally, the value 8 has been tried and I didn't continue with lower
+> value.
+> 
+> 128 -> 64 -> 32 -> 16 -> 8
+> 
+> The crashdump has also been investigated.
 
-If I recall you had acked patch 1, but for 2 you had some review
-comments on and suggested I change a few things.  What was patch 2 in
-the RFC was split out into patches 2 and 3.  That is why I didn't
-include an Ack from you for those patches.
+You should try to get multiple sysrq+l too during the hang.
 
-Patch 2 is a fix for Xen to address the fact that you could return
-either 0 or ~0.  It was part of patch 2 originally and I pulled it out
-into a separate patch.
+> stable_node: 0xffff880d36413040 stable_node->hlist->first = 0xffff880e4c9f4cf0
+> crash> list hlist_node.next 0xffff880e4c9f4cf0  > rmap_item.lst
+> 
+> $ wc -l rmap_item.lst
+> $ 8 rmap_item.lst
+> 
+> This shows that the list is actually reduced to 8 items. I wondered if the
+> loop is still consuming a lot of time and hold the mmap_sem too long.
 
-Patch 3 does most of what patch 2 in the RFC was doing before with
-fixes to address the fact that I was moving some code to avoid going
-over 80 characters.  I found a different way to fix that by just
-updating attrs before using it instead of ORing in the value when
-passing it as a parameter.
+Even the default 256 would be enough (certainly with KVM that doesn't
+have a deep anon_vma interval tree).
 
->> @@ -558,11 +560,12 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
->>                                                                start_dma_addr,
->>                                                                sg_phys(sg),
->>                                                                sg->length,
->> -                                                              dir);
->> +                                                              dir, attrs);
->>                       if (map == SWIOTLB_MAP_ERROR) {
->>                               dev_warn(hwdev, "swiotlb buffer is full\n");
->>                               /* Don't panic here, we expect map_sg users
->>                                  to do proper error handling. */
->> +                             attrs |= DMA_ATTR_SKIP_CPU_SYNC;
->>                               xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
->>                                                          attrs);
->>                               sg_dma_len(sgl) = 0;
+Perhaps this is an app with a massively large anon_vma interval tree
+and uses MADV_MERGEABLE and not qemu/kvm? However then you'd run in
+similar issues with anon pages rmap walks so KSM wouldn't be to
+blame. The depth of the rmap_items multiplies the cost of the rbtree
+walk 512 times but still it shouldn't freeze for seconds.
 
-The biggest difference from patch 2 in the RFC is right here.  This
-code before was moving this off to the end of the function and adding
-a label which I then jumped to.  I just ORed the
-DMA_ATTR_SKIP_CPU_SYNC into attrs and skipped the problem entirely.
-It should be harmless to do this way since attrs isn't used anywhere
-else once we have had the error.
+The important thing here is that the app is in control of the max
+depth of the anon_vma interval tree while it's not in control of the
+max depth of the rmap_item list, this is why it's fundamental that the
+KSM rmap_item list is bounded to a max value, while the depth of the
+interval tree is secondary issue because userland has a chance to
+optimize for it. If the app deep forks and uses MADV_MERGEABLE that is
+possible to optimize in userland. But I guess the app that is using
+MADV_MERGEABLE is qemu/kvm for you too so it can't be a too long
+interval tree. Furthermore if when the symptom triggers you still get
+a long hang even with rmap_item depth of 8 and it just takes longer
+time to reach the hanging point, it may be something else.
 
-I hope that helps to clear it up.  So if you want I will add your
-Acked-by for patches 2 and 3, but I just wanted to make sure this
-worked with the changes you suggested.
+I assume this is not an upstream kernel, can you reproduce on the
+upstream kernel? Sorry but I can't help you any further, if this isn't
+first verified on the upstream kernel.
 
-Thanks.
+Also if you test on the upstream kernel you can leave the default
+value of 256 and then use sysrq+l to get multiple dumps of what's
+running in the CPUs. The crash dump is useful as well but it's also
+interesting to see what's running most frequently during the hang
+(which isn't guaranteed to be shown by the exact point in time the
+crash dump is being taken). perf top -g may also help if this is a
+computational complexity issue inside the kernel to see where most CPU
+is being burnt.
 
-- Alex
+Note the problem was reproduced and verified as fixed. It's quite easy
+to reproduce, I used migrate_pages syscall to do that, and after the
+deep KSM merging that takes several seconds in strace -tt, while with
+the fix it stays in the order of milliseconds. The point is that with
+deeper merging the migrate_pages could take minutes in unkillable R
+state (or during swapping), while with the KSMscale fix it gets capped
+to milliseconds no matter what.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
