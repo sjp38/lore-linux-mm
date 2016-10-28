@@ -1,238 +1,327 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A63686B027A
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 21:28:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t25so14226416pfg.3
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 18:28:24 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o4si10671581pfg.49.2016.10.27.18.28.23
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B4A6B027A
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 01:47:41 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ml10so33447451pab.5
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 22:47:41 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n124si11803696pfn.198.2016.10.27.22.47.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 18:28:23 -0700 (PDT)
-Date: Thu, 27 Oct 2016 18:28:22 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-10-27-18-27 uploaded
-Message-ID: <5812a9b6.OlAMBhewokz9/Mou%akpm@linux-foundation.org>
+        Thu, 27 Oct 2016 22:47:40 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9S5hkUv026894
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 01:47:39 -0400
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26bvc1vn5j-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 01:47:39 -0400
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 28 Oct 2016 15:47:36 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 007192BB0054
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 16:47:35 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9S5lYBH15925334
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 16:47:34 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9S5lYGW012904
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 16:47:34 +1100
+Subject: Re: [RFC 0/8] Define coherent device memory node
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <20161024170902.GA5521@gmail.com> <877f8xaurp.fsf@linux.vnet.ibm.com>
+ <20161025153256.GB6131@gmail.com> <87shrkjpyb.fsf@linux.vnet.ibm.com>
+ <20161025185247.GA7188@gmail.com> <58108FC6.5070701@linux.vnet.ibm.com>
+ <20161026160226.GA13371@gmail.com> <581184C2.4000903@linux.vnet.ibm.com>
+ <5811A6A9.8080802@linux.vnet.ibm.com> <20161027150509.GA2288@gmail.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 28 Oct 2016 11:17:31 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20161027150509.GA2288@gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <5812E673.7050907@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
 
-The mm-of-the-moment snapshot 2016-10-27-18-27 has been uploaded to
+On 10/27/2016 08:35 PM, Jerome Glisse wrote:
+> On Thu, Oct 27, 2016 at 12:33:05PM +0530, Anshuman Khandual wrote:
+>> On 10/27/2016 10:08 AM, Anshuman Khandual wrote:
+>>> On 10/26/2016 09:32 PM, Jerome Glisse wrote:
+>>>> On Wed, Oct 26, 2016 at 04:43:10PM +0530, Anshuman Khandual wrote:
+>>>>> On 10/26/2016 12:22 AM, Jerome Glisse wrote:
+>>>>>> On Tue, Oct 25, 2016 at 11:01:08PM +0530, Aneesh Kumar K.V wrote:
+>>>>>>> Jerome Glisse <j.glisse@gmail.com> writes:
+>>>>>>>> On Tue, Oct 25, 2016 at 10:29:38AM +0530, Aneesh Kumar K.V wrote:
+>>>>>>>>> Jerome Glisse <j.glisse@gmail.com> writes:
+>>>>>>>>>> On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
+> 
+> [...]
+> 
+>>>> In my patchset there is no policy, it is all under device driver control which
+>>>> decide what range of memory is migrated and when. I think only device driver as
+>>>> proper knowledge to make such decision. By coalescing data from GPU counters and
+>>>> request from application made through the uppler level programming API like
+>>>> Cuda.
+>>>>
+>>>
+>>> Right, I understand that. But what I pointed out here is that there are problems
+>>> now migrating user mapped pages back and forth between LRU system RAM memory and
+>>> non LRU device memory which is yet to be solved. Because you are proposing a non
+>>> LRU based design with ZONE_DEVICE, how we are solving/working around these
+>>> problems for bi-directional migration ?
+>>
+>> Let me elaborate on this bit more. Before non LRU migration support patch series
+>> from Minchan, it was not possible to migrate non LRU pages which are generally
+>> driver managed through migrate_pages interface. This was affecting the ability
+>> to do compaction on platforms which has a large share of non LRU pages. That series
+>> actually solved the migration problem and allowed compaction. But it still did not
+>> solve the migration problem for non LRU *user mapped* pages. So if the non LRU pages
+>> are mapped into a process's page table and being accessed from user space, it can
+>> not be moved using migrate_pages interface.
+>>
+>> Minchan had a draft solution for that problem which is still hosted here. On his
+>> suggestion I had tried this solution but still faced some other problems during
+>> mapped pages migration. (NOTE: IIRC this was not posted in the community)
+>>
+>> git://git.kernel.org/pub/scm/linux/kernel/git/minchan/linux.git with the following
+>> branch (non-lru-mapped-v1r2-v4.7-rc4-mmotm-2016-06-24-15-53) 
+>>
+>> As I had mentioned earlier, we intend to support all possible migrations between
+>> system RAM (LRU) and device memory (Non LRU) for user space mapped pages.
+>>
+>> (1) System RAM (Anon mapping) --> Device memory, back and forth many times
+>> (2) System RAM (File mapping) --> Device memory, back and forth many times
+> 
+> I achieve this 2 objective in HMM, i sent you the additional patches for file
+> back page migration. I am not done working on them but they are small.
 
-   http://www.ozlabs.org/~akpm/mmotm/
+Sure, will go through them. Thanks !
 
-mmotm-readme.txt says
+> 
+> 
+>> This is not happening now with non LRU pages. Here are some of reasons but before
+>> that some notes.
+>>
+>> * Driver initiates all the migrations
+>> * Driver does the isolation of pages
+>> * Driver puts the isolated pages in a linked list
+>> * Driver passes the linked list to migrate_pages interface for migration
+>> * IIRC isolation of non LRU pages happens through page->as->aops->isolate_page call
+>> * If migration fails, call page->as->aops->putback_page to give the page back to the
+>>   device driver
+>>
+>> 1. queue_pages_range() currently does not work with non LRU pages, needs to be fixed
+>>
+>> 2. After a successful migration from non LRU device memory to LRU system RAM, the non
+>>    LRU will be freed back. Right now migrate_pages releases these pages to buddy, but
+>>    in this situation we need the pages to be given back to the driver instead. Hence
+>>    migrate_pages needs to be changed to accommodate this.
+>>
+>> 3. After LRU system RAM to non LRU device migration for a mapped page, does the new
+>>    page (which came from device memory) will be part of core MM LRU either for Anon
+>>    or File mapping ?
+>>
+>> 4. After LRU (Anon mapped) system RAM to non LRU device migration for a mapped page,
+>>    how we are going to store "address_space->address_space_operations" and "Anon VMA
+>>    Chain" reverse mapping information both on the page->mapping element ?
+>>
+>> 5. After LRU (File mapped) system RAM to non LRU device migration for a mapped page,
+>>    how we are going to store "address_space->address_space_operations" of the device
+>>    driver and radix tree based reverse mapping information for the existing file
+>>    mapping both on the same page->mapping element ?
+>>
+>> 6. IIRC, it was not possible to retain the non LRU identify (page->as->aops which will
+>>    defined inside the device driver) and the reverse mapping information (either anon
+>>    or file mapping) together after first round of migration. This non LRU identity needs
+>>    to be retained continuously if we ever need to return this page to device driver after
+>>    successful migration to system RAM or for isolation/putback purpose or something else.
+>>
+>> All the reasons explained above was preventing a continuous ping-pong scheme of migration
+>> between system RAM LRU buddy pages and device memory non LRU pages which is one of the
+>> primary requirements for exploiting coherent device memory. Do you think we can solve these
+>> problems with ZONE_DEVICE and HMM framework ?
+> 
+> Well HMM already achieve migration but design is slightly different :
+>  * Device driver initiate migration by calling hmm_migrate(mm, start, end, pfn_array);
+>    It must provide a pfn_array that is big enough to have one entry per page for the
+>    range (so ((end - start) >> PAGE_SHIFT) entries). With this array no list of page.
 
-README for mm-of-the-moment:
+If we are not going to use standard core migrate_pages() interface, there is no need
+of building a linked list of isolated source pages for migration. Though I see a
+different hmm_migrate() function in the V13 tree which involves hmm_migrate structure,
+lets focus on hmm_migrate(mm, start, end, pfn_array) format. I guess (mm, start, end)
+describes the virtual range of a process which needs to be migrated and pfn_array[]
+is the destination array of PFNs for the migration ?
 
-http://www.ozlabs.org/~akpm/mmotm/
+* I assume pfn_array[] can contain either system RAM PFN or device memory PFN ? It
+  will support migration in both directions ?
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+* Device memory PFN can have struct pages (If ZONE_DEVICE based) or it may not have
+  struct pages ?
+> 
+>  * hmm_migrate() collect source pages from the process. Right now it will only migrate
+>    thing that have been faulted ie with a valid CPU page table entry and will ignore
+>    swap entry, or any other special CPU page table entry. Those source pages are store
+>    in the pfn array (using their pfn value with flag like write permission)
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+So source PFNs go into pfn_array[], I was thinking it contains destination PFNs.
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+> 
+>  * hmm_migrate() isolate all lru pages collected in previous step. For ZONE_DEVICE pages
+>    it does nothing. Non lru page can be migrated only if it is a ZONE_DEVICE page. Any
+>    non lru page that is not ZONE_DEVICE is ignored.
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+Hmm, may be because it does not have either page->pgmap (which you have extended to
+contain some driver specific callbacks) or page->as->aops (Minchan Kim's framework).
+Therefore any other kind of non LRU pages cannot migrate.
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+> 
+>  * hmm_migrate() unmap all the pages and check the refcount. If there a page is pin then
+>    it restore CPU page table, put back the page on lru (if it is not a ZONE_DEVICE page)
+>    and clear the associated entry inside the pfn_array.
 
+Got it. pfn_array[] at the end will contain all PFNs which need to be migrated.
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+> 
+>  * hmm_migrate() use device driver callback alloc_and_copy() this device driver callback
+>    will allocate destination device page and copy from the source page. It uses the pfn
 
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+So if the migration is from device to system RAM, alloc_and_copy() will allocate the
+destination system RAM pages and at that time pfn_array[] contains source device memory
+PFNs ? I am just trying see if it works both ways.
 
-To develop on top of mmotm git:
+>    array to know which page can be migrated in the range (there is a flag). The callback
+>    must also update the pfn_array and replace any entry that was successfully allocated
+>    and copied with the pfn of the device page (and flag).
+> 
+>  * hmm_migrate() do the final struct page meta-data migration which might fail in case of
+>    file back page (buffer head migration fails or radix tree fails ...)
+> 
+>  * hmm_migrate() update the CPU page table ie remove migration special entry to point
+>    to new page if migration successfull or restore to old page otherwise. It also unlock
+>    page and call put_page() on them either through lru put back or directly for
+>    ZONE_DEVICE pages.
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+If it's a ZONE_DEVICE page, the registered device driver also gets notified about it ?
+So that it can update it's own accounting regarding the allocated and free memory pages
+that it owns through a hot plugged ZONE_DEVICE zone ?
 
-To rebase a branch with older patches to a new mmotm release:
+> 
+>  * hmm_migrate() call cleanup() only now device driver can update its page table
 
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+Though I still need to understand the page table mirroring part, I can clearly see
+that hmm_migrate() attempts to implement a parallel migrate_pages() kind of interface
+which can work with non LRU pages (right now ZONE_DEVICE based only) and a device
+driver. We will have to see whether this hmm_migrate() interface can accommodate all
+kind and direction of migration.
 
+Minchan Kim's framework enabled non LRU page migration in a different way. The device
+driver is suppose to create a stand alone struct address_space_operation and struct
+address_space and load them into each struct page with a call. Now all non LRU pages
+contains the stand alone struct address_space_operations as page->as->aops based
+callbacks.
 
+Now we have a different way of enabling non LRU device page migration by extending
+ZONE_DEVICE framework, does it overlap with the functionality already supported
+by the previous framework ? I am just curious.
 
+> 
+> 
+> I slightly changing the last 2 step, it would be call device driver callback first
+> and then restore CPU page table and device driver callback would be rename to
+> finalize_and_map().
+> 
+> So with this design:
+>  1. is a non-issue (use of pfn array and not list of page).
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
+Right.
 
-A git copy of this tree is available at
+> 
+>  2. is a non-issue successfull migration from ZONE_DEVICE (GPU memory) to system
+>     memory call put_page() which in turn will call inside the device driver
+>     to inform the device driver that page is free (assuming refcount on page
+>     reach 1)
 
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+Right.
 
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+> 
+>  3. New page is not part of the LRU if it is a device page. Assumption is that the
+>     device driver wants to manage its memory by itself and LRU would interfer with
+>     that. Moreover this is a device page and thus it is not something that should be
+>     use for emergency memory allocation or any regular allocation. So it is pointless
+>     for kernel to try to keep aging those pages to see when they can be reclaim.
 
+If the driver manages everything, these device memory pages need not be on the LRU after
+migration. But not being on any LRU makes it difficult for other core MM features to work
+on these pages any more. Almost all core mm interfaces expect the pages to be on LRU, IIUC.
+Though they all can be changed to accommodate non LRU pages but dont you think that can be
+a lot of work ? Just curious.
 
-This mmotm tree contains the following patches against 4.9-rc2:
-(patches marked "*" will be included in linux-next)
+> 
+>  4. I do not store address_space operation of a device, i extended struct dev_pagemap
+>     to have more callback and this can be access through struct page->pgmap
+>     So the for ZONE_DEVICE page the page->mapping point to the expected page->mapping
+>     ie for anonymous page it points to the anon vma chain and for file back page it
+>     points to the address space of the filesystem on which the file is.
 
-  origin.patch
-* mm-slab-fix-kmemcg-cache-creation-delayed-issue.patch
-* kcov-properly-check-if-we-are-in-an-interrupt.patch
-* h8300-fix-syscall-restarting.patch
-* mm-list_lruc-avoid-error-path-null-pointer-deref.patch
-* mm-page_alloc-use-kern_cont-where-appropriate.patch
-* mm-slab-improve-performance-of-gathering-slabinfo-stats.patch
-* ipc-account-for-kmem-usage-on-mqueue-and-msg.patch
-* kconfigh-remove-config_enabled-macro.patch
-* latent_entropy-raise-config_frame_warn-by-default.patch
-* lib-bump-stackdepot-capacity-from-16mb-to-128mb.patch
-* mm-kmemleak-ensure-that-the-task-stack-is-not-freed-during-scanning.patch
-* proc-fix-null-dereference-when-reading-proc-pid-auxv.patch
-* credits-update-credit-information-for-martin-kepplinger.patch
-* mm-memcontrol-do-not-recurse-in-direct-reclaim.patch
-* lib-genallocc-start-search-from-start-of-chunk.patch
-* fs-exofs-print-a-hex-number-after-a-0x-prefix.patch
-* block-dac960-print-a-hex-number-after-a-0x-prefix.patch
-* ipack-print-a-hex-number-after-a-0x-prefix.patch
-* cris-arch-v32-cryptocop-print-a-hex-number-after-a-0x-prefix.patch
-* drivers-misc-sgi-gru-grumainc-remove-bogus-0x-prefix-from-printk.patch
-  i-need-old-gcc.patch
-* mm-remove-extra-newline-from-allocation-stall-warning.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* prctl-remove-one-shot-limitation-for-changing-exe-link.patch
-* prctl-remove-one-shot-limitation-for-changing-exe-link-fix.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* ocfs2-dlm-clean-up-useless-bug_on-default-case-in-dlm_finalize_reco_handler.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-memcontrol-use-special-workqueue-for-creating-per-memcg-caches.patch
-* slub-move-synchronize_sched-out-of-slab_mutex-on-shrink.patch
-* slub-avoid-false-postive-warning.patch
-* dont-touch-single-threaded-ptes-which-are-on-the-right-node.patch
-* dont-touch-single-threaded-ptes-which-are-on-the-right-node-v3.patch
-* vmscan-set-correct-defer-count-for-shrinker.patch
-* mm-compaction-allow-compaction-for-gfp_nofs-requests.patch
-* mm-compaction-allow-compaction-for-gfp_nofs-requests-fix.patch
-* mm-gup-make-unnecessarily-global-vma_permits_fault-static.patch
-* mm-hugetlb-use-the-right-pte-val-for-compare-in-hugetlb_cow.patch
-* mm-hugetlb-use-huge_pte_lock-instead-of-opencoding-the-lock.patch
-* z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patch
-* kmemleak-fix-reference-to-documentation.patch
-* mm-vmalloc-replace-opencoded-4-level-page-walkers.patch
-* mm-dont-steal-highatomic-pageblock.patch
-* mm-prevent-double-decrease-of-nr_reserved_highatomic.patch
-* mm-try-to-exhaust-highatomic-reserve-before-the-oom.patch
-* mm-make-unreserve-highatomic-functions-reliable.patch
-* mm-vmallocc-simplify-proc-vmallocinfo-implementation.patch
-* mm-thp-avoid-unlikely-branches-for-split_huge_pmd.patch
-* mm-mempolicy-clean-up-__gfp_thisnode-confusion-in-policy_zonelist.patch
-* mm-mempolicy-clean-up-__gfp_thisnode-confusion-in-policy_zonelist-checkpatch-fixes.patch
-* mm-compaction-fix-nr_isolated_-stats-for-pfn-based-migration.patch
-* shmem-avoid-huge-pages-for-small-files.patch
-* shmem-avoid-maybe-uninitialized-warning.patch
-* mm-use-the-correct-page-size-when-removing-the-page.patch
-* mm-update-mmu_gather-range-correctly.patch
-* mm-hugetlb-add-tlb_remove_hugetlb_entry-for-handling-hugetlb-pages.patch
-* mm-add-tlb_remove_check_page_size_change-to-track-page-size-change.patch
-* mm-remove-the-page-size-change-check-in-tlb_remove_page.patch
-* mm-fixup-get_user_pages-comments.patch
-* mm-mempolicyc-forbid-static-or-relative-flags-for-local-numa-mode.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* kasan-support-panic_on_warn.patch
-* mm-percpuc-fix-panic-triggered-by-bug_on-falsely.patch
-* fs-proc-arrayc-slightly-improve-render_sigset_t.patch
-* hung_task-decrement-sysctl_hung_task_warnings-only-if-it-is-positive.patch
-* kernel-smp-define-pr_fmt-for-smpc.patch
-* kernel-smp-make-the-smp-boot-message-common-on-all-arches.patch
-* kernel-smp-tell-the-user-were-bringing-up-secondary-cpus.patch
-* get_maintainer-look-for-arbitrary-letter-prefixes-in-sections.patch
-* maintainers-add-b-for-uri-where-to-file-bugs.patch
-* maintainers-add-drm-and-drm-i915-bug-filing-info.patch
-* maintainers-add-c-for-uri-for-chat-where-developers-hang-out.patch
-* maintainers-add-drm-and-drm-i915-irc-channels.patch
-* let-config_strict_devmem-depends-on-config_devmem.patch
-* lib-rbtreec-fix-typo-in-comment-of-____rb_erase_color.patch
-* lib-add-crc64-ecma-module.patch
-* checkpatch-dont-try-to-get-maintained-status-when-no-tree-is-given.patch
-* scripts-checkpatchpl-fix-spelling.patch
-* checkpatch-dont-check-pl-files-improve-absolute-path-commit-log-test.patch
-* vfs-change-d_manage-to-take-a-struct-path.patch
-* vfs-add-path_is_mountpoint-helper.patch
-* vfs-add-path_has_submounts.patch
-* autofs-change-autofs4_expire_wait-to-take-struct-path.patch
-* autofs-change-autofs4_wait-to-take-struct-path.patch
-* autofs-use-path_is_mountpoint-to-fix-unreliable-d_mountpoint-checks.patch
-* autofs-use-path_has_submounts-to-fix-unreliable-have_submount-checks.patch
-* vfs-remove-unused-have_submounts-function.patch
-* signals-avoid-unnecessary-taking-of-sighand-siglock.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* relay-check-array-offset-before-using-it.patch
-* kconfig-lib-kconfigdebug-fix-references-to-documenation.patch
-* kconfig-lib-kconfigubsan-fix-reference-to-ubsan-documentation.patch
-* debug-more-properly-delay-for-secondary-cpus.patch
-* debug-more-properly-delay-for-secondary-cpus-fix.patch
-* initramfs-select-builtin-initram-compression-algorithm-on-kconfig-instead-of-makefile.patch
-* initramfs-allow-again-choice-of-the-embedded-initram-compression-algorithm.patch
-* ipc-semc-avoid-using-spin_unlock_wait.patch
-* ipc-sem-add-hysteresis.patch
-* ipc-msg-make-msgrcv-work-with-long_min.patch
-* ipc-sem-do-not-call-wake_sem_queue_do-prematurely.patch
-* ipc-sem-rework-task-wakeups.patch
-* ipc-sem-rework-task-wakeups-checkpatch-fixes.patch
-* ipc-sem-optimize-perform_atomic_semop.patch
-* ipc-sem-optimize-perform_atomic_semop-checkpatch-fixes.patch
-* ipc-sem-explicitly-inline-check_restart.patch
-* ipc-sem-use-proper-list-api-for-pending_list-wakeups.patch
-  linux-next.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* kexec_file-allow-arch-specific-memory-walking-for-kexec_add_buffer.patch
-* kexec_file-change-kexec_add_buffer-to-take-kexec_buf-as-argument.patch
-* kexec_file-factor-out-kexec_locate_mem_hole-from-kexec_add_buffer.patch
-* powerpc-change-places-using-config_kexec-to-use-config_kexec_core-instead.patch
-* powerpc-factor-out-relocation-code-in-module_64c.patch
-* powerpc-implement-kexec_file_load.patch
-* powerpc-add-functions-to-read-elf-files-of-any-endianness.patch
-* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load.patch
-* powerpc-add-purgatory-for-kexec_file_load-implementation.patch
-* powerpc-enable-config_kexec_file-in-powerpc-server-defconfigs.patch
-* powerpc-ima-get-the-kexec-buffer-passed-by-the-previous-kernel.patch
-* ima-on-soft-reboot-restore-the-measurement-list.patch
-* ima-permit-duplicate-measurement-list-entries.patch
-* ima-maintain-memory-size-needed-for-serializing-the-measurement-list.patch
-* powerpc-ima-send-the-kexec-buffer-to-the-next-kernel.patch
-* ima-on-soft-reboot-save-the-measurement-list.patch
-* ima-store-the-builtin-custom-template-definitions-in-a-list.patch
-* ima-support-restoring-multiple-template-formats.patch
-* ima-define-a-canonical-binary_runtime_measurements-list-format.patch
-* ima-platform-independent-hash-value.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+Right.
+
+> 
+>  5. See 4 above
+
+Right.
+
+> 
+>  6. I do not store any device driver specific address space operation inside struct
+>     page. I do not see the need for that and doing so would require major changes to
+>     kernel mm code. All the device driver cares about is being told when a page is
+>     free (as i am assuming device does the allocation in the first place).
+> 
+
+Minchan's work introduced the idea of PageMovable (IIUC, it just says its a movable
+non LRU page with page->mapping->aops and some struct page flags) and changed parts
+of the core MM migration and compaction functions to accommodate MovablePage.
+
+> It seems you want to rely on following struct address_space_operations callback:
+>   void (*putback_page)(struct page *);
+>   bool (*isolate_page)(struct page *, isolate_mode_t);
+>   int (*migratepage) (...);
+> 
+> For putback_page i added a free_page() to struct dev_pagemap which does the job.
+
+Right, sounds correct from this ZONE_DEVICE based framework.
+
+> I do not see need for isolate_page() and it would be bad as some filesystem do
+> special thing in that callback. If you update the CPU page table the device should
+
+It was a dummy device driver specific address_space_operations, hence its not related
+to any file system as such.
+
+> see that and i do not think you would need any special handling inside the device
+> driver code.
+
+I need to understand this part. How a call back from CPU page table update comes to
+the device driver, will go through HMM V13 for that.
+
+> 
+> For migratepage() again i do not see the use for it. Some fs have special callback
+> and that should be the one use.
+> 
+> 
+> So i really don't think we need to have an address_space for page that are coming
+> from device. I think we can add thing to struct dev_pagemap if needed.
+
+Right, sounds correct from this ZONE_DEVICE based framework.
+
+> 
+> Did i miss something ? :)
+
+Will have more questions after looking deeper into HMM :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
