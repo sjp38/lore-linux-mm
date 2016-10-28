@@ -1,95 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF636B027A
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 10:59:33 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id d33so51806772uad.2
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 07:59:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o17si6292867uab.199.2016.10.28.07.59.02
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE046B027A
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:48:03 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id f78so122740618oih.7
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 08:48:03 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id g66si9556424otb.41.2016.10.28.08.48.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Oct 2016 07:59:02 -0700 (PDT)
-Message-ID: <1477666740.31844.9.camel@redhat.com>
-Subject: Re: [net-next PATCH RFC 07/26] arch/c6x: Add option to skip sync on
- DMA map and unmap
-From: Mark Salter <msalter@redhat.com>
-Date: Fri, 28 Oct 2016 10:59:00 -0400
-In-Reply-To: <20161024120503.16276.44357.stgit@ahduyck-blue-test.jf.intel.com>
-References: 
-	<20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
-	 <20161024120503.16276.44357.stgit@ahduyck-blue-test.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 28 Oct 2016 08:48:02 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id 62so676105oif.1
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 08:48:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
+References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 28 Oct 2016 08:48:01 -0700
+Message-ID: <CAKgT0UfOZuRnon84_8Bdn5muoi7=Xrwd7Kbxi4C8jiXpyX7-gg@mail.gmail.com>
+Subject: Re: [net-next PATCH 00/27] Add support for DMA writable pages being
+ writable by the network stack
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: brouer@redhat.com, davem@davemloft.net, linux-c6x-dev@linux-c6x.org, Aurelien Jacquiot <a-jacquiot@ti.com>
+To: David Miller <davem@davemloft.net>
+Cc: Netdev <netdev@vger.kernel.org>, intel-wired-lan <intel-wired-lan@lists.osuosl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Alexander Duyck <alexander.h.duyck@intel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>
 
-On Mon, 2016-10-24 at 08:05 -0400, Alexander Duyck wrote:
-> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-> avoid invoking cache line invalidation if the driver will just handle it
-> later via a sync_for_cpu or sync_for_device call.
-> 
-> Cc: Mark Salter <msalter@redhat.com>
-> Cc: Aurelien Jacquiot <a-jacquiot@ti.com>
-> Cc: linux-c6x-dev@linux-c6x.org
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> ---
+On Tue, Oct 25, 2016 at 8:36 AM, Alexander Duyck
+<alexander.h.duyck@intel.com> wrote:
+> The first 22 patches in the set add support for the DMA attribute
+> DMA_ATTR_SKIP_CPU_SYNC on multiple platforms/architectures.  This is needed
+> so that we can flag the calls to dma_map/unmap_page so that we do not
+> invalidate cache lines that do not currently belong to the device.  Instead
+> we have to take care of this in the driver via a call to
+> sync_single_range_for_cpu prior to freeing the Rx page.
+>
+> Patch 23 adds support for dma_map_page_attrs and dma_unmap_page_attrs so
+> that we can unmap and map a page using the DMA_ATTR_SKIP_CPU_SYNC
+> attribute.
+>
+> Patch 24 adds support for freeing a page that has multiple references being
+> held by a single caller.  This way we can free page fragments that were
+> allocated by a given driver.
+>
+> The last 3 patches use these updates in the igb driver to allow for us to
+> reimpelement the use of build_skb.
+>
+> My hope is to get the series accepted into the net-next tree as I have a
+> number of other Intel drivers I could then begin updating once these
+> patches are accepted.
+>
+> v1: Split out changes DMA_ERROR_CODE fix for swiotlb-xen
+>     Minor fixes based on issues found by kernel build bot
+>     Few minor changes for issues found on code review
+>     Added Acked-by for patches that were acked and not changed
 
-Acked-by: Mark Salter <msalter@redhat.com>
+So the feedback for this set has been mostly just a few "Acked-by"s,
+and it looks like the series was marked as "Not Applicable" in
+patchwork.  I was wondering what the correct merge strategy for this
+patch set should be going forward?
 
-> A arch/c6x/kernel/dma.c |A A A 16 +++++++++++-----
-> A 1 file changed, 11 insertions(+), 5 deletions(-)
-> 
-> diff --git a/arch/c6x/kernel/dma.c b/arch/c6x/kernel/dma.c
-> index db4a6a3..d28df74 100644
-> --- a/arch/c6x/kernel/dma.c
-> +++ b/arch/c6x/kernel/dma.c
-> @@ -42,14 +42,17 @@ static dma_addr_t c6x_dma_map_page(struct device *dev, struct page *page,
-> A {
-> A 	dma_addr_t handle = virt_to_phys(page_address(page) + offset);
-> A 
-> -	c6x_dma_sync(handle, size, dir);
-> +	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-> +		c6x_dma_sync(handle, size, dir);
-> +
-> A 	return handle;
-> A }
-> A 
-> A static void c6x_dma_unmap_page(struct device *dev, dma_addr_t handle,
-> A 		size_t size, enum dma_data_direction dir, unsigned long attrs)
-> A {
-> -	c6x_dma_sync(handle, size, dir);
-> +	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-> +		c6x_dma_sync(handle, size, dir);
-> A }
-> A 
-> A static int c6x_dma_map_sg(struct device *dev, struct scatterlist *sglist,
-> @@ -60,7 +63,8 @@ static int c6x_dma_map_sg(struct device *dev, struct scatterlist *sglist,
-> A 
-> A 	for_each_sg(sglist, sg, nents, i) {
-> A 		sg->dma_address = sg_phys(sg);
-> -		c6x_dma_sync(sg->dma_address, sg->length, dir);
-> +		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-> +			c6x_dma_sync(sg->dma_address, sg->length, dir);
-> A 	}
-> A 
-> A 	return nents;
-> @@ -72,8 +76,10 @@ static void c6x_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
-> A 	struct scatterlist *sg;
-> A 	int i;
-> A 
-> -	for_each_sg(sglist, sg, nents, i)
-> -		c6x_dma_sync(sg_dma_address(sg), sg->length, dir);
-> +	for_each_sg(sglist, sg, nents, i) {
-> +		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-> +			c6x_dma_sync(sg_dma_address(sg), sg->length, dir);
-> +	}
-> A 
-> A }
-> A 
-> 
+I was wondering if I should be looking at breaking up the set and
+splitting it over a few different trees, or if I should just hold onto
+it and resubmit it when the merge window opens?  My preference would
+be to submit it as a single set so I can know all the patches are
+present to avoid any possible regressions due to only part of the set
+being present.
+
+Anyway, I am just trying to figure out how best to proceed from here
+since these patch sets that touch multiple areas are always
+complicated to get submitted.
+
+Thanks.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
