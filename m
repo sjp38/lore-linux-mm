@@ -1,207 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C1DDD6B0286
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 01:56:46 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id hm5so37324725pac.4
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 22:56:46 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id ub3si9907965pab.52.2016.10.27.22.56.45
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D16E56B027A
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 02:26:06 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id w3so65398983ywg.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 23:26:06 -0700 (PDT)
+Received: from mail-yb0-x236.google.com (mail-yb0-x236.google.com. [2607:f8b0:4002:c09::236])
+        by mx.google.com with ESMTPS id q142si4440711ywg.16.2016.10.27.23.26.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Oct 2016 22:56:45 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v4 RESEND 9/9] mm, THP, swap: Delay splitting THP during swap out
-Date: Fri, 28 Oct 2016 13:56:08 +0800
-Message-Id: <20161028055608.1736-10-ying.huang@intel.com>
-In-Reply-To: <20161028055608.1736-1-ying.huang@intel.com>
-References: <20161028055608.1736-1-ying.huang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Oct 2016 23:26:04 -0700 (PDT)
+Received: by mail-yb0-x236.google.com with SMTP id f97so32197795ybi.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 23:26:04 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
+References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
+ <1447181081-30056-2-git-send-email-aarcange@redhat.com> <1459974829.28435.6.camel@redhat.com>
+ <20160406220202.GA2998@redhat.com> <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+ <20160921153421.GA4716@redhat.com> <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
+From: Gavin Guo <gavin.guo@canonical.com>
+Date: Fri, 28 Oct 2016 14:26:03 +0800
+Message-ID: <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
+Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Jay Vosburgh <jay.vosburgh@canonical.com>
 
-From: Huang Ying <ying.huang@intel.com>
+Hi Andrea,
 
-In this patch, splitting huge page is delayed from almost the first step
-of swapping out to after allocating the swap space for the
-THP (Transparent Huge Page) and adding the THP into the swap cache.
-This will reduce lock acquiring/releasing for the locks used for the
-swap cache management.
+On Thu, Sep 22, 2016 at 6:48 PM, Gavin Guo <gavin.guo@canonical.com> wrote:
+>
+> Hi Andrea,
+>
+> On Wed, Sep 21, 2016 at 11:34 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > Hello Gavin,
+> >
+> > On Wed, Sep 21, 2016 at 11:12:19PM +0800, Gavin Guo wrote:
+> >> Recently, a similar bug can also be observed under the numad process
+> >> with the v4.4 Ubuntu kernel or the latest upstream kernel. However, I
+> >> think the patch should be useful to mitigate the symptom. I tried to
+> >> search the mailing list and found the patch finally didn't be merged
+> >> into the upstream kernel. If there are any problems which drop the
+> >> patch?
+> >
+> > Zero known problems, in fact it's running in production in both RHEL7
+> > and RHEL6 for a while. The RHEL customers are not affected anymore for
+> > a while now.
+> >
+> > It's a critical computational complexity fix, if using KSM in
+> > enterprise production. Hugh already Acked it as well.
+> >
+> > It's included in -mm and Andrew submitted it once upstream, but it
+> > bounced probably perhaps it was not the right time in the merge window
+> > cycle.
+> >
+> > Or perhaps because it's complex but I wouldn't know how to simplify it
+> > but there's no bug at all in the code.
+> >
+> > I would suggest Andrew to send it once again when he feels it's a good
+> > time to do so.
+> >
+> >> The numad process tried to migrate a qemu process of 33GB memory.
+> >> Finally, it stuck in the csd_lock_wait function which causes the qemu
+> >> process hung and the virtual machine has high CPU usage and hung also.
+> >> With KSM disabled, the symptom disappeared.
+> >
+> > Until it's merged upstream you can cherrypick from my aa.git tree
+> > these three commits:
+> >
+> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=9384142e4ce830898abcefc4f0479c4533fa5bbc
+> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=4b293be7e20c8e8731a4fdc3c3bf6047304d0cc8
+> > https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=44c0d79c2c223c54ffe3fabc893963fc5963d611
+> >
+> > They're in -mm too.
+> >
+> >> What happens here is that do_migrate_pages (frame #10) acquires the
+> >> mmap_sem semaphore that everything else is waiting for (and that
+> >> eventually produce the hang warnings), and it holds that semaphore for
+> >> the duration of the page migration.
+> >>
+> >> crash> bt 2950
+> >> PID: 2950   TASK: ffff885f97745280  CPU: 49  COMMAND: "numad"
+> >>     [exception RIP: smp_call_function_single+219]
+> >>     RIP: ffffffff81103a0b  RSP: ffff885f8fb4fb28  RFLAGS: 00000202
+> >>     RAX: 0000000000000000  RBX: 0000000000000013  RCX: 0000000000000000
+> >>     RDX: 0000000000000003  RSI: 0000000000000100  RDI: 0000000000000286
+> >>     RBP: ffff885f8fb4fb70   R8: 0000000000000000   R9: 0000000000080000
+> >>     R10: 0000000000000000  R11: ffff883faf917c88  R12: ffffffff810725f0
+> >>     R13: 0000000000000013  R14: ffffffff810725f0  R15: ffff885f8fb4fbc8
+> >>     CS: 0010  SS: 0018
+> >>  #0 [ffff885f8fb4fb30] kvm_unmap_rmapp at ffffffffc01f1c3e [kvm]
+> >>  #1 [ffff885f8fb4fb78] smp_call_function_many at ffffffff81103db3
+> >>  #2 [ffff885f8fb4fbc0] native_flush_tlb_others at ffffffff8107279d
+> >>  #3 [ffff885f8fb4fc08] flush_tlb_page at ffffffff81072a95
+> >>  #4 [ffff885f8fb4fc30] ptep_clear_flush at ffffffff811d048e
+> >>  #5 [ffff885f8fb4fc60] try_to_unmap_one at ffffffff811cb1c7
+> >>  #6 [ffff885f8fb4fcd0] rmap_walk_ksm at ffffffff811e6f91
+> >>  #7 [ffff885f8fb4fd28] rmap_walk at ffffffff811cc1bf
+> >>  #8 [ffff885f8fb4fd80] try_to_unmap at ffffffff811cc46b
+> >>  #9 [ffff885f8fb4fdc8] migrate_pages at ffffffff811f26d8
+> >> #10 [ffff885f8fb4fe80] do_migrate_pages at ffffffff811e15f7
+> >> #11 [ffff885f8fb4fef8] sys_migrate_pages at ffffffff811e187d
+> >> #12 [ffff885f8fb4ff50] entry_SYSCALL_64_fastpath at ffffffff818244f2
+> >>
+> >> After some investigations, I've tried to disassemble the coredump and
+> >> finally find the stable_node->hlist is as long as 2306920 entries.
+> >
+> > Yep, this is definitely getting fixed by the three commits above and
+> > the problem is in rmap_walk_ksm like you found above. With that
+> > applied you can't ever run into hangs anymore with KSM enabled, no
+> > matter the workload and the amount of memory in guest and host.
+> >
+> > numad isn't required to reproduce it, some swapping is enough.
+> >
+> > It limits the de-duplication factor to 256 times, like a x256 times
+> > compression, a x256 compression factor is clearly more than enough. So
+> > effectively the list you found that was too long, gets hard-limited to
+> > 256 entries with my patch applied. The limit is configurable at runtime:
+> >
+> > /* Maximum number of page slots sharing a stable node */
+> > static int ksm_max_page_sharing = 256;
+> >
+> > If you want to increase the limit (careful: that will increase
+> > the rmap_walk_ksm computation time) you can echo $newsharinglimit >
+> > /sys/kernel/mm/ksm/max_page_sharing.
+> >
+> > Hope this helps,
+> > Andrea
+>
+> Thank you for the detail explanation. I've cherry-picked these patches
+> and now doing the verification. I'll get back to you if there is any
+> problem. Thanks!
 
-This is the first step for the THP swap support.  The plan is to delay
-splitting the THP step by step and avoid splitting the THP finally.
+Andrea,
 
-The advantages of the THP swap support include:
+I have tried verifying these patches. However, the default 256
+bytes max_page_sharing still suffers the hung task issue. Then, the
+following sequence has been tried to mitigate the symptom. When the
+value is decreased, it took more time to reproduce the symptom.
+Finally, the value 8 has been tried and I didn't continue with lower
+value.
 
-- Batch the swap operations for the THP to reduce lock
-  acquiring/releasing, including allocating/freeing the swap space,
-  adding/deleting to/from the swap cache, and writing/reading the swap
-  space, etc.  This will help to improve the THP swap performance.
+128 -> 64 -> 32 -> 16 -> 8
 
-- The THP swap space read/write will be 2M sequential IO.  It is
-  particularly helpful for the swap read, which usually are 4k random
-  IO.  This will help to improve the THP swap performance too.
+The crashdump has also been investigated.
 
-- It will help the memory fragmentation, especially when the THP is
-  heavily used by the applications.  The 2M continuous pages will be
-  free up after the THP swapping out.
+stable_node: 0xffff880d36413040 stable_node->hlist->first = 0xffff880e4c9f4cf0
+crash> list hlist_node.next 0xffff880e4c9f4cf0  > rmap_item.lst
 
-- It will improve the THP utilization on the system with the swap
-  turned on.  Because the speed for khugepaged to collapse the normal
-  pages into the THP is quite slow.  After the THP is split during the
-  swapping out, it will take quite long time for the normal pages to
-  collapse back into the THP after being swapped in.  The high THP
-  utilization helps the efficiency of the page based memory management
-  too.
+$ wc -l rmap_item.lst
+$ 8 rmap_item.lst
 
-There are some concerns regarding THP swap in, mainly because possible
-enlarged read/write IO size (for swap in/out) may put more overhead to
-the storage device.  To deal with that, the THP swap in should be
-turned on only when necessary.  For example, it can be selected via
-"always/never/madvise" logic, to be turned on globally, turned off
-globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
-
-With the patchset, the swap out throughput improved 12.1% (from 1.12GB/s
-to 1.25GB/s) in the vm-scalability swap-w-seq test case with 16
-processes.  The test is done on a Xeon E5 v3 system.  The RAM simulated
-PMEM (persistent memory) device is used as the swap device.  To test
-sequential swapping out, the test case uses 16 processes sequentially
-allocate and write to the anonymous pages until the RAM and part of the
-swap device is used up.
-
-The detailed compare result is as follow,
-
-base             base+patchset
----------------- --------------------------
-         %stddev     %change         %stddev
-             \          |                \
-   1118821 A+-  0%     +12.1%    1254241 A+-  1%  vmstat.swap.so
-   2460636 A+-  1%     +10.6%    2720983 A+-  1%  vm-scalability.throughput
-    308.79 A+-  1%      -7.9%     284.53 A+-  1%  vm-scalability.time.elapsed_time
-      1639 A+-  4%    +232.3%       5446 A+-  1%  meminfo.SwapCached
-      0.70 A+-  3%      +8.7%       0.77 A+-  5%  perf-stat.ipc
-      9.82 A+-  8%     -31.6%       6.72 A+-  2%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- mm/swap_state.c | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 62 insertions(+), 3 deletions(-)
-
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 3115762..b338523 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -17,6 +17,7 @@
- #include <linux/blkdev.h>
- #include <linux/pagevec.h>
- #include <linux/migrate.h>
-+#include <linux/huge_mm.h>
- 
- #include <asm/pgtable.h>
- 
-@@ -175,12 +176,53 @@ void __delete_from_swap_cache(struct page *page)
- 	ADD_CACHE_INFO(del_total, nr);
- }
- 
-+#ifdef CONFIG_THP_SWAP_CLUSTER
-+int add_to_swap_trans_huge(struct page *page, struct list_head *list)
-+{
-+	swp_entry_t entry;
-+	int ret = 0;
-+
-+	/* cannot split, which may be needed during swap in, skip it */
-+	if (!can_split_huge_page(page))
-+		return -EBUSY;
-+	/* fallback to split huge page firstly if no PMD map */
-+	if (!compound_mapcount(page))
-+		return 0;
-+	entry = get_huge_swap_page();
-+	if (!entry.val)
-+		return 0;
-+	if (mem_cgroup_try_charge_swap(page, entry, HPAGE_PMD_NR)) {
-+		__swapcache_free(entry, true);
-+		return -EOVERFLOW;
-+	}
-+	ret = add_to_swap_cache(page, entry,
-+				__GFP_HIGH | __GFP_NOMEMALLOC|__GFP_NOWARN);
-+	/* -ENOMEM radix-tree allocation failure */
-+	if (ret) {
-+		__swapcache_free(entry, true);
-+		return 0;
-+	}
-+	ret = split_huge_page_to_list(page, list);
-+	if (ret) {
-+		delete_from_swap_cache(page);
-+		return -EBUSY;
-+	}
-+	return 1;
-+}
-+#else
-+static inline int add_to_swap_trans_huge(struct page *page,
-+					 struct list_head *list)
-+{
-+	return 0;
-+}
-+#endif
-+
- /**
-  * add_to_swap - allocate swap space for a page
-  * @page: page we want to move to swap
-  *
-  * Allocate swap space for the page and add the page to the
-- * swap cache.  Caller needs to hold the page lock. 
-+ * swap cache.  Caller needs to hold the page lock.
-  */
- int add_to_swap(struct page *page, struct list_head *list)
- {
-@@ -190,6 +232,18 @@ int add_to_swap(struct page *page, struct list_head *list)
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
- 
-+	if (unlikely(PageTransHuge(page))) {
-+		err = add_to_swap_trans_huge(page, list);
-+		switch (err) {
-+		case 1:
-+			return 1;
-+		case 0:
-+			/* fallback to split firstly if return 0 */
-+			break;
-+		default:
-+			return 0;
-+		}
-+	}
- 	entry = get_swap_page();
- 	if (!entry.val)
- 		return 0;
-@@ -307,7 +361,7 @@ struct page * lookup_swap_cache(swp_entry_t entry)
- 
- 	page = find_get_page(swap_address_space(entry), swp_offset(entry));
- 
--	if (page) {
-+	if (page && likely(!PageTransCompound(page))) {
- 		INC_CACHE_INFO(find_success);
- 		if (TestClearPageReadahead(page))
- 			atomic_inc(&swapin_readahead_hits);
-@@ -333,8 +387,13 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		 * that would confuse statistics.
- 		 */
- 		found_page = find_get_page(swapper_space, swp_offset(entry));
--		if (found_page)
-+		if (found_page) {
-+			if (unlikely(PageTransCompound(found_page))) {
-+				put_page(found_page);
-+				found_page = NULL;
-+			}
- 			break;
-+		}
- 
- 		/*
- 		 * Get a new page to read into from swap.
--- 
-2.9.3
+This shows that the list is actually reduced to 8 items. I wondered if the
+loop is still consuming a lot of time and hold the mmap_sem too long.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
