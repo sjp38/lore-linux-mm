@@ -1,103 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B0BB26B0282
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 14:31:17 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id x11so106510536qka.5
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:31:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w23si8940273qka.222.2016.10.28.11.31.16
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F00B6B0285
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 15:23:17 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u84so20988303pfj.6
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 12:23:17 -0700 (PDT)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id p5si14835709pgk.156.2016.10.28.12.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Oct 2016 11:31:16 -0700 (PDT)
-Date: Fri, 28 Oct 2016 20:31:13 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-Message-ID: <20161028183113.GB4611@redhat.com>
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
- <1447181081-30056-2-git-send-email-aarcange@redhat.com>
- <1459974829.28435.6.camel@redhat.com>
- <20160406220202.GA2998@redhat.com>
- <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
- <20160921153421.GA4716@redhat.com>
- <CA+eFSM33iAS98t5QU_+iOGH7F2VvMErwRvuuHnQU2JowZ8cMHg@mail.gmail.com>
- <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
+        Fri, 28 Oct 2016 12:23:10 -0700 (PDT)
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+ <1476826937-20665-3-git-send-email-sbates@raithlin.com>
+ <20161028064556.GA3231@infradead.org>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <f61ba5bd-b81e-d5bf-02e5-45f6b523dd4c@deltatee.com>
+Date: Fri, 28 Oct 2016 13:22:16 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+eFSM2WuMYZ8XXo2fJH1SxwTUMRNxAAEgBjrqdhcS4ZMCHMEw@mail.gmail.com>
+In-Reply-To: <20161028064556.GA3231@infradead.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 2/3] iopmem : Add a block device driver for PCIe attached
+ IO memory.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Guo <gavin.guo@canonical.com>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Jay Vosburgh <jay.vosburgh@canonical.com>
+To: Christoph Hellwig <hch@infradead.org>, Stephen Bates <stephen.bates@microsemi.com>
+Cc: linux-kernel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, willy@linux.intel.com, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, axboe@fb.com, corbet@lwn.net, jim.macdonald@everspin.com, sbates@raithin.com
 
-On Fri, Oct 28, 2016 at 02:26:03PM +0800, Gavin Guo wrote:
-> I have tried verifying these patches. However, the default 256
-> bytes max_page_sharing still suffers the hung task issue. Then, the
-> following sequence has been tried to mitigate the symptom. When the
-> value is decreased, it took more time to reproduce the symptom.
-> Finally, the value 8 has been tried and I didn't continue with lower
-> value.
+Hi Christoph,
+
+Thanks so much for the detailed review of the code! Even though by the
+sounds of things we will be moving to device dax and most of this is
+moot. Still, it's great to get some feedback and learn a few things.
+
+I've given some responses below.
+
+On 28/10/16 12:45 AM, Christoph Hellwig wrote:
+>> + * This driver is heavily based on drivers/block/pmem.c.
+>> + * Copyright (c) 2014, Intel Corporation.
+>> + * Copyright (C) 2007 Nick Piggin
+>> + * Copyright (C) 2007 Novell Inc.
 > 
-> 128 -> 64 -> 32 -> 16 -> 8
+> Is there anything left of it actually?  I didn't spot anything
+> obvious.  Nevermind that we don't have a file with that name anymore :)
+
+Yes, actually there's still a lot of similarities with the current
+pmem.c. Though, yes, the path was on oversight. Some of this code is
+getting pretty old (it started from an out-of-tree version of pmem.c)
+and we've tried our best to track as many of the changes to the pmem.c
+as possible. This proved to be difficult. Note: this is now the nvdimm
+pmem and not the dax pmem (drivers/nvdimm/pmem.c)
+
+>> +  /*
+>> +   * We can only access the iopmem device with full 32-bit word
+>> +   * accesses which cannot be gaurantee'd by the regular memcpy
+>> +   */
 > 
-> The crashdump has also been investigated.
+> Odd comment formatting. 
 
-You should try to get multiple sysrq+l too during the hang.
+Oops. I'm surprised check_patch didn't pick up on that.
 
-> stable_node: 0xffff880d36413040 stable_node->hlist->first = 0xffff880e4c9f4cf0
-> crash> list hlist_node.next 0xffff880e4c9f4cf0  > rmap_item.lst
 > 
-> $ wc -l rmap_item.lst
-> $ 8 rmap_item.lst
+>> +static void memcpy_from_iopmem(void *dst, const void *src, size_t sz)
+>> +{
+>> +	u64 *wdst = dst;
+>> +	const u64 *wsrc = src;
+>> +	u64 tmp;
+>> +
+>> +	while (sz >= sizeof(*wdst)) {
+>> +		*wdst++ = *wsrc++;
+>> +		sz -= sizeof(*wdst);
+>> +	}
+>> +
+>> +	if (!sz)
+>> +		return;
+>> +
+>> +	tmp = *wsrc;
+>> +	memcpy(wdst, &tmp, sz);
+>> +}
 > 
-> This shows that the list is actually reduced to 8 items. I wondered if the
-> loop is still consuming a lot of time and hold the mmap_sem too long.
+> And then we dod a memcpy here anyway.  And no volatile whatsover, so
+> the compiler could do anything to it.  I defintively feel a bit uneasy
+> about having this in the driver as well.  Can we define the exact
+> semantics for this and define it by the system, possibly in an arch
+> specific way?
 
-Even the default 256 would be enough (certainly with KVM that doesn't
-have a deep anon_vma interval tree).
+Yeah, you're right. We should have reviewed this function a bit more.
+Anyway, I'd be interested in learning a better approach to forcing a
+copy from a mapped BAR with larger widths.
 
-Perhaps this is an app with a massively large anon_vma interval tree
-and uses MADV_MERGEABLE and not qemu/kvm? However then you'd run in
-similar issues with anon pages rmap walks so KSM wouldn't be to
-blame. The depth of the rmap_items multiplies the cost of the rbtree
-walk 512 times but still it shouldn't freeze for seconds.
 
-The important thing here is that the app is in control of the max
-depth of the anon_vma interval tree while it's not in control of the
-max depth of the rmap_item list, this is why it's fundamental that the
-KSM rmap_item list is bounded to a max value, while the depth of the
-interval tree is secondary issue because userland has a chance to
-optimize for it. If the app deep forks and uses MADV_MERGEABLE that is
-possible to optimize in userland. But I guess the app that is using
-MADV_MERGEABLE is qemu/kvm for you too so it can't be a too long
-interval tree. Furthermore if when the symptom triggers you still get
-a long hang even with rmap_item depth of 8 and it just takes longer
-time to reach the hanging point, it may be something else.
+>> +static void iopmem_do_bvec(struct iopmem_device *iopmem, struct page *page,
+>> +			   unsigned int len, unsigned int off, bool is_write,
+>> +			   sector_t sector)
+>> +{
+>> +	phys_addr_t iopmem_off = sector * 512;
+>> +	void *iopmem_addr = iopmem->virt_addr + iopmem_off;
+>> +
+>> +	if (!is_write) {
+>> +		read_iopmem(page, off, iopmem_addr, len);
+>> +		flush_dcache_page(page);
+>> +	} else {
+>> +		flush_dcache_page(page);
+>> +		write_iopmem(iopmem_addr, page, off, len);
+>> +	}
+> 
+> How about moving the  address and offset calculation as well as the
+> cache flushing into read_iopmem/write_iopmem and removing this function?
 
-I assume this is not an upstream kernel, can you reproduce on the
-upstream kernel? Sorry but I can't help you any further, if this isn't
-first verified on the upstream kernel.
+Could do. This was copied from the existing pmem.c and once the bad_pmem
+stuff was stripped out this function became relatively simple.
 
-Also if you test on the upstream kernel you can leave the default
-value of 256 and then use sysrq+l to get multiple dumps of what's
-running in the CPUs. The crash dump is useful as well but it's also
-interesting to see what's running most frequently during the hang
-(which isn't guaranteed to be shown by the exact point in time the
-crash dump is being taken). perf top -g may also help if this is a
-computational complexity issue inside the kernel to see where most CPU
-is being burnt.
 
-Note the problem was reproduced and verified as fixed. It's quite easy
-to reproduce, I used migrate_pages syscall to do that, and after the
-deep KSM merging that takes several seconds in strace -tt, while with
-the fix it stays in the order of milliseconds. The point is that with
-deeper merging the migrate_pages could take minutes in unkillable R
-state (or during swapping), while with the KSMscale fix it gets capped
-to milliseconds no matter what.
+> 
+>> +static blk_qc_t iopmem_make_request(struct request_queue *q, struct bio *bio)
+>> +{
+>> +	struct iopmem_device *iopmem = q->queuedata;
+>> +	struct bio_vec bvec;
+>> +	struct bvec_iter iter;
+>> +
+>> +	bio_for_each_segment(bvec, bio, iter) {
+>> +		iopmem_do_bvec(iopmem, bvec.bv_page, bvec.bv_len,
+>> +			    bvec.bv_offset, op_is_write(bio_op(bio)),
+>> +			    iter.bi_sector);
+> 
+> op_is_write just checks the data direction.  I'd feel much more
+> comfortable with a switch on the op, e.g.
+
+That makes sense. This was also copied from pmem.c, so this same change
+may make sense there too.
+
+
+>> +static long iopmem_direct_access(struct block_device *bdev, sector_t sector,
+>> +			       void **kaddr, pfn_t *pfn, long size)
+>> +{
+>> +	struct iopmem_device *iopmem = bdev->bd_queue->queuedata;
+>> +	resource_size_t offset = sector * 512;
+>> +
+>> +	if (!iopmem)
+>> +		return -ENODEV;
+> 
+> I don't think this can ever happen, can it?
+
+Yes, I think now that's the case. This is probably a holdover from a
+previous version.
+
+> Just use ida_simple_get/ida_simple_remove instead to take care
+> of the locking and preloading, and get rid of these two functions.
+
+Thanks, noted. That would be much better. I never found a simple example
+of that when I was looking, though I expected there should have been.
+
+> 
+>> +static int iopmem_attach_disk(struct iopmem_device *iopmem)
+>> +{
+>> +	struct gendisk *disk;
+>> +	int nid = dev_to_node(iopmem->dev);
+>> +	struct request_queue *q = iopmem->queue;
+>> +
+>> +	blk_queue_write_cache(q, true, true);
+> 
+> You don't handle flush commands or the fua bit in make_request, so
+> this setting seems wrong.
+
+Yup, ok. I'm afraid this is a case of copying without complete
+comprehension.
+
+> 
+>> +	int err = 0;
+>> +	int nid = dev_to_node(&pdev->dev);
+>> +
+>> +	if (pci_enable_device_mem(pdev) < 0) {
+> 
+> propagate the actual error code, please.
+
+Hmm, yup. Not sure why that was missed.
 
 Thanks,
-Andrea
+
+Logan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
