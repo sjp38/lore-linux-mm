@@ -1,183 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F00B6B0285
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 15:23:17 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u84so20988303pfj.6
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 12:23:17 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id p5si14835709pgk.156.2016.10.28.12.23.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C85776B027B
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 16:15:53 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 68so8830808wmz.5
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 13:15:53 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id o83si11855745wmb.123.2016.10.28.13.15.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Oct 2016 12:23:10 -0700 (PDT)
-References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
- <1476826937-20665-3-git-send-email-sbates@raithlin.com>
- <20161028064556.GA3231@infradead.org>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <f61ba5bd-b81e-d5bf-02e5-45f6b523dd4c@deltatee.com>
-Date: Fri, 28 Oct 2016 13:22:16 -0600
+        Fri, 28 Oct 2016 13:15:52 -0700 (PDT)
+Date: Fri, 28 Oct 2016 21:15:48 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: Crash in -next due to 'mm/vmalloc: replace opencoded 4-level
+ page walkers'
+Message-ID: <20161028201548.GA16450@nuc-i3427.alporthouse.com>
+References: <20161028171825.GA15116@roeck-us.net>
 MIME-Version: 1.0
-In-Reply-To: <20161028064556.GA3231@infradead.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 2/3] iopmem : Add a block device driver for PCIe attached
- IO memory.
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161028171825.GA15116@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Stephen Bates <stephen.bates@microsemi.com>
-Cc: linux-kernel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, willy@linux.intel.com, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, axboe@fb.com, corbet@lwn.net, jim.macdonald@everspin.com, sbates@raithin.com
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-Hi Christoph,
-
-Thanks so much for the detailed review of the code! Even though by the
-sounds of things we will be moving to device dax and most of this is
-moot. Still, it's great to get some feedback and learn a few things.
-
-I've given some responses below.
-
-On 28/10/16 12:45 AM, Christoph Hellwig wrote:
->> + * This driver is heavily based on drivers/block/pmem.c.
->> + * Copyright (c) 2014, Intel Corporation.
->> + * Copyright (C) 2007 Nick Piggin
->> + * Copyright (C) 2007 Novell Inc.
+On Fri, Oct 28, 2016 at 10:18:25AM -0700, Guenter Roeck wrote:
+> Hi,
 > 
-> Is there anything left of it actually?  I didn't spot anything
-> obvious.  Nevermind that we don't have a file with that name anymore :)
-
-Yes, actually there's still a lot of similarities with the current
-pmem.c. Though, yes, the path was on oversight. Some of this code is
-getting pretty old (it started from an out-of-tree version of pmem.c)
-and we've tried our best to track as many of the changes to the pmem.c
-as possible. This proved to be difficult. Note: this is now the nvdimm
-pmem and not the dax pmem (drivers/nvdimm/pmem.c)
-
->> +  /*
->> +   * We can only access the iopmem device with full 32-bit word
->> +   * accesses which cannot be gaurantee'd by the regular memcpy
->> +   */
+> when running sparc64 images in qemu, I see the following crash.
+> This is with next-20161028.
 > 
-> Odd comment formatting. 
-
-Oops. I'm surprised check_patch didn't pick up on that.
-
+> [    2.530785] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff,max_idle_ns: 19112604462750000 ns
+> [    2.532359] kernel BUG at mm/memory.c:1881!
+> [    2.532798]               \|/ ____ \|/
+> [    2.532798]               "@'/ .. \`@"
+> [    2.532798]               /_| \__/ |_\
+> [    2.532798]                  \__U_/
+> [    2.533250] swapper(1): Kernel bad sw trap 5 [#1]
+> [    2.533705] CPU: 0 PID: 1 Comm: swapper Not tainted 4.9.0-rc2+ #1
+> [    2.534129] task: fffff8001f0af620 task.stack: fffff8001f0b0000
+> [    2.534505] TSTATE: 0000004480001605 TPC: 00000000005124d8 TNPC: 00000000005124dc Y: 00000035    Not tainted
+> [    2.535112] TPC: <apply_to_page_range+0x2f8/0x3a0>
+> [    2.535469] g0: 00000000009b1548 g1: 0000000000a4a990 g2: 0000000000a4a990 g3: 0000000000b37694
+> [    2.535857] g4: fffff8001f0af620 g5: 0000000000000000 g6: fffff8001f0b0000 g7: 0000000000000000
+> [    2.536236] o0: 000000000000001f o1: 00000000009ac2c0 o2: 0000000000000759 o3: 0000000000122000
+> [    2.536695] o4: 0000000000000000 o5: 00000000009ac2c0 sp: fffff8001f0b2d61 ret_pc: 00000000005124d0
+> [    2.537086] RPC: <apply_to_page_range+0x2f0/0x3a0>
+> [    2.537454] l0: 0000000000000000 l1: 0000000000002000 l2: fffff8001f10b000 l3: 0000000100002000
+> [    2.537843] l4: 0000000000aef910 l5: 0000000000a5e7e8 l6: 0000000100001fff l7: ffffffffff800000
+> [    2.538229] i0: 0000000000a5e7e8 i1: 0000000100000000 i2: 0000000100002000 i3: 000000000051e5e0
+> [    2.538613] i4: fffff8001f0b3708 i5: fffff8001f10c000 i6: fffff8001f0b2e51 i7: 000000000051e8e0
+> [    2.539007] I7: <vmap_page_range_noflush+0x40/0x80>
+> [    2.539387] Call Trace:
+> [    2.539765]  [000000000051e8e0] vmap_page_range_noflush+0x40/0x80
+> [    2.540139]  [000000000051e970] map_vm_area+0x50/0x80
+> [    2.540492]  [000000000051f84c] __vmalloc_node_range+0x14c/0x260
+> [    2.540848]  [000000000051f98c] __vmalloc_node+0x2c/0x40
+> [    2.541198]  [00000000004d39cc] bpf_prog_alloc+0x2c/0xa0
+> [    2.541554]  [00000000008129bc] bpf_prog_create+0x3c/0xa0
+> [    2.541916]  [0000000000adb21c] ptp_classifier_init+0x20/0x4c
+> [    2.542271]  [0000000000ad9808] sock_init+0x90/0xa0
+> [    2.542622]  [0000000000426cb0] do_one_initcall+0x30/0x160
+> [    2.542978]  [0000000000aaeaec] kernel_init_freeable+0x10c/0x1b0
+> [    2.543332]  [00000000008e3324] kernel_init+0x4/0x100
+> [    2.543681]  [0000000000405f04] ret_from_fork+0x1c/0x2c
 > 
->> +static void memcpy_from_iopmem(void *dst, const void *src, size_t sz)
->> +{
->> +	u64 *wdst = dst;
->> +	const u64 *wsrc = src;
->> +	u64 tmp;
->> +
->> +	while (sz >= sizeof(*wdst)) {
->> +		*wdst++ = *wsrc++;
->> +		sz -= sizeof(*wdst);
->> +	}
->> +
->> +	if (!sz)
->> +		return;
->> +
->> +	tmp = *wsrc;
->> +	memcpy(wdst, &tmp, sz);
->> +}
-> 
-> And then we dod a memcpy here anyway.  And no volatile whatsover, so
-> the compiler could do anything to it.  I defintively feel a bit uneasy
-> about having this in the driver as well.  Can we define the exact
-> semantics for this and define it by the system, possibly in an arch
-> specific way?
+> Bisect points to commit 0c79e3331f08 ("mm/vmalloc: replace opencoded 4-level
+> page walkers"). Reverting this patch fixes the problem.
 
-Yeah, you're right. We should have reviewed this function a bit more.
-Anyway, I'd be interested in learning a better approach to forcing a
-copy from a mapped BAR with larger widths.
+Hmm, apply_to_pte_range() has a BUG_ON(pmd_huge(*pmd)) but the old
+vmap_pte_range() does not and neither has the code to handle that case.
+Presuming that the BUG_ON() there is actually meaningful.
+-Chris
 
-
->> +static void iopmem_do_bvec(struct iopmem_device *iopmem, struct page *page,
->> +			   unsigned int len, unsigned int off, bool is_write,
->> +			   sector_t sector)
->> +{
->> +	phys_addr_t iopmem_off = sector * 512;
->> +	void *iopmem_addr = iopmem->virt_addr + iopmem_off;
->> +
->> +	if (!is_write) {
->> +		read_iopmem(page, off, iopmem_addr, len);
->> +		flush_dcache_page(page);
->> +	} else {
->> +		flush_dcache_page(page);
->> +		write_iopmem(iopmem_addr, page, off, len);
->> +	}
-> 
-> How about moving the  address and offset calculation as well as the
-> cache flushing into read_iopmem/write_iopmem and removing this function?
-
-Could do. This was copied from the existing pmem.c and once the bad_pmem
-stuff was stripped out this function became relatively simple.
-
-
-> 
->> +static blk_qc_t iopmem_make_request(struct request_queue *q, struct bio *bio)
->> +{
->> +	struct iopmem_device *iopmem = q->queuedata;
->> +	struct bio_vec bvec;
->> +	struct bvec_iter iter;
->> +
->> +	bio_for_each_segment(bvec, bio, iter) {
->> +		iopmem_do_bvec(iopmem, bvec.bv_page, bvec.bv_len,
->> +			    bvec.bv_offset, op_is_write(bio_op(bio)),
->> +			    iter.bi_sector);
-> 
-> op_is_write just checks the data direction.  I'd feel much more
-> comfortable with a switch on the op, e.g.
-
-That makes sense. This was also copied from pmem.c, so this same change
-may make sense there too.
-
-
->> +static long iopmem_direct_access(struct block_device *bdev, sector_t sector,
->> +			       void **kaddr, pfn_t *pfn, long size)
->> +{
->> +	struct iopmem_device *iopmem = bdev->bd_queue->queuedata;
->> +	resource_size_t offset = sector * 512;
->> +
->> +	if (!iopmem)
->> +		return -ENODEV;
-> 
-> I don't think this can ever happen, can it?
-
-Yes, I think now that's the case. This is probably a holdover from a
-previous version.
-
-> Just use ida_simple_get/ida_simple_remove instead to take care
-> of the locking and preloading, and get rid of these two functions.
-
-Thanks, noted. That would be much better. I never found a simple example
-of that when I was looking, though I expected there should have been.
-
-> 
->> +static int iopmem_attach_disk(struct iopmem_device *iopmem)
->> +{
->> +	struct gendisk *disk;
->> +	int nid = dev_to_node(iopmem->dev);
->> +	struct request_queue *q = iopmem->queue;
->> +
->> +	blk_queue_write_cache(q, true, true);
-> 
-> You don't handle flush commands or the fua bit in make_request, so
-> this setting seems wrong.
-
-Yup, ok. I'm afraid this is a case of copying without complete
-comprehension.
-
-> 
->> +	int err = 0;
->> +	int nid = dev_to_node(&pdev->dev);
->> +
->> +	if (pci_enable_device_mem(pdev) < 0) {
-> 
-> propagate the actual error code, please.
-
-Hmm, yup. Not sure why that was missed.
-
-Thanks,
-
-Logan
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
