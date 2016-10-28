@@ -1,133 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C53DD6B027B
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 13:35:38 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id p22so118457498ywe.7
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 10:35:38 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id u72si6886621itb.22.2016.10.28.10.35.37
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6C26B0276
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 14:09:28 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id f78so132358359oih.7
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:09:28 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id g7si9874008otd.293.2016.10.28.11.09.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Oct 2016 10:35:38 -0700 (PDT)
-Date: Fri, 28 Oct 2016 13:35:11 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [net-next PATCH 02/27] swiotlb-xen: Enforce return of
- DMA_ERROR_CODE in mapping function
-Message-ID: <20161028173511.GF5112@char.us.oracle.com>
-References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
- <20161025153658.4815.84254.stgit@ahduyck-blue-test.jf.intel.com>
+        Fri, 28 Oct 2016 11:09:27 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id e12so1566343oib.3
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 11:09:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161025153658.4815.84254.stgit@ahduyck-blue-test.jf.intel.com>
+In-Reply-To: <20161028173430.GE5112@char.us.oracle.com>
+References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
+ <20161025153703.4815.13673.stgit@ahduyck-blue-test.jf.intel.com> <20161028173430.GE5112@char.us.oracle.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 28 Oct 2016 11:09:26 -0700
+Message-ID: <CAKgT0UeG7HXCx7xpyFa5u5ytUEd4s3oor5AX-8b8UbDrqvOgUw@mail.gmail.com>
+Subject: Re: [net-next PATCH 03/27] swiotlb: Add support for DMA_ATTR_SKIP_CPU_SYNC
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, davem@davemloft.net
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Alexander Duyck <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, intel-wired-lan <intel-wired-lan@lists.osuosl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>
 
-On Tue, Oct 25, 2016 at 11:36:58AM -0400, Alexander Duyck wrote:
-> The mapping function should always return DMA_ERROR_CODE when a mapping has
-> failed as this is what the DMA API expects when a DMA error has occurred.
-> The current function for mapping a page in Xen was returning either
-> DMA_ERROR_CODE or 0 depending on where it failed.
-> 
-> On x86 DMA_ERROR_CODE is 0, but on other architectures such as ARM it is
-> ~0. We need to make sure we return the same error value if either the
-> mapping failed or the device is not capable of accessing the mapping.
-> 
-> If we are returning DMA_ERROR_CODE as our error value we can drop the
-> function for checking the error code as the default is to compare the
-> return value against DMA_ERROR_CODE if no function is defined.
-> 
-> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+On Fri, Oct 28, 2016 at 10:34 AM, Konrad Rzeszutek Wilk
+<konrad.wilk@oracle.com> wrote:
+> On Tue, Oct 25, 2016 at 11:37:03AM -0400, Alexander Duyck wrote:
+>> As a first step to making DMA_ATTR_SKIP_CPU_SYNC apply to architectures
+>> beyond just ARM I need to make it so that the swiotlb will respect the
+>> flag.  In order to do that I also need to update the swiotlb-xen since it
+>> heavily makes use of the functionality.
+>>
+>> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+>
+> I am pretty sure I acked it the RFC. Was there a particular
+> reason (this is very different from the RFC?) you dropped my ACk?
+>
+> Thanks.
 
-I am pretty sure I gave an Ack. Any particular reason from dropping it
-(if so, please add a comment under the --- of the reason).
+If I recall you had acked patch 1, but for 2 you had some review
+comments on and suggested I change a few things.  What was patch 2 in
+the RFC was split out into patches 2 and 3.  That is why I didn't
+include an Ack from you for those patches.
+
+Patch 2 is a fix for Xen to address the fact that you could return
+either 0 or ~0.  It was part of patch 2 originally and I pulled it out
+into a separate patch.
+
+Patch 3 does most of what patch 2 in the RFC was doing before with
+fixes to address the fact that I was moving some code to avoid going
+over 80 characters.  I found a different way to fix that by just
+updating attrs before using it instead of ORing in the value when
+passing it as a parameter.
+
+>> @@ -558,11 +560,12 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+>>                                                                start_dma_addr,
+>>                                                                sg_phys(sg),
+>>                                                                sg->length,
+>> -                                                              dir);
+>> +                                                              dir, attrs);
+>>                       if (map == SWIOTLB_MAP_ERROR) {
+>>                               dev_warn(hwdev, "swiotlb buffer is full\n");
+>>                               /* Don't panic here, we expect map_sg users
+>>                                  to do proper error handling. */
+>> +                             attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+>>                               xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
+>>                                                          attrs);
+>>                               sg_dma_len(sgl) = 0;
+
+The biggest difference from patch 2 in the RFC is right here.  This
+code before was moving this off to the end of the function and adding
+a label which I then jumped to.  I just ORed the
+DMA_ATTR_SKIP_CPU_SYNC into attrs and skipped the problem entirely.
+It should be harmless to do this way since attrs isn't used anywhere
+else once we have had the error.
+
+I hope that helps to clear it up.  So if you want I will add your
+Acked-by for patches 2 and 3, but I just wanted to make sure this
+worked with the changes you suggested.
 
 Thanks.
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> ---
->  arch/arm/xen/mm.c              |    1 -
->  arch/x86/xen/pci-swiotlb-xen.c |    1 -
->  drivers/xen/swiotlb-xen.c      |   18 ++++++------------
->  include/xen/swiotlb-xen.h      |    3 ---
->  4 files changed, 6 insertions(+), 17 deletions(-)
-> 
-> diff --git a/arch/arm/xen/mm.c b/arch/arm/xen/mm.c
-> index d062f08..bd62d94 100644
-> --- a/arch/arm/xen/mm.c
-> +++ b/arch/arm/xen/mm.c
-> @@ -186,7 +186,6 @@ void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
->  EXPORT_SYMBOL(xen_dma_ops);
->  
->  static struct dma_map_ops xen_swiotlb_dma_ops = {
-> -	.mapping_error = xen_swiotlb_dma_mapping_error,
->  	.alloc = xen_swiotlb_alloc_coherent,
->  	.free = xen_swiotlb_free_coherent,
->  	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
-> diff --git a/arch/x86/xen/pci-swiotlb-xen.c b/arch/x86/xen/pci-swiotlb-xen.c
-> index 0e98e5d..a9fafb5 100644
-> --- a/arch/x86/xen/pci-swiotlb-xen.c
-> +++ b/arch/x86/xen/pci-swiotlb-xen.c
-> @@ -19,7 +19,6 @@
->  int xen_swiotlb __read_mostly;
->  
->  static struct dma_map_ops xen_swiotlb_dma_ops = {
-> -	.mapping_error = xen_swiotlb_dma_mapping_error,
->  	.alloc = xen_swiotlb_alloc_coherent,
->  	.free = xen_swiotlb_free_coherent,
->  	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
-> diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c
-> index 87e6035..b8014bf 100644
-> --- a/drivers/xen/swiotlb-xen.c
-> +++ b/drivers/xen/swiotlb-xen.c
-> @@ -416,11 +416,12 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
->  	/*
->  	 * Ensure that the address returned is DMA'ble
->  	 */
-> -	if (!dma_capable(dev, dev_addr, size)) {
-> -		swiotlb_tbl_unmap_single(dev, map, size, dir);
-> -		dev_addr = 0;
-> -	}
-> -	return dev_addr;
-> +	if (dma_capable(dev, dev_addr, size))
-> +		return dev_addr;
-> +
-> +	swiotlb_tbl_unmap_single(dev, map, size, dir);
-> +
-> +	return DMA_ERROR_CODE;
->  }
->  EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);
->  
-> @@ -648,13 +649,6 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
->  }
->  EXPORT_SYMBOL_GPL(xen_swiotlb_sync_sg_for_device);
->  
-> -int
-> -xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
-> -{
-> -	return !dma_addr;
-> -}
-> -EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mapping_error);
-> -
->  /*
->   * Return whether the given device DMA address mask can be supported
->   * properly.  For example, if your device can only drive the low 24-bits
-> diff --git a/include/xen/swiotlb-xen.h b/include/xen/swiotlb-xen.h
-> index 7c35e27..a0083be 100644
-> --- a/include/xen/swiotlb-xen.h
-> +++ b/include/xen/swiotlb-xen.h
-> @@ -51,9 +51,6 @@ extern void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
->  			       int nelems, enum dma_data_direction dir);
->  
->  extern int
-> -xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr);
-> -
-> -extern int
->  xen_swiotlb_dma_supported(struct device *hwdev, u64 mask);
->  
->  extern int
-> 
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
