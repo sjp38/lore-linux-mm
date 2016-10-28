@@ -1,52 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 37CFF6B027A
-	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 13:07:00 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id rf5so46047976pab.3
-        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 10:07:00 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id zf5si12059147pac.42.2016.10.28.10.06.59
-        for <linux-mm@kvack.org>;
-        Fri, 28 Oct 2016 10:06:59 -0700 (PDT)
-Date: Fri, 28 Oct 2016 13:06:57 -0400 (EDT)
-Message-Id: <20161028.130657.1245186418157500995.davem@davemloft.net>
-Subject: Re: [net-next PATCH 00/27] Add support for DMA writable pages
- being writable by the network stack
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CAKgT0UfOZuRnon84_8Bdn5muoi7=Xrwd7Kbxi4C8jiXpyX7-gg@mail.gmail.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 33E726B027A
+	for <linux-mm@kvack.org>; Fri, 28 Oct 2016 13:34:54 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id f78so130154702oih.7
+        for <linux-mm@kvack.org>; Fri, 28 Oct 2016 10:34:54 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p63si6887146itc.78.2016.10.28.10.34.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Oct 2016 10:34:53 -0700 (PDT)
+Date: Fri, 28 Oct 2016 13:34:30 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [net-next PATCH 03/27] swiotlb: Add support for
+ DMA_ATTR_SKIP_CPU_SYNC
+Message-ID: <20161028173430.GE5112@char.us.oracle.com>
 References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
-	<CAKgT0UfOZuRnon84_8Bdn5muoi7=Xrwd7Kbxi4C8jiXpyX7-gg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+ <20161025153703.4815.13673.stgit@ahduyck-blue-test.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161025153703.4815.13673.stgit@ahduyck-blue-test.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: alexander.duyck@gmail.com
-Cc: netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, alexander.h.duyck@intel.com, konrad.wilk@oracle.com, jeffrey.t.kirsher@intel.com
+To: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, davem@davemloft.net
 
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 28 Oct 2016 08:48:01 -0700
+On Tue, Oct 25, 2016 at 11:37:03AM -0400, Alexander Duyck wrote:
+> As a first step to making DMA_ATTR_SKIP_CPU_SYNC apply to architectures
+> beyond just ARM I need to make it so that the swiotlb will respect the
+> flag.  In order to do that I also need to update the swiotlb-xen since it
+> heavily makes use of the functionality.
+> 
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-> So the feedback for this set has been mostly just a few "Acked-by"s,
-> and it looks like the series was marked as "Not Applicable" in
-> patchwork.  I was wondering what the correct merge strategy for this
-> patch set should be going forward?
+I am pretty sure I acked it the RFC. Was there a particular
+reason (this is very different from the RFC?) you dropped my ACk?
 
-I marked it as not applicable because it's definitely not a networking
-change, and merging it via my tree would be really inappropriate, even
-though we need it for some infrastructure we want to build for
-networking.
+Thanks.
 
-So you have to merge this upstream via a more appropriate path.
-
-> I was wondering if I should be looking at breaking up the set and
-> splitting it over a few different trees, or if I should just hold onto
-> it and resubmit it when the merge window opens?  My preference would
-> be to submit it as a single set so I can know all the patches are
-> present to avoid any possible regressions due to only part of the set
-> being present.
-
-I don't think you need to split it up.
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+> ---
+>  drivers/xen/swiotlb-xen.c |   11 +++++++---
+>  include/linux/swiotlb.h   |    6 ++++--
+>  lib/swiotlb.c             |   48 +++++++++++++++++++++++++++------------------
+>  3 files changed, 40 insertions(+), 25 deletions(-)
+> 
+> diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c
+> index b8014bf..3d048af 100644
+> --- a/drivers/xen/swiotlb-xen.c
+> +++ b/drivers/xen/swiotlb-xen.c
+> @@ -405,7 +405,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
+>  	 */
+>  	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
+>  
+> -	map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir);
+> +	map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir,
+> +				     attrs);
+>  	if (map == SWIOTLB_MAP_ERROR)
+>  		return DMA_ERROR_CODE;
+>  
+> @@ -419,7 +420,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
+>  	if (dma_capable(dev, dev_addr, size))
+>  		return dev_addr;
+>  
+> -	swiotlb_tbl_unmap_single(dev, map, size, dir);
+> +	swiotlb_tbl_unmap_single(dev, map, size, dir,
+> +				 attrs | DMA_ATTR_SKIP_CPU_SYNC);
+>  
+>  	return DMA_ERROR_CODE;
+>  }
+> @@ -445,7 +447,7 @@ static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
+>  
+>  	/* NOTE: We use dev_addr here, not paddr! */
+>  	if (is_xen_swiotlb_buffer(dev_addr)) {
+> -		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
+> +		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
+>  		return;
+>  	}
+>  
+> @@ -558,11 +560,12 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+>  								 start_dma_addr,
+>  								 sg_phys(sg),
+>  								 sg->length,
+> -								 dir);
+> +								 dir, attrs);
+>  			if (map == SWIOTLB_MAP_ERROR) {
+>  				dev_warn(hwdev, "swiotlb buffer is full\n");
+>  				/* Don't panic here, we expect map_sg users
+>  				   to do proper error handling. */
+> +				attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+>  				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
+>  							   attrs);
+>  				sg_dma_len(sgl) = 0;
+> diff --git a/include/linux/swiotlb.h b/include/linux/swiotlb.h
+> index e237b6f..4517be9 100644
+> --- a/include/linux/swiotlb.h
+> +++ b/include/linux/swiotlb.h
+> @@ -44,11 +44,13 @@ enum dma_sync_target {
+>  extern phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+>  					  dma_addr_t tbl_dma_addr,
+>  					  phys_addr_t phys, size_t size,
+> -					  enum dma_data_direction dir);
+> +					  enum dma_data_direction dir,
+> +					  unsigned long attrs);
+>  
+>  extern void swiotlb_tbl_unmap_single(struct device *hwdev,
+>  				     phys_addr_t tlb_addr,
+> -				     size_t size, enum dma_data_direction dir);
+> +				     size_t size, enum dma_data_direction dir,
+> +				     unsigned long attrs);
+>  
+>  extern void swiotlb_tbl_sync_single(struct device *hwdev,
+>  				    phys_addr_t tlb_addr,
+> diff --git a/lib/swiotlb.c b/lib/swiotlb.c
+> index 47aad37..b538d39 100644
+> --- a/lib/swiotlb.c
+> +++ b/lib/swiotlb.c
+> @@ -425,7 +425,8 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
+>  phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+>  				   dma_addr_t tbl_dma_addr,
+>  				   phys_addr_t orig_addr, size_t size,
+> -				   enum dma_data_direction dir)
+> +				   enum dma_data_direction dir,
+> +				   unsigned long attrs)
+>  {
+>  	unsigned long flags;
+>  	phys_addr_t tlb_addr;
+> @@ -526,7 +527,8 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+>  	 */
+>  	for (i = 0; i < nslots; i++)
+>  		io_tlb_orig_addr[index+i] = orig_addr + (i << IO_TLB_SHIFT);
+> -	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+> +	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+> +	    (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
+>  		swiotlb_bounce(orig_addr, tlb_addr, size, DMA_TO_DEVICE);
+>  
+>  	return tlb_addr;
+> @@ -539,18 +541,20 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+>  
+>  static phys_addr_t
+>  map_single(struct device *hwdev, phys_addr_t phys, size_t size,
+> -	   enum dma_data_direction dir)
+> +	   enum dma_data_direction dir, unsigned long attrs)
+>  {
+>  	dma_addr_t start_dma_addr = phys_to_dma(hwdev, io_tlb_start);
+>  
+> -	return swiotlb_tbl_map_single(hwdev, start_dma_addr, phys, size, dir);
+> +	return swiotlb_tbl_map_single(hwdev, start_dma_addr, phys, size,
+> +				      dir, attrs);
+>  }
+>  
+>  /*
+>   * dma_addr is the kernel virtual address of the bounce buffer to unmap.
+>   */
+>  void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
+> -			      size_t size, enum dma_data_direction dir)
+> +			      size_t size, enum dma_data_direction dir,
+> +			      unsigned long attrs)
+>  {
+>  	unsigned long flags;
+>  	int i, count, nslots = ALIGN(size, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
+> @@ -561,6 +565,7 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  	 * First, sync the memory before unmapping the entry
+>  	 */
+>  	if (orig_addr != INVALID_PHYS_ADDR &&
+> +	    !(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+>  	    ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
+>  		swiotlb_bounce(orig_addr, tlb_addr, size, DMA_FROM_DEVICE);
+>  
+> @@ -654,7 +659,8 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  		 * GFP_DMA memory; fall back on map_single(), which
+>  		 * will grab memory from the lowest available address range.
+>  		 */
+> -		phys_addr_t paddr = map_single(hwdev, 0, size, DMA_FROM_DEVICE);
+> +		phys_addr_t paddr = map_single(hwdev, 0, size,
+> +					       DMA_FROM_DEVICE, 0);
+>  		if (paddr == SWIOTLB_MAP_ERROR)
+>  			goto err_warn;
+>  
+> @@ -669,7 +675,8 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  
+>  			/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
+>  			swiotlb_tbl_unmap_single(hwdev, paddr,
+> -						 size, DMA_TO_DEVICE);
+> +						 size, DMA_TO_DEVICE,
+> +						 DMA_ATTR_SKIP_CPU_SYNC);
+>  			goto err_warn;
+>  		}
+>  	}
+> @@ -699,7 +706,7 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  		free_pages((unsigned long)vaddr, get_order(size));
+>  	else
+>  		/* DMA_TO_DEVICE to avoid memcpy in swiotlb_tbl_unmap_single */
+> -		swiotlb_tbl_unmap_single(hwdev, paddr, size, DMA_TO_DEVICE);
+> +		swiotlb_tbl_unmap_single(hwdev, paddr, size, DMA_TO_DEVICE, 0);
+>  }
+>  EXPORT_SYMBOL(swiotlb_free_coherent);
+>  
+> @@ -755,7 +762,7 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+>  	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
+>  
+>  	/* Oh well, have to allocate and map a bounce buffer. */
+> -	map = map_single(dev, phys, size, dir);
+> +	map = map_single(dev, phys, size, dir, attrs);
+>  	if (map == SWIOTLB_MAP_ERROR) {
+>  		swiotlb_full(dev, size, dir, 1);
+>  		return phys_to_dma(dev, io_tlb_overflow_buffer);
+> @@ -764,12 +771,13 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+>  	dev_addr = phys_to_dma(dev, map);
+>  
+>  	/* Ensure that the address returned is DMA'ble */
+> -	if (!dma_capable(dev, dev_addr, size)) {
+> -		swiotlb_tbl_unmap_single(dev, map, size, dir);
+> -		return phys_to_dma(dev, io_tlb_overflow_buffer);
+> -	}
+> +	if (dma_capable(dev, dev_addr, size))
+> +		return dev_addr;
+> +
+> +	swiotlb_tbl_unmap_single(dev, map, size, dir,
+> +				 attrs | DMA_ATTR_SKIP_CPU_SYNC);
+>  
+> -	return dev_addr;
+> +	return phys_to_dma(dev, io_tlb_overflow_buffer);
+>  }
+>  EXPORT_SYMBOL_GPL(swiotlb_map_page);
+>  
+> @@ -782,14 +790,15 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+>   * whatever the device wrote there.
+>   */
+>  static void unmap_single(struct device *hwdev, dma_addr_t dev_addr,
+> -			 size_t size, enum dma_data_direction dir)
+> +			 size_t size, enum dma_data_direction dir,
+> +			 unsigned long attrs)
+>  {
+>  	phys_addr_t paddr = dma_to_phys(hwdev, dev_addr);
+>  
+>  	BUG_ON(dir == DMA_NONE);
+>  
+>  	if (is_swiotlb_buffer(paddr)) {
+> -		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
+> +		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
+>  		return;
+>  	}
+>  
+> @@ -809,7 +818,7 @@ void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+>  			size_t size, enum dma_data_direction dir,
+>  			unsigned long attrs)
+>  {
+> -	unmap_single(hwdev, dev_addr, size, dir);
+> +	unmap_single(hwdev, dev_addr, size, dir, attrs);
+>  }
+>  EXPORT_SYMBOL_GPL(swiotlb_unmap_page);
+>  
+> @@ -891,7 +900,7 @@ void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+>  		if (swiotlb_force ||
+>  		    !dma_capable(hwdev, dev_addr, sg->length)) {
+>  			phys_addr_t map = map_single(hwdev, sg_phys(sg),
+> -						     sg->length, dir);
+> +						     sg->length, dir, attrs);
+>  			if (map == SWIOTLB_MAP_ERROR) {
+>  				/* Don't panic here, we expect map_sg users
+>  				   to do proper error handling. */
+> @@ -925,7 +934,8 @@ void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+>  	BUG_ON(dir == DMA_NONE);
+>  
+>  	for_each_sg(sgl, sg, nelems, i)
+> -		unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir);
+> +		unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir,
+> +			     attrs);
+>  
+>  }
+>  EXPORT_SYMBOL(swiotlb_unmap_sg_attrs);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
