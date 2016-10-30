@@ -1,99 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E9E6B029B
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 11:26:33 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id f78so30628782oih.7
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 08:26:33 -0700 (PDT)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id y52si16686307otd.127.2016.10.31.08.26.31
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 86B806B0290
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 12:06:18 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 68so45455101wmz.5
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 09:06:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b65si25124685wmf.115.2016.10.31.09.06.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 08:26:32 -0700 (PDT)
-Received: by mail-oi0-x241.google.com with SMTP id v84so5979045oie.2
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 08:26:31 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 31 Oct 2016 09:06:16 -0700 (PDT)
+Date: Sun, 30 Oct 2016 18:31:35 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCHv3 17/41] filemap: handle huge pages in
+ filemap_fdatawait_range()
+Message-ID: <20161030173135.GC17039@quack2.suse.cz>
+References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
+ <20160915115523.29737-18-kirill.shutemov@linux.intel.com>
+ <20161013094441.GC26241@quack2.suse.cz>
+ <20161013120844.GA2906@node>
+ <20161013131802.GC27186@quack2.suse.cz>
+ <20161024113625.GC2849@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20161031102057.GZ1041@n2100.armlinux.org.uk>
-References: <20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024120447.16276.50401.stgit@ahduyck-blue-test.jf.intel.com> <20161031102057.GZ1041@n2100.armlinux.org.uk>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 31 Oct 2016 08:26:30 -0700
-Message-ID: <CAKgT0Uf8vg-78T15EMtnZ7Muz5aRZ_0o2e0GZn8Pc+TjD3xn7w@mail.gmail.com>
-Subject: Re: [net-next PATCH RFC 04/26] arch/arm: Add option to skip sync on
- DMA map and unmap
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161024113625.GC2849@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: Alexander Duyck <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On Mon, Oct 31, 2016 at 3:20 AM, Russell King - ARM Linux
-<linux@armlinux.org.uk> wrote:
-> On Mon, Oct 24, 2016 at 08:04:47AM -0400, Alexander Duyck wrote:
->> The use of DMA_ATTR_SKIP_CPU_SYNC was not consistent across all of the DMA
->> APIs in the arch/arm folder.  This change is meant to correct that so that
->> we get consistent behavior.
->
-> I'm really not convinced that this is anywhere close to correct behaviour.
->
-> If we're DMA-ing to a buffer, and we unmap it or sync_for_cpu, then we
-> will want to access the DMA'd data - especially in the sync_for_cpu case,
-> it's pointless to call sync_for_cpu if we're not going to access the
-> data.
+On Mon 24-10-16 14:36:25, Kirill A. Shutemov wrote:
+> On Thu, Oct 13, 2016 at 03:18:02PM +0200, Jan Kara wrote:
+> > On Thu 13-10-16 15:08:44, Kirill A. Shutemov wrote:
+> > > On Thu, Oct 13, 2016 at 11:44:41AM +0200, Jan Kara wrote:
+> > > > On Thu 15-09-16 14:54:59, Kirill A. Shutemov wrote:
+> > > > > We writeback whole huge page a time.
+> > > > 
+> > > > This is one of the things I don't understand. Firstly I didn't see where
+> > > > changes of writeback like this would happen (maybe they come later).
+> > > > Secondly I'm not sure why e.g. writeback should behave atomically wrt huge
+> > > > pages. Is this because radix-tree multiorder entry tracks dirtiness for us
+> > > > at that granularity?
+> > > 
+> > > We track dirty/writeback on per-compound pages: meaning we have one
+> > > dirty/writeback flag for whole compound page, not on every individual
+> > > 4k subpage. The same story for radix-tree tags.
+> > > 
+> > > > BTW, can you also explain why do we need multiorder entries? What do
+> > > > they solve for us?
+> > > 
+> > > It helps us having coherent view on tags in radix-tree: no matter which
+> > > index we refer from the range huge page covers we will get the same
+> > > answer on which tags set.
+> > 
+> > OK, understand that. But why do we need a coherent view? For which purposes
+> > exactly do we care that it is not just a bunch of 4k pages that happen to
+> > be physically contiguous and thus can be mapped in one PMD?
+> 
+> My understanding is that things like PageDirty() should be handled on the
+> same granularity as PAGECACHE_TAG_DIRTY, otherwise things can go horribly
+> wrong...
 
-First, let me clarify.  The sync_for_cpu call will still work the
-same.  This only effects the map/unmap calls.
+Yeah, I agree with that. My question was rather aiming in the direction:
+Why don't we keep PageDirty and PAGECACHE_TAG_DIRTY on a page granularity?
+Why do we push all this to happen only in the head page?
 
-> So the idea of skipping the CPU copy when DMA_ATTR_SKIP_CPU_SYNC is set
-> seems to be completely wrong - it means we end up reading the stale data
-> that was in the buffer, completely ignoring whatever was DMA'd to it.
+In your coverletter of the latest version (BTW thanks for expanding
+explanations there) you write:
+  - head page (the first subpage) on LRU represents whole huge page;
+  - head page's flags represent state of whole huge page (with few
+    exceptions);
+  - mm can't migrate subpages of the compound page individually;
 
-I agree.  However this is meant to be used in the dma_unmap call only
-if sync_for_cpu has already been called for the regions that could
-have been updated by the device.
+So the fact that flags of a head page represent flags of each individual
+page is the decision that I'm questioning, at least for PageDirty and
+PageWriteback flags. I'm asking because frankly, I don't like the series
+much. IMHO too many places need to know about huge pages and things will
+get broken frequently. And from filesystem POV I don't really see why a
+filesystem should care about huge pages *at all*. Sure functions allocating
+pages into page cache need to care, sure functions mapping pages into page
+tables need to care. But nobody else should need to be aware we are playing
+some huge page games... At least that is my idea how things ought to work
+;)
 
-> What's the use case for DMA_ATTR_SKIP_CPU_SYNC ?
+Your solution seems to go more towards the direction where we have two
+different sizes of pages in the system and everyone has to cope with it.
+But I'd also note that you go only half way there - e.g. page lookup
+functions still work with subpages, some places still use PAGE_SIZE &
+page->index, ... - so the result is a strange mix.
 
-The main use case I have in mind is to allow for pseudo-static DMA
-mappings where we can share them between the network stack and the
-device driver.  I use igb as an example.
+So what are the reasons for having pages forming a huge page bound so
+tightly?
 
-1   allocate page, reset page_offset to 0
-2   map page while passing DMA_ATTR_SKIP_CPU_SYNC
-3   dma_sync_single_range_for_device starting at page_offset, length
-2K (largest possible write by device)
-4   device performs Rx DMA and updates Rx descriptor
-5   read length from Rx descriptor
-6   dma_sync_single_range_for_cpu starting at page_offset, length
-reported by descriptor
-7   if page_count == 1
-        7.1  update page_offset with xor 2K
-        7.2  hand page up to network stack
-        7.3  goto 3
-8   unmap page with DMA_ATTR_SKIP_CPU_SYNC
-9   hand page up to network stack
-10 goto 1
 
-The idea is we want to be able to have a page be accessible to the
-device, but be able to share it with the network stack which might try
-to write to the page.  By letting the driver handle the
-synchronization we get two main advantages. First we end up looping
-over fewer cache lines as we only have to invalidate the region
-updated by the device in steps 3 and 6 instead of the entire page.
-The other advantage is that the pages are writable by the network
-stack since step 8 will not invalidate the entire mapping.
-
-I am just as concerned about the possibility of stale data.  That is
-why I have gone through and made sure that any path in the igb driver
-called sync for the region held by the device before we might call
-unmap.  It isn't that I don't want the data to be kept fresh, it is a
-matter of wanting control over what we are invalidating.  Here is a
-link to the igb patch I have that was a part of this set.
-
-https://patchwork.ozlabs.org/patch/686747/
-
-Thanks.
-
-- Alex
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
