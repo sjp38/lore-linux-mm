@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0E96B029E
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:41:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p190so74188763wmp.3
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:41:46 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2776B6B029E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:51:53 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 79so77006553wmy.6
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:51:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wh2si32148454wjb.136.2016.10.31.14.41.44
+        by mx.google.com with ESMTPS id xy10si32205351wjb.253.2016.10.31.14.51.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 31 Oct 2016 14:41:44 -0700 (PDT)
+        Mon, 31 Oct 2016 14:51:52 -0700 (PDT)
 Subject: Re: More OOM problems
 References: <eafb59b5-0a2b-0e28-ca79-f044470a2851@Quantum.com>
  <20160930214448.GB28379@dhcp22.suse.cz>
@@ -16,11 +16,12 @@ References: <eafb59b5-0a2b-0e28-ca79-f044470a2851@Quantum.com>
  <20161011064426.GA31996@dhcp22.suse.cz>
  <c71036ae-73db-f05a-fd14-fe2de44515b9@suse.cz>
  <20161030041723.GA4767@hostway.ca>
+ <cda7adea-6ba0-c2d1-baf0-bae388950360@suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cda7adea-6ba0-c2d1-baf0-bae388950360@suse.cz>
-Date: Mon, 31 Oct 2016 22:41:30 +0100
+Message-ID: <d7d67c89-6672-5cec-bba2-393ddb693f78@suse.cz>
+Date: Mon, 31 Oct 2016 22:51:40 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161030041723.GA4767@hostway.ca>
+In-Reply-To: <cda7adea-6ba0-c2d1-baf0-bae388950360@suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,56 +29,14 @@ List-ID: <linux-mm.kvack.org>
 To: Simon Kirby <sim@hostway.ca>
 Cc: Michal Hocko <mhocko@suse.cz>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Linus Torvalds <torvalds@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-On 10/30/2016 05:17 AM, Simon Kirby wrote:
-> On Tue, Oct 11, 2016 at 09:10:13AM +0200, Vlastimil Babka wrote:
-> 
->> Great indeed. Note that meanwhile the patches went to mainline so
->> we'd definitely welcome testing from the rest of you who had
->> originally problems with 4.7/4.8 and didn't try the linux-next
->> recently. So a good point would be to test 4.9-rc1 when it's
->> released. I hope you don't want to discover regressions again too
->> late, in the 4.9 final release :)
-> 
-> Hello!
-> 
-> I have a mixed-purpose HTPCish box running MythTV, etc. that I recently
-> upgraded from 4.6.7 to 4.8.4. This upgrade started OOM killing of various
-> processes even when there is plenty (gigabytes) of memory as page cache.
+On 10/31/2016 10:41 PM, Vlastimil Babka wrote:
+> In any case, it's still bad for 4.8 then.
+> Can you send /proc/vmstat from the system with an uptime that already
+> experienced at least one such oom?
 
-Hmm, that's too bad.
+Oh, and it might make sense to try the patch at the end of this e-mail:
 
-> This is with CONFIG_COMPACTION=y, and it occurs with or without swap on.
-> I'm not able to confirm on 4.9-rc2 since nouveau doesn't support NV117
-> and binary blob nvidia doesn't yet like the changes to get_user_pages.
-
-Please try once it starts liking the changes.
-Actually this kernel-interface part of the driver isn't binary blob
-AFAIK, so it should be possible to adapt it?
-
-> 4.8 includes "prevent premature OOM killer invocation for high order
-> request" which sounds like it should fix the issue, but this certainly
-> does not seem to be the case for me. I copied kern.log and .config here:
-> http://0x.ca/sim/ref/4.8.4/
-
-Looks like the available high-order pages are only as part of the
-highatomic reserves. I've checked if there might be some error in the
-functions deciding to reclaim/compact where they would wrongly decide
-that these pages are available, but it seems fine to me.
-
-> I see that this is reverted in 4.9-rc and replaced with something else.
-> Unfortunately, I can't test this workload without the nvidia tainting,
-> and "git log --oneline v4.8..v4.9-rc2 mm | grep oom | wc -l" returns 13.
-> Is there some stuff I should cherry-pick to try?
-
-Well, there were around 10 related patches, so I would rather try to
-adapt the nvidia code first, if possible.
-
-In any case, it's still bad for 4.8 then.
-Can you send /proc/vmstat from the system with an uptime that already
-experienced at least one such oom?
-
-> Simon-
-> 
+https://marc.info/?l=linux-mm&m=147423605024993
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
