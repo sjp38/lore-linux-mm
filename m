@@ -1,67 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E3E6B029B
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 16:40:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i128so76236412wme.2
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 13:40:00 -0700 (PDT)
-Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2607:b400:92:8300:0:c6:2117:b0e])
-        by mx.google.com with ESMTPS id ht7si31830940wjb.163.2016.10.31.13.39.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F02A6B029E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:32:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 68so50319421wmz.5
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:32:21 -0700 (PDT)
+Received: from thejh.net (thejh.net. [2a03:4000:2:1b9::1])
+        by mx.google.com with ESMTPS id v130si9316718wmf.126.2016.10.31.14.32.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 13:39:59 -0700 (PDT)
-Subject: Re: mmotm 2016-10-27-18-27 uploaded
-From: Valdis.Kletnieks@vt.edu
-In-Reply-To: <CAP=VYLqNv8p_ojkcjeWCN-nMumDg296UkV1b460KDHAXOHZSEA@mail.gmail.com>
-References: <5812a9b6.OlAMBhewokz9/Mou%akpm@linux-foundation.org>
- <CAP=VYLqNv8p_ojkcjeWCN-nMumDg296UkV1b460KDHAXOHZSEA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1477946270_20678P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 31 Oct 2016 16:37:50 -0400
-Message-ID: <21418.1477946270@turing-police.cc.vt.edu>
+        Mon, 31 Oct 2016 14:32:19 -0700 (PDT)
+From: Jann Horn <jann@thejh.net>
+Subject: [PATCH] swapfile: fix memory corruption via malformed swapfile
+Date: Mon, 31 Oct 2016 22:32:13 +0100
+Message-Id: <1477949533-2509-1-git-send-email-jann@thejh.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.cz>, broonie@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jerome Marchand <jmarchan@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---==_Exmh_1477946270_20678P
-Content-Type: text/plain; charset=us-ascii
+When root activates a swap partition whose header has the wrong endianness,
+nr_badpages elements of badpages are swabbed before nr_badpages has been
+checked, leading to a buffer overrun of up to 8GB.
 
-On Sun, 30 Oct 2016 14:15:30 -0400, Paul Gortmaker said:
-> On Thu, Oct 27, 2016 at 9:28 PM,  <akpm@linux-foundation.org> wrote:
-> > The mm-of-the-moment snapshot 2016-10-27-18-27 has been uploaded to
-> >
-> >    http://www.ozlabs.org/~akpm/mmotm/
->
-> Just a heads up:
->
-> Somehow one of the akpm commits as it appears in linux-next has had
-> spaces replaced with garbage chars:
->
-> https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/scripts/get_maintainer.pl?id=b67071653d3fc9f9b73aab3e7978f060728bf392
+This normally is not a security issue because it can only be exploited by
+root (more specifically, a process with CAP_SYS_ADMIN or the ability to
+modify a swap file/partition), and such a process can already e.g. modify
+swapped-out memory of any other userspace process on the system.
 
-How... special.  They're 0xA0 non-breaking-space chars.  Somebody's
-editor was obviously in the wrong mode. :)
+Testcase for reproducing the bug (must be run as root, should crash your
+kernel):
+=================
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/swap.h>
+#include <limits.h>
+#include <err.h>
+#include <string.h>
+#include <stdio.h>
+
+#define PAGE_SIZE 4096
+#define __u32 unsigned int
 
 
+// from include/linux/swap.h
+union swap_header {
+  struct {
+    char reserved[PAGE_SIZE - 10];
+    char magic[10];     /* SWAP-SPACE or SWAPSPACE2 */
+  } magic;
+  struct {
+    char    bootbits[1024]; /* Space for disklabel etc. */
+    __u32   version;
+    __u32   last_page;
+    __u32   nr_badpages;
+    unsigned char sws_uuid[16];
+    unsigned char sws_volume[16];
+    __u32   padding[117];
+    __u32   badpages[1];
+  } info;
+};
 
---==_Exmh_1477946270_20678P
-Content-Type: application/pgp-signature
+int main(void) {
+  char file[] = "/tmp/swapfile.XXXXXX";
+  int file_fd = mkstemp(file);
+  if (file_fd == -1)
+    err(1, "mkstemp");
+  if (ftruncate(file_fd, PAGE_SIZE))
+    err(1, "ftruncate");
+  union swap_header swap_header = {
+    .info = {
+      .version = __builtin_bswap32(1),
+      .nr_badpages = __builtin_bswap32(INT_MAX)
+    }
+  };
+  memcpy(swap_header.magic.magic, "SWAPSPACE2", 10);
+  if (write(file_fd, &swap_header, sizeof(swap_header)) !=
+      sizeof(swap_header))
+    err(1, "write");
 
------BEGIN PGP SIGNATURE-----
-Comment: Exmh version 2.5 07/13/2001
+  // not because the attack needs it, just in case you forgot to
+  // sync yourself before crashing your machine
+  sync();
 
-iQEVAwUBWBerno0DS38y7CIcAQLP2Qf+NdAaDANAToJLVajkwVYVDGOxMb8pwJBN
-1gowWGHDALNepgrYZXAp/SL6zwc7DTScE6RXbj0hiv0aMXsENXcB2DP9et/HX1st
-PB2BPOjVCLhjL6vNW57WOlUlb4YgGdwoE7Ba06sJH/YbAGLCnwxYuhoz4e6bwHFU
-BkXDCbdZRVE3xstXpM0ZBJrZ1tiZW6dQ4RXb12pHhlrBHIDtdnhksvOFgz9CemxY
-PWRQS4vZbWAQza6g89H6f3QZEBc1A82K1RtV7gtObrwrpQhZvKpxXOYpwx9yg2pP
-Md5jjbmye4yBsFLsap7jH0Z37gyAaFBKFAJapVnv/b75p2gFc1sgCg==
-=XuS+
------END PGP SIGNATURE-----
+  // now die
+  if (swapon(file, 0))
+    err(1, "swapon");
+  puts("huh, we survived");
+  if (swapoff(file))
+    err(1, "swapoff");
+  unlink(file);
+}
+=================
 
---==_Exmh_1477946270_20678P--
+Cc: stable@vger.kernel.org
+Signed-off-by: Jann Horn <jann@thejh.net>
+---
+ mm/swapfile.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 2210de290b54..f30438970cd1 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -2224,6 +2224,8 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
+ 		swab32s(&swap_header->info.version);
+ 		swab32s(&swap_header->info.last_page);
+ 		swab32s(&swap_header->info.nr_badpages);
++		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
++			return 0;
+ 		for (i = 0; i < swap_header->info.nr_badpages; i++)
+ 			swab32s(&swap_header->info.badpages[i]);
+ 	}
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
