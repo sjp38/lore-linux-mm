@@ -1,145 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 40A116B02A6
-	for <linux-mm@kvack.org>; Sun, 30 Oct 2016 15:40:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x70so36100867pfk.0
-        for <linux-mm@kvack.org>; Sun, 30 Oct 2016 12:40:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 70si21527198pga.188.2016.10.30.12.40.10
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D29276B0290
+	for <linux-mm@kvack.org>; Sun, 30 Oct 2016 21:27:03 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id fl2so86668488pad.7
+        for <linux-mm@kvack.org>; Sun, 30 Oct 2016 18:27:03 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id e17si22225863pgh.24.2016.10.30.18.27.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 30 Oct 2016 12:40:10 -0700 (PDT)
-Date: Mon, 31 Oct 2016 03:39:15 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: core.c:undefined reference to `fpu_save'
-Message-ID: <201610310312.wr2MRJoE%fengguang.wu@intel.com>
+        Sun, 30 Oct 2016 18:27:03 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -v4 RESEND 8/9] mm, THP, swap: Support to split THP in swap cache
+References: <20161028055608.1736-1-ying.huang@intel.com>
+	<20161028055608.1736-9-ying.huang@intel.com>
+	<052901d23104$a6473380$f2d59a80$@alibaba-inc.com>
+Date: Mon, 31 Oct 2016 09:26:59 +0800
+In-Reply-To: <052901d23104$a6473380$f2d59a80$@alibaba-inc.com> (Hillf Danton's
+	message of "Fri, 28 Oct 2016 18:18:34 +0800")
+Message-ID: <871syx71gc.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
-Content-Disposition: inline
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: "'Huang, Ying'" <ying.huang@intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Ebru Akagunduz' <ebru.akagunduz@gmail.com>
 
+Hillf Danton <hillf.zj@alibaba-inc.com> writes:
 
---BOKacYhQ+x31HxR3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> On Friday, October 28, 2016 1:56 PM Huang, Ying wrote: 
+>> @@ -2016,10 +2021,12 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
+>>  /* Racy check whether the huge page can be split */
+>>  bool can_split_huge_page(struct page *page)
+>>  {
+>> -	int extra_pins = 0;
+>> +	int extra_pins;
+>> 
+>>  	/* Additional pins from radix tree */
+>> -	if (!PageAnon(page))
+>> +	if (PageAnon(page))
+>> +		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
+>> +	else
+>>  		extra_pins = HPAGE_PMD_NR;
+>
+> extra_pins is computed in this newly added helper.
+>
+>>  	return total_mapcount(page) == page_count(page) - extra_pins - 1;
+>>  }
+>> @@ -2072,7 +2079,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+>>  			ret = -EBUSY;
+>>  			goto out;
+>>  		}
+>> -		extra_pins = 0;
+>> +		extra_pins = PageSwapCache(head) ? HPAGE_PMD_NR : 0;
+>
+> It is also computed at the call site, so can we fold them into one?
 
-Hi Andrew,
+Sounds reasonable.  I will add another argument to can_split_huge_page()
+to return extra_pins, so we can avoid duplicated code and calculation.
 
-It's probably a bug fix that unveils the link errors.
+Best Regards,
+Huang, Ying
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   2a26d99b251b8625d27aed14e97fc10707a3a81f
-commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
-date:   8 months ago
-config: mn10300-allnoconfig (attached as .config)
-compiler: am33_2.0-linux-gcc (GCC) 6.2.0
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
-        # save the attached .config to linux build tree
-        make.cross ARCH=mn10300 
-
-All errors (new ones prefixed by >>):
-
-   kernel/built-in.o: In function `.L410':
->> core.c:(.sched.text+0x28a): undefined reference to `fpu_save'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---BOKacYhQ+x31HxR3
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---BOKacYhQ+x31HxR3--
+>>  		mapping = NULL;
+>>  		anon_vma_lock_write(anon_vma);
+>>  	} else {
+>> --
+>> 2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
