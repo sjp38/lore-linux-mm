@@ -1,107 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 227706B0290
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:10:40 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b81so5212829lfe.1
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 11:10:40 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id o75si3960437lff.70.2016.10.31.11.10.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C37176B0290
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:37:23 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a136so20036652pfa.5
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 11:37:23 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id ff2si21673124pad.208.2016.10.31.11.37.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 11:10:38 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id i187so7521040lfe.1
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 11:10:38 -0700 (PDT)
-Date: Mon, 31 Oct 2016 21:10:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
- do_generic_file_read()
-Message-ID: <20161031181035.GA7007@node.shutemov.name>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
- <20161013093313.GB26241@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161013093313.GB26241@quack2.suse.cz>
+        Mon, 31 Oct 2016 11:37:22 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id d2so5671272pfd.0
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 11:37:22 -0700 (PDT)
+From: Thomas Garnier <thgarnie@google.com>
+Subject: [PATCH v2] memcg: Prevent memcg caches to be both OFF_SLAB & OBJFREELIST_SLAB
+Date: Mon, 31 Oct 2016 11:36:50 -0700
+Message-Id: <1477939010-111710-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, vdavydov.dev@gmail.com, mhocko@kernel.org, Thomas Garnier <thgarnie@google.com>
 
-[ My mail system got broken and original reply didn't get to through. Resent. ]
+While testing OBJFREELIST_SLAB integration with pagealloc, we found a
+bug where kmem_cache(sys) would be created with both CFLGS_OFF_SLAB &
+CFLGS_OBJFREELIST_SLAB.
 
-On Thu, Oct 13, 2016 at 11:33:13AM +0200, Jan Kara wrote:
-> On Thu 15-09-16 14:54:57, Kirill A. Shutemov wrote:
-> > Most of work happans on head page. Only when we need to do copy data to
-> > userspace we find relevant subpage.
-> > 
-> > We are still limited by PAGE_SIZE per iteration. Lifting this limitation
-> > would require some more work.
->
-> Hum, I'm kind of lost.
+The original kmem_cache is created early making OFF_SLAB not possible.
+When kmem_cache(sys) is created, OFF_SLAB is possible and if pagealloc
+is enabled it will try to enable it first under certain conditions.
+Given kmem_cache(sys) reuses the original flag, you can have both flags
+at the same time resulting in allocation failures and odd behaviors.
 
-The limitation here comes from how copy_page_to_iter() and
-copy_page_from_iter() work wrt. highmem: it can only handle one small
-page a time.
+This fix discards allocator specific flags from memcg and ensure
+cache_create cannot be called with them.
 
-On write side, we also have problem with assuming small page: write length
-and offset within page calculated before we know if small or huge page is
-allocated. It's not easy to fix. Looks like it would require change in
-->write_begin() interface to accept len > PAGE_SIZE.
+Fixes: b03a017bebc4 ("mm/slab: introduce new slab management type, OBJFREELIST_SLAB")
+Signed-off-by: Thomas Garnier <thgarnie@google.com>
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+Based on next-20161025
+---
+ mm/slab.h        |  3 +++
+ mm/slab_common.c | 10 ++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)
 
-> Can you point me to some design document / email that would explain some
-> high level ideas how are huge pages in page cache supposed to work?
-
-I'll elaborate more in cover letter to next revision.
-
-> When are we supposed to operate on the head page and when on subpage?
-
-It's case-by-case. See above explanation why we're limited to PAGE_SIZE
-here.
-
-> What is protected by the page lock of the head page?
-
-Whole huge page. As with anon pages.
-
-> Do page locks of subpages play any role?
-
-lock_page() on any subpage would lock whole huge page.
-
-> If understand right, e.g.  pagecache_get_page() will return subpages but
-> is it generally safe to operate on subpages individually or do we have
-> to be aware that they are part of a huge page?
-
-I tried to make it as transparent as possible: page flag operations will
-be redirected to head page, if necessary. Things like page_mapping() and
-page_to_pgoff() know about huge pages.
-
-Direct access to struct page fields must be avoided for tail pages as most
-of them doesn't have meaning you would expect for small pages.
-
-> If I understand the motivation right, it is mostly about being able to mmap
-> PMD-sized chunks to userspace. So my naive idea would be that we could just
-> implement it by allocating PMD sized chunks of pages when adding pages to
-> page cache, we don't even have to read them all unless we come from PMD
-> fault path.
-
-Well, no. We have one PG_{uptodate,dirty,writeback,mappedtodisk,etc}
-per-hugepage, one common list of buffer heads...
-
-PG_dirty and PG_uptodate behaviour inhered from anon-THP (where handling
-it otherwise doesn't make sense) and handling it differently for file-THP
-is nightmare from maintenance POV.
-
-> Reclaim may need to be aware not to split pages unnecessarily
-> but that's about it. So I'd like to understand what's wrong with this
-> naive idea and why do filesystems need to be aware that someone wants to
-> map in PMD sized chunks...
-
-In addition to flags, THP uses some space in struct page of tail pages to
-encode additional information. See compound_{mapcount,head,dtor,order},
-page_deferred_list().
-
---
- Kirill A. Shutemov
+diff --git a/mm/slab.h b/mm/slab.h
+index 9653f2e..58be647 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -144,6 +144,9 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+ 
+ #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
+ 
++/* Common allocator flags allowed for cache_create. */
++#define SLAB_FLAGS_PERMITTED (CACHE_CREATE_MASK | SLAB_KASAN)
++
+ int __kmem_cache_shutdown(struct kmem_cache *);
+ void __kmem_cache_release(struct kmem_cache *);
+ int __kmem_cache_shrink(struct kmem_cache *, bool);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 71f0b28..01d067c 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -329,6 +329,12 @@ static struct kmem_cache *create_cache(const char *name,
+ 	struct kmem_cache *s;
+ 	int err;
+ 
++	/* Do not allow allocator specific flags */
++	if (flags & ~SLAB_FLAGS_PERMITTED) {
++		err = -EINVAL;
++		goto out;
++	}
++
+ 	err = -ENOMEM;
+ 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+ 	if (!s)
+@@ -533,8 +539,8 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 
+ 	s = create_cache(cache_name, root_cache->object_size,
+ 			 root_cache->size, root_cache->align,
+-			 root_cache->flags, root_cache->ctor,
+-			 memcg, root_cache);
++			 root_cache->flags & SLAB_FLAGS_PERMITTED,
++			 root_cache->ctor, memcg, root_cache);
+ 	/*
+ 	 * If we could not create a memcg cache, do not complain, because
+ 	 * that's not critical at all as we can always proceed with the root
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
