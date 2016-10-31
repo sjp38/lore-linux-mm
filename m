@@ -1,126 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5642F6B0290
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 15:28:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r68so25819788wmd.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 12:28:30 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id u197si26216696wmf.33.2016.10.31.12.28.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E4E3E6B029B
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 16:40:00 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i128so76236412wme.2
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 13:40:00 -0700 (PDT)
+Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2607:b400:92:8300:0:c6:2117:b0e])
+        by mx.google.com with ESMTPS id ht7si31830940wjb.163.2016.10.31.13.39.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 12:28:29 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id u144so599662wmu.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 12:28:28 -0700 (PDT)
-Date: Mon, 31 Oct 2016 19:28:26 +0000
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: Re: [PATCH 2/2] mm: remove get_user_pages_locked()
-Message-ID: <20161031192826.GA13380@lucifer>
-References: <20161031100228.17917-1-lstoakes@gmail.com>
- <20161031100228.17917-3-lstoakes@gmail.com>
- <cc508436-156e-eb4b-ae01-b44f33c2d692@redhat.com>
- <20161031134849.GA13609@lucifer>
- <ddbe34d0-5d29-abce-1627-f464635bbfe6@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ddbe34d0-5d29-abce-1627-f464635bbfe6@redhat.com>
+        Mon, 31 Oct 2016 13:39:59 -0700 (PDT)
+Subject: Re: mmotm 2016-10-27-18-27 uploaded
+From: Valdis.Kletnieks@vt.edu
+In-Reply-To: <CAP=VYLqNv8p_ojkcjeWCN-nMumDg296UkV1b460KDHAXOHZSEA@mail.gmail.com>
+References: <5812a9b6.OlAMBhewokz9/Mou%akpm@linux-foundation.org>
+ <CAP=VYLqNv8p_ojkcjeWCN-nMumDg296UkV1b460KDHAXOHZSEA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1477946270_20678P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 31 Oct 2016 16:37:50 -0400
+Message-ID: <21418.1477946270@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, kvm@vger.kernel.org, linux-media@vger.kernel.org, devel@driverdev.osuosl.org
+To: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Michal Hocko <mhocko@suse.cz>, broonie@kernel.org
 
-On Mon, Oct 31, 2016 at 06:55:33PM +0100, Paolo Bonzini wrote:
-> > 2. There is currently only one caller of get_user_pages_locked() in
-> >    mm/frame_vector.c which seems to suggest this function isn't widely
-> >    used/known.
->
-> Or not widely necessary. :)
+--==_Exmh_1477946270_20678P
+Content-Type: text/plain; charset=us-ascii
 
-Well, quite :)
->
-> > 3. This change results in all slow-path get_user_pages*() functions having the
-> >    ability to use VM_FAULT_RETRY logic rather than 'defaulting' to using
-> >    get_user_pages() that doesn't let you do this even if you wanted to.
->
-> This is only true if someone does the work though.  From a quick look
-> at your series, the following files can be trivially changed to use
-> get_user_pages_unlocked:
->
-> - drivers/gpu/drm/via/via_dmablit.c
-> - drivers/platform/goldfish/goldfish_pipe.c
-> - drivers/staging/vc04_services/interface/vchiq_arm/vchiq_arm.c
-> - drivers/rapidio/devices/rio_mport_cdev.c
-> - drivers/virt/fsl_hypervisor.c
->
-
-Ah indeed, I rather glossed through the callers and noticed that at least some
-held locks long enough or were called with a lock held sufficient that I wasn't
-sure it could be released.
-
-> Also, videobuf_dma_init_user could be changed to use retry by adding a
-> *locked argument to videobuf_dma_init_user_locked, prototype patch
-> after my signature.
->
-
-Very nice!
-
-> Everything else is probably best kept using get_user_pages.
->
-> > 4. It's somewhat confusing/redundant having both get_user_pages_locked() and
-> >    get_user_pages() functions which both require mmap_sem to be held (i.e. both
-> >    are 'locked' versions.)
+On Sun, 30 Oct 2016 14:15:30 -0400, Paul Gortmaker said:
+> On Thu, Oct 27, 2016 at 9:28 PM,  <akpm@linux-foundation.org> wrote:
+> > The mm-of-the-moment snapshot 2016-10-27-18-27 has been uploaded to
 > >
-> >> If all callers were changed, then sure removing the _locked suffix would
-> >> be a good idea.
-> >
-> > It seems many callers cannot release mmap_sem so VM_FAULT_RETRY logic couldn't
-> > happen anyway in this cases and in these cases we couldn't change the caller.
+> >    http://www.ozlabs.org/~akpm/mmotm/
 >
-> But then get_user_pages_locked remains a less-common case, so perhaps
-> it's a good thing to give it a longer name!
-
-My (somewhat minor) concern was that there would be confusion due to the
-existence of the triumvirate of g_u_p()/g_u_p_unlocked()/g_u_p_locked(), however
-the comments do a decent enough job of explaining the situation.
-
+> Just a heads up:
 >
-> > Overall, an alternative here might be to remove get_user_pages() and update
-> > get_user_pages_locked() to add a 'vmas' parameter, however doing this renders
-> > get_user_pages_unlocked() asymmetric as it would lack an vmas parameter (adding
-> > one there would make no sense as VM_FAULT_RETRY logic invalidates VMAs) though
-> > perhaps not such a big issue as it makes sense as to why this is the case.
+> Somehow one of the akpm commits as it appears in linux-next has had
+> spaces replaced with garbage chars:
 >
-> Adding the 'vmas' parameter to get_user_pages_locked would make little
-> sense.  Since VM_FAULT_RETRY invalidates it and g_u_p_locked can and
-> does retry, it would generally not be useful.
+> https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/scripts/get_maintainer.pl?id=b67071653d3fc9f9b73aab3e7978f060728bf392
 
-I meant only in the case where we'd remove get_user_pages() and instead be left
-with get_user_pages_[un]locked() only, meaning we'd have to add some means of
-retrieving vmas if locked was set NULL, of course in cases where locked is not
-NULL it makes no sense to add it.
+How... special.  They're 0xA0 non-breaking-space chars.  Somebody's
+editor was obviously in the wrong mode. :)
 
->
-> So I think we have the right API now:
->
-> - do not have lock?  Use get_user_pages_unlocked, get retry for free,
-> no need to handle  mmap_sem and the locked argument; cannot get back vmas.
->
-> - have and cannot drop lock?  User get_user_pages, no need to pass NULL
-> for the locked argument; can get back vmas.
->
-> - have but can drop lock (rare case)?  Use get_user_pages_locked,
-> cannot get back vams.
 
-Yeah I think this is sane as it is actually, this patch set was a lot less
-convincing of a cleanup than prior ones and overall it seems we are better off
-with the existing API.
 
-I wonder whether a better patch series to come out of this would be to find
-cases where the lock could be dropped (i.e. the ones you mention above) and to
-switch to using get_user_pages_[un]locked() where it makes sense to.
+--==_Exmh_1477946270_20678P
+Content-Type: application/pgp-signature
 
-I am happy to look into these cases (though of course I must leave your
-suggested patch here to you :)
+-----BEGIN PGP SIGNATURE-----
+Comment: Exmh version 2.5 07/13/2001
+
+iQEVAwUBWBerno0DS38y7CIcAQLP2Qf+NdAaDANAToJLVajkwVYVDGOxMb8pwJBN
+1gowWGHDALNepgrYZXAp/SL6zwc7DTScE6RXbj0hiv0aMXsENXcB2DP9et/HX1st
+PB2BPOjVCLhjL6vNW57WOlUlb4YgGdwoE7Ba06sJH/YbAGLCnwxYuhoz4e6bwHFU
+BkXDCbdZRVE3xstXpM0ZBJrZ1tiZW6dQ4RXb12pHhlrBHIDtdnhksvOFgz9CemxY
+PWRQS4vZbWAQza6g89H6f3QZEBc1A82K1RtV7gtObrwrpQhZvKpxXOYpwx9yg2pP
+Md5jjbmye4yBsFLsap7jH0Z37gyAaFBKFAJapVnv/b75p2gFc1sgCg==
+=XuS+
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1477946270_20678P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
