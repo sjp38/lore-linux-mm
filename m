@@ -1,118 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F02A6B029E
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:32:21 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 68so50319421wmz.5
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:32:21 -0700 (PDT)
-Received: from thejh.net (thejh.net. [2a03:4000:2:1b9::1])
-        by mx.google.com with ESMTPS id v130si9316718wmf.126.2016.10.31.14.32.19
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0E96B029E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:41:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p190so74188763wmp.3
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 14:41:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wh2si32148454wjb.136.2016.10.31.14.41.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 14:32:19 -0700 (PDT)
-From: Jann Horn <jann@thejh.net>
-Subject: [PATCH] swapfile: fix memory corruption via malformed swapfile
-Date: Mon, 31 Oct 2016 22:32:13 +0100
-Message-Id: <1477949533-2509-1-git-send-email-jann@thejh.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 31 Oct 2016 14:41:44 -0700 (PDT)
+Subject: Re: More OOM problems
+References: <eafb59b5-0a2b-0e28-ca79-f044470a2851@Quantum.com>
+ <20160930214448.GB28379@dhcp22.suse.cz>
+ <982671bd-5733-0cd5-c15d-112648ff14c5@Quantum.com>
+ <20161011064426.GA31996@dhcp22.suse.cz>
+ <c71036ae-73db-f05a-fd14-fe2de44515b9@suse.cz>
+ <20161030041723.GA4767@hostway.ca>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cda7adea-6ba0-c2d1-baf0-bae388950360@suse.cz>
+Date: Mon, 31 Oct 2016 22:41:30 +0100
+MIME-Version: 1.0
+In-Reply-To: <20161030041723.GA4767@hostway.ca>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Simon Kirby <sim@hostway.ca>
+Cc: Michal Hocko <mhocko@suse.cz>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Linus Torvalds <torvalds@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-When root activates a swap partition whose header has the wrong endianness,
-nr_badpages elements of badpages are swabbed before nr_badpages has been
-checked, leading to a buffer overrun of up to 8GB.
+On 10/30/2016 05:17 AM, Simon Kirby wrote:
+> On Tue, Oct 11, 2016 at 09:10:13AM +0200, Vlastimil Babka wrote:
+> 
+>> Great indeed. Note that meanwhile the patches went to mainline so
+>> we'd definitely welcome testing from the rest of you who had
+>> originally problems with 4.7/4.8 and didn't try the linux-next
+>> recently. So a good point would be to test 4.9-rc1 when it's
+>> released. I hope you don't want to discover regressions again too
+>> late, in the 4.9 final release :)
+> 
+> Hello!
+> 
+> I have a mixed-purpose HTPCish box running MythTV, etc. that I recently
+> upgraded from 4.6.7 to 4.8.4. This upgrade started OOM killing of various
+> processes even when there is plenty (gigabytes) of memory as page cache.
 
-This normally is not a security issue because it can only be exploited by
-root (more specifically, a process with CAP_SYS_ADMIN or the ability to
-modify a swap file/partition), and such a process can already e.g. modify
-swapped-out memory of any other userspace process on the system.
+Hmm, that's too bad.
 
-Testcase for reproducing the bug (must be run as root, should crash your
-kernel):
-=================
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/swap.h>
-#include <limits.h>
-#include <err.h>
-#include <string.h>
-#include <stdio.h>
+> This is with CONFIG_COMPACTION=y, and it occurs with or without swap on.
+> I'm not able to confirm on 4.9-rc2 since nouveau doesn't support NV117
+> and binary blob nvidia doesn't yet like the changes to get_user_pages.
 
-#define PAGE_SIZE 4096
-#define __u32 unsigned int
+Please try once it starts liking the changes.
+Actually this kernel-interface part of the driver isn't binary blob
+AFAIK, so it should be possible to adapt it?
 
+> 4.8 includes "prevent premature OOM killer invocation for high order
+> request" which sounds like it should fix the issue, but this certainly
+> does not seem to be the case for me. I copied kern.log and .config here:
+> http://0x.ca/sim/ref/4.8.4/
 
-// from include/linux/swap.h
-union swap_header {
-  struct {
-    char reserved[PAGE_SIZE - 10];
-    char magic[10];     /* SWAP-SPACE or SWAPSPACE2 */
-  } magic;
-  struct {
-    char    bootbits[1024]; /* Space for disklabel etc. */
-    __u32   version;
-    __u32   last_page;
-    __u32   nr_badpages;
-    unsigned char sws_uuid[16];
-    unsigned char sws_volume[16];
-    __u32   padding[117];
-    __u32   badpages[1];
-  } info;
-};
+Looks like the available high-order pages are only as part of the
+highatomic reserves. I've checked if there might be some error in the
+functions deciding to reclaim/compact where they would wrongly decide
+that these pages are available, but it seems fine to me.
 
-int main(void) {
-  char file[] = "/tmp/swapfile.XXXXXX";
-  int file_fd = mkstemp(file);
-  if (file_fd == -1)
-    err(1, "mkstemp");
-  if (ftruncate(file_fd, PAGE_SIZE))
-    err(1, "ftruncate");
-  union swap_header swap_header = {
-    .info = {
-      .version = __builtin_bswap32(1),
-      .nr_badpages = __builtin_bswap32(INT_MAX)
-    }
-  };
-  memcpy(swap_header.magic.magic, "SWAPSPACE2", 10);
-  if (write(file_fd, &swap_header, sizeof(swap_header)) !=
-      sizeof(swap_header))
-    err(1, "write");
+> I see that this is reverted in 4.9-rc and replaced with something else.
+> Unfortunately, I can't test this workload without the nvidia tainting,
+> and "git log --oneline v4.8..v4.9-rc2 mm | grep oom | wc -l" returns 13.
+> Is there some stuff I should cherry-pick to try?
 
-  // not because the attack needs it, just in case you forgot to
-  // sync yourself before crashing your machine
-  sync();
+Well, there were around 10 related patches, so I would rather try to
+adapt the nvidia code first, if possible.
 
-  // now die
-  if (swapon(file, 0))
-    err(1, "swapon");
-  puts("huh, we survived");
-  if (swapoff(file))
-    err(1, "swapoff");
-  unlink(file);
-}
-=================
+In any case, it's still bad for 4.8 then.
+Can you send /proc/vmstat from the system with an uptime that already
+experienced at least one such oom?
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Jann Horn <jann@thejh.net>
----
- mm/swapfile.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 2210de290b54..f30438970cd1 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2224,6 +2224,8 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
- 		swab32s(&swap_header->info.version);
- 		swab32s(&swap_header->info.last_page);
- 		swab32s(&swap_header->info.nr_badpages);
-+		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
-+			return 0;
- 		for (i = 0; i < swap_header->info.nr_badpages; i++)
- 			swab32s(&swap_header->info.badpages[i]);
- 	}
--- 
-2.1.4
+> Simon-
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
