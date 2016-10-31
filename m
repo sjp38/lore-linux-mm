@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCA06B0290
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 06:21:11 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m83so66990852wmc.1
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 03:21:11 -0700 (PDT)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id wx6si28718709wjb.37.2016.10.31.03.21.09
+	by kanga.kvack.org (Postfix) with ESMTP id 4C8786B0290
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 07:45:44 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 79so67834342wmy.6
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 04:45:44 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id t14si23820575wme.97.2016.10.31.04.45.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 31 Oct 2016 03:21:10 -0700 (PDT)
-Date: Mon, 31 Oct 2016 10:20:57 +0000
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: [net-next PATCH RFC 04/26] arch/arm: Add option to skip sync on
- DMA map and unmap
-Message-ID: <20161031102057.GZ1041@n2100.armlinux.org.uk>
-References: <20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024120447.16276.50401.stgit@ahduyck-blue-test.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Oct 2016 04:45:42 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id p190so11804928wmp.1
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 04:45:42 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: remove get_user_pages_locked()
+References: <20161031100228.17917-1-lstoakes@gmail.com>
+ <20161031100228.17917-3-lstoakes@gmail.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <cc508436-156e-eb4b-ae01-b44f33c2d692@redhat.com>
+Date: Mon, 31 Oct 2016 12:45:36 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161024120447.16276.50401.stgit@ahduyck-blue-test.jf.intel.com>
+In-Reply-To: <20161031100228.17917-3-lstoakes@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com, davem@davemloft.net
+To: Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, kvm@vger.kernel.org, linux-media@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Mon, Oct 24, 2016 at 08:04:47AM -0400, Alexander Duyck wrote:
-> The use of DMA_ATTR_SKIP_CPU_SYNC was not consistent across all of the DMA
-> APIs in the arch/arm folder.  This change is meant to correct that so that
-> we get consistent behavior.
 
-I'm really not convinced that this is anywhere close to correct behaviour.
 
-If we're DMA-ing to a buffer, and we unmap it or sync_for_cpu, then we
-will want to access the DMA'd data - especially in the sync_for_cpu case,
-it's pointless to call sync_for_cpu if we're not going to access the
-data.
+On 31/10/2016 11:02, Lorenzo Stoakes wrote:
+> - *
+> - * get_user_pages should be phased out in favor of
+> - * get_user_pages_locked|unlocked or get_user_pages_fast. Nothing
+> - * should use get_user_pages because it cannot pass
+> - * FAULT_FLAG_ALLOW_RETRY to handle_mm_fault.
 
-So the idea of skipping the CPU copy when DMA_ATTR_SKIP_CPU_SYNC is set
-seems to be completely wrong - it means we end up reading the stale data
-that was in the buffer, completely ignoring whatever was DMA'd to it.
+This comment should be preserved in some way.  In addition, removing
+get_user_pages_locked() makes it harder (compared to a simple "git grep
+-w") to identify callers that lack allow-retry functionality).  So I'm
+not sure about the benefits of these patches.
 
-What's the use case for DMA_ATTR_SKIP_CPU_SYNC ?
+If all callers were changed, then sure removing the _locked suffix would
+be a good idea.
 
--- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
