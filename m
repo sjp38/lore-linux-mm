@@ -1,136 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C01256B029E
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 18:36:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i128so77663095wme.2
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 15:36:19 -0700 (PDT)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id m1si27179465wmm.23.2016.10.31.15.36.18
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0696B029E
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 18:52:10 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id x186so23014193vkd.1
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 15:52:10 -0700 (PDT)
+Received: from mail-vk0-x235.google.com (mail-vk0-x235.google.com. [2607:f8b0:400c:c05::235])
+        by mx.google.com with ESMTPS id h191si12381421vka.148.2016.10.31.15.52.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 15:36:18 -0700 (PDT)
-Received: by mail-wm0-x236.google.com with SMTP id t79so76975675wmt.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 15:36:18 -0700 (PDT)
+        Mon, 31 Oct 2016 15:52:09 -0700 (PDT)
+Received: by mail-vk0-x235.google.com with SMTP id w194so50319279vkw.2
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 15:52:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1477949533-2509-1-git-send-email-jann@thejh.net>
-References: <1477949533-2509-1-git-send-email-jann@thejh.net>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 31 Oct 2016 15:36:17 -0700
-Message-ID: <CAGXu5j+vgxJSEKFcLtGYDEEogo0944pUaxZ2sZ2xfstvzWYVxw@mail.gmail.com>
-Subject: Re: [PATCH] swapfile: fix memory corruption via malformed swapfile
+In-Reply-To: <20161031152519.GA25791@infradead.org>
+References: <1477728600-12938-1-git-send-email-tom.leiming@gmail.com> <20161031152519.GA25791@infradead.org>
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Tue, 1 Nov 2016 06:52:08 +0800
+Message-ID: <CACVXFVN7Cnf8CqsnQwJEeOJTQr=qmHWLrieO++0XXcK3=mWQCw@mail.gmail.com>
+Subject: Re: [PATCH 00/60] block: support multipage bvec
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jann@thejh.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jerome Marchand <jmarchan@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jens Axboe <axboe@fb.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-block <linux-block@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Bart Van Assche <bart.vanassche@sandisk.com>, "open list:GFS2 FILE SYSTEM" <cluster-devel@redhat.com>, Coly Li <colyli@suse.de>, Dan Williams <dan.j.williams@intel.com>, "open list:DEVICE-MAPPER (LVM)" <dm-devel@redhat.com>, "open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>, Eric Wheeler <git@linux.ewheeler.net>, Guoqing Jiang <gqjiang@suse.com>, Hannes Reinecke <hare@suse.com>, Hannes Reinecke <hare@suse.de>, Jiri Kosina <jkosina@suse.cz>, Joe Perches <joe@perches.com>, Johannes Berg <johannes.berg@intel.com>, Johannes Thumshirn <jthumshirn@suse.de>, Keith Busch <keith.busch@intel.com>, Kent Overstreet <kent.overstreet@gmail.com>, Kent Overstreet <kmo@daterainc.com>, "open list:BCACHE (BLOCK LAYER CACHE)" <linux-bcache@vger.kernel.org>, "open list:BTRFS FILE SYSTEM" <linux-btrfs@vger.kernel.org>, "open list:EXT4 FILE SYSTEM" <linux-ext4@vger.kernel.org>, "open list:F2FS FILE SYSTEM" <linux-f2fs-devel@lists.sourceforge.net>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:NVM EXPRESS TARGET DRIVER" <linux-nvme@lists.infradead.org>, "open list:SUSPEND TO RAM" <linux-pm@vger.kernel.org>, "open list:SOFTWARE RAID (Multiple Disks) SUPPORT" <linux-raid@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, "open list:LogFS" <logfs@logfs.org>, Michal Hocko <mhocko@suse.com>, Mike Christie <mchristi@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Minchan Kim <minchan@kernel.org>, Minfei Huang <mnghuan@gmail.com>, "open list:OSD LIBRARY and FILESYSTEM" <osd-dev@open-osd.org>, Petr Mladek <pmladek@suse.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Takashi Iwai <tiwai@suse.de>, "open list:TARGET SUBSYSTEM" <target-devel@vger.kernel.org>, Toshi Kani <toshi.kani@hpe.com>, Yijing Wang <wangyijing@huawei.com>, Zheng Liu <gnehzuil.liu@gmail.com>, Zheng Liu <wenqing.lz@taobao.com>
 
-On Mon, Oct 31, 2016 at 2:32 PM, Jann Horn <jann@thejh.net> wrote:
-> When root activates a swap partition whose header has the wrong endianness,
-> nr_badpages elements of badpages are swabbed before nr_badpages has been
-> checked, leading to a buffer overrun of up to 8GB.
+On Mon, Oct 31, 2016 at 11:25 PM, Christoph Hellwig <hch@infradead.org> wrote:
+> Hi Ming,
 >
-> This normally is not a security issue because it can only be exploited by
-> root (more specifically, a process with CAP_SYS_ADMIN or the ability to
-> modify a swap file/partition), and such a process can already e.g. modify
-> swapped-out memory of any other userspace process on the system.
->
-> Testcase for reproducing the bug (must be run as root, should crash your
-> kernel):
-> =================
-> #include <stdlib.h>
-> #include <unistd.h>
-> #include <sys/swap.h>
-> #include <limits.h>
-> #include <err.h>
-> #include <string.h>
-> #include <stdio.h>
->
-> #define PAGE_SIZE 4096
-> #define __u32 unsigned int
->
->
-> // from include/linux/swap.h
-> union swap_header {
->   struct {
->     char reserved[PAGE_SIZE - 10];
->     char magic[10];     /* SWAP-SPACE or SWAPSPACE2 */
->   } magic;
->   struct {
->     char    bootbits[1024]; /* Space for disklabel etc. */
->     __u32   version;
->     __u32   last_page;
->     __u32   nr_badpages;
->     unsigned char sws_uuid[16];
->     unsigned char sws_volume[16];
->     __u32   padding[117];
->     __u32   badpages[1];
->   } info;
-> };
->
-> int main(void) {
->   char file[] = "/tmp/swapfile.XXXXXX";
->   int file_fd = mkstemp(file);
->   if (file_fd == -1)
->     err(1, "mkstemp");
->   if (ftruncate(file_fd, PAGE_SIZE))
->     err(1, "ftruncate");
->   union swap_header swap_header = {
->     .info = {
->       .version = __builtin_bswap32(1),
->       .nr_badpages = __builtin_bswap32(INT_MAX)
->     }
->   };
->   memcpy(swap_header.magic.magic, "SWAPSPACE2", 10);
->   if (write(file_fd, &swap_header, sizeof(swap_header)) !=
->       sizeof(swap_header))
->     err(1, "write");
->
->   // not because the attack needs it, just in case you forgot to
->   // sync yourself before crashing your machine
->   sync();
->
->   // now die
->   if (swapon(file, 0))
->     err(1, "swapon");
->   puts("huh, we survived");
->   if (swapoff(file))
->     err(1, "swapoff");
->   unlink(file);
-> }
-> =================
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Jann Horn <jann@thejh.net>
-> ---
->  mm/swapfile.c | 2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 2210de290b54..f30438970cd1 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -2224,6 +2224,8 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
->                 swab32s(&swap_header->info.version);
->                 swab32s(&swap_header->info.last_page);
->                 swab32s(&swap_header->info.nr_badpages);
-> +               if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
-> +                       return 0;
->                 for (i = 0; i < swap_header->info.nr_badpages; i++)
->                         swab32s(&swap_header->info.badpages[i]);
->         }
-> --
-> 2.1.4
+> can you send a first patch just doing the obvious cleanups like
+> converting to bio_add_page and replacing direct poking into the
+> bio with the proper accessors?  That should help reducing the
+
+OK, that is just the 1st part of the patchset.
+
+> actual series to a sane size, and it should also help to cut
+> down the Cc list.
 >
 
-Eww. Nice find. :) At least it's only init_ns CAP_SYS_ADMIN. :P
 
-Acked-by: Kees Cook <keescook@chromium.org>
 
--Kees
-
--- 
-Kees Cook
-Nexus Security
+Thanks,
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
