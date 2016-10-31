@@ -1,229 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 49BA66B026A
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 07:59:21 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 128so32604866oih.1
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 04:59:21 -0700 (PDT)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id r130si16995478oig.145.2016.10.31.04.59.20
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE766B0290
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 09:48:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id r19so29203041lfi.0
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 06:48:54 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id u20si15389506lja.79.2016.10.31.06.48.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 04:59:20 -0700 (PDT)
-Received: by mail-oi0-x242.google.com with SMTP id i127so11347651oia.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 04:59:20 -0700 (PDT)
-Subject: Re: Rewording language in mbind(2) to "threads" not "processes"
-References: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
- <20161025154050.GA3186@home>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <46a8d808-7ee1-f58c-ff3c-7786cc127de9@gmail.com>
-Date: Mon, 31 Oct 2016 12:59:16 +0100
+        Mon, 31 Oct 2016 06:48:53 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id c17so18525980wmc.3
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 06:48:52 -0700 (PDT)
+Date: Mon, 31 Oct 2016 13:48:49 +0000
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: Re: [PATCH 2/2] mm: remove get_user_pages_locked()
+Message-ID: <20161031134849.GA13609@lucifer>
+References: <20161031100228.17917-1-lstoakes@gmail.com>
+ <20161031100228.17917-3-lstoakes@gmail.com>
+ <cc508436-156e-eb4b-ae01-b44f33c2d692@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161025154050.GA3186@home>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cc508436-156e-eb4b-ae01-b44f33c2d692@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Cc: mtk.manpages@gmail.com, Christoph Lameter <cl@linux.com>, mhocko@kernel.org, mgorman@techsingularity.net, a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, Brice Goglin <Brice.Goglin@inria.fr>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, kvm@vger.kernel.org, linux-media@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 10/25/2016 05:40 PM, Piotr Kwapulinski wrote:
-> Hi Michael,
-> 
-> I spent a couple of hours trying to review your patch. Unfortunately
-> nowadays I spend no more than an hour per day for whole my linux
-> kernel activity. It may take longer time for me to review it.
-> This patch touches some areas of the kernel I'm still not an expert of
-> (though I'm learning a lot). I'll review (and possibly fix) it ASAP.
+On Mon, Oct 31, 2016 at 12:45:36PM +0100, Paolo Bonzini wrote:
+>
+>
+> On 31/10/2016 11:02, Lorenzo Stoakes wrote:
+> > - *
+> > - * get_user_pages should be phased out in favor of
+> > - * get_user_pages_locked|unlocked or get_user_pages_fast. Nothing
+> > - * should use get_user_pages because it cannot pass
+> > - * FAULT_FLAG_ALLOW_RETRY to handle_mm_fault.
+>
+> This comment should be preserved in some way.  In addition, removing
 
-Okay, Piotr, Thanks. If you do eventually have some input, that would
-be great, but I understand you are time constrained.
+Could you clarify what you think should be retained?
 
-Cheers,
+The comment seems to me to be largely rendered redundant by this change -
+get_user_pages() now offers identical behaviour, and of course the latter part
+of the comment ('because it cannot pass FAULT_FLAG_ALLOW_RETRY') is rendered
+incorrect by this change.
 
-Michael
+It could be replaced with a recommendation to make use of VM_FAULT_RETRY logic
+if possible. Note that the line above retains the reference to
+'get_user_pages_fast()' - 'See also get_user_pages_fast, for performance
+critical applications.'
 
+One important thing to note here is this is a comment on get_user_pages_remote()
+for which it was already incorrect syntactically (I'm guessing once
+get_user_pages_remote() was added it 'stole' get_user_pages()'s comment :)
 
-> On Thu, Oct 13, 2016 at 10:38:33AM +0200, Michael Kerrisk (man-pages) wrote:
->> Christoph, Piotr, and Brice
->>
->> Since you (Christoph and Piotr) helped with documenting MPOL_LOCAL 
->> just recently, I wonder if I might ask you to review a patch that I 
->> propose for the mbind(2) manual page.
->>
->> As far as I understand, memory policy, as set by set_mempolicy(2)
->> is a per-thread attribute. The set_mempolicy(2) and get_mempolicy(2)
->> pages already reflect this, thanks to a patch from Brice last year.
->>
->> However, such changes were not made in the mbind(2) page.
->> I wonder if I could ask you (and Brice, and anyone who's willing)
->> to look at the patch that I propose below to remedy this. (There are 
->> a couple questions "???" that I've injected in the patch.) Is it okay?
->>
->> Cheers,
->>
->> Michael
->>
->>
->> diff --git a/man2/mbind.2 b/man2/mbind.2
->> index a5f26e2..9494854 100644
->> --- a/man2/mbind.2
->> +++ b/man2/mbind.2
->> @@ -75,16 +75,16 @@ page in the kernel containing all zeros.
->>  For a file mapped with
->>  .BR MAP_PRIVATE ,
->>  an initial read access will allocate pages according to the
->> -process policy of the process that causes the page to be allocated.
->> -This may not be the process that called
->> +memory policy of the thread that causes the page to be allocated.
->> +This may not be the thread that called
->>  .BR mbind ().
->>  
->>  The specified policy will be ignored for any
->>  .B MAP_SHARED
->>  mappings in the specified memory range.
->> -Rather the pages will be allocated according to the process policy
->> -of the process that caused the page to be allocated.
->> -Again, this may not be the process that called
->> +Rather the pages will be allocated according to the memory policy
->> +of the thread that caused the page to be allocated.
->> +Again, this may not be the thread that called
->>  .BR mbind ().
->>  
->>  If the specified memory range includes a shared memory region
->> @@ -100,7 +100,10 @@ If, however, the shared memory region was created with the
->>  .B SHM_HUGETLB
->>  flag,
->>  the huge pages will be allocated according to the policy specified
->> -only if the page allocation is caused by the process that calls
->> +only if the page allocation is caused by the thread that calls
->> +.\"
->> +.\" ??? Is it correct to change "process" to "thread" in the preceding line?
->> +.\"
->>  .BR mbind ()
->>  for that region.
->>  
->> @@ -146,15 +149,15 @@ A nonempty
->>  specifies physical node IDs.
->>  Linux does not remap the
->>  .I nodemask
->> -when the process moves to a different cpuset context,
->> -nor when the set of nodes allowed by the process's
->> +when the thread moves to a different cpuset context,
->> +nor when the set of nodes allowed by the thread's
->>  current cpuset context changes.
->>  .TP
->>  .BR MPOL_F_RELATIVE_NODES " (since Linux-2.6.26)"
->>  A nonempty
->>  .I nodemask
->>  specifies node IDs that are relative to the set of
->> -node IDs allowed by the process's current cpuset.
->> +node IDs allowed by the thread's current cpuset.
->>  .PP
->>  .I nodemask
->>  points to a bit mask of nodes containing up to
->> @@ -178,7 +181,7 @@ argument is ignored.
->>  Where a
->>  .I nodemask
->>  is required, it must contain at least one node that is on-line,
->> -allowed by the process's current cpuset context
->> +allowed by the thread's current cpuset context
->>  (unless the
->>  .B MPOL_F_STATIC_NODES
->>  mode flag is specified),
->> @@ -194,10 +197,10 @@ mode requests that any nondefault policy be removed,
->>  restoring default behavior.
->>  When applied to a range of memory via
->>  .BR mbind (),
->> -this means to use the process policy,
->> +this means to use the thread memory policy,
->>  which may have been set with
->>  .BR set_mempolicy (2).
->> -If the mode of the process policy is also
->> +If the mode of the thread memory policy is also
->>  .BR MPOL_DEFAULT ,
->>  the system-wide default policy will be used.
->>  The system-wide default policy allocates
->> @@ -268,13 +271,13 @@ If the "local node" is low on free memory,
->>  the kernel will try to allocate memory from other nodes.
->>  The kernel will allocate memory from the "local node"
->>  whenever memory for this node is available.
->> -If the "local node" is not allowed by the process's current cpuset context,
->> +If the "local node" is not allowed by the thread's current cpuset context,
->>  the kernel will try to allocate memory from other nodes.
->>  The kernel will allocate memory from the "local node" whenever
->> -it becomes allowed by the process's current cpuset context.
->> +it becomes allowed by the thread's current cpuset context.
->>  By contrast,
->>  .B MPOL_DEFAULT
->> -reverts to the policy of the process (which may be set via
->> +reverts to the memory policy of the thread (which may be set via
->>  .BR set_mempolicy (2));
->>  that policy may be something other than "local allocation".
->>  .PP
->> @@ -300,7 +303,10 @@ is specified in
->>  .IR flags ,
->>  then the kernel will attempt to move all the existing pages
->>  in the memory range so that they follow the policy.
->> -Pages that are shared with other processes will not be moved.
->> +Pages that are shared with other threads will not be moved.
->> +.\"
->> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
->> +.\"
->>  If
->>  .B MPOL_MF_STRICT
->>  is also specified, then the call will fail with the error
->> @@ -312,8 +318,11 @@ If
->>  is passed in
->>  .IR flags ,
->>  then the kernel will attempt to move all existing pages in the memory range
->> -regardless of whether other processes use the pages.
->> -The calling process must be privileged
->> +regardless of whether other threads use the pages.
->> +.\"
->> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
->> +.\"
->> +The calling thread must be privileged
->>  .RB ( CAP_SYS_NICE )
->>  to use this flag.
->>  If
->> @@ -383,7 +392,7 @@ specifies one or more node IDs that are
->>  greater than the maximum supported node ID.
->>  Or, none of the node IDs specified by
->>  .I nodemask
->> -are on-line and allowed by the process's current cpuset context,
->> +are on-line and allowed by the thread's current cpuset context,
->>  or none of the specified nodes contain memory.
->>  Or, the
->>  .I mode
->> @@ -440,14 +449,14 @@ When
->>  .B MPOL_DEFAULT
->>  is specified for
->>  .BR set_mempolicy (2),
->> -the process's policy reverts to system default policy
->> +the thread's memory policy reverts to the system default policy
->>  or local allocation.
->>  When
->>  .B MPOL_DEFAULT
->>  is specified for a range of memory using
->>  .BR mbind (),
->>  any pages subsequently allocated for that range will use
->> -the process's policy, as set by
->> +the thread's memory policy, as set by
->>  .BR set_mempolicy (2).
->>  This effectively removes the explicit policy from the
->>  specified range, "falling back" to a possibly nondefault
->>
->> -- 
->> Michael Kerrisk
->> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
->> Linux/UNIX System Programming Training: http://man7.org/training/
-> 
+> get_user_pages_locked() makes it harder (compared to a simple "git grep
+> -w") to identify callers that lack allow-retry functionality).  So I'm
+> not sure about the benefits of these patches.
+>
+
+That's a fair point, and certainly this cleanup series is less obviously helpful
+than previous ones.
+
+However, there are a few points in its favour:
+
+1. get_user_pages_remote() was the mirror of get_user_pages() prior to adding an
+   int *locked parameter to the former (necessary to allow for the unexport of
+   __get_user_pages_unlocked()), differing only in task/mm being specified and
+   FOLL_REMOTE being set. This patch series keeps these functions 'synchronised'
+   in this respect.
+
+2. There is currently only one caller of get_user_pages_locked() in
+   mm/frame_vector.c which seems to suggest this function isn't widely
+   used/known.
+
+3. This change results in all slow-path get_user_pages*() functions having the
+   ability to use VM_FAULT_RETRY logic rather than 'defaulting' to using
+   get_user_pages() that doesn't let you do this even if you wanted to.
+
+4. It's somewhat confusing/redundant having both get_user_pages_locked() and
+   get_user_pages() functions which both require mmap_sem to be held (i.e. both
+   are 'locked' versions.)
+
+> If all callers were changed, then sure removing the _locked suffix would
+> be a good idea.
+
+It seems many callers cannot release mmap_sem so VM_FAULT_RETRY logic couldn't
+happen anyway in this cases and in these cases we couldn't change the caller.
 
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Overall, an alternative here might be to remove get_user_pages() and update
+get_user_pages_locked() to add a 'vmas' parameter, however doing this renders
+get_user_pages_unlocked() asymmetric as it would lack an vmas parameter (adding
+one there would make no sense as VM_FAULT_RETRY logic invalidates VMAs) though
+perhaps not such a big issue as it makes sense as to why this is the case.
+
+get_user_pages_unlocked() definitely seems to be a useful helper and therefore
+makes sense to retain.
+
+Of course another alternative is to leave things be :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
