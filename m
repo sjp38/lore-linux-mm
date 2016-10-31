@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D29276B0290
-	for <linux-mm@kvack.org>; Sun, 30 Oct 2016 21:27:03 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fl2so86668488pad.7
-        for <linux-mm@kvack.org>; Sun, 30 Oct 2016 18:27:03 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id e17si22225863pgh.24.2016.10.30.18.27.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CB80B6B0290
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 06:02:42 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 68so39646231wmz.5
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 03:02:42 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id m63si23278699wma.85.2016.10.31.03.02.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 30 Oct 2016 18:27:03 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v4 RESEND 8/9] mm, THP, swap: Support to split THP in swap cache
-References: <20161028055608.1736-1-ying.huang@intel.com>
-	<20161028055608.1736-9-ying.huang@intel.com>
-	<052901d23104$a6473380$f2d59a80$@alibaba-inc.com>
-Date: Mon, 31 Oct 2016 09:26:59 +0800
-In-Reply-To: <052901d23104$a6473380$f2d59a80$@alibaba-inc.com> (Hillf Danton's
-	message of "Fri, 28 Oct 2016 18:18:34 +0800")
-Message-ID: <871syx71gc.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Oct 2016 03:02:41 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id 68so10903656wmz.2
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 03:02:41 -0700 (PDT)
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: [PATCH 0/2] mm: remove get_user_pages_locked()
+Date: Mon, 31 Oct 2016 10:02:26 +0000
+Message-Id: <20161031100228.17917-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: "'Huang, Ying'" <ying.huang@intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Ebru Akagunduz' <ebru.akagunduz@gmail.com>
+To: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, linux-kernel@vger.kernel.org, linux-cris-kernel@axis.com, linux-ia64@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, kvm@vger.kernel.org, linux-media@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hillf Danton <hillf.zj@alibaba-inc.com> writes:
+by adding an int *locked parameter to get_user_pages() callers to this function
+can now utilise VM_FAULT_RETRY functionality.
 
-> On Friday, October 28, 2016 1:56 PM Huang, Ying wrote: 
->> @@ -2016,10 +2021,12 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
->>  /* Racy check whether the huge page can be split */
->>  bool can_split_huge_page(struct page *page)
->>  {
->> -	int extra_pins = 0;
->> +	int extra_pins;
->> 
->>  	/* Additional pins from radix tree */
->> -	if (!PageAnon(page))
->> +	if (PageAnon(page))
->> +		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
->> +	else
->>  		extra_pins = HPAGE_PMD_NR;
->
-> extra_pins is computed in this newly added helper.
->
->>  	return total_mapcount(page) == page_count(page) - extra_pins - 1;
->>  }
->> @@ -2072,7 +2079,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->>  			ret = -EBUSY;
->>  			goto out;
->>  		}
->> -		extra_pins = 0;
->> +		extra_pins = PageSwapCache(head) ? HPAGE_PMD_NR : 0;
->
-> It is also computed at the call site, so can we fold them into one?
+Taken in conjunction with the patch series adding the same parameter to
+get_user_pages_remote() this means all slow-path get_user_pages*() functions
+will now have the ability to utilise VM_FAULT_RETRY.
 
-Sounds reasonable.  I will add another argument to can_split_huge_page()
-to return extra_pins, so we can avoid duplicated code and calculation.
+Additionally get_user_pages() and get_user_pages_remote() previously mirrored
+one another in functionality differing only in the ability to specify task/mm,
+this patch series reinstates this relationship.
 
-Best Regards,
-Huang, Ying
+This patch series should not introduce any functional changes.
 
->>  		mapping = NULL;
->>  		anon_vma_lock_write(anon_vma);
->>  	} else {
->> --
->> 2.9.3
+Lorenzo Stoakes (2):
+  mm: add locked parameter to get_user_pages()
+  mm: remove get_user_pages_locked()
+
+ arch/cris/arch-v32/drivers/cryptocop.c             |  2 +
+ arch/ia64/kernel/err_inject.c                      |  2 +-
+ arch/x86/mm/mpx.c                                  |  2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c            |  2 +-
+ drivers/gpu/drm/radeon/radeon_ttm.c                |  2 +-
+ drivers/gpu/drm/via/via_dmablit.c                  |  2 +-
+ drivers/infiniband/core/umem.c                     |  2 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c        |  3 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c         |  2 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c           |  2 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c          |  2 +-
+ drivers/misc/mic/scif/scif_rma.c                   |  1 +
+ drivers/misc/sgi-gru/grufault.c                    |  3 +-
+ drivers/platform/goldfish/goldfish_pipe.c          |  2 +-
+ drivers/rapidio/devices/rio_mport_cdev.c           |  2 +-
+ .../interface/vchiq_arm/vchiq_2835_arm.c           |  3 +-
+ .../vc04_services/interface/vchiq_arm/vchiq_arm.c  |  3 +-
+ drivers/virt/fsl_hypervisor.c                      |  2 +-
+ include/linux/mm.h                                 |  4 +-
+ mm/frame_vector.c                                  |  4 +-
+ mm/gup.c                                           | 62 ++++++++--------------
+ mm/ksm.c                                           |  3 +-
+ mm/mempolicy.c                                     |  2 +-
+ mm/nommu.c                                         | 10 +---
+ virt/kvm/kvm_main.c                                |  4 +-
+ 25 files changed, 55 insertions(+), 73 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
