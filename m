@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 082816B02AA
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:42:44 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p190so514326wmp.3
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:42:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BA2C56B02AB
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:43:29 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m203so546139wma.2
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:43:29 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q185si18871915wmb.94.2016.11.01.15.37.34
+        by mx.google.com with ESMTPS id k81si33841916wmk.114.2016.11.01.15.37.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 15:37:34 -0700 (PDT)
+        Tue, 01 Nov 2016 15:37:36 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/20] mm: Use pass vm_fault structure for in wp_pfn_shared()
-Date: Tue,  1 Nov 2016 23:36:15 +0100
-Message-Id: <1478039794-20253-10-git-send-email-jack@suse.cz>
+Subject: [PATCH 15/21] mm: Move part of wp_page_reuse() into the single call site
+Date: Tue,  1 Nov 2016 23:36:24 +0100
+Message-Id: <1478039794-20253-19-git-send-email-jack@suse.cz>
 In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
 References: <1478039794-20253-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,37 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Instead of creating another vm_fault structure, use the one passed to
-wp_pfn_shared() for passing arguments into pfn_mkwrite handler.
+wp_page_reuse() handles write shared faults which is needed only in
+wp_page_shared(). Move the handling only into that location to make
+wp_page_reuse() simpler and avoid a strange situation when we sometimes
+pass in locked page, sometimes unlocked etc.
 
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- mm/memory.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ mm/memory.c | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index ba7760fb7db2..48de8187d7b2 100644
+index e278a8a6ccc7..06aba4203104 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2273,16 +2273,11 @@ static int wp_pfn_shared(struct vm_fault *vmf, pte_t orig_pte)
+@@ -2103,8 +2103,7 @@ static void fault_dirty_shared_page(struct vm_area_struct *vma,
+  * case, all we need to do here is to mark the page as writable and update
+  * any related book-keeping.
+  */
+-static inline int wp_page_reuse(struct vm_fault *vmf,
+-				int page_mkwrite, int dirty_shared)
++static inline void wp_page_reuse(struct vm_fault *vmf)
+ 	__releases(vmf->ptl)
+ {
  	struct vm_area_struct *vma = vmf->vma;
+@@ -2124,16 +2123,6 @@ static inline int wp_page_reuse(struct vm_fault *vmf,
+ 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
+ 		update_mmu_cache(vma, vmf->address, vmf->pte);
+ 	pte_unmap_unlock(vmf->pte, vmf->ptl);
+-
+-	if (dirty_shared) {
+-		if (!page_mkwrite)
+-			lock_page(page);
+-
+-		fault_dirty_shared_page(vma, page);
+-		put_page(page);
+-	}
+-
+-	return VM_FAULT_WRITE;
+ }
  
- 	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
--		struct vm_fault vmf2 = {
--			.page = NULL,
--			.pgoff = vmf->pgoff,
--			.virtual_address = vmf->address & PAGE_MASK,
--			.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
--		};
- 		int ret;
+ /*
+@@ -2308,7 +2297,8 @@ static int wp_pfn_shared(struct vm_fault *vmf)
+ 			return 0;
+ 		}
+ 	}
+-	return wp_page_reuse(vmf, 0, 0);
++	wp_page_reuse(vmf);
++	return VM_FAULT_WRITE;
+ }
  
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
--		ret = vma->vm_ops->pfn_mkwrite(vma, &vmf2);
-+		vmf->flags |= FAULT_FLAG_MKWRITE;
-+		ret = vma->vm_ops->pfn_mkwrite(vma, vmf);
- 		if (ret & VM_FAULT_ERROR)
- 			return ret;
- 		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
+ static int wp_page_shared(struct vm_fault *vmf)
+@@ -2346,7 +2336,13 @@ static int wp_page_shared(struct vm_fault *vmf)
+ 		page_mkwrite = 1;
+ 	}
+ 
+-	return wp_page_reuse(vmf, page_mkwrite, 1);
++	wp_page_reuse(vmf);
++	if (!page_mkwrite)
++		lock_page(vmf->page);
++	fault_dirty_shared_page(vma, vmf->page);
++	put_page(vmf->page);
++
++	return VM_FAULT_WRITE;
+ }
+ 
+ /*
+@@ -2421,7 +2417,8 @@ static int do_wp_page(struct vm_fault *vmf)
+ 				page_move_anon_rmap(vmf->page, vma);
+ 			}
+ 			unlock_page(vmf->page);
+-			return wp_page_reuse(vmf, 0, 0);
++			wp_page_reuse(vmf);
++			return VM_FAULT_WRITE;
+ 		}
+ 		unlock_page(vmf->page);
+ 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 -- 
 2.6.6
 
