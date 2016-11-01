@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 09EFC6B02B0
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:54:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n85so55822108pfi.4
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:54:32 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FFD36B02B1
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:54:33 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ro13so8311142pac.7
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:54:33 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id xg5si12265195pab.175.2016.11.01.12.54.30
+        by mx.google.com with ESMTPS id o20si32051096pfi.241.2016.11.01.12.54.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 12:54:31 -0700 (PDT)
+        Tue, 01 Nov 2016 12:54:32 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v9 07/16] dax: coordinate locking for offsets in PMD range
-Date: Tue,  1 Nov 2016 13:54:09 -0600
-Message-Id: <1478030058-1422-8-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v9 08/16] dax: remove dax_pmd_fault()
+Date: Tue,  1 Nov 2016 13:54:10 -0600
+Message-Id: <1478030058-1422-9-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,201 +20,265 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-DAX radix tree locking currently locks entries based on the unique
-combination of the 'mapping' pointer and the pgoff_t 'index' for the entry.
-This works for PTEs, but as we move to PMDs we will need to have all the
-offsets within the range covered by the PMD to map to the same bit lock.
-To accomplish this, for ranges covered by a PMD entry we will instead lock
-based on the page offset of the beginning of the PMD entry.  The 'mapping'
-pointer is still used in the same way.
+dax_pmd_fault() is the old struct buffer_head + get_block_t based 2 MiB DAX
+fault handler.  This fault handler has been disabled for several kernel
+releases, and support for PMDs will be reintroduced using the struct iomap
+interface instead.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c            | 65 +++++++++++++++++++++++++++++++++--------------------
- include/linux/dax.h |  2 +-
- mm/filemap.c        |  2 +-
- 3 files changed, 43 insertions(+), 26 deletions(-)
+ fs/dax.c            | 213 ----------------------------------------------------
+ include/linux/dax.h |   6 +-
+ 2 files changed, 1 insertion(+), 218 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 835e7f0..7238702 100644
+index 7238702..3d0b103 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -64,14 +64,6 @@ static int __init init_dax_wait_table(void)
+@@ -915,219 +915,6 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
  }
- fs_initcall(init_dax_wait_table);
+ EXPORT_SYMBOL_GPL(dax_fault);
  
--static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
--					      pgoff_t index)
+-#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
+-/*
+- * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
+- * more often than one might expect in the below function.
+- */
+-#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+-
+-static void __dax_dbg(struct buffer_head *bh, unsigned long address,
+-		const char *reason, const char *fn)
 -{
--	unsigned long hash = hash_long((unsigned long)mapping ^ index,
--				       DAX_WAIT_TABLE_BITS);
--	return wait_table + hash;
+-	if (bh) {
+-		char bname[BDEVNAME_SIZE];
+-		bdevname(bh->b_bdev, bname);
+-		pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
+-			"length %zd fallback: %s\n", fn, current->comm,
+-			address, bname, bh->b_state, (u64)bh->b_blocknr,
+-			bh->b_size, reason);
+-	} else {
+-		pr_debug("%s: %s addr: %lx fallback: %s\n", fn,
+-			current->comm, address, reason);
+-	}
 -}
 -
- static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
- {
- 	struct request_queue *q = bdev->bd_queue;
-@@ -285,7 +277,7 @@ EXPORT_SYMBOL_GPL(dax_do_io);
-  */
- struct exceptional_entry_key {
- 	struct address_space *mapping;
--	unsigned long index;
-+	pgoff_t entry_start;
- };
- 
- struct wait_exceptional_entry_queue {
-@@ -293,6 +285,26 @@ struct wait_exceptional_entry_queue {
- 	struct exceptional_entry_key key;
- };
- 
-+static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
-+		pgoff_t index, void *entry, struct exceptional_entry_key *key)
-+{
-+	unsigned long hash;
-+
-+	/*
-+	 * If 'entry' is a PMD, align the 'index' that we use for the wait
-+	 * queue to the start of that PMD.  This ensures that all offsets in
-+	 * the range covered by the PMD map to the same bit lock.
-+	 */
-+	if (RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-+		index &= ~((1UL << (PMD_SHIFT - PAGE_SHIFT)) - 1);
-+
-+	key->mapping = mapping;
-+	key->entry_start = index;
-+
-+	hash = hash_long((unsigned long)mapping ^ index, DAX_WAIT_TABLE_BITS);
-+	return wait_table + hash;
-+}
-+
- static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
- 				       int sync, void *keyp)
- {
-@@ -301,7 +313,7 @@ static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
- 		container_of(wait, struct wait_exceptional_entry_queue, wait);
- 
- 	if (key->mapping != ewait->key.mapping ||
--	    key->index != ewait->key.index)
-+	    key->entry_start != ewait->key.entry_start)
- 		return 0;
- 	return autoremove_wake_function(wait, mode, sync, NULL);
- }
-@@ -359,12 +371,10 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- {
- 	void *entry, **slot;
- 	struct wait_exceptional_entry_queue ewait;
--	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
-+	wait_queue_head_t *wq;
- 
- 	init_wait(&ewait.wait);
- 	ewait.wait.func = wake_exceptional_entry_func;
--	ewait.key.mapping = mapping;
--	ewait.key.index = index;
- 
- 	for (;;) {
- 		entry = __radix_tree_lookup(&mapping->page_tree, index, NULL,
-@@ -375,6 +385,8 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 				*slotp = slot;
- 			return entry;
- 		}
-+
-+		wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
- 		prepare_to_wait_exclusive(wq, &ewait.wait,
- 					  TASK_UNINTERRUPTIBLE);
- 		spin_unlock_irq(&mapping->tree_lock);
-@@ -447,10 +459,20 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
- 	return entry;
- }
- 
-+/*
-+ * We do not necessarily hold the mapping->tree_lock when we call this
-+ * function so it is possible that 'entry' is no longer a valid item in the
-+ * radix tree.  This is okay, though, because all we really need to do is to
-+ * find the correct waitqueue where tasks might be sleeping waiting for that
-+ * old 'entry' and wake them.
-+ */
- void dax_wake_mapping_entry_waiter(struct address_space *mapping,
--				   pgoff_t index, bool wake_all)
-+		pgoff_t index, void *entry, bool wake_all)
- {
--	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
-+	struct exceptional_entry_key key;
-+	wait_queue_head_t *wq;
-+
-+	wq = dax_entry_waitqueue(mapping, index, entry, &key);
- 
- 	/*
- 	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-@@ -458,13 +480,8 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
- 	 * So at this point all tasks that could have seen our entry locked
- 	 * must be in the waitqueue and the following check will see them.
- 	 */
--	if (waitqueue_active(wq)) {
--		struct exceptional_entry_key key;
+-#define dax_pmd_dbg(bh, address, reason)	__dax_dbg(bh, address, reason, "dax_pmd")
 -
--		key.mapping = mapping;
--		key.index = index;
-+	if (waitqueue_active(wq))
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+-/**
+- * dax_pmd_fault - handle a PMD fault on a DAX file
+- * @vma: The virtual memory area where the fault occurred
+- * @vmf: The description of the fault
+- * @get_block: The filesystem method used to translate file offsets to blocks
+- *
+- * When a page fault occurs, filesystems may call this helper in their
+- * pmd_fault handler for DAX files.
+- */
+-int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+-		pmd_t *pmd, unsigned int flags, get_block_t get_block)
+-{
+-	struct file *file = vma->vm_file;
+-	struct address_space *mapping = file->f_mapping;
+-	struct inode *inode = mapping->host;
+-	struct buffer_head bh;
+-	unsigned blkbits = inode->i_blkbits;
+-	unsigned long pmd_addr = address & PMD_MASK;
+-	bool write = flags & FAULT_FLAG_WRITE;
+-	struct block_device *bdev;
+-	pgoff_t size, pgoff;
+-	sector_t block;
+-	int result = 0;
+-	bool alloc = false;
+-
+-	/* dax pmd mappings require pfn_t_devmap() */
+-	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
+-		return VM_FAULT_FALLBACK;
+-
+-	/* Fall back to PTEs if we're going to COW */
+-	if (write && !(vma->vm_flags & VM_SHARED)) {
+-		split_huge_pmd(vma, pmd, address);
+-		dax_pmd_dbg(NULL, address, "cow write");
+-		return VM_FAULT_FALLBACK;
 -	}
- }
- 
- void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
-@@ -480,7 +497,7 @@ void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
- 	}
- 	unlock_slot(mapping, slot);
- 	spin_unlock_irq(&mapping->tree_lock);
--	dax_wake_mapping_entry_waiter(mapping, index, false);
-+	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
- }
- 
- static void put_locked_mapping_entry(struct address_space *mapping,
-@@ -505,7 +522,7 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
- 		return;
- 
- 	/* We have to wake up next waiter for the radix tree entry lock */
--	dax_wake_mapping_entry_waiter(mapping, index, false);
-+	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
- }
- 
- /*
-@@ -532,7 +549,7 @@ int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
- 	radix_tree_delete(&mapping->page_tree, index);
- 	mapping->nrexceptional--;
- 	spin_unlock_irq(&mapping->tree_lock);
--	dax_wake_mapping_entry_waiter(mapping, index, true);
-+	dax_wake_mapping_entry_waiter(mapping, index, entry, true);
- 
- 	return 1;
- }
+-	/* If the PMD would extend outside the VMA */
+-	if (pmd_addr < vma->vm_start) {
+-		dax_pmd_dbg(NULL, address, "vma start unaligned");
+-		return VM_FAULT_FALLBACK;
+-	}
+-	if ((pmd_addr + PMD_SIZE) > vma->vm_end) {
+-		dax_pmd_dbg(NULL, address, "vma end unaligned");
+-		return VM_FAULT_FALLBACK;
+-	}
+-
+-	pgoff = linear_page_index(vma, pmd_addr);
+-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (pgoff >= size)
+-		return VM_FAULT_SIGBUS;
+-	/* If the PMD would cover blocks out of the file */
+-	if ((pgoff | PG_PMD_COLOUR) >= size) {
+-		dax_pmd_dbg(NULL, address,
+-				"offset + huge page size > file size");
+-		return VM_FAULT_FALLBACK;
+-	}
+-
+-	memset(&bh, 0, sizeof(bh));
+-	bh.b_bdev = inode->i_sb->s_bdev;
+-	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
+-
+-	bh.b_size = PMD_SIZE;
+-
+-	if (get_block(inode, block, &bh, 0) != 0)
+-		return VM_FAULT_SIGBUS;
+-
+-	if (!buffer_mapped(&bh) && write) {
+-		if (get_block(inode, block, &bh, 1) != 0)
+-			return VM_FAULT_SIGBUS;
+-		alloc = true;
+-		WARN_ON_ONCE(buffer_unwritten(&bh) || buffer_new(&bh));
+-	}
+-
+-	bdev = bh.b_bdev;
+-
+-	if (bh.b_size < PMD_SIZE) {
+-		dax_pmd_dbg(&bh, address, "allocated block too small");
+-		return VM_FAULT_FALLBACK;
+-	}
+-
+-	/*
+-	 * If we allocated new storage, make sure no process has any
+-	 * zero pages covering this hole
+-	 */
+-	if (alloc) {
+-		loff_t lstart = pgoff << PAGE_SHIFT;
+-		loff_t lend = lstart + PMD_SIZE - 1; /* inclusive */
+-
+-		truncate_pagecache_range(inode, lstart, lend);
+-	}
+-
+-	if (!write && !buffer_mapped(&bh)) {
+-		spinlock_t *ptl;
+-		pmd_t entry;
+-		struct page *zero_page = mm_get_huge_zero_page(vma->vm_mm);
+-
+-		if (unlikely(!zero_page)) {
+-			dax_pmd_dbg(&bh, address, "no zero page");
+-			goto fallback;
+-		}
+-
+-		ptl = pmd_lock(vma->vm_mm, pmd);
+-		if (!pmd_none(*pmd)) {
+-			spin_unlock(ptl);
+-			dax_pmd_dbg(&bh, address, "pmd already present");
+-			goto fallback;
+-		}
+-
+-		dev_dbg(part_to_dev(bdev->bd_part),
+-				"%s: %s addr: %lx pfn: <zero> sect: %llx\n",
+-				__func__, current->comm, address,
+-				(unsigned long long) to_sector(&bh, inode));
+-
+-		entry = mk_pmd(zero_page, vma->vm_page_prot);
+-		entry = pmd_mkhuge(entry);
+-		set_pmd_at(vma->vm_mm, pmd_addr, pmd, entry);
+-		result = VM_FAULT_NOPAGE;
+-		spin_unlock(ptl);
+-	} else {
+-		struct blk_dax_ctl dax = {
+-			.sector = to_sector(&bh, inode),
+-			.size = PMD_SIZE,
+-		};
+-		long length = dax_map_atomic(bdev, &dax);
+-
+-		if (length < 0) {
+-			dax_pmd_dbg(&bh, address, "dax-error fallback");
+-			goto fallback;
+-		}
+-		if (length < PMD_SIZE) {
+-			dax_pmd_dbg(&bh, address, "dax-length too small");
+-			dax_unmap_atomic(bdev, &dax);
+-			goto fallback;
+-		}
+-		if (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR) {
+-			dax_pmd_dbg(&bh, address, "pfn unaligned");
+-			dax_unmap_atomic(bdev, &dax);
+-			goto fallback;
+-		}
+-
+-		if (!pfn_t_devmap(dax.pfn)) {
+-			dax_unmap_atomic(bdev, &dax);
+-			dax_pmd_dbg(&bh, address, "pfn not in memmap");
+-			goto fallback;
+-		}
+-		dax_unmap_atomic(bdev, &dax);
+-
+-		/*
+-		 * For PTE faults we insert a radix tree entry for reads, and
+-		 * leave it clean.  Then on the first write we dirty the radix
+-		 * tree entry via the dax_pfn_mkwrite() path.  This sequence
+-		 * allows the dax_pfn_mkwrite() call to be simpler and avoid a
+-		 * call into get_block() to translate the pgoff to a sector in
+-		 * order to be able to create a new radix tree entry.
+-		 *
+-		 * The PMD path doesn't have an equivalent to
+-		 * dax_pfn_mkwrite(), though, so for a read followed by a
+-		 * write we traverse all the way through dax_pmd_fault()
+-		 * twice.  This means we can just skip inserting a radix tree
+-		 * entry completely on the initial read and just wait until
+-		 * the write to insert a dirty entry.
+-		 */
+-		if (write) {
+-			/*
+-			 * We should insert radix-tree entry and dirty it here.
+-			 * For now this is broken...
+-			 */
+-		}
+-
+-		dev_dbg(part_to_dev(bdev->bd_part),
+-				"%s: %s addr: %lx pfn: %lx sect: %llx\n",
+-				__func__, current->comm, address,
+-				pfn_t_to_pfn(dax.pfn),
+-				(unsigned long long) dax.sector);
+-		result |= vmf_insert_pfn_pmd(vma, address, pmd,
+-				dax.pfn, write);
+-	}
+-
+- out:
+-	return result;
+-
+- fallback:
+-	count_vm_event(THP_FAULT_FALLBACK);
+-	result = VM_FAULT_FALLBACK;
+-	goto out;
+-}
+-EXPORT_SYMBOL_GPL(dax_pmd_fault);
+-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+ /**
+  * dax_pfn_mkwrite - handle first write to DAX page
+  * @vma: The virtual memory area where the fault occurred
 diff --git a/include/linux/dax.h b/include/linux/dax.h
-index add6c4b..a41a747 100644
+index a41a747..0f74866 100644
 --- a/include/linux/dax.h
 +++ b/include/linux/dax.h
-@@ -22,7 +22,7 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
- int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
- void dax_wake_mapping_entry_waiter(struct address_space *mapping,
--				   pgoff_t index, bool wake_all);
-+		pgoff_t index, void *entry, bool wake_all);
+@@ -48,16 +48,12 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
+ }
+ #endif
  
- #ifdef CONFIG_FS_DAX
- struct page *read_dax_sector(struct block_device *bdev, sector_t n);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c7fe2f1..8709f1e9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -143,7 +143,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 			if (node)
- 				workingset_node_pages_dec(node);
- 			/* Wakeup waiters for exceptional entry lock */
--			dax_wake_mapping_entry_waiter(mapping, page->index,
-+			dax_wake_mapping_entry_waiter(mapping, page->index, p,
- 						      false);
- 		}
- 	}
+-#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
+-int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
+-				unsigned int flags, get_block_t);
+-#else
+ static inline int dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+ 				pmd_t *pmd, unsigned int flags, get_block_t gb)
+ {
+ 	return VM_FAULT_FALLBACK;
+ }
+-#endif
++
+ int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
+ #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
+ 
 -- 
 2.7.4
 
