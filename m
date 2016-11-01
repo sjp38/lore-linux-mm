@@ -1,350 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EB9886B02A1
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:14:32 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id d33so151675634uad.2
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:14:32 -0700 (PDT)
-Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
-        by mx.google.com with ESMTPS id y189si14826476vkf.242.2016.11.01.15.14.31
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 266F86B02A1
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:16:49 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id d65so46948258vkg.6
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:16:49 -0700 (PDT)
+Received: from mail-vk0-x243.google.com (mail-vk0-x243.google.com. [2607:f8b0:400c:c05::243])
+        by mx.google.com with ESMTPS id n25si4471333uab.96.2016.11.01.15.16.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Nov 2016 15:14:31 -0700 (PDT)
-Received: by mail-ua0-x241.google.com with SMTP id 20so7011717uak.0
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:14:31 -0700 (PDT)
+        Tue, 01 Nov 2016 15:16:48 -0700 (PDT)
+Received: by mail-vk0-x243.google.com with SMTP id w194so3858117vkw.3
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:16:48 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20161027131330.55446e9c8858779d0ea8a2e4@gmail.com>
-References: <20161027130647.782b8ab1f71555200ba15605@gmail.com> <20161027131330.55446e9c8858779d0ea8a2e4@gmail.com>
+In-Reply-To: <CAMJBoFN_uP0AEANqM2UiOM0_9sp1g2aD6EwuP8jZhCG7Dtpj9A@mail.gmail.com>
+References: <20161027130647.782b8ab1f71555200ba15605@gmail.com>
+ <20161027130803.82fa7db8f649b5977190208b@gmail.com> <CALZtONCuFjBLPtkp5ecJeQF_YyFfGEXf30E4KL=JhAwVEd7aEw@mail.gmail.com>
+ <CAMJBoFN_uP0AEANqM2UiOM0_9sp1g2aD6EwuP8jZhCG7Dtpj9A@mail.gmail.com>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 1 Nov 2016 18:13:50 -0400
-Message-ID: <CALZtONCxaH5ROffdDEywzQU=XCB8+koAhj_Oj2FXkEO4Nkw8Gg@mail.gmail.com>
-Subject: Re: [PATCHv3 3/3] z3fold: add compaction worker
+Date: Tue, 1 Nov 2016 18:16:07 -0400
+Message-ID: <CALZtONDXqEkpF0PsZgSgbLMs+jubYFuwHJnm9Et67OUtXnqT6A@mail.gmail.com>
+Subject: Re: [PATCHv3 1/3] z3fold: make counters atomic
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vitaly Wool <vitalywool@gmail.com>
 Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Oct 27, 2016 at 7:13 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> This patch implements compaction worker thread for z3fold. This
-> worker does not free up any pages directly but it allows for a
-> denser placement of compressed objects which results in less
-> actual pages consumed and higher compression ratio therefore.
+On Tue, Nov 1, 2016 at 5:03 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> On Tue, Nov 1, 2016 at 9:03 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> On Thu, Oct 27, 2016 at 7:08 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>>> This patch converts pages_nr per-pool counter to atomic64_t.
+>>> It also introduces a new counter, unbuddied_nr, which is
+>>> atomic64_t, too, to track the number of unbuddied (compactable)
+>>> z3fold pages.
+>>
+>> so, with the use of workqueues, do we still need the unbuddied_nr
+>> counter?  It doesn't seem to be used in later patches?
 >
-> This patch has been checked with the latest Linus's tree.
+> I'm going to add sysfs/debugfs accounting a bit later so it won't rest unused.
 >
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/z3fold.c | 166 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 140 insertions(+), 26 deletions(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 014d84f..cc26ff5 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -27,6 +27,7 @@
->  #include <linux/mm.h>
->  #include <linux/module.h>
->  #include <linux/preempt.h>
-> +#include <linux/workqueue.h>
->  #include <linux/slab.h>
->  #include <linux/spinlock.h>
->  #include <linux/zpool.h>
-> @@ -59,6 +60,7 @@ struct z3fold_ops {
->
->  /**
->   * struct z3fold_pool - stores metadata for each z3fold pool
-> + * @name:      pool name
->   * @lock:      protects all pool fields and first|last_chunk fields of any
->   *             z3fold page in the pool
->   * @unbuddied: array of lists tracking z3fold pages that contain 2- buddies;
-> @@ -72,11 +74,14 @@ struct z3fold_ops {
->   * @unbuddied_nr:      number of unbuddied z3fold pages in the pool.
->   * @ops:       pointer to a structure of user defined operations specified at
->   *             pool creation time.
-> + * @compact_wq:        workqueue for page layout background optimization
-> + * @work:      compaction work item
->   *
->   * This structure is allocated at pool creation time and maintains metadata
->   * pertaining to a particular z3fold pool.
->   */
->  struct z3fold_pool {
-> +       const char *name;
->         rwlock_t lock;
->         struct list_head unbuddied[NCHUNKS];
->         struct list_head buddied;
-> @@ -86,6 +91,8 @@ struct z3fold_pool {
->         const struct z3fold_ops *ops;
->         struct zpool *zpool;
->         const struct zpool_ops *zpool_ops;
-> +       struct workqueue_struct *compact_wq;
-> +       struct delayed_work work;
->  };
->
->  enum buddy {
-> @@ -121,6 +128,7 @@ enum z3fold_page_flags {
->         UNDER_RECLAIM = 0,
->         PAGE_HEADLESS,
->         MIDDLE_CHUNK_MAPPED,
-> +       COMPACTION_DEFERRED,
->  };
->
->  /*****************
-> @@ -136,6 +144,9 @@ static int size_to_chunks(size_t size)
->  #define for_each_unbuddied_list(_iter, _begin) \
->         for ((_iter) = (_begin); (_iter) < NCHUNKS; (_iter)++)
->
-> +#define for_each_unbuddied_list_reverse(_iter, _end) \
-> +       for ((_iter) = (_end); (_iter) > 0; (_iter)--)
-> +
->  /* Initializes the z3fold header of a newly allocated z3fold page */
->  static struct z3fold_header *init_z3fold_page(struct page *page)
->  {
-> @@ -145,6 +156,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
->         clear_bit(UNDER_RECLAIM, &page->private);
->         clear_bit(PAGE_HEADLESS, &page->private);
->         clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
-> +       clear_bit(COMPACTION_DEFERRED, &page->private);
->
->         zhdr->first_chunks = 0;
->         zhdr->middle_chunks = 0;
-> @@ -211,6 +223,116 @@ static int num_free_chunks(struct z3fold_header *zhdr)
->         return nfree;
->  }
->
-> +static inline void *mchunk_memmove(struct z3fold_header *zhdr,
-> +                               unsigned short dst_chunk)
-> +{
-> +       void *beg = zhdr;
-> +       return memmove(beg + (dst_chunk << CHUNK_SHIFT),
-> +                      beg + (zhdr->start_middle << CHUNK_SHIFT),
-> +                      zhdr->middle_chunks << CHUNK_SHIFT);
-> +}
-> +
-> +static int z3fold_compact_page(struct z3fold_header *zhdr, bool sync)
-> +{
-> +       struct page *page = virt_to_page(zhdr);
-> +       int ret = 0;
-> +
-> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private)) {
-> +               set_bit(COMPACTION_DEFERRED, &page->private);
-> +               ret = -1;
-> +               goto out;
-> +       }
-> +
-> +       clear_bit(COMPACTION_DEFERRED, &page->private);
-> +       if (zhdr->middle_chunks != 0) {
-> +               if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> +                       /*
-> +                        * If we are here, no one can access this page
-> +                        * except for z3fold_map or z3fold_free. Both
-> +                        * will wait for page_lock to become free.
-> +                        */
-> +                       mchunk_memmove(zhdr, 1); /* move to the beginning */
-> +                       zhdr->first_chunks = zhdr->middle_chunks;
-> +                       zhdr->middle_chunks = 0;
-> +                       zhdr->start_middle = 0;
-> +                       zhdr->first_num++;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
-> +               if (sync)
-> +                       goto out;
-> +
-> +               /*
-> +                * These are more complicated cases: first or last object
-> +                * may be mapped. Luckily we don't touch these anyway.
-> +                *
-> +                * NB: moving data is expensive, so let's only do that if
-> +                * there's substantial gain (2+ chunks)
-> +                */
-> +               if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-> +                   zhdr->start_middle > zhdr->first_chunks + 2) {
-> +                       mchunk_memmove(zhdr, zhdr->first_chunks + 1);
-> +                       zhdr->start_middle = zhdr->first_chunks + 1;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
-> +               if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-> +                   zhdr->middle_chunks + zhdr->last_chunks <=
-> +                   NCHUNKS - zhdr->start_middle - 2) {
-> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
-> +                               zhdr->middle_chunks;
-> +                       mchunk_memmove(zhdr, new_start);
-> +                       zhdr->start_middle = new_start;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
-> +       }
-> +out:
-> +       return ret;
-> +}
-> +
-> +#define COMPACTION_BATCH       (NCHUNKS/2)
-> +static void z3fold_compact_work(struct work_struct *w)
-> +{
-> +       struct z3fold_pool *pool = container_of(to_delayed_work(w),
-> +                                               struct z3fold_pool, work);
-> +       struct z3fold_header *zhdr;
-> +       struct page *page;
-> +       int i, ret, compacted = 0;
-> +       bool requeue = false;
-> +
-> +       write_lock(&pool->lock);
-> +       for_each_unbuddied_list_reverse(i, NCHUNKS - 3) {
+> Also, with a per-page lock (if I come up with something reasonable) it could
+> be still worth going back to shrinker.
 
-do we still need to scan each unbuddied list?  This is a lot of
-overhead when we already knew exactly what page(s) we marked as
-compaction deferred.
+let's wait to add it once the code that uses it is ready, yeah?
 
-also, this is only scanning the last entry in each unbuddied list -
-but that's possibly missing a whole lot of entries assuming the
-unbuddied lists are larger than 1 entry each.
-
-Can't we add one more list_head element to the zhdr, and add a
-compaction_needed list to the pool?  Then the workqueue work can just
-quickly process all the entries in that list.
-
-> +               zhdr = list_empty(&pool->unbuddied[i]) ?
-> +                               NULL : list_last_entry(&pool->unbuddied[i],
-> +                               struct z3fold_header, buddy);
-> +               if (!zhdr)
-> +                       continue;
-> +               page = virt_to_page(zhdr);
-> +               if (likely(!test_bit(COMPACTION_DEFERRED, &page->private)))
-> +                       continue;
-> +               list_del(&zhdr->buddy);
-> +               ret = z3fold_compact_page(zhdr, false);
-> +               if (ret < 0)
-> +                       requeue = true;
-> +               else
-> +                       compacted += ret;
-> +               write_unlock(&pool->lock);
-> +               cond_resched();
-> +               write_lock(&pool->lock);
-> +               list_add(&zhdr->buddy,
-> +                       &pool->unbuddied[num_free_chunks(zhdr)]);
-> +               if (compacted >= COMPACTION_BATCH) {
-
-instead of doing batches, if we have a dedicated list of entries that
-we know need compaction, just process the entire list.  call
-cond_resched() between compacting entries.
-
-> +                       requeue = true;
-> +                       break;
-> +               }
-> +       }
-> +       write_unlock(&pool->lock);
-> +       if (requeue && !delayed_work_pending(&pool->work))
-> +               queue_delayed_work(pool->compact_wq, &pool->work, HZ);
-> +}
-> +
-> +
->  /*****************
->   * API Functions
->  *****************/
-> @@ -230,7 +352,7 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
 >
->         pool = kzalloc(sizeof(struct z3fold_pool), gfp);
->         if (!pool)
-> -               return NULL;
-> +               goto out;
->         rwlock_init(&pool->lock);
->         for_each_unbuddied_list(i, 0)
->                 INIT_LIST_HEAD(&pool->unbuddied[i]);
-> @@ -238,8 +360,17 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->         INIT_LIST_HEAD(&pool->lru);
->         atomic64_set(&pool->pages_nr, 0);
->         atomic64_set(&pool->unbuddied_nr, 0);
-> +       pool->compact_wq = create_singlethread_workqueue(pool->name);
-> +       if (!pool->compact_wq)
-> +               goto out;
-> +       INIT_DELAYED_WORK(&pool->work, z3fold_compact_work);
->         pool->ops = ops;
->         return pool;
-> +
-> +out:
-> +       if (pool)
-> +               kfree(pool);
-> +       return NULL;
->  }
->
->  /**
-> @@ -250,31 +381,11 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->   */
->  static void z3fold_destroy_pool(struct z3fold_pool *pool)
->  {
-> +       if (pool->compact_wq)
-> +               destroy_workqueue(pool->compact_wq);
->         kfree(pool);
->  }
->
-> -/* Has to be called with lock held */
-> -static int z3fold_compact_page(struct z3fold_header *zhdr)
-> -{
-> -       struct page *page = virt_to_page(zhdr);
-> -       void *beg = zhdr;
-> -
-> -
-> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
-> -           zhdr->middle_chunks != 0 &&
-> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> -               memmove(beg + ZHDR_SIZE_ALIGNED,
-> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
-> -                       zhdr->middle_chunks << CHUNK_SHIFT);
-> -               zhdr->first_chunks = zhdr->middle_chunks;
-> -               zhdr->middle_chunks = 0;
-> -               zhdr->start_middle = 0;
-> -               zhdr->first_num++;
-> -               return 1;
-> -       }
-> -       return 0;
-> -}
-> -
->  /**
->   * z3fold_alloc() - allocates a region of a given size
->   * @pool:      z3fold pool from which to allocate
-> @@ -464,11 +575,13 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
->                 free_z3fold_page(zhdr);
->                 atomic64_dec(&pool->pages_nr);
->         } else {
-> -               z3fold_compact_page(zhdr);
-> +               set_bit(COMPACTION_DEFERRED, &page->private);
-
-can't we at least try to compact inline?  at minimum, we should throw
-this to the compact function to mark for compaction, if needed - we
-can certainly at least do the zhdr placement calculations to see if
-compaction is needed, even if we don't want to actually do the
-compaction right now.
-
->                 /* Add to the unbuddied list */
->                 freechunks = num_free_chunks(zhdr);
-> -               list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-> +               list_add_tail(&zhdr->buddy, &pool->unbuddied[freechunks]);
->                 atomic64_inc(&pool->unbuddied_nr);
-> +               if (!delayed_work_pending(&pool->work))
-> +                       queue_delayed_work(pool->compact_wq, &pool->work, HZ);
->         }
->
->         write_unlock(&pool->lock);
-> @@ -596,7 +709,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
->                                 /* Full, add to buddied list */
->                                 list_add(&zhdr->buddy, &pool->buddied);
->                         } else {
-> -                               z3fold_compact_page(zhdr);
-> +                               z3fold_compact_page(zhdr, true);
->                                 /* add to unbuddied list */
->                                 freechunks = num_free_chunks(zhdr);
->                                 list_add(&zhdr->buddy,
-> @@ -725,6 +838,7 @@ static void *z3fold_zpool_create(const char *name, gfp_t gfp,
->         if (pool) {
->                 pool->zpool = zpool;
->                 pool->zpool_ops = zpool_ops;
-> +               pool->name = name;
->         }
->         return pool;
->  }
-> --
-> 2.4.2
+>> changing the pages_nr to atomic is a good idea though, so we can
+>> safely read it without needing the pool lock.
+>>
+>>>
+>>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>>> ---
+>>>  mm/z3fold.c | 33 +++++++++++++++++++++++++--------
+>>>  1 file changed, 25 insertions(+), 8 deletions(-)
+>>>
+>>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>>> index 8f9e89c..5ac325a 100644
+>>> --- a/mm/z3fold.c
+>>> +++ b/mm/z3fold.c
+>>> @@ -69,6 +69,7 @@ struct z3fold_ops {
+>>>   * @lru:       list tracking the z3fold pages in LRU order by most recently
+>>>   *             added buddy.
+>>>   * @pages_nr:  number of z3fold pages in the pool.
+>>> + * @unbuddied_nr:      number of unbuddied z3fold pages in the pool.
+>>>   * @ops:       pointer to a structure of user defined operations specified at
+>>>   *             pool creation time.
+>>>   *
+>>> @@ -80,7 +81,8 @@ struct z3fold_pool {
+>>>         struct list_head unbuddied[NCHUNKS];
+>>>         struct list_head buddied;
+>>>         struct list_head lru;
+>>> -       u64 pages_nr;
+>>> +       atomic64_t pages_nr;
+>>> +       atomic64_t unbuddied_nr;
+>>>         const struct z3fold_ops *ops;
+>>>         struct zpool *zpool;
+>>>         const struct zpool_ops *zpool_ops;
+>>> @@ -234,7 +236,8 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+>>>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
+>>>         INIT_LIST_HEAD(&pool->buddied);
+>>>         INIT_LIST_HEAD(&pool->lru);
+>>> -       pool->pages_nr = 0;
+>>> +       atomic64_set(&pool->pages_nr, 0);
+>>> +       atomic64_set(&pool->unbuddied_nr, 0);
+>>>         pool->ops = ops;
+>>>         return pool;
+>>>  }
+>>> @@ -334,6 +337,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>>                                         continue;
+>>>                                 }
+>>>                                 list_del(&zhdr->buddy);
+>>> +                               atomic64_dec(&pool->unbuddied_nr);
+>>>                                 goto found;
+>>>                         }
+>>>                 }
+>>> @@ -346,7 +350,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>>         if (!page)
+>>>                 return -ENOMEM;
+>>>         spin_lock(&pool->lock);
+>>> -       pool->pages_nr++;
+>>> +       atomic64_inc(&pool->pages_nr);
+>>>         zhdr = init_z3fold_page(page);
+>>>
+>>>         if (bud == HEADLESS) {
+>>> @@ -369,6 +373,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>>                 /* Add to unbuddied list */
+>>>                 freechunks = num_free_chunks(zhdr);
+>>>                 list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>>> +               atomic64_inc(&pool->unbuddied_nr);
+>>>         } else {
+>>>                 /* Add to buddied list */
+>>>                 list_add(&zhdr->buddy, &pool->buddied);
+>>> @@ -412,6 +417,10 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>>                 /* HEADLESS page stored */
+>>>                 bud = HEADLESS;
+>>>         } else {
+>>> +               bool is_unbuddied = zhdr->first_chunks == 0 ||
+>>> +                               zhdr->middle_chunks == 0 ||
+>>> +                               zhdr->last_chunks == 0;
+>>> +
+>>>                 bud = handle_to_buddy(handle);
+>>>
+>>>                 switch (bud) {
+>>> @@ -431,6 +440,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>>                         spin_unlock(&pool->lock);
+>>>                         return;
+>>>                 }
+>>> +               if (is_unbuddied)
+>>> +                       atomic64_dec(&pool->unbuddied_nr);
+>>>         }
+>>>
+>>>         if (test_bit(UNDER_RECLAIM, &page->private)) {
+>>> @@ -451,12 +462,13 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>>                 list_del(&page->lru);
+>>>                 clear_bit(PAGE_HEADLESS, &page->private);
+>>>                 free_z3fold_page(zhdr);
+>>> -               pool->pages_nr--;
+>>> +               atomic64_dec(&pool->pages_nr);
+>>>         } else {
+>>>                 z3fold_compact_page(zhdr);
+>>>                 /* Add to the unbuddied list */
+>>>                 freechunks = num_free_chunks(zhdr);
+>>>                 list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>>> +               atomic64_inc(&pool->unbuddied_nr);
+>>>         }
+>>>
+>>>         spin_unlock(&pool->lock);
+>>> @@ -520,6 +532,11 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>>                 zhdr = page_address(page);
+>>>                 if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>>>                         list_del(&zhdr->buddy);
+>>> +                       if (zhdr->first_chunks == 0 ||
+>>> +                           zhdr->middle_chunks == 0 ||
+>>> +                           zhdr->last_chunks == 0)
+>>> +                               atomic64_dec(&pool->unbuddied_nr);
+>>> +
+>>>                         /*
+>>>                          * We need encode the handles before unlocking, since
+>>>                          * we can race with free that will set
+>>> @@ -569,7 +586,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>>                          */
+>>>                         clear_bit(PAGE_HEADLESS, &page->private);
+>>>                         free_z3fold_page(zhdr);
+>>> -                       pool->pages_nr--;
+>>> +                       atomic64_dec(&pool->pages_nr);
+>>>                         spin_unlock(&pool->lock);
+>>>                         return 0;
+>>>                 }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>>> @@ -584,6 +601,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>>                                 freechunks = num_free_chunks(zhdr);
+>>>                                 list_add(&zhdr->buddy,
+>>>                                          &pool->unbuddied[freechunks]);
+>>> +                               atomic64_inc(&pool->unbuddied_nr);
+>>>                         }
+>>>                 }
+>>>
+>>> @@ -672,12 +690,11 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
+>>>   * z3fold_get_pool_size() - gets the z3fold pool size in pages
+>>>   * @pool:      pool whose size is being queried
+>>>   *
+>>> - * Returns: size in pages of the given pool.  The pool lock need not be
+>>> - * taken to access pages_nr.
+>>> + * Returns: size in pages of the given pool.
+>>>   */
+>>>  static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
+>>>  {
+>>> -       return pool->pages_nr;
+>>> +       return atomic64_read(&pool->pages_nr);
+>>>  }
+>>>
+>>>  /*****************
+>>> --
+>>> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
