@@ -1,67 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 259396B02A1
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 13:20:51 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u144so18790510wmu.1
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 10:20:51 -0700 (PDT)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id r142si32208330wmg.88.2016.11.01.10.20.49
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 834526B02A1
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 13:24:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l124so92536636wml.4
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 10:24:16 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id f70si32165142wmg.26.2016.11.01.10.24.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 10:20:49 -0700 (PDT)
-Date: Tue, 1 Nov 2016 17:18:33 +0000
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: [RFC v2 2/7] arm: Use generic VDSO unmap and remap
-Message-ID: <20161101171833.GS1041@n2100.armlinux.org.uk>
-References: <20161101171101.24704-1-cov@codeaurora.org>
- <20161101171101.24704-2-cov@codeaurora.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Nov 2016 10:24:15 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id u144so4386117wmu.0
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 10:24:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161101171101.24704-2-cov@codeaurora.org>
+In-Reply-To: <20161101171101.24704-1-cov@codeaurora.org>
+References: <20161101171101.24704-1-cov@codeaurora.org>
+From: Dmitry Safonov <0x7f454c46@gmail.com>
+Date: Tue, 1 Nov 2016 20:23:54 +0300
+Message-ID: <CAJwJo6Z9qXbYb3RHL89Z2JPJWc6biOt54sWcHXeNwD5dDxQXjQ@mail.gmail.com>
+Subject: Re: [RFC v2 1/7] mm: Provide generic VDSO unmap and remap functions
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christopher Covington <cov@codeaurora.org>
-Cc: criu@openvz.org, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Cc: crml <criu@openvz.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, open list <linux-kernel@vger.kernel.org>
 
-You know, on its own, this patch is totally meaningless.  Sorry, there's
-nothing more I can say about this.
+Hi Christopher,
 
-On Tue, Nov 01, 2016 at 11:10:56AM -0600, Christopher Covington wrote:
-> Checkpoint/Restore In Userspace (CRIU) needs to be able to unmap and remap
-> the VDSO to successfully checkpoint and restore applications in the face of
-> changing VDSO addresses due to Address Space Layout Randomization (ASLR,
-> randmaps). Previously, this was implemented in architecture-specific code
-> for PowerPC and x86. However, a generic version based on Laurent Dufour's
-> PowerPC implementation is now available, so begin using it on ARM.
-> 
-> Signed-off-by: Christopher Covington <cov@codeaurora.org>
-> ---
->  arch/arm/mm/Kconfig | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-> index c1799dd..1d3312b 100644
-> --- a/arch/arm/mm/Kconfig
-> +++ b/arch/arm/mm/Kconfig
-> @@ -845,6 +845,7 @@ config VDSO
->  	depends on AEABI && MMU && CPU_V7
->  	default y if ARM_ARCH_TIMER
->  	select GENERIC_TIME_VSYSCALL
-> +	select GENERIC_VDSO
->  	help
->  	  Place in the process address space an ELF shared object
->  	  providing fast implementations of gettimeofday and
-> -- 
-> Qualcomm Datacenter Technologies as an affiliate of Qualcomm Technologies, Inc.
-> Qualcomm Technologies, Inc. is a member of the
-> Code Aurora Forum, a Linux Foundation Collaborative Project.
-> 
+  by this moment I got another patch for this. I hope, you don't mind
+if I send it concurrently. I haven't sent it yet as I was testing it in qemu.
 
--- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+Thanks,
+             Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
