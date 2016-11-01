@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA346B02B5
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:43:48 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m203so548820wma.2
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:43:48 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 858EB6B02CC
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:43:58 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r68so580916wmd.0
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:43:58 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vv3si39167480wjb.70.2016.11.01.15.37.35
+        by mx.google.com with ESMTPS id 188si33916910wmu.22.2016.11.01.15.37.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 15:37:35 -0700 (PDT)
+        Tue, 01 Nov 2016 15:37:34 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix tree entry lock
-Date: Tue,  1 Nov 2016 23:36:31 +0100
-Message-Id: <1478039794-20253-26-git-send-email-jack@suse.cz>
+Subject: [PATCH 05/21] mm: Trim __do_fault() arguments
+Date: Tue,  1 Nov 2016 23:36:13 +0100
+Message-Id: <1478039794-20253-8-git-send-email-jack@suse.cz>
 In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
 References: <1478039794-20253-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,70 +20,180 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Currently PTE gets updated in wp_pfn_shared() after dax_pfn_mkwrite()
-has released corresponding radix tree entry lock. When we want to
-writeprotect PTE on cache flush, we need PTE modification to happen
-under radix tree entry lock to ensure consisten updates of PTE and radix
-tree (standard faults use page lock to ensure this consistency). So move
-update of PTE bit into dax_pfn_mkwrite().
+Use vm_fault structure to pass cow_page, page, and entry in and out of
+the function. That reduces number of __do_fault() arguments from 4 to 1.
 
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c    | 22 ++++++++++++++++------
- mm/memory.c |  2 +-
- 2 files changed, 17 insertions(+), 7 deletions(-)
+ mm/memory.c | 53 +++++++++++++++++++++++------------------------------
+ 1 file changed, 23 insertions(+), 30 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index c6cadf8413a3..a2d3781c9f4e 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1163,17 +1163,27 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct file *file = vma->vm_file;
- 	struct address_space *mapping = file->f_mapping;
--	void *entry;
-+	void *entry, **slot;
- 	pgoff_t index = vmf->pgoff;
- 
- 	spin_lock_irq(&mapping->tree_lock);
--	entry = get_unlocked_mapping_entry(mapping, index, NULL);
--	if (!entry || !radix_tree_exceptional_entry(entry))
--		goto out;
-+	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-+	if (!entry || !radix_tree_exceptional_entry(entry)) {
-+		if (entry)
-+			put_unlocked_mapping_entry(mapping, index, entry);
-+		spin_unlock_irq(&mapping->tree_lock);
-+		return VM_FAULT_NOPAGE;
-+	}
- 	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
--	put_unlocked_mapping_entry(mapping, index, entry);
--out:
-+	entry = lock_slot(mapping, slot);
- 	spin_unlock_irq(&mapping->tree_lock);
-+	/*
-+	 * If we race with somebody updating the PTE and finish_mkwrite_fault()
-+	 * fails, we don't care. We need to return VM_FAULT_NOPAGE and retry
-+	 * the fault in either case.
-+	 */
-+	finish_mkwrite_fault(vmf);
-+	put_locked_mapping_entry(mapping, index, entry);
- 	return VM_FAULT_NOPAGE;
- }
- EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 diff --git a/mm/memory.c b/mm/memory.c
-index e7a4a30a5e88..5fa3d0c5196e 100644
+index 8145dadb2645..f5ef7b8a30c5 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2310,7 +2310,7 @@ static int wp_pfn_shared(struct vm_fault *vmf)
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
- 		vmf->flags |= FAULT_FLAG_MKWRITE;
- 		ret = vma->vm_ops->pfn_mkwrite(vma, vmf);
--		if (ret & VM_FAULT_ERROR)
-+		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
- 			return ret;
- 		return finish_mkwrite_fault(vmf);
+@@ -2848,26 +2848,22 @@ static int do_anonymous_page(struct vm_fault *vmf)
+  * released depending on flags and vma->vm_ops->fault() return value.
+  * See filemap_fault() and __lock_page_retry().
+  */
+-static int __do_fault(struct vm_fault *vmf, struct page *cow_page,
+-		      struct page **page, void **entry)
++static int __do_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	int ret;
+ 
+-	vmf->cow_page = cow_page;
+-
+ 	ret = vma->vm_ops->fault(vma, vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+-	if (ret & VM_FAULT_DAX_LOCKED) {
+-		*entry = vmf->entry;
++	if (ret & VM_FAULT_DAX_LOCKED)
+ 		return ret;
+-	}
+ 
+ 	if (unlikely(PageHWPoison(vmf->page))) {
+ 		if (ret & VM_FAULT_LOCKED)
+ 			unlock_page(vmf->page);
+ 		put_page(vmf->page);
++		vmf->page = NULL;
+ 		return VM_FAULT_HWPOISON;
  	}
+ 
+@@ -2876,7 +2872,6 @@ static int __do_fault(struct vm_fault *vmf, struct page *cow_page,
+ 	else
+ 		VM_BUG_ON_PAGE(!PageLocked(vmf->page), vmf->page);
+ 
+-	*page = vmf->page;
+ 	return ret;
+ }
+ 
+@@ -3173,7 +3168,6 @@ static int do_fault_around(struct vm_fault *vmf)
+ static int do_read_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page;
+ 	int ret = 0;
+ 
+ 	/*
+@@ -3187,24 +3181,23 @@ static int do_read_fault(struct vm_fault *vmf)
+ 			return ret;
+ 	}
+ 
+-	ret = __do_fault(vmf, NULL, &fault_page, NULL);
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
+-	ret |= alloc_set_pte(vmf, NULL, fault_page);
++	ret |= alloc_set_pte(vmf, NULL, vmf->page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+-	unlock_page(fault_page);
++	unlock_page(vmf->page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+-		put_page(fault_page);
++		put_page(vmf->page);
+ 	return ret;
+ }
+ 
+ static int do_cow_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page, *new_page;
+-	void *fault_entry;
++	struct page *new_page;
+ 	struct mem_cgroup *memcg;
+ 	int ret;
+ 
+@@ -3221,20 +3214,21 @@ static int do_cow_fault(struct vm_fault *vmf)
+ 		return VM_FAULT_OOM;
+ 	}
+ 
+-	ret = __do_fault(vmf, new_page, &fault_page, &fault_entry);
++	vmf->cow_page = new_page;
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		goto uncharge_out;
+ 
+ 	if (!(ret & VM_FAULT_DAX_LOCKED))
+-		copy_user_highpage(new_page, fault_page, vmf->address, vma);
++		copy_user_highpage(new_page, vmf->page, vmf->address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+ 	ret |= alloc_set_pte(vmf, memcg, new_page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 	if (!(ret & VM_FAULT_DAX_LOCKED)) {
+-		unlock_page(fault_page);
+-		put_page(fault_page);
++		unlock_page(vmf->page);
++		put_page(vmf->page);
+ 	} else {
+ 		dax_unlock_mapping_entry(vma->vm_file->f_mapping, vmf->pgoff);
+ 	}
+@@ -3250,12 +3244,11 @@ static int do_cow_fault(struct vm_fault *vmf)
+ static int do_shared_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page;
+ 	struct address_space *mapping;
+ 	int dirtied = 0;
+ 	int ret, tmp;
+ 
+-	ret = __do_fault(vmf, NULL, &fault_page, NULL);
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
+@@ -3264,26 +3257,26 @@ static int do_shared_fault(struct vm_fault *vmf)
+ 	 * about to become writable
+ 	 */
+ 	if (vma->vm_ops->page_mkwrite) {
+-		unlock_page(fault_page);
+-		tmp = do_page_mkwrite(vma, fault_page, vmf->address);
++		unlock_page(vmf->page);
++		tmp = do_page_mkwrite(vma, vmf->page, vmf->address);
+ 		if (unlikely(!tmp ||
+ 				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+-			put_page(fault_page);
++			put_page(vmf->page);
+ 			return tmp;
+ 		}
+ 	}
+ 
+-	ret |= alloc_set_pte(vmf, NULL, fault_page);
++	ret |= alloc_set_pte(vmf, NULL, vmf->page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
+ 					VM_FAULT_RETRY))) {
+-		unlock_page(fault_page);
+-		put_page(fault_page);
++		unlock_page(vmf->page);
++		put_page(vmf->page);
+ 		return ret;
+ 	}
+ 
+-	if (set_page_dirty(fault_page))
++	if (set_page_dirty(vmf->page))
+ 		dirtied = 1;
+ 	/*
+ 	 * Take a local copy of the address_space - page.mapping may be zeroed
+@@ -3291,8 +3284,8 @@ static int do_shared_fault(struct vm_fault *vmf)
+ 	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
+ 	 * release semantics to prevent the compiler from undoing this copying.
+ 	 */
+-	mapping = page_rmapping(fault_page);
+-	unlock_page(fault_page);
++	mapping = page_rmapping(vmf->page);
++	unlock_page(vmf->page);
+ 	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+ 		/*
+ 		 * Some device drivers do not set page.mapping but still
 -- 
 2.6.6
 
