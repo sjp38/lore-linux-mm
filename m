@@ -1,47 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0F66B029B
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 20:21:24 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fl2so104456689pad.7
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:21:24 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id bm3si22660440pab.286.2016.10.31.17.21.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C7386B029B
+	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 20:53:02 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l66so31362075pfl.7
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:53:02 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id 1si27433648pgr.30.2016.10.31.17.53.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 17:21:24 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id d2so9913933pfd.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:21:24 -0700 (PDT)
-Date: Mon, 31 Oct 2016 17:21:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3 0/1] mm/mempolicy.c: forbid static or relative flags
- for local NUMA mode
-In-Reply-To: <20161027163037.4089-1-kwapulinski.piotr@gmail.com>
-Message-ID: <alpine.DEB.2.10.1610311721050.91888@chino.kir.corp.google.com>
-References: <20160927132532.12110-1-kwapulinski.piotr@gmail.com> <20161027163037.4089-1-kwapulinski.piotr@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 31 Oct 2016 17:53:01 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id a136so6653516pfa.0
+        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:53:01 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1] mm: hwpoison: fix thp split handling in memory_failure()
+Date: Tue,  1 Nov 2016 09:52:57 +0900
+Message-Id: <1477961577-7183-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@suse.com, liangchen.linux@gmail.com, mgorman@techsingularity.net, dave.hansen@linux.intel.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 27 Oct 2016, Piotr Kwapulinski wrote:
+When memory_failure() runs on a thp tail page after pmd is split, we trigger
+the following VM_BUG_ON_PAGE():
 
-> The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
-> when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy
-> or mbind.
-> Return the "invalid argument" from set_mempolicy and mbind whenever
-> any of these flags is passed along with MPOL_LOCAL.
-> It is consistent with MPOL_PREFERRED passed with empty nodemask.
-> It slightly shortens the execution time in paths where these flags
-> are used e.g. when trying to rebind the NUMA nodes for changes in
-> cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
-> the mempolicy structure (/proc/PID/numa_maps).
-> Isolated tests done.
-> 
-> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+  [  619.550520] page:ffffd7cd819b0040 count:0 mapcount:0 mapping:         (null) index:0x1
+  [  619.555486] flags: 0x1fffc000400000(hwpoison)
+  [  619.556408] page dumped because: VM_BUG_ON_PAGE(!page_count(p))
+  [  619.558998] ------------[ cut here ]------------
+  [  619.561388] kernel BUG at /src/linux-dev/mm/memory-failure.c:1132!
 
-Acked-by: David Rientjes <rientjes@google.com>
+memory_failure() passed refcount and page lock from tail page to head page,
+which is not needed because we can pass any subpage to split_huge_page().
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Fixes: 61f5d698cc97 ("mm: re-enable THP")
+Cc: stable@vger.kernel.org # 4.5+
+---
+ mm/memory-failure.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git v4.8-rc8-mmotm-2016-09-27-16-08/mm/memory-failure.c v4.8-rc8-mmotm-2016-09-27-16-08_patched/mm/memory-failure.c
+index de88f33..19e796d 100644
+--- v4.8-rc8-mmotm-2016-09-27-16-08/mm/memory-failure.c
++++ v4.8-rc8-mmotm-2016-09-27-16-08_patched/mm/memory-failure.c
+@@ -1112,10 +1112,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	}
+ 
+ 	if (!PageHuge(p) && PageTransHuge(hpage)) {
+-		lock_page(hpage);
+-		if (!PageAnon(hpage) || unlikely(split_huge_page(hpage))) {
+-			unlock_page(hpage);
+-			if (!PageAnon(hpage))
++		lock_page(p);
++		if (!PageAnon(p) || unlikely(split_huge_page(p))) {
++			unlock_page(p);
++			if (!PageAnon(p))
+ 				pr_err("Memory failure: %#lx: non anonymous thp\n",
+ 					pfn);
+ 			else
+@@ -1126,9 +1126,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 			put_hwpoison_page(p);
+ 			return -EBUSY;
+ 		}
+-		unlock_page(hpage);
+-		get_hwpoison_page(p);
+-		put_hwpoison_page(hpage);
++		unlock_page(p);
+ 		VM_BUG_ON_PAGE(!page_count(p), p);
+ 		hpage = compound_head(p);
+ 	}
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
