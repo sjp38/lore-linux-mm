@@ -1,74 +1,88 @@
-From: Sascha Silbe <x-linux@infra-silbe.de>
-Subject: Re: [v3,6/9] mm/page_owner: use stackdepot to store stacktrace
-Date: Wed, 26 Oct 2016 15:06:05 +0200
-Message-ID: <toe60ofdzuq.fsf@twin.sascha.silbe.org>
-References: <1466150259-27727-7-git-send-email-iamjoonsoo.kim@lge.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-        micalg=pgp-sha512; protocol="application/pgp-signature"
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1466150259-27727-7-git-send-email-iamjoonsoo.kim@lge.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 640FB6B02A6
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 03:43:58 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id rt15so27729942pab.5
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 00:43:58 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id g16si29199231pfj.150.2016.11.01.00.43.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Nov 2016 00:43:57 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id a136so7582212pfa.0
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 00:43:57 -0700 (PDT)
+From: Eryu Guan <guaneryu@gmail.com>
+Subject: [PATCH v2] mm/filemap: don't allow partially uptodate page for pipes
+Date: Tue,  1 Nov 2016 15:43:07 +0800
+Message-Id: <1477986187-12717-1-git-send-email-guaneryu@gmail.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: viro@zeniv.linux.org.uk, jack@suse.cz, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Eryu Guan <guaneryu@gmail.com>
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Starting from 4.9-rc1 kernel, I started noticing some test failures
+of sendfile(2) and splice(2) (sendfile0N and splice01 from LTP) when
+testing on sub-page block size filesystems (tested both XFS and
+ext4), these syscalls start to return EIO in the tests. e.g.
 
-Dear Joonsoo,
+sendfile02    1  TFAIL  :  sendfile02.c:133: sendfile(2) failed to return expected value, expected: 26, got: -1
+sendfile02    2  TFAIL  :  sendfile02.c:133: sendfile(2) failed to return expected value, expected: 24, got: -1
+sendfile02    3  TFAIL  :  sendfile02.c:133: sendfile(2) failed to return expected value, expected: 22, got: -1
+sendfile02    4  TFAIL  :  sendfile02.c:133: sendfile(2) failed to return expected value, expected: 20, got: -1
 
-Joonsoo Kim <js1304@gmail.com> writes:
+This is because that in sub-page block size cases, we don't need the
+whole page to be uptodate, only the part we care about is uptodate
+is OK (if fs has ->is_partially_uptodate defined). But
+page_cache_pipe_buf_confirm() doesn't have the ability to check the
+partially-uptodate case, it needs the whole page to be uptodate. So
+it returns EIO in this case.
 
-> Currently, we store each page's allocation stacktrace on corresponding
-> page_ext structure and it requires a lot of memory.  This causes the
-> problem that memory tight system doesn't work well if page_owner is
-> enabled.  Moreover, even with this large memory consumption, we cannot get
-> full stacktrace because we allocate memory at boot time and just maintain
-> 8 stacktrace slots to balance memory consumption.  We could increase it to
-> more but it would make system unusable or change system behaviour.
-[...]
+This is a regression introduced by commit 82c156f85384 ("switch
+generic_file_splice_read() to use of ->read_iter()"). Prior to the
+change, generic_file_splice_read() doesn't allow partially-uptodate
+page either, so it worked fine.
 
-This patch causes my Wandboard Quad [1] not to boot anymore. I don't get
-any kernel output, even with earlycon enabled
-(earlycon=3Dec_imx6q,0x02020000). git bisect pointed towards your patch;
-reverting the patch causes the system to boot fine again. Config is
-available at [2]; none of the defconfigs I tried (defconfig =3D
-multi_v7_defconfig, imx_v6_v7_defconfig) works for me.
+Fix it by skipping the partially-uptodate check if we're working on
+a pipe in do_generic_file_read(), so we read the whole page from
+disk as long as the page is not uptodate.
 
-Haven't looked into this any further so far; hooking up a JTAG adapter
-requires some hardware changes as the JTAG header is unpopulated.
+Signed-off-by: Eryu Guan <guaneryu@gmail.com>
+---
 
-Sascha
+I think the other way to fix it is to add the ability to check & allow
+partially-uptodate page to page_cache_pipe_buf_confirm(), but that is much
+harder to do and seems gain little.
 
-PS: Please CC me on replies; I'm not subscribed to any of the lists.
+v2:
+- Update summary a little bit
+- Update commit log
+- Add comment to the code
+- Add more people/list to cc
 
-[1] http://www.wandboard.org/index.php/details/wandboard
-[2] https://sascha.silbe.org/tmp/config-4.8.4-wandboard-28-00003-g9e9b5d6
-=2D-=20
-Softwareentwicklung Sascha Silbe, Niederhofenstra=C3=9Fe 5/1, 71229 Leonberg
-https://se-silbe.de/
-USt-IdNr.: DE281696641
+v1: http://marc.info/?l=linux-mm&m=147756897431777&w=2
 
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+ mm/filemap.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 849f459..670264d 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1734,6 +1734,9 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+ 			if (inode->i_blkbits == PAGE_SHIFT ||
+ 					!mapping->a_ops->is_partially_uptodate)
+ 				goto page_not_up_to_date;
++			/* pipes can't handle partially uptodate pages */
++			if (unlikely(iter->type & ITER_PIPE))
++				goto page_not_up_to_date;
+ 			if (!trylock_page(page))
+ 				goto page_not_up_to_date;
+ 			/* Did it get truncated before we got the lock? */
+-- 
+2.7.4
 
-iQIcBAEBCgAGBQJYEKo9AAoJEMGPauiBMO2XKwIP/3hm2XEsefEpUL/WKb+2M4Ch
-MLoJsnjHXFuDuXiw77UHkezGUhReSIcnoF6WotnazX5Y56ojTTEwScH4LrbKfJ1D
-jphKAPNpWmB68s3mh6oNHkKT4SjaXY70KZZI6rbq/JzXNyizu2i9i6AApgcmlW2H
-DgQPE5EUn9Y+tLjmA/9gvk3eLOKybfvrDMy6BfMkMP74RNuy2fvdLWhsxi7J/uIF
-uxj5L7MufZvImSpzdVjwDqsVTsJ4mGocpeQUmRrKS3nddPqTLz16nBfMjiEYedCR
-0PIDBpxajdPshQK5Y4HxzUvuPStoP4voxYdukv7n7UVliwhihUDUVC9iV/2BHNvW
-XK9tTYcYIjXDhdOIb2+6Fpgbbd2eBPNyOJmjma/CvqlShr8koGt2OVpBnZVQxis6
-7LQEcDC7uDbIvDsJowbM9xZKYTGHsekIkPT5SX1t+QE6xf5Iacm+gOgWlM2WEvqr
-APWtUK6q4+cVw9nY24rRhwbJyF84j6Nqb7akGfNjgGoOuaaDMSWUVcvOS2KPX8Zu
-UpjdoVMycQ3E3QrKO8pIZYWtOJ9NZeaHPxjS25Go5b+G+bALse5A09v6Fj/dEqsI
-SwCA6ZTCvj2/X1TLLwmwzmsU0YJGSwgfv6ljD+uAxxl1wdr3BFMkiIK4S/r2H8mX
-UWCwrCbV7o+wcQiWWkBT
-=o5qU
------END PGP SIGNATURE-----
---=-=-=--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
