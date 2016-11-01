@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 027186B02B9
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 052A16B02BA
 	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:37:38 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w63so52881476oiw.4
+Received: by mail-wm0-f69.google.com with SMTP id u144so510062wmu.1
         for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:37:37 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n5si16374148wmf.2.2016.11.01.15.37.36
+        by mx.google.com with ESMTPS id wg6si39124743wjb.146.2016.11.01.15.37.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 01 Nov 2016 15:37:36 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 18/21] mm: Export follow_pte()
-Date: Tue,  1 Nov 2016 23:36:29 +0100
-Message-Id: <1478039794-20253-24-git-send-email-jack@suse.cz>
+Subject: [PATCH 20/21] dax: Protect PTE modification on WP fault by radix tree entry lock
+Date: Tue,  1 Nov 2016 23:36:33 +0100
+Message-Id: <1478039794-20253-28-git-send-email-jack@suse.cz>
 In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
 References: <1478039794-20253-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,45 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-DAX will need to implement its own version of page_check_address(). To
-avoid duplicating page table walking code, export follow_pte() which
-does what we need.
+Currently PTE gets updated in wp_pfn_shared() after dax_pfn_mkwrite()
+has released corresponding radix tree entry lock. When we want to
+writeprotect PTE on cache flush, we need PTE modification to happen
+under radix tree entry lock to ensure consistent updates of PTE and radix
+tree (standard faults use page lock to ensure this consistency). So move
+update of PTE bit into dax_pfn_mkwrite().
 
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h | 2 ++
- mm/memory.c        | 4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ fs/dax.c    | 22 ++++++++++++++++------
+ mm/memory.c |  2 +-
+ 2 files changed, 17 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0920adb6ec1b..b7b54f5b5198 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1210,6 +1210,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			struct vm_area_struct *vma);
- void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows);
-+int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-+	       spinlock_t **ptlp);
- int follow_pfn(struct vm_area_struct *vma, unsigned long address,
- 	unsigned long *pfn);
- int follow_phys(struct vm_area_struct *vma, unsigned long address,
+diff --git a/fs/dax.c b/fs/dax.c
+index 857117b6db6b..63b4cebe3f20 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -784,17 +784,27 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	struct file *file = vma->vm_file;
+ 	struct address_space *mapping = file->f_mapping;
+-	void *entry;
++	void *entry, **slot;
+ 	pgoff_t index = vmf->pgoff;
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+-	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+-	if (!entry || !radix_tree_exceptional_entry(entry))
+-		goto out;
++	entry = get_unlocked_mapping_entry(mapping, index, &slot);
++	if (!entry || !radix_tree_exceptional_entry(entry)) {
++		if (entry)
++			put_unlocked_mapping_entry(mapping, index, entry);
++		spin_unlock_irq(&mapping->tree_lock);
++		return VM_FAULT_NOPAGE;
++	}
+ 	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+-	put_unlocked_mapping_entry(mapping, index, entry);
+-out:
++	entry = lock_slot(mapping, slot);
+ 	spin_unlock_irq(&mapping->tree_lock);
++	/*
++	 * If we race with somebody updating the PTE and finish_mkwrite_fault()
++	 * fails, we don't care. We need to return VM_FAULT_NOPAGE and retry
++	 * the fault in either case.
++	 */
++	finish_mkwrite_fault(vmf);
++	put_locked_mapping_entry(mapping, index, entry);
+ 	return VM_FAULT_NOPAGE;
+ }
+ EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 diff --git a/mm/memory.c b/mm/memory.c
-index b3bd6b6c6472..7660f6169bee 100644
+index 7660f6169bee..2683e18d6d55 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3782,8 +3782,8 @@ static int __follow_pte(struct mm_struct *mm, unsigned long address,
- 	return -EINVAL;
- }
- 
--static inline int follow_pte(struct mm_struct *mm, unsigned long address,
--			     pte_t **ptepp, spinlock_t **ptlp)
-+int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-+	       spinlock_t **ptlp)
- {
- 	int res;
- 
+@@ -2316,7 +2316,7 @@ static int wp_pfn_shared(struct vm_fault *vmf)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 		vmf->flags |= FAULT_FLAG_MKWRITE;
+ 		ret = vma->vm_ops->pfn_mkwrite(vma, vmf);
+-		if (ret & VM_FAULT_ERROR)
++		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
+ 			return ret;
+ 		return finish_mkwrite_fault(vmf);
+ 	}
 -- 
 2.6.6
 
