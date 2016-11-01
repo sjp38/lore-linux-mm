@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 69AAE6B02AC
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:43:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 79so93264170wmy.6
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:43:50 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id y4si17284575wjc.180.2016.11.01.12.43.49
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 129256B02A1
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:54:28 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id f129so127900875itc.3
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:54:28 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id ys9si6556151pab.266.2016.11.01.12.54.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Nov 2016 12:43:49 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id c17so24071057wmc.3
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:43:49 -0700 (PDT)
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH] rapidio: use get_user_pages_unlocked()
-Date: Tue,  1 Nov 2016 19:43:47 +0000
-Message-Id: <20161101194347.24124-1-lstoakes@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 01 Nov 2016 12:54:27 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v9 01/16] ext4: tell DAX the size of allocation holes
+Date: Tue,  1 Nov 2016 13:54:03 -0600
+Message-Id: <1478030058-1422-2-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
+References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Michal Hocko <mhocko@kernel.org>, Matt Porter <mporter@kernel.crashing.org>, Alexandre Bounine <alexandre.bounine@idt.com>, Lorenzo Stoakes <lstoakes@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Moving from get_user_pages() to get_user_pages_unlocked() simplifies the code
-and takes advantage of VM_FAULT_RETRY functionality when faulting in pages.
+When DAX calls _ext4_get_block() and the file offset points to a hole we
+currently don't set bh->b_size.  This is current worked around via
+buffer_size_valid() in fs/dax.c.
 
-Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+_ext4_get_block() has the hole size information from ext4_map_blocks(), so
+populate bh->b_size so we can remove buffer_size_valid() in a later patch.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- drivers/rapidio/devices/rio_mport_cdev.c | 8 +++-----
- 1 file changed, 3 insertions(+), 5 deletions(-)
+ fs/ext4/inode.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/drivers/rapidio/devices/rio_mport_cdev.c b/drivers/rapidio/devices/rio_mport_cdev.c
-index 9013a58..5fdd081 100644
---- a/drivers/rapidio/devices/rio_mport_cdev.c
-+++ b/drivers/rapidio/devices/rio_mport_cdev.c
-@@ -889,13 +889,11 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
- 			goto err_req;
- 		}
- 
--		down_read(&current->mm->mmap_sem);
--		pinned = get_user_pages(
-+		pinned = get_user_pages_unlocked(
- 				(unsigned long)xfer->loc_addr & PAGE_MASK,
- 				nr_pages,
--				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
--				page_list, NULL);
--		up_read(&current->mm->mmap_sem);
-+				page_list,
-+				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0);
- 
- 		if (pinned != nr_pages) {
- 			if (pinned < 0) {
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 9c06472..3d58b2b 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -767,6 +767,9 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
+ 		ext4_update_bh_state(bh, map.m_flags);
+ 		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
+ 		ret = 0;
++	} else if (ret == 0) {
++		/* hole case, need to fill in bh->b_size */
++		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
+ 	}
+ 	return ret;
+ }
 -- 
-2.10.2
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
