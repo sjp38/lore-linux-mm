@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B70F6B02B6
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:54:36 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id uc5so74243214pab.4
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:54:36 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 739E26B02B7
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 15:54:37 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id uc5so74243447pab.4
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 12:54:37 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o20si32051096pfi.241.2016.11.01.12.54.35
+        by mx.google.com with ESMTPS id o20si32051096pfi.241.2016.11.01.12.54.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 12:54:35 -0700 (PDT)
+        Tue, 01 Nov 2016 12:54:36 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v9 13/16] dax: move put_(un)locked_mapping_entry() in dax.c
-Date: Tue,  1 Nov 2016 13:54:15 -0600
-Message-Id: <1478030058-1422-14-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v9 15/16] xfs: use struct iomap based DAX PMD fault path
+Date: Tue,  1 Nov 2016 13:54:17 -0600
+Message-Id: <1478030058-1422-16-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,86 +20,103 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-No functional change.
-
-The static functions put_locked_mapping_entry() and
-put_unlocked_mapping_entry() will soon be used in error cases in
-grab_mapping_entry(), so move their definitions above this function.
+Switch xfs_filemap_pmd_fault() from using dax_pmd_fault() to the new and
+improved dax_iomap_pmd_fault().  Also, now that it has no more users,
+remove xfs_get_blocks_dax_fault().
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 50 +++++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ fs/xfs/xfs_aops.c | 26 +++++---------------------
+ fs/xfs/xfs_aops.h |  3 ---
+ fs/xfs/xfs_file.c |  2 +-
+ 3 files changed, 6 insertions(+), 25 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index c45cc4d..0582c7c 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -382,6 +382,31 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 3e57a56..561cf14 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -1298,8 +1298,7 @@ __xfs_get_blocks(
+ 	sector_t		iblock,
+ 	struct buffer_head	*bh_result,
+ 	int			create,
+-	bool			direct,
+-	bool			dax_fault)
++	bool			direct)
+ {
+ 	struct xfs_inode	*ip = XFS_I(inode);
+ 	struct xfs_mount	*mp = ip->i_mount;
+@@ -1420,13 +1419,8 @@ __xfs_get_blocks(
+ 		if (ISUNWRITTEN(&imap))
+ 			set_buffer_unwritten(bh_result);
+ 		/* direct IO needs special help */
+-		if (create) {
+-			if (dax_fault)
+-				ASSERT(!ISUNWRITTEN(&imap));
+-			else
+-				xfs_map_direct(inode, bh_result, &imap, offset,
+-						is_cow);
+-		}
++		if (create)
++			xfs_map_direct(inode, bh_result, &imap, offset, is_cow);
  	}
+ 
+ 	/*
+@@ -1466,7 +1460,7 @@ xfs_get_blocks(
+ 	struct buffer_head	*bh_result,
+ 	int			create)
+ {
+-	return __xfs_get_blocks(inode, iblock, bh_result, create, false, false);
++	return __xfs_get_blocks(inode, iblock, bh_result, create, false);
  }
  
-+static void put_locked_mapping_entry(struct address_space *mapping,
-+				     pgoff_t index, void *entry)
-+{
-+	if (!radix_tree_exceptional_entry(entry)) {
-+		unlock_page(entry);
-+		put_page(entry);
-+	} else {
-+		dax_unlock_mapping_entry(mapping, index);
-+	}
-+}
-+
-+/*
-+ * Called when we are done with radix tree entry we looked up via
-+ * get_unlocked_mapping_entry() and which we didn't lock in the end.
-+ */
-+static void put_unlocked_mapping_entry(struct address_space *mapping,
-+				       pgoff_t index, void *entry)
-+{
-+	if (!radix_tree_exceptional_entry(entry))
-+		return;
-+
-+	/* We have to wake up next waiter for the radix tree entry lock */
-+	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
-+}
-+
- /*
-  * Find radix tree entry at given index. If it points to a page, return with
-  * the page locked. If it points to the exceptional entry, return with the
-@@ -486,31 +511,6 @@ void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
- 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+ int
+@@ -1476,17 +1470,7 @@ xfs_get_blocks_direct(
+ 	struct buffer_head	*bh_result,
+ 	int			create)
+ {
+-	return __xfs_get_blocks(inode, iblock, bh_result, create, true, false);
+-}
+-
+-int
+-xfs_get_blocks_dax_fault(
+-	struct inode		*inode,
+-	sector_t		iblock,
+-	struct buffer_head	*bh_result,
+-	int			create)
+-{
+-	return __xfs_get_blocks(inode, iblock, bh_result, create, true, true);
++	return __xfs_get_blocks(inode, iblock, bh_result, create, true);
  }
  
--static void put_locked_mapping_entry(struct address_space *mapping,
--				     pgoff_t index, void *entry)
--{
--	if (!radix_tree_exceptional_entry(entry)) {
--		unlock_page(entry);
--		put_page(entry);
--	} else {
--		dax_unlock_mapping_entry(mapping, index);
--	}
--}
--
--/*
-- * Called when we are done with radix tree entry we looked up via
-- * get_unlocked_mapping_entry() and which we didn't lock in the end.
-- */
--static void put_unlocked_mapping_entry(struct address_space *mapping,
--				       pgoff_t index, void *entry)
--{
--	if (!radix_tree_exceptional_entry(entry))
--		return;
--
--	/* We have to wake up next waiter for the radix tree entry lock */
--	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
--}
--
  /*
-  * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
-  * entry to get unlocked before deleting it.
+diff --git a/fs/xfs/xfs_aops.h b/fs/xfs/xfs_aops.h
+index b3c6634..34dc00d 100644
+--- a/fs/xfs/xfs_aops.h
++++ b/fs/xfs/xfs_aops.h
+@@ -59,9 +59,6 @@ int	xfs_get_blocks(struct inode *inode, sector_t offset,
+ 		       struct buffer_head *map_bh, int create);
+ int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
+ 			      struct buffer_head *map_bh, int create);
+-int	xfs_get_blocks_dax_fault(struct inode *inode, sector_t offset,
+-			         struct buffer_head *map_bh, int create);
+-
+ int	xfs_end_io_direct_write(struct kiocb *iocb, loff_t offset,
+ 		ssize_t size, void *private);
+ int	xfs_setfilesize(struct xfs_inode *ip, xfs_off_t offset, size_t size);
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 8ce5d3f..d818c16 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1545,7 +1545,7 @@ xfs_filemap_pmd_fault(
+ 	}
+ 
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+-	ret = dax_pmd_fault(vma, addr, pmd, flags, xfs_get_blocks_dax_fault);
++	ret = dax_iomap_pmd_fault(vma, addr, pmd, flags, &xfs_iomap_ops);
+ 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 
+ 	if (flags & FAULT_FLAG_WRITE)
 -- 
 2.7.4
 
