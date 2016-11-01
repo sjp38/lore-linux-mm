@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 216506B02DA
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 18:45:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r68so598540wmd.0
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 15:45:50 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 600876B02C5
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 19:13:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l124so814770wml.4
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 16:13:23 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uo4si39236771wjc.89.2016.11.01.15.37.36
+        by mx.google.com with ESMTPS id hd9si39394202wjc.88.2016.11.01.16.13.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 15:37:36 -0700 (PDT)
+        Tue, 01 Nov 2016 16:13:21 -0700 (PDT)
+Date: Wed, 2 Nov 2016 00:13:18 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 17/21] mm: Change return values of finish_mkwrite_fault()
-Date: Tue,  1 Nov 2016 23:36:26 +0100
-Message-Id: <1478039794-20253-21-git-send-email-jack@suse.cz>
-In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
+Subject: Re: [PATCH 0/21 v4] dax: Clear dirty bits after flushing caches
+Message-ID: <20161101231318.GC20418@quack2.suse.cz>
 References: <1478039794-20253-1-git-send-email-jack@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-Currently finish_mkwrite_fault() returns 0 when PTE got changed before
-we acquired PTE lock and VM_FAULT_WRITE when we succeeded in modifying
-the PTE. This is somewhat confusing since 0 generally means success, it
-is also inconsistent with finish_fault() which returns 0 on success.
-Change finish_mkwrite_fault() to return 0 on success and VM_FAULT_NOPAGE
-when PTE changed. Practically, there should be no behavioral difference
-since we bail out from the fault the same way regardless whether we
-return 0, VM_FAULT_NOPAGE, or VM_FAULT_WRITE. Also note that
-VM_FAULT_WRITE has no effect for shared mappings since the only two
-places that check it - KSM and GUP - care about private mappings only.
-Generally the meaning of VM_FAULT_WRITE for shared mappings is not well
-defined and we should probably clean that up.
+Hi,
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/memory.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+forgot to add Kirill to CC since this modifies the fault path he changed
+recently. I don't want to resend the whole series just because of this so
+at least I'm pinging him like this...
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 1517ff91c743..b3bd6b6c6472 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2296,10 +2296,10 @@ int finish_mkwrite_fault(struct vm_fault *vmf)
- 	 */
- 	if (!pte_same(*vmf->pte, vmf->orig_pte)) {
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
--		return 0;
-+		return VM_FAULT_NOPAGE;
- 	}
- 	wp_page_reuse(vmf);
--	return VM_FAULT_WRITE;
-+	return 0;
- }
- 
- /*
-@@ -2342,8 +2342,7 @@ static int wp_page_shared(struct vm_fault *vmf)
- 			return tmp;
- 		}
- 		tmp = finish_mkwrite_fault(vmf);
--		if (unlikely(!tmp || (tmp &
--				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-+		if (unlikely(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
- 			unlock_page(vmf->page);
- 			put_page(vmf->page);
- 			return tmp;
+								Honza
+On Tue 01-11-16 23:36:06, Jan Kara wrote:
+> Hello,
+> 
+> this is the fourth revision of my patches to clear dirty bits from radix tree
+> of DAX inodes when caches for corresponding pfns have been flushed. This patch
+> set is significantly larger than the previous version because I'm changing how
+> ->fault, ->page_mkwrite, and ->pfn_mkwrite handlers may choose to handle the
+> fault so that we don't have to leak details about DAX locking into the generic
+> code. In principle, these patches enable handlers to easily update PTEs and do
+> other work necessary to finish the fault without duplicating the functionality
+> present in the generic code. I'd be really like feedback from mm folks whether
+> such changes to fault handling code are fine or what they'd do differently.
+> 
+> The patches are based on 4.9-rc1 + Ross' DAX PMD page fault series [1] + ext4
+> conversion of DAX IO patch to the iomap infrastructure [2]. For testing,
+> I've pushed out a tree including all these patches and further DAX fixes
+> to:
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git dax
+> 
+> The patches pass testing with xfstests on ext4 and xfs on my end. I'd be
+> grateful for review so that we can push these patches for the next merge
+> window.
+> 
+> [1] http://www.spinics.net/lists/linux-mm/msg115247.html
+> [2] Posted an hour ago - look for "ext4: Convert ext4 DAX IO to iomap framework"
+> 
+> Changes since v3:
+> * rebased on top of 4.9-rc1 + DAX PMD fault series + ext4 iomap conversion
+> * reordered some of the patches
+> * killed ->virtual_address field in vm_fault structure as requested by
+>   Christoph
+> 
+> Changes since v2:
+> * rebased on top of 4.8-rc8 - this involved dealing with new fault_env
+>   structure
+> * changed calling convention for fault helpers
+> 
+> Changes since v1:
+> * make sure all PTE updates happen under radix tree entry lock to protect
+>   against races between faults & write-protecting code
+> * remove information about DAX locking from mm/memory.c
+> * smaller updates based on Ross' feedback
+> 
+> ----
+> Background information regarding the motivation:
+> 
+> Currently we never clear dirty bits in the radix tree of a DAX inode. Thus
+> fsync(2) flushes all the dirty pfns again and again. This patches implement
+> clearing of the dirty tag in the radix tree so that we issue flush only when
+> needed.
+> 
+> The difficulty with clearing the dirty tag is that we have to protect against
+> a concurrent page fault setting the dirty tag and writing new data into the
+> page. So we need a lock serializing page fault and clearing of the dirty tag
+> and write-protecting PTEs (so that we get another pagefault when pfn is written
+> to again and we have to set the dirty tag again).
+> 
+> The effect of the patch set is easily visible:
+> 
+> Writing 1 GB of data via mmap, then fsync twice.
+> 
+> Before this patch set both fsyncs take ~205 ms on my test machine, after the
+> patch set the first fsync takes ~283 ms (the additional cost of walking PTEs,
+> clearing dirty bits etc. is very noticeable), the second fsync takes below
+> 1 us.
+> 
+> As a bonus, these patches make filesystem freezing for DAX filesystems
+> reliable because mappings are now properly writeprotected while freezing the
+> fs.
+> 								Honza
 -- 
-2.6.6
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
