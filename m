@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B236B02C1
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:25 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ro13so9756990pac.7
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:24 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q9si4165550pfi.45.2016.11.02.10.16.24
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E374A6B02AE
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:41 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id hc3so1815618pac.4
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:41 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f84si4099790pfd.206.2016.11.02.10.16.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 10:16:24 -0700 (PDT)
-Subject: [mm PATCH v2 19/26] arch/sh: Add option to skip DMA sync as a part
- of mapping
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 02 Nov 2016 10:16:41 -0700 (PDT)
+Subject: [mm PATCH v2 21/26] arch/tile: Add option to skip DMA sync as a
+ part of map and unmap
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Wed, 02 Nov 2016 07:15:27 -0400
-Message-ID: <20161102111524.79519.9840.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Wed, 02 Nov 2016 07:15:44 -0400
+Message-ID: <20161102111542.79519.98990.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,45 +22,65 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: netdev@vger.kernel.org, Rich Felker <dalias@libc.org>, linux-kernel@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-sh@vger.kernel.org
+Cc: netdev@vger.kernel.org, Chris Metcalf <cmetcalf@mellanox.com>, linux-kernel@vger.kernel.org
 
 This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
 avoid invoking cache line invalidation if the driver will just handle it
 via a sync_for_cpu or sync_for_device call.
 
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: Rich Felker <dalias@libc.org>
-Cc: linux-sh@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/sh/kernel/dma-nommu.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ arch/tile/kernel/pci-dma.c |   12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/arch/sh/kernel/dma-nommu.c b/arch/sh/kernel/dma-nommu.c
-index eadb669..47fee3b 100644
---- a/arch/sh/kernel/dma-nommu.c
-+++ b/arch/sh/kernel/dma-nommu.c
-@@ -18,7 +18,9 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
- 	dma_addr_t addr = page_to_phys(page) + offset;
+diff --git a/arch/tile/kernel/pci-dma.c b/arch/tile/kernel/pci-dma.c
+index 09bb774..24e0f8c 100644
+--- a/arch/tile/kernel/pci-dma.c
++++ b/arch/tile/kernel/pci-dma.c
+@@ -213,10 +213,12 @@ static int tile_dma_map_sg(struct device *dev, struct scatterlist *sglist,
  
- 	WARN_ON(size == 0);
--	dma_cache_sync(dev, page_address(page) + offset, size, dir);
-+
+ 	for_each_sg(sglist, sg, nents, i) {
+ 		sg->dma_address = sg_phys(sg);
+-		__dma_prep_pa_range(sg->dma_address, sg->length, direction);
+ #ifdef CONFIG_NEED_SG_DMA_LENGTH
+ 		sg->dma_length = sg->length;
+ #endif
++		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++			continue;
++		__dma_prep_pa_range(sg->dma_address, sg->length, direction);
+ 	}
+ 
+ 	return nents;
+@@ -232,6 +234,8 @@ static void tile_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
+ 	BUG_ON(!valid_dma_direction(direction));
+ 	for_each_sg(sglist, sg, nents, i) {
+ 		sg->dma_address = sg_phys(sg);
++		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++			continue;
+ 		__dma_complete_pa_range(sg->dma_address, sg->length,
+ 					direction);
+ 	}
+@@ -245,7 +249,8 @@ static dma_addr_t tile_dma_map_page(struct device *dev, struct page *page,
+ 	BUG_ON(!valid_dma_direction(direction));
+ 
+ 	BUG_ON(offset + size > PAGE_SIZE);
+-	__dma_prep_page(page, offset, size, direction);
 +	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		dma_cache_sync(dev, page_address(page) + offset, size, dir);
++		__dma_prep_page(page, offset, size, direction);
  
- 	return addr;
+ 	return page_to_pa(page) + offset;
  }
-@@ -35,7 +37,8 @@ static int nommu_map_sg(struct device *dev, struct scatterlist *sg,
- 	for_each_sg(sg, s, nents, i) {
- 		BUG_ON(!sg_page(s));
+@@ -256,6 +261,9 @@ static void tile_dma_unmap_page(struct device *dev, dma_addr_t dma_address,
+ {
+ 	BUG_ON(!valid_dma_direction(direction));
  
--		dma_cache_sync(dev, sg_virt(s), s->length, dir);
-+		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+			dma_cache_sync(dev, sg_virt(s), s->length, dir);
- 
- 		s->dma_address = sg_phys(s);
- 		s->dma_length = s->length;
++	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++		return;
++
+ 	__dma_complete_page(pfn_to_page(PFN_DOWN(dma_address)),
+ 			    dma_address & (PAGE_SIZE - 1), size, direction);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
