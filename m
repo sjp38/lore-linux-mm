@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 558E16B02BF
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 81F606B02C0
 	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:34:13 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id x190so24613495qkb.5
+Received: by mail-qt0-f198.google.com with SMTP id w39so10770785qtw.0
         for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:34:13 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o8si1927643qkh.138.2016.11.02.12.34.12
+        by mx.google.com with ESMTPS id q7si1935437qkf.99.2016.11.02.12.34.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 02 Nov 2016 12:34:12 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 17/33] userfaultfd: hugetlbfs: allow registration of ranges containing huge pages
-Date: Wed,  2 Nov 2016 20:33:49 +0100
-Message-Id: <1478115245-32090-18-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 33/33] mm: mprotect: use pmd_trans_unstable instead of taking the pmd_lock
+Date: Wed,  2 Nov 2016 20:34:05 +0100
+Message-Id: <1478115245-32090-34-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,173 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert"@v2.random, " <dgilbert@redhat.com>,  Mike Kravetz <mike.kravetz@oracle.com>,  Shaohua Li <shli@fb.com>,  Pavel Emelyanov <xemul@parallels.com>"@v2.random
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+pmd_trans_unstable does an atomic read on the pmd so it doesn't
+require the pmd_lock for the same check.
 
-Expand the userfaultfd_register/unregister routines to allow VM_HUGETLB
-vmas.  huge page alignment checking is performed after a VM_HUGETLB
-vma is encountered.
+This also removes the special assumption that the mmap_sem is hold for
+writing if prot_numa is not set. userfaultfd will hold the mmap_sem
+only for reading in change_pte_range like prot_numa, but it will not
+set prot_numa.
 
-Also, since there is no UFFDIO_ZEROPAGE support for huge pages do not
-return that as a valid ioctl method for huge page ranges.
+This is always a valid micro-optimization regardless of userfaultfd.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c                 | 55 ++++++++++++++++++++++++++++++++++++----
- include/uapi/linux/userfaultfd.h |  3 +++
- 2 files changed, 53 insertions(+), 5 deletions(-)
+ mm/mprotect.c | 44 +++++++++++++++-----------------------------
+ 1 file changed, 15 insertions(+), 29 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 9357dcf..a73e999 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -27,6 +27,7 @@
- #include <linux/mempolicy.h>
- #include <linux/ioctl.h>
- #include <linux/security.h>
-+#include <linux/hugetlb.h>
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 1193652..6d4c89a 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -33,34 +33,6 @@
  
- static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
+ #include "internal.h"
  
-@@ -1021,6 +1022,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 	struct uffdio_register __user *user_uffdio_register;
- 	unsigned long vm_flags, new_flags;
- 	bool found;
-+	bool huge_pages;
- 	unsigned long start, end, vma_end;
+-/*
+- * For a prot_numa update we only hold mmap_sem for read so there is a
+- * potential race with faulting where a pmd was temporarily none. This
+- * function checks for a transhuge pmd under the appropriate lock. It
+- * returns a pte if it was successfully locked or NULL if it raced with
+- * a transhuge insertion.
+- */
+-static pte_t *lock_pte_protection(struct vm_area_struct *vma, pmd_t *pmd,
+-			unsigned long addr, int prot_numa, spinlock_t **ptl)
+-{
+-	pte_t *pte;
+-	spinlock_t *pmdl;
+-
+-	/* !prot_numa is protected by mmap_sem held for write */
+-	if (!prot_numa)
+-		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
+-
+-	pmdl = pmd_lock(vma->vm_mm, pmd);
+-	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
+-		spin_unlock(pmdl);
+-		return NULL;
+-	}
+-
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
+-	spin_unlock(pmdl);
+-	return pte;
+-}
+-
+ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable, int prot_numa)
+@@ -70,7 +42,21 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	spinlock_t *ptl;
+ 	unsigned long pages = 0;
  
- 	user_uffdio_register = (struct uffdio_register __user *) arg;
-@@ -1072,6 +1074,17 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 		goto out_unlock;
- 
- 	/*
-+	 * If the first vma contains huge pages, make sure start address
-+	 * is aligned to huge page size.
+-	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
++	/*
++	 * Can be called with only the mmap_sem for reading by
++	 * prot_numa so we must check the pmd isn't constantly
++	 * changing from under us from pmd_none to pmd_trans_huge
++	 * and/or the other way around.
 +	 */
-+	if (is_vm_hugetlb_page(vma)) {
-+		unsigned long vma_hpagesize = vma_kernel_pagesize(vma);
-+
-+		if (start & (vma_hpagesize - 1))
-+			goto out_unlock;
-+	}
++	if (pmd_trans_unstable(pmd))
++		return 0;
 +
 +	/*
- 	 * Search for not compatible vmas.
- 	 *
- 	 * FIXME: this shall be relaxed later so that it doesn't fail
-@@ -1079,6 +1092,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 	 * on anonymous vmas).
- 	 */
- 	found = false;
-+	huge_pages = false;
- 	for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
- 		cond_resched();
- 
-@@ -1087,8 +1101,21 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 
- 		/* check not compatible vmas */
- 		ret = -EINVAL;
--		if (!vma_is_anonymous(cur))
-+		if (!vma_is_anonymous(cur) && !is_vm_hugetlb_page(cur))
- 			goto out_unlock;
-+		/*
-+		 * If this vma contains ending address, and huge pages
-+		 * check alignment.
-+		 */
-+		if (is_vm_hugetlb_page(cur) && end <= cur->vm_end &&
-+		    end > cur->vm_start) {
-+			unsigned long vma_hpagesize = vma_kernel_pagesize(cur);
-+
-+			ret = -EINVAL;
-+
-+			if (end & (vma_hpagesize - 1))
-+				goto out_unlock;
-+		}
- 
- 		/*
- 		 * Check that this vma isn't already owned by a
-@@ -1101,6 +1128,12 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 		    cur->vm_userfaultfd_ctx.ctx != ctx)
- 			goto out_unlock;
- 
-+		/*
-+		 * Note vmas containing huge pages
-+		 */
-+		if (is_vm_hugetlb_page(cur))
-+			huge_pages = true;
-+
- 		found = true;
- 	}
- 	BUG_ON(!found);
-@@ -1112,7 +1145,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 	do {
- 		cond_resched();
- 
--		BUG_ON(!vma_is_anonymous(vma));
-+		BUG_ON(!vma_is_anonymous(vma) && !is_vm_hugetlb_page(vma));
- 		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
- 		       vma->vm_userfaultfd_ctx.ctx != ctx);
- 
-@@ -1170,7 +1203,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 		 * userland which ioctls methods are guaranteed to
- 		 * succeed on this range.
- 		 */
--		if (put_user(UFFD_API_RANGE_IOCTLS,
-+		if (put_user(huge_pages ? UFFD_API_RANGE_IOCTLS_HPAGE :
-+			     UFFD_API_RANGE_IOCTLS,
- 			     &user_uffdio_register->ioctls))
- 			ret = -EFAULT;
- 	}
-@@ -1217,6 +1251,17 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
- 		goto out_unlock;
- 
- 	/*
-+	 * If the first vma contains huge pages, make sure start address
-+	 * is aligned to huge page size.
++	 * The pmd points to a regular pte so the pmd can't change
++	 * from under us even if the mmap_sem is only hold for
++	 * reading.
 +	 */
-+	if (is_vm_hugetlb_page(vma)) {
-+		unsigned long vma_hpagesize = vma_kernel_pagesize(vma);
-+
-+		if (start & (vma_hpagesize - 1))
-+			goto out_unlock;
-+	}
-+
-+	/*
- 	 * Search for not compatible vmas.
- 	 *
- 	 * FIXME: this shall be relaxed later so that it doesn't fail
-@@ -1238,7 +1283,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
- 		 * provides for more strict behavior to notice
- 		 * unregistration errors.
- 		 */
--		if (!vma_is_anonymous(cur))
-+		if (!vma_is_anonymous(cur) && !is_vm_hugetlb_page(cur))
- 			goto out_unlock;
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	if (!pte)
+ 		return 0;
  
- 		found = true;
-@@ -1252,7 +1297,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
- 	do {
- 		cond_resched();
- 
--		BUG_ON(!vma_is_anonymous(vma));
-+		BUG_ON(!vma_is_anonymous(vma) && !is_vm_hugetlb_page(vma));
- 
- 		/*
- 		 * Nothing to do: this vma is already registered into this
-diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-index 2bbf323..a3828a9 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -29,6 +29,9 @@
- 	((__u64)1 << _UFFDIO_WAKE |		\
- 	 (__u64)1 << _UFFDIO_COPY |		\
- 	 (__u64)1 << _UFFDIO_ZEROPAGE)
-+#define UFFD_API_RANGE_IOCTLS_HPAGE		\
-+	((__u64)1 << _UFFDIO_WAKE |		\
-+	 (__u64)1 << _UFFDIO_COPY)
- 
- /*
-  * Valid ioctl command number range with this API is from 0x00 to
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
