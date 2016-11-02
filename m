@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 907636B02DC
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:40:56 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id g193so23325986qke.2
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:40:56 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED2C6B02EC
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:42:29 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o68so24866879qkf.3
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:42:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v80si1913119qkv.258.2016.11.02.12.34.09
+        by mx.google.com with ESMTPS id u9si1901273qtc.143.2016.11.02.12.34.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 12:34:10 -0700 (PDT)
+        Wed, 02 Nov 2016 12:34:12 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/33] userfaultfd: non-cooperative: report all available features to userland
-Date: Wed,  2 Nov 2016 20:33:39 +0100
-Message-Id: <1478115245-32090-8-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 21/33] userfaultfd: shmem: add shmem_mcopy_atomic_pte for userfaultfd support
+Date: Wed,  2 Nov 2016 20:33:53 +0100
+Message-Id: <1478115245-32090-22-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,55 +20,167 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert"@v2.random, " <dgilbert@redhat.com>,  Mike Kravetz <mike.kravetz@oracle.com>,  Shaohua Li <shli@fb.com>,  Pavel Emelyanov <xemul@parallels.com>"@v2.random
 
-This will allow userland to probe all features available in the
-kernel. It will however only enable the requested features in the
-open userfaultfd context.
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
+shmem_mcopy_atomic_pte is the low level routine that implements
+the userfaultfd UFFDIO_COPY command.  It is based on the existing
+mcopy_atomic_pte routine with modifications for shared memory pages.
+
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ include/linux/shmem_fs.h |  11 +++++
+ mm/shmem.c               | 110 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 76205b3..b164c40 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -1250,6 +1250,7 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
- 	struct uffdio_api uffdio_api;
- 	void __user *buf = (void __user *)arg;
- 	int ret;
-+	__u64 features;
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index ff078e7..fdaac9d4 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -124,4 +124,15 @@ static inline bool shmem_huge_enabled(struct vm_area_struct *vma)
+ }
+ #endif
  
- 	ret = -EINVAL;
- 	if (ctx->state != UFFD_STATE_WAIT_API)
-@@ -1257,21 +1258,23 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
- 	ret = -EFAULT;
- 	if (copy_from_user(&uffdio_api, buf, sizeof(uffdio_api)))
- 		goto out;
--	if (uffdio_api.api != UFFD_API ||
--	    (uffdio_api.features & ~UFFD_API_FEATURES)) {
-+	features = uffdio_api.features;
-+	if (uffdio_api.api != UFFD_API || (features & ~UFFD_API_FEATURES)) {
- 		memset(&uffdio_api, 0, sizeof(uffdio_api));
- 		if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
- 			goto out;
- 		ret = -EINVAL;
- 		goto out;
- 	}
--	uffdio_api.features &= UFFD_API_FEATURES;
-+	/* report all available features and ioctls to userland */
-+	uffdio_api.features = UFFD_API_FEATURES;
- 	uffdio_api.ioctls = UFFD_API_IOCTLS;
- 	ret = -EFAULT;
- 	if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
- 		goto out;
- 	ctx->state = UFFD_STATE_RUNNING;
--	ctx->features = uffd_ctx_features(uffdio_api.features);
-+	/* only enable the requested features for this uffd context */
-+	ctx->features = uffd_ctx_features(features);
- 	ret = 0;
- out:
- 	return ret;
++#ifdef CONFIG_SHMEM
++extern int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
++				  struct vm_area_struct *dst_vma,
++				  unsigned long dst_addr,
++				  unsigned long src_addr,
++				  struct page **pagep);
++#else
++#define shmem_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
++			       src_addr, pagep)        ({ BUG(); 0; })
++#endif
++
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ad7813d..6e5fe90 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -70,6 +70,7 @@ static struct vfsmount *shm_mnt;
+ #include <linux/syscalls.h>
+ #include <linux/fcntl.h>
+ #include <uapi/linux/memfd.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -2135,6 +2136,115 @@ bool shmem_mapping(struct address_space *mapping)
+ 	return mapping->host->i_sb->s_op == &shmem_ops;
+ }
+ 
++int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
++			   pmd_t *dst_pmd,
++			   struct vm_area_struct *dst_vma,
++			   unsigned long dst_addr,
++			   unsigned long src_addr,
++			   struct page **pagep)
++{
++	struct inode *inode = file_inode(dst_vma->vm_file);
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	struct address_space *mapping = inode->i_mapping;
++	gfp_t gfp = mapping_gfp_mask(mapping);
++	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
++	struct mem_cgroup *memcg;
++	spinlock_t *ptl;
++	void *page_kaddr;
++	struct page *page;
++	pte_t _dst_pte, *dst_pte;
++	int ret;
++
++	if (!*pagep) {
++		ret = -ENOMEM;
++		if (shmem_acct_block(info->flags, 1))
++			goto out;
++		if (sbinfo->max_blocks) {
++			if (percpu_counter_compare(&sbinfo->used_blocks,
++						   sbinfo->max_blocks) >= 0)
++				goto out_unacct_blocks;
++			percpu_counter_inc(&sbinfo->used_blocks);
++		}
++
++		page = shmem_alloc_page(gfp, info, pgoff);
++		if (!page)
++			goto out_dec_used_blocks;
++
++		page_kaddr = kmap_atomic(page);
++		ret = copy_from_user(page_kaddr, (const void __user *)src_addr,
++				     PAGE_SIZE);
++		kunmap_atomic(page_kaddr);
++
++		/* fallback to copy_from_user outside mmap_sem */
++		if (unlikely(ret)) {
++			*pagep = page;
++			/* don't free the page */
++			return -EFAULT;
++		}
++	} else {
++		page = *pagep;
++		*pagep = NULL;
++	}
++
++	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
++	if (ret)
++		goto out_release;
++
++	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
++	if (!ret) {
++		ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL);
++		radix_tree_preload_end();
++	}
++	if (ret)
++		goto out_release_uncharge;
++
++	mem_cgroup_commit_charge(page, memcg, false, false);
++
++	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
++	if (dst_vma->vm_flags & VM_WRITE)
++		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
++
++	ret = -EEXIST;
++	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
++	if (!pte_none(*dst_pte))
++		goto out_release_uncharge_unlock;
++
++	__SetPageUptodate(page);
++
++	lru_cache_add_anon(page);
++
++	spin_lock(&info->lock);
++	info->alloced++;
++	inode->i_blocks += BLOCKS_PER_PAGE;
++	shmem_recalc_inode(inode);
++	spin_unlock(&info->lock);
++
++	inc_mm_counter(dst_mm, mm_counter_file(page));
++	page_add_file_rmap(page, false);
++	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
++
++	/* No need to invalidate - it was non-present before */
++	update_mmu_cache(dst_vma, dst_addr, dst_pte);
++	unlock_page(page);
++	pte_unmap_unlock(dst_pte, ptl);
++	ret = 0;
++out:
++	return ret;
++out_release_uncharge_unlock:
++	pte_unmap_unlock(dst_pte, ptl);
++out_release_uncharge:
++	mem_cgroup_cancel_charge(page, memcg, false);
++out_release:
++	put_page(page);
++out_dec_used_blocks:
++	if (sbinfo->max_blocks)
++		percpu_counter_add(&sbinfo->used_blocks, -1);
++out_unacct_blocks:
++	shmem_unacct_blocks(info->flags, 1);
++	goto out;
++}
++
+ #ifdef CONFIG_TMPFS
+ static const struct inode_operations shmem_symlink_inode_operations;
+ static const struct inode_operations shmem_short_symlink_operations;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
