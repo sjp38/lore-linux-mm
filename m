@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1003B6B02A1
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 10:37:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a136so4410928pfa.5
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 07:37:58 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id s5si3447731pgj.50.2016.11.02.07.37.57
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F0B586B02A1
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 11:18:38 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q197so42024655oic.6
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 08:18:38 -0700 (PDT)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id q28si2102356otq.166.2016.11.02.08.18.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 07:37:57 -0700 (PDT)
-Date: Wed, 2 Nov 2016 07:37:49 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
- do_generic_file_read()
-Message-ID: <20161102143749.GB4790@infradead.org>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
- <20161013093313.GB26241@quack2.suse.cz>
- <20161031181035.GA7007@node.shutemov.name>
- <20161101163940.GA5459@quack2.suse.cz>
- <20161102083204.GB13949@node.shutemov.name>
+        Wed, 02 Nov 2016 08:18:38 -0700 (PDT)
+Received: by mail-oi0-x231.google.com with SMTP id x4so20551970oix.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 08:18:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161102083204.GB13949@node.shutemov.name>
+In-Reply-To: <20161102070346.12489-3-npiggin@gmail.com>
+References: <20161102070346.12489-1-npiggin@gmail.com> <20161102070346.12489-3-npiggin@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 2 Nov 2016 09:18:37 -0600
+Message-ID: <CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue should
+ be checked
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, Nov 02, 2016 at 11:32:04AM +0300, Kirill A. Shutemov wrote:
-> Yes, buffer_head list doesn't scale. That's the main reason (along with 4)
-> why syscall-based IO sucks. We spend a lot of time looking for desired
-> block.
-> 
-> We need to switch to some other data structure for storing buffer_heads.
-> Is there a reason why we have list there in first place?
-> Why not just array?
-> 
-> I will look into it, but this sounds like a separate infrastructure change
-> project.
+On Wed, Nov 2, 2016 at 1:03 AM, Nicholas Piggin <npiggin@gmail.com> wrote:
+> +       __wake_up_locked_key(q, TASK_NORMAL, &key);
+> +       if (!waitqueue_active(q) || !key.page_match) {
+> +               ClearPageWaiters(page);
 
-We're working on it with the iomap code.  And yes, it's really something
-that needs to be done before we can consider the THP patches.  Same for
-the biovec thing were we really need the > PAGE_SIZE bio_vecs first.
+Is that "page_match" optimization really worth it? I'd rather see
+numbers for that particular optimization. I'd rather see the
+contention bit being explicitly not precise.
+
+Also, it would be lovely to get numbers against the plain 4.8
+situation with the per-zone waitqueues. Maybe that used to help your
+workload, so the 2.2% improvement might be partly due to me breaking
+performance on your machine.
+
+But other than that this all looks fine to me.
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
