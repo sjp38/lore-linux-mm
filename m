@@ -1,109 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 600876B02C5
-	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 19:13:23 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l124so814770wml.4
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 16:13:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hd9si39394202wjc.88.2016.11.01.16.13.21
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 96ACD6B02B9
+	for <linux-mm@kvack.org>; Tue,  1 Nov 2016 20:23:08 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id rt15so41332pab.5
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 17:23:08 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 3si33192923pfd.50.2016.11.01.17.23.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Nov 2016 16:13:21 -0700 (PDT)
-Date: Wed, 2 Nov 2016 00:13:18 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/21 v4] dax: Clear dirty bits after flushing caches
-Message-ID: <20161101231318.GC20418@quack2.suse.cz>
-References: <1478039794-20253-1-git-send-email-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Nov 2016 17:23:07 -0700 (PDT)
+In-Reply-To: <CAJwJo6Z9qXbYb3RHL89Z2JPJWc6biOt54sWcHXeNwD5dDxQXjQ@mail.gmail.com>
+References: <20161101171101.24704-1-cov@codeaurora.org> <CAJwJo6Z9qXbYb3RHL89Z2JPJWc6biOt54sWcHXeNwD5dDxQXjQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478039794-20253-1-git-send-email-jack@suse.cz>
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+ charset=UTF-8
+Subject: Re: [RFC v2 1/7] mm: Provide generic VDSO unmap and remap functions
+From: Christopher Covington <cov@codeaurora.org>
+Date: Tue, 01 Nov 2016 18:23:01 -0600
+Message-ID: <B6819DB6-D247-43CC-AB51-D08EC5EEFB5B@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+To: Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: crml <criu@openvz.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, open list <linux-kernel@vger.kernel.org>
 
-Hi,
 
-forgot to add Kirill to CC since this modifies the fault path he changed
-recently. I don't want to resend the whole series just because of this so
-at least I'm pinging him like this...
 
-								Honza
-On Tue 01-11-16 23:36:06, Jan Kara wrote:
-> Hello,
-> 
-> this is the fourth revision of my patches to clear dirty bits from radix tree
-> of DAX inodes when caches for corresponding pfns have been flushed. This patch
-> set is significantly larger than the previous version because I'm changing how
-> ->fault, ->page_mkwrite, and ->pfn_mkwrite handlers may choose to handle the
-> fault so that we don't have to leak details about DAX locking into the generic
-> code. In principle, these patches enable handlers to easily update PTEs and do
-> other work necessary to finish the fault without duplicating the functionality
-> present in the generic code. I'd be really like feedback from mm folks whether
-> such changes to fault handling code are fine or what they'd do differently.
-> 
-> The patches are based on 4.9-rc1 + Ross' DAX PMD page fault series [1] + ext4
-> conversion of DAX IO patch to the iomap infrastructure [2]. For testing,
-> I've pushed out a tree including all these patches and further DAX fixes
-> to:
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git dax
-> 
-> The patches pass testing with xfstests on ext4 and xfs on my end. I'd be
-> grateful for review so that we can push these patches for the next merge
-> window.
-> 
-> [1] http://www.spinics.net/lists/linux-mm/msg115247.html
-> [2] Posted an hour ago - look for "ext4: Convert ext4 DAX IO to iomap framework"
-> 
-> Changes since v3:
-> * rebased on top of 4.9-rc1 + DAX PMD fault series + ext4 iomap conversion
-> * reordered some of the patches
-> * killed ->virtual_address field in vm_fault structure as requested by
->   Christoph
-> 
-> Changes since v2:
-> * rebased on top of 4.8-rc8 - this involved dealing with new fault_env
->   structure
-> * changed calling convention for fault helpers
-> 
-> Changes since v1:
-> * make sure all PTE updates happen under radix tree entry lock to protect
->   against races between faults & write-protecting code
-> * remove information about DAX locking from mm/memory.c
-> * smaller updates based on Ross' feedback
-> 
-> ----
-> Background information regarding the motivation:
-> 
-> Currently we never clear dirty bits in the radix tree of a DAX inode. Thus
-> fsync(2) flushes all the dirty pfns again and again. This patches implement
-> clearing of the dirty tag in the radix tree so that we issue flush only when
-> needed.
-> 
-> The difficulty with clearing the dirty tag is that we have to protect against
-> a concurrent page fault setting the dirty tag and writing new data into the
-> page. So we need a lock serializing page fault and clearing of the dirty tag
-> and write-protecting PTEs (so that we get another pagefault when pfn is written
-> to again and we have to set the dirty tag again).
-> 
-> The effect of the patch set is easily visible:
-> 
-> Writing 1 GB of data via mmap, then fsync twice.
-> 
-> Before this patch set both fsyncs take ~205 ms on my test machine, after the
-> patch set the first fsync takes ~283 ms (the additional cost of walking PTEs,
-> clearing dirty bits etc. is very noticeable), the second fsync takes below
-> 1 us.
-> 
-> As a bonus, these patches make filesystem freezing for DAX filesystems
-> reliable because mappings are now properly writeprotected while freezing the
-> fs.
-> 								Honza
+On November 1, 2016 11:23:54 AM MDT, Dmitry Safonov <0x7f454c46@gmail.com> wrote:
+>Hi Christopher,
+>
+>  by this moment I got another patch for this. I hope, you don't mind
+>if I send it concurrently. I haven't sent it yet as I was testing it in
+> qemu.
+
+Please do, that'd be great.
+
+Thanks, 
+Cov
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm Technologies, Inc.
+Qualcomm Technologies, Inc. is a member of the Code Aurora Forum, a Linux Foundation Collaborative Project.
+
+Sent from my Snapdragon powered Android device with K-9 Mail. Please excuse my brevity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
