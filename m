@@ -1,91 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FCFD6B02A1
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 03:37:23 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id o141so1517282lff.7
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 00:37:23 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id z131si490403lfa.326.2016.11.02.00.37.21
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 033F96B02A1
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 03:50:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a136so2254526pfa.5
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 00:50:46 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id cn3si1259747pad.137.2016.11.02.00.50.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 00:37:21 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id i187so458078lfe.1
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 00:37:21 -0700 (PDT)
-Date: Wed, 2 Nov 2016 10:31:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue should
- be checked
-Message-ID: <20161102073156.GA13949@node.shutemov.name>
+        Wed, 02 Nov 2016 00:50:46 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id i88so1032321pfk.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 00:50:46 -0700 (PDT)
+Date: Wed, 2 Nov 2016 18:50:35 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue
+ should be checked
+Message-ID: <20161102185035.03f282c0@roar.ozlabs.ibm.com>
+In-Reply-To: <20161102073156.GA13949@node.shutemov.name>
 References: <20161102070346.12489-1-npiggin@gmail.com>
- <20161102070346.12489-3-npiggin@gmail.com>
+	<20161102070346.12489-3-npiggin@gmail.com>
+	<20161102073156.GA13949@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161102070346.12489-3-npiggin@gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, Nov 02, 2016 at 06:03:46PM +1100, Nicholas Piggin wrote:
-> Add a new page flag, PageWaiters. This bit is always set when the
-> page has waiters on page_waitqueue(page), within the same synchronization
-> scope as waitqueue_active(page) (i.e., it is manipulated under waitqueue
-> lock). It may be set in some cases where that condition is not true
-> (e.g., some scenarios of hash collisions or signals waking page waiters).
-> 
-> This bit can be used to avoid the costly waitqueue_active test for most
-> cases where the page has no waiters (the hashed address effectively adds
-> another line of cache footprint for most page operations). In cases where
-> the bit is set when the page has no waiters, the slower wakeup path will
-> end up clearing up the bit.
-> 
-> The generic bit-waitqueue infrastructure is no longer used for pages, and
-> instead waitqueues are used directly with a custom key type. The generic
-> code was not flexible enough to do PageWaiters manipulation under waitqueue
-> lock, or always allow danging bits to be cleared when no waiters for this
-> page on the waitqueue.
-> 
-> The upshot is that the page wait is much more flexible now, and could be
-> easily extended to wait on other properties of the page (by carrying that
-> data in the wait key).
-> 
-> This improves the performance of a streaming write into a preallocated
-> tmpfs file by 2.2% on a POWER8 system with 64K pages (which is pretty
-> significant if there is only a single unlock_page per 64K of copy_from_user).
-> 
-> Idea seems to have been around for a while, https://lwn.net/Articles/233391/
-> 
-> ---
->  include/linux/page-flags.h     |   2 +
->  include/linux/pagemap.h        |  23 +++---
->  include/trace/events/mmflags.h |   1 +
->  mm/filemap.c                   | 157 ++++++++++++++++++++++++++++++++---------
->  mm/swap.c                      |   2 +
->  5 files changed, 138 insertions(+), 47 deletions(-)
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 58d30b8..da40a1d 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -73,6 +73,7 @@
->   */
->  enum pageflags {
->  	PG_locked,		/* Page is locked. Don't touch. */
-> +	PG_waiters,		/* Page has waiters, check its waitqueue */
->  	PG_error,
->  	PG_referenced,
->  	PG_uptodate,
-> @@ -255,6 +256,7 @@ static inline int TestClearPage##uname(struct page *page) { return 0; }
->  	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
->  
->  __PAGEFLAG(Locked, locked, PF_NO_TAIL)
-> +PAGEFLAG(Waiters, waiters, PF_NO_COMPOUND) __CLEARPAGEFLAG(Waiters, waiters, PF_NO_COMPOUND)
+On Wed, 2 Nov 2016 10:31:57 +0300
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-This should be at least PF_NO_TAIL to work with shmem/tmpfs huge pages.
+> On Wed, Nov 02, 2016 at 06:03:46PM +1100, Nicholas Piggin wrote:
+> > Add a new page flag, PageWaiters. This bit is always set when the
+> > page has waiters on page_waitqueue(page), within the same synchronization
+> > scope as waitqueue_active(page) (i.e., it is manipulated under waitqueue
+> > lock). It may be set in some cases where that condition is not true
+> > (e.g., some scenarios of hash collisions or signals waking page waiters).
+> > 
+> > This bit can be used to avoid the costly waitqueue_active test for most
+> > cases where the page has no waiters (the hashed address effectively adds
+> > another line of cache footprint for most page operations). In cases where
+> > the bit is set when the page has no waiters, the slower wakeup path will
+> > end up clearing up the bit.
+> > 
+> > The generic bit-waitqueue infrastructure is no longer used for pages, and
+> > instead waitqueues are used directly with a custom key type. The generic
+> > code was not flexible enough to do PageWaiters manipulation under waitqueue
+> > lock, or always allow danging bits to be cleared when no waiters for this
+> > page on the waitqueue.
+> > 
+> > The upshot is that the page wait is much more flexible now, and could be
+> > easily extended to wait on other properties of the page (by carrying that
+> > data in the wait key).
+> > 
+> > This improves the performance of a streaming write into a preallocated
+> > tmpfs file by 2.2% on a POWER8 system with 64K pages (which is pretty
+> > significant if there is only a single unlock_page per 64K of copy_from_user).
+> > 
+> > Idea seems to have been around for a while, https://lwn.net/Articles/233391/
+> > 
+> > ---
+> >  include/linux/page-flags.h     |   2 +
+> >  include/linux/pagemap.h        |  23 +++---
+> >  include/trace/events/mmflags.h |   1 +
+> >  mm/filemap.c                   | 157 ++++++++++++++++++++++++++++++++---------
+> >  mm/swap.c                      |   2 +
+> >  5 files changed, 138 insertions(+), 47 deletions(-)
+> > 
+> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> > index 58d30b8..da40a1d 100644
+> > --- a/include/linux/page-flags.h
+> > +++ b/include/linux/page-flags.h
+> > @@ -73,6 +73,7 @@
+> >   */
+> >  enum pageflags {
+> >  	PG_locked,		/* Page is locked. Don't touch. */
+> > +	PG_waiters,		/* Page has waiters, check its waitqueue */
+> >  	PG_error,
+> >  	PG_referenced,
+> >  	PG_uptodate,
+> > @@ -255,6 +256,7 @@ static inline int TestClearPage##uname(struct page *page) { return 0; }
+> >  	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
+> >  
+> >  __PAGEFLAG(Locked, locked, PF_NO_TAIL)
+> > +PAGEFLAG(Waiters, waiters, PF_NO_COMPOUND) __CLEARPAGEFLAG(Waiters, waiters, PF_NO_COMPOUND)  
+> 
+> This should be at least PF_NO_TAIL to work with shmem/tmpfs huge pages.
 
--- 
- Kirill A. Shutemov
+I thought all paths using it already took the head page, but I'll double
+check. Did you see a specific problem?
+
+Thanks,
+Nick
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
