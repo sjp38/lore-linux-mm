@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 90DD36B02BE
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 16:07:06 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id i34so25655293qkh.1
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 13:07:06 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n6si2026504qkh.73.2016.11.02.13.07.05
+	by kanga.kvack.org (Postfix) with ESMTP id 8961B6B0275
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 17:00:59 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id x190so27212006qkb.5
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 14:00:59 -0700 (PDT)
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
+        by mx.google.com with ESMTPS id n66si2168328qka.157.2016.11.02.14.00.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 13:07:05 -0700 (PDT)
-Received: from int-mx10.intmail.prod.int.phx2.redhat.com (int-mx10.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 939537AE80
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 20:07:04 +0000 (UTC)
-Received: from mail.random (ovpn-116-31.ams2.redhat.com [10.36.116.31])
-	by int-mx10.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with ESMTP id uA2K72Bs009740
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 2 Nov 2016 16:07:04 -0400
-Date: Wed, 2 Nov 2016 21:07:02 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00/33] userfaultfd tmpfs/hugetlbfs/non-cooperative
-Message-ID: <20161102200702.GH4611@redhat.com>
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
+        Wed, 02 Nov 2016 14:00:58 -0700 (PDT)
+Received: by mail-qk0-f181.google.com with SMTP id o68so33678225qkf.3
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 14:00:58 -0700 (PDT)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv2 0/6] CONFIG_DEBUG_VIRTUAL for arm64
+Date: Wed,  2 Nov 2016 15:00:48 -0600
+Message-Id: <20161102210054.16621-1-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-FYI: apparently I hit a git bug in this submit... reproducible with
-the below command:
+Hi,
 
-git send-email -1 --to '"what ever" <--your--@--email--.com>"'
+This is v2 of the series to add CONFIG_DEBUG_VIRTUAL support from arm64. This
+has been split out into a number of patches:
 
-after replacing --your--@email--.com with your own email.
+Patch #1 Adds ARCH_HAS_DEBUG_VIRTUAL to avoid the need for adding arch
+dependencies for DEBUG_VIRTUAL. This touches arch/x86/Kconfig
 
-/crypto/home/andrea/tmp/tmp/ftuVw5S7Vf/0001-userfaultfd-wp-use-uffd_wp-information-in-userfaultf.patch
-Dry-OK. Log says:
-Sendmail: /usr/sbin/sendmail *snip* -i --your--@--email--.com andrea@cpushare.com
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: "what ever" " <--your--@--email--.com>
-Subject: [PATCH 1/1] userfaultfd: wp: use uffd_wp information in userfaultfd_must_wait
-Date: Wed,  2 Nov 2016 20:59:43 +0100
-Message-Id: <1478116783-578-1-git-send-email-aarcange@redhat.com>
-X-Mailer: git-send-email 2.7.3
+Patch #2 Cleans up cma to not rely on __pa_nodebug and have an #ifdef inline
+in the function.
 
-Result: OK
+Patch #3 Adjust some macros in arm64 memory.h to be under __ASSEMBLY__
+protection
 
-It's not ok if the --dry-run outputs the above with a fine header, but
-the actual header in the email data is different. Of course I tested
---dry-run twice and it was fine like the above is fine as well.
+Patch #4 Adds a cast for virt_to_pfn since __virt_to_phys for DEBUG_VIRTUAL no
+longer has a cast.
 
-The submit is still valid for review so I'm not re-sending. I may
-resend privately to Andrew post-review if needed.
+Patch #5 Switches to using __pa_symbol for _end to avoid erroneously triggering
+a bounds error with the debugging.
+
+Patch #6 is the actual implementation of DEBUG_VIRTUAL. The biggest change from
+the RFCv1 is the addition of __phys_addr_symbol. This is to handle several
+places where the physical address of _end is needed. x86 avoids this problem by
+doing its bounds check based on the entire possible image space which is well
+beyond where _end would end up.
+
+There are a few dependencies outside of arm64, so I don't know if
+it will be easier for this to eventually go through arm64 or the mm tree.
 
 Thanks,
-Andrea
+Laura
+
+
+
+
+Laura Abbott (6):
+  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+  mm/cma: Cleanup highmem check
+  arm64: Move some macros under #ifndef __ASSEMBLY__
+  arm64: Add cast for virt_to_pfn
+  arm64: Use __pa_symbol for _end
+  arm64: Add support for CONFIG_DEBUG_VIRTUAL
+
+ arch/arm64/Kconfig              |  1 +
+ arch/arm64/include/asm/memory.h | 50 ++++++++++++++++++++++++-----------------
+ arch/arm64/mm/Makefile          |  2 ++
+ arch/arm64/mm/init.c            |  4 ++--
+ arch/arm64/mm/physaddr.c        | 34 ++++++++++++++++++++++++++++
+ arch/x86/Kconfig                |  1 +
+ lib/Kconfig.debug               |  5 ++++-
+ mm/cma.c                        | 15 +++++--------
+ 8 files changed, 79 insertions(+), 33 deletions(-)
+ create mode 100644 arch/arm64/mm/physaddr.c
+
+-- 
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
