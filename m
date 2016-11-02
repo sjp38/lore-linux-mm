@@ -1,55 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AD0446B02A1
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 05:04:48 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ro13so4867768pac.7
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 02:04:48 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 13si1802168pfv.89.2016.11.02.02.04.47
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 179786B02A1
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 06:02:35 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id o141so2181835lff.7
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 03:02:35 -0700 (PDT)
+Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
+        by mx.google.com with ESMTPS id 72si760265lfq.386.2016.11.02.03.02.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 02:04:47 -0700 (PDT)
-Date: Wed, 2 Nov 2016 12:04:43 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue should
- be checked
-Message-ID: <20161102090443.xa5223fn3avimswa@black.fi.intel.com>
-References: <20161102070346.12489-1-npiggin@gmail.com>
- <20161102070346.12489-3-npiggin@gmail.com>
- <20161102073156.GA13949@node.shutemov.name>
- <20161102185035.03f282c0@roar.ozlabs.ibm.com>
- <20161102075855.lt3323biol4cbfin@black.fi.intel.com>
- <20161102191248.5b1dd6cd@roar.ozlabs.ibm.com>
- <20161102083351.bwl744znpacfkk52@black.fi.intel.com>
- <20161102194024.57f2d3c7@roar.ozlabs.ibm.com>
+        Wed, 02 Nov 2016 03:02:33 -0700 (PDT)
+Received: by mail-lf0-x22f.google.com with SMTP id t196so8070269lff.3
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 03:02:33 -0700 (PDT)
+Date: Wed, 2 Nov 2016 12:58:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 01/21] mm: Join struct fault_env and vm_fault
+Message-ID: <20161102095848.GB20724@node.shutemov.name>
+References: <1478039794-20253-1-git-send-email-jack@suse.cz>
+ <1478039794-20253-3-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161102194024.57f2d3c7@roar.ozlabs.ibm.com>
+In-Reply-To: <1478039794-20253-3-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Wed, Nov 02, 2016 at 07:40:24PM +1100, Nicholas Piggin wrote:
-> On Wed, 2 Nov 2016 11:33:51 +0300
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > On Wed, Nov 02, 2016 at 07:12:48PM +1100, Nicholas Piggin wrote:
-> > > On Wed, 2 Nov 2016 10:58:55 +0300
-> > > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > 
-> > > Oh my mistake, that should be something like PF_ONLY_HEAD, where
-> > > 
-> > > #define PF_ONLY_HEAD(page, enforce) ({                                    \
-> > >                 VM_BUG_ON_PGFLAGS(PageTail(page), page);                  \
-> > >                 page; })  
-> > 
-> > Feel free to rename PF_NO_TAIL :)
-> > 
-> 
-> I think we don't need tests on non-head pages, so it's slightly different.
+On Tue, Nov 01, 2016 at 11:36:08PM +0100, Jan Kara wrote:
+> Currently we have two different structures for passing fault information
+> around - struct vm_fault and struct fault_env. DAX will need more
+> information in struct vm_fault to handle its faults so the content of
+> that structure would become event closer to fault_env. Furthermore it
+> would need to generate struct fault_env to be able to call some of the
+> generic functions. So at this point I don't think there's much use in
+> keeping these two structures separate. Just embed into struct vm_fault
+> all that is needed to use it for both purposes.
 
-Ah. Okay, fair enough.
+What about just reference fault_env from vm_fault? We don't always need
+vm_fault where we nee fault_env. It may save space on stack for some
+codepaths.
 
 -- 
  Kirill A. Shutemov
