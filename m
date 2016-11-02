@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 271D46B02C3
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:50 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 83so5385141pfx.1
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:50 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id t2si4113469pgn.273.2016.11.02.10.16.49
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B89B6B02C7
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:53 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hr10so9845699pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:53 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 18si4118482pfs.156.2016.11.02.10.16.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Nov 2016 10:16:49 -0700 (PDT)
-Subject: [mm PATCH v2 22/26] arch/xtensa: Add option to skip DMA sync as a
- part of mapping
+        Wed, 02 Nov 2016 10:16:52 -0700 (PDT)
+Subject: [mm PATCH v2 20/26] arch/sparc: Add option to skip DMA sync as a
+ part of map and unmap
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Wed, 02 Nov 2016 07:15:52 -0400
-Message-ID: <20161102111549.79519.59449.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Wed, 02 Nov 2016 07:15:36 -0400
+Message-ID: <20161102111532.79519.12125.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,43 +22,64 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Max Filippov <jcmvbkbc@gmail.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+Cc: sparclinux@vger.kernel.org, netdev@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org
 
 This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
 avoid invoking cache line invalidation if the driver will just handle it
 via a sync_for_cpu or sync_for_device call.
 
-Cc: Max Filippov <jcmvbkbc@gmail.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: sparclinux@vger.kernel.org
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/xtensa/kernel/pci-dma.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ arch/sparc/kernel/iommu.c  |    4 ++--
+ arch/sparc/kernel/ioport.c |    4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/xtensa/kernel/pci-dma.c b/arch/xtensa/kernel/pci-dma.c
-index 1e68806..6a16dec 100644
---- a/arch/xtensa/kernel/pci-dma.c
-+++ b/arch/xtensa/kernel/pci-dma.c
-@@ -189,7 +189,9 @@ static dma_addr_t xtensa_map_page(struct device *dev, struct page *page,
- {
- 	dma_addr_t dma_handle = page_to_phys(page) + offset;
+diff --git a/arch/sparc/kernel/iommu.c b/arch/sparc/kernel/iommu.c
+index 5c615ab..8fda4e4 100644
+--- a/arch/sparc/kernel/iommu.c
++++ b/arch/sparc/kernel/iommu.c
+@@ -415,7 +415,7 @@ static void dma_4u_unmap_page(struct device *dev, dma_addr_t bus_addr,
+ 		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
  
--	xtensa_sync_single_for_device(dev, dma_handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		xtensa_sync_single_for_device(dev, dma_handle, size, dir);
-+
- 	return dma_handle;
+ 	/* Step 1: Kick data out of streaming buffers if necessary. */
+-	if (strbuf->strbuf_enabled)
++	if (strbuf->strbuf_enabled && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+ 		strbuf_flush(strbuf, iommu, bus_addr, ctx,
+ 			     npages, direction);
+ 
+@@ -640,7 +640,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
+ 		base = iommu->page_table + entry;
+ 
+ 		dma_handle &= IO_PAGE_MASK;
+-		if (strbuf->strbuf_enabled)
++		if (strbuf->strbuf_enabled && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+ 			strbuf_flush(strbuf, iommu, dma_handle, ctx,
+ 				     npages, direction);
+ 
+diff --git a/arch/sparc/kernel/ioport.c b/arch/sparc/kernel/ioport.c
+index 2344103..6ffaec4 100644
+--- a/arch/sparc/kernel/ioport.c
++++ b/arch/sparc/kernel/ioport.c
+@@ -527,7 +527,7 @@ static dma_addr_t pci32_map_page(struct device *dev, struct page *page,
+ static void pci32_unmap_page(struct device *dev, dma_addr_t ba, size_t size,
+ 			     enum dma_data_direction dir, unsigned long attrs)
+ {
+-	if (dir != PCI_DMA_TODEVICE)
++	if (dir != PCI_DMA_TODEVICE && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+ 		dma_make_coherent(ba, PAGE_ALIGN(size));
  }
  
-@@ -197,7 +199,8 @@ static void xtensa_unmap_page(struct device *dev, dma_addr_t dma_handle,
- 			      size_t size, enum dma_data_direction dir,
- 			      unsigned long attrs)
- {
--	xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
- }
+@@ -572,7 +572,7 @@ static void pci32_unmap_sg(struct device *dev, struct scatterlist *sgl,
+ 	struct scatterlist *sg;
+ 	int n;
  
- static int xtensa_map_sg(struct device *dev, struct scatterlist *sg,
+-	if (dir != PCI_DMA_TODEVICE) {
++	if (dir != PCI_DMA_TODEVICE && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
+ 		for_each_sg(sgl, sg, nents, n) {
+ 			dma_make_coherent(sg_phys(sg), PAGE_ALIGN(sg->length));
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
