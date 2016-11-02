@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 659436B0284
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C1A696B028C
 	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:34:09 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id g193so23145580qke.2
+Received: by mail-qt0-f197.google.com with SMTP id p16so10706690qta.5
         for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:34:09 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h63si1903828qkd.292.2016.11.02.12.34.08
+        by mx.google.com with ESMTPS id c74si1942865qkg.55.2016.11.02.12.34.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 12:34:08 -0700 (PDT)
+        Wed, 02 Nov 2016 12:34:09 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 01/33] userfaultfd: document _IOR/_IOW
-Date: Wed,  2 Nov 2016 20:33:33 +0100
-Message-Id: <1478115245-32090-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 04/33] userfaultfd: use vma_is_anonymous
+Date: Wed,  2 Nov 2016 20:33:36 +0100
+Message-Id: <1478115245-32090-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,70 +20,70 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert"@v2.random, " <dgilbert@redhat.com>,  Mike Kravetz <mike.kravetz@oracle.com>,  Shaohua Li <shli@fb.com>,  Pavel Emelyanov <xemul@parallels.com>"@v2.random
 
-This adds proper documentation (inline) to avoid the risk of further
-misunderstandings about the semantics of _IOW/_IOR and it also reminds
-whoever will bump the UFFDIO_API in the future, to change the two
-ioctl to _IOW.
+Cleanup the vma->vm_ops usage.
 
-This was found while implementing strace support for those ioctl,
-otherwise we could have never found it by just reviewing kernel code
-and testing it.
+Side note: it would be more robust if vma_is_anonymous() would also
+check that vm_flags hasn't VM_PFNMAP set.
 
-_IOC_READ or _IOC_WRITE alters nothing but the ioctl number itself, so
-it's only worth fixing if the UFFDIO_API is bumped someday.
-
-Reported-by: "Dmitry V. Levin" <ldv@altlinux.org>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/uapi/asm-generic/ioctl.h | 10 +++++++++-
- include/uapi/linux/userfaultfd.h |  6 ++++++
- 2 files changed, 15 insertions(+), 1 deletion(-)
+ fs/userfaultfd.c | 8 ++++----
+ mm/userfaultfd.c | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/include/uapi/asm-generic/ioctl.h b/include/uapi/asm-generic/ioctl.h
-index 7e7c11b..749b32f 100644
---- a/include/uapi/asm-generic/ioctl.h
-+++ b/include/uapi/asm-generic/ioctl.h
-@@ -48,6 +48,9 @@
- /*
-  * Direction bits, which any architecture can choose to override
-  * before including this file.
-+ *
-+ * NOTE: _IOC_WRITE means userland is writing and kernel is
-+ * reading. _IOC_READ means userland is reading and kernel is writing.
-  */
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 5a1c3cf..4161f99 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -795,7 +795,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
  
- #ifndef _IOC_NONE
-@@ -72,7 +75,12 @@
- #define _IOC_TYPECHECK(t) (sizeof(t))
- #endif
+ 		/* check not compatible vmas */
+ 		ret = -EINVAL;
+-		if (cur->vm_ops)
++		if (!vma_is_anonymous(cur))
+ 			goto out_unlock;
  
--/* used to create numbers */
-+/*
-+ * Used to create numbers.
-+ *
-+ * NOTE: _IOW means userland is writing and kernel is reading. _IOR
-+ * means userland is reading and kernel is writing.
-+ */
- #define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
- #define _IOR(type,nr,size)	_IOC(_IOC_READ,(type),(nr),(_IOC_TYPECHECK(size)))
- #define _IOW(type,nr,size)	_IOC(_IOC_WRITE,(type),(nr),(_IOC_TYPECHECK(size)))
-diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-index 9057d7a..94046b8 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -11,6 +11,12 @@
+ 		/*
+@@ -820,7 +820,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	do {
+ 		cond_resched();
  
- #include <linux/types.h>
+-		BUG_ON(vma->vm_ops);
++		BUG_ON(!vma_is_anonymous(vma));
+ 		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+ 		       vma->vm_userfaultfd_ctx.ctx != ctx);
  
-+/*
-+ * If the UFFDIO_API is upgraded someday, the UFFDIO_UNREGISTER and
-+ * UFFDIO_WAKE ioctls should be defined as _IOW and not as _IOR.  In
-+ * userfaultfd.h we assumed the kernel was reading (instead _IOC_READ
-+ * means the userland is reading).
-+ */
- #define UFFD_API ((__u64)0xAA)
- /*
-  * After implementing the respective features it will become:
+@@ -946,7 +946,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		 * provides for more strict behavior to notice
+ 		 * unregistration errors.
+ 		 */
+-		if (cur->vm_ops)
++		if (!vma_is_anonymous(cur))
+ 			goto out_unlock;
+ 
+ 		found = true;
+@@ -960,7 +960,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 	do {
+ 		cond_resched();
+ 
+-		BUG_ON(vma->vm_ops);
++		BUG_ON(!vma_is_anonymous(vma));
+ 
+ 		/*
+ 		 * Nothing to do: this vma is already registered into this
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index af817e5..9c2ed70 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -197,7 +197,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	 * FIXME: only allow copying on anonymous vmas, tmpfs should
+ 	 * be added.
+ 	 */
+-	if (dst_vma->vm_ops)
++	if (!vma_is_anonymous(dst_vma))
+ 		goto out_unlock;
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
