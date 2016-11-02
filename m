@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B89B6B02C7
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:53 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id hr10so9845699pac.2
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:53 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 18si4118482pfs.156.2016.11.02.10.16.52
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 866506B02C8
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 13:16:58 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id hc3so1818502pac.4
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 10:16:58 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id k189si4101766pgd.312.2016.11.02.10.16.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Nov 2016 10:16:52 -0700 (PDT)
-Subject: [mm PATCH v2 20/26] arch/sparc: Add option to skip DMA sync as a
- part of map and unmap
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Nov 2016 10:16:57 -0700 (PDT)
+Subject: [mm PATCH v2 23/26] dma: Add calls for dma_map_page_attrs and
+ dma_unmap_page_attrs
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Wed, 02 Nov 2016 07:15:36 -0400
-Message-ID: <20161102111532.79519.12125.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Wed, 02 Nov 2016 07:16:00 -0400
+Message-ID: <20161102111557.79519.77155.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,64 +22,75 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: sparclinux@vger.kernel.org, netdev@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, linux-kernel@vger.kernel.org
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-avoid invoking cache line invalidation if the driver will just handle it
-via a sync_for_cpu or sync_for_device call.
+Add support for mapping and unmapping a page with attributes.  The primary
+use for this is currently to allow for us to pass the
+DMA_ATTR_SKIP_CPU_SYNC attribute when mapping and unmapping a page.  On
+some architectures such as ARM the synchronization has significant overhead
+and if we are already taking care of the sync_for_cpu and sync_for_device
+from the driver there isn't much need to handle this in the map/unmap calls
+as well.
 
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: sparclinux@vger.kernel.org
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/sparc/kernel/iommu.c  |    4 ++--
- arch/sparc/kernel/ioport.c |    4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ include/linux/dma-mapping.h |   20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
 
-diff --git a/arch/sparc/kernel/iommu.c b/arch/sparc/kernel/iommu.c
-index 5c615ab..8fda4e4 100644
---- a/arch/sparc/kernel/iommu.c
-+++ b/arch/sparc/kernel/iommu.c
-@@ -415,7 +415,7 @@ static void dma_4u_unmap_page(struct device *dev, dma_addr_t bus_addr,
- 		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
- 
- 	/* Step 1: Kick data out of streaming buffers if necessary. */
--	if (strbuf->strbuf_enabled)
-+	if (strbuf->strbuf_enabled && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 		strbuf_flush(strbuf, iommu, bus_addr, ctx,
- 			     npages, direction);
- 
-@@ -640,7 +640,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
- 		base = iommu->page_table + entry;
- 
- 		dma_handle &= IO_PAGE_MASK;
--		if (strbuf->strbuf_enabled)
-+		if (strbuf->strbuf_enabled && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 			strbuf_flush(strbuf, iommu, dma_handle, ctx,
- 				     npages, direction);
- 
-diff --git a/arch/sparc/kernel/ioport.c b/arch/sparc/kernel/ioport.c
-index 2344103..6ffaec4 100644
---- a/arch/sparc/kernel/ioport.c
-+++ b/arch/sparc/kernel/ioport.c
-@@ -527,7 +527,7 @@ static dma_addr_t pci32_map_page(struct device *dev, struct page *page,
- static void pci32_unmap_page(struct device *dev, dma_addr_t ba, size_t size,
- 			     enum dma_data_direction dir, unsigned long attrs)
- {
--	if (dir != PCI_DMA_TODEVICE)
-+	if (dir != PCI_DMA_TODEVICE && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 		dma_make_coherent(ba, PAGE_ALIGN(size));
+diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+index 08528af..10c5a17 100644
+--- a/include/linux/dma-mapping.h
++++ b/include/linux/dma-mapping.h
+@@ -243,29 +243,33 @@ static inline void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg
+ 		ops->unmap_sg(dev, sg, nents, dir, attrs);
  }
  
-@@ -572,7 +572,7 @@ static void pci32_unmap_sg(struct device *dev, struct scatterlist *sgl,
- 	struct scatterlist *sg;
- 	int n;
+-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
+-				      size_t offset, size_t size,
+-				      enum dma_data_direction dir)
++static inline dma_addr_t dma_map_page_attrs(struct device *dev,
++					    struct page *page,
++					    size_t offset, size_t size,
++					    enum dma_data_direction dir,
++					    unsigned long attrs)
+ {
+ 	struct dma_map_ops *ops = get_dma_ops(dev);
+ 	dma_addr_t addr;
  
--	if (dir != PCI_DMA_TODEVICE) {
-+	if (dir != PCI_DMA_TODEVICE && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
- 		for_each_sg(sgl, sg, nents, n) {
- 			dma_make_coherent(sg_phys(sg), PAGE_ALIGN(sg->length));
- 		}
+ 	kmemcheck_mark_initialized(page_address(page) + offset, size);
+ 	BUG_ON(!valid_dma_direction(dir));
+-	addr = ops->map_page(dev, page, offset, size, dir, 0);
++	addr = ops->map_page(dev, page, offset, size, dir, attrs);
+ 	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
+ 
+ 	return addr;
+ }
+ 
+-static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
+-				  size_t size, enum dma_data_direction dir)
++static inline void dma_unmap_page_attrs(struct device *dev,
++					dma_addr_t addr, size_t size,
++					enum dma_data_direction dir,
++					unsigned long attrs)
+ {
+ 	struct dma_map_ops *ops = get_dma_ops(dev);
+ 
+ 	BUG_ON(!valid_dma_direction(dir));
+ 	if (ops->unmap_page)
+-		ops->unmap_page(dev, addr, size, dir, 0);
++		ops->unmap_page(dev, addr, size, dir, attrs);
+ 	debug_dma_unmap_page(dev, addr, size, dir, false);
+ }
+ 
+@@ -385,6 +389,8 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
+ #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
+ #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, 0)
+ #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, 0)
++#define dma_map_page(d, p, o, s, r) dma_map_page_attrs(d, p, o, s, r, 0)
++#define dma_unmap_page(d, a, s, r) dma_unmap_page_attrs(d, a, s, r, 0)
+ 
+ extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+ 			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
