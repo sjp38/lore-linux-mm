@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4361C6B02AF
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:39:48 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id k201so24748745qke.6
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:39:48 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 284DC6B02D8
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 15:40:36 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id g193so23318106qke.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 12:40:36 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 89si1902796qku.328.2016.11.02.12.34.11
+        by mx.google.com with ESMTPS id w7si1934206qkc.77.2016.11.02.12.34.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 02 Nov 2016 12:34:11 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb for huge page UFFDIO_COPY
-Date: Wed,  2 Nov 2016 20:33:47 +0100
-Message-Id: <1478115245-32090-16-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 06/33] userfaultfd: non-cooperative: Add ability to report non-PF events from uffd descriptor
+Date: Wed,  2 Nov 2016 20:33:38 +0100
+Message-Id: <1478115245-32090-7-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,224 +20,218 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert"@v2.random, " <dgilbert@redhat.com>,  Mike Kravetz <mike.kravetz@oracle.com>,  Shaohua Li <shli@fb.com>,  Pavel Emelyanov <xemul@parallels.com>"@v2.random
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: Pavel Emelyanov <xemul@parallels.com>
 
-__mcopy_atomic_hugetlb performs the UFFDIO_COPY operation for huge
-pages.  It is based on the existing __mcopy_atomic routine for normal
-pages.  Unlike normal pages, there is no huge page support for the
-UFFDIO_ZEROPAGE operation.
+The custom events are queued in ctx->event_wqh not to disturb the
+fast-path-ed PF queue-wait-wakeup functions.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+The events to be generated (other than PF-s) are requested in UFFD_API
+ioctl with the uffd_api.features bits. Those, known by the kernel, are
+then turned on and reported back to the user-space.
+
+Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/userfaultfd.c | 180 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 180 insertions(+)
+ fs/userfaultfd.c | 98 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 96 insertions(+), 2 deletions(-)
 
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 9c2ed70..ba9adff 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -14,6 +14,8 @@
- #include <linux/swapops.h>
- #include <linux/userfaultfd_k.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/hugetlb.h>
-+#include <linux/pagemap.h>
- #include <asm/tlbflush.h>
- #include "internal.h"
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index b4f790f..76205b3 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -12,6 +12,7 @@
+  *  mm/ksm.c (mm hashing).
+  */
  
-@@ -139,6 +141,177 @@ static pmd_t *mm_alloc_pmd(struct mm_struct *mm, unsigned long address)
- 	return pmd;
++#include <linux/list.h>
+ #include <linux/hashtable.h>
+ #include <linux/sched.h>
+ #include <linux/mm.h>
+@@ -45,12 +46,16 @@ struct userfaultfd_ctx {
+ 	wait_queue_head_t fault_wqh;
+ 	/* waitqueue head for the pseudo fd to wakeup poll/read */
+ 	wait_queue_head_t fd_wqh;
++	/* waitqueue head for events */
++	wait_queue_head_t event_wqh;
+ 	/* a refile sequence protected by fault_pending_wqh lock */
+ 	struct seqcount refile_seq;
+ 	/* pseudo fd refcounting */
+ 	atomic_t refcount;
+ 	/* userfaultfd syscall flags */
+ 	unsigned int flags;
++	/* features requested from the userspace */
++	unsigned int features;
+ 	/* state machine */
+ 	enum userfaultfd_state state;
+ 	/* released */
+@@ -135,6 +140,8 @@ static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
+ 		VM_BUG_ON(waitqueue_active(&ctx->fault_pending_wqh));
+ 		VM_BUG_ON(spin_is_locked(&ctx->fault_wqh.lock));
+ 		VM_BUG_ON(waitqueue_active(&ctx->fault_wqh));
++		VM_BUG_ON(spin_is_locked(&ctx->event_wqh.lock));
++		VM_BUG_ON(waitqueue_active(&ctx->event_wqh));
+ 		VM_BUG_ON(spin_is_locked(&ctx->fd_wqh.lock));
+ 		VM_BUG_ON(waitqueue_active(&ctx->fd_wqh));
+ 		mmdrop(ctx->mm);
+@@ -423,6 +430,59 @@ int handle_userfault(struct fault_env *fe, unsigned long reason)
+ 	return ret;
  }
  
-+
-+#ifdef CONFIG_HUGETLB_PAGE
-+/*
-+ * __mcopy_atomic processing for HUGETLB vmas.  Note that this routine is
-+ * called with mmap_sem held, it will release mmap_sem before returning.
-+ */
-+static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
-+					      struct vm_area_struct *dst_vma,
-+					      unsigned long dst_start,
-+					      unsigned long src_start,
-+					      unsigned long len,
-+					      bool zeropage)
++static int __maybe_unused userfaultfd_event_wait_completion(
++		struct userfaultfd_ctx *ctx,
++		struct userfaultfd_wait_queue *ewq)
 +{
-+	ssize_t err;
-+	pte_t *dst_pte;
-+	unsigned long src_addr, dst_addr;
-+	long copied;
-+	struct page *page;
-+	struct hstate *h;
-+	unsigned long vma_hpagesize;
-+	pgoff_t idx;
-+	u32 hash;
-+	struct address_space *mapping;
++	int ret = 0;
 +
++	ewq->ctx = ctx;
++	init_waitqueue_entry(&ewq->wq, current);
++
++	spin_lock(&ctx->event_wqh.lock);
 +	/*
-+	 * There is no default zero huge page for all huge page sizes as
-+	 * supported by hugetlb.  A PMD_SIZE huge pages may exist as used
-+	 * by THP.  Since we can not reliably insert a zero page, this
-+	 * feature is not supported.
++	 * After the __add_wait_queue the uwq is visible to userland
++	 * through poll/read().
 +	 */
-+	if (zeropage)
-+		return -EINVAL;
-+
-+	src_addr = src_start;
-+	dst_addr = dst_start;
-+	copied = 0;
-+	page = NULL;
-+	vma_hpagesize = vma_kernel_pagesize(dst_vma);
-+
-+retry:
-+	/*
-+	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
-+	 * retry, dst_vma will be set to NULL and we must lookup again.
-+	 */
-+	err = -EINVAL;
-+	if (!dst_vma) {
-+		dst_vma = find_vma(dst_mm, dst_start);
-+		vma_hpagesize = vma_kernel_pagesize(dst_vma);
-+
-+		/*
-+		 * Make sure the vma is not shared, that the dst range is
-+		 * both valid and fully within a single existing vma.
-+		 */
-+		if (dst_vma->vm_flags & VM_SHARED)
-+			goto out_unlock;
-+		if (dst_start < dst_vma->vm_start ||
-+		    dst_start + len > dst_vma->vm_end)
-+			goto out_unlock;
-+	}
-+
-+	/*
-+	 * Validate alignment based on huge page size
-+	 */
-+	if (dst_start & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
-+		goto out_unlock;
-+
-+	/*
-+	 * Only allow __mcopy_atomic_hugetlb on userfaultfd registered ranges.
-+	 */
-+	if (!dst_vma->vm_userfaultfd_ctx.ctx)
-+		goto out_unlock;
-+
-+	/*
-+	 * Ensure the dst_vma has a anon_vma.
-+	 */
-+	err = -ENOMEM;
-+	if (unlikely(anon_vma_prepare(dst_vma)))
-+		goto out_unlock;
-+
-+	h = hstate_vma(dst_vma);
-+
-+	while (src_addr < src_start + len) {
-+		pte_t dst_pteval;
-+
-+		BUG_ON(dst_addr >= dst_start + len);
-+		dst_addr &= huge_page_mask(h);
-+
-+		/*
-+		 * Serialize via hugetlb_fault_mutex
-+		 */
-+		idx = linear_page_index(dst_vma, dst_addr);
-+		mapping = dst_vma->vm_file->f_mapping;
-+		hash = hugetlb_fault_mutex_hash(h, dst_mm, dst_vma, mapping,
-+								idx, dst_addr);
-+		mutex_lock(&hugetlb_fault_mutex_table[hash]);
-+
-+		err = -ENOMEM;
-+		dst_pte = huge_pte_alloc(dst_mm, dst_addr, huge_page_size(h));
-+		if (!dst_pte) {
-+			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			goto out_unlock;
-+		}
-+
-+		err = -EEXIST;
-+		dst_pteval = huge_ptep_get(dst_pte);
-+		if (!huge_pte_none(dst_pteval)) {
-+			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			goto out_unlock;
-+		}
-+
-+		err = hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma,
-+						dst_addr, src_addr, &page);
-+
-+		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+
-+		cond_resched();
-+
-+		if (unlikely(err == -EFAULT)) {
-+			up_read(&dst_mm->mmap_sem);
-+			BUG_ON(!page);
-+
-+			err = copy_huge_page_from_user(page,
-+						(const void __user *)src_addr,
-+						pages_per_huge_page(h));
-+			if (unlikely(err)) {
-+				err = -EFAULT;
-+				goto out;
-+			}
-+			down_read(&dst_mm->mmap_sem);
-+
-+			dst_vma = NULL;
-+			goto retry;
-+		} else
-+			BUG_ON(page);
-+
-+		if (!err) {
-+			dst_addr += vma_hpagesize;
-+			src_addr += vma_hpagesize;
-+			copied += vma_hpagesize;
-+
-+			if (fatal_signal_pending(current))
-+				err = -EINTR;
-+		}
-+		if (err)
++	__add_wait_queue(&ctx->event_wqh, &ewq->wq);
++	for (;;) {
++		set_current_state(TASK_KILLABLE);
++		if (ewq->msg.event == 0)
 +			break;
++		if (ACCESS_ONCE(ctx->released) ||
++		    fatal_signal_pending(current)) {
++			ret = -1;
++			__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
++			break;
++		}
++
++		spin_unlock(&ctx->event_wqh.lock);
++
++		wake_up_poll(&ctx->fd_wqh, POLLIN);
++		schedule();
++
++		spin_lock(&ctx->event_wqh.lock);
 +	}
-+
-+out_unlock:
-+	up_read(&dst_mm->mmap_sem);
-+out:
-+	if (page)
-+		put_page(page);
-+	BUG_ON(copied < 0);
-+	BUG_ON(err > 0);
-+	BUG_ON(!copied && !err);
-+	return copied ? copied : err;
-+}
-+#else /* !CONFIG_HUGETLB_PAGE */
-+static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
-+					      struct vm_area_struct *dst_vma,
-+					      unsigned long dst_start,
-+					      unsigned long src_start,
-+					      unsigned long len,
-+					      bool zeropage)
-+{
-+	up_read(&dst_mm->mmap_sem);	/* HUGETLB not configured */
-+	BUG();
-+	return -EINVAL;
-+}
-+#endif /* CONFIG_HUGETLB_PAGE */
-+
- static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 					      unsigned long dst_start,
- 					      unsigned long src_start,
-@@ -182,6 +355,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 		goto out_unlock;
- 
- 	/*
-+	 * If this is a HUGETLB vma, pass off to appropriate routine
-+	 */
-+	if (dst_vma->vm_flags & VM_HUGETLB)
-+		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
-+						src_start, len, false);
++	__set_current_state(TASK_RUNNING);
++	spin_unlock(&ctx->event_wqh.lock);
 +
 +	/*
- 	 * Be strict and only allow __mcopy_atomic on userfaultfd
- 	 * registered ranges to prevent userland errors going
- 	 * unnoticed. As far as the VM consistency is concerned, it
++	 * ctx may go away after this if the userfault pseudo fd is
++	 * already released.
++	 */
++
++	userfaultfd_ctx_put(ctx);
++	return ret;
++}
++
++static void userfaultfd_event_complete(struct userfaultfd_ctx *ctx,
++				       struct userfaultfd_wait_queue *ewq)
++{
++	ewq->msg.event = 0;
++	wake_up_locked(&ctx->event_wqh);
++	__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
++}
++
+ static int userfaultfd_release(struct inode *inode, struct file *file)
+ {
+ 	struct userfaultfd_ctx *ctx = file->private_data;
+@@ -511,6 +571,12 @@ static inline struct userfaultfd_wait_queue *find_userfault(
+ 	return find_userfault_in(&ctx->fault_pending_wqh);
+ }
+ 
++static inline struct userfaultfd_wait_queue *find_userfault_evt(
++		struct userfaultfd_ctx *ctx)
++{
++	return find_userfault_in(&ctx->event_wqh);
++}
++
+ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+ {
+ 	struct userfaultfd_ctx *ctx = file->private_data;
+@@ -542,6 +608,9 @@ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+ 		smp_mb();
+ 		if (waitqueue_active(&ctx->fault_pending_wqh))
+ 			ret = POLLIN;
++		else if (waitqueue_active(&ctx->event_wqh))
++			ret = POLLIN;
++
+ 		return ret;
+ 	default:
+ 		WARN_ON_ONCE(1);
+@@ -606,6 +675,19 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+ 			break;
+ 		}
+ 		spin_unlock(&ctx->fault_pending_wqh.lock);
++
++		spin_lock(&ctx->event_wqh.lock);
++		uwq = find_userfault_evt(ctx);
++		if (uwq) {
++			*msg = uwq->msg;
++
++			userfaultfd_event_complete(ctx, uwq);
++			spin_unlock(&ctx->event_wqh.lock);
++			ret = 0;
++			break;
++		}
++		spin_unlock(&ctx->event_wqh.lock);
++
+ 		if (signal_pending(current)) {
+ 			ret = -ERESTARTSYS;
+ 			break;
+@@ -1149,6 +1231,14 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+ 	return ret;
+ }
+ 
++static inline unsigned int uffd_ctx_features(__u64 user_features)
++{
++	/*
++	 * For the current set of features the bits just coincide
++	 */
++	return (unsigned int)user_features;
++}
++
+ /*
+  * userland asks for a certain API version and we return which bits
+  * and ioctl commands are implemented in this kernel for such API
+@@ -1167,19 +1257,21 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
+ 	ret = -EFAULT;
+ 	if (copy_from_user(&uffdio_api, buf, sizeof(uffdio_api)))
+ 		goto out;
+-	if (uffdio_api.api != UFFD_API || uffdio_api.features) {
++	if (uffdio_api.api != UFFD_API ||
++	    (uffdio_api.features & ~UFFD_API_FEATURES)) {
+ 		memset(&uffdio_api, 0, sizeof(uffdio_api));
+ 		if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
+ 			goto out;
+ 		ret = -EINVAL;
+ 		goto out;
+ 	}
+-	uffdio_api.features = UFFD_API_FEATURES;
++	uffdio_api.features &= UFFD_API_FEATURES;
+ 	uffdio_api.ioctls = UFFD_API_IOCTLS;
+ 	ret = -EFAULT;
+ 	if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
+ 		goto out;
+ 	ctx->state = UFFD_STATE_RUNNING;
++	ctx->features = uffd_ctx_features(uffdio_api.features);
+ 	ret = 0;
+ out:
+ 	return ret;
+@@ -1266,6 +1358,7 @@ static void init_once_userfaultfd_ctx(void *mem)
+ 
+ 	init_waitqueue_head(&ctx->fault_pending_wqh);
+ 	init_waitqueue_head(&ctx->fault_wqh);
++	init_waitqueue_head(&ctx->event_wqh);
+ 	init_waitqueue_head(&ctx->fd_wqh);
+ 	seqcount_init(&ctx->refile_seq);
+ }
+@@ -1306,6 +1399,7 @@ static struct file *userfaultfd_file_create(int flags)
+ 
+ 	atomic_set(&ctx->refcount, 1);
+ 	ctx->flags = flags;
++	ctx->features = 0;
+ 	ctx->state = UFFD_STATE_WAIT_API;
+ 	ctx->released = false;
+ 	ctx->mm = current->mm;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
