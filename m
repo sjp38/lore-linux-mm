@@ -1,79 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3696B02AB
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 02:30:38 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id hr10so3504718pac.2
-        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 23:30:38 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id v2si1172140pge.21.2016.11.01.23.30.37
+	by kanga.kvack.org (Postfix) with ESMTP id 1409B6B02AC
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 02:30:43 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id r13so3517900pag.1
+        for <linux-mm@kvack.org>; Tue, 01 Nov 2016 23:30:43 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id fe10si917973pac.222.2016.11.01.23.30.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Nov 2016 23:30:37 -0700 (PDT)
+        Tue, 01 Nov 2016 23:30:42 -0700 (PDT)
 From: Liang Li <liang.z.li@intel.com>
-Subject: [PATCH kernel v4 2/7] virtio-balloon: define new feature bit and head struct
-Date: Wed,  2 Nov 2016 14:17:22 +0800
-Message-Id: <1478067447-24654-3-git-send-email-liang.z.li@intel.com>
+Subject: [PATCH kernel v4 3/7] mm: add a function to get the max pfn
+Date: Wed,  2 Nov 2016 14:17:23 +0800
+Message-Id: <1478067447-24654-4-git-send-email-liang.z.li@intel.com>
 In-Reply-To: <1478067447-24654-1-git-send-email-liang.z.li@intel.com>
 References: <1478067447-24654-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mst@redhat.com, dave.hansen@intel.com
-Cc: pbonzini@redhat.com, amit.shah@redhat.com, quintela@redhat.com, dgilbert@redhat.com, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, mgorman@techsingularity.net, cornelia.huck@de.ibm.com, Liang Li <liang.z.li@intel.com>
+Cc: pbonzini@redhat.com, amit.shah@redhat.com, quintela@redhat.com, dgilbert@redhat.com, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, mgorman@techsingularity.net, cornelia.huck@de.ibm.com, Liang Li <liang.z.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Add a new feature which supports sending the page information with
-a bitmap. The current implementation uses PFNs array, which is not
-very efficient. Using bitmap can improve the performance of
-inflating/deflating significantly
-
-The page bitmap header will used to tell the host some information
-about the page bitmap. e.g. the page size, page bitmap length and
-start pfn.
+Expose the function to get the max pfn, so it can be used in the
+virtio-balloon device driver. Simply include the 'linux/bootmem.h'
+is not enough, if the device driver is built to a module, directly
+refer the max_pfn lead to build failed.
 
 Signed-off-by: Liang Li <liang.z.li@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
 Cc: Michael S. Tsirkin <mst@redhat.com>
 Cc: Paolo Bonzini <pbonzini@redhat.com>
 Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
 Cc: Amit Shah <amit.shah@redhat.com>
 Cc: Dave Hansen <dave.hansen@intel.com>
 ---
- include/uapi/linux/virtio_balloon.h | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ include/linux/mm.h |  1 +
+ mm/page_alloc.c    | 10 ++++++++++
+ 2 files changed, 11 insertions(+)
 
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 343d7dd..bed6f41 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -34,6 +34,7 @@
- #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-+#define VIRTIO_BALLOON_F_PAGE_BITMAP	3 /* Send page info with bitmap */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a92c8d7..f47862a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1772,6 +1772,7 @@ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
+ extern void free_area_init_node(int nid, unsigned long * zones_size,
+ 		unsigned long zone_start_pfn, unsigned long *zholes_size);
+ extern void free_initmem(void);
++extern unsigned long get_max_pfn(void);
  
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
-@@ -82,4 +83,22 @@ struct virtio_balloon_stat {
- 	__virtio64 val;
- } __attribute__((packed));
+ /*
+  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8fd42aa..12cc8ed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4428,6 +4428,16 @@ void show_free_areas(unsigned int filter)
+ 	show_swap_cache_info();
+ }
  
-+/* Response header structure */
-+struct virtio_balloon_resp_hdr {
-+	__le64 cmd : 8; /* Distinguish different requests type */
-+	__le64 flag: 8; /* Mark status for a specific request type */
-+	__le64 id : 16; /* Distinguish requests of a specific type */
-+	__le64 data_len: 32; /* Length of the following data, in bytes */
-+};
++/*
++ * The max_pfn can change because of memory hot plug, so it's only good
++ * as a hint. e.g. for sizing data structures.
++ */
++unsigned long get_max_pfn(void)
++{
++	return max_pfn;
++}
++EXPORT_SYMBOL(get_max_pfn);
 +
-+/* Page bitmap header structure */
-+struct virtio_balloon_bmap_hdr {
-+	struct {
-+		__le64 start_pfn : 52; /* start pfn for the bitmap */
-+		__le64 page_shift : 6; /* page shift width, in bytes */
-+		__le64 bmap_len : 6;  /* bitmap length, in bytes */
-+	} head;
-+	__le64 bmap[0];
-+};
-+
- #endif /* _LINUX_VIRTIO_BALLOON_H */
+ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ {
+ 	zoneref->zone = zone;
 -- 
 1.8.3.1
 
