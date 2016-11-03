@@ -1,74 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6814F6B0286
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 20:46:10 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x205so83586669oia.7
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 17:46:10 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id p25si4939309ioi.24.2016.11.02.17.46.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 17:46:09 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id n85so20747057pfi.1
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 17:46:09 -0700 (PDT)
-Date: Wed, 2 Nov 2016 17:46:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] memcg: Prevent memcg caches to be both OFF_SLAB &
- OBJFREELIST_SLAB
-In-Reply-To: <CAJcbSZHic9gfpYHFXySZf=EmUjztBvuHeWWq7CQFi=0Om7OJoA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1611021744150.110015@chino.kir.corp.google.com>
-References: <1477939010-111710-1-git-send-email-thgarnie@google.com> <alpine.DEB.2.10.1610311625430.62482@chino.kir.corp.google.com> <CAJcbSZHic9gfpYHFXySZf=EmUjztBvuHeWWq7CQFi=0Om7OJoA@mail.gmail.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 07AEC6B0287
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 21:58:42 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hr10so16201285pac.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 18:58:41 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id k76si6359517pfb.178.2016.11.02.18.58.39
+        for <linux-mm@kvack.org>;
+        Wed, 02 Nov 2016 18:58:40 -0700 (PDT)
+Date: Thu, 3 Nov 2016 12:58:26 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v9 00/16] re-enable DAX PMD support
+Message-ID: <20161103015826.GI9920@dastard>
+References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Wed, 2 Nov 2016, Thomas Garnier wrote:
+On Tue, Nov 01, 2016 at 01:54:02PM -0600, Ross Zwisler wrote:
+> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+> locking.  This series allows DAX PMDs to participate in the DAX radix tree
+> based locking scheme so that they can be re-enabled.
 
-> >> diff --git a/mm/slab.h b/mm/slab.h
-> >> index 9653f2e..58be647 100644
-> >> --- a/mm/slab.h
-> >> +++ b/mm/slab.h
-> >> @@ -144,6 +144,9 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
-> >>
-> >>  #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
-> >>
-> >> +/* Common allocator flags allowed for cache_create. */
-> >> +#define SLAB_FLAGS_PERMITTED (CACHE_CREATE_MASK | SLAB_KASAN)
-> >> +
-> >>  int __kmem_cache_shutdown(struct kmem_cache *);
-> >>  void __kmem_cache_release(struct kmem_cache *);
-> >>  int __kmem_cache_shrink(struct kmem_cache *, bool);
-> >> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> >> index 71f0b28..01d067c 100644
-> >> --- a/mm/slab_common.c
-> >> +++ b/mm/slab_common.c
-> >> @@ -329,6 +329,12 @@ static struct kmem_cache *create_cache(const char *name,
-> >>       struct kmem_cache *s;
-> >>       int err;
-> >>
-> >> +     /* Do not allow allocator specific flags */
-> >> +     if (flags & ~SLAB_FLAGS_PERMITTED) {
-> >> +             err = -EINVAL;
-> >> +             goto out;
-> >> +     }
-> >> +
-> >
-> > Why not just flags &= SLAB_FLAGS_PERMITTED if we're concerned about this
-> > like kmem_cache_create does &= CACHE_CREATE_MASK?
-> >
-> 
-> Christoph on the first version advised removing invalid flags on the
-> caller and checking they are correct in kmem_cache_create. The memcg
-> path putting the wrong flags is through create_cache but I still used
-> this approach.
-> 
+I've seen patch 0/16 - where did you send the other 16? I need to
+pick up the bug fix that is in this patch set...
 
-I think this is a rather trivial point since it doesn't matter if we clear 
-invalid flags on the caller or in the callee and obviously 
-kmem_cache_create() does it in the callee.
+> Previously we had talked about this series going through the XFS tree, but
+> Jan has a patch set that will need to build on this series and it heavily
+> modifies the MM code.  I think he would prefer that series to go through
+> Andrew Morton's -MM tree, so it probably makes sense for this series to go
+> through that same tree.
+
+Seriously, I was 10 minutes away from pushing out the previous
+version of this patchset as a stable topic branch, just like has
+been discussed and several times over the past week.  Indeed, I
+mentioned that I was planning on pushing out this topic branch today
+not more than 4 hours ago, and you were on the cc list.
+
+The -mm tree is not the place to merge patchsets with dependencies
+like this because it's an unstable, rebasing tree. Hence it cannot
+be shared and used as the base of common development between
+multiple git trees like we have for the fs/ subsystem.
+
+This needs to go out as a stable topic branch so that other
+dependent work can reliably build on top of it for the next merge
+window. e.g. the ext4 DAX iomap patch series that is likely to be
+merged through the ext4 tree, so it needs a stable branch. There's
+iomap direct IO patches for XFS pending, and they conflict with this
+patchset. i.e. we need a stable git base to work from...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
