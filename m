@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 40AAB6B02D8
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 16:33:27 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id t125so127336304ywc.4
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 13:33:27 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id l195si3156675ioe.182.2016.11.03.13.33.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D22D6B02DD
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 16:46:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u144so3381258wmu.1
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 13:46:57 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h84si919614wmf.90.2016.11.03.13.46.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 13:33:26 -0700 (PDT)
-Date: Thu, 3 Nov 2016 15:33:27 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] memcg: Prevent memcg caches to be both OFF_SLAB &
- OBJFREELIST_SLAB
-In-Reply-To: <alpine.DEB.2.10.1611021744150.110015@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.20.1611031531380.13315@east.gentwo.org>
-References: <1477939010-111710-1-git-send-email-thgarnie@google.com> <alpine.DEB.2.10.1610311625430.62482@chino.kir.corp.google.com> <CAJcbSZHic9gfpYHFXySZf=EmUjztBvuHeWWq7CQFi=0Om7OJoA@mail.gmail.com>
- <alpine.DEB.2.10.1611021744150.110015@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Nov 2016 13:46:55 -0700 (PDT)
+Date: Thu, 3 Nov 2016 21:46:22 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/21 v4] dax: Clear dirty bits after flushing caches
+Message-ID: <20161103204622.GD24234@quack2.suse.cz>
+References: <1478039794-20253-1-git-send-email-jack@suse.cz>
+ <20161101231318.GC20418@quack2.suse.cz>
+ <20161102100217.GC20724@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161102100217.GC20724@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Thomas Garnier <thgarnie@google.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org
 
-On Wed, 2 Nov 2016, David Rientjes wrote:
+On Wed 02-11-16 13:02:17, Kirill A. Shutemov wrote:
+> On Wed, Nov 02, 2016 at 12:13:18AM +0100, Jan Kara wrote:
+> > Hi,
+> > 
+> > forgot to add Kirill to CC since this modifies the fault path he changed
+> > recently. I don't want to resend the whole series just because of this so
+> > at least I'm pinging him like this...
+> 
+> I see strange mix x/20 and x/21 patches. Which should I look at?
 
-> > Christoph on the first version advised removing invalid flags on the
-> > caller and checking they are correct in kmem_cache_create. The memcg
-> > path putting the wrong flags is through create_cache but I still used
-> > this approach.
-> >
->
-> I think this is a rather trivial point since it doesn't matter if we clear
-> invalid flags on the caller or in the callee and obviously
-> kmem_cache_create() does it in the callee.
+Ah, sorry, I've messed up the send out (I already had the old series
+formatted in that directory). I'll send it again with you in CC.
 
-In order to be correct we need to do the following:
-
-kmem_cache_create should check for invalid flags (and that includes
-internal alloocator flgs) being set and refuse to create the slab cache.
-
-memcg needs to call kmem_cache_create without any internal flags.
-
-I also want to make sure that there are no other callers that specify
-extraneou flags while we are at it.
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
