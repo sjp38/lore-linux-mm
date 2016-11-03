@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A80F3280250
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 12:07:05 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id d128so68986537ybh.6
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 09:07:05 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id d9si8660956paf.112.2016.11.03.09.07.04
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD88F6B02D7
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 13:22:42 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ro13so25351162pac.7
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 10:22:42 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id x18si10672554pfi.296.2016.11.03.10.22.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 09:07:04 -0700 (PDT)
-From: Shiraz Hashim <shashim@codeaurora.org>
-Subject: [PATCH 1/1] mm: cma: check the max limit for cma allocation
-Date: Thu,  3 Nov 2016 21:36:51 +0530
-Message-Id: <1478189211-3467-1-git-send-email-shashim@codeaurora.org>
+        Thu, 03 Nov 2016 10:22:41 -0700 (PDT)
+Subject: Re: [PATCH 0/2] mm: fix the "counter.sh" failure for libhugetlbfs
+References: <1478141499-13825-1-git-send-email-shijie.huang@arm.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <0a660010-5083-476a-b2c5-88d822089000@infradead.org>
+Date: Thu, 3 Nov 2016 10:22:39 -0700
+MIME-Version: 1.0
+In-Reply-To: <1478141499-13825-1-git-send-email-shijie.huang@arm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, sfr@canb.auug.org.au, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shiraz Hashim <shashim@codeaurora.org>
+To: Huang Shijie <shijie.huang@arm.com>, akpm@linux-foundation.org, catalin.marinas@arm.com
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
 
-CMA allocation request size is represented by size_t that
-gets truncated when same is passed as int to
-bitmap_find_next_zero_area_off.
+On 11/02/16 19:51, Huang Shijie wrote:
+> 
+> (2) The bug   
+>    After I tested the libhugetlbfs, I found the test case "counter.sh"
+>    will fail with the gigantic page (32M page in arm64 board).
+> 
+>    This patch set adds support for gigantic surplus hugetlb pages,
+>    allowing the counter.sh unit test to pass.   
 
-We observe that during fuzz testing when cma allocation
-request is too high, bitmap_find_next_zero_area_off still
-returns success due to the truncation. This leads to
-kernel crash, as subsequent code assumes that requested
-memory is available.
+Hi,
+Where is the counter.sh test? Where can I find it?
 
-Fail cma allocation in case the request breaches the
-corresponding cma region size.
-
-Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
----
- mm/cma.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/cma.c b/mm/cma.c
-index 384c2cb..c960459 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -385,6 +385,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- 	bitmap_maxno = cma_bitmap_maxno(cma);
- 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
- 
-+	if (bitmap_count > bitmap_maxno)
-+		return NULL;
-+
- 	for (;;) {
- 		mutex_lock(&cma->lock);
- 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+thanks.
 -- 
-Shiraz Hashim
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
