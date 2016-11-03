@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D34616B0281
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 19:56:45 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id q197so79487776oic.6
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 16:56:45 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7706B0283
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 20:05:42 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 128so78480144oih.1
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 17:05:42 -0700 (PDT)
 Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com. [209.85.218.48])
-        by mx.google.com with ESMTPS id e94si3124581otb.79.2016.11.02.16.56.45
+        by mx.google.com with ESMTPS id e198si3363864oig.24.2016.11.02.17.05.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 16:56:45 -0700 (PDT)
-Received: by mail-oi0-f48.google.com with SMTP id v84so47499735oie.3
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 16:56:45 -0700 (PDT)
-Subject: Re: [PATCHv2 5/6] arm64: Use __pa_symbol for _end
+        Wed, 02 Nov 2016 17:05:41 -0700 (PDT)
+Received: by mail-oi0-f48.google.com with SMTP id x4so47827039oix.2
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 17:05:41 -0700 (PDT)
+Subject: Re: [PATCHv2 6/6] arm64: Add support for CONFIG_DEBUG_VIRTUAL
 References: <20161102210054.16621-1-labbott@redhat.com>
- <20161102210054.16621-6-labbott@redhat.com>
- <20161102225241.GA19591@remoulade>
+ <20161102210054.16621-7-labbott@redhat.com>
+ <20161102230642.GB19591@remoulade>
 From: Laura Abbott <labbott@redhat.com>
-Message-ID: <3724ea58-3c04-1248-8359-e2927da03aaf@redhat.com>
-Date: Wed, 2 Nov 2016 17:56:42 -0600
+Message-ID: <a77c2162-6eb9-09c8-e84f-03a207b59c6b@redhat.com>
+Date: Wed, 2 Nov 2016 18:05:38 -0600
 MIME-Version: 1.0
-In-Reply-To: <20161102225241.GA19591@remoulade>
+In-Reply-To: <20161102230642.GB19591@remoulade>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,47 +27,74 @@ List-ID: <linux-mm.kvack.org>
 To: Mark Rutland <mark.rutland@arm.com>
 Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-On 11/02/2016 04:52 PM, Mark Rutland wrote:
-> On Wed, Nov 02, 2016 at 03:00:53PM -0600, Laura Abbott wrote:
->>
->> __pa_symbol is technically the marco that should be used for kernel
->> symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL.
+On 11/02/2016 05:06 PM, Mark Rutland wrote:
+> On Wed, Nov 02, 2016 at 03:00:54PM -0600, Laura Abbott wrote:
+>> +CFLAGS_physaddr.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
+>> +obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
 >
-> Nit: s/marco/macro/
+>> diff --git a/arch/arm64/mm/physaddr.c b/arch/arm64/mm/physaddr.c
+>> new file mode 100644
+>> index 0000000..874c782
+>> --- /dev/null
+>> +++ b/arch/arm64/mm/physaddr.c
+>> @@ -0,0 +1,34 @@
+>> +#include <linux/mm.h>
+>> +
+>> +#include <asm/memory.h>
+>> +
+>> +unsigned long __virt_to_phys(unsigned long x)
+>> +{
+>> +	phys_addr_t __x = (phys_addr_t)x;
+>> +
+>> +	if (__x & BIT(VA_BITS - 1)) {
+>> +		/*
+>> +		 * The linear kernel range starts in the middle of the virtual
+>> +		 * adddress space. Testing the top bit for the start of the
+>> +		 * region is a sufficient check.
+>> +		 */
+>> +		return (__x & ~PAGE_OFFSET) + PHYS_OFFSET;
+>> +	} else {
+>> +		VIRTUAL_BUG_ON(x < kimage_vaddr || x >= (unsigned long)_end);
+>> +		return (__x - kimage_voffset);
+>> +	}
+>> +}
+>> +EXPORT_SYMBOL(__virt_to_phys);
+>> +
+>> +unsigned long __phys_addr_symbol(unsigned long x)
+>> +{
+>> +	phys_addr_t __x = (phys_addr_t)x;
+>> +
+>> +	/*
+>> +	 * This is intentionally different than above to be a tighter check
+>> +	 * for symbols.
+>> +	 */
+>> +	VIRTUAL_BUG_ON(x < kimage_vaddr + TEXT_OFFSET || x > (unsigned long) _end);
 >
-> I see there are some other uses of __pa() that look like they could/should be
-> __pa_symbol(), e.g. in mark_rodata_ro().
+> Can't we use _text instead of kimage_vaddr + TEXT_OFFSET? That way we don't
+> need CFLAGS_physaddr.o.
 >
-> I guess strictly speaking those need to be updated to? Or is there a reason
-> that we should not?
+> Or KERNEL_START / KERNEL_END from <asm/memory.h>?
 >
+> Otherwise, this looks good to me (though I haven't grokked the need for
+> __pa_symbol() yet).
 
-If the concept of __pa_symbol is okay then yes I think all uses of __pa
-should eventually be converted for consistency and debugging.
+I guess it's a question of what's clearer. I like kimage_vaddr +
+TEXT_OFFSET because it clearly states we are checking from the
+start of the kernel image vs. _text only shows the start of the
+text region. Yes, it's technically the same but a little less
+obvious. I suppose that could be solved with some more elaboration
+in the comment.
 
+Thanks,
+Laura
+
+>
 > Thanks,
 > Mark.
 >
->> Signed-off-by: Laura Abbott <labbott@redhat.com>
->> ---
->>  arch/arm64/mm/init.c | 4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
->> index 212c4d1..3236eb0 100644
->> --- a/arch/arm64/mm/init.c
->> +++ b/arch/arm64/mm/init.c
->> @@ -209,8 +209,8 @@ void __init arm64_memblock_init(void)
->>  	 * linear mapping. Take care not to clip the kernel which may be
->>  	 * high in memory.
->>  	 */
->> -	memblock_remove(max_t(u64, memstart_addr + linear_region_size, __pa(_end)),
->> -			ULLONG_MAX);
->> +	memblock_remove(max_t(u64, memstart_addr + linear_region_size,
->> +			__pa_symbol(_end)), ULLONG_MAX);
->>  	if (memstart_addr + linear_region_size < memblock_end_of_DRAM()) {
->>  		/* ensure that memstart_addr remains sufficiently aligned */
->>  		memstart_addr = round_up(memblock_end_of_DRAM() - linear_region_size,
+>> +	return (__x - kimage_voffset);
+>> +}
+>> +EXPORT_SYMBOL(__phys_addr_symbol);
 >> --
 >> 2.10.1
 >>
