@@ -1,65 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07AEC6B0287
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 21:58:42 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id hr10so16201285pac.2
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 18:58:41 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id k76si6359517pfb.178.2016.11.02.18.58.39
-        for <linux-mm@kvack.org>;
-        Wed, 02 Nov 2016 18:58:40 -0700 (PDT)
-Date: Thu, 3 Nov 2016 12:58:26 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v9 00/16] re-enable DAX PMD support
-Message-ID: <20161103015826.GI9920@dastard>
-References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 507436B028E
+	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 22:25:44 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r68so21715351wmd.0
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 19:25:44 -0700 (PDT)
+Received: from thejh.net (thejh.net. [37.221.195.125])
+        by mx.google.com with ESMTPS id me20si6362244wjb.81.2016.11.02.19.25.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Nov 2016 19:25:42 -0700 (PDT)
+Date: Thu, 3 Nov 2016 03:25:40 +0100
+From: Jann Horn <jann@thejh.net>
+Subject: Re: [PATCH v2 2/3] mm: add LSM hook for writes to readonly memory
+Message-ID: <20161103022540.GI8196@pc.thejh.net>
+References: <1475103281-7989-1-git-send-email-jann@thejh.net>
+ <1475103281-7989-3-git-send-email-jann@thejh.net>
+ <CALCETrUc8VVyPKuGrS7PxBRHCsVhXbXaiEOmwjgHrzTRiXPT9Q@mail.gmail.com>
+ <20160928233256.GB2040@pc.thejh.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="zYjDATHXTWnytHRU"
 Content-Disposition: inline
-In-Reply-To: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20160928233256.GB2040@pc.thejh.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "security@kernel.org" <security@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Nick Kralevich <nnk@google.com>, Janis Danisevskis <jdanis@google.com>, LSM List <linux-security-module@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 01, 2016 at 01:54:02PM -0600, Ross Zwisler wrote:
-> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
-> locking.  This series allows DAX PMDs to participate in the DAX radix tree
-> based locking scheme so that they can be re-enabled.
 
-I've seen patch 0/16 - where did you send the other 16? I need to
-pick up the bug fix that is in this patch set...
+--zYjDATHXTWnytHRU
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> Previously we had talked about this series going through the XFS tree, but
-> Jan has a patch set that will need to build on this series and it heavily
-> modifies the MM code.  I think he would prefer that series to go through
-> Andrew Morton's -MM tree, so it probably makes sense for this series to go
-> through that same tree.
+On Thu, Sep 29, 2016 at 01:32:56AM +0200, Jann Horn wrote:
+> On Wed, Sep 28, 2016 at 04:22:53PM -0700, Andy Lutomirski wrote:
+> > On Wed, Sep 28, 2016 at 3:54 PM, Jann Horn <jann@thejh.net> wrote:
+> > > -struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mo=
+de)
+> > > +struct mm_struct *proc_mem_open(struct inode *inode,
+> > > +                               const struct cred **object_cred,
+> > > +                               unsigned int mode)
+> > >  {
+> >=20
+> > Why are you passing object_cred all over the place like this?  You
+> > have an inode, and an inode implies a task.
+>=20
+> But the task's mm and objective credentials can change, and only mm_acces=
+s()
+> holds the cred_guard_mutex during the mm lookup. Although, if the objecti=
+ve
+> credentials change because of a setuid execution, being able to poke in t=
+he
+> old mm would be pretty harmless...
 
-Seriously, I was 10 minutes away from pushing out the previous
-version of this patchset as a stable topic branch, just like has
-been discussed and several times over the past week.  Indeed, I
-mentioned that I was planning on pushing out this topic branch today
-not more than 4 hours ago, and you were on the cc list.
+Actually, no. If you can poke in the pre-execve memory, but are checked
+against the (possibly more permissive) objective creds of the post-execve
+process, you can affect another process that shares the pre-execve memory
+(the case where task B, which calls execve(), was clone()d from task A
+with CLONE_VM). So I'm keeping this code the way I wrote it.
 
-The -mm tree is not the place to merge patchsets with dependencies
-like this because it's an unstable, rebasing tree. Hence it cannot
-be shared and used as the base of common development between
-multiple git trees like we have for the fs/ subsystem.
 
-This needs to go out as a stable topic branch so that other
-dependent work can reliably build on top of it for the next merge
-window. e.g. the ext4 DAX iomap patch series that is likely to be
-merged through the ext4 tree, so it needs a stable branch. There's
-iomap direct IO patches for XFS pending, and they conflict with this
-patchset. i.e. we need a stable git base to work from...
+> > For that matter, would it possibly make sense to use MEMCG's mm->owner
+> > and get rid of object_cred entirely?
+>=20
+> I guess it might.
 
-Cheers,
+Actually, I'd prefer not to do that - I think it would be unnecessarily
+unintuitive to check against the objective creds of task A when accessing
+task B if task B was clone()d from A with clone(CLONE_VM).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> > I can see this causing issues in
+> > strange threading cases, e.g. accessing your own /proc/$$/mem vs
+> > another thread in your process's.
+>=20
+> Can you elaborate on that?
+
+
+--zYjDATHXTWnytHRU
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJYGqAkAAoJED4KNFJOeCOoY7sP/jIOhAwjn/13g04bWe7qq+E2
+O0217H1FJLltuD0yQ/dCQvsxIWqXi3Fl+mmw77/wsQ78QnYwgO40vtOCC31q/7V8
+751CIv/hrJ6Rt8kAHYxb+ThJdvlc8IuoVID1Jkfh0Ya6+MrtGhJD5RWwqHPMFa2t
+0wxPZAZokNCdehxjKbFehoewWGYtTQUGOShRw0/UY6YPm1LrZXUVFMaDG+bMPKo9
+BzW50I1Ennx+/nZQrRx8skIb1iGgqKuYnIlUBm0gfVzbrWaMDN+ubTqYNPxAQcId
+X2Q8dyI6Oo2lTonaonYB4R9aIUVCCeWVU9BTp/5TdDkW6pMSVPYp/YCTNNvbhLNq
+A2EcgzaE2ZYpz4FIbMSihdlvUQjJMoONlxpNon26fBHe+DUA60ODvixnIXq2lFp9
+jd+P7CJM2QUFf0SZObk/0C0fxC3wPVdZVI6ITFz6DTHO8XljBr5eTWFOagAXgqp/
++hKgL8o6cazm6yoOuYCEx/7jzm1nbHq1QXuZLjwqbQ5UpD/+lfdlXRnicdzVshFg
+RgWMReosTqYQoTB4JG+mfiULTD0z/Yoc7Neu0gDKbCTB/p9ZBPQgqtORFLRKbOQV
+kui65pfWIjhfpcQRGETsCA5O0h3OR7QS+mGP5zCYJLZPdpIUdezwji4tipqLbPqg
+Y8U7dVD1gXxjdu1jVHzX
+=xwqe
+-----END PGP SIGNATURE-----
+
+--zYjDATHXTWnytHRU--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
