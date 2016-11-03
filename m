@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1578028025A
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 17:01:13 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id r13so28025252pag.1
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 14:01:13 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id ql7si3570934pac.260.2016.11.03.14.01.11
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C3DF628025A
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 17:04:35 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id rf5so28044121pab.3
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 14:04:35 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id uk7si9703608pab.97.2016.11.03.14.04.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 14:01:11 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id n85so5793649pfi.3
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 14:01:11 -0700 (PDT)
-Date: Thu, 3 Nov 2016 22:00:58 +0100
+        Thu, 03 Nov 2016 14:04:34 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id y68so5822153pfb.1
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 14:04:34 -0700 (PDT)
+Date: Thu, 3 Nov 2016 22:04:28 +0100
 From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: make pages_nr atomic
-Message-Id: <20161103220058.3017148c790b352c0ec521d4@gmail.com>
+Subject: [PATH] z3fold: extend compaction function
+Message-Id: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -23,90 +23,98 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-This patch converts pages_nr per-pool counter to atomic64_t.
+z3fold_compact_page() currently only handles the situation when
+there's a single middle chunk within the z3fold page. However it
+may be worth it to move middle chunk closer to either first or
+last chunk, whichever is there, if the gap between them is big
+enough.
+
+This patch adds the relevant code, using BIG_CHUNK_GAP define as
+a threshold for middle chunk to be worth moving.
 
 Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 ---
- mm/z3fold.c | 26 +++++++++++++++-----------
- 1 file changed, 15 insertions(+), 11 deletions(-)
+ mm/z3fold.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 13 deletions(-)
 
 diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 8f9e89c..4d02280 100644
+index 4d02280..fea6791 100644
 --- a/mm/z3fold.c
 +++ b/mm/z3fold.c
-@@ -80,7 +80,7 @@ struct z3fold_pool {
- 	struct list_head unbuddied[NCHUNKS];
- 	struct list_head buddied;
- 	struct list_head lru;
--	u64 pages_nr;
-+	atomic64_t pages_nr;
- 	const struct z3fold_ops *ops;
- 	struct zpool *zpool;
- 	const struct zpool_ops *zpool_ops;
-@@ -234,7 +234,7 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
- 		INIT_LIST_HEAD(&pool->unbuddied[i]);
- 	INIT_LIST_HEAD(&pool->buddied);
- 	INIT_LIST_HEAD(&pool->lru);
--	pool->pages_nr = 0;
-+	atomic64_set(&pool->pages_nr, 0);
- 	pool->ops = ops;
- 	return pool;
+@@ -250,26 +250,60 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+ 	kfree(pool);
  }
-@@ -346,7 +346,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 	if (!page)
- 		return -ENOMEM;
- 	spin_lock(&pool->lock);
--	pool->pages_nr++;
-+	atomic64_inc(&pool->pages_nr);
- 	zhdr = init_z3fold_page(page);
  
- 	if (bud == HEADLESS) {
-@@ -439,10 +439,9 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		return;
- 	}
- 
--	if (bud != HEADLESS) {
--		/* Remove from existing buddy list */
-+	/* Remove from existing buddy list */
-+	if (bud != HEADLESS)
- 		list_del(&zhdr->buddy);
--	}
- 
- 	if (bud == HEADLESS ||
- 	    (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
-@@ -451,7 +451,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		list_del(&page->lru);
- 		clear_bit(PAGE_HEADLESS, &page->private);
- 		free_z3fold_page(zhdr);
--		pool->pages_nr--;
-+		atomic64_dec(&pool->pages_nr);
- 	} else {
- 		z3fold_compact_page(zhdr);
- 		/* Add to the unbuddied list */
-@@ -569,7 +569,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			 */
- 			clear_bit(PAGE_HEADLESS, &page->private);
- 			free_z3fold_page(zhdr);
--			pool->pages_nr--;
-+			atomic64_dec(&pool->pages_nr);
- 			spin_unlock(&pool->lock);
- 			return 0;
- 		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
-@@ -672,12 +672,11 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
-  * z3fold_get_pool_size() - gets the z3fold pool size in pages
-  * @pool:	pool whose size is being queried
-  *
-- * Returns: size in pages of the given pool.  The pool lock need not be
-- * taken to access pages_nr.
-+ * Returns: size in pages of the given pool.
-  */
- static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
++static inline void *mchunk_memmove(struct z3fold_header *zhdr,
++				unsigned short dst_chunk)
++{
++	void *beg = zhdr;
++	return memmove(beg + (dst_chunk << CHUNK_SHIFT),
++		       beg + (zhdr->start_middle << CHUNK_SHIFT),
++		       zhdr->middle_chunks << CHUNK_SHIFT);
++}
++
++#define BIG_CHUNK_GAP	3
+ /* Has to be called with lock held */
+ static int z3fold_compact_page(struct z3fold_header *zhdr)
  {
--	return pool->pages_nr;
-+	return atomic64_read(&pool->pages_nr);
+ 	struct page *page = virt_to_page(zhdr);
+-	void *beg = zhdr;
++	int ret = 0;
++
++	if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
++		goto out;
+ 
++	if (zhdr->middle_chunks != 0) {
++		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
++			mchunk_memmove(zhdr, 1); /* move to the beginning */
++			zhdr->first_chunks = zhdr->middle_chunks;
++			zhdr->middle_chunks = 0;
++			zhdr->start_middle = 0;
++			zhdr->first_num++;
++			ret = 1;
++			goto out;
++		}
+ 
+-	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
+-	    zhdr->middle_chunks != 0 &&
+-	    zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+-		memmove(beg + ZHDR_SIZE_ALIGNED,
+-			beg + (zhdr->start_middle << CHUNK_SHIFT),
+-			zhdr->middle_chunks << CHUNK_SHIFT);
+-		zhdr->first_chunks = zhdr->middle_chunks;
+-		zhdr->middle_chunks = 0;
+-		zhdr->start_middle = 0;
+-		zhdr->first_num++;
+-		return 1;
++		/*
++		 * moving data is expensive, so let's only do that if
++		 * there's substantial gain (at least BIG_CHUNK_GAP chunks)
++		 */
++		if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
++		    zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
++			mchunk_memmove(zhdr, zhdr->first_chunks + 1);
++			zhdr->start_middle = zhdr->first_chunks + 1;
++			ret = 1;
++			goto out;
++		}
++		if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
++		    zhdr->middle_chunks + zhdr->last_chunks <=
++		    NCHUNKS - zhdr->start_middle - BIG_CHUNK_GAP) {
++			unsigned short new_start = NCHUNKS - zhdr->last_chunks -
++				zhdr->middle_chunks;
++			mchunk_memmove(zhdr, new_start);
++			zhdr->start_middle = new_start;
++			ret = 1;
++			goto out;
++		}
+ 	}
+-	return 0;
++out:
++	return ret;
  }
  
- /*****************
+ /**
 -- 
 2.4.2
 
