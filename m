@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A99046B02BD
-	for <linux-mm@kvack.org>; Wed,  2 Nov 2016 23:47:02 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ro13so17123628pac.7
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 20:47:02 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id u83si6941350pfk.205.2016.11.02.20.47.01
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 69F576B02BF
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 01:40:38 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w63so7806589oiw.4
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 22:40:38 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id e68si4152737oib.253.2016.11.02.22.40.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Nov 2016 20:47:01 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id y68so3483179pfb.1
-        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 20:47:01 -0700 (PDT)
-Date: Thu, 3 Nov 2016 14:46:50 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue
- should be checked
-Message-ID: <20161103144650.70c46063@roar.ozlabs.ibm.com>
-In-Reply-To: <CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com>
-References: <20161102070346.12489-1-npiggin@gmail.com>
-	<20161102070346.12489-3-npiggin@gmail.com>
-	<CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com>
+        Wed, 02 Nov 2016 22:40:37 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id 128so4789366oih.3
+        for <linux-mm@kvack.org>; Wed, 02 Nov 2016 22:40:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20161102234755.4381f528@jkicinski-Precision-T1700>
+References: <1477312805-7110-1-git-send-email-johannes@sipsolutions.net>
+ <20161101172840.6d7d6278@jkicinski-Precision-T1700> <CAM_iQpVeB+2M1MPxjRx++E=q4mDuo7XQqfQn3-160PqG8bNLdQ@mail.gmail.com>
+ <20161101185630.3c7d326f@jkicinski-Precision-T1700> <CAM_iQpV_0gyrJC0U6Qk9VSSaNOphe_0tq5o2kt8-r0UybLU5FA@mail.gmail.com>
+ <20161102234755.4381f528@jkicinski-Precision-T1700>
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Date: Wed, 2 Nov 2016 22:40:17 -0700
+Message-ID: <CAM_iQpWHU_M3wYusHk6+4nY0kqGbqspLjvb6=YDVBdZCrUkdNg@mail.gmail.com>
+Subject: Re: [RFC] make kmemleak scan __ro_after_init section (was: Re: [PATCH
+ 0/5] genetlink improvements)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Jakub Kicinski <kubakici@wp.pl>
+Cc: Johannes Berg <johannes@sipsolutions.net>, Linux Kernel Network Developers <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org
 
-On Wed, 2 Nov 2016 09:18:37 -0600
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Wed, Nov 2, 2016 at 4:47 PM, Jakub Kicinski <kubakici@wp.pl> wrote:
+>
+> Thanks for looking into this!  Bisect led me to the following commit:
+>
+> commit 56989f6d8568c21257dcec0f5e644d5570ba3281
+> Author: Johannes Berg <johannes.berg@intel.com>
+> Date:   Mon Oct 24 14:40:05 2016 +0200
+>
+>     genetlink: mark families as __ro_after_init
+>
+>     Now genl_register_family() is the only thing (other than the
+>     users themselves, perhaps, but I didn't find any doing that)
+>     writing to the family struct.
+>
+>     In all families that I found, genl_register_family() is only
+>     called from __init functions (some indirectly, in which case
+>     I've add __init annotations to clarifly things), so all can
+>     actually be marked __ro_after_init.
+>
+>     This protects the data structure from accidental corruption.
+>
+>     Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+>     Signed-off-by: David S. Miller <davem@davemloft.net>
+>
+>
+> I realized that kmemleak is not scanning the __ro_after_init section...
+> Following patch solves the false positives but I wonder if it's the
+> right/acceptable solution.
 
-> On Wed, Nov 2, 2016 at 1:03 AM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> > +       __wake_up_locked_key(q, TASK_NORMAL, &key);
-> > +       if (!waitqueue_active(q) || !key.page_match) {
-> > +               ClearPageWaiters(page);  
-> 
-> Is that "page_match" optimization really worth it? I'd rather see
-> numbers for that particular optimization. I'd rather see the
-> contention bit being explicitly not precise.
-
-If you don't have that, then a long-waiting waiter for some
-unrelated page can prevent other pages from getting back to
-the fastpath.
-
-Contention bit is already explicitly not precise with this patch
-(false positive possible), but in general the next wakeup will
-clean it up. Without page_match, that's not always possible.
-
-It would be difficult to get numbers that aren't contrived --
-blatting a lot of slow IO and waiters in there to cause collisions.
-And averages probably won't show it up. But the idea is we don't
-want the workload to randomly slow down.
-
-
-> Also, it would be lovely to get numbers against the plain 4.8
-> situation with the per-zone waitqueues. Maybe that used to help your
-> workload, so the 2.2% improvement might be partly due to me breaking
-> performance on your machine.
-
-Oh yeah that'll hurt a bit. The hash will get spread over non-local
-nodes now. I think it was only a 2 socket system, but remote memory
-still takes a latency hit. Hmm, I think keeping the zone waitqueue
-just for pages would be reasonable, because they're a special case?
-
-Thanks,
-Nick
+Nice work! Looks reasonable to me, but I am definitely not familiar
+with kmemleak. ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
