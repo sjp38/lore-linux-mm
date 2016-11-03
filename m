@@ -1,46 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE35280250
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 13:26:26 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id x186so37114599vkd.1
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 10:26:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q42si1952398uaq.161.2016.11.03.10.26.24
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA4E280250
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 13:33:23 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id p9so36902565vkd.7
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 10:33:23 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id f18si2996441uab.59.2016.11.03.10.33.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 10:26:25 -0700 (PDT)
-Date: Thu, 3 Nov 2016 19:24:39 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3 1/3] fs/exec: don't force writing memory access
-Message-ID: <20161103182439.GC11212@redhat.com>
-References: <1478142286-18427-1-git-send-email-jann@thejh.net> <1478142286-18427-4-git-send-email-jann@thejh.net>
+        Thu, 03 Nov 2016 10:33:22 -0700 (PDT)
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
+ for huge page UFFDIO_COPY
+References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
+ <1478115245-32090-16-git-send-email-aarcange@redhat.com>
+ <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
+Date: Thu, 3 Nov 2016 10:33:09 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478142286-18427-4-git-send-email-jann@thejh.net>
+In-Reply-To: <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jann@thejh.net>
-Cc: security@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, mchong@google.com, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Nick Kralevich <nnk@google.com>, Janis Danisevskis <jdanis@google.com>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On 11/03, Jann Horn wrote:
->
-> This shouldn't change behavior in any way - at this point, there should be
-> no non-writable mappings, only the initial stack mapping -,
+On 11/03/2016 03:15 AM, Hillf Danton wrote:
+> [out of topic] Cc list is edited to quite mail agent warning:  
+> -"Dr. David Alan Gilbert"@v2.random; " <dgilbert@redhat.com> 
+> +"Dr. David Alan Gilbert" <dgilbert@redhat.com>
+> -Pavel Emelyanov <xemul@parallels.com>"@v2.random
+> +Pavel Emelyanov <xemul@parallels.com>
+> -Michael Rapoport <RAPOPORT@il.ibm.com>
+> +Mike Rapoport <rppt@linux.vnet.ibm.com>
+> 
+> 
+> On Thursday, November 03, 2016 3:34 AM Andrea Arcangeli wrote: 
+>> +
+>> +#ifdef CONFIG_HUGETLB_PAGE
+>> +/*
+>> + * __mcopy_atomic processing for HUGETLB vmas.  Note that this routine is
+>> + * called with mmap_sem held, it will release mmap_sem before returning.
+>> + */
+>> +static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+>> +					      struct vm_area_struct *dst_vma,
+>> +					      unsigned long dst_start,
+>> +					      unsigned long src_start,
+>> +					      unsigned long len,
+>> +					      bool zeropage)
+>> +{
+>> +	ssize_t err;
+>> +	pte_t *dst_pte;
+>> +	unsigned long src_addr, dst_addr;
+>> +	long copied;
+>> +	struct page *page;
+>> +	struct hstate *h;
+>> +	unsigned long vma_hpagesize;
+>> +	pgoff_t idx;
+>> +	u32 hash;
+>> +	struct address_space *mapping;
+>> +
+>> +	/*
+>> +	 * There is no default zero huge page for all huge page sizes as
+>> +	 * supported by hugetlb.  A PMD_SIZE huge pages may exist as used
+>> +	 * by THP.  Since we can not reliably insert a zero page, this
+>> +	 * feature is not supported.
+>> +	 */
+>> +	if (zeropage)
+>> +		return -EINVAL;
+> 
+> Release mmap_sem before return?
+> 
+>> +
+>> +	src_addr = src_start;
+>> +	dst_addr = dst_start;
+>> +	copied = 0;
+>> +	page = NULL;
+>> +	vma_hpagesize = vma_kernel_pagesize(dst_vma);
+>> +
+>> +retry:
+>> +	/*
+>> +	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
+>> +	 * retry, dst_vma will be set to NULL and we must lookup again.
+>> +	 */
+>> +	err = -EINVAL;
+>> +	if (!dst_vma) {
+>> +		dst_vma = find_vma(dst_mm, dst_start);
+> 
+> In case of retry, s/dst_start/dst_addr/?
+> And check if we find a valid vma?
+> 
+>> @@ -182,6 +355,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>>  		goto out_unlock;
+>>
+>>  	/*
+>> +	 * If this is a HUGETLB vma, pass off to appropriate routine
+>> +	 */
+>> +	if (dst_vma->vm_flags & VM_HUGETLB)
+>> +		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
+>> +						src_start, len, false);
+> 
+> Use is_vm_hugetlb_page()? 
+> 
+> 
 
-So this FOLL_FORCE just adds the unnecessary confusion,
+Thanks Hillf, all valid points.  I will create another version of
+this patch.
 
-> but this change
-> makes it easier to reason about the correctness of the following commits
-> that place restrictions on forced memory writes.
-
-and to me it looks like a good cleanup regardless. Exactly because it
-is not clear why do we need FOLL_FORCE.
-
-> Signed-off-by: Jann Horn <jann@thejh.net>
-> Reviewed-by: Janis Danisevskis <jdanis@android.com>
-
-Acked-by: Oleg Nesterov <oleg@redhat.com>
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
