@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C61F6B02D5
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 11:49:16 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id y143so34410092oie.3
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 08:49:16 -0700 (PDT)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id b205si5517636oia.59.2016.11.03.08.49.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 08:49:15 -0700 (PDT)
-Received: by mail-oi0-x241.google.com with SMTP id 62so7317749oif.1
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 08:49:15 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B6536B0289
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 11:51:11 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 83so13056342pfx.1
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 08:51:11 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e4si8550808pag.332.2016.11.03.08.51.10
+        for <linux-mm@kvack.org>;
+        Thu, 03 Nov 2016 08:51:10 -0700 (PDT)
+Date: Thu, 3 Nov 2016 15:51:07 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCHv2 5/6] arm64: Use __pa_symbol for _end
+Message-ID: <20161103155106.GF25852@remoulade>
+References: <20161102210054.16621-1-labbott@redhat.com>
+ <20161102210054.16621-6-labbott@redhat.com>
+ <20161102225241.GA19591@remoulade>
+ <3724ea58-3c04-1248-8359-e2927da03aaf@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161103144650.70c46063@roar.ozlabs.ibm.com>
-References: <20161102070346.12489-1-npiggin@gmail.com> <20161102070346.12489-3-npiggin@gmail.com>
- <CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com> <20161103144650.70c46063@roar.ozlabs.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 3 Nov 2016 08:49:14 -0700
-Message-ID: <CA+55aFyzf8r2q-HLfADcz74H-My_GY-z15yLrwH-KUqd486Q0A@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue should
- be checked
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3724ea58-3c04-1248-8359-e2927da03aaf@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-On Wed, Nov 2, 2016 at 8:46 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
->
-> If you don't have that, then a long-waiting waiter for some
-> unrelated page can prevent other pages from getting back to
-> the fastpath.
->
-> Contention bit is already explicitly not precise with this patch
-> (false positive possible), but in general the next wakeup will
-> clean it up. Without page_match, that's not always possible.
+On Wed, Nov 02, 2016 at 05:56:42PM -0600, Laura Abbott wrote:
+> On 11/02/2016 04:52 PM, Mark Rutland wrote:
+> >On Wed, Nov 02, 2016 at 03:00:53PM -0600, Laura Abbott wrote:
+> >>
+> >>__pa_symbol is technically the marco that should be used for kernel
+> >>symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL.
+> >
+> >Nit: s/marco/macro/
+> >
+> >I see there are some other uses of __pa() that look like they could/should be
+> >__pa_symbol(), e.g. in mark_rodata_ro().
+> >
+> >I guess strictly speaking those need to be updated to? Or is there a reason
+> >that we should not?
+> 
+> If the concept of __pa_symbol is okay then yes I think all uses of __pa
+> should eventually be converted for consistency and debugging.
 
-Do we care?
+I have no strong feelings either way about __pa_symbol(); I'm not clear on what
+the purpose of __pa_symbol() is specifically, but I'm happy even if it's just
+for consistency with other architectures.
 
-The point is, it's rare, and if there are no numbers to say that it's
-an issue, we shouldn't create the complication. Numbers talk,
-handwaving "this might be an issue" walks.
+However, if we use it I think that we should (attempt to) use it consistently
+from the outset. 
 
-That said, at least it isn't a big complexity that will hurt, and it's
-very localized.
-
->> Also, it would be lovely to get numbers against the plain 4.8
->> situation with the per-zone waitqueues. Maybe that used to help your
->> workload, so the 2.2% improvement might be partly due to me breaking
->> performance on your machine.
->
-> Oh yeah that'll hurt a bit. The hash will get spread over non-local
-> nodes now. I think it was only a 2 socket system, but remote memory
-> still takes a latency hit. Hmm, I think keeping the zone waitqueue
-> just for pages would be reasonable, because they're a special case?
-
-HELL NO!
-
-Christ. That zone crap may have helped some very few NUMA machines,
-but it *hurt* normal machines.
-
-So no way in hell are we re-introducing that ugly, complex, fragile
-crap that actually slows down the normal case on real loads (not
-microbenchmarks). It was a mistake from the very beginning.
-
-No, the reason I'd like to hear about numbers is that while I *know*
-that removing the crazy zone code helped on normal machines (since I
-could test that case myself), I still am interested in whether the
-zone removal hurt on some machines (probably not two-node ones,
-though: Mel already tested that on x86), I'd like to know what the
-situation is with the contention bit.
-
-I'm pretty sure that with the contention bit, the zone crud is
-entirely immaterial (since we no longer actually hit the waitqueue
-outside of IO), but my "I'm pretty sure" comes back to the "handwaving
-walks" issue.
-
-So numbers would be really good.
-
-                Linus
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
