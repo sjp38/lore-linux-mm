@@ -1,7 +1,7 @@
 From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 06/25] mm/page_alloc: Convert to hotplug state machine
-Date: Thu,  3 Nov 2016 15:50:02 +0100
-Message-ID: <20161103145021.28528-7-bigeasy@linutronix.de>
+Subject: [PATCH 03/25] mm/memcg: Convert to hotplug state machine
+Date: Thu,  3 Nov 2016 15:49:59 +0100
+Message-ID: <20161103145021.28528-4-bigeasy@linutronix.de>
 References: <20161103145021.28528-1-bigeasy@linutronix.de>
 Mime-Version: 1.0
 Content-Transfer-Encoding: quoted-printable
@@ -9,100 +9,89 @@ Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <20161103145021.28528-1-bigeasy@linutronix.de>
 Sender: linux-kernel-owner@vger.kernel.org
 To: linux-kernel@vger.kernel.org
-Cc: rt@linutronix.de, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+Cc: rt@linutronix.de, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 List-Id: linux-mm.kvack.org
 
 Install the callbacks via the state machine.
 
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org
 Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
  include/linux/cpuhotplug.h |  1 +
- mm/page_alloc.c            | 49 +++++++++++++++++++++++-------------------=
-----
- 2 files changed, 26 insertions(+), 24 deletions(-)
+ mm/memcontrol.c            | 24 ++++++++----------------
+ 2 files changed, 9 insertions(+), 16 deletions(-)
 
 diff --git a/include/linux/cpuhotplug.h b/include/linux/cpuhotplug.h
-index 89310fb1031d..31c58f6ec3c6 100644
+index 4174083280d7..c622ab349af3 100644
 --- a/include/linux/cpuhotplug.h
 +++ b/include/linux/cpuhotplug.h
-@@ -35,6 +35,7 @@ enum cpuhp_state {
- 	CPUHP_MM_MEMCQ_DEAD,
- 	CPUHP_PERCPU_CNT_DEAD,
- 	CPUHP_RADIX_DEAD,
-+	CPUHP_PAGE_ALLOC_DEAD,
+@@ -32,6 +32,7 @@ enum cpuhp_state {
+ 	CPUHP_BLK_MQ_DEAD,
+ 	CPUHP_FS_BUFF_DEAD,
+ 	CPUHP_PRINTK_DEAD,
++	CPUHP_MM_MEMCQ_DEAD,
  	CPUHP_WORKQUEUE_PREP,
  	CPUHP_POWER_NUMA_PREPARE,
  	CPUHP_HRTIMERS_PREPARE,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8fd42aa7c4bd..68873a164cc0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6491,38 +6491,39 @@ void __init free_area_init(unsigned long *zones_siz=
-e)
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0f870ba43942..6c2043509fb5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1816,22 +1816,13 @@ static void drain_all_stock(struct mem_cgroup *root=
+_memcg)
+ 	mutex_unlock(&percpu_charge_mutex);
  }
 =20
--static int page_alloc_cpu_notify(struct notifier_block *self,
--				 unsigned long action, void *hcpu)
-+static int page_alloc_cpu_dead(unsigned int cpu)
+-static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+-					unsigned long action,
+-					void *hcpu)
++static int memcg_hotplug_cpu_dead(unsigned int cpu)
  {
 -	int cpu =3D (unsigned long)hcpu;
+ 	struct memcg_stock_pcp *stock;
 =20
--	if (action =3D=3D CPU_DEAD || action =3D=3D CPU_DEAD_FROZEN) {
--		lru_add_drain_cpu(cpu);
--		drain_pages(cpu);
-+	lru_add_drain_cpu(cpu);
-+	drain_pages(cpu);
-=20
--		/*
--		 * Spill the event counters of the dead processor
--		 * into the current processors event counters.
--		 * This artificially elevates the count of the current
--		 * processor.
--		 */
--		vm_events_fold_cpu(cpu);
-+	/*
-+	 * Spill the event counters of the dead processor
-+	 * into the current processors event counters.
-+	 * This artificially elevates the count of the current
-+	 * processor.
-+	 */
-+	vm_events_fold_cpu(cpu);
-=20
--		/*
--		 * Zero the differential counters of the dead processor
--		 * so that the vm statistics are consistent.
--		 *
--		 * This is only okay since the processor is dead and cannot
--		 * race with what we are doing.
--		 */
--		cpu_vm_stats_fold(cpu);
--	}
+-	if (action =3D=3D CPU_ONLINE)
+-		return NOTIFY_OK;
+-
+-	if (action !=3D CPU_DEAD && action !=3D CPU_DEAD_FROZEN)
+-		return NOTIFY_OK;
+-
+ 	stock =3D &per_cpu(memcg_stock, cpu);
+ 	drain_stock(stock);
 -	return NOTIFY_OK;
-+	/*
-+	 * Zero the differential counters of the dead processor
-+	 * so that the vm statistics are consistent.
-+	 *
-+	 * This is only okay since the processor is dead and cannot
-+	 * race with what we are doing.
-+	 */
-+	cpu_vm_stats_fold(cpu);
 +	return 0;
  }
 =20
- void __init page_alloc_init(void)
- {
--	hotcpu_notifier(page_alloc_cpu_notify, 0);
-+	int ret;
-+
-+	ret =3D cpuhp_setup_state_nocalls(CPUHP_PAGE_ALLOC_DEAD,
-+					"mm/page_alloc:dead", NULL,
-+					page_alloc_cpu_dead);
-+	WARN_ON(ret < 0);
- }
-=20
+ static void reclaim_high(struct mem_cgroup *memcg,
+@@ -5774,16 +5765,17 @@ __setup("cgroup.memory=3D", cgroup_memory);
  /*
+  * subsys_initcall() for memory controller.
+  *
+- * Some parts like hotcpu_notifier() have to be initialized from this cont=
+ext
+- * because of lock dependencies (cgroup_lock -> cpu hotplug) but basically
+- * everything that doesn't depend on a specific mem_cgroup structure should
+- * be initialized from here.
++ * Some parts like memcg_hotplug_cpu_dead() have to be initialized from th=
+is
++ * context because of lock dependencies (cgroup_lock -> cpu hotplug) but
++ * basically everything that doesn't depend on a specific mem_cgroup struc=
+ture
++ * should be initialized from here.
+  */
+ static int __init mem_cgroup_init(void)
+ {
+ 	int cpu, node;
+=20
+-	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
++	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,
++				  memcg_hotplug_cpu_dead);
+=20
+ 	for_each_possible_cpu(cpu)
+ 		INIT_WORK(&per_cpu_ptr(&memcg_stock, cpu)->work,
 --=20
 2.10.2
