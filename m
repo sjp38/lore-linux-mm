@@ -1,115 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EA4E280250
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 13:33:23 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id p9so36902565vkd.7
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 10:33:23 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f18si2996441uab.59.2016.11.03.10.33.21
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 161186B027D
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 13:51:05 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id bi5so1971416pad.0
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 10:51:05 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id i84si10833735pfi.299.2016.11.03.10.51.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 10:33:22 -0700 (PDT)
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
- for huge page UFFDIO_COPY
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-16-git-send-email-aarcange@redhat.com>
- <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
-Date: Thu, 3 Nov 2016 10:33:09 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Nov 2016 10:51:04 -0700 (PDT)
+Date: Thu, 3 Nov 2016 11:51:02 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v9 00/16] re-enable DAX PMD support
+Message-ID: <20161103175102.GA11784@linux.intel.com>
+References: <1478030058-1422-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20161103015826.GI9920@dastard>
 MIME-Version: 1.0
-In-Reply-To: <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161103015826.GI9920@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On 11/03/2016 03:15 AM, Hillf Danton wrote:
-> [out of topic] Cc list is edited to quite mail agent warning:  
-> -"Dr. David Alan Gilbert"@v2.random; " <dgilbert@redhat.com> 
-> +"Dr. David Alan Gilbert" <dgilbert@redhat.com>
-> -Pavel Emelyanov <xemul@parallels.com>"@v2.random
-> +Pavel Emelyanov <xemul@parallels.com>
-> -Michael Rapoport <RAPOPORT@il.ibm.com>
-> +Mike Rapoport <rppt@linux.vnet.ibm.com>
+On Thu, Nov 03, 2016 at 12:58:26PM +1100, Dave Chinner wrote:
+> On Tue, Nov 01, 2016 at 01:54:02PM -0600, Ross Zwisler wrote:
+> > DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+> > locking.  This series allows DAX PMDs to participate in the DAX radix tree
+> > based locking scheme so that they can be re-enabled.
 > 
-> 
-> On Thursday, November 03, 2016 3:34 AM Andrea Arcangeli wrote: 
->> +
->> +#ifdef CONFIG_HUGETLB_PAGE
->> +/*
->> + * __mcopy_atomic processing for HUGETLB vmas.  Note that this routine is
->> + * called with mmap_sem held, it will release mmap_sem before returning.
->> + */
->> +static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->> +					      struct vm_area_struct *dst_vma,
->> +					      unsigned long dst_start,
->> +					      unsigned long src_start,
->> +					      unsigned long len,
->> +					      bool zeropage)
->> +{
->> +	ssize_t err;
->> +	pte_t *dst_pte;
->> +	unsigned long src_addr, dst_addr;
->> +	long copied;
->> +	struct page *page;
->> +	struct hstate *h;
->> +	unsigned long vma_hpagesize;
->> +	pgoff_t idx;
->> +	u32 hash;
->> +	struct address_space *mapping;
->> +
->> +	/*
->> +	 * There is no default zero huge page for all huge page sizes as
->> +	 * supported by hugetlb.  A PMD_SIZE huge pages may exist as used
->> +	 * by THP.  Since we can not reliably insert a zero page, this
->> +	 * feature is not supported.
->> +	 */
->> +	if (zeropage)
->> +		return -EINVAL;
-> 
-> Release mmap_sem before return?
-> 
->> +
->> +	src_addr = src_start;
->> +	dst_addr = dst_start;
->> +	copied = 0;
->> +	page = NULL;
->> +	vma_hpagesize = vma_kernel_pagesize(dst_vma);
->> +
->> +retry:
->> +	/*
->> +	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
->> +	 * retry, dst_vma will be set to NULL and we must lookup again.
->> +	 */
->> +	err = -EINVAL;
->> +	if (!dst_vma) {
->> +		dst_vma = find_vma(dst_mm, dst_start);
-> 
-> In case of retry, s/dst_start/dst_addr/?
-> And check if we find a valid vma?
-> 
->> @@ -182,6 +355,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
->>  		goto out_unlock;
->>
->>  	/*
->> +	 * If this is a HUGETLB vma, pass off to appropriate routine
->> +	 */
->> +	if (dst_vma->vm_flags & VM_HUGETLB)
->> +		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
->> +						src_start, len, false);
-> 
-> Use is_vm_hugetlb_page()? 
-> 
-> 
+> I've seen patch 0/16 - where did you send the other 16? I need to
+> pick up the bug fix that is in this patch set...
 
-Thanks Hillf, all valid points.  I will create another version of
-this patch.
+I CC'd your "david@fromorbit.com" address on the entire set, as well as all
+the usual lists (linux-xfs, linux-fsdevel, linux-nvdimm, etc).
 
--- 
-Mike Kravetz
+They are also available via the libnvdimm patchwork:
+
+https://patchwork.kernel.org/project/linux-nvdimm/list/
+
+or via my tree:
+
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_v9
+
+The only patch that is different between v8 and v9 is:
+[PATCH v9 14/16] dax: add struct iomap based DAX PMD support
+
+> > Previously we had talked about this series going through the XFS tree, but
+> > Jan has a patch set that will need to build on this series and it heavily
+> > modifies the MM code.  I think he would prefer that series to go through
+> > Andrew Morton's -MM tree, so it probably makes sense for this series to go
+> > through that same tree.
+> 
+> Seriously, I was 10 minutes away from pushing out the previous
+> version of this patchset as a stable topic branch, just like has
+> been discussed and several times over the past week.  Indeed, I
+> mentioned that I was planning on pushing out this topic branch today
+> not more than 4 hours ago, and you were on the cc list.
+
+I'm confused - I sent v9 of this series out 2 days ago, on Tuesday?
+I have seen multiple messages from you this week saying you were going to pick
+this series up, but I saw them all after I had already sent this series out.
+
+> The -mm tree is not the place to merge patchsets with dependencies
+> like this because it's an unstable, rebasing tree. Hence it cannot
+> be shared and used as the base of common development between
+> multiple git trees like we have for the fs/ subsystem.
+> 
+> This needs to go out as a stable topic branch so that other
+> dependent work can reliably build on top of it for the next merge
+> window. e.g. the ext4 DAX iomap patch series that is likely to be
+> merged through the ext4 tree, so it needs a stable branch. There's
+> iomap direct IO patches for XFS pending, and they conflict with this
+> patchset. i.e. we need a stable git base to work from...
+
+Yea, my apologies.  Really this comes down to a lack of understanding on my
+part about about which series should be merged via which maintainers, and how
+stable topic branches can be shared.  I didn't realize that if you make a
+stable branch that could be easily used by other trees, and that for example
+Jan's MM or ext4 based patches could be merged by another maintainer but be
+based on your topic branch.
+
+Sorry for the confusion, I was just trying to figure out a way that Jan's
+changes could also be merged.  Please do pick up v9 of my PMD set. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
