@@ -1,65 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 68B826B02D9
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 11:58:01 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id r13so24473539pag.1
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 08:58:01 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g11si10373365pgn.73.2016.11.03.08.58.00
-        for <linux-mm@kvack.org>;
-        Thu, 03 Nov 2016 08:58:00 -0700 (PDT)
-Date: Thu, 3 Nov 2016 15:57:54 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCHv2 6/6] arm64: Add support for CONFIG_DEBUG_VIRTUAL
-Message-ID: <20161103155753.GG25852@remoulade>
-References: <20161102210054.16621-1-labbott@redhat.com>
- <20161102210054.16621-7-labbott@redhat.com>
- <20161102230642.GB19591@remoulade>
- <a77c2162-6eb9-09c8-e84f-03a207b59c6b@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a77c2162-6eb9-09c8-e84f-03a207b59c6b@redhat.com>
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A80F3280250
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 12:07:05 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id d128so68986537ybh.6
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 09:07:05 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id d9si8660956paf.112.2016.11.03.09.07.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Nov 2016 09:07:04 -0700 (PDT)
+From: Shiraz Hashim <shashim@codeaurora.org>
+Subject: [PATCH 1/1] mm: cma: check the max limit for cma allocation
+Date: Thu,  3 Nov 2016 21:36:51 +0530
+Message-Id: <1478189211-3467-1-git-send-email-shashim@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: catalin.marinas@arm.com, sfr@canb.auug.org.au, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shiraz Hashim <shashim@codeaurora.org>
 
-On Wed, Nov 02, 2016 at 06:05:38PM -0600, Laura Abbott wrote:
-> On 11/02/2016 05:06 PM, Mark Rutland wrote:
-> >On Wed, Nov 02, 2016 at 03:00:54PM -0600, Laura Abbott wrote:
-> >>+CFLAGS_physaddr.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
-> >>+obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
+CMA allocation request size is represented by size_t that
+gets truncated when same is passed as int to
+bitmap_find_next_zero_area_off.
 
-> >>+	/*
-> >>+	 * This is intentionally different than above to be a tighter check
-> >>+	 * for symbols.
-> >>+	 */
-> >>+	VIRTUAL_BUG_ON(x < kimage_vaddr + TEXT_OFFSET || x > (unsigned long) _end);
-> >
-> >Can't we use _text instead of kimage_vaddr + TEXT_OFFSET? That way we don't
-> >need CFLAGS_physaddr.o.
-> >
-> >Or KERNEL_START / KERNEL_END from <asm/memory.h>?
-> >
-> >Otherwise, this looks good to me (though I haven't grokked the need for
-> >__pa_symbol() yet).
-> 
-> I guess it's a question of what's clearer. I like kimage_vaddr +
-> TEXT_OFFSET because it clearly states we are checking from the
-> start of the kernel image vs. _text only shows the start of the
-> text region. Yes, it's technically the same but a little less
-> obvious. I suppose that could be solved with some more elaboration
-> in the comment.
+We observe that during fuzz testing when cma allocation
+request is too high, bitmap_find_next_zero_area_off still
+returns success due to the truncation. This leads to
+kernel crash, as subsequent code assumes that requested
+memory is available.
 
-Sure, it's arguable either way.
+Fail cma allocation in case the request breaches the
+corresponding cma region size.
 
-I do think that KERNEL_START/KERNEL_END are a better choice, with the comment
-you suggest, and/or renamed to KERNEL_IMAGE_*. They already describe the bounds
-of the image (though the naming doesn't make that entirely clear).
+Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
+---
+ mm/cma.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Thanks,
-Mark.
+diff --git a/mm/cma.c b/mm/cma.c
+index 384c2cb..c960459 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -385,6 +385,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+ 	bitmap_maxno = cma_bitmap_maxno(cma);
+ 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
+ 
++	if (bitmap_count > bitmap_maxno)
++		return NULL;
++
+ 	for (;;) {
+ 		mutex_lock(&cma->lock);
+ 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+-- 
+Shiraz Hashim
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
