@@ -1,98 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C1F6280274
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 03:02:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id i88so18026519pfk.3
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:02:46 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id a65si14609116pfb.18.2016.11.04.00.02.44
-        for <linux-mm@kvack.org>;
-        Fri, 04 Nov 2016 00:02:45 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com> <1478115245-32090-17-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1478115245-32090-17-git-send-email-aarcange@redhat.com>
-Subject: Re: [PATCH 16/33] userfaultfd: hugetlbfs: add userfaultfd hugetlb hook
-Date: Fri, 04 Nov 2016 15:02:29 +0800
-Message-ID: <07a501d23669$6903d310$3b0b7930$@alibaba-inc.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DE2A16B02F7
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 03:27:44 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l124so10678081wml.4
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:27:44 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id k63si3565662wmb.43.2016.11.04.00.27.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Nov 2016 00:27:43 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id u144so2517591wmu.0
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:27:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+In-Reply-To: <20161103151700.73a98155238acff3f3f98e8b@linux-foundation.org>
+References: <20161103220058.3017148c790b352c0ec521d4@gmail.com>
+ <20161103141404.2bb6b59435e560f0b82c0a18@linux-foundation.org>
+ <CAMJBoFOJqSk+KE8y_jtvGe5TBHevei7ZRjg93tvb1MuqaO9BZg@mail.gmail.com> <20161103151700.73a98155238acff3f3f98e8b@linux-foundation.org>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Fri, 4 Nov 2016 08:27:42 +0100
+Message-ID: <CAMJBoFMK_WH7q_y_=JgCJJ70YSSUhza1nQ0qVdurO6ZUT_kRLw@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: make pages_nr atomic
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>
 
-> 
-> From: Mike Kravetz <mike.kravetz@oracle.com>
-> 
-> When processing a hugetlb fault for no page present, check the vma to
-> determine if faults are to be handled via userfaultfd.  If so, drop the
-> hugetlb_fault_mutex and call handle_userfault().
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
+On Thu, Nov 3, 2016 at 11:17 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 3 Nov 2016 22:24:07 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
+>
+>> On Thu, Nov 3, 2016 at 10:14 PM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>> > On Thu, 3 Nov 2016 22:00:58 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
+>> >
+>> >> This patch converts pages_nr per-pool counter to atomic64_t.
+>> >
+>> > Which is slower.
+>> >
+>> > Presumably there is a reason for making this change.  This reason
+>> > should be described in the changelog.
+>>
+>> The reason [which I thought was somewhat obvious :) ] is that there
+>> won't be a need to take a per-pool lock to read or modify that
+>> counter.
+>
+> But the patch didn't change the locking.  And as far as I can tell,
+> neither does "z3fold: extend compaction function".
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
+Right. I'll come up with the locking rework shortly, but it will be a
+RFC so I wanted to send it separately.
 
->  mm/hugetlb.c | 33 +++++++++++++++++++++++++++++++++
->  1 file changed, 33 insertions(+)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index baf7fd4..7247f8c 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -32,6 +32,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/hugetlb_cgroup.h>
->  #include <linux/node.h>
-> +#include <linux/userfaultfd_k.h>
->  #include "internal.h"
-> 
->  int hugepages_treat_as_movable;
-> @@ -3589,6 +3590,38 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		size = i_size_read(mapping->host) >> huge_page_shift(h);
->  		if (idx >= size)
->  			goto out;
-> +
-> +		/*
-> +		 * Check for page in userfault range
-> +		 */
-> +		if (userfaultfd_missing(vma)) {
-> +			u32 hash;
-> +			struct fault_env fe = {
-> +				.vma = vma,
-> +				.address = address,
-> +				.flags = flags,
-> +				/*
-> +				 * Hard to debug if it ends up being
-> +				 * used by a callee that assumes
-> +				 * something about the other
-> +				 * uninitialized fields... same as in
-> +				 * memory.c
-> +				 */
-> +			};
-> +
-> +			/*
-> +			 * hugetlb_fault_mutex must be dropped before
-> +			 * handling userfault.  Reacquire after handling
-> +			 * fault to make calling code simpler.
-> +			 */
-> +			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
-> +							idx, address);
-> +			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-> +			ret = handle_userfault(&fe, VM_UFFD_MISSING);
-> +			mutex_lock(&hugetlb_fault_mutex_table[hash]);
-> +			goto out;
-> +		}
-> +
->  		page = alloc_huge_page(vma, address, 0);
->  		if (IS_ERR(page)) {
->  			ret = PTR_ERR(page);
-> 
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
