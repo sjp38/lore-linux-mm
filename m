@@ -1,59 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 566E7280281
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 11:59:17 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u15so128281556oie.6
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 08:59:17 -0700 (PDT)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id s194si9111916oih.181.2016.11.04.08.59.16
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CED9280285
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 12:36:02 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id h201so1140986qke.7
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 09:36:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v85si8127820qka.130.2016.11.04.09.36.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 08:59:16 -0700 (PDT)
-Received: by mail-oi0-x242.google.com with SMTP id 62so13338139oif.1
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 08:59:16 -0700 (PDT)
+        Fri, 04 Nov 2016 09:36:01 -0700 (PDT)
+Date: Fri, 4 Nov 2016 17:35:58 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
+ for huge page UFFDIO_COPY
+Message-ID: <20161104163558.GQ4611@redhat.com>
+References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
+ <1478115245-32090-16-git-send-email-aarcange@redhat.com>
+ <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
+ <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20161104182942.47c4d544@roar.ozlabs.ibm.com>
-References: <20161102070346.12489-1-npiggin@gmail.com> <20161102070346.12489-3-npiggin@gmail.com>
- <CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com>
- <20161103144650.70c46063@roar.ozlabs.ibm.com> <CA+55aFyzf8r2q-HLfADcz74H-My_GY-z15yLrwH-KUqd486Q0A@mail.gmail.com>
- <20161104134049.6c7d394b@roar.ozlabs.ibm.com> <20161104182942.47c4d544@roar.ozlabs.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 4 Nov 2016 08:59:15 -0700
-Message-ID: <CA+55aFxoT82RocOCZ9+k7_NZ+KZNtCQrwzNd=reB0n03xDj4-A@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue should
- be checked
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On Fri, Nov 4, 2016 at 12:29 AM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> Oh, okay, the zone lookup. Well I am of the impression that most of the
-> cache misses are coming from the waitqueue hash table itself.
+On Thu, Nov 03, 2016 at 10:33:09AM -0700, Mike Kravetz wrote:
+> On 11/03/2016 03:15 AM, Hillf Danton wrote:
+> >> +	if (zeropage)
+> >> +		return -EINVAL;
+> > 
+> > Release mmap_sem before return?
 
-No.
+This shows we need to extend the selftest to execute UFFDIO_ZEROPAGE
+also on tmpfs and hugetlbfs two cases, and verify it returns -EINVAL.
 
-Nick, stop this idiocy.
+> >> +
+> >> +	src_addr = src_start;
+> >> +	dst_addr = dst_start;
+> >> +	copied = 0;
+> >> +	page = NULL;
+> >> +	vma_hpagesize = vma_kernel_pagesize(dst_vma);
+> >> +
+> >> +retry:
+> >> +	/*
+> >> +	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
+> >> +	 * retry, dst_vma will be set to NULL and we must lookup again.
+> >> +	 */
+> >> +	err = -EINVAL;
+> >> +	if (!dst_vma) {
+> >> +		dst_vma = find_vma(dst_mm, dst_start);
+> > 
+> > In case of retry, s/dst_start/dst_addr/?
+> > And check if we find a valid vma?
 
-NUMBERS, Nick. NUMBERS.
+I don't think that's needed. Yes intuitively if a munmap zaps the
+start of the vma during the copy we could continue, but userfaultfd
+generally is as strict as it can get.
 
-I posted numbers in "page_waitqueue() considered harmful" on linux-mm.
+This is why UFFDIO_COPY is not doing like mremap, that just wipe
+whatever existed in destination silently. UFFDIO_COPY returns -EEXIST
+whenever something is already mapped there during a UFFDIO_COPY.
 
-And quite frankly, before _you_ start posting numbers, that zone crap
-IS NEVER COMING BACK.
+When it's userland managing the faults, being more strict I think it's
+safer.
 
-What's so hard about this concept? We don't add crazy complexity
-without numbers. Numbers that I bet you will not be able to provide,
-because quiet frankly, even in your handwavy "what about lots of
-concurrent IO from hundreds of threads" situation, that wait-queue
-will NOT BE NOTICEABLE.
+Running a copy concurrent with a munmap or any other vma mangling
+leads to an undefined result. I think it's preferable to generate an
+error to userland if it ever does an undefined operation considering
+the risk if something goes wrong here while userland are managing the
+faults. Furthermore this keeps the code simpler.
 
-So no "impressions". No "what abouts". No "threaded IO" excuses. The
-_only_ thing that matters is numbers. If you don't have them, don't
-bother talking about that zone patch.
+This is also why the revalidation code then does:
 
-             Linus
+		if (dst_start < dst_vma->vm_start ||
+		    dst_start + len > dst_vma->vm_end)
+			goto out_unlock;
+
+and it pretends the vma it is still there for the whole range being
+copied.
+
+So I tend to prefer the current version, letting it succeed silently
+while correct and valid in theory, in practice sounds worse than the
+current stricter behavior.
+
+In any case if we change this for hugetlbfs, the non-hugetlbfs variant
+should also be updated.
+
+> >> @@ -182,6 +355,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> >>  		goto out_unlock;
+> >>
+> >>  	/*
+> >> +	 * If this is a HUGETLB vma, pass off to appropriate routine
+> >> +	 */
+> >> +	if (dst_vma->vm_flags & VM_HUGETLB)
+> >> +		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
+> >> +						src_start, len, false);
+> > 
+> > Use is_vm_hugetlb_page()? 
+> > 
+> > 
+> 
+> Thanks Hillf, all valid points.  I will create another version of
+> this patch.
+
+Nice cleanup yes.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
