@@ -1,55 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C0D176B026A
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 13:05:25 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id i88so22081218pfk.3
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 10:05:25 -0700 (PDT)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id vt3si14653666pab.236.2016.11.04.10.05.24
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2A5280289
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 14:10:13 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id r13so42594534pag.1
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 11:10:13 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id m26si15161601pfg.240.2016.11.04.11.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 10:05:24 -0700 (PDT)
-Received: by mail-pf0-x229.google.com with SMTP id 189so54899672pfz.3
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 10:05:24 -0700 (PDT)
-Date: Fri, 4 Nov 2016 10:05:21 -0700
-From: Eric Biggers <ebiggers@google.com>
-Subject: Re: vmalloced stacks and scatterwalk_map_and_copy()
-Message-ID: <20161104170521.GA34176@google.com>
-References: <20161103181624.GA63852@google.com>
- <CALCETrUPuunBT1Zo25wyOwqaWJ=rm9R-WMZGN-7u4-dsdokAnQ@mail.gmail.com>
- <20161103211207.GB63852@google.com>
- <20161103231018.GA85121@google.com>
- <CALCETrV=9vXDyQ5F5-bFD4YCn5P_j7jmYj2Tv+DXWH43m31NzA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Nov 2016 11:10:12 -0700 (PDT)
+Subject: Re: [PATCH kernel v4 7/7] virtio-balloon: tell host vm's unused page
+ info
+References: <1478067447-24654-1-git-send-email-liang.z.li@intel.com>
+ <1478067447-24654-8-git-send-email-liang.z.li@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <b25eac6e-3744-3874-93a8-02f814549adf@intel.com>
+Date: Fri, 4 Nov 2016 11:10:11 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrV=9vXDyQ5F5-bFD4YCn5P_j7jmYj2Tv+DXWH43m31NzA@mail.gmail.com>
+In-Reply-To: <1478067447-24654-8-git-send-email-liang.z.li@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-crypto@vger.kernel.org, Herbert Xu <herbert@gondor.apana.org.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Lutomirski <luto@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Liang Li <liang.z.li@intel.com>, mst@redhat.com
+Cc: pbonzini@redhat.com, amit.shah@redhat.com, quintela@redhat.com, dgilbert@redhat.com, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, mgorman@techsingularity.net, cornelia.huck@de.ibm.com
 
-On Thu, Nov 03, 2016 at 08:57:49PM -0700, Andy Lutomirski wrote:
-> 
-> The crypto request objects can live on the stack just fine.  It's the
-> request buffers that need to live elsewhere (or the alternative
-> interfaces can be used, or the crypto core code can start using
-> something other than scatterlists).
-> 
+Please squish this and patch 5 together.  It makes no sense to separate
+them.
 
-There are cases where a crypto operation is done on a buffer embedded in a
-request object.  The example I'm aware of is in the GCM implementation
-(crypto/gcm.c).  Basically it needs to encrypt 16 zero bytes prepended with the
-actual data, so it fills a buffer in the request object
-(crypto_gcm_req_priv_ctx.auth_tag) with zeroes and builds a new scatterlist
-which covers both this buffer and the original data scatterlist.
+> +static void send_unused_pages_info(struct virtio_balloon *vb,
+> +				unsigned long req_id)
+> +{
+> +	struct scatterlist sg_in;
+> +	unsigned long pfn = 0, bmap_len, pfn_limit, last_pfn, nr_pfn;
+> +	struct virtqueue *vq = vb->req_vq;
+> +	struct virtio_balloon_resp_hdr *hdr = vb->resp_hdr;
+> +	int ret = 1, used_nr_bmap = 0, i;
+> +
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_PAGE_BITMAP) &&
+> +		vb->nr_page_bmap == 1)
+> +		extend_page_bitmap(vb);
+> +
+> +	pfn_limit = PFNS_PER_BMAP * vb->nr_page_bmap;
+> +	mutex_lock(&vb->balloon_lock);
+> +	last_pfn = get_max_pfn();
+> +
+> +	while (ret) {
+> +		clear_page_bitmap(vb);
+> +		ret = get_unused_pages(pfn, pfn + pfn_limit, vb->page_bitmap,
+> +			 PFNS_PER_BMAP, vb->nr_page_bmap);
 
-Granted, GCM provides the aead interface not the skcipher interface, and
-currently there is no AEAD_REQUEST_ON_STACK() macro like there is a
-SKCIPHER_REQUEST_ON_STACK() macro.  So maybe no one is creating aead requests on
-the stack right now.  But it's something to watch out for.
+This changed the underlying data structure without changing the way that
+the structure is populated.
 
-Eric
+This algorithm picks a "PFNS_PER_BMAP * vb->nr_page_bmap"-sized set of
+pfns, allocates a bitmap for them, the loops through all zones looking
+for pages in any free list that are in that range.
+
+Unpacking all the indirection, it looks like this:
+
+for (pfn = 0; pfn < get_max_pfn(); pfn += BITMAP_SIZE_IN_PFNS)
+	for_each_populated_zone(zone)
+		for_each_migratetype_order(order, t)
+			list_for_each(..., &zone->free_area[order])...
+
+Let's say we do a 32k bitmap that can hold ~1M pages.  That's 4GB of
+RAM.  On a 1TB system, that's 256 passes through the top-level loop.
+The bottom-level lists have tens of thousands of pages in them, even on
+my laptop.  Only 1/256 of these pages will get consumed in a given pass.
+
+That's an awfully inefficient way of doing it.  This patch essentially
+changed the data structure without changing the algorithm to populate it.
+
+Please change the *algorithm* to use the new data structure efficiently.
+ Such a change would only do a single pass through each freelist, and
+would choose whether to use the extent-based (pfn -> range) or
+bitmap-based approach based on the contents of the free lists.
+
+You should not be using get_max_pfn().  Any patch set that continues to
+use it is not likely to be using a proper algorithm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
