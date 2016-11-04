@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C8D006B0267
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 12:56:41 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id u15so131863646oie.6
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 09:56:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 63si12396036itt.82.2016.11.04.09.56.41
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C0D176B026A
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 13:05:25 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id i88so22081218pfk.3
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 10:05:25 -0700 (PDT)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id vt3si14653666pab.236.2016.11.04.10.05.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 09:56:41 -0700 (PDT)
-Date: Fri, 4 Nov 2016 17:56:38 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 25/33] userfaultfd: shmem: add userfaultfd hook for
- shared memory faults
-Message-ID: <20161104165638.GS4611@redhat.com>
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-26-git-send-email-aarcange@redhat.com>
- <07ce01d23679$c2be2670$483a7350$@alibaba-inc.com>
- <20161104154438.GD5605@rapoport-lnx>
+        Fri, 04 Nov 2016 10:05:24 -0700 (PDT)
+Received: by mail-pf0-x229.google.com with SMTP id 189so54899672pfz.3
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 10:05:24 -0700 (PDT)
+Date: Fri, 4 Nov 2016 10:05:21 -0700
+From: Eric Biggers <ebiggers@google.com>
+Subject: Re: vmalloced stacks and scatterwalk_map_and_copy()
+Message-ID: <20161104170521.GA34176@google.com>
+References: <20161103181624.GA63852@google.com>
+ <CALCETrUPuunBT1Zo25wyOwqaWJ=rm9R-WMZGN-7u4-dsdokAnQ@mail.gmail.com>
+ <20161103211207.GB63852@google.com>
+ <20161103231018.GA85121@google.com>
+ <CALCETrV=9vXDyQ5F5-bFD4YCn5P_j7jmYj2Tv+DXWH43m31NzA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161104154438.GD5605@rapoport-lnx>
+In-Reply-To: <CALCETrV=9vXDyQ5F5-bFD4YCn5P_j7jmYj2Tv+DXWH43m31NzA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, 'Mike Kravetz' <mike.kravetz@oracle.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@virtuozzo.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-crypto@vger.kernel.org, Herbert Xu <herbert@gondor.apana.org.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Lutomirski <luto@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Nov 04, 2016 at 09:44:40AM -0600, Mike Rapoport wrote:
-> Below is the updated patch that uses charge_mm instead of vma which might
-> be not valid.
+On Thu, Nov 03, 2016 at 08:57:49PM -0700, Andy Lutomirski wrote:
+> 
+> The crypto request objects can live on the stack just fine.  It's the
+> request buffers that need to live elsewhere (or the alternative
+> interfaces can be used, or the crypto core code can start using
+> something other than scatterlists).
+> 
 
-Like you said earlier the vma couldn't be NULL if fault_type wasn't
-NULL, but applied as cleanup.
+There are cases where a crypto operation is done on a buffer embedded in a
+request object.  The example I'm aware of is in the GCM implementation
+(crypto/gcm.c).  Basically it needs to encrypt 16 zero bytes prepended with the
+actual data, so it fills a buffer in the request object
+(crypto_gcm_req_priv_ctx.auth_tag) with zeroes and builds a new scatterlist
+which covers both this buffer and the original data scatterlist.
 
-Thanks,
-Andrea
+Granted, GCM provides the aead interface not the skcipher interface, and
+currently there is no AEAD_REQUEST_ON_STACK() macro like there is a
+SKCIPHER_REQUEST_ON_STACK() macro.  So maybe no one is creating aead requests on
+the stack right now.  But it's something to watch out for.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
