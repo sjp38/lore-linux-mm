@@ -1,413 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0EC6B0262
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 16:34:21 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n6so43357038qtd.4
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 13:34:21 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e12si8746190qkh.332.2016.11.04.13.34.19
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8655C6B034B
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 17:00:29 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l124so24364684wml.4
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 14:00:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jn10si17288996wjb.274.2016.11.04.14.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 13:34:20 -0700 (PDT)
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
- for huge page UFFDIO_COPY
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-16-git-send-email-aarcange@redhat.com>
- <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
- <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
- <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
- <20161104193626.GU4611@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5c4fdd58-1743-0cc0-9f71-bc1d019aaf7e@oracle.com>
-Date: Fri, 4 Nov 2016 13:34:08 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Nov 2016 14:00:28 -0700 (PDT)
+Subject: Re: [Bug 186671] New: OOM on system with just rsync running 32GB of
+ ram 30GB of pagecache
+References: <bug-186671-27@https.bugzilla.kernel.org/>
+ <20161103115353.de87ff35756a4ca8b21d2c57@linux-foundation.org>
+ <b5b0cef0-8482-e4de-cb81-69a4dd3410fb@suse.cz>
+ <CAJtFHUQcJKSnyQ7t7-eDpiF2C+U23+iWpZ+X6fGEzN8qdbzmtA@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a8cf869e-f527-9c65-d16d-ac70cf66472a@suse.cz>
+Date: Fri, 4 Nov 2016 22:00:16 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161104193626.GU4611@redhat.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CAJtFHUQcJKSnyQ7t7-eDpiF2C+U23+iWpZ+X6fGEzN8qdbzmtA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: E V <eliventer@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, linux-btrfs <linux-btrfs@vger.kernel.org>
 
-On 11/04/2016 12:36 PM, Andrea Arcangeli wrote:
-> On Thu, Nov 03, 2016 at 12:14:15PM -0700, Mike Kravetz wrote:
->> +		/* lookup dst_addr as we may have copied some pages */
->> +		dst_vma = find_vma(dst_mm, dst_addr);
-> 
-> I put back dst_start here.
-> 
->> +		if (dst_addr < dst_vma->vm_start ||
->> +		    dst_addr + len - (copied * vma_hpagesize) > dst_vma->vm_end)
->> +			goto out_unlock;
-> 
-> Actually this introduces a bug: copied * vma_hpagesize in the new
-> patch is wrong, copied is already in byte units. I rolled back this
-> one because of the dst_start commented above anyway.
-> 
->> +	/*
->> +	 * Validate alignment based on huge page size
->> +	 */
->> +	if (dst_addr & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
->> +		goto out_unlock;
-> 
-> If the vma changes under us we an as well fail. So I moved the
-> alignment checks on dst_start/len before the retry loop and I added a
-> further WARN_ON check inside the loop on dst_addr/len-copied just in
-> case but that cannot trigger as we abort if the vma_hpagesize changed
-> (hence WARN_ON).
-> 
-> If we need to relax this later and handle a change of vma_hpagesize,
-> it'll be backwards compatible change. I don't think it's needed and
-> this is more strict behavior.
-> 
->> +	while (src_addr < src_start + len) {
->> +		pte_t dst_pteval;
->> +
->> +		BUG_ON(dst_addr >= dst_start + len);
->> +		dst_addr &= huge_page_mask(h);
-> 
-> The additional mask is superflous here, it was already enforced by the
-> alignment checks so I turned it into a bugcheck.
+On 11/04/2016 03:13 PM, E V wrote:
+> After the system panic'd yesterday I booted back into 4.8.4 and
+> restarted the rsync's. I'm away on vacation next week, so when I get
+> back I'll get rc4 or rc5 and try again. In the mean time here's data
+> from the system running 4.8.4 without problems for about a day. I'm
+> not familiar with xxd and didn't see a -e option, so used -E:
+> xxd -E -g8 -c8 /proc/kpagecount | cut -d" " -f2 | sort | uniq -c
+> 8258633 0000000000000000
+>  216440 0100000000000000
 
-Thanks,
-
-I had made similar hugetlb changes and was testing.  I'll perform hugetlb
-testing with the full diff patch below.
-
--- 
-Mike Kravetz
-
-> 
-> This is the current status, I'm sending a full diff against the
-> previous submit for review of the latest updates. It's easier to
-> review incrementally I think.
-> 
-> Please test it, I updated the aa.git tree userfault branch in sync
-> with this.
-> 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 063ccc7..8a0ee3ba 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -628,11 +628,11 @@ void mremap_userfaultfd_prep(struct vm_area_struct *vma,
->  	}
->  }
->  
-> -void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx vm_ctx,
-> +void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *vm_ctx,
->  				 unsigned long from, unsigned long to,
->  				 unsigned long len)
->  {
-> -	struct userfaultfd_ctx *ctx = vm_ctx.ctx;
-> +	struct userfaultfd_ctx *ctx = vm_ctx->ctx;
->  	struct userfaultfd_wait_queue ewq;
->  
->  	if (!ctx)
-> @@ -657,6 +657,7 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
->  				struct vm_area_struct **prev,
->  				unsigned long start, unsigned long end)
->  {
-> +	struct mm_struct *mm = vma->vm_mm;
->  	struct userfaultfd_ctx *ctx;
->  	struct userfaultfd_wait_queue ewq;
->  
-> @@ -665,8 +666,9 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
->  		return;
->  
->  	userfaultfd_ctx_get(ctx);
-> +	up_read(&mm->mmap_sem);
-> +
->  	*prev = NULL; /* We wait for ACK w/o the mmap semaphore */
-> -	up_read(&vma->vm_mm->mmap_sem);
->  
->  	msg_init(&ewq.msg);
->  
-> @@ -676,7 +678,7 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
->  
->  	userfaultfd_event_wait_completion(ctx, &ewq);
->  
-> -	down_read(&vma->vm_mm->mmap_sem);
-> +	down_read(&mm->mmap_sem);
->  }
->  
->  static int userfaultfd_release(struct inode *inode, struct file *file)
-> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-> index 5caf97f..01a4e98 100644
-> --- a/include/linux/userfaultfd_k.h
-> +++ b/include/linux/userfaultfd_k.h
-> @@ -77,7 +77,7 @@ extern void dup_userfaultfd_complete(struct list_head *);
->  
->  extern void mremap_userfaultfd_prep(struct vm_area_struct *,
->  				    struct vm_userfaultfd_ctx *);
-> -extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx,
-> +extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
->  					unsigned long from, unsigned long to,
->  					unsigned long len);
->  
-> @@ -143,7 +143,7 @@ static inline void mremap_userfaultfd_prep(struct vm_area_struct *vma,
->  {
->  }
->  
-> -static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx ctx,
-> +static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
->  					       unsigned long from,
->  					       unsigned long to,
->  					       unsigned long len)
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 450e811..cef4967 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -592,6 +592,6 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  	up_write(&current->mm->mmap_sem);
->  	if (locked && new_len > old_len)
->  		mm_populate(new_addr + old_len, new_len - old_len);
-> -	mremap_userfaultfd_complete(uf, addr, new_addr, old_len);
-> +	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
->  	return ret;
->  }
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 578622e..5d3e8bf 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1609,7 +1609,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
->  			if (fault_type) {
->  				*fault_type |= VM_FAULT_MAJOR;
->  				count_vm_event(PGMAJFAULT);
-> -				mem_cgroup_count_vm_event(vma->vm_mm,
-> +				mem_cgroup_count_vm_event(charge_mm,
->  							  PGMAJFAULT);
->  			}
->  			/* Here we actually start the io */
-> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> index d47b743..e8d7a89 100644
-> --- a/mm/userfaultfd.c
-> +++ b/mm/userfaultfd.c
-> @@ -172,8 +172,10 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  	 * by THP.  Since we can not reliably insert a zero page, this
->  	 * feature is not supported.
->  	 */
-> -	if (zeropage)
-> +	if (zeropage) {
-> +		up_read(&dst_mm->mmap_sem);
->  		return -EINVAL;
-> +	}
->  
->  	src_addr = src_start;
->  	dst_addr = dst_start;
-> @@ -181,6 +183,12 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  	page = NULL;
->  	vma_hpagesize = vma_kernel_pagesize(dst_vma);
->  
-> +	/*
-> +	 * Validate alignment based on huge page size
-> +	 */
-> +	if (dst_start & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
-> +		goto out_unlock;
-> +
->  retry:
->  	/*
->  	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
-> @@ -189,11 +197,15 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  	err = -EINVAL;
->  	if (!dst_vma) {
->  		dst_vma = find_vma(dst_mm, dst_start);
-> -		vma_hpagesize = vma_kernel_pagesize(dst_vma);
-> +		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
-> +			goto out_unlock;
-> +
-> +		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
-> +			goto out_unlock;
->  
->  		/*
-> -		 * Make sure the vma is not shared, that the dst range is
-> -		 * both valid and fully within a single existing vma.
-> +		 * Make sure the vma is not shared, that the remaining dst
-> +		 * range is both valid and fully within a single existing vma.
->  		 */
->  		if (dst_vma->vm_flags & VM_SHARED)
->  			goto out_unlock;
-> @@ -202,10 +214,8 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  			goto out_unlock;
->  	}
->  
-> -	/*
-> -	 * Validate alignment based on huge page size
-> -	 */
-> -	if (dst_start & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
-> +	if (WARN_ON(dst_addr & (vma_hpagesize - 1) ||
-> +		    (len - copied) & (vma_hpagesize - 1)))
->  		goto out_unlock;
->  
->  	/*
-> @@ -227,7 +237,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  		pte_t dst_pteval;
->  
->  		BUG_ON(dst_addr >= dst_start + len);
-> -		dst_addr &= huge_page_mask(h);
-> +		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
->  
->  		/*
->  		 * Serialize via hugetlb_fault_mutex
-> @@ -300,17 +310,13 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->  	return copied ? copied : err;
->  }
->  #else /* !CONFIG_HUGETLB_PAGE */
-> -static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
-> -					      struct vm_area_struct *dst_vma,
-> -					      unsigned long dst_start,
-> -					      unsigned long src_start,
-> -					      unsigned long len,
-> -					      bool zeropage)
-> -{
-> -	up_read(&dst_mm->mmap_sem);	/* HUGETLB not configured */
-> -	BUG();
-> -	return -EINVAL;
-> -}
-> +/* fail at build time if gcc attempts to use this */
-> +extern ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
-> +				      struct vm_area_struct *dst_vma,
-> +				      unsigned long dst_start,
-> +				      unsigned long src_start,
-> +				      unsigned long len,
-> +				      bool zeropage);
->  #endif /* CONFIG_HUGETLB_PAGE */
->  
->  static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-> @@ -360,9 +366,9 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
->  	/*
->  	 * If this is a HUGETLB vma, pass off to appropriate routine
->  	 */
-> -	if (dst_vma->vm_flags & VM_HUGETLB)
-> +	if (is_vm_hugetlb_page(dst_vma))
->  		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
-> -						src_start, len, false);
-> +						src_start, len, zeropage);
->  
->  	/*
->  	 * Be strict and only allow __mcopy_atomic on userfaultfd
-> @@ -431,8 +437,11 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
->  				err = mfill_zeropage_pte(dst_mm, dst_pmd,
->  							 dst_vma, dst_addr);
->  		} else {
-> -			err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-> -						     dst_addr, src_addr, &page);
-> +			err = -EINVAL; /* if zeropage is true return -EINVAL */
-> +			if (likely(!zeropage))
-> +				err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
-> +							     dst_vma, dst_addr,
-> +							     src_addr, &page);
->  		}
->  
->  		cond_resched();
-> diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-> index fed2119..5a840a6 100644
-> --- a/tools/testing/selftests/vm/userfaultfd.c
-> +++ b/tools/testing/selftests/vm/userfaultfd.c
-> @@ -625,6 +625,86 @@ static int faulting_process(void)
->  	return 0;
->  }
->  
-> +static int uffdio_zeropage(int ufd, unsigned long offset)
-> +{
-> +	struct uffdio_zeropage uffdio_zeropage;
-> +	int ret;
-> +	unsigned long has_zeropage = EXPECTED_IOCTLS & (1 << _UFFDIO_ZEROPAGE);
-> +
-> +	if (offset >= nr_pages * page_size)
-> +		fprintf(stderr, "unexpected offset %lu\n",
-> +			offset), exit(1);
-> +	uffdio_zeropage.range.start = (unsigned long) area_dst + offset;
-> +	uffdio_zeropage.range.len = page_size;
-> +	uffdio_zeropage.mode = 0;
-> +	ret = ioctl(ufd, UFFDIO_ZEROPAGE, &uffdio_zeropage);
-> +	if (ret) {
-> +		/* real retval in ufdio_zeropage.zeropage */
-> +		if (has_zeropage) {
-> +			if (uffdio_zeropage.zeropage == -EEXIST)
-> +				fprintf(stderr, "UFFDIO_ZEROPAGE -EEXIST\n"),
-> +					exit(1);
-> +			else
-> +				fprintf(stderr, "UFFDIO_ZEROPAGE error %Ld\n",
-> +					uffdio_zeropage.zeropage), exit(1);
-> +		} else {
-> +			if (uffdio_zeropage.zeropage != -EINVAL)
-> +				fprintf(stderr,
-> +					"UFFDIO_ZEROPAGE not -EINVAL %Ld\n",
-> +					uffdio_zeropage.zeropage), exit(1);
-> +		}
-> +	} else if (has_zeropage) {
-> +		if (uffdio_zeropage.zeropage != page_size) {
-> +			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
-> +				uffdio_zeropage.zeropage), exit(1);
-> +		} else
-> +			return 1;
-> +	} else {
-> +		fprintf(stderr,
-> +			"UFFDIO_ZEROPAGE succeeded %Ld\n",
-> +			uffdio_zeropage.zeropage), exit(1);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +/* exercise UFFDIO_ZEROPAGE */
-> +static int userfaultfd_zeropage_test(void)
-> +{
-> +	struct uffdio_register uffdio_register;
-> +	unsigned long expected_ioctls;
-> +
-> +	printf("testing UFFDIO_ZEROPAGE: ");
-> +	fflush(stdout);
-> +
-> +	if (release_pages(area_dst))
-> +		return 1;
-> +
-> +	if (userfaultfd_open(0) < 0)
-> +		return 1;
-> +	uffdio_register.range.start = (unsigned long) area_dst;
-> +	uffdio_register.range.len = nr_pages * page_size;
-> +	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-> +	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
-> +		fprintf(stderr, "register failure\n"), exit(1);
-> +
-> +	expected_ioctls = EXPECTED_IOCTLS;
-> +	if ((uffdio_register.ioctls & expected_ioctls) !=
-> +	    expected_ioctls)
-> +		fprintf(stderr,
-> +			"unexpected missing ioctl for anon memory\n"),
-> +			exit(1);
-> +
-> +	if (uffdio_zeropage(uffd, 0)) {
-> +		if (my_bcmp(area_dst, zeropage, page_size))
-> +			fprintf(stderr, "zeropage is not zero\n"), exit(1);
-> +	}
-> +
-> +	close(uffd);
-> +	printf("done.\n");
-> +	return 0;
-> +}
-> +
->  static int userfaultfd_events_test(void)
->  {
->  	struct uffdio_register uffdio_register;
-> @@ -679,6 +759,7 @@ static int userfaultfd_events_test(void)
->  	if (pthread_join(uffd_mon, (void **)&userfaults))
->  		return 1;
->  
-> +	close(uffd);
->  	printf("userfaults: %ld\n", userfaults);
->  
->  	return userfaults != nr_pages;
-> @@ -852,7 +933,7 @@ static int userfaultfd_stress(void)
->  		return err;
->  
->  	close(uffd);
-> -	return userfaultfd_events_test();
-> +	return userfaultfd_zeropage_test() || userfaultfd_events_test();
->  }
->  
->  #ifndef HUGETLB_TEST
-> 
+The lack of -e means it's big endian, which is not a big issue. So here
+most of memory is free, some pages have just one pin, and only
+relatively few have more. The vmstats also doesn't show anything bad, so
+we'll have to wait if something appears within the week, or after you
+try 4.9 again. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
