@@ -1,94 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 793C7280256
-	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 23:46:13 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id l66so17196735pfl.7
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 20:46:13 -0700 (PDT)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id 123si13465297pgb.296.2016.11.03.20.46.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A1876280256
+	for <linux-mm@kvack.org>; Thu,  3 Nov 2016 23:46:37 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l124so8173871wml.4
+        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 20:46:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b65si2707778wmf.114.2016.11.03.20.46.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Nov 2016 20:46:12 -0700 (PDT)
-Received: by mail-pf0-x22f.google.com with SMTP id i88so43012373pfk.2
-        for <linux-mm@kvack.org>; Thu, 03 Nov 2016 20:46:12 -0700 (PDT)
-Date: Thu, 3 Nov 2016 20:46:04 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Softlockup during memory allocation
-In-Reply-To: <89ee3413-71a3-403d-48fa-af325d40f8db@suse.cz>
-Message-ID: <alpine.LSU.2.11.1611032013440.5863@eggly.anvils>
-References: <e3177ea6-a921-dac9-f4f3-952c14e2c4df@kyup.com> <89ee3413-71a3-403d-48fa-af325d40f8db@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Nov 2016 20:46:36 -0700 (PDT)
+Date: Fri, 4 Nov 2016 04:46:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 02/21] mm: Use vmf->address instead of of
+ vmf->virtual_address
+Message-ID: <20161104034630.GK24234@quack2.suse.cz>
+References: <1478039794-20253-1-git-send-email-jack@suse.cz>
+ <1478039794-20253-5-git-send-email-jack@suse.cz>
+ <06aa01d234c0$1f85e700$5e91b500$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <06aa01d234c0$1f85e700$5e91b500$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Nikolay Borisov <kernel@kyup.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Jan Kara' <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Ross Zwisler' <ross.zwisler@linux.intel.com>
 
-On Wed, 2 Nov 2016, Vlastimil Babka wrote:
-> On 11/01/2016 09:12 AM, Nikolay Borisov wrote:
-> > In addition to that I believe there is something wrong
-> > with the NR_PAGES_SCANNED stats since they are being negative. 
-> > I haven't looked into the code to see how this value is being 
-> > synchronized and if there is a possibility of it temporary going negative. 
+On Wed 02-11-16 12:18:10, Hillf Danton wrote:
+> On Wednesday, November 02, 2016 6:36 AM Jan Kara wrote:
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 8e8b76d11bb4..2a4ebe3c67c6 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -297,8 +297,6 @@ struct vm_fault {
+> >  	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+> >  	pgoff_t pgoff;			/* Logical page offset based on vma */
+> >  	unsigned long address;		/* Faulting virtual address */
+> > -	void __user *virtual_address;	/* Faulting virtual address masked by
+> > -					 * PAGE_MASK */
+> >  	pmd_t *pmd;			/* Pointer to pmd entry matching
+> >  					 * the 'address'
+> >  					 */
+> We have a pmd field currently?
 > 
-> This is because there's a shared counter and percpu diffs, and crash
-> only looks at the shared counter.
+> In  [PATCH 01/20] mm: Change type of vmf->virtual_address we see
+> [1] __user * gone,
+> [2] no field of address added
+> and doubt stray merge occurred.
+> 
+> btw, s:01/20:01/21: in subject line?
 
-Actually no, as I found when adding vmstat_refresh().  Coincidentally,
-I spent some of last weekend trying to understand why, then wrote a
-long comment about it (we thought it might be responsible for a hang).
-Let me share that comment; but I was writing about an earlier release,
-so some of the "zone"s have become "node"s since then - and I'm not
-sure whether my comment is comprehensible to anyone but the writer!
+Sorry, I had old version of the series in the directory so things got
+messed up. I'll resend the series. Thanks for having a look.
 
-This comment attempts to explain the NR_PAGES_SCANNED underflow.  I doubt
-it's crucial to the bug in question: it's unsightly, and it may double the
-margin of error involved in using per-cpu accounting, but I don't think it
-makes a crucial difference to the approximation already inherent there.
-If that approximation is a problem, we could consider reverting the commit
-0d5d823ab4e "mm: move zone->pages_scanned into a vmstat counter" which
-introduced it; or perhaps we could reconsider the stat_threshold
-calculation on small zones (if that would make a difference -
-I've not gone so far as to think about the hang itself).
+								Honza
 
-The NR_PAGES_SCANNED underflow does not come from any race: it comes from
-the way free_pcppages_bulk() and free_one_page() attempt to reset the
-counter to 0 by __mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned)
-with a "fuzzy" nr_scanned obtained from zone_page_state(zone,
-NR_PAGES_SCANNED).
-
-Normally __mod_zone_page_state() is used to adjust a counter by a certain
-well-known amount, but here it is being used with an approximate amount -
-the cheaply-visible approximate total, before correction by per-cpu diffs
-(and getting that total from zone_page_state_snapshot() instead would
-defeat most of the optimization of using per-cpu here, if not regress
-it to worse than the global per-zone counter used before).
-
-The problem starts on an occasion when nr_scanned there is perhaps
-perfectly correct, but (factoring in the current cpu diff) is less than
-the stat_threshold: __mod_zone_page_state() then updates the cpu diff and
-doesn't touch the globally visible counter - but the negative diff implies
-that the globally visible counter is larger than the correct value.  Then
-later that too-large value is fed back into __mod_zone_pages_state() as if
-it were correct, tending towards underflow of the full counter.  (Or the
-same could all happen in reverse, with the "reset to 0" leaving a positive
-residue in the full counter.)
-
-This would be more serious (unbounded) without the periodic
-refresh_cpu_vm_stats(): which every second folds the per-cpu diffs
-back into the cheaply-visible totals.  When the diffs are 0, then
-free_pcppages_bulk() and free_one_page() will properly reset the total to
-0, even if the value it had before was incorrect (negative or positive).
-
-I can eliminate the negative NR_PAGES_SCANNED reports by a one-line change
-to __mod_zone_page_state(), to stop ever putting a negative into the
-per-cpu diff for NR_PAGES_SCANNED; or by copying most of
-__mod_zone_page_state() to a separate __reset_zone_page_state(), called
-only on NR_PAGES_SCANNED, again avoiding the negative diffs.  But as I said
-in the first paragraph, I doubt the underflow is worse in effect than the
-approximation already inherent in the per-cpu counting here.
-
-Hugh
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
