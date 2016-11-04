@@ -1,145 +1,401 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ACBB280289
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 14:15:06 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r68so21785558wmd.0
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 11:15:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tr13si16643777wjb.191.2016.11.04.11.15.04
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0836B0342
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 15:36:31 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x190so6458766qkb.5
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 12:36:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 95si8669020qkp.204.2016.11.04.12.36.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Nov 2016 11:15:04 -0700 (PDT)
-Date: Fri, 4 Nov 2016 19:14:59 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/21 v4] dax: Clear dirty bits after flushing caches
-Message-ID: <20161104181459.GB6650@quack2.suse.cz>
-References: <1478039794-20253-1-git-send-email-jack@suse.cz>
- <20161102051733.GA3821@linux.intel.com>
- <20161104044648.GB3569@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Nov 2016 12:36:30 -0700 (PDT)
+Date: Fri, 4 Nov 2016 20:36:26 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
+ for huge page UFFDIO_COPY
+Message-ID: <20161104193626.GU4611@redhat.com>
+References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
+ <1478115245-32090-16-git-send-email-aarcange@redhat.com>
+ <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
+ <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
+ <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161104044648.GB3569@quack2.suse.cz>
+In-Reply-To: <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On Fri 04-11-16 05:46:48, Jan Kara wrote:
-> On Tue 01-11-16 23:17:33, Ross Zwisler wrote:
-> > On Tue, Nov 01, 2016 at 11:36:06PM +0100, Jan Kara wrote:
-> > > Hello,
-> > > 
-> > > this is the fourth revision of my patches to clear dirty bits from radix tree
-> > > of DAX inodes when caches for corresponding pfns have been flushed. This patch
-> > > set is significantly larger than the previous version because I'm changing how
-> > > ->fault, ->page_mkwrite, and ->pfn_mkwrite handlers may choose to handle the
-> > > fault so that we don't have to leak details about DAX locking into the generic
-> > > code. In principle, these patches enable handlers to easily update PTEs and do
-> > > other work necessary to finish the fault without duplicating the functionality
-> > > present in the generic code. I'd be really like feedback from mm folks whether
-> > > such changes to fault handling code are fine or what they'd do differently.
-> > > 
-> > > The patches are based on 4.9-rc1 + Ross' DAX PMD page fault series [1] + ext4
-> > > conversion of DAX IO patch to the iomap infrastructure [2]. For testing,
-> > > I've pushed out a tree including all these patches and further DAX fixes
-> > > to:
-> > > 
-> > > git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git dax
-> > 
-> > In my testing I hit what I believe to be a new lockdep splat.  This was
-> > produced with ext4+dax+generic/246, though I've tried several times to
-> > reproduce it and haven't been able.  This testing was done with your tree plus
-> > one patch to fix the DAX PMD recursive fallback issue that you reported.  This
-> > new patch is folded into v9 of my PMD series that I sent out earlier today.
-> > 
-> > I've posted the tree I was testing with here:
-> > 
-> > https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=jan_dax
-> > 
-> > Here is the lockdep splat, passed through kasan_symbolize:
-> > 
-> > run fstests generic/246 at 2016-11-01 21:51:34
-> > 
-> > ======================================================
-> > [ INFO: possible circular locking dependency detected ]
-> > 4.9.0-rc1-00165-g13826b5 #2 Not tainted
-> > -------------------------------------------------------
-> > t_mmap_writev/13704 is trying to acquire lock:
-> >  ([ 3522.320075] &ei->i_mmap_sem
-> > ){++++.+}[ 3522.320924] , at:
-> > [<ffffffff8133ef06>] ext4_dax_fault+0x36/0xd0 fs/ext4/file.c:267
-> 
-> Interesting, I didn't see this in my testing.
-> 
-> > -> #0[ 3522.342547]  (
-> > &ei->i_mmap_sem[ 3522.343023] ){++++.+}
-> > :
-> >        [<     inline     >] check_prev_add kernel/locking/lockdep.c:1829
-> >        [<     inline     >] check_prevs_add kernel/locking/lockdep.c:1939
-> >        [<     inline     >] validate_chain kernel/locking/lockdep.c:2266
-> >        [<ffffffff8110e89f>] __lock_acquire+0x127f/0x14d0 kernel/locking/lockdep.c:3335
-> >        [<ffffffff8110efa2>] lock_acquire+0xf2/0x1e0 kernel/locking/lockdep.c:3746
-> >        [<ffffffff81b39b7e>] down_read+0x3e/0xa0 kernel/locking/rwsem.c:22
-> >        [<ffffffff8133ef06>] ext4_dax_fault+0x36/0xd0 fs/ext4/file.c:267
-> >        [<ffffffff8122f9d1>] __do_fault+0x21/0x130 mm/memory.c:2872
-> >        [<     inline     >] do_read_fault mm/memory.c:3231
-> >        [<     inline     >] do_fault mm/memory.c:3333
-> >        [<     inline     >] handle_pte_fault mm/memory.c:3534
-> >        [<     inline     >] __handle_mm_fault mm/memory.c:3624
-> >        [<ffffffff812348ae>] handle_mm_fault+0x114e/0x1550 mm/memory.c:3661
-> >        [<ffffffff8106bc27>] __do_page_fault+0x247/0x4f0 arch/x86/mm/fault.c:1397
-> >        [<ffffffff8106bfad>] trace_do_page_fault+0x5d/0x290 arch/x86/mm/fault.c:1490
-> >        [<ffffffff81065dba>] do_async_page_fault+0x1a/0xa0 arch/x86/kernel/kvm.c:265
-> >        [<ffffffff81b3ea08>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:1015
-> >        [<     inline     >] arch_copy_from_iter_pmem ./arch/x86/include/asm/pmem.h:95
-> >        [<     inline     >] copy_from_iter_pmem ./include/linux/pmem.h:118
-> >        [<ffffffff812f4a27>] dax_iomap_actor+0x147/0x270 fs/dax.c:1027
-> >        [<ffffffff8130c513>] iomap_apply+0xb3/0x130 fs/iomap.c:78
-> 
-> So the problem is that we were doing write to a DAX file from a buffer
-> which is mmapped DAX file and we took a fault when copying data from the
-> buffer. That looks like a real problem. I'll have to think what to do with
-> it... Thanks for report!
+On Thu, Nov 03, 2016 at 12:14:15PM -0700, Mike Kravetz wrote:
+> +		/* lookup dst_addr as we may have copied some pages */
+> +		dst_vma = find_vma(dst_mm, dst_addr);
 
-So the problem is in ext4 iomap conversion (i.e., not in this patch series).
-The culprit is that we keep transaction handle running between
-->iomap_begin() and ->iomap_end() calls. I was thinking about possible
-solutions and I've found only two:
+I put back dst_start here.
 
-1) Add inode to orphan list when we are extending the file in
-ext4_iomap_begin() and stop the current handle. Then grab a new handle in
-ext4_iomap_end() and remove inode from the orphan list and update inode
-size. This is what we were basically using in the original direct IO path.
+> +		if (dst_addr < dst_vma->vm_start ||
+> +		    dst_addr + len - (copied * vma_hpagesize) > dst_vma->vm_end)
+> +			goto out_unlock;
 
-2) Add a version of dax_iomap_rw() (or a flag for it) to prefault pages
-before calling ->iomap_begin(), then use atomic copy for the data. In
-->iomap_end() we'd have to truncate the file if we didn't copy data for
-the whole extent. This is more like standard write path works.
+Actually this introduces a bug: copied * vma_hpagesize in the new
+patch is wrong, copied is already in byte units. I rolled back this
+one because of the dst_start commented above anyway.
 
-Doing 1) is easier, doing 2) may perform better unless there is high memory
-pressure which would evict buffers from memory before we actually allocate
-the extent and copy data to it.
+> +	/*
+> +	 * Validate alignment based on huge page size
+> +	 */
+> +	if (dst_addr & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
+> +		goto out_unlock;
 
-I guess for now I'll go with 1) just to have the conversion to iomap code
-done and look into doing 2) later while measuring what performance benefits
-do we get from it.
+If the vma changes under us we an as well fail. So I moved the
+alignment checks on dst_start/len before the retry loop and I added a
+further WARN_ON check inside the loop on dst_addr/len-copied just in
+case but that cannot trigger as we abort if the vma_hpagesize changed
+(hence WARN_ON).
 
-								Honza
+If we need to relax this later and handle a change of vma_hpagesize,
+it'll be backwards compatible change. I don't think it's needed and
+this is more strict behavior.
 
-> >        [<ffffffff812f46d6>] dax_iomap_rw+0x76/0xa0 fs/dax.c:1067
-> >        [<     inline     >] ext4_dax_write_iter fs/ext4/file.c:196
-> >        [<ffffffff8133fb13>] ext4_file_write_iter+0x243/0x340 fs/ext4/file.c:217
-> >        [<ffffffff812957d1>] do_iter_readv_writev+0xb1/0x130 fs/read_write.c:695
-> >        [<ffffffff81296384>] do_readv_writev+0x1a4/0x250 fs/read_write.c:872
-> >        [<ffffffff8129668f>] vfs_writev+0x3f/0x50 fs/read_write.c:911
-> >        [<ffffffff81296704>] do_writev+0x64/0x100 fs/read_write.c:944
-> >        [<     inline     >] SYSC_writev fs/read_write.c:1017
-> >        [<ffffffff81297900>] SyS_writev+0x10/0x20 fs/read_write.c:1014
-> >        [<ffffffff81b3d501>] entry_SYSCALL_64_fastpath+0x1f/0xc2 arch/x86/entry/entry_64.S:209
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> +	while (src_addr < src_start + len) {
+> +		pte_t dst_pteval;
+> +
+> +		BUG_ON(dst_addr >= dst_start + len);
+> +		dst_addr &= huge_page_mask(h);
+
+The additional mask is superflous here, it was already enforced by the
+alignment checks so I turned it into a bugcheck.
+
+This is the current status, I'm sending a full diff against the
+previous submit for review of the latest updates. It's easier to
+review incrementally I think.
+
+Please test it, I updated the aa.git tree userfault branch in sync
+with this.
+
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 063ccc7..8a0ee3ba 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -628,11 +628,11 @@ void mremap_userfaultfd_prep(struct vm_area_struct *vma,
+ 	}
+ }
+ 
+-void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx vm_ctx,
++void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *vm_ctx,
+ 				 unsigned long from, unsigned long to,
+ 				 unsigned long len)
+ {
+-	struct userfaultfd_ctx *ctx = vm_ctx.ctx;
++	struct userfaultfd_ctx *ctx = vm_ctx->ctx;
+ 	struct userfaultfd_wait_queue ewq;
+ 
+ 	if (!ctx)
+@@ -657,6 +657,7 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
+ 				struct vm_area_struct **prev,
+ 				unsigned long start, unsigned long end)
+ {
++	struct mm_struct *mm = vma->vm_mm;
+ 	struct userfaultfd_ctx *ctx;
+ 	struct userfaultfd_wait_queue ewq;
+ 
+@@ -665,8 +666,9 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
+ 		return;
+ 
+ 	userfaultfd_ctx_get(ctx);
++	up_read(&mm->mmap_sem);
++
+ 	*prev = NULL; /* We wait for ACK w/o the mmap semaphore */
+-	up_read(&vma->vm_mm->mmap_sem);
+ 
+ 	msg_init(&ewq.msg);
+ 
+@@ -676,7 +678,7 @@ void madvise_userfault_dontneed(struct vm_area_struct *vma,
+ 
+ 	userfaultfd_event_wait_completion(ctx, &ewq);
+ 
+-	down_read(&vma->vm_mm->mmap_sem);
++	down_read(&mm->mmap_sem);
+ }
+ 
+ static int userfaultfd_release(struct inode *inode, struct file *file)
+diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+index 5caf97f..01a4e98 100644
+--- a/include/linux/userfaultfd_k.h
++++ b/include/linux/userfaultfd_k.h
+@@ -77,7 +77,7 @@ extern void dup_userfaultfd_complete(struct list_head *);
+ 
+ extern void mremap_userfaultfd_prep(struct vm_area_struct *,
+ 				    struct vm_userfaultfd_ctx *);
+-extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx,
++extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
+ 					unsigned long from, unsigned long to,
+ 					unsigned long len);
+ 
+@@ -143,7 +143,7 @@ static inline void mremap_userfaultfd_prep(struct vm_area_struct *vma,
+ {
+ }
+ 
+-static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx ctx,
++static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
+ 					       unsigned long from,
+ 					       unsigned long to,
+ 					       unsigned long len)
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 450e811..cef4967 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -592,6 +592,6 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	up_write(&current->mm->mmap_sem);
+ 	if (locked && new_len > old_len)
+ 		mm_populate(new_addr + old_len, new_len - old_len);
+-	mremap_userfaultfd_complete(uf, addr, new_addr, old_len);
++	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
+ 	return ret;
+ }
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 578622e..5d3e8bf 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1609,7 +1609,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 			if (fault_type) {
+ 				*fault_type |= VM_FAULT_MAJOR;
+ 				count_vm_event(PGMAJFAULT);
+-				mem_cgroup_count_vm_event(vma->vm_mm,
++				mem_cgroup_count_vm_event(charge_mm,
+ 							  PGMAJFAULT);
+ 			}
+ 			/* Here we actually start the io */
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index d47b743..e8d7a89 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -172,8 +172,10 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 	 * by THP.  Since we can not reliably insert a zero page, this
+ 	 * feature is not supported.
+ 	 */
+-	if (zeropage)
++	if (zeropage) {
++		up_read(&dst_mm->mmap_sem);
+ 		return -EINVAL;
++	}
+ 
+ 	src_addr = src_start;
+ 	dst_addr = dst_start;
+@@ -181,6 +183,12 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 	page = NULL;
+ 	vma_hpagesize = vma_kernel_pagesize(dst_vma);
+ 
++	/*
++	 * Validate alignment based on huge page size
++	 */
++	if (dst_start & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
++		goto out_unlock;
++
+ retry:
+ 	/*
+ 	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
+@@ -189,11 +197,15 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 	err = -EINVAL;
+ 	if (!dst_vma) {
+ 		dst_vma = find_vma(dst_mm, dst_start);
+-		vma_hpagesize = vma_kernel_pagesize(dst_vma);
++		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
++			goto out_unlock;
++
++		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
++			goto out_unlock;
+ 
+ 		/*
+-		 * Make sure the vma is not shared, that the dst range is
+-		 * both valid and fully within a single existing vma.
++		 * Make sure the vma is not shared, that the remaining dst
++		 * range is both valid and fully within a single existing vma.
+ 		 */
+ 		if (dst_vma->vm_flags & VM_SHARED)
+ 			goto out_unlock;
+@@ -202,10 +214,8 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 			goto out_unlock;
+ 	}
+ 
+-	/*
+-	 * Validate alignment based on huge page size
+-	 */
+-	if (dst_start & (vma_hpagesize - 1) || len & (vma_hpagesize - 1))
++	if (WARN_ON(dst_addr & (vma_hpagesize - 1) ||
++		    (len - copied) & (vma_hpagesize - 1)))
+ 		goto out_unlock;
+ 
+ 	/*
+@@ -227,7 +237,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 		pte_t dst_pteval;
+ 
+ 		BUG_ON(dst_addr >= dst_start + len);
+-		dst_addr &= huge_page_mask(h);
++		VM_BUG_ON(dst_addr & ~huge_page_mask(h));
+ 
+ 		/*
+ 		 * Serialize via hugetlb_fault_mutex
+@@ -300,17 +310,13 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 	return copied ? copied : err;
+ }
+ #else /* !CONFIG_HUGETLB_PAGE */
+-static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+-					      struct vm_area_struct *dst_vma,
+-					      unsigned long dst_start,
+-					      unsigned long src_start,
+-					      unsigned long len,
+-					      bool zeropage)
+-{
+-	up_read(&dst_mm->mmap_sem);	/* HUGETLB not configured */
+-	BUG();
+-	return -EINVAL;
+-}
++/* fail at build time if gcc attempts to use this */
++extern ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
++				      struct vm_area_struct *dst_vma,
++				      unsigned long dst_start,
++				      unsigned long src_start,
++				      unsigned long len,
++				      bool zeropage);
+ #endif /* CONFIG_HUGETLB_PAGE */
+ 
+ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+@@ -360,9 +366,9 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	/*
+ 	 * If this is a HUGETLB vma, pass off to appropriate routine
+ 	 */
+-	if (dst_vma->vm_flags & VM_HUGETLB)
++	if (is_vm_hugetlb_page(dst_vma))
+ 		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
+-						src_start, len, false);
++						src_start, len, zeropage);
+ 
+ 	/*
+ 	 * Be strict and only allow __mcopy_atomic on userfaultfd
+@@ -431,8 +437,11 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 				err = mfill_zeropage_pte(dst_mm, dst_pmd,
+ 							 dst_vma, dst_addr);
+ 		} else {
+-			err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+-						     dst_addr, src_addr, &page);
++			err = -EINVAL; /* if zeropage is true return -EINVAL */
++			if (likely(!zeropage))
++				err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
++							     dst_vma, dst_addr,
++							     src_addr, &page);
+ 		}
+ 
+ 		cond_resched();
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index fed2119..5a840a6 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -625,6 +625,86 @@ static int faulting_process(void)
+ 	return 0;
+ }
+ 
++static int uffdio_zeropage(int ufd, unsigned long offset)
++{
++	struct uffdio_zeropage uffdio_zeropage;
++	int ret;
++	unsigned long has_zeropage = EXPECTED_IOCTLS & (1 << _UFFDIO_ZEROPAGE);
++
++	if (offset >= nr_pages * page_size)
++		fprintf(stderr, "unexpected offset %lu\n",
++			offset), exit(1);
++	uffdio_zeropage.range.start = (unsigned long) area_dst + offset;
++	uffdio_zeropage.range.len = page_size;
++	uffdio_zeropage.mode = 0;
++	ret = ioctl(ufd, UFFDIO_ZEROPAGE, &uffdio_zeropage);
++	if (ret) {
++		/* real retval in ufdio_zeropage.zeropage */
++		if (has_zeropage) {
++			if (uffdio_zeropage.zeropage == -EEXIST)
++				fprintf(stderr, "UFFDIO_ZEROPAGE -EEXIST\n"),
++					exit(1);
++			else
++				fprintf(stderr, "UFFDIO_ZEROPAGE error %Ld\n",
++					uffdio_zeropage.zeropage), exit(1);
++		} else {
++			if (uffdio_zeropage.zeropage != -EINVAL)
++				fprintf(stderr,
++					"UFFDIO_ZEROPAGE not -EINVAL %Ld\n",
++					uffdio_zeropage.zeropage), exit(1);
++		}
++	} else if (has_zeropage) {
++		if (uffdio_zeropage.zeropage != page_size) {
++			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
++				uffdio_zeropage.zeropage), exit(1);
++		} else
++			return 1;
++	} else {
++		fprintf(stderr,
++			"UFFDIO_ZEROPAGE succeeded %Ld\n",
++			uffdio_zeropage.zeropage), exit(1);
++	}
++
++	return 0;
++}
++
++/* exercise UFFDIO_ZEROPAGE */
++static int userfaultfd_zeropage_test(void)
++{
++	struct uffdio_register uffdio_register;
++	unsigned long expected_ioctls;
++
++	printf("testing UFFDIO_ZEROPAGE: ");
++	fflush(stdout);
++
++	if (release_pages(area_dst))
++		return 1;
++
++	if (userfaultfd_open(0) < 0)
++		return 1;
++	uffdio_register.range.start = (unsigned long) area_dst;
++	uffdio_register.range.len = nr_pages * page_size;
++	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
++	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
++		fprintf(stderr, "register failure\n"), exit(1);
++
++	expected_ioctls = EXPECTED_IOCTLS;
++	if ((uffdio_register.ioctls & expected_ioctls) !=
++	    expected_ioctls)
++		fprintf(stderr,
++			"unexpected missing ioctl for anon memory\n"),
++			exit(1);
++
++	if (uffdio_zeropage(uffd, 0)) {
++		if (my_bcmp(area_dst, zeropage, page_size))
++			fprintf(stderr, "zeropage is not zero\n"), exit(1);
++	}
++
++	close(uffd);
++	printf("done.\n");
++	return 0;
++}
++
+ static int userfaultfd_events_test(void)
+ {
+ 	struct uffdio_register uffdio_register;
+@@ -679,6 +759,7 @@ static int userfaultfd_events_test(void)
+ 	if (pthread_join(uffd_mon, (void **)&userfaults))
+ 		return 1;
+ 
++	close(uffd);
+ 	printf("userfaults: %ld\n", userfaults);
+ 
+ 	return userfaults != nr_pages;
+@@ -852,7 +933,7 @@ static int userfaultfd_stress(void)
+ 		return err;
+ 
+ 	close(uffd);
+-	return userfaultfd_events_test();
++	return userfaultfd_zeropage_test() || userfaultfd_events_test();
+ }
+ 
+ #ifndef HUGETLB_TEST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
