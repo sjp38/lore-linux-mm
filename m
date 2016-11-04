@@ -1,105 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CCDCB280260
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 03:29:57 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id v84so92291435oie.0
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:29:57 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id s75si10234347ios.102.2016.11.04.00.29.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 00:29:55 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id i88so7115393pfk.2
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:29:55 -0700 (PDT)
-Date: Fri, 4 Nov 2016 18:29:42 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters bit to indicate waitqueue
- should be checked
-Message-ID: <20161104182942.47c4d544@roar.ozlabs.ibm.com>
-In-Reply-To: <20161104134049.6c7d394b@roar.ozlabs.ibm.com>
-References: <20161102070346.12489-1-npiggin@gmail.com>
-	<20161102070346.12489-3-npiggin@gmail.com>
-	<CA+55aFxhxfevU1uKwHmPheoU7co4zxxcri+AiTpKz=1_Nd0_ig@mail.gmail.com>
-	<20161103144650.70c46063@roar.ozlabs.ibm.com>
-	<CA+55aFyzf8r2q-HLfADcz74H-My_GY-z15yLrwH-KUqd486Q0A@mail.gmail.com>
-	<20161104134049.6c7d394b@roar.ozlabs.ibm.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDCD280260
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 03:39:44 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u15so96453706oie.6
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 00:39:44 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id x40si1976104ita.72.2016.11.04.00.39.42
+        for <linux-mm@kvack.org>;
+        Fri, 04 Nov 2016 00:39:44 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1478115245-32090-1-git-send-email-aarcange@redhat.com> <1478115245-32090-21-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1478115245-32090-21-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 20/33] userfaultfd: introduce vma_can_userfault
+Date: Fri, 04 Nov 2016 15:39:21 +0800
+Message-ID: <07b501d2366e$8ee8ce50$acba6af0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, 'Mike Kravetz' <mike.kravetz@oracle.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On Fri, 4 Nov 2016 13:40:49 +1100
-Nicholas Piggin <npiggin@gmail.com> wrote:
+> 
+> From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> 
+> Check whether a VMA can be used with userfault in more compact way
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
 
-> On Thu, 3 Nov 2016 08:49:14 -0700
-> Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>  fs/userfaultfd.c | 13 +++++++++----
+>  1 file changed, 9 insertions(+), 4 deletions(-)
 > 
-> > On Wed, Nov 2, 2016 at 8:46 PM, Nicholas Piggin <npiggin@gmail.com> wrote:  
-> > >
-> > > If you don't have that, then a long-waiting waiter for some
-> > > unrelated page can prevent other pages from getting back to
-> > > the fastpath.
-> > >
-> > > Contention bit is already explicitly not precise with this patch
-> > > (false positive possible), but in general the next wakeup will
-> > > clean it up. Without page_match, that's not always possible.    
-> > 
-> > Do we care?
-> > 
-> > The point is, it's rare, and if there are no numbers to say that it's
-> > an issue, we shouldn't create the complication. Numbers talk,
-> > handwaving "this might be an issue" walks.  
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 9552734..387fe77 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -1060,6 +1060,11 @@ static __always_inline int validate_range(struct mm_struct *mm,
+>  	return 0;
+>  }
 > 
-> Well you could have hundreds of waiters on pages with highly threaded
-> IO (say, a file server), which will cause collisions in the hash table.
-> I can just try to force that to happen and show up that 2.2% again.
+> +static inline bool vma_can_userfault(struct vm_area_struct *vma)
+> +{
+> +	return vma_is_anonymous(vma) || is_vm_hugetlb_page(vma);
+> +}
+> +
+>  static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+>  				unsigned long arg)
+>  {
+> @@ -1149,7 +1154,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 > 
-> Actaully it would be more than 2.2% with my patch as is, because it no
-> longer does an unlocked waitqueue_active() check if the waiters bit was
-> set (because with my approach the lock will always be required if only
-> to clear the bit after checking the waitqueue). If we avoid clearing
-> dangling bity there, we'll then have to reintroduce that test.
+>  		/* check not compatible vmas */
+>  		ret = -EINVAL;
+> -		if (!vma_is_anonymous(cur) && !is_vm_hugetlb_page(cur))
+> +		if (!vma_can_userfault(cur))
+>  			goto out_unlock;
+>  		/*
+>  		 * If this vma contains ending address, and huge pages
+> @@ -1193,7 +1198,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+>  	do {
+>  		cond_resched();
 > 
-> > That said, at least it isn't a big complexity that will hurt, and it's
-> > very localized.  
+> -		BUG_ON(!vma_is_anonymous(vma) && !is_vm_hugetlb_page(vma));
+> +		BUG_ON(!vma_can_userfault(vma));
+>  		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+>  		       vma->vm_userfaultfd_ctx.ctx != ctx);
 > 
-> I thought so :)
+> @@ -1331,7 +1336,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+>  		 * provides for more strict behavior to notice
+>  		 * unregistration errors.
+>  		 */
+> -		if (!vma_is_anonymous(cur) && !is_vm_hugetlb_page(cur))
+> +		if (!vma_can_userfault(cur))
+>  			goto out_unlock;
 > 
-> >   
-> > >> Also, it would be lovely to get numbers against the plain 4.8
-> > >> situation with the per-zone waitqueues. Maybe that used to help your
-> > >> workload, so the 2.2% improvement might be partly due to me breaking
-> > >> performance on your machine.    
-> > >
-> > > Oh yeah that'll hurt a bit. The hash will get spread over non-local
-> > > nodes now. I think it was only a 2 socket system, but remote memory
-> > > still takes a latency hit. Hmm, I think keeping the zone waitqueue
-> > > just for pages would be reasonable, because they're a special case?    
-> > 
-> > HELL NO!
-> > 
-> > Christ. That zone crap may have helped some very few NUMA machines,
-> > but it *hurt* normal machines.  
+>  		found = true;
+> @@ -1345,7 +1350,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+>  	do {
+>  		cond_resched();
 > 
-> Oh I missed why they hurt small systems -- where did you see that
-> slowdown? I agree that's a serious concern. I'll go back and read the
-> thread again.
-
-Oh, okay, the zone lookup. Well I am of the impression that most of the
-cache misses are coming from the waitqueue hash table itself. On a small
-system (or big system doing local operations), the zone lookup I thought
-should be quite well cached. The zone waitqueue hashes were like 96KB each
-in size, so a random access is almost certainly an L1 miss and probably L2
-miss as well.
-
-Anyway I'm still going to try to get numbers for this, but I wonder if
-you saw the zone causing a lot of misses, or if it was the waitqueue?
-
-Thanks,
-Nick
+> -		BUG_ON(!vma_is_anonymous(vma) && !is_vm_hugetlb_page(vma));
+> +		BUG_ON(!vma_can_userfault(vma));
+> 
+>  		/*
+>  		 * Nothing to do: this vma is already registered into this
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
