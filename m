@@ -1,312 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B146B0317
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 10:44:45 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y68so20933383pfb.6
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 07:44:45 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id o5si14061609paa.282.2016.11.04.07.44.44
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B83C56B0319
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 10:45:45 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 128so124493511oih.1
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 07:45:45 -0700 (PDT)
+Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
+        by mx.google.com with ESMTPS id y187si8879957oig.271.2016.11.04.07.45.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Nov 2016 07:44:44 -0700 (PDT)
-From: akash.goel@intel.com
-Subject: [PATCH 2/2] drm/i915: Make GPU pages movable
-Date: Fri,  4 Nov 2016 20:32:56 +0530
-Message-Id: <1478271776-1194-2-git-send-email-akash.goel@intel.com>
-In-Reply-To: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Nov 2016 07:45:45 -0700 (PDT)
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+Subject: [RFC PATCH v3 0/2] Add support for eXclusive Page Frame Ownership (XPFO)
+Date: Fri,  4 Nov 2016 15:45:32 +0100
+Message-Id: <20161104144534.14790-1-juerg.haefliger@hpe.com>
+In-Reply-To: <20160914071901.8127-1-juerg.haefliger@hpe.com>
+References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Sourab Gupta <sourab.gupta@intel.com>, Akash Goel <akash.goel@intel.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
+Cc: vpk@cs.columbia.edu, juerg.haefliger@hpe.com
 
-From: Chris Wilson <chris@chris-wilson.co.uk>
+Changes from:
+  v2 -> v3:
+    - Removed 'depends on DEBUG_KERNEL' and 'select DEBUG_TLBFLUSH'.
+      These are left-overs from the original patch and are not required.
+    - Make libata XPFO-aware, i.e., properly handle pages that were
+      unmapped by XPFO. This takes care of the temporary hack in v2 that
+      forced the use of a bounce buffer in block/blk-map.c.
+  v1 -> v2:
+    - Moved the code from arch/x86/mm/ to mm/ since it's (mostly)
+      arch-agnostic.
+    - Moved the config to the generic layer and added ARCH_SUPPORTS_XPFO
+      for x86.
+    - Use page_ext for the additional per-page data.
+    - Removed the clearing of pages. This can be accomplished by using
+      PAGE_POISONING.
+    - Split up the patch into multiple patches.
+    - Fixed additional issues identified by reviewers.
 
-On a long run of more than 2-3 days, physical memory tends to get
-fragmented severely, which considerably slows down the system. In such a
-scenario, the shrinker is also unable to help as lack of memory is not
-the actual problem, since it has been observed that there are enough free
-pages of 0 order. This also manifests itself when an indiviual zone in
-the mm runs out of pages and if we cannot migrate pages between zones,
-the kernel hits an out-of-memory even though there are free pages (and
-often all of swap) available.
+This patch series adds support for XPFO which protects against 'ret2dir'
+kernel attacks. The basic idea is to enforce exclusive ownership of page
+frames by either the kernel or userspace, unless explicitly requested by
+the kernel. Whenever a page destined for userspace is allocated, it is
+unmapped from physmap (removed from the kernel's page table). When such a
+page is reclaimed from userspace, it is mapped back to physmap.
 
-To address the issue of external fragementation, kernel does a compaction
-(which involves migration of pages) but it's efficacy depends upon how
-many pages are marked as MOVABLE, as only those pages can be migrated.
+Additional fields in the page_ext struct are used for XPFO housekeeping.
+Specifically two flags to distinguish user vs. kernel pages and to tag
+unmapped pages and a reference counter to balance kmap/kunmap operations
+and a lock to serialize access to the XPFO fields.
 
-Currently the backing pages for GPU buffers are allocated from shmemfs
-with GFP_RECLAIMABLE flag, in units of 4KB pages.  In the case of limited
-swap space, it may not be possible always to reclaim or swap-out pages of
-all the inactive objects, to make way for free space allowing formation
-of higher order groups of physically-contiguous pages on compaction.
+Known issues/limitations:
+  - Only supports x86-64 (for now)
+  - Only supports 4k pages (for now)
+  - There are most likely some legitimate uses cases where the kernel needs
+    to access userspace which need to be made XPFO-aware
+  - Performance penalty
 
-Just marking the GPU pages as MOVABLE will not suffice, as i915.ko has to
-pin the pages if they are in use by GPU, which will prevent their
-migration. So the migratepage callback in shmem is also hooked up to get
-a notification when kernel initiates the page migration. On the
-notification, i915.ko appropriately unpin the pages.  With this we can
-effectively mark the GPU pages as MOVABLE and hence mitigate the
-fragmentation problem.
+Reference paper by the original patch authors:
+  http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
 
-v2:
- - Rename the migration routine to gem_shrink_migratepage, move it to the
-   shrinker file, and use the existing constructs (Chris)
- - To cleanup, add a new helper function to encapsulate all page migration
-   skip conditions (Chris)
- - Add a new local helper function in shrinker file, for dropping the
-   backing pages, and call the same from gem_shrink() also (Chris)
+Juerg Haefliger (2):
+  Add support for eXclusive Page Frame Ownership (XPFO)
+  xpfo: Only put previous userspace pages into the hot cache
 
-v3:
- - Fix/invert the check on the return value of unsafe_drop_pages (Chris)
+ arch/x86/Kconfig         |   3 +-
+ arch/x86/mm/init.c       |   2 +-
+ drivers/ata/libata-sff.c |   4 +-
+ include/linux/highmem.h  |  15 +++-
+ include/linux/page_ext.h |   7 ++
+ include/linux/xpfo.h     |  41 +++++++++
+ lib/swiotlb.c            |   3 +-
+ mm/Makefile              |   1 +
+ mm/page_alloc.c          |  10 ++-
+ mm/page_ext.c            |   4 +
+ mm/xpfo.c                | 214 +++++++++++++++++++++++++++++++++++++++++++++++
+ security/Kconfig         |  19 +++++
+ 12 files changed, 315 insertions(+), 8 deletions(-)
+ create mode 100644 include/linux/xpfo.h
+ create mode 100644 mm/xpfo.c
 
-v4:
- - Minor tidy
-
-v5:
- - Fix unsafe usage of unsafe_drop_pages()
- - Rebase onto vmap-notifier
-
-v6:
-- Remove i915_gem_object_get/put across unsafe_drop_pages() as with
-  struct_mutex protection object can't disappear. (Chris)
-
-Testcase: igt/gem_shrink
-Bugzilla: (e.g.) https://bugs.freedesktop.org/show_bug.cgi?id=90254
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
-Signed-off-by: Akash Goel <akash.goel@intel.com>
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
----
- drivers/gpu/drm/i915/i915_drv.h          |   2 +
- drivers/gpu/drm/i915/i915_gem.c          |   9 ++-
- drivers/gpu/drm/i915/i915_gem_shrinker.c | 132 +++++++++++++++++++++++++++++++
- 3 files changed, 142 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index 4735b417..7f2717b 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -1357,6 +1357,8 @@ struct intel_l3_parity {
- };
- 
- struct i915_gem_mm {
-+	struct shmem_dev_info shmem_info;
-+
- 	/** Memory allocator for GTT stolen memory */
- 	struct drm_mm stolen;
- 	/** Protects the usage of the GTT stolen memory allocator. This is
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 1f995ce..f0d4ce7 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -2164,6 +2164,7 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
- 		if (obj->mm.madv == I915_MADV_WILLNEED)
- 			mark_page_accessed(page);
- 
-+		set_page_private(page, 0);
- 		put_page(page);
- 	}
- 	obj->mm.dirty = false;
-@@ -2310,6 +2311,7 @@ static unsigned int swiotlb_max_size(void)
- 			sg->length += PAGE_SIZE;
- 		}
- 		last_pfn = page_to_pfn(page);
-+		set_page_private(page, (unsigned long)obj);
- 
- 		/* Check that the i965g/gm workaround works. */
- 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
-@@ -2334,8 +2336,10 @@ static unsigned int swiotlb_max_size(void)
- 
- err_pages:
- 	sg_mark_end(sg);
--	for_each_sgt_page(page, sgt_iter, st)
-+	for_each_sgt_page(page, sgt_iter, st) {
-+		set_page_private(page, 0);
- 		put_page(page);
-+	}
- 	sg_free_table(st);
- 	kfree(st);
- 
-@@ -4185,6 +4189,8 @@ struct drm_i915_gem_object *
- 		goto fail;
- 
- 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-+	if (IS_ENABLED(MIGRATION))
-+		mask |= __GFP_MOVABLE;
- 	if (IS_CRESTLINE(dev_priv) || IS_BROADWATER(dev_priv)) {
- 		/* 965gm cannot relocate objects above 4GiB. */
- 		mask &= ~__GFP_HIGHMEM;
-@@ -4193,6 +4199,7 @@ struct drm_i915_gem_object *
- 
- 	mapping = obj->base.filp->f_mapping;
- 	mapping_set_gfp_mask(mapping, mask);
-+	shmem_set_dev_info(mapping, &dev_priv->mm.shmem_info);
- 
- 	i915_gem_object_init(obj, &i915_gem_object_ops);
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem_shrinker.c b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-index a6fc1bd..051135ac 100644
---- a/drivers/gpu/drm/i915/i915_gem_shrinker.c
-+++ b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-@@ -24,6 +24,7 @@
- 
- #include <linux/oom.h>
- #include <linux/shmem_fs.h>
-+#include <linux/migrate.h>
- #include <linux/slab.h>
- #include <linux/swap.h>
- #include <linux/pci.h>
-@@ -473,6 +474,132 @@ struct shrinker_lock_uninterruptible {
- 	return NOTIFY_DONE;
- }
- 
-+#ifdef CONFIG_MIGRATION
-+static bool can_migrate_page(struct drm_i915_gem_object *obj)
-+{
-+	/* Avoid the migration of page if being actively used by GPU */
-+	if (i915_gem_object_is_active(obj))
-+		return false;
-+
-+	/* Skip the migration for purgeable objects otherwise there
-+	 * will be a deadlock when shmem will try to lock the page for
-+	 * truncation, which is already locked by the caller before
-+	 * migration.
-+	 */
-+	if (obj->mm.madv == I915_MADV_DONTNEED)
-+		return false;
-+
-+	/* Skip the migration for a pinned object */
-+	if (atomic_read(&obj->mm.pages_pin_count) > obj->bind_count)
-+		return false;
-+
-+	if (any_vma_pinned(obj))
-+		return false;
-+
-+	return true;
-+}
-+
-+static int do_migrate_page(struct drm_i915_gem_object *obj)
-+{
-+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-+	int ret = 0;
-+
-+	if (!can_migrate_page(obj))
-+		return -EBUSY;
-+
-+	/* HW access would be required for a GGTT bound object, for which
-+	 * device has to be kept awake. But a deadlock scenario can arise if
-+	 * the attempt is made to resume the device, when either a suspend
-+	 * or a resume operation is already happening concurrently from some
-+	 * other path and that only also triggers compaction. So only unbind
-+	 * if the device is currently awake.
-+	 */
-+	if (!intel_runtime_pm_get_if_in_use(dev_priv))
-+		return -EBUSY;
-+
-+	if (!unsafe_drop_pages(obj))
-+		ret = -EBUSY;
-+
-+	intel_runtime_pm_put(dev_priv);
-+	return ret;
-+}
-+
-+static int i915_gem_shrinker_migratepage(struct address_space *mapping,
-+					 struct page *newpage,
-+					 struct page *page,
-+					 enum migrate_mode mode,
-+					 void *dev_priv_data)
-+{
-+	struct drm_i915_private *dev_priv = dev_priv_data;
-+	struct shrinker_lock_uninterruptible slu;
-+	int ret;
-+
-+	/*
-+	 * Clear the private field of the new target page as it could have a
-+	 * stale value in the private field. Otherwise later on if this page
-+	 * itself gets migrated, without getting referred by the Driver
-+	 * in between, the stale value would cause the i915_migratepage
-+	 * function to go for a toss as object pointer is derived from it.
-+	 * This should be safe since at the time of migration, private field
-+	 * of the new page (which is actually an independent free 4KB page now)
-+	 * should be like a don't care for the kernel.
-+	 */
-+	set_page_private(newpage, 0);
-+
-+	if (!page_private(page))
-+		goto migrate;
-+
-+	/*
-+	 * Check the page count, if Driver also has a reference then it should
-+	 * be more than 2, as shmem will have one reference and one reference
-+	 * would have been taken by the migration path itself. So if reference
-+	 * is <=2, we can directly invoke the migration function.
-+	 */
-+	if (page_count(page) <= 2)
-+		goto migrate;
-+
-+	/*
-+	 * Use trylock here, with a timeout, for struct_mutex as
-+	 * otherwise there is a possibility of deadlock due to lock
-+	 * inversion. This path, which tries to migrate a particular
-+	 * page after locking that page, can race with a path which
-+	 * truncate/purge pages of the corresponding object (after
-+	 * acquiring struct_mutex). Since page truncation will also
-+	 * try to lock the page, a scenario of deadlock can arise.
-+	 */
-+	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 10))
-+		return -EBUSY;
-+
-+	ret = 0;
-+	if (!PageSwapCache(page) && page_private(page)) {
-+		struct drm_i915_gem_object *obj =
-+			(struct drm_i915_gem_object *)page_private(page);
-+
-+		ret = do_migrate_page(obj);
-+	}
-+
-+	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
-+	if (ret)
-+		return ret;
-+
-+	/*
-+	 * Ideally here we don't expect the page count to be > 2, as driver
-+	 * would have dropped its reference, but occasionally it has been seen
-+	 * coming as 3 & 4. This leads to a situation of unexpected page count,
-+	 * causing migration failure, with -EGAIN error. This then leads to
-+	 * multiple attempts by the kernel to migrate the same set of pages.
-+	 * And sometimes the repeated attempts proves detrimental for stability.
-+	 * Also since we don't know who is the other owner, and for how long its
-+	 * gonna keep the reference, its better to return -EBUSY.
-+	 */
-+	if (page_count(page) > 2)
-+		return -EBUSY;
-+
-+migrate:
-+	return migrate_page(mapping, newpage, page, mode);
-+}
-+#endif
-+
- /**
-  * i915_gem_shrinker_init - Initialize i915 shrinker
-  * @dev_priv: i915 device
-@@ -491,6 +618,11 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
- 
- 	dev_priv->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
- 	WARN_ON(register_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
-+
-+	dev_priv->mm.shmem_info.private_data = dev_priv;
-+#ifdef CONFIG_MIGRATION
-+	dev_priv->mm.shmem_info.migratepage = i915_gem_shrinker_migratepage;
-+#endif
- }
- 
- /**
 -- 
-1.9.2
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
