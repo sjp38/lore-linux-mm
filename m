@@ -1,90 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E116B0321
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 10:53:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 17so21039608pfy.2
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 07:53:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q7si13238641pax.216.2016.11.04.07.53.32
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 27F196B0323
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 10:57:24 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r68so18534513wmd.0
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 07:57:24 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 7si5512304wmr.108.2016.11.04.07.57.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 07:53:32 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA4EmRVL121724
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2016 10:53:32 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26gsev61fk-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 04 Nov 2016 10:53:31 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 4 Nov 2016 14:53:29 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 50CF01B08023
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 14:55:37 +0000 (GMT)
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uA4ErQX916253438
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2016 14:53:26 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uA4ErPrZ005190
-	for <linux-mm@kvack.org>; Fri, 4 Nov 2016 08:53:26 -0600
-Date: Fri, 4 Nov 2016 08:53:17 -0600
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 25/33] userfaultfd: shmem: add userfaultfd hook for
- shared memory faults
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-26-git-send-email-aarcange@redhat.com>
- <07ce01d23679$c2be2670$483a7350$@alibaba-inc.com>
+        Fri, 04 Nov 2016 07:57:22 -0700 (PDT)
+Date: Fri, 4 Nov 2016 10:57:04 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] swapfile: fix memory corruption via malformed swapfile
+Message-ID: <20161104145704.GB8825@cmpxchg.org>
+References: <1477949533-2509-1-git-send-email-jann@thejh.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <07ce01d23679$c2be2670$483a7350$@alibaba-inc.com>
-Message-Id: <20161104145316.GA5605@rapoport-lnx>
+In-Reply-To: <1477949533-2509-1-git-send-email-jann@thejh.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, 'Mike Kravetz' <mike.kravetz@oracle.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>
+To: Jann Horn <jann@thejh.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 04, 2016 at 04:59:32PM +0800, Hillf Danton wrote:
-> > @@ -1542,7 +1544,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-> >   */
-> >  static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-> >  	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
-> > -	struct mm_struct *fault_mm, int *fault_type)
-> > +	struct vm_area_struct *vma, struct vm_fault *vmf, int *fault_type)
-> >  {
-> >  	struct address_space *mapping = inode->i_mapping;
-> >  	struct shmem_inode_info *info;
-> > @@ -1597,7 +1599,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-> >  	 */
-> >  	info = SHMEM_I(inode);
-> >  	sbinfo = SHMEM_SB(inode->i_sb);
-> > -	charge_mm = fault_mm ? : current->mm;
-> > +	charge_mm = vma ? vma->vm_mm : current->mm;
-> > 
-> >  	if (swap.val) {
-> >  		/* Look it up and read it in.. */
-> > @@ -1607,7 +1609,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-> >  			if (fault_type) {
-> >  				*fault_type |= VM_FAULT_MAJOR;
-> >  				count_vm_event(PGMAJFAULT);
-> > -				mem_cgroup_count_vm_event(fault_mm, PGMAJFAULT);
-> > +				mem_cgroup_count_vm_event(vma->vm_mm,
-> > +							  PGMAJFAULT);
-> Seems vma is not valid in some cases.
+On Mon, Oct 31, 2016 at 10:32:13PM +0100, Jann Horn wrote:
+> When root activates a swap partition whose header has the wrong endianness,
+> nr_badpages elements of badpages are swabbed before nr_badpages has been
+> checked, leading to a buffer overrun of up to 8GB.
+> 
+> This normally is not a security issue because it can only be exploited by
+> root (more specifically, a process with CAP_SYS_ADMIN or the ability to
+> modify a swap file/partition), and such a process can already e.g. modify
+> swapped-out memory of any other userspace process on the system.
+> 
+> Testcase for reproducing the bug (must be run as root, should crash your
+> kernel):
+[...]
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Jann Horn <jann@thejh.net>
 
-Well, currently, when fault_type != NULL, the vma is valid. Still it would
-be better to use charge_mm here.
-Will repost soon.
- 
-> >  			}
-> >  			/* Here we actually start the io */
-> >  			page = shmem_swapin(swap, gfp, info, index);
- 
---
-Sincerely yours,
-Mike.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
