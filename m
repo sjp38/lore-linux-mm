@@ -1,114 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CED9280285
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 12:36:02 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id h201so1140986qke.7
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 09:36:02 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4D17E6B0265
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 12:40:50 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o68so90949469qkf.3
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 09:40:50 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v85si8127820qka.130.2016.11.04.09.36.01
+        by mx.google.com with ESMTPS id o76si8166687qkl.29.2016.11.04.09.40.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Nov 2016 09:36:01 -0700 (PDT)
-Date: Fri, 4 Nov 2016 17:35:58 +0100
+        Fri, 04 Nov 2016 09:40:49 -0700 (PDT)
+Date: Fri, 4 Nov 2016 17:40:45 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
- for huge page UFFDIO_COPY
-Message-ID: <20161104163558.GQ4611@redhat.com>
+Subject: Re: [PATCH 12/33] userfaultfd: non-cooperative: Add madvise() event
+ for MADV_DONTNEED requestg
+Message-ID: <20161104164045.GR4611@redhat.com>
 References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-16-git-send-email-aarcange@redhat.com>
- <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
- <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
+ <1478115245-32090-13-git-send-email-aarcange@redhat.com>
+ <072b01d235a8$7238d230$56aa7690$@alibaba-inc.com>
+ <20161103172441.GA14111@rapoport-lnx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
+In-Reply-To: <20161103172441.GA14111@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Shaohua Li <shli@fb.com>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-On Thu, Nov 03, 2016 at 10:33:09AM -0700, Mike Kravetz wrote:
-> On 11/03/2016 03:15 AM, Hillf Danton wrote:
-> >> +	if (zeropage)
-> >> +		return -EINVAL;
+On Thu, Nov 03, 2016 at 11:24:46AM -0600, Mike Rapoport wrote:
+> (changed 'CC:
+> - Michael Rapoport <RAPOPORT@il.ibm.com>,
+> - Dr. David Alan Gilbert@v2.random,  <dgilbert@redhat.com>,
+> + Dr. David Alan Gilbert  <dgilbert@redhat.com>,
+> - Pavel Emelyanov <xemul@parallels.com>@v2.random
+> + Pavel Emelyanov <xemul@virtuozzo.com>
+
+Sorry for this mess, so it turns out git will crunch a non rfc2822
+compliant email address just fine, but postfix will not be happy and
+it rewrites the header in a best effort way. The email is still
+delivered because send-email specifies the addresses that git can cope
+with on the sendmail command line instead of using -t, that's why the
+email is delivered by the header is garbled.
+
+On the git list they're discussing if the parsing of the email
+addresses can be made more strict to follow rfc2822, otherwise from
+--dry-run things look ok, but then when you removed --dry-run you find
+out the hard way you left a trailing " in an email address...
+
+> On Thu, Nov 03, 2016 at 04:01:12PM +0800, Hillf Danton wrote:
+> > On Thursday, November 03, 2016 3:34 AM Andrea Arcangeli wrote:
+> > > +void madvise_userfault_dontneed(struct vm_area_struct *vma,
+> > > +				struct vm_area_struct **prev,
+> > > +				unsigned long start, unsigned long end)
+> > > +{
+> > > +	struct userfaultfd_ctx *ctx;
+> > > +	struct userfaultfd_wait_queue ewq;
+> > > +
+> > > +	ctx = vma->vm_userfaultfd_ctx.ctx;
+> > > +	if (!ctx || !(ctx->features & UFFD_FEATURE_EVENT_MADVDONTNEED))
+> > > +		return;
+> > > +
+> > > +	userfaultfd_ctx_get(ctx);
+> > > +	*prev = NULL; /* We wait for ACK w/o the mmap semaphore */
+> > > +	up_read(&vma->vm_mm->mmap_sem);
+> > > +
+> > > +	msg_init(&ewq.msg);
+> > > +
+> > > +	ewq.msg.event = UFFD_EVENT_MADVDONTNEED;
+> > > +	ewq.msg.arg.madv_dn.start = start;
+> > > +	ewq.msg.arg.madv_dn.end = end;
+> > > +
+> > > +	userfaultfd_event_wait_completion(ctx, &ewq);
+> > > +
+> > > +	down_read(&vma->vm_mm->mmap_sem);
 > > 
-> > Release mmap_sem before return?
+> > After napping with mmap_sem released, is vma still valid?
 
-This shows we need to extend the selftest to execute UFFDIO_ZEROPAGE
-also on tmpfs and hugetlbfs two cases, and verify it returns -EINVAL.
+Wow, nice catch Hillf. There was zero chance to catch this at runtime,
+we don't munmap the vma while the testcase runs, plus even if we did
+such thing, to notice it would need to be reused fast enough. It was
+just a single instruction window for a pointer dereference...
 
-> >> +
-> >> +	src_addr = src_start;
-> >> +	dst_addr = dst_start;
-> >> +	copied = 0;
-> >> +	page = NULL;
-> >> +	vma_hpagesize = vma_kernel_pagesize(dst_vma);
-> >> +
-> >> +retry:
-> >> +	/*
-> >> +	 * On routine entry dst_vma is set.  If we had to drop mmap_sem and
-> >> +	 * retry, dst_vma will be set to NULL and we must lookup again.
-> >> +	 */
-> >> +	err = -EINVAL;
-> >> +	if (!dst_vma) {
-> >> +		dst_vma = find_vma(dst_mm, dst_start);
-> > 
-> > In case of retry, s/dst_start/dst_addr/?
-> > And check if we find a valid vma?
-
-I don't think that's needed. Yes intuitively if a munmap zaps the
-start of the vma during the copy we could continue, but userfaultfd
-generally is as strict as it can get.
-
-This is why UFFDIO_COPY is not doing like mremap, that just wipe
-whatever existed in destination silently. UFFDIO_COPY returns -EEXIST
-whenever something is already mapped there during a UFFDIO_COPY.
-
-When it's userland managing the faults, being more strict I think it's
-safer.
-
-Running a copy concurrent with a munmap or any other vma mangling
-leads to an undefined result. I think it's preferable to generate an
-error to userland if it ever does an undefined operation considering
-the risk if something goes wrong here while userland are managing the
-faults. Furthermore this keeps the code simpler.
-
-This is also why the revalidation code then does:
-
-		if (dst_start < dst_vma->vm_start ||
-		    dst_start + len > dst_vma->vm_end)
-			goto out_unlock;
-
-and it pretends the vma it is still there for the whole range being
-copied.
-
-So I tend to prefer the current version, letting it succeed silently
-while correct and valid in theory, in practice sounds worse than the
-current stricter behavior.
-
-In any case if we change this for hugetlbfs, the non-hugetlbfs variant
-should also be updated.
-
-> >> @@ -182,6 +355,13 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
-> >>  		goto out_unlock;
-> >>
-> >>  	/*
-> >> +	 * If this is a HUGETLB vma, pass off to appropriate routine
-> >> +	 */
-> >> +	if (dst_vma->vm_flags & VM_HUGETLB)
-> >> +		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
-> >> +						src_start, len, false);
-> > 
-> > Use is_vm_hugetlb_page()? 
-> > 
-> > 
+> You are right, vma may be invalid at that point. Thanks for spotting.
 > 
-> Thanks Hillf, all valid points.  I will create another version of
-> this patch.
+> Andrea, how do you prefer the fix, incremental or the entire patch updated?
 
-Nice cleanup yes.
+I'm applying your updated patch, fix you sent is correct.
 
-Thanks!
+I will also move *prev= NULL just after up_read too, doing it before
+up_read looks like it has to be done before before releasing the lock
+which is not the case. Furthermore it's a microoptimization for
+scalability to do it after, but it won't make any runtime difference
+of course.
+
+Thanks,
 Andrea
 
 --
