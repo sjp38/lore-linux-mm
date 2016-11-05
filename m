@@ -1,103 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 804EF6B0266
-	for <linux-mm@kvack.org>; Sat,  5 Nov 2016 14:02:15 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d67so31344317qkc.0
-        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 11:02:15 -0700 (PDT)
-Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
-        by mx.google.com with ESMTPS id a134si11330749qkb.306.2016.11.05.11.02.14
+	by kanga.kvack.org (Postfix) with ESMTP id 718026B0266
+	for <linux-mm@kvack.org>; Sat,  5 Nov 2016 15:39:34 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x190so33230755qkb.5
+        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 12:39:34 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id v54si11569856qtv.30.2016.11.05.12.39.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Nov 2016 11:02:14 -0700 (PDT)
-Received: by mail-qk0-x241.google.com with SMTP id h201so7523752qke.3
-        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 11:02:14 -0700 (PDT)
-Date: Sat, 5 Nov 2016 14:02:06 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 0/8] Define coherent device memory node
-Message-ID: <20161105180206.GA3083@gmail.com>
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <20161024170902.GA5521@gmail.com>
- <87a8dtawas.fsf@linux.vnet.ibm.com>
- <581D6C51.3070102@linux.vnet.ibm.com>
+        Sat, 05 Nov 2016 12:39:33 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id x190so8405246qkb.0
+        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 12:39:33 -0700 (PDT)
+Date: Sat, 5 Nov 2016 15:39:30 -0400
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Subject: Re: [mm PATCH v2 03/26] swiotlb: Add support for
+ DMA_ATTR_SKIP_CPU_SYNC
+Message-ID: <20161105193929.GA26349@localhost.localdomain>
+References: <20161102111031.79519.14741.stgit@ahduyck-blue-test.jf.intel.com>
+ <20161102111252.79519.21950.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <581D6C51.3070102@linux.vnet.ibm.com>
+In-Reply-To: <20161102111252.79519.21950.stgit@ahduyck-blue-test.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
+To: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Sat, Nov 05, 2016 at 10:51:21AM +0530, Anshuman Khandual wrote:
-> On 10/25/2016 09:56 AM, Aneesh Kumar K.V wrote:
-> > I looked at the hmm-v13 w.r.t migration and I guess some form of device
-> > callback/acceleration during migration is something we should definitely
-> > have. I still haven't figured out how non addressable and coherent device
-> > memory can fit together there. I was waiting for the page cache
-> > migration support to be pushed to the repository before I start looking
-> > at this closely.
-> 
-> Aneesh, did not get that. Currently basic page cache migration is supported,
-> right ? The device callback during migration, fault etc are supported through
-> page->pgmap pointer and extending dev_pagemap structure to accommodate new
-> members. IIUC that is the reason ZONE_DEVICE is being modified so that page
-> ->pgmap overloading can be used for various driver/device specific callbacks
-> while inside core VM functions or HMM functions.
-> 
-> HMM V13 has introduced non-addressable ZONE_DEVICE based device memory which
-> can have it's struct pages in system RAM but they cannot be accessed from the
-> CPU. Now coherent device memory is kind of similar to persistent memory like
-> NVDIMM which is already supported through ZONE_DEVICE (though we might not
-> want to use vmemap_altmap instead have the struct pages in the system RAM).
-> Now HMM has to learn working with 'dev_pagemap->addressable' type of device
-> memory and then support all possible migrations through it's API. So in a
-> nutshell, these are the changes we need to do to make HMM work with coherent
-> device memory.
-> 
-> (0) Support all possible migrations between system RAM and device memory
->     for current un-addressable device memory and make the HMM migration
->     API layer comprehensive and complete.
+.. snip..
+> @@ -561,6 +565,7 @@ void swiotlb_tbl_unmap_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  	 * First, sync the memory before unmapping the entry
+>  	 */
+>  	if (orig_addr != INVALID_PHYS_ADDR &&
+> +	    !(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
+>  	    ((dir == DMA_FROM_DEVICE) || (dir == DMA_BIDIRECTIONAL)))
+>  		swiotlb_bounce(orig_addr, tlb_addr, size, DMA_FROM_DEVICE);
+>  
+> @@ -654,7 +659,8 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  		 * GFP_DMA memory; fall back on map_single(), which
+>  		 * will grab memory from the lowest available address range.
+>  		 */
+> -		phys_addr_t paddr = map_single(hwdev, 0, size, DMA_FROM_DEVICE);
+> +		phys_addr_t paddr = map_single(hwdev, 0, size,
+> +					       DMA_FROM_DEVICE, 0);
+>  		if (paddr == SWIOTLB_MAP_ERROR)
+>  			goto err_warn;
+>  
+> @@ -669,7 +675,8 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  
+>  			/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
+>  			swiotlb_tbl_unmap_single(hwdev, paddr,
+> -						 size, DMA_TO_DEVICE);
+> +						 size, DMA_TO_DEVICE,
+> +						 DMA_ATTR_SKIP_CPU_SYNC);
 
-What is no comprehensive or complete in the API layer ? I think the API is
-pretty clear the migrate function does not rely on anything except HMM pfn.
+This I believe is redundant. That is swiotlb_tbl_unmap_single only
+does an bounce if the dir is DMA_FROM_DEVICE or DMA_BIDIRECTIONAL.
 
+I added /* optional. */
+>  			goto err_warn;
+>  		}
+>  	}
+> @@ -699,7 +706,7 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
+>  		free_pages((unsigned long)vaddr, get_order(size));
+>  	else
+>  		/* DMA_TO_DEVICE to avoid memcpy in swiotlb_tbl_unmap_single */
+> -		swiotlb_tbl_unmap_single(hwdev, paddr, size, DMA_TO_DEVICE);
+> +		swiotlb_tbl_unmap_single(hwdev, paddr, size, DMA_TO_DEVICE, 0);
 
-> 
-> (1) Create coherent device memory representation in ZONE_DEVICE
-> 	(a) Make it exactly the same as that of persistent memory/NVDIMM
-> 
-> 	or
-> 
-> 	(b) Create a new type for coherent device memory representation
+.. but here you choose to put 0? I changed that to
+DMA_ATTR_SKIP_CPU_SYNC and expanded the comment above.
 
-So i will soon push an updated tree with modification to HMM API (from device
-driver point of view but the migrate stuff is virtually the same). I slpitted
-the addressable and movable concept and thus it is now easy to support coherent
-addressable memory and non addressable memory.
-
-> 
-> (2) Support all possible migrations between system RAM and device memory
->     for new addressable coherent device memory represented in ZONE_DEVICE
->     extending the HMM migration API layer.
->
-> Right now, HMM V13 patch series supports migration for a subset of private
-> anonymous pages for un-addressable device memory. I am wondering how difficult
-> is it to implement all possible anon, file mapping migration support for both
-> un-addressable and addressable coherent device memory through ZONE_DEVICE.
->
- 
-There is no need to extend the API to support file back as matter of fact the
-2 patches i sent you do support migration of file back page (page->mapping)
-to and from ZONE_DEVICE as long as this ZONE_DEVICE memory is accessible by
-the CPU and coherent. What i am still working on is the non addressable case
-that is way more tedious (handle direct IO, read, write and writeback).
-
-So difficulty for coherent memory is nill, it is the non addressable memory that
-is hard to support in respect to file back page.
-
-Cheers,
-Jerome
+Time to test the patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
