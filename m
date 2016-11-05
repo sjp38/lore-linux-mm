@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2777E6B0262
-	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 19:45:06 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id rf5so47379381pab.3
-        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 16:45:06 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id gv1si15959258pac.69.2016.11.04.16.45.04
-        for <linux-mm@kvack.org>;
-        Fri, 04 Nov 2016 16:45:04 -0700 (PDT)
-Date: Fri, 4 Nov 2016 23:44:59 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] mm: only enable sys_pkey* when ARCH_HAS_PKEYS
-Message-ID: <20161104234459.GA18760@remoulade>
-References: <1477958904-9903-1-git-send-email-mark.rutland@arm.com>
- <c716d515-409f-4092-73d2-1a81db6c1ba3@linux.intel.com>
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ADD96B0262
+	for <linux-mm@kvack.org>; Fri,  4 Nov 2016 23:43:18 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id 12so72950593uas.5
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 20:43:18 -0700 (PDT)
+Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
+        by mx.google.com with ESMTPS id m26si1488183uab.121.2016.11.04.20.43.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Nov 2016 20:43:17 -0700 (PDT)
+Received: by mail-vk0-x236.google.com with SMTP id x186so82582104vkd.1
+        for <linux-mm@kvack.org>; Fri, 04 Nov 2016 20:43:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c716d515-409f-4092-73d2-1a81db6c1ba3@linux.intel.com>
+In-Reply-To: <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com>
+References: <1477149440-12478-1-git-send-email-hch@lst.de> <1477149440-12478-5-git-send-email-hch@lst.de>
+ <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Fri, 4 Nov 2016 20:43:16 -0700
+Message-ID: <CAJWu+oppRL5kD9qPcdCbFAbEkE7bN+kmrvTuaueVZnY+WtK_tg@mail.gmail.com>
+Subject: Re: [PATCH 4/7] mm: defer vmalloc from atomic context
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Russell King <rmk+kernel@armlinux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 02, 2016 at 12:15:50PM -0700, Dave Hansen wrote:
-> On 10/31/2016 05:08 PM, Mark Rutland wrote:
-> > When an architecture does not select CONFIG_ARCH_HAS_PKEYS, the pkey_alloc
-> > syscall will return -ENOSPC for all (otherwise well-formed) requests, as the
-> > generic implementation of mm_pkey_alloc() returns -1. The other pkey syscalls
-> > perform some work before always failing, in a similar fashion.
-> > 
-> > This implies the absence of keys, but otherwise functional pkey support. This
-> > is odd, since the architecture provides no such support. Instead, it would be
-> > preferable to indicate that the syscall is not implemented, since this is
-> > effectively the case.
-> 
-> This makes the behavior of an x86 cpu without pkeys and an arm cpu
-> without pkeys differ.  Is that what we want?
+On Mon, Oct 24, 2016 at 8:44 AM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+>
+> On 10/22/2016 06:17 PM, Christoph Hellwig wrote:
+>> We want to be able to use a sleeping lock for freeing vmap to keep
+>> latency down.  For this we need to use the deferred vfree mechanisms
+>> no only from interrupt, but from any atomic context.
+>>
+>> Signed-off-by: Christoph Hellwig <hch@lst.de>
+>> ---
+>>  mm/vmalloc.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index a4e2cec..bcc1a64 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1509,7 +1509,7 @@ void vfree(const void *addr)
+>>
+>>       if (!addr)
+>>               return;
+>> -     if (unlikely(in_interrupt())) {
+>> +     if (unlikely(in_atomic())) {
+>
+> in_atomic() cannot always detect atomic context, thus it shouldn't be used here.
+> You can add something like vfree_in_atomic() and use it in atomic call sites.
+>
 
-My rationale was that we have no idea whether architectures will have pkey
-support in future, and if/when they do, we may have to apply additional checks
-anyhow. i.e. in cases we'd return -ENOSPC today, we might want to return
-another error code.
+So because in_atomic doesn't work for !CONFIG_PREEMPT kernels, can we
+always defer the work in these cases?
 
-Returning -ENOSYS retains the current behaviour, and allows us to handle that
-ABI issue when we know what architecture support looks like.
+So for non-preemptible kernels, we always defer:
 
-Other architectures not using the generic syscalls seem to handle this with
--ENOSYS, e.g. parisc with commit 18088db042dd9ae2, so there's differing
-behaviour regardless of arm specifically.
+if (!IS_ENABLED(CONFIG_PREEMPT) || in_atomic()) {
+  // defer
+}
 
-> An application that _wants_ to use protection keys but can't needs to handle
-> -ENOSPC anyway.
-
-Sure, and that application *also* has to handle -ENOSYS, given current kernels.
-
-> On an architecture that will never support pkeys, it makes sense to do
-> -ENOSYS, but that's not the case for arm, right?
-
-I don't know whether arm or other architectures will have (user-accessible)
-pkey-like suport.
+Is this fine? Or any other ideas?
 
 Thanks,
-Mark.
+Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
