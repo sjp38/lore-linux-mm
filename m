@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E6986B025E
-	for <linux-mm@kvack.org>; Sun,  6 Nov 2016 04:42:51 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id l124so42949970wml.4
-        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 01:42:51 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id ui11si24073763wjb.278.2016.11.06.01.42.49
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B57A6B025E
+	for <linux-mm@kvack.org>; Sun,  6 Nov 2016 09:09:09 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id y143so236342842oie.3
+        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 06:09:09 -0800 (PST)
+Received: from gateway22.websitewelcome.com (gateway22.websitewelcome.com. [192.185.46.126])
+        by mx.google.com with ESMTPS id 22si12611561oti.55.2016.11.06.06.09.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Nov 2016 01:42:49 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id c17so11106357wmc.3
-        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 01:42:49 -0800 (PST)
+        Sun, 06 Nov 2016 06:09:08 -0800 (PST)
+Received: from cm5.websitewelcome.com (unknown [108.167.139.22])
+	by gateway22.websitewelcome.com (Postfix) with ESMTP id 17784FA275423
+	for <linux-mm@kvack.org>; Sun,  6 Nov 2016 08:06:01 -0600 (CST)
+Message-ID: <b714bf30ee6577c5006f347b12b4f2fe.squirrel@webmail.raithlin.com>
+In-Reply-To: <20161025211903.GD14023@dastard>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+    <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com>
+    <20161019184814.GC16550@cgy1-donard.priv.deltatee.com>
+    <20161020232239.GQ23194@dastard> <20161021095714.GA12209@infradead.org>
+    <20161021111253.GQ14023@dastard>
+    <20161025115043.GA14986@cgy1-donard.priv.deltatee.com>
+    <20161025211903.GD14023@dastard>
+Date: Sun, 6 Nov 2016 08:05:59 -0600
+Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
+From: "Stephen Bates" <sbates@raithlin.com>
 MIME-Version: 1.0
-In-Reply-To: <87lgwxo5u9.fsf@tassilo.jf.intel.com>
-References: <20161105144946.3b4be0ee799ae61a82e1d918@gmail.com> <87lgwxo5u9.fsf@tassilo.jf.intel.com>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Sun, 6 Nov 2016 10:42:49 +0100
-Message-ID: <CAMJBoFNWV92c5B3HLJ=6wgNNUJFpTUgu3qf1mWgYxTEhfaA_LA@mail.gmail.com>
-Subject: Re: [PATCH/RFC] z3fold: use per-page read/write lock
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Stephen Bates <sbates@raithlin.com>, Christoph Hellwig <hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
 
-On Sun, Nov 6, 2016 at 12:38 AM, Andi Kleen <andi@firstfloor.org> wrote:
-> Vitaly Wool <vitalywool@gmail.com> writes:
+On Tue, October 25, 2016 3:19 pm, Dave Chinner wrote:
+> On Tue, Oct 25, 2016 at 05:50:43AM -0600, Stephen Bates wrote:
+>>
+>> Dave are you saying that even for local mappings of files on a DAX
+>> capable system it is possible for the mappings to move on you unless the
+>> FS supports locking?
+>>
 >
->> Most of z3fold operations are in-page, such as modifying z3fold
->> page header or moving z3fold objects within a page. Taking
->> per-pool spinlock to protect per-page objects is therefore
->> suboptimal, and the idea of having a per-page spinlock (or rwlock)
->> has been around for some time. However, adding one directly to the
->> z3fold header makes the latter quite big on some systems so that
->> it won't fit in a signle chunk.
+> Yes.
 >
->> +     atomic_t page_lock;
 >
-> This doesnt make much sense. A standard spinlock is not bigger
-> than 4 bytes either. Also reinventing locks is usually a bad
-> idea: they are tricky to get right, you have no debugging support,
-> hard to analyze, etc.
+>> Does that not mean DAX on such FS is
+>> inherently broken?
+>
+> No. DAX is accessed through a virtual mapping layer that abstracts
+> the physical location from userspace applications.
+>
+> Example: think copy-on-write overwrites. It occurs atomically from
+> the perspective of userspace and starts by invalidating any current
+> mappings userspace has of that physical location. The location is changes,
+> the data copied in, and then when the locks are released userspace can
+> fault in a new page table mapping on the next access....
 
-I understand the reinvention part but you're not quite accurate here
-with the numbers.
+Dave
 
-E. g. on x86_64:
-(gdb) p sizeof(rwlock_t)
-$1 = 8
+Thanks for the good input and for correcting some of my DAX
+misconceptions! We will certainly be taking this into account as we
+consider v1.
 
-I believe a DIY lock is justified here, since the variant with
-rwlock_t actually caused complaints from kbuild test robot building
-the previous version of this patch [1] with gcc-6.0 for x86_64:
+>
+>>>> And at least for XFS we have such a mechanism :)  E.g. I have a
+>>>> prototype of a pNFS layout that uses XFS+DAX to allow clients to do
+>>>> RDMA directly to XFS files, with the same locking mechanism we use
+>>>> for the current block and scsi layout in xfs_pnfs.c.
+>>
+>> Thanks for fixing this issue on XFS Christoph! I assume this problem
+>> continues to exist on the other DAX capable FS?
+>
+> Yes, but it they implement the exportfs API that supplies this
+> capability, they'll be able to use pNFS, too.
+>
+>> One more reason to consider a move to /dev/dax I guess ;-)...
+>>
+>
+> That doesn't get rid of the need for sane access control arbitration
+> across all machines that are directly accessing the storage. That's the
+> problem pNFS solves, regardless of whether your direct access target is a
+> filesystem, a block device or object storage...
 
- In file included from arch/x86/include/asm/atomic.h:4:0,
-                    from include/linux/atomic.h:4,
-                    from mm/z3fold.c:25:
-   mm/z3fold.c: In function 'init_z3fold':
->> include/linux/compiler.h:518:38: error: call to '__compiletime_assert_808' declared with attribute error: BUILD_BUG_ON failed: sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED
+Fair point. I am still hoping for a bit more discussion on the best choice
+of user-space interface for this work. If/When that happens we will take
+it into account when we look at spinning the patchset.
 
-~vitaly
 
-[1] https://patchwork.kernel.org/patch/9384871/
+Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
