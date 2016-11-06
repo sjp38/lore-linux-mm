@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DCC56B0261
-	for <linux-mm@kvack.org>; Sat,  5 Nov 2016 20:20:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l66so32079598pfl.7
-        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 17:20:37 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AC7A6B0261
+	for <linux-mm@kvack.org>; Sat,  5 Nov 2016 20:55:42 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id bi5so38161922pad.0
+        for <linux-mm@kvack.org>; Sat, 05 Nov 2016 17:55:42 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id h187si24585682pgc.329.2016.11.05.17.20.36
+        by mx.google.com with ESMTPS id f1si24710862pge.132.2016.11.05.17.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 05 Nov 2016 17:20:36 -0700 (PDT)
-Date: Sun, 6 Nov 2016 08:20:21 +0800
+        Sat, 05 Nov 2016 17:55:41 -0700 (PDT)
+Date: Sun, 6 Nov 2016 08:54:56 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should be a
- 14-bit integer (-8192-8191)
-Message-ID: <201611060812.6CiL4SCy%fengguang.wu@intel.com>
+Subject: arch/ia64/kernel/fsys.S:67: Error: Operand 3 of `add' should be a
+ general register r0-r3
+Message-ID: <201611060845.MBY9yU3V%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="envbJBWh7q8WU6mo"
+Content-Type: multipart/mixed; boundary="ew6BAiZeqk4r7MaW"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,7 +23,7 @@ To: Will Deacon <will.deacon@arm.com>
 Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---envbJBWh7q8WU6mo
+--ew6BAiZeqk4r7MaW
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -32,7 +32,7 @@ Hi Will,
 FYI, the error/warning still remains.
 
 tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   fb415f222c26d0d1fa19615af1d102bf5f5b3ca2
+head:   ffbcbfca846ed117e3d4009acfbf1e1590c56b2f
 commit: da48d094ce5d7c7dcdad9011648a81c42fd1c2ef Kconfig: remove HAVE_LATENCYTOP_SUPPORT
 date:   10 months ago
 config: ia64-allmodconfig (attached as .config)
@@ -46,43 +46,42 @@ reproduce:
 
 All errors (new ones prefixed by >>):
 
-   arch/ia64/kernel/entry.S: Assembler messages:
->> arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
-   arch/ia64/kernel/entry.S:728: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
-   arch/ia64/kernel/entry.S:859: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
---
-   arch/ia64/kernel/ivt.S: Assembler messages:
->> arch/ia64/kernel/ivt.S:759: Error: Operand 3 of `add' should be a general register r0-r3
+   arch/ia64/kernel/fsys.S: Assembler messages:
+>> arch/ia64/kernel/fsys.S:67: Error: Operand 3 of `add' should be a general register r0-r3
+   arch/ia64/kernel/fsys.S:97: Error: Operand 3 of `add' should be a general register r0-r3
+   arch/ia64/kernel/fsys.S:193: Error: Operand 3 of `add' should be a general register r0-r3
+   arch/ia64/kernel/fsys.S:336: Error: Operand 3 of `add' should be a general register r0-r3
+   arch/ia64/kernel/fsys.S:338: Error: Operand 3 of `add' should be a general register r0-r3
 
-vim +621 arch/ia64/kernel/entry.S
+vim +67 arch/ia64/kernel/fsys.S
 
-^1da177e Linus Torvalds 2005-04-16  605  	PT_REGS_UNWIND_INFO(0)
-^1da177e Linus Torvalds 2005-04-16  606  {	/*
-^1da177e Linus Torvalds 2005-04-16  607  	 * Some versions of gas generate bad unwind info if the first instruction of a
-^1da177e Linus Torvalds 2005-04-16  608  	 * procedure doesn't go into the first slot of a bundle.  This is a workaround.
-^1da177e Linus Torvalds 2005-04-16  609  	 */
-^1da177e Linus Torvalds 2005-04-16  610  	nop.m 0
-^1da177e Linus Torvalds 2005-04-16  611  	nop.i 0
-^1da177e Linus Torvalds 2005-04-16  612  	/*
-^1da177e Linus Torvalds 2005-04-16  613  	 * We need to call schedule_tail() to complete the scheduling process.
-^1da177e Linus Torvalds 2005-04-16  614  	 * Called by ia64_switch_to() after do_fork()->copy_thread().  r8 contains the
-^1da177e Linus Torvalds 2005-04-16  615  	 * address of the previously executing task.
-^1da177e Linus Torvalds 2005-04-16  616  	 */
-^1da177e Linus Torvalds 2005-04-16  617  	br.call.sptk.many rp=ia64_invoke_schedule_tail
-^1da177e Linus Torvalds 2005-04-16  618  }
-^1da177e Linus Torvalds 2005-04-16  619  .ret8:
-54d496c3 Al Viro        2012-10-14  620  (pKStk)	br.call.sptk.many rp=call_payload
-^1da177e Linus Torvalds 2005-04-16 @621  	adds r2=TI_FLAGS+IA64_TASK_SIZE,r13
-^1da177e Linus Torvalds 2005-04-16  622  	;;
-^1da177e Linus Torvalds 2005-04-16  623  	ld4 r2=[r2]
-^1da177e Linus Torvalds 2005-04-16  624  	;;
-^1da177e Linus Torvalds 2005-04-16  625  	mov r8=0
-^1da177e Linus Torvalds 2005-04-16  626  	and r2=_TIF_SYSCALL_TRACEAUDIT,r2
-^1da177e Linus Torvalds 2005-04-16  627  	;;
-^1da177e Linus Torvalds 2005-04-16  628  	cmp.ne p6,p0=r2,r0
-^1da177e Linus Torvalds 2005-04-16  629  (p6)	br.cond.spnt .strace_check_retval
+^1da177e Linus Torvalds  2005-04-16  51  ENTRY(fsys_ni_syscall)
+^1da177e Linus Torvalds  2005-04-16  52  	.prologue
+^1da177e Linus Torvalds  2005-04-16  53  	.altrp b6
+^1da177e Linus Torvalds  2005-04-16  54  	.body
+^1da177e Linus Torvalds  2005-04-16  55  	mov r8=ENOSYS
+^1da177e Linus Torvalds  2005-04-16  56  	mov r10=-1
+^1da177e Linus Torvalds  2005-04-16  57  	FSYS_RETURN
+^1da177e Linus Torvalds  2005-04-16  58  END(fsys_ni_syscall)
+^1da177e Linus Torvalds  2005-04-16  59  
+^1da177e Linus Torvalds  2005-04-16  60  ENTRY(fsys_getpid)
+^1da177e Linus Torvalds  2005-04-16  61  	.prologue
+^1da177e Linus Torvalds  2005-04-16  62  	.altrp b6
+^1da177e Linus Torvalds  2005-04-16  63  	.body
+96ded9da Pavel Emelyanov 2008-03-28  64  	add r17=IA64_TASK_GROUP_LEADER_OFFSET,r16
+96ded9da Pavel Emelyanov 2008-03-28  65  	;;
+96ded9da Pavel Emelyanov 2008-03-28  66  	ld8 r17=[r17]				// r17 = current->group_leader
+^1da177e Linus Torvalds  2005-04-16 @67  	add r9=TI_FLAGS+IA64_TASK_SIZE,r16
+^1da177e Linus Torvalds  2005-04-16  68  	;;
+^1da177e Linus Torvalds  2005-04-16  69  	ld4 r9=[r9]
+96ded9da Pavel Emelyanov 2008-03-28  70  	add r17=IA64_TASK_TGIDLINK_OFFSET,r17
+^1da177e Linus Torvalds  2005-04-16  71  	;;
+^1da177e Linus Torvalds  2005-04-16  72  	and r9=TIF_ALLWORK_MASK,r9
+96ded9da Pavel Emelyanov 2008-03-28  73  	ld8 r17=[r17]				// r17 = current->group_leader->pids[PIDTYPE_PID].pid
+96ded9da Pavel Emelyanov 2008-03-28  74  	;;
+96ded9da Pavel Emelyanov 2008-03-28  75  	add r8=IA64_PID_LEVEL_OFFSET,r17
 
-:::::: The code at line 621 was first introduced by commit
+:::::: The code at line 67 was first introduced by commit
 :::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
 
 :::::: TO: Linus Torvalds <torvalds@ppc970.osdl.org>
@@ -92,12 +91,12 @@ vim +621 arch/ia64/kernel/entry.S
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---envbJBWh7q8WU6mo
+--ew6BAiZeqk4r7MaW
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICHdxHlgAAy5jb25maWcAlFxbk9u4jn6fX+HK7MNM1Z5JutPxZHarHyiKsrmWREWk3JcX
+H4sICMxzHlgAAy5jb25maWcAlFxbk9u4jn6fX+HK7MNM1Z5JutPxZHarHyiKsrmWREWk3JcX
 ldNxMl3TbWfdzszJv1+AuoEUZWdfEgsfCN4AEACl/vmnn2fs23H/vDk+Pmyenr7Pvmx328Pm
 uP00+/z4tP3vWaxmuTIzEUvzGzCnj7tv/379uJlfza5+u/rtzWy1Pey2TzO+331+/PINWj7u
 dz/9/BNXeSIXdbEwLEpFnYq1SPX1244ei6T9lUptrl+9fnr8+Pp5/+nb0/bl9X9UOctEXYpU
@@ -880,7 +879,7 @@ GB70tMQ4C/nVQPuLgL70SR0w2lIerMKipDdqKw/v2ZZ85V2mSWlfm0G0MJguPy4thA43Cc0/
 6PULCV18jKYGhJGxIkeGAhoiceB4s7CefjgKG1pfkjhqBeho/DEeG/Bo+DFia1WBHjWRc5WR
 gxvHWIEjS4Ts7TN8jkSdQAP6/8wOEMTHiQIA
 
---envbJBWh7q8WU6mo--
+--ew6BAiZeqk4r7MaW--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
