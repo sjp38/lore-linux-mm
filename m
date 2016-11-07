@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 449B46B0253
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 18:32:11 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id n85so57780986pfi.4
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:11 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id e80si33427896pfl.8.2016.11.07.15.32.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E32B6B025E
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 18:32:14 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id i88so57415016pfk.3
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:14 -0800 (PST)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id a2si33437364pgn.278.2016.11.07.15.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 15:32:10 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id x23so1249764pgx.3
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:10 -0800 (PST)
+        Mon, 07 Nov 2016 15:32:13 -0800 (PST)
+Received: by mail-pf0-x243.google.com with SMTP id i88so17317825pfk.2
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:13 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 02/12] mm: mempolicy: add queue_pages_node_check()
-Date: Tue,  8 Nov 2016 08:31:47 +0900
-Message-Id: <1478561517-4317-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 03/12] mm: thp: introduce separate TTU flag for thp freezing
+Date: Tue,  8 Nov 2016 08:31:48 +0900
+Message-Id: <1478561517-4317-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,62 +22,75 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Introduce a separate check routine related to MPOL_MF_INVERT flag. This patch
-just does cleanup, no behavioral change.
+TTU_MIGRATION is used to convert pte into migration entry until thp split
+completes. This behavior conflicts with thp migration added later patches,
+so let's introduce a new TTU flag specifically for freezing.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- mm/mempolicy.c | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ include/linux/rmap.h | 1 +
+ mm/huge_memory.c     | 2 +-
+ mm/rmap.c            | 8 +++++---
+ 3 files changed, 7 insertions(+), 4 deletions(-)
 
-diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
-index 6d3639e..77d0668 100644
---- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c
-+++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
-@@ -477,6 +477,15 @@ struct queue_pages {
- 	struct vm_area_struct *prev;
- };
+diff --git v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/rmap.h v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/rmap.h
+index b46bb56..a2fa425 100644
+--- v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/rmap.h
++++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/rmap.h
+@@ -87,6 +87,7 @@ enum ttu_flags {
+ 	TTU_MUNLOCK = 4,		/* munlock mode */
+ 	TTU_LZFREE = 8,			/* lazy free mode */
+ 	TTU_SPLIT_HUGE_PMD = 16,	/* split huge PMD if any */
++	TTU_SPLIT_FREEZE = 32,		/* freeze pte under splitting thp */
  
-+static inline bool queue_pages_node_check(struct page *page,
-+					struct queue_pages *qp)
-+{
-+	int nid = page_to_nid(page);
-+	unsigned long flags = qp->flags;
-+
-+	return node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT);
-+}
-+
- /*
-  * Scan through pages checking if pages follow certain conditions,
-  * and move them to the pagelist if they do.
-@@ -530,8 +539,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+ 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
+index 2d1d6bb..0509d17 100644
+--- v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c
++++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
+@@ -1794,7 +1794,7 @@ static void freeze_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 
+ 	if (PageAnon(page))
+-		ttu_flags |= TTU_MIGRATION;
++		ttu_flags |= TTU_SPLIT_FREEZE;
+ 
+ 	/* We only need TTU_SPLIT_HUGE_PMD once */
+ 	ret = try_to_unmap(page, ttu_flags | TTU_SPLIT_HUGE_PMD);
+diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/rmap.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/rmap.c
+index 1ef3640..a4be307 100644
+--- v4.9-rc2-mmotm-2016-10-27-18-27/mm/rmap.c
++++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/rmap.c
+@@ -1449,7 +1449,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 	if (flags & TTU_SPLIT_HUGE_PMD) {
+ 		split_huge_pmd_address(vma, address,
+-				flags & TTU_MIGRATION, page);
++				flags & TTU_SPLIT_FREEZE, page);
+ 		/* check if we have anything to do after split */
+ 		if (page_mapcount(page) == 0)
+ 			goto out;
+@@ -1527,7 +1527,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		 * will take care of the rest.
  		 */
- 		if (PageReserved(page))
- 			continue;
--		nid = page_to_nid(page);
--		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
-+		if (queue_pages_node_check(page, qp))
- 			continue;
- 		if (PageTransCompound(page)) {
- 			get_page(page);
-@@ -563,7 +571,6 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
- #ifdef CONFIG_HUGETLB_PAGE
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
--	int nid;
- 	struct page *page;
- 	spinlock_t *ptl;
- 	pte_t entry;
-@@ -573,8 +580,7 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
- 	if (!pte_present(entry))
- 		goto unlock;
- 	page = pte_page(entry);
--	nid = page_to_nid(page);
--	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
-+	if (queue_pages_node_check(page, qp))
- 		goto unlock;
- 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
- 	if (flags & (MPOL_MF_MOVE_ALL) ||
+ 		dec_mm_counter(mm, mm_counter(page));
+-	} else if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION)) {
++	} else if (IS_ENABLED(CONFIG_MIGRATION) &&
++		   (flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
+ 		swp_entry_t entry;
+ 		pte_t swp_pte;
+ 		/*
+@@ -1649,7 +1650,8 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	 * locking requirements of exec(), migration skips
+ 	 * temporary VMAs until after exec() completes.
+ 	 */
+-	if ((flags & TTU_MIGRATION) && !PageKsm(page) && PageAnon(page))
++	if ((flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))
++	    && !PageKsm(page) && PageAnon(page))
+ 		rwc.invalid_vma = invalid_migration_vma;
+ 
+ 	if (flags & TTU_RMAP_LOCKED)
 -- 
 2.7.0
 
