@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 710846B0253
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 14:08:01 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so66740752wmu.1
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 11:08:01 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B286B025E
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 14:08:03 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id l124so67348126wml.4
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 11:08:03 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id nc5si26835617wjb.223.2016.11.07.11.07.59
+        by mx.google.com with ESMTPS id 9si12148682wmr.69.2016.11.07.11.08.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 11:08:00 -0800 (PST)
+        Mon, 07 Nov 2016 11:08:02 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem collapse error path
-Date: Mon,  7 Nov 2016 14:07:36 -0500
-Message-Id: <20161107190741.3619-2-hannes@cmpxchg.org>
+Subject: [PATCH 2/6] mm: workingset: turn shadow node shrinker bugs into warnings
+Date: Mon,  7 Nov 2016 14:07:37 -0500
+Message-Id: <20161107190741.3619-3-hannes@cmpxchg.org>
 In-Reply-To: <20161107190741.3619-1-hannes@cmpxchg.org>
 References: <20161107190741.3619-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,34 +20,58 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-The radix tree counts valid entries in each tree node. Entries stored
-in the tree cannot be removed by simpling storing NULL in the slot or
-the internal counters will be off and the node never gets freed again.
+When the shadow page shrinker tries to reclaim a radix tree node but
+finds it in an unexpected state - it should contain no pages, and
+non-zero shadow entries - there is no need to kill the executing task
+or even the entire system. Warn about the invalid state, then leave
+that tree node be. Simply don't put it back on the shadow LRU for
+future reclaim and move on.
 
-When collapsing a shmem page fails, restore the holes that were filled
-with radix_tree_insert() with a proper radix tree deletion.
-
-Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
-Reported-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/khugepaged.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/workingset.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 728d7790dc2d..eac6f0580e26 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1520,7 +1520,8 @@ static void collapse_shmem(struct mm_struct *mm,
- 				if (!nr_none)
- 					break;
- 				/* Put holes back where they were */
--				radix_tree_replace_slot(slot, NULL);
-+				radix_tree_delete(&mapping->page_tree,
-+						  iter.index);
- 				nr_none--;
- 				continue;
- 			}
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 617475f529f4..3cfc61d84a52 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -418,23 +418,27 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 	 * no pages, so we expect to be able to remove them all and
+ 	 * delete and free the empty node afterwards.
+ 	 */
+-	BUG_ON(!workingset_node_shadows(node));
+-	BUG_ON(workingset_node_pages(node));
+-
++	if (WARN_ON_ONCE(!workingset_node_shadows(node)))
++		goto out_invalid;
++	if (WARN_ON_ONCE(workingset_node_pages(node)))
++		goto out_invalid;
+ 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+ 		if (node->slots[i]) {
+-			BUG_ON(!radix_tree_exceptional_entry(node->slots[i]));
++			if (WARN_ON_ONCE(!radix_tree_exceptional_entry(node->slots[i])))
++				goto out_invalid;
++			if (WARN_ON_ONCE(!mapping->nrexceptional))
++				goto out_invalid;
+ 			node->slots[i] = NULL;
+ 			workingset_node_shadows_dec(node);
+-			BUG_ON(!mapping->nrexceptional);
+ 			mapping->nrexceptional--;
+ 		}
+ 	}
+-	BUG_ON(workingset_node_shadows(node));
++	if (WARN_ON_ONCE(workingset_node_shadows(node)))
++		goto out_invalid;
+ 	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
+-	if (!__radix_tree_delete_node(&mapping->page_tree, node))
+-		BUG();
++	__radix_tree_delete_node(&mapping->page_tree, node);
+ 
++out_invalid:
+ 	spin_unlock(&mapping->tree_lock);
+ 	ret = LRU_REMOVED_RETRY;
+ out:
 -- 
 2.10.1
 
