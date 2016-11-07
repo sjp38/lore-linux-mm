@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1EC6B025E
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 16:20:22 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id i88so55927151pfk.3
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 13:20:22 -0800 (PST)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id p28si32924776pfi.270.2016.11.07.13.11.49
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C40DF6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 17:19:21 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id i88so56548961pfk.3
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 14:19:21 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n19si4245022pfk.284.2016.11.07.14.19.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 13:11:49 -0800 (PST)
-Received: by mail-pf0-x22a.google.com with SMTP id d2so96021057pfd.0
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 13:11:49 -0800 (PST)
-From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH v3 2/2] mm: Check kmem_create_cache flags are commons
-Date: Mon,  7 Nov 2016 13:11:15 -0800
-Message-Id: <1478553075-120242-2-git-send-email-thgarnie@google.com>
+        Mon, 07 Nov 2016 14:19:20 -0800 (PST)
+Date: Mon, 7 Nov 2016 14:19:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 1/2] memcg: Prevent memcg caches to be both OFF_SLAB
+ & OBJFREELIST_SLAB
+Message-Id: <20161107141919.fe50cef419918c7a4660f3c2@linux-foundation.org>
 In-Reply-To: <1478553075-120242-1-git-send-email-thgarnie@google.com>
 References: <1478553075-120242-1-git-send-email-thgarnie@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, vdavydov.dev@gmail.com, mhocko@kernel.org, Thomas Garnier <thgarnie@google.com>
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, vdavydov.dev@gmail.com, mhocko@kernel.org
 
-Verify that kmem_create_cache flags are not allocator specific. It is
-done before removing flags that are not available with the current
-configuration.
+On Mon,  7 Nov 2016 13:11:14 -0800 Thomas Garnier <thgarnie@google.com> wrote:
 
-Signed-off-by: Thomas Garnier <thgarnie@google.com>
----
-Based on next-20161027
----
- mm/slab.h        | 15 +++++++++++++++
- mm/slab_common.c |  6 ++++++
- 2 files changed, 21 insertions(+)
+> From: Greg Thelen <gthelen@google.com>
+> 
+> While testing OBJFREELIST_SLAB integration with pagealloc, we found a
+> bug where kmem_cache(sys) would be created with both CFLGS_OFF_SLAB &
+> CFLGS_OBJFREELIST_SLAB.
+> 
+> The original kmem_cache is created early making OFF_SLAB not possible.
+> When kmem_cache(sys) is created, OFF_SLAB is possible and if pagealloc
+> is enabled it will try to enable it first under certain conditions.
+> Given kmem_cache(sys) reuses the original flag, you can have both flags
+> at the same time resulting in allocation failures and odd behaviors.
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 9653f2e..3b11896 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -142,8 +142,23 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
- #define SLAB_CACHE_FLAGS (0)
- #endif
- 
-+/* Common flags available with current configuration */
- #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
- 
-+/* Common flags permitted for kmem_cache_create */
-+#define SLAB_FLAGS_PERMITTED (SLAB_CORE_FLAGS | \
-+			      SLAB_RED_ZONE | \
-+			      SLAB_POISON | \
-+			      SLAB_STORE_USER | \
-+			      SLAB_TRACE | \
-+			      SLAB_CONSISTENCY_CHECKS | \
-+			      SLAB_MEM_SPREAD | \
-+			      SLAB_NOLEAKTRACE | \
-+			      SLAB_RECLAIM_ACCOUNT | \
-+			      SLAB_TEMPORARY | \
-+			      SLAB_NOTRACK | \
-+			      SLAB_ACCOUNT)
-+
- int __kmem_cache_shutdown(struct kmem_cache *);
- void __kmem_cache_release(struct kmem_cache *);
- int __kmem_cache_shrink(struct kmem_cache *, bool);
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 329b038..5e01994 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -404,6 +404,12 @@ kmem_cache_create(const char *name, size_t size, size_t align,
- 		goto out_unlock;
- 	}
- 
-+	/* Refuse requests with allocator specific flags */
-+	if (flags & ~SLAB_FLAGS_PERMITTED) {
-+		err = -EINVAL;
-+		goto out_unlock;
-+	}
-+
- 	/*
- 	 * Some allocators will constraint the set of valid flags to a subset
- 	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
--- 
-2.8.0.rc3.226.g39d4020
+Can we please have a better description of the problems which this bug
+causes?  Without this info it's unclear to me which kernel version(s)
+need the fix.
+
+Given that the bug is 6 months old I'm assuming "not very urgent".
+
+> This fix discards allocator specific flags from memcg before calling
+> create_cache.
+> 
+> Fixes: b03a017bebc4 ("mm/slab: introduce new slab management type, OBJFREELIST_SLAB")
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> Tested-by: Thomas Garnier <thgarnie@google.com>
+
+This should have had your signed-off-by, as you were on the delivery
+path.  I've made that change.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
