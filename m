@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8406C6B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 01:23:10 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 144so22968728pfv.5
-        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 22:23:10 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id fc3si24639336pab.267.2016.11.06.22.23.09
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6FB26B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 02:19:30 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y68so45721547pfb.6
+        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 23:19:30 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id x18si29625077pfi.296.2016.11.06.23.14.52
         for <linux-mm@kvack.org>;
-        Sun, 06 Nov 2016 22:23:09 -0800 (PST)
-Date: Mon, 7 Nov 2016 15:25:01 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6 0/6] Introduce ZONE_CMA
-Message-ID: <20161107062501.GB21159@js1304-P5Q-DELUXE>
+        Sun, 06 Nov 2016 23:19:29 -0800 (PST)
+Subject: Re: [PATCH v6 2/6] mm/cma: introduce new zone, ZONE_CMA
 References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476414196-3514-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <58184B28.8090405@hisilicon.com> <20161107061500.GA21159@js1304-P5Q-DELUXE>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <58202881.5030004@hisilicon.com>
+Date: Mon, 7 Nov 2016 15:08:49 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20161107061500.GA21159@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura
+ Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek
+ Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 14, 2016 at 12:03:10PM +0900, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+
+On 2016/11/7 14:15, Joonsoo Kim wrote:
+> On Tue, Nov 01, 2016 at 03:58:32PM +0800, Chen Feng wrote:
+>> Hello, I hava a question on cma zone.
+>>
+>> When we have cma zone, cma zone will be the highest zone of system.
+>>
+>> In android system, the most memory allocator is ION. Media system will
+>> alloc unmovable memory from it.
+>>
+>> On low memory scene, will the CMA zone always do balance?
 > 
-> Hello,
+> Allocation request for low zone (normal zone) would not cause CMA zone
+> to be balanced since it isn't helpful.
 > 
-> Changes from v5
-> o Add acked/reviewed-by tag from Vlastimil and Aneesh
-> o Rebase on next-20161013
-> o Cosmetic change on patch 1
-> o Optimize span of ZONE_CMA on multiple node system
+Yes. But the cma zone will run out soon. And it always need to do balance.
 
-Hello, Andrew.
+How about use migrate cma before movable and let cma type to fallback movable.
 
-I got some acked/reviewed-by tags from some of main MM developers who
-are actually familiar/associated with this change. Could you merge
-this patchset to your tree to get more test coverage?
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1263745.html
 
-If I need to do more things to merge this patchset, please let me know
-about it.
-
-Thanks.
+>> Should we transmit the highest available zone to kswapdi 1/4 ?
+> 
+> It is already done when necessary.
+> 
+> Thanks.
+> 
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
