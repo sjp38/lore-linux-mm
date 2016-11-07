@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1C406B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 10:02:10 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y68so51438690pfb.6
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 07:02:10 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 3si31769028pfd.50.2016.11.07.07.02.10
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C806B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 10:09:49 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a20so20943573wme.5
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 07:09:49 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id b197si11007965wmb.95.2016.11.07.07.09.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 07:02:10 -0800 (PST)
-Date: Mon, 7 Nov 2016 07:01:03 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
- do_generic_file_read()
-Message-ID: <20161107150103.GA17451@infradead.org>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
- <20161013093313.GB26241@quack2.suse.cz>
- <20161031181035.GA7007@node.shutemov.name>
- <20161101163940.GA5459@quack2.suse.cz>
- <20161102143612.GA4790@infradead.org>
- <20161107111305.GB13280@node.shutemov.name>
+        Mon, 07 Nov 2016 07:09:48 -0800 (PST)
+Date: Mon, 7 Nov 2016 16:09:47 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 4/7] mm: defer vmalloc from atomic context
+Message-ID: <20161107150947.GA11279@lst.de>
+References: <1477149440-12478-1-git-send-email-hch@lst.de> <1477149440-12478-5-git-send-email-hch@lst.de> <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com> <CAJWu+oppRL5kD9qPcdCbFAbEkE7bN+kmrvTuaueVZnY+WtK_tg@mail.gmail.com> <a40cccff-3a6e-b0be-5d06-bac6cdb0e1e6@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161107111305.GB13280@node.shutemov.name>
+In-Reply-To: <a40cccff-3a6e-b0be-5d06-bac6cdb0e1e6@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Joel Fernandes <joelaf@google.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>
 
-On Mon, Nov 07, 2016 at 02:13:05PM +0300, Kirill A. Shutemov wrote:
-> It looks like a huge limitation to me.
+On Mon, Nov 07, 2016 at 06:01:45PM +0300, Andrey Ryabinin wrote:
+> > So because in_atomic doesn't work for !CONFIG_PREEMPT kernels, can we
+> > always defer the work in these cases?
+> > 
+> > So for non-preemptible kernels, we always defer:
+> > 
+> > if (!IS_ENABLED(CONFIG_PREEMPT) || in_atomic()) {
+> >   // defer
+> > }
+> > 
+> > Is this fine? Or any other ideas?
+> > 
+> 
+> What's wrong with my idea?
+> We can add vfree_in_atomic() and use it to free vmapped stacks
+> and for any other places where vfree() used 'in_atomict() && !in_interrupt()' context.
 
-The DAX PMD fault code can live just fine with it.  And without it
-performance would suck anyway.
+I somehow missed the mail, sorry.  That beeing said always defer is
+going to suck badly in terms of performance, so I'm not sure it's an all
+that good idea.
 
-> I'm looking onto iomap_write_actor(): we still calculate 'offset' and
-> 'bytes' based on PAGE_SIZE before we even get the page.
-> This way we limit outself to PAGE_SIZE per-iteration.
-
-Of course it does, given that it does not support huge pages _yet_.
-But the important part is that this is now isolate to the highlevel
-code, and the fs can get iomap_begin calls for a huge page (or in fact
-much larger sizes than that).
+vfree_in_atomic sounds good, but I wonder if we'll need to annotate
+more callers than just the stacks.  I'm fairly bust this week, do you
+want to give that a spin?  Otherwise I'll give it a try towards the
+end of this week or next week.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
