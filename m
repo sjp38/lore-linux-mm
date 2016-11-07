@@ -1,84 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F606B0038
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 19:46:06 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 144so37002428pfv.5
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 16:46:06 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a5si18293882pat.319.2016.11.07.15.44.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C41A6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 20:15:51 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 83so59514635pfx.1
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 17:15:51 -0800 (PST)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id b189si33431461pgc.333.2016.11.07.15.32.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 15:44:44 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA7NiIdh017218
-	for <linux-mm@kvack.org>; Mon, 7 Nov 2016 18:44:43 -0500
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26k2j9k38g-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 07 Nov 2016 18:44:43 -0500
-Received: from localhost
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 7 Nov 2016 18:44:43 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v6 1/4] powerpc/mm: allow memory hotplug into a memoryless node
-Date: Mon,  7 Nov 2016 17:44:33 -0600
-In-Reply-To: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
-Message-Id: <1478562276-25539-2-git-send-email-arbab@linux.vnet.ibm.com>
+        Mon, 07 Nov 2016 15:32:37 -0800 (PST)
+Received: by mail-pf0-x241.google.com with SMTP id 144so8955305pfv.0
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:37 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2 10/12] mm: mempolicy: mbind and migrate_pages support thp migration
+Date: Tue,  8 Nov 2016 08:31:55 +0900
+Message-Id: <1478561517-4317-11-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Remove the check which prevents us from hotplugging into an empty node.
+This patch enables thp migration for mbind(2) and migrate_pages(2).
 
-The original commit b226e4621245 ("[PATCH] powerpc: don't add memory to
-empty node/zone"), states that this was intended to be a temporary measure.
-It is a workaround for an oops which no longer occurs.
-
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- arch/powerpc/mm/numa.c | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ChangeLog v1 -> v2:
+- support pte-mapped and doubly-mapped thp
+---
+ mm/mempolicy.c | 108 +++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 79 insertions(+), 29 deletions(-)
 
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index a51c188..0cb6bd8 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -1085,7 +1085,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
- int hot_add_scn_to_nid(unsigned long scn_addr)
- {
- 	struct device_node *memory = NULL;
--	int nid, found = 0;
-+	int nid;
+diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
+index 77d0668..96507ee 100644
+--- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c
++++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
+@@ -94,6 +94,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/printk.h>
++#include <linux/swapops.h>
  
- 	if (!numa_enabled || (min_common_depth < 0))
- 		return first_online_node;
-@@ -1101,17 +1101,6 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
- 	if (nid < 0 || !node_online(nid))
- 		nid = first_online_node;
- 
--	if (NODE_DATA(nid)->node_spanned_pages)
--		return nid;
--
--	for_each_online_node(nid) {
--		if (NODE_DATA(nid)->node_spanned_pages) {
--			found = 1;
--			break;
--		}
--	}
--
--	BUG_ON(!found);
- 	return nid;
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -486,6 +487,49 @@ static inline bool queue_pages_node_check(struct page *page,
+ 	return node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT);
  }
  
++static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
++{
++	int ret = 0;
++	struct page *page;
++	struct queue_pages *qp = walk->private;
++	unsigned long flags;
++
++	if (unlikely(is_pmd_migration_entry(*pmd))) {
++		ret = 1;
++		goto unlock;
++	}
++	page = pmd_page(*pmd);
++	if (is_huge_zero_page(page)) {
++		spin_unlock(ptl);
++		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
++		goto out;
++	}
++	if (!thp_migration_supported()) {
++		get_page(page);
++		spin_unlock(ptl);
++		lock_page(page);
++		ret = split_huge_page(page);
++		unlock_page(page);
++		put_page(page);
++		goto out;
++	}
++	if (queue_pages_node_check(page, qp)) {
++		ret = 1;
++		goto unlock;
++	}
++
++	ret = 1;
++	flags = qp->flags;
++	/* go to thp migration */
++	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++		migrate_page_add(page, qp->pagelist, flags);
++unlock:
++	spin_unlock(ptl);
++out:
++	return ret;
++}
++
+ /*
+  * Scan through pages checking if pages follow certain conditions,
+  * and move them to the pagelist if they do.
+@@ -497,30 +541,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 	struct page *page;
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags = qp->flags;
+-	int nid, ret;
++	int ret;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
+-	if (pmd_trans_huge(*pmd)) {
+-		ptl = pmd_lock(walk->mm, pmd);
+-		if (pmd_trans_huge(*pmd)) {
+-			page = pmd_page(*pmd);
+-			if (is_huge_zero_page(page)) {
+-				spin_unlock(ptl);
+-				__split_huge_pmd(vma, pmd, addr, false, NULL);
+-			} else {
+-				get_page(page);
+-				spin_unlock(ptl);
+-				lock_page(page);
+-				ret = split_huge_page(page);
+-				unlock_page(page);
+-				put_page(page);
+-				if (ret)
+-					return 0;
+-			}
+-		} else {
+-			spin_unlock(ptl);
+-		}
++	ptl = pmd_trans_huge_lock(pmd, vma);
++	if (ptl) {
++		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
++		if (ret)
++			return 0;
+ 	}
+ 
+ 	if (pmd_trans_unstable(pmd))
+@@ -541,7 +570,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 			continue;
+ 		if (queue_pages_node_check(page, qp))
+ 			continue;
+-		if (PageTransCompound(page)) {
++		if (PageTransCompound(page) && !thp_migration_supported()) {
+ 			get_page(page);
+ 			pte_unmap_unlock(pte, ptl);
+ 			lock_page(page);
+@@ -959,19 +988,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 
+ #ifdef CONFIG_MIGRATION
+ /*
+- * page migration
++ * page migration, thp tail pages can be passed.
+  */
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags)
+ {
++	struct page *head = compound_head(page);
+ 	/*
+ 	 * Avoid migrating a page that is shared with others.
+ 	 */
+-	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
+-		if (!isolate_lru_page(page)) {
+-			list_add_tail(&page->lru, pagelist);
+-			inc_node_page_state(page, NR_ISOLATED_ANON +
+-					    page_is_file_cache(page));
++	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(head) == 1) {
++		if (!isolate_lru_page(head)) {
++			list_add_tail(&head->lru, pagelist);
++			mod_node_page_state(page_pgdat(head),
++				NR_ISOLATED_ANON + page_is_file_cache(head),
++				hpage_nr_pages(head));
+ 		}
+ 	}
+ }
+@@ -981,7 +1012,17 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
+ 	if (PageHuge(page))
+ 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+ 					node);
+-	else
++	else if (thp_migration_supported() && PageTransHuge(page)) {
++		struct page *thp;
++
++		thp = alloc_pages_node(node,
++			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
++			HPAGE_PMD_ORDER);
++		if (!thp)
++			return NULL;
++		prep_transhuge_page(thp);
++		return thp;
++	} else
+ 		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
+ 						    __GFP_THISNODE, 0);
+ }
+@@ -1147,6 +1188,15 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
+ 	if (PageHuge(page)) {
+ 		BUG_ON(!vma);
+ 		return alloc_huge_page_noerr(vma, address, 1);
++	} else if (thp_migration_supported() && PageTransHuge(page)) {
++		struct page *thp;
++
++		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
++					 HPAGE_PMD_ORDER);
++		if (!thp)
++			return NULL;
++		prep_transhuge_page(thp);
++		return thp;
+ 	}
+ 	/*
+ 	 * if !vma, alloc_page_vma() will use task or system default policy
 -- 
-1.8.3.1
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
