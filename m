@@ -1,131 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0476B0260
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 06:32:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id p190so58812372wmp.3
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:32:07 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id h5si28804140wjj.224.2016.11.07.03.32.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9951F6B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 06:39:48 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 144so26625693pfv.5
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:39:48 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t6si4949688pfa.280.2016.11.07.03.39.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 03:32:06 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id u144so15937866wmu.0
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:32:06 -0800 (PST)
-Date: Mon, 7 Nov 2016 14:07:36 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
- do_generic_file_read()
-Message-ID: <20161107110736.GA13280@node.shutemov.name>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
- <20161013093313.GB26241@quack2.suse.cz>
- <20161031181035.GA7007@node.shutemov.name>
- <20161101163940.GA5459@quack2.suse.cz>
- <20161102083204.GB13949@node.shutemov.name>
- <20161103204012.GC24234@quack2.suse.cz>
+        Mon, 07 Nov 2016 03:39:47 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA7Bcm6X079101
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2016 06:39:47 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26jnwkgth3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Nov 2016 06:39:47 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 7 Nov 2016 04:39:46 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] mm: move vma_is_anonymous check within pmd_move_must_withdraw
+In-Reply-To: <201611071732.njM40txT%fengguang.wu@intel.com>
+References: <201611071732.njM40txT%fengguang.wu@intel.com>
+Date: Mon, 07 Nov 2016 17:09:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161103204012.GC24234@quack2.suse.cz>
+Content-Type: text/plain
+Message-Id: <8737j3h62v.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu, Nov 03, 2016 at 09:40:12PM +0100, Jan Kara wrote:
-> On Wed 02-11-16 11:32:04, Kirill A. Shutemov wrote:
-> > Yes, buffer_head list doesn't scale. That's the main reason (along with 4)
-> > why syscall-based IO sucks. We spend a lot of time looking for desired
-> > block.
-> > 
-> > We need to switch to some other data structure for storing buffer_heads.
-> > Is there a reason why we have list there in first place?
-> > Why not just array?
-> > 
-> > I will look into it, but this sounds like a separate infrastructure change
-> > project.
-> 
-> As Christoph said iomap code should help you with that and make things
-> simpler. If things go as we imagine, we should be able to pretty much avoid
-> buffer heads. But it will take some time to get there.
+kbuild test robot <lkp@intel.com> writes:
 
-Just to clarify: is it show-stopper or we can live with buffer_head list
-for now?
+> Hi Aneesh,
+>
+> [auto build test ERROR on mmotm/master]
+> [also build test ERROR on v4.9-rc4 next-20161028]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+>
+> url:    https://github.com/0day-ci/linux/commits/Aneesh-Kumar-K-V/mm-move-vma_is_anonymous-check-within-pmd_move_must_withdraw/20161107-164033
+> base:   git://git.cmpxchg.org/linux-mmotm.git master
+> config: i386-randconfig-x006-201645 (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+>
+> All error/warnings (new ones prefixed by >>):
+>
+>    mm/huge_memory.c: In function 'pmd_move_must_withdraw':
+>>> mm/huge_memory.c:1441:58: error: 'vma' undeclared (first use in this function)
+>      return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
+>                                                              ^~~
+>    mm/huge_memory.c:1441:58: note: each undeclared identifier is reported only once for each function it appears in
+>>> mm/huge_memory.c:1442:1: warning: control reaches end of non-void function [-Wreturn-type]
+>     }
+>     ^
+>
+> vim +/vma +1441 mm/huge_memory.c
+>
+>   1435		/*
+>   1436		 * With split pmd lock we also need to move preallocated
+>   1437		 * PTE page table if new_pmd is on different PMD page table.
+>   1438		 *
+>   1439		 * We also don't deposit and withdraw tables for file pages.
+>   1440		 */
+>> 1441		return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
+>> 1442	}
+>   1443	#endif
+>   1444	
+>   1445	bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+>
 
-> > > 2) PMD-sized pages result in increased space & memory usage.
-> > 
-> > Space? Do you mean disk space? Not really: we still don't write beyond
-> > i_size or into holes.
-> > 
-> > Behaviour wrt to holes may change with mmap()-IO as we have less
-> > granularity, but the same can be seen just between different
-> > architectures: 4k vs. 64k base page size.
-> 
-> Yes, I meant different granularity of mmap based IO. And I agree it isn't a
-> new problem but the scale of the problem is much larger with 2MB pages than
-> with say 64K pages. And actually the overhead of higher IO granularity of
-> 64K pages has been one of the reasons we have switched SLES PPC kernels
-> from 64K pages to 4K pages (we've got complaints from customers). 
+My bad, I didn't test with hugepage enabled for x86. Will fixup in the
+next update.
 
-I guess fadvise()/madvise() hints for opt-in/opt-out should be good enough
-to deal with this. I probably need to wire them up.
-
-> > > 3) In ext4 we have to estimate how much metadata we may need to modify when
-> > > allocating blocks underlying a page in the worst case (you don't seem to
-> > > update this estimate in your patch set). With 2048 blocks underlying a page,
-> > > each possibly in a different block group, it is a lot of metadata forcing
-> > > us to reserve a large transaction (not sure if you'll be able to even
-> > > reserve such large transaction with the default journal size), which again
-> > > makes things slower.
-> > 
-> > I didn't saw this on profiles. And xfstests looks fine. I probably need to
-> > run them with 1k blocks once again.
-> 
-> You wouldn't see this in profiles - it is a correctness thing. And it won't
-> be triggered unless the file is heavily fragmented which likely does not
-> happen with any test in xfstests. If it happens you'll notice though - the
-> filesystem will just report error and shut itself down.
-
-Any suggestion how I can simulate this situation?
-
-> > The numbers below generated with fio. The working set is relatively small,
-> > so it fits into page cache and writing set doesn't hit dirty_ratio.
-> > 
-> > I think the mmap performance should be enough to justify initial inclusion
-> > of an experimental feature: it useful for workloads that targets mmap()-IO.
-> > It will take time to get feature mature anyway.
-> 
-> I agree it will take time for feature to mature so I'me fine with
-> suboptimal performance in some cases. But I'm not fine with some of the
-> hacks you do currently because code maintenability is an issue even if
-> people don't actually use the feature...
-
-Hm. Okay, I'll try to check what I can do to make it more maintainable.
-My worry is that it will make the patchset even bigger...
-
-> > Configuration:
-> >  - 2x E5-2697v2, 64G RAM;
-> >  - INTEL SSDSC2CW24;
-> >  - IO request size is 4k;
-> >  - 8 processes, 512MB data set each;
-> 
-> The numbers indeed look interesting for mmaped case. Can you post the fio
-> cmdline? I'd like to compare profiles...
-
-	fio \
-		--directory=/mnt/ \
-		--name="$engine-$rw" \
-		--ioengine="$engine" \
-		--rw="$rw" \
-		--size=512M \
-		--invalidate=1 \
-		--numjobs=8 \
-		--runtime=60 \
-		--time_based \
-		--group_reporting
-
--- 
- Kirill A. Shutemov
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
