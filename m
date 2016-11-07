@@ -1,46 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5196F6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 11:06:55 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so43417829wms.7
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 08:06:55 -0800 (PST)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id a186si11285805wma.80.2016.11.07.08.06.54
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EFEBB6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 11:25:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y68so52859812pfb.6
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 08:25:45 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 75si32132107pfa.10.2016.11.07.08.25.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 08:06:54 -0800 (PST)
-Date: Mon, 7 Nov 2016 08:06:53 -0800
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH/RFC] z3fold: use per-page read/write lock
-Message-ID: <20161107160652.GJ26852@two.firstfloor.org>
-References: <20161105144946.3b4be0ee799ae61a82e1d918@gmail.com>
- <87lgwxo5u9.fsf@tassilo.jf.intel.com>
- <CAMJBoFNWV92c5B3HLJ=6wgNNUJFpTUgu3qf1mWgYxTEhfaA_LA@mail.gmail.com>
+        Mon, 07 Nov 2016 08:25:45 -0800 (PST)
+Subject: Patch "x86/microcode/AMD: Fix more fallout from CONFIG_RANDOMIZE_MEMORY=y" has been added to the 4.8-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Mon, 07 Nov 2016 17:24:26 +0100
+Message-ID: <147853586658196@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMJBoFNWV92c5B3HLJ=6wgNNUJFpTUgu3qf1mWgYxTEhfaA_LA@mail.gmail.com>
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: bp@suse.de, agruenba@redhat.com, bp@alien8.de, brgerst@gmail.com, dvlasenk@redhat.com, gregkh@linuxfoundation.org, hpa@zytor.com, jpoimboe@redhat.com, linux-mm@kvack.org, luto@amacapital.net, luto@kernel.org, mgorman@techsingularity.net, mingo@kernel.org, peterz@infradead.org, rpeterso@redhat.com, swhiteho@redhat.com, tglx@linutronix.de, torvalds@linux-foundation.org
+Cc: stable@vger.kernel.org, stable-commits@vger.kernel.org
 
-> I understand the reinvention part but you're not quite accurate here
-> with the numbers.
-> 
-> E. g. on x86_64:
-> (gdb) p sizeof(rwlock_t)
-> $1 = 8
 
-I was talking about spinlocks which are 4 bytes.  Just use a spinlock then. 
-rwlocks are usually a bad idea anyways because they often scale far worse than
-spinlocks due to the bad cache line bouncing behavior, and it doesn't
-make much difference unless your critical section is very long.
+This is a note to let you know that I've just added the patch titled
 
--Andi
+    x86/microcode/AMD: Fix more fallout from CONFIG_RANDOMIZE_MEMORY=y
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+to the 4.8-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     x86-microcode-amd-fix-more-fallout-from-config_randomize_memory-y.patch
+and it can be found in the queue-4.8 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
