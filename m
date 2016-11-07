@@ -1,92 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 69A9D6B0253
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 18:41:32 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id n85so57895755pfi.4
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:41:32 -0800 (PST)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id 26si33391757pfo.279.2016.11.07.15.32.44
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A6296B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 18:44:45 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id a8so35459563pfg.0
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:44:45 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id hb8si12727278pac.52.2016.11.07.15.44.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 15:32:44 -0800 (PST)
-Received: by mail-pf0-x244.google.com with SMTP id n85so17317255pfi.3
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 15:32:44 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 12/12] mm: memory_hotplug: memory hotremove supports thp migration
-Date: Tue,  8 Nov 2016 08:31:57 +0900
-Message-Id: <1478561517-4317-13-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Mon, 07 Nov 2016 15:44:44 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA7NiKL7097605
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2016 18:44:43 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26k12a74x4-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Nov 2016 18:44:43 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Mon, 7 Nov 2016 16:44:42 -0700
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH v6 4/4] of/fdt: mark hotpluggable memory
+Date: Mon,  7 Nov 2016 17:44:36 -0600
+In-Reply-To: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-This patch enables thp migration for memory hotremove.
+When movable nodes are enabled, any node containing only hotpluggable
+memory is made movable at boot time.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On x86, hotpluggable memory is discovered by parsing the ACPI SRAT,
+making corresponding calls to memblock_mark_hotplug().
+
+If we introduce a dt property to describe memory as hotpluggable,
+configs supporting early fdt may then also do this marking and use
+movable nodes.
+
+Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 ---
-ChangeLog v1->v2:
-- base code switched from alloc_migrate_target to new_node_page()
----
- mm/memory_hotplug.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ drivers/of/fdt.c | 6 ++++++
+ mm/Kconfig       | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
 
-diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory_hotplug.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory_hotplug.c
-index b18dab40..a9c3fe1 100644
---- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory_hotplug.c
-+++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory_hotplug.c
-@@ -1543,6 +1543,7 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 	int nid = page_to_nid(page);
- 	nodemask_t nmask = node_states[N_MEMORY];
- 	struct page *new_page = NULL;
-+	unsigned int order = 0;
+diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+index c89d5d2..2cf1d66 100644
+--- a/drivers/of/fdt.c
++++ b/drivers/of/fdt.c
+@@ -1015,6 +1015,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+ 	const __be32 *reg, *endp;
+ 	int l;
++	bool hotpluggable;
  
- 	/*
- 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-@@ -1553,6 +1554,11 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		return alloc_huge_page_node(page_hstate(compound_head(page)),
- 					next_node_in(nid, nmask));
+ 	/* We are scanning "memory" nodes only */
+ 	if (type == NULL) {
+@@ -1034,6 +1035,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 		return 0;
  
-+	if (thp_migration_supported() && PageTransHuge(page)) {
-+		order = HPAGE_PMD_ORDER;
-+		gfp_mask |= GFP_TRANSHUGE;
-+	}
+ 	endp = reg + (l / sizeof(__be32));
++	hotpluggable = of_get_flat_dt_prop(node, "linux,hotpluggable", NULL);
+ 
+ 	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
+ 
+@@ -1049,6 +1051,10 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 		    (unsigned long long)size);
+ 
+ 		early_init_dt_add_memory_arch(base, size);
 +
- 	node_clear(nid, nmask);
++		if (hotpluggable && memblock_mark_hotplug(base, size))
++			pr_warn("failed to mark hotplug range 0x%llx - 0x%llx\n",
++				base, base + size);
+ 	}
  
- 	if (PageHighMem(page)
-@@ -1560,12 +1566,15 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		gfp_mask |= __GFP_HIGHMEM;
- 
- 	if (!nodes_empty(nmask))
--		new_page = __alloc_pages_nodemask(gfp_mask, 0,
-+		new_page = __alloc_pages_nodemask(gfp_mask, order,
- 					node_zonelist(nid, gfp_mask), &nmask);
- 	if (!new_page)
--		new_page = __alloc_pages(gfp_mask, 0,
-+		new_page = __alloc_pages(gfp_mask, order,
- 					node_zonelist(nid, gfp_mask));
- 
-+	if (new_page && order == HPAGE_PMD_ORDER)
-+		prep_transhuge_page(new_page);
-+
- 	return new_page;
- }
- 
-@@ -1595,7 +1604,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			if (isolate_huge_page(page, &source))
- 				move_pages -= 1 << compound_order(head);
- 			continue;
--		}
-+		} else if (thp_migration_supported() && PageTransHuge(page))
-+			pfn = page_to_pfn(compound_head(page))
-+				+ HPAGE_PMD_NR - 1;
- 
- 		if (!get_page_unless_zero(page))
- 			continue;
+ 	return 0;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 061b46b..33a9b06 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -153,7 +153,7 @@ config MOVABLE_NODE
+ 	bool "Enable to assign a node which has only movable memory"
+ 	depends on HAVE_MEMBLOCK
+ 	depends on NO_BOOTMEM
+-	depends on X86_64 || MEMORY_HOTPLUG
++	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
+ 	depends on NUMA
+ 	default n
+ 	help
 -- 
-2.7.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
