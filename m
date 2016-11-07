@@ -1,120 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D68036B0038
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 19:34:23 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y68so58973960pfb.6
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 16:34:23 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id l20si27989842pag.63.2016.11.07.16.10.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3F606B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 19:46:06 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 144so37002428pfv.5
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 16:46:06 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a5si18293882pat.319.2016.11.07.15.44.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 16:10:32 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCHv3 1/8] powerpc/vdso: unify return paths in setup_additional_pages
-In-Reply-To: <20161027170948.8279-2-dsafonov@virtuozzo.com>
-References: <20161027170948.8279-1-dsafonov@virtuozzo.com> <20161027170948.8279-2-dsafonov@virtuozzo.com>
-Date: Tue, 08 Nov 2016 11:10:30 +1100
-Message-ID: <87mvhaltl5.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 07 Nov 2016 15:44:44 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA7NiIdh017218
+	for <linux-mm@kvack.org>; Mon, 7 Nov 2016 18:44:43 -0500
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26k2j9k38g-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Nov 2016 18:44:43 -0500
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Mon, 7 Nov 2016 18:44:43 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH v6 1/4] powerpc/mm: allow memory hotplug into a memoryless node
+Date: Mon,  7 Nov 2016 17:44:33 -0600
+In-Reply-To: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <1478562276-25539-2-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>, linux-kernel@vger.kernel.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andy Lutomirski <luto@amacapital.net>, Oleg Nesterov <oleg@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-Hi Dmitry,
+Remove the check which prevents us from hotplugging into an empty node.
 
-Thanks for the patches.
+The original commit b226e4621245 ("[PATCH] powerpc: don't add memory to
+empty node/zone"), states that this was intended to be a temporary measure.
+It is a workaround for an oops which no longer occurs.
 
-Dmitry Safonov <dsafonov@virtuozzo.com> writes:
-> Impact: cleanup
+Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>
+---
+ arch/powerpc/mm/numa.c | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
 
-I'm not a fan of these "Impact" lines, especially when they're not
-correct, ie. this is not a cleanup, a cleanup doesn't change logic.
-
-> Rename `rc' variable which doesn't seems to mean anything into
-> kernel-known `ret'.
-
-'rc' means "Return Code", it's fairly common. I see at least ~8500
-"int rc" declarations in the kernel.
-
-Please don't rename variables and change logic in one patch.
-
-> Combine two function returns into one as it's
-> also easier to read.
->
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Andy Lutomirski <luto@amacapital.net>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-> ---
->  arch/powerpc/kernel/vdso.c | 19 +++++++------------
->  1 file changed, 7 insertions(+), 12 deletions(-)
->
-> diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-> index 4111d30badfa..4ffb82a2d9e9 100644
-> --- a/arch/powerpc/kernel/vdso.c
-> +++ b/arch/powerpc/kernel/vdso.c
-> @@ -154,7 +154,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
->  	struct page **vdso_pagelist;
->  	unsigned long vdso_pages;
->  	unsigned long vdso_base;
-> -	int rc;
-> +	int ret = 0;
-  
-Please don't initialise return codes in the declaration, it prevents the
-compiler from warning you if you forget to initialise it in a
-particular path.
-
-AFAICS you never even use the default value either.
-
->  	if (!vdso_ready)
->  		return 0;
-> @@ -203,8 +203,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
->  				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
->  				      0, 0);
->  	if (IS_ERR_VALUE(vdso_base)) {
-> -		rc = vdso_base;
-> -		goto fail_mmapsem;
-> +		ret = vdso_base;
-> +		goto out_up_mmap_sem;
->  	}
->  
->  	/* Add required alignment. */
-> @@ -227,21 +227,16 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
->  	 * It's fine to use that for setting breakpoints in the vDSO code
->  	 * pages though.
->  	 */
-> -	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
-> +	ret = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
->  				     VM_READ|VM_EXEC|
->  				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
->  				     vdso_pagelist);
-> -	if (rc) {
-> +	if (ret)
->  		current->mm->context.vdso_base = 0;
-> -		goto fail_mmapsem;
-> -	}
-> -
-> -	up_write(&mm->mmap_sem);
-> -	return 0;
->  
-> - fail_mmapsem:
-> +out_up_mmap_sem:
->  	up_write(&mm->mmap_sem);
-> -	return rc;
-> +	return ret;
->  }
-
-
-If you strip out the variable renames then I think that change would be
-OK.
-
-cheers
+diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+index a51c188..0cb6bd8 100644
+--- a/arch/powerpc/mm/numa.c
++++ b/arch/powerpc/mm/numa.c
+@@ -1085,7 +1085,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
+ int hot_add_scn_to_nid(unsigned long scn_addr)
+ {
+ 	struct device_node *memory = NULL;
+-	int nid, found = 0;
++	int nid;
+ 
+ 	if (!numa_enabled || (min_common_depth < 0))
+ 		return first_online_node;
+@@ -1101,17 +1101,6 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
+ 	if (nid < 0 || !node_online(nid))
+ 		nid = first_online_node;
+ 
+-	if (NODE_DATA(nid)->node_spanned_pages)
+-		return nid;
+-
+-	for_each_online_node(nid) {
+-		if (NODE_DATA(nid)->node_spanned_pages) {
+-			found = 1;
+-			break;
+-		}
+-	}
+-
+-	BUG_ON(!found);
+ 	return nid;
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
