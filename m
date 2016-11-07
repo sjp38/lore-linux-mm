@@ -1,84 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5DF6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 11:50:48 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id 23so122222161uat.4
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 08:50:48 -0800 (PST)
-Received: from mail-ua0-x22f.google.com (mail-ua0-x22f.google.com. [2607:f8b0:400c:c08::22f])
-        by mx.google.com with ESMTPS id g21si7686378vkc.113.2016.11.07.08.50.47
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 416DE6B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 12:00:34 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 83so53344686pfx.1
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 09:00:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id i4si26922130paf.279.2016.11.07.09.00.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 08:50:47 -0800 (PST)
-Received: by mail-ua0-x22f.google.com with SMTP id b35so124519976uaa.3
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 08:50:47 -0800 (PST)
+        Mon, 07 Nov 2016 09:00:33 -0800 (PST)
+Subject: Re: [PATCH] arm/vdso: introduce vdso_mremap hook
+References: <20161101172214.2938-1-dsafonov@virtuozzo.com>
+From: Christopher Covington <cov@codeaurora.org>
+Message-ID: <0b41c28b-20ef-332f-d8d6-e381e05b8252@codeaurora.org>
+Date: Mon, 7 Nov 2016 12:00:22 -0500
 MIME-Version: 1.0
-In-Reply-To: <a40cccff-3a6e-b0be-5d06-bac6cdb0e1e6@virtuozzo.com>
-References: <1477149440-12478-1-git-send-email-hch@lst.de> <1477149440-12478-5-git-send-email-hch@lst.de>
- <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com> <CAJWu+oppRL5kD9qPcdCbFAbEkE7bN+kmrvTuaueVZnY+WtK_tg@mail.gmail.com>
- <a40cccff-3a6e-b0be-5d06-bac6cdb0e1e6@virtuozzo.com>
-From: Joel Fernandes <joelaf@google.com>
-Date: Mon, 7 Nov 2016 08:50:46 -0800
-Message-ID: <CAJWu+ordN8eDodGYp8Bm_92U1NZmGJya5pGi3SSg3FvmciGzaw@mail.gmail.com>
-Subject: Re: [PATCH 4/7] mm: defer vmalloc from atomic context
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20161101172214.2938-1-dsafonov@virtuozzo.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>, linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Kevin Brodsky <kevin.brodsky@arm.com>, Andy Lutomirski <luto@amacapital.net>, Oleg Nesterov <oleg@redhat.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Nathan Lynch <nathan_lynch@mentor.com>, Will Deacon <Will.Deacon@arm.com>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Mon, Nov 7, 2016 at 7:01 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> On 11/05/2016 06:43 AM, Joel Fernandes wrote:
->> On Mon, Oct 24, 2016 at 8:44 AM, Andrey Ryabinin
->> <aryabinin@virtuozzo.com> wrote:
->>>
->>>
->>> On 10/22/2016 06:17 PM, Christoph Hellwig wrote:
->>>> We want to be able to use a sleeping lock for freeing vmap to keep
->>>> latency down.  For this we need to use the deferred vfree mechanisms
->>>> no only from interrupt, but from any atomic context.
->>>>
->>>> Signed-off-by: Christoph Hellwig <hch@lst.de>
->>>> ---
->>>>  mm/vmalloc.c | 2 +-
->>>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->>>> index a4e2cec..bcc1a64 100644
->>>> --- a/mm/vmalloc.c
->>>> +++ b/mm/vmalloc.c
->>>> @@ -1509,7 +1509,7 @@ void vfree(const void *addr)
->>>>
->>>>       if (!addr)
->>>>               return;
->>>> -     if (unlikely(in_interrupt())) {
->>>> +     if (unlikely(in_atomic())) {
->>>
->>> in_atomic() cannot always detect atomic context, thus it shouldn't be used here.
->>> You can add something like vfree_in_atomic() and use it in atomic call sites.
->>>
->>
->> So because in_atomic doesn't work for !CONFIG_PREEMPT kernels, can we
->> always defer the work in these cases?
->>
->> So for non-preemptible kernels, we always defer:
->>
->> if (!IS_ENABLED(CONFIG_PREEMPT) || in_atomic()) {
->>   // defer
->> }
->>
->> Is this fine? Or any other ideas?
->>
->
-> What's wrong with my idea?
-> We can add vfree_in_atomic() and use it to free vmapped stacks
-> and for any other places where vfree() used 'in_atomict() && !in_interrupt()' context.
+Hi Dmitry,
 
-Yes, this sounds like a better idea as there may not be that many
-callers and my idea may hurt perf.
+On 11/01/2016 01:22 PM, Dmitry Safonov wrote:
+>   Add vdso_mremap hook which will fix context.vdso pointer after mremap()
+> on vDSO vma. This is needed for correct landing after syscall execution.
+> Primary goal of this is for CRIU on arm - we need to restore vDSO image
+> at the exactly same place where the vma was in dumped application. With
+> the help of this hook we'll move vDSO at the new position.
+>   The CRIU code handles situations like when vDSO of dumped application
+> was different from vDSO on restoring system. This usally happens when
+> some new symbols are being added to vDSO. In these situations CRIU
+> inserts jump trampolines from old vDSO blob to new vDSO on restore.
+> By that reason even if on restore vDSO blob lies on the same address as
+> blob in dumped application - we still need to move it if it differs.
+> 
+>   There was previously attempt to add this functionality for arm64 by
+> arch_mremap hook [1], while this patch introduces this with minimal
+> effort - the same way I've added it to x86:
+> commit b059a453b1cf ("x86/vdso: Add mremap hook to vm_special_mapping")
+> 
+>   At this moment, vdso restoring code is disabled for arm/arm64 arch
+> in CRIU [2], so C/R is only working for !CONFIG_VDSO kernels. This patch
+> is aimed to fix that.
+>   The same hook may be introduced for arm64 kernel, but at this moment
+> arm64 vdso code is actively reworked by Kevin, so we can do it on top.
+>   Separately, I've refactored arch_remap hook out from ppc64 [3].
+> 
+> [1]: https://marc.info/?i=1448455781-26660-1-git-send-email-cov@codeaurora.org
+> [2]: https://github.com/xemul/criu/blob/master/Makefile#L39
+> [3]: https://marc.info/?i=20161027170948.8279-1-dsafonov@virtuozzo.com
+> 
+> Cc: Kevin Brodsky <kevin.brodsky@arm.com>
+> Cc: Christopher Covington <cov@codeaurora.org>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: Russell King <linux@armlinux.org.uk>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: linux-mm@kvack.org
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+> ---
+>  arch/arm/kernel/vdso.c | 21 +++++++++++++++++++++
+>  1 file changed, 21 insertions(+)
+> 
+> diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
+> index 53cf86cf2d1a..d1001f87c2f6 100644
+> --- a/arch/arm/kernel/vdso.c
+> +++ b/arch/arm/kernel/vdso.c
+> @@ -54,8 +54,11 @@ static const struct vm_special_mapping vdso_data_mapping = {
+>  	.pages = &vdso_data_page,
+>  };
+>  
+> +static int vdso_mremap(const struct vm_special_mapping *sm,
+> +		struct vm_area_struct *new_vma);
+>  static struct vm_special_mapping vdso_text_mapping __ro_after_init = {
+>  	.name = "[vdso]",
+> +	.mremap = vdso_mremap,
+>  };
+>  
+>  struct elfinfo {
+> @@ -254,6 +257,24 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
+>  		mm->context.vdso = addr;
+>  }
+>  
+> +static int vdso_mremap(const struct vm_special_mapping *sm,
+> +		struct vm_area_struct *new_vma)
+> +{
+> +	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+> +	unsigned long vdso_size = (vdso_total_pages - 1) << PAGE_SHIFT;
+> +
+> +	/* Disallow partial vDSO blob remap */
+> +	if (vdso_size != new_size)
+> +		return -EINVAL;
+> +
+> +	if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))
+> +		return -EFAULT;
+> +
+> +	current->mm->context.vdso = new_vma->vm_start;
+> +
+> +	return 0;
+> +}
+> +
+>  static void vdso_write_begin(struct vdso_data *vdata)
+>  {
+>  	++vdso_data->seq_count;
+> 
+
+What do you think about putting this code somewhere generic (not under
+arch/*), so that powerpc and arm64 can reuse it once the cosmetic changes
+to make them compatible are made? My thought was that it could be defined
+underneath CONFIG_GENERIC_VDSO, which architectures could select as they
+became compatible.
 
 Thanks,
+Cov
 
-Joel
+-- 
+Qualcomm Datacenter Technologies, Inc. as an affiliate of Qualcomm
+Technologies, Inc. Qualcomm Technologies, Inc. is a member of the Code
+Aurora Forum, a Linux Foundation Collaborative Project.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
