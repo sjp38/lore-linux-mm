@@ -1,82 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0D36B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 02:52:12 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id s68so325147657ywg.7
-        for <linux-mm@kvack.org>; Sun, 06 Nov 2016 23:52:12 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTP id n65si14561989oih.182.2016.11.06.23.52.08
-        for <linux-mm@kvack.org>;
-        Sun, 06 Nov 2016 23:52:11 -0800 (PST)
-Subject: Re: [PATCH v6 2/6] mm/cma: introduce new zone, ZONE_CMA
-References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1476414196-3514-3-git-send-email-iamjoonsoo.kim@lge.com>
- <58184B28.8090405@hisilicon.com> <20161107061500.GA21159@js1304-P5Q-DELUXE>
- <58202881.5030004@hisilicon.com> <20161107072702.GC21159@js1304-P5Q-DELUXE>
- <582030CB.80905@hisilicon.com>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <5820313A.80207@hisilicon.com>
-Date: Mon, 7 Nov 2016 15:46:02 +0800
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD7F6B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 03:01:11 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id n85so46006634pfi.4
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 00:01:11 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id i68si29914697pgc.178.2016.11.07.00.01.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Nov 2016 00:01:10 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [RFC v2 5/7] powerpc: Rename context.vdso_base to context.vdso
+In-Reply-To: <20161104201332.GB22791@arm.com>
+References: <20161101171101.24704-1-cov@codeaurora.org> <20161101171101.24704-5-cov@codeaurora.org> <87r36rn8nl.fsf@concordia.ellerman.id.au> <20161104201332.GB22791@arm.com>
+Date: Mon, 07 Nov 2016 19:01:05 +1100
+Message-ID: <87a8dbn2gu.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <582030CB.80905@hisilicon.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura
- Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek
- Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, saberlily.xia@hisilicon.com, Zhuangluan Su <suzhuangluan@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Christopher Covington <cov@codeaurora.org>, criu@openvz.org, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
 
+Will Deacon <will.deacon@arm.com> writes:
+> On Fri, Nov 04, 2016 at 03:58:22PM +1100, Michael Ellerman wrote:
+>> Christopher Covington <cov@codeaurora.org> writes:
+>> >  arch/powerpc/include/asm/book3s/32/mmu-hash.h |  2 +-
+>> >  arch/powerpc/include/asm/book3s/64/mmu.h      |  2 +-
+>> >  arch/powerpc/include/asm/mm-arch-hooks.h      |  6 +++---
+>> >  arch/powerpc/include/asm/mmu-40x.h            |  2 +-
+>> >  arch/powerpc/include/asm/mmu-44x.h            |  2 +-
+>> >  arch/powerpc/include/asm/mmu-8xx.h            |  2 +-
+>> >  arch/powerpc/include/asm/mmu-book3e.h         |  2 +-
+>> >  arch/powerpc/include/asm/mmu_context.h        |  4 ++--
+>> >  arch/powerpc/include/asm/vdso.h               |  2 +-
+>> >  arch/powerpc/include/uapi/asm/elf.h           |  2 +-
+>> >  arch/powerpc/kernel/signal_32.c               |  8 ++++----
+>> >  arch/powerpc/kernel/signal_64.c               |  4 ++--
+>> >  arch/powerpc/kernel/vdso.c                    |  8 ++++----
+>> >  arch/powerpc/perf/callchain.c                 | 12 ++++++------
+>> >  14 files changed, 29 insertions(+), 29 deletions(-)
+>> 
+>> This is kind of annoying, but I guess it's worth doing.
+>> 
+>> It's going to conflict like hell though. Who were you thinking would
+>> merge this series? I think it should go via Andrew Morton's tree, as
+>> that way if we get bad conflicts we can pull it out and redo it.
+>
+> The other thing you can do is generate the patch towards the end of the
+> merge window and send it as a separate pull request. The disadvantage of
+> that is that it can't spend any time in -next, but that might be ok for a
+> mechanical rename.
 
+True. Though in this case it's a mechanical rename that then allows us
+to use the generic code, so I'd prefer we had some -next coverage on the
+latter.
 
-On 2016/11/7 15:44, Chen Feng wrote:
-> On 2016/11/7 15:27, Joonsoo Kim wrote:
->> On Mon, Nov 07, 2016 at 03:08:49PM +0800, Chen Feng wrote:
->>>
->>>
->>> On 2016/11/7 14:15, Joonsoo Kim wrote:
->>>> On Tue, Nov 01, 2016 at 03:58:32PM +0800, Chen Feng wrote:
->>>>> Hello, I hava a question on cma zone.
->>>>>
->>>>> When we have cma zone, cma zone will be the highest zone of system.
->>>>>
->>>>> In android system, the most memory allocator is ION. Media system will
->>>>> alloc unmovable memory from it.
->>>>>
->>>>> On low memory scene, will the CMA zone always do balance?
->>>>
->>>> Allocation request for low zone (normal zone) would not cause CMA zone
->>>> to be balanced since it isn't helpful.
->>>>
->>> Yes. But the cma zone will run out soon. And it always need to do balance.
->>>
->>> How about use migrate cma before movable and let cma type to fallback movable.
->>>
->>> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1263745.html
->>
->> ZONE_CMA approach will act like as your solution. Could you elaborate
->> more on the problem of zone approach?
->>
-> 
-> The ZONE approach is that makes cma pages in a zone. It can cause a higher swapin/out
-> than use migrate cma first.
-> 
-> The higher swapin/out may have a performance effect to application. The application may
-> use too much time swapin memory.
-> 
-> You can see my tested result attached for detail. And the baseline is result of [1].
-> 
-> 
-My test case is run 60 applications and alloc 512MB ION memory.
+The other other option would be to wrap all uses of the arch value in a
+macro (or actually two probably, one a getter one a setter). That would
+then allow arches to use the generic code regardless of the name and
+type of their mm->context.vdso_whatever.
 
-Repeat this action 50 times
+That would allow the basic series to go in, and then each arch could do
+a series later that switches it to the "standard" name and type.
 
-> [1] https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1263745.html
->> Thanks.
->>
->> .
->>
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
