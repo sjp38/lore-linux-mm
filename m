@@ -1,99 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 364D96B0069
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 06:21:26 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y16so58475583wmd.6
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:21:26 -0800 (PST)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F4F6B0069
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 06:32:07 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id h201so1611090lfg.5
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:32:06 -0800 (PST)
 Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id u189si9849899wmg.133.2016.11.07.03.21.24
+        by mx.google.com with ESMTPS id n82si15565209lfd.206.2016.11.07.03.32.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Nov 2016 03:21:25 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id p190so15913381wmp.1
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:21:24 -0800 (PST)
+        Mon, 07 Nov 2016 03:32:05 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id a20so5132978wme.2
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 03:32:05 -0800 (PST)
+Date: Mon, 7 Nov 2016 14:29:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] shmem: fix pageflags after swapping DMA32 object
+Message-ID: <20161107112900.GC13280@node.shutemov.name>
+References: <alpine.LSU.2.11.1611062003510.11253@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20161027170948.8279-1-dsafonov@virtuozzo.com>
-References: <20161027170948.8279-1-dsafonov@virtuozzo.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Mon, 7 Nov 2016 14:21:04 +0300
-Message-ID: <CAJwJo6b16mt0N_xJeeQ0EikyPhoo-UvAx-FaXO9hGzwW=o+s5Q@mail.gmail.com>
-Subject: Re: [PATCHv3 0/8] powerpc/mm: refactor vDSO mapping code
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1611062003510.11253@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org
 
-2016-10-27 20:09 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
-> Changes since v1, v2:
-> - use vdso64_pages only under CONFIG_PPC64 (32-bit build fix)
-> - remove arch_vma_name helper as not needed anymore,
->   simplify vdso_base pointer initializing in map_vdso()
->
-> Cleanup patches for vDSO on powerpc.
-> Originally, I wanted to add vDSO remapping on arm/aarch64 and
-> I decided to cleanup that part on powerpc.
-> I've add a hook for vm_ops for vDSO just like I did for x86,
-> which makes cross-arch arch_mremap hook no more needed.
-> Other changes - reduce exhaustive code duplication by
-> separating the common vdso code.
->
-> No visible to userspace changes expected.
-> Tested on qemu with buildroot rootfs.
->
-> Dmitry Safonov (8):
->   powerpc/vdso: unify return paths in setup_additional_pages
->   powerpc/vdso: remove unused params in vdso_do_func_patch{32,64}
->   powerpc/vdso: separate common code in vdso_common
->   powerpc/vdso: introduce init_vdso{32,64}_pagelist
->   powerpc/vdso: split map_vdso from arch_setup_additional_pages
->   powerpc/vdso: switch from legacy_special_mapping_vmops
->   mm: kill arch_mremap
->   powerpc/vdso: remove arch_vma_name
->
->  arch/alpha/include/asm/Kbuild            |   1 -
->  arch/arc/include/asm/Kbuild              |   1 -
->  arch/arm/include/asm/Kbuild              |   1 -
->  arch/arm64/include/asm/Kbuild            |   1 -
->  arch/avr32/include/asm/Kbuild            |   1 -
->  arch/blackfin/include/asm/Kbuild         |   1 -
->  arch/c6x/include/asm/Kbuild              |   1 -
->  arch/cris/include/asm/Kbuild             |   1 -
->  arch/frv/include/asm/Kbuild              |   1 -
->  arch/h8300/include/asm/Kbuild            |   1 -
->  arch/hexagon/include/asm/Kbuild          |   1 -
->  arch/ia64/include/asm/Kbuild             |   1 -
->  arch/m32r/include/asm/Kbuild             |   1 -
->  arch/m68k/include/asm/Kbuild             |   1 -
->  arch/metag/include/asm/Kbuild            |   1 -
->  arch/microblaze/include/asm/Kbuild       |   1 -
->  arch/mips/include/asm/Kbuild             |   1 -
->  arch/mn10300/include/asm/Kbuild          |   1 -
->  arch/nios2/include/asm/Kbuild            |   1 -
->  arch/openrisc/include/asm/Kbuild         |   1 -
->  arch/parisc/include/asm/Kbuild           |   1 -
->  arch/powerpc/include/asm/mm-arch-hooks.h |  28 --
->  arch/powerpc/kernel/vdso.c               | 502 +++++--------------------------
->  arch/powerpc/kernel/vdso_common.c        | 248 +++++++++++++++
->  arch/s390/include/asm/Kbuild             |   1 -
->  arch/score/include/asm/Kbuild            |   1 -
->  arch/sh/include/asm/Kbuild               |   1 -
->  arch/sparc/include/asm/Kbuild            |   1 -
->  arch/tile/include/asm/Kbuild             |   1 -
->  arch/um/include/asm/Kbuild               |   1 -
->  arch/unicore32/include/asm/Kbuild        |   1 -
->  arch/x86/include/asm/Kbuild              |   1 -
->  arch/xtensa/include/asm/Kbuild           |   1 -
->  include/asm-generic/mm-arch-hooks.h      |  16 -
->  include/linux/mm-arch-hooks.h            |  25 --
->  mm/mremap.c                              |   4 -
->  36 files changed, 324 insertions(+), 529 deletions(-)
->  delete mode 100644 arch/powerpc/include/asm/mm-arch-hooks.h
->  create mode 100644 arch/powerpc/kernel/vdso_common.c
->  delete mode 100644 include/asm-generic/mm-arch-hooks.h
->  delete mode 100644 include/linux/mm-arch-hooks.h
+On Sun, Nov 06, 2016 at 08:08:29PM -0800, Hugh Dickins wrote:
+> If shmem_alloc_page() does not set PageLocked and PageSwapBacked, then
+> shmem_replace_page() needs to do so for itself.  Without this, it puts
+> newpage on the wrong lru, re-unlocks the unlocked newpage, and system
+> descends into "Bad page" reports and freeze; or if CONFIG_DEBUG_VM=y,
+> it hits an earlier VM_BUG_ON_PAGE(!PageLocked), depending on config.
+> 
+> But shmem_replace_page() is not a common path: it's only called when
+> swapin (or swapoff) finds the page was already read into an unsuitable
+> zone: usually all zones are suitable, but gem objects for a few drm
+> devices (gma500, omapdrm, crestline, broadwater) require zone DMA32
+> if there's more than 4GB of ram.
+> 
+> Fixes: 800d8c63b2e9 ("shmem: add huge pages support")
+> Cc: stable@vger.kernel.org # v4.8
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-ping?
+Sorry for that.
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
