@@ -1,91 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC8B6B0069
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 14:27:50 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id a8so54056606pfg.0
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 11:27:50 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id ug9si31912396pab.228.2016.11.08.11.27.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D3EA46B0069
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 14:30:22 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r68so88248681wmd.0
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 11:30:22 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hv9si18409219wjb.232.2016.11.08.11.30.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Nov 2016 11:27:49 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA8JNftY055312
-	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 14:27:49 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 26kfmnnbc4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 08 Nov 2016 14:27:48 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Tue, 8 Nov 2016 19:27:47 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 1FD821B08061
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 19:29:57 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uA8JRiTr14156080
-	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 19:27:44 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uA8JRiKH003261
-	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 12:27:44 -0700
-Date: Tue, 8 Nov 2016 20:27:42 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 2/2] mm: hugetlb: support gigantic surplus pages
-In-Reply-To: <20161108091725.GA18678@sha-win-210.asiapac.arm.com>
-References: <1478141499-13825-1-git-send-email-shijie.huang@arm.com>
-	<1478141499-13825-3-git-send-email-shijie.huang@arm.com>
-	<20161107162504.17591806@thinkpad>
-	<20161108021929.GA982@sha-win-210.asiapac.arm.com>
-	<20161108070851.GA15044@sha-win-210.asiapac.arm.com>
-	<20161108091725.GA18678@sha-win-210.asiapac.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20161108202742.57ed120d@thinkpad>
+        Tue, 08 Nov 2016 11:30:21 -0800 (PST)
+Date: Tue, 8 Nov 2016 14:30:11 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/6] mm: workingset: switch shadow entry tracking to
+ radix tree exceptional counting
+Message-ID: <20161108193011.GA15802@cmpxchg.org>
+References: <20161107190741.3619-1-hannes@cmpxchg.org>
+ <20161107190741.3619-6-hannes@cmpxchg.org>
+ <20161108102716.GL32353@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161108102716.GL32353@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <shijie.huang@arm.com>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, 8 Nov 2016 17:17:28 +0800
-Huang Shijie <shijie.huang@arm.com> wrote:
-
-> > I will look at the lockdep issue.
-> I tested the new patch (will be sent out later) on the arm64 platform,
-> and I did not meet the lockdep issue when I enabled the lockdep.
-> The following is my config:
+On Tue, Nov 08, 2016 at 11:27:16AM +0100, Jan Kara wrote:
+> On Mon 07-11-16 14:07:40, Johannes Weiner wrote:
+> > Currently, we track the shadow entries in the page cache in the upper
+> > bits of the radix_tree_node->count, behind the back of the radix tree
+> > implementation. Because the radix tree code has no awareness of them,
+> > we rely on random subtleties throughout the implementation (such as
+> > the node->count != 1 check in the shrinking code which is meant to
+> > exclude multi-entry nodes, but also happens to skip nodes with only
+> > one shadow entry since it's accounted in the upper bits). This is
+> > error prone and has, in fact, caused the bug fixed in d3798ae8c6f3
+> > ("mm: filemap: don't plant shadow entries without radix tree node").
+> > 
+> > To remove these subtleties, this patch moves shadow entry tracking
+> > from the upper bits of node->count to the existing counter for
+> > exceptional entries. node->count goes back to being a simple counter
+> > of valid entries in the tree node and can be shrunk to a single byte.
 > 
-> 	CONFIG_LOCKD=y
-> 	CONFIG_LOCKD_V4=y
-> 	CONFIG_LOCKUP_DETECTOR=y
->         # CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
-> 	CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE=0
-> 	CONFIG_DEBUG_SPINLOCK=y
-> 	CONFIG_DEBUG_LOCK_ALLOC=y
-> 	CONFIG_PROVE_LOCKING=y
-> 	CONFIG_LOCKDEP=y
-> 	CONFIG_LOCK_STAT=y
-> 	CONFIG_DEBUG_LOCKDEP=y
-> 	CONFIG_DEBUG_LOCKING_API_SELFTESTS=y
-> 	
-> So do I miss something? 
+> ...
+> 
+> > diff --git a/mm/truncate.c b/mm/truncate.c
+> > index 6ae44571d4c7..d3ce5f261f47 100644
+> > --- a/mm/truncate.c
+> > +++ b/mm/truncate.c
+> > @@ -53,7 +53,6 @@ static void clear_exceptional_entry(struct address_space *mapping,
+> >  	mapping->nrexceptional--;
+> >  	if (!node)
+> >  		goto unlock;
+> > -	workingset_node_shadows_dec(node);
+> >  	/*
+> >  	 * Don't track node without shadow entries.
+> >  	 *
+> > @@ -61,8 +60,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
+> >  	 * The list_empty() test is safe as node->private_list is
+> >  	 * protected by mapping->tree_lock.
+> >  	 */
+> > -	if (!workingset_node_shadows(node) &&
+> > -	    !list_empty(&node->private_list))
+> > +	if (!node->exceptional && !list_empty(&node->private_list))
+> >  		list_lru_del(&workingset_shadow_nodes,
+> >  				&node->private_list);
+> >  	__radix_tree_delete_node(&mapping->page_tree, node);
+> 
+> Is this really correct now? The radix tree implementation can move a single
+> exceptional entry at index 0 from a node into a direct pointer and free
+> the node while it is still in the LRU list. Or am I missing something?
 
-Those options should be OK. Meanwhile I looked into this a little more,
-and the problematic line/lock is spin_lock_irqsave(&z->lock, flags) at
-the top of alloc_gigantic_page(). From the lockdep trace we see that
-it is triggered by an mmap(), and then hugetlb_acct_memory() ->
-__alloc_huge_page() -> alloc_gigantic_page().
+You're right. I missed that scenario.
 
-However, in between those functions (inside gather_surplus_pages())
-a NUMA_NO_NODE node id comes into play. And this finally results in
-alloc_gigantic_page() being called with NUMA_NO_NODE as nid (which is
--1), and NODE_DATA(nid)->node_zones will then reach into Nirvana.
+> To fix this I'd prefer to just have a callback from radix tree code when it
+> is freeing a node, rather that trying to second-guess its implementation in
+> the page-cache code...
+> 
+> Otherwise the patch looks good to me and I really like the simplification!
 
-So, I guess the problem is a missing NUMA_NO_NODE check in
-alloc_gigantic_page(), similar to the one in
-__hugetlb_alloc_buddy_huge_page(). And somehow this was not a problem
-before the gigantic surplus change.
+That's a good idea. I'll do away with __radix_tree_delete_node()
+altogether and move not just the slot accounting but also the tree
+shrinking and the maintenance callback into __radix_tree_replace().
+
+The page cache can then simply do
+
+__radix_tree_replace(&mapping->page_tree, node, slot, new,
+                     workingset_node_update, mapping)
+
+And workingset_node_update() gets called on every node that changes,
+where it can track and untrack it depending on count & exceptional.
+
+I'll give it some testing before posting it, but currently it's
+
+ include/linux/radix-tree.h |   4 +-
+ include/linux/swap.h       |   1 -
+ lib/radix-tree.c           | 212 ++++++++++++++++++++-----------------------
+ mm/filemap.c               |  48 +---------
+ mm/truncate.c              |  16 +---
+ mm/workingset.c            |  31 +++++--
+ 6 files changed, 134 insertions(+), 178 deletions(-)
+
+on top of the simplifications of this patch 5/6.
+
+Thanks for your input, Jan!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
