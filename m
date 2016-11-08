@@ -1,101 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 67FB06B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 01:48:05 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id l66so63204134pfl.7
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 22:48:05 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id d10si29525559pab.95.2016.11.07.22.48.04
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE7D6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 02:00:56 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id s63so54878953wms.7
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 23:00:56 -0800 (PST)
+Received: from szxga02-in.huawei.com ([119.145.14.65])
+        by mx.google.com with ESMTPS id z2si33776376wje.203.2016.11.07.23.00.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Nov 2016 22:48:04 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 05/12] mm: thp: add core routines for thp/pmd
- migration
-Date: Tue, 8 Nov 2016 06:46:55 +0000
-Message-ID: <20161108064654.GA474@hori1.linux.bs1.fc.nec.co.jp>
-References: <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
- <201611081136.ZuJrd6uJ%fengguang.wu@intel.com>
-In-Reply-To: <201611081136.ZuJrd6uJ%fengguang.wu@intel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <EBCA6E5FF0720D48B2D3195CC94113E7@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Mon, 07 Nov 2016 23:00:55 -0800 (PST)
+Subject: Re: [PATCH v6 2/6] mm/cma: introduce new zone, ZONE_CMA
+References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476414196-3514-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <58184B28.8090405@hisilicon.com> <20161107061500.GA21159@js1304-P5Q-DELUXE>
+ <58202881.5030004@hisilicon.com> <20161107072702.GC21159@js1304-P5Q-DELUXE>
+ <582030CB.80905@hisilicon.com> <5820313A.80207@hisilicon.com>
+ <20161108035942.GA31767@js1304-P5Q-DELUXE>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <582177C7.7010706@hisilicon.com>
+Date: Tue, 8 Nov 2016 14:59:19 +0800
 MIME-Version: 1.0
+In-Reply-To: <20161108035942.GA31767@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura
+ Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek
+ Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, saberlily.xia@hisilicon.com, Zhuangluan Su <suzhuangluan@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
 
-On Tue, Nov 08, 2016 at 11:05:52AM +0800, kbuild test robot wrote:
-> Hi Naoya,
->=20
-> [auto build test ERROR on mmotm/master]
-> [also build test ERROR on v4.9-rc4 next-20161028]
-> [if your patch is applied to the wrong git tree, please drop us a note to=
- help improve the system]
->=20
-> url:    https://github.com/0day-ci/linux/commits/Naoya-Horiguchi/mm-x86-m=
-ove-_PAGE_SWP_SOFT_DIRTY-from-bit-7-to-bit-6/20161108-080615
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> config: arm-at91_dt_defconfig (attached as .config)
-> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
-> reproduce:
->         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.g=
-it/plain/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         # save the attached .config to linux build tree
->         make.cross ARCH=3Darm=20
->=20
-> All errors (new ones prefixed by >>):
->=20
->    In file included from fs/proc/task_mmu.c:14:0:
->    include/linux/swapops.h: In function 'swp_entry_to_pmd':
-> >> include/linux/swapops.h:216:14: error: empty scalar initializer
->      pmd_t pmd =3D {};
->                  ^
->    include/linux/swapops.h:216:14: note: (near initialization for 'pmd')
->=20
-> vim +216 include/linux/swapops.h
->=20
->    210	{
->    211		return swp_entry(0, 0);
->    212	}
->    213=09
->    214	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
->    215	{
->  > 216		pmd_t pmd =3D {};
->    217=09
->    218		return pmd;
->    219	}
 
-Here is an alternative:
 
-diff --git a/include/linux/swapops.h b/include/linux/swapops.h
-index db8a858cc6ff..748c9233b3a5 100644
---- a/include/linux/swapops.h
-+++ b/include/linux/swapops.h
-@@ -215,9 +215,7 @@ static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
-=20
- static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
- {
--	pmd_t pmd =3D {};
--
--	return pmd;
-+	return (pmd_t) { 0 };
- }
-=20
- static inline int is_pmd_migration_entry(pmd_t pmd)
+On 2016/11/8 11:59, Joonsoo Kim wrote:
+> On Mon, Nov 07, 2016 at 03:46:02PM +0800, Chen Feng wrote:
+>>
+>>
+>> On 2016/11/7 15:44, Chen Feng wrote:
+>>> On 2016/11/7 15:27, Joonsoo Kim wrote:
+>>>> On Mon, Nov 07, 2016 at 03:08:49PM +0800, Chen Feng wrote:
+>>>>>
+>>>>>
+>>>>> On 2016/11/7 14:15, Joonsoo Kim wrote:
+>>>>>> On Tue, Nov 01, 2016 at 03:58:32PM +0800, Chen Feng wrote:
+>>>>>>> Hello, I hava a question on cma zone.
+>>>>>>>
+>>>>>>> When we have cma zone, cma zone will be the highest zone of system.
+>>>>>>>
+>>>>>>> In android system, the most memory allocator is ION. Media system will
+>>>>>>> alloc unmovable memory from it.
+>>>>>>>
+>>>>>>> On low memory scene, will the CMA zone always do balance?
+>>>>>>
+>>>>>> Allocation request for low zone (normal zone) would not cause CMA zone
+>>>>>> to be balanced since it isn't helpful.
+>>>>>>
+>>>>> Yes. But the cma zone will run out soon. And it always need to do balance.
+>>>>>
+>>>>> How about use migrate cma before movable and let cma type to fallback movable.
+>>>>>
+>>>>> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1263745.html
+>>>>
+>>>> ZONE_CMA approach will act like as your solution. Could you elaborate
+>>>> more on the problem of zone approach?
+>>>>
+>>>
+>>> The ZONE approach is that makes cma pages in a zone. It can cause a higher swapin/out
+>>> than use migrate cma first.
+> 
+> Interesting result. I should look at it more deeply. Could you explain
+> me why the ZONE approach causes a higher swapin/out?
+> 
+The result is that. I don't have a obvious reason. Maybe add a zone, need to do more balance
+to keep the watermark of cma-zone. cma-zone is always used firstly. Since the test-case
+alloced the same memory in total.
 
-Thanks,
-Naoya Horiguchi
+>>>
+>>> The higher swapin/out may have a performance effect to application. The application may
+>>> use too much time swapin memory.
+>>>
+>>> You can see my tested result attached for detail. And the baseline is result of [1].
+>>>
+>>>
+>> My test case is run 60 applications and alloc 512MB ION memory.
+>>
+>> Repeat this action 50 times
+> 
+> Could you tell me more detail about your test?
+> Kernel version? Total Memory? Total CMA Memory? Android system? What
+> type of memory does ION uses? Other statistics? Etc...
 
->=20
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Ce=
-nter
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corpora=
-tion
+Tested on 4.1, android 7, 512MB-cma in 4G memory.
+ION use normal unmovable memory, I use it to simulate a camera open operator.
+> 
+> If it tested on the Android, I'm not sure that we need to consider
+> it's result. Android has a lowmemory killer which is quitely different
+> with normal reclaim behaviour.
+Why?
+> 
+> Thanks.
+> 
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
