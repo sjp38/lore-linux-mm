@@ -1,49 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 887DE6B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 08:03:10 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id m203so81713337wma.2
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 05:03:10 -0800 (PST)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id bc6si35483459wjb.29.2016.11.08.05.03.09
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 756DF6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 08:24:32 -0500 (EST)
+Received: by mail-vk0-f71.google.com with SMTP id w194so136866325vkw.2
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 05:24:32 -0800 (PST)
+Received: from mail-ua0-x236.google.com (mail-ua0-x236.google.com. [2607:f8b0:400c:c08::236])
+        by mx.google.com with ESMTPS id t124si9158281vkf.56.2016.11.08.05.24.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Nov 2016 05:03:09 -0800 (PST)
-Received: by mail-wm0-x236.google.com with SMTP id f82so179428130wmf.1
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 05:03:09 -0800 (PST)
-Date: Tue, 8 Nov 2016 16:03:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Bug in page_cache_tree_delete?
-Message-ID: <20161108130307.GA14032@node>
-References: <20161108103541.GN32353@quack2.suse.cz>
+        Tue, 08 Nov 2016 05:24:31 -0800 (PST)
+Received: by mail-ua0-x236.google.com with SMTP id b35so146491420uaa.3
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 05:24:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161108103541.GN32353@quack2.suse.cz>
+In-Reply-To: <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
+References: <1476773771-11470-1-git-send-email-hch@lst.de> <1476773771-11470-3-git-send-email-hch@lst.de>
+ <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Tue, 8 Nov 2016 05:24:30 -0800
+Message-ID: <CAJWu+opLAwJ+OsT6DRx1qNEph8YRc5nCWp8uputAGcgMGs0oPg@mail.gmail.com>
+Subject: Re: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as
+ potentially sleeping
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, John Dias <joaodias@google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 08, 2016 at 11:35:41AM +0100, Jan Kara wrote:
-> Hi Kirill,
-> 
-> I've noticed that your commit 83929372f629 (filemap: prepare find and
-> delete operations for huge pages) added to page_cache_tree_delete():
-> 
-> 	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
-> 
-> Isn't the logic computing 'nr' inverted? I'd expect that if page is
-> !PageHuge, we want to delete just one page... OTOH I'm surprised this would
-> not blow up anywhere if it was really wrong so maybe I just miss something.
+On Wed, Oct 19, 2016 at 4:15 AM, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> On Tue, Oct 18, 2016 at 08:56:07AM +0200, Christoph Hellwig wrote:
+>> This is how everyone seems to already use them, but let's make that
+>> explicit.
+>
+> Ah, found an exception, vmapped stacks:
+>
+> [  696.928541] BUG: sleeping function called from invalid context at mm/vmalloc.c:615
+> [  696.928576] in_atomic(): 1, irqs_disabled(): 0, pid: 30521, name: bash
+> [  696.928590] 1 lock held by bash/30521:
+> [  696.928600]  #0: [  696.928606]  (vmap_area_lock[  696.928619] ){+.+...}, at: [  696.928640] [<ffffffff8115f0cf>] __purge_vmap_area_lazy+0x30f/0x370
+> [  696.928656] CPU: 0 PID: 30521 Comm: bash Tainted: G        W       4.9.0-rc1+ #124
+> [  696.928672] Hardware name:                  /        , BIOS PYBSWCEL.86A.0027.2015.0507.1758 05/07/2015
+> [  696.928690]  ffffc900070f7c70 ffffffff812be1f5 ffff8802750b6680 ffffffff819650a6
+> [  696.928717]  ffffc900070f7c98 ffffffff810a3216 0000000000004001 ffff8802726e16c0
+> [  696.928743]  ffff8802726e19a0 ffffc900070f7d08 ffffffff8115f0f3 ffff8802750b6680
+> [  696.928768] Call Trace:
+> [  696.928782]  [<ffffffff812be1f5>] dump_stack+0x68/0x93
+> [  696.928796]  [<ffffffff810a3216>] ___might_sleep+0x166/0x220
+> [  696.928809]  [<ffffffff8115f0f3>] __purge_vmap_area_lazy+0x333/0x370
+> [  696.928823]  [<ffffffff8115ea68>] ? vunmap_page_range+0x1e8/0x350
+> [  696.928837]  [<ffffffff8115f1b3>] free_vmap_area_noflush+0x83/0x90
+> [  696.928850]  [<ffffffff81160931>] remove_vm_area+0x71/0xb0
+> [  696.928863]  [<ffffffff81160999>] __vunmap+0x29/0xf0
+> [  696.928875]  [<ffffffff81160ab9>] vfree+0x29/0x70
+> [  696.928888]  [<ffffffff81071746>] put_task_stack+0x76/0x120
 
-No, that's not bug.
+>From this traceback, it looks like the lock causing the atomic context
+was actually acquired in the vfree path itself, and not by the vmapped
+stack user (as it says "vmap_area_lock" held). I am still wondering
+why vmap_area_lock was held during the might_sleep(), perhaps you may
+not have applied all patches from Chris H?
 
-PageHuge() detects hugetlb pages (we probably should rename the helper)
-which represented by one entry on radix-tree per huge page.
+>From the patches I saw, vmap_area_lock is not acquired during any of
+the might_sleep Chris H added, but I may be missing something. In
+anycase looks to me like the atomicity is introduced by the vfree path
+itself and not the caller.
 
--- 
- Kirill A. Shutemov
+Thanks!
+
+Joel
+
+
+> [  696.928901]  [<ffffffff8109a943>] finish_task_switch+0x163/0x1e0
+> [  696.928914]  [<ffffffff8109a845>] ? finish_task_switch+0x65/0x1e0
+> [  696.928928]  [<ffffffff816125f5>] __schedule+0x1f5/0x7c0
+> [  696.928940]  [<ffffffff81612c28>] schedule+0x38/0x90
+> [  696.928953]  [<ffffffff810787b1>] do_wait+0x1d1/0x200
+> [  696.928966]  [<ffffffff810799b1>] SyS_wait4+0x61/0xc0
+> [  696.928979]  [<ffffffff81076e50>] ? task_stopped_code+0x50/0x50
+> [  696.928992]  [<ffffffff81618e6e>] entry_SYSCALL_64_fastpath+0x1c/0xb1
+>
+> [This was triggered by earlier patch to remove the serialisation and add
+> cond_resched_lock(&vmap_area_lock)]
+> -Chris
+>
+> --
+> Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
