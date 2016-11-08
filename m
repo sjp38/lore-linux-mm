@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 18AAA6B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 02:39:30 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 83so63750931pfx.1
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 23:39:30 -0800 (PST)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50083.outbound.protection.outlook.com. [40.107.5.83])
-        by mx.google.com with ESMTPS id f4si35410794pfc.185.2016.11.07.23.09.13
+	by kanga.kvack.org (Postfix) with ESMTP id DAF3F6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 03:14:42 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n85so63753817pfi.4
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 00:14:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m87si30919918pfi.148.2016.11.08.00.14.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 07 Nov 2016 23:09:13 -0800 (PST)
-Date: Tue, 8 Nov 2016 15:08:53 +0800
-From: Huang Shijie <shijie.huang@arm.com>
-Subject: Re: [PATCH 2/2] mm: hugetlb: support gigantic surplus pages
-Message-ID: <20161108070851.GA15044@sha-win-210.asiapac.arm.com>
-References: <1478141499-13825-1-git-send-email-shijie.huang@arm.com>
- <1478141499-13825-3-git-send-email-shijie.huang@arm.com>
- <20161107162504.17591806@thinkpad>
- <20161108021929.GA982@sha-win-210.asiapac.arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Nov 2016 00:14:42 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA88DjNq043703
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 03:14:41 -0500
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26k9vvb9de-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Nov 2016 03:14:40 -0500
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 8 Nov 2016 13:44:37 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id BA0E6E0066
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 13:44:38 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uA88E06u45744330
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 13:44:00 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uA88Dtl3019428
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 13:43:59 +0530
+Subject: Re: [PATCH v2 05/12] mm: thp: add core routines for thp/pmd migration
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 8 Nov 2016 13:43:54 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20161108021929.GA982@sha-win-210.asiapac.arm.com>
+In-Reply-To: <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <58218942.8010608@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Tue, Nov 08, 2016 at 10:19:30AM +0800, Huang Shijie wrote:
-> On Mon, Nov 07, 2016 at 04:25:04PM +0100, Gerald Schaefer wrote:
-> > On Thu, 3 Nov 2016 10:51:38 +0800
-> > Huang Shijie <shijie.huang@arm.com> wrote:
-> > 
-> > > When testing the gigantic page whose order is too large for the buddy
-> > > allocator, the libhugetlbfs test case "counter.sh" will fail.
-> > > 
-> > > The failure is caused by:
-> > >  1) kernel fails to allocate a gigantic page for the surplus case.
-> > >     And the gather_surplus_pages() will return NULL in the end.
-> > > 
-> > >  2) The condition checks for "over-commit" is wrong.
-> > > 
-> > > This patch adds code to allocate the gigantic page in the
-> > > __alloc_huge_page(). After this patch, gather_surplus_pages()
-> > > can return a gigantic page for the surplus case.
-> > > 
-> > > This patch also changes the condition checks for:
-> > >      return_unused_surplus_pages()
-> > >      nr_overcommit_hugepages_store()
-> > > 
-> > > After this patch, the counter.sh can pass for the gigantic page.
-> > > 
-> > > Acked-by: Steve Capper <steve.capper@arm.com>
-> > > Signed-off-by: Huang Shijie <shijie.huang@arm.com>
-> > > ---
-> > >  mm/hugetlb.c | 15 ++++++++++-----
-> > >  1 file changed, 10 insertions(+), 5 deletions(-)
-> > > 
-> > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > > index 0bf4444..2b67aff 100644
-> > > --- a/mm/hugetlb.c
-> > > +++ b/mm/hugetlb.c
-> > > @@ -1574,7 +1574,7 @@ static struct page *__alloc_huge_page(struct hstate *h,
-> > >  	struct page *page;
-> > >  	unsigned int r_nid;
-> > > 
-> > > -	if (hstate_is_gigantic(h))
-> > > +	if (hstate_is_gigantic(h) && !gigantic_page_supported())
-> > >  		return NULL;
-> > 
-> > Is it really possible to stumble over gigantic pages w/o having
-> > gigantic_page_supported()?
-> > 
-> > Also, I've just tried this on s390 and counter.sh still fails after these
-> > patches, and it should fail on all archs as long as you use the gigantic
-> I guess the failure you met is caused by the libhugetlbfs itself, there are
-> several bugs in the libhugetlbfs. I have a patch set for the
-> libhugetlbfs too. I will send it as soon as possible.
+On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> This patch prepares thp migration's core code. These code will be open when
+> unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
+> to allocate destination thps.
 > 
-> > hugepage size as default hugepage size. This is because you only changed
-> > nr_overcommit_hugepages_store(), which handles nr_overcommit_hugepages
-> > in sysfs, and missed hugetlb_overcommit_handler() which handles
-> > /proc/sys/vm/nr_overcommit_hugepages for the default sized hugepages.
-> This is wrong. :)
-Sorry, I was wrong :). The counters test does call the /proc/sys/vm/nr_overcommit_hugepages.
-But in the arm64, it does not trigger a fail for the counters test.
-In an other word, I did not change the hugetlb_overcommit_handler(),
-the counters.sh also can pass in arm64. 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> ChangeLog v1 -> v2:
+> - support pte-mapped thp, doubly-mapped thp
+> ---
+>  arch/x86/include/asm/pgtable_64.h |   2 +
+>  include/linux/swapops.h           |  61 +++++++++++++++
+>  mm/huge_memory.c                  | 154 ++++++++++++++++++++++++++++++++++++++
+>  mm/migrate.c                      |  44 ++++++++++-
+>  mm/pgtable-generic.c              |   3 +-
+>  5 files changed, 262 insertions(+), 2 deletions(-)
+> 
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/include/asm/pgtable_64.h v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/include/asm/pgtable_64.h
+> index 1cc82ec..3a1b48e 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/include/asm/pgtable_64.h
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/include/asm/pgtable_64.h
+> @@ -167,7 +167,9 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+>  					 ((type) << (SWP_TYPE_FIRST_BIT)) \
+>  					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
+>  #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+> +#define __pmd_to_swp_entry(pte)		((swp_entry_t) { pmd_val((pmd)) })
 
-I will look at the lockdep issue.
-
-Thanks
-Huang Shijie
-
+The above macro takes *pte* but evaluates on *pmd*, guess its should
+be fixed either way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
