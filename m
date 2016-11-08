@@ -1,100 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 557F96B025E
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 10:01:53 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id b66so118391504ywh.2
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 07:01:53 -0800 (PST)
-Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
-        by mx.google.com with ESMTPS id u9si2681589ybd.91.2016.11.08.07.01.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B54F6B025E
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 10:03:45 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so71925512pfx.1
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 07:03:45 -0800 (PST)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50109.outbound.protection.outlook.com. [40.107.5.109])
+        by mx.google.com with ESMTPS id s5si18499585pfj.271.2016.11.08.07.03.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Nov 2016 07:01:49 -0800 (PST)
-Received: by mail-qk0-f181.google.com with SMTP id x190so217774725qkb.0
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 07:01:49 -0800 (PST)
-Message-ID: <1478617307.2443.20.camel@redhat.com>
-Subject: Re: crash in invalidate_mapping_pages codepath during fadvise
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 08 Nov 2016 10:01:47 -0500
-In-Reply-To: <CAOi1vP8yR3ic39jT0S30K7pEhWe=TsKbn3K3yL+yJkqpv44D=g@mail.gmail.com>
-References: <1478614869.2443.18.camel@redhat.com>
-	 <CAOi1vP8yR3ic39jT0S30K7pEhWe=TsKbn3K3yL+yJkqpv44D=g@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 08 Nov 2016 07:03:42 -0800 (PST)
+Subject: Re: [PATCH 4/7] mm: defer vmalloc from atomic context
+References: <1477149440-12478-1-git-send-email-hch@lst.de>
+ <1477149440-12478-5-git-send-email-hch@lst.de>
+ <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com>
+ <CAJWu+oppRL5kD9qPcdCbFAbEkE7bN+kmrvTuaueVZnY+WtK_tg@mail.gmail.com>
+ <a40cccff-3a6e-b0be-5d06-bac6cdb0e1e6@virtuozzo.com>
+ <20161107150947.GA11279@lst.de>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <747aa42a-c236-ee25-eef5-59644687f01b@virtuozzo.com>
+Date: Tue, 8 Nov 2016 18:03:58 +0300
+MIME-Version: 1.0
+In-Reply-To: <20161107150947.GA11279@lst.de>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilya Dryomov <idryomov@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Sage Weil <sage@redhat.com>, "Yan, Zheng" <zyan@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Joel Fernandes <joelaf@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, "open
+ list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>
 
-On Tue, 2016-11-08 at 15:52 +0100, Ilya Dryomov wrote:
-> On Tue, Nov 8, 2016 at 3:21 PM, Jeff Layton <jlayton@redhat.com> wrote:
-> > 
-> > We hit the following panic while running some (userland) ceph testing:
-> > 
-> > [ 3643.590247] ------------[ cut here ]------------
-> > [ 3643.594883] kernel BUG at /srv/autobuild-ceph/gitbuilder.git/build/include/linux/swap.h:276!
-> > [ 3643.603346] invalid opcode: 0000 [#1] SMP
-> > [ 3643.607369] Modules linked in: xfs libcrc32c kvm_intel ib_iser rdma_cm ib_cm iw_cm ib_core configfs iscsi_tcp libiscsi_tcp libiscsi gpio_ich intel_powerclamp coretemp kvm joydev irqbypass serio_raw lpc_ich i7core_edac shpchp edac_core tpm_infineon nfsd nfs_acl auth_rpcgss nfs fscache lockd sunrpc scsi_transport_iscsi grace lp parport btrfs xor raid6_pq hid_generic usbhid hid e1000e ahci ptp psmouse libahci pps_core arcmsr [last unloaded: kvm_intel]
-> > [ 3643.648733] CPU: 0 PID: 27907 Comm: wb_throttle Not tainted 4.8.0-ceph-00048-g4c60319 #1
-> > [ 3643.656901] Hardware name: Supermicro X8SIL/X8SIL, BIOS 1.1 05/27/2010
-> > [ 3643.663493] task: ffff8c786a550000 task.stack: ffff8c786a558000
-> > [ 3643.669558] RIP: 0010:[<ffffffffbd1caecc>]  [<ffffffffbd1caecc>] clear_exceptional_entry+0x8c/0xf0
-> > [ 3643.678631] RSP: 0018:ffff8c786a55bd58  EFLAGS: 00010046
-> > [ 3643.684018] RAX: ffff8c75a2134920 RBX: ffff8c770633e8a8 RCX: 0000000000000000
-> > [ 3643.691227] RDX: 0000000000000001 RSI: 0000000000000002 RDI: ffff8c75a2134920
-> > [ 3643.698453] RBP: ffff8c786a55bd98 R08: ffff8c75a2134948 R09: 0000000000000001
-> > [ 3643.705673] R10: 0000000000000000 R11: 00000000005b7493 R12: 0000349b7d000102
-> > [ 3643.712900] R13: ffff8c770633e8c0 R14: ffff8c770633e8b0 R15: 0000000000000000
-> > [ 3643.720127] FS:  00007f002a5c2700(0000) GS:ffff8c787fc00000(0000) knlGS:0000000000000000
-> > [ 3643.728323] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > [ 3643.734155] CR2: 00007f8354663ff0 CR3: 0000000429eac000 CR4: 00000000000006f0
-> > [ 3643.741325] Stack:
-> > [ 3643.743364]  ffff8c75a2134920 ffff8c75a2134948 0000000000000000 0000000000000000
-> > [ 3643.750896]  ffffffffffffffff ffff8c770633e8a8 0000000000000000 0000000000000000
-> > [ 3643.758429]  ffff8c786a55bee8 ffffffffbd1cbfe2 ffff8c786a55be68 ffff8c770633e6a8
-> > [ 3643.765962] Call Trace:
-> > [ 3643.768448]  [<ffffffffbd1cbfe2>] invalidate_mapping_pages+0x72/0x2b0
-> > [ 3643.774929]  [<ffffffffbd206711>] SyS_fadvise64_64+0x1f1/0x270
-> > [ 3643.780793]  [<ffffffffbd20679e>] SyS_fadvise64+0xe/0x10
-> > [ 3643.786131]  [<ffffffffbd826340>] entry_SYSCALL_64_fastpath+0x23/0xc1
-> > [ 3643.792629] Code: 45 c8 4c 39 20 75 62 48 c7 00 00 00 00 00 48 8b 45 c0 48 83 ab e8 00 00 00 01 48 85 c0 74 4a 8b 50 04 89 d1 c1 e9 07 85 c9 75 02 <0f> 0b 83 c2 80 89 50 04 48 8b 75 c0 8b 46 04 c1 e8 07 85 c0 75
-> > [ 3643.813243] RIP  [<ffffffffbd1caecc>] clear_exceptional_entry+0x8c/0xf0
-> > [ 3643.820030]  RSP <ffff8c786a55bd58>
-> > [ 3643.823777] ---[ end trace 0c3854ea0ec46fa7 ]---
-> > 
-> > The kernel here is basically a v4.8.0 kernel with a pile of ceph patches
-> > on top. None of the ceph modules are plugged in, so I don't think any of
-> > those patches are a factor here.
-> > 
-> > The VM_BUG_ON is here:
-> > 
-> > static inline void workingset_node_shadows_dec(struct radix_tree_node *node)
-> > {
-> >         VM_BUG_ON(!workingset_node_shadows(node));
-> >         node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
-> > }
-> > 
-> > Here is the full console output, if it's helpful. There's a another bug
-> > after the first one about sleeping in invalid context, but that could
-> > be fallout from the earlier BUG?
-> > 
-> >     http://qa-proxy.ceph.com/teuthology/jlayton-2016-11-07_19:48:50-fs-wip-jlayton-fsync---basic-mira/531006/console_logs/mira107.log
+
+
+On 11/07/2016 06:09 PM, Christoph Hellwig wrote:
+> On Mon, Nov 07, 2016 at 06:01:45PM +0300, Andrey Ryabinin wrote:
+>>> So because in_atomic doesn't work for !CONFIG_PREEMPT kernels, can we
+>>> always defer the work in these cases?
+>>>
+>>> So for non-preemptible kernels, we always defer:
+>>>
+>>> if (!IS_ENABLED(CONFIG_PREEMPT) || in_atomic()) {
+>>>   // defer
+>>> }
+>>>
+>>> Is this fine? Or any other ideas?
+>>>
+>>
+>> What's wrong with my idea?
+>> We can add vfree_in_atomic() and use it to free vmapped stacks
+>> and for any other places where vfree() used 'in_atomict() && !in_interrupt()' context.
 > 
-> It's been fixed by d3798ae8c6f3 ("mm: filemap: don't plant shadow entries
-> without radix tree node") in 4.9-rc.
+> I somehow missed the mail, sorry.  That beeing said always defer is
+> going to suck badly in terms of performance, so I'm not sure it's an all
+> that good idea.
 > 
-> Thanks,
+> vfree_in_atomic sounds good, but I wonder if we'll need to annotate
+> more callers than just the stacks.  I'm fairly bust this week, do you
+> want to give that a spin?  Otherwise I'll give it a try towards the
+> end of this week or next week.
 > 
->                 Ilya
 
-Great, thanks Ilya.
-
-Ok, so I guess we just need to either rebase onto v4.9 or v4.8.4+. We'll
-sort that out -- sorry for the noise.
-
-Thanks!
--- 
-Jeff Layton <jlayton@redhat.com>
+Yeah, it appears that we need more annotations. I've found another case in free_ldt_struct(),
+and I bet it won't be the last.
+I'll send patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
