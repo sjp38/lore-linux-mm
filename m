@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E5B6B0261
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 10:05:54 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y68so71987257pfb.6
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 07:05:54 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0121.outbound.protection.outlook.com. [104.47.1.121])
-        by mx.google.com with ESMTPS id n21si37389911pgj.254.2016.11.08.07.05.53
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C16A6B0266
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 10:08:02 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id g23so12821571wme.4
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 07:08:02 -0800 (PST)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id f126si17059893wma.121.2016.11.08.07.08.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 07:05:53 -0800 (PST)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 3/3] x86/ldt: use vfree_atomic() to free ldt entries
-Date: Tue, 8 Nov 2016 18:05:45 +0300
-Message-ID: <1478617545-8443-3-git-send-email-aryabinin@virtuozzo.com>
-In-Reply-To: <1478617545-8443-1-git-send-email-aryabinin@virtuozzo.com>
-References: <20161107150947.GA11279@lst.de>
- <1478617545-8443-1-git-send-email-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Nov 2016 07:08:01 -0800 (PST)
+Date: Tue, 8 Nov 2016 07:08:00 -0800
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH/RFC v2] z3fold: use per-page read/write lock
+Message-ID: <20161108150800.GL26852@two.firstfloor.org>
+References: <20161108135834.d0b57fa435393c64f358980a@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161108135834.d0b57fa435393c64f358980a@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Joel Fernandes <joelaf@google.com>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, x86@kernel.org
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-vfree() is going to use sleeping lock. free_ldt_struct()
-may be called with disabled preemption, therefore we must
-use vfree_atomic() here.
+On Tue, Nov 08, 2016 at 01:58:34PM +0100, Vitaly Wool wrote:
+> Most of z3fold operations are in-page, such as modifying z3fold
+> page header or moving z3fold objects within a page. Taking
+> per-pool spinlock to protect per-page objects is therefore
+> suboptimal, and the idea of having a per-page spinlock (or rwlock)
+> has been around for some time. However, adding one directly to the
+> z3fold header makes the latter quite big on some systems so that
+> it won't fit in a signle chunk.
+> 
+> This patch implements spinlock-based per-page locking mechanism
+> which is lightweight enough to fit into the z3fold header.
+> 
+> Changes from v1 [1]:
+> - custom locking mechanism changed to spinlocks
+> - no read/write locks, just per-page spinlock
 
-E.g. call trace:
-	vfree()
-	free_ldt_struct()
-	destroy_context_ldt()
-	__mmdrop()
-	finish_task_switch()
-	schedule_tail()
-	ret_from_fork()
+Looks good.
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Joel Fernandes <joelaf@google.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Jisheng Zhang <jszhang@marvell.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: John Dias <joaodias@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org
----
- arch/x86/kernel/ldt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+BTW the spinlock could still grow when debug options  like
+lockdep are enabled. So something would still need to be done about
+that BUILD_BUG_ON(). Otherwise would need to force a raw spin lock.
 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index 6707039..4d12cdf 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -93,7 +93,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
- 
- 	paravirt_free_ldt(ldt->entries, ldt->size);
- 	if (ldt->size * LDT_ENTRY_SIZE > PAGE_SIZE)
--		vfree(ldt->entries);
-+		vfree_atomic(ldt->entries);
- 	else
- 		free_page((unsigned long)ldt->entries);
- 	kfree(ldt);
--- 
-2.7.3
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
