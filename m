@@ -1,332 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E99316B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 05:12:20 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id g23so7308266wme.4
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 02:12:20 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F4626B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 05:27:19 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id r68so78560076wmd.0
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 02:27:19 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cy11si14056735wjd.126.2016.11.08.02.12.19
+        by mx.google.com with ESMTPS id e140si15745254wmd.117.2016.11.08.02.27.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 02:12:19 -0800 (PST)
-Date: Tue, 8 Nov 2016 11:12:17 +0100
+        Tue, 08 Nov 2016 02:27:18 -0800 (PST)
+Date: Tue, 8 Nov 2016 11:27:16 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 4/6] lib: radix-tree: check accounting of existing slot
- replacement users
-Message-ID: <20161108101217.GK32353@quack2.suse.cz>
+Subject: Re: [PATCH 5/6] mm: workingset: switch shadow entry tracking to
+ radix tree exceptional counting
+Message-ID: <20161108102716.GL32353@quack2.suse.cz>
 References: <20161107190741.3619-1-hannes@cmpxchg.org>
- <20161107190741.3619-5-hannes@cmpxchg.org>
+ <20161107190741.3619-6-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161107190741.3619-5-hannes@cmpxchg.org>
+In-Reply-To: <20161107190741.3619-6-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon 07-11-16 14:07:39, Johannes Weiner wrote:
-> The bug in khugepaged (fixed in the first patch of this series) shows
-> that radix tree slot replacement is fragile; and it will become more
-> so when not only NULL<->!NULL transitions need to be accounted but
-> transitions from and to exceptional entries as well. We need checks.
+On Mon 07-11-16 14:07:40, Johannes Weiner wrote:
+> Currently, we track the shadow entries in the page cache in the upper
+> bits of the radix_tree_node->count, behind the back of the radix tree
+> implementation. Because the radix tree code has no awareness of them,
+> we rely on random subtleties throughout the implementation (such as
+> the node->count != 1 check in the shrinking code which is meant to
+> exclude multi-entry nodes, but also happens to skip nodes with only
+> one shadow entry since it's accounted in the upper bits). This is
+> error prone and has, in fact, caused the bug fixed in d3798ae8c6f3
+> ("mm: filemap: don't plant shadow entries without radix tree node").
 > 
-> Re-implement radix_tree_replace_slot() on top of the sanity-checked
-> __radix_tree_replace(). This requires existing callers to also pass
-> the radix tree root, but it'll warn us when somebody replaces slots
-> with contents that need proper accounting (transitions between NULL
-> entries, real entries, exceptional entries) and where a replacement
-> through the slot pointer would corrupt the radix tree node counts.
-> 
-> Suggested-by: Jan Kara <jack@suse.cz>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> To remove these subtleties, this patch moves shadow entry tracking
+> from the upper bits of node->count to the existing counter for
+> exceptional entries. node->count goes back to being a simple counter
+> of valid entries in the tree node and can be shrunk to a single byte.
 
-The patch looks good. You can add:
+...
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  arch/s390/mm/gmap.c                   |  2 +-
->  drivers/sh/intc/virq.c                |  2 +-
->  fs/dax.c                              |  4 +--
->  include/linux/radix-tree.h            | 16 ++-------
->  lib/radix-tree.c                      | 64 +++++++++++++++++++++++++++--------
->  mm/filemap.c                          |  4 +--
->  mm/khugepaged.c                       |  5 +--
->  mm/migrate.c                          |  4 +--
->  mm/truncate.c                         |  2 +-
->  tools/testing/radix-tree/multiorder.c |  2 +-
->  10 files changed, 64 insertions(+), 41 deletions(-)
-> 
-> diff --git a/arch/s390/mm/gmap.c b/arch/s390/mm/gmap.c
-> index 3ba622702ce4..ec1f0dedb948 100644
-> --- a/arch/s390/mm/gmap.c
-> +++ b/arch/s390/mm/gmap.c
-> @@ -1015,7 +1015,7 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
->  	if (slot) {
->  		rmap->next = radix_tree_deref_slot_protected(slot,
->  							&sg->guest_table_lock);
-> -		radix_tree_replace_slot(slot, rmap);
-> +		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
->  	} else {
->  		rmap->next = NULL;
->  		radix_tree_insert(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,
-> diff --git a/drivers/sh/intc/virq.c b/drivers/sh/intc/virq.c
-> index e7899624aa0b..35bbe288ddb4 100644
-> --- a/drivers/sh/intc/virq.c
-> +++ b/drivers/sh/intc/virq.c
-> @@ -254,7 +254,7 @@ static void __init intc_subgroup_map(struct intc_desc_int *d)
->  
->  		radix_tree_tag_clear(&d->tree, entry->enum_id,
->  				     INTC_TAG_VIRQ_NEEDS_ALLOC);
-> -		radix_tree_replace_slot((void **)entries[i],
-> +		radix_tree_replace_slot(&d->tree, (void **)entries[i],
->  					&intc_irq_xlate[irq]);
->  	}
->  
-> diff --git a/fs/dax.c b/fs/dax.c
-> index db78bae0dc0f..85930c2a2749 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -342,7 +342,7 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
->  		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
->  
->  	entry |= RADIX_DAX_ENTRY_LOCK;
-> -	radix_tree_replace_slot(slot, (void *)entry);
-> +	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
->  	return (void *)entry;
->  }
->  
-> @@ -356,7 +356,7 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
->  		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
->  
->  	entry &= ~(unsigned long)RADIX_DAX_ENTRY_LOCK;
-> -	radix_tree_replace_slot(slot, (void *)entry);
-> +	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
->  	return (void *)entry;
->  }
->  
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index 7ced8a70cc8b..2d1b9b8be983 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -249,20 +249,6 @@ static inline int radix_tree_exception(void *arg)
->  	return unlikely((unsigned long)arg & RADIX_TREE_ENTRY_MASK);
->  }
->  
-> -/**
-> - * radix_tree_replace_slot	- replace item in a slot
-> - * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
-> - * @item:	new item to store in the slot.
-> - *
-> - * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
-> - * across slot lookup and replacement.
-> - */
-> -static inline void radix_tree_replace_slot(void **pslot, void *item)
-> -{
-> -	BUG_ON(radix_tree_is_internal_node(item));
-> -	rcu_assign_pointer(*pslot, item);
-> -}
-> -
->  int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
->  			unsigned order, struct radix_tree_node **nodep,
->  			void ***slotp);
-> @@ -280,6 +266,8 @@ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
->  void __radix_tree_replace(struct radix_tree_root *root,
->  			  struct radix_tree_node *node,
->  			  void **slot, void *item);
-> +void radix_tree_replace_slot(struct radix_tree_root *root,
-> +			     void **slot, void *item);
->  bool __radix_tree_delete_node(struct radix_tree_root *root,
->  			      struct radix_tree_node *node);
->  void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index ddc6facbf4da..5cbdd911931e 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -753,19 +753,10 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
->  }
->  EXPORT_SYMBOL(radix_tree_lookup);
->  
-> -/**
-> - * __radix_tree_replace		- replace item in a slot
-> - * @root:	radix tree root
-> - * @node:	pointer to tree node
-> - * @slot:	pointer to slot in @node
-> - * @item:	new item to store in the slot.
-> - *
-> - * For use with __radix_tree_lookup().  Caller must hold tree write locked
-> - * across slot lookup and replacement.
-> - */
-> -void __radix_tree_replace(struct radix_tree_root *root,
-> -			  struct radix_tree_node *node,
-> -			  void **slot, void *item)
-> +static void replace_slot(struct radix_tree_root *root,
-> +			 struct radix_tree_node *node,
-> +			 void **slot, void *item,
-> +			 bool warn_typeswitch)
->  {
->  	void *old = rcu_dereference_raw(*slot);
->  	int count, exceptional;
-> @@ -776,8 +767,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
->  	exceptional = !!radix_tree_exceptional_entry(item) -
->  		      !!radix_tree_exceptional_entry(old);
->  
-> -	WARN_ONCE(!node && slot != (void **)&root->rnode &&
-> -		  (count || exceptional),
-> +	WARN_ONCE(warn_typeswitch && (count || exceptional),
->  		  "Unaccounted slot replacement: old=%p item=%p count=%d exceptional=%d\n",
->  		  old, item, count, exceptional);
->  
-> @@ -789,6 +779,50 @@ void __radix_tree_replace(struct radix_tree_root *root,
->  }
->  
->  /**
-> + * __radix_tree_replace		- replace item in a slot
-> + * @root:	radix tree root
-> + * @node:	pointer to tree node
-> + * @slot:	pointer to slot in @node
-> + * @item:	new item to store in the slot.
-> + *
-> + * For use with __radix_tree_lookup().  Caller must hold tree write locked
-> + * across slot lookup and replacement.
-> + */
-> +void __radix_tree_replace(struct radix_tree_root *root,
-> +			  struct radix_tree_node *node,
-> +			  void **slot, void *item)
-> +{
-> +	/*
-> +	 * This function supports replacing entries with different types
-> +	 * (NULL, regular entries, exceptional entries), but that needs
-> +	 * accounting against the node - unless the slot is root->rnode.
-> +	 */
-> +	replace_slot(root, node, slot, item,
-> +		     !node && slot != (void **)&root->rnode);
-> +}
-> +
-> +/**
-> + * radix_tree_replace_slot	- replace item in a slot
-> + * @root:	radix tree root
-> + * @slot:	pointer to slot
-> + * @item:	new item to store in the slot.
-> + *
-> + * For use with radix_tree_lookup_slot(), radix_tree_gang_lookup_slot(),
-> + * radix_tree_gang_lookup_tag_slot().  Caller must hold tree write locked
-> + * across slot lookup and replacement.
-> + *
-> + * NOTE: This cannot be used to switch between non-entries (empty slots),
-> + * regular entries, and exceptional entries, as that requires accounting
-> + * inside the radix tree node. When switching from one type of entry to
-> + * another, use __radix_tree_lookup() and __radix_tree_replace().
-> + */
-> +void radix_tree_replace_slot(struct radix_tree_root *root,
-> +			     void **slot, void *item)
-> +{
-> +	replace_slot(root, NULL, slot, item, true);
-> +}
-> +
-> +/**
->   *	radix_tree_tag_set - set a tag on a radix tree node
->   *	@root:		radix tree root
->   *	@index:		index key
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index c7fe2f16503f..eb463156f29a 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -147,7 +147,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
->  						      false);
->  		}
->  	}
-> -	radix_tree_replace_slot(slot, page);
-> +	radix_tree_replace_slot(&mapping->page_tree, slot, page);
->  	mapping->nrpages++;
->  	if (node) {
->  		workingset_node_pages_inc(node);
-> @@ -193,7 +193,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
->  			shadow = NULL;
->  		}
->  
-> -		radix_tree_replace_slot(slot, shadow);
-> +		radix_tree_replace_slot(&mapping->page_tree, slot, shadow);
->  
->  		if (!node)
->  			break;
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index eac6f0580e26..fed8d5e96978 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -1421,7 +1421,7 @@ static void collapse_shmem(struct mm_struct *mm,
->  		list_add_tail(&page->lru, &pagelist);
->  
->  		/* Finally, replace with the new page. */
-> -		radix_tree_replace_slot(slot,
-> +		radix_tree_replace_slot(&mapping->page_tree, slot,
->  				new_page + (index % HPAGE_PMD_NR));
->  
->  		index++;
-> @@ -1531,7 +1531,8 @@ static void collapse_shmem(struct mm_struct *mm,
->  			/* Unfreeze the page. */
->  			list_del(&page->lru);
->  			page_ref_unfreeze(page, 2);
-> -			radix_tree_replace_slot(slot, page);
-> +			radix_tree_replace_slot(&mapping->page_tree,
-> +						slot, page);
->  			spin_unlock_irq(&mapping->tree_lock);
->  			putback_lru_page(page);
->  			unlock_page(page);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 99250aee1ac1..9b88e4e37d0a 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -482,7 +482,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  		SetPageDirty(newpage);
->  	}
->  
-> -	radix_tree_replace_slot(pslot, newpage);
-> +	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
->  
->  	/*
->  	 * Drop cache reference from old page by unfreezing
-> @@ -556,7 +556,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
->  
->  	get_page(newpage);
->  
-> -	radix_tree_replace_slot(pslot, newpage);
-> +	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
->  
->  	page_ref_unfreeze(page, expected_count - 1);
->  
 > diff --git a/mm/truncate.c b/mm/truncate.c
-> index a01cce450a26..6ae44571d4c7 100644
+> index 6ae44571d4c7..d3ce5f261f47 100644
 > --- a/mm/truncate.c
 > +++ b/mm/truncate.c
-> @@ -49,7 +49,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
->  		goto unlock;
->  	if (*slot != entry)
->  		goto unlock;
-> -	radix_tree_replace_slot(slot, NULL);
-> +	radix_tree_replace_slot(&mapping->page_tree, slot, NULL);
+> @@ -53,7 +53,6 @@ static void clear_exceptional_entry(struct address_space *mapping,
 >  	mapping->nrexceptional--;
 >  	if (!node)
 >  		goto unlock;
-> diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-> index 05d7bc488971..d1be94667a30 100644
-> --- a/tools/testing/radix-tree/multiorder.c
-> +++ b/tools/testing/radix-tree/multiorder.c
-> @@ -146,7 +146,7 @@ static void multiorder_check(unsigned long index, int order)
->  
->  	slot = radix_tree_lookup_slot(&tree, index);
->  	free(*slot);
-> -	radix_tree_replace_slot(slot, item2);
-> +	radix_tree_replace_slot(&tree, slot, item2);
->  	for (i = min; i < max; i++) {
->  		struct item *item = item_lookup(&tree, i);
->  		assert(item != 0);
-> -- 
-> 2.10.1
-> 
+> -	workingset_node_shadows_dec(node);
+>  	/*
+>  	 * Don't track node without shadow entries.
+>  	 *
+> @@ -61,8 +60,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
+>  	 * The list_empty() test is safe as node->private_list is
+>  	 * protected by mapping->tree_lock.
+>  	 */
+> -	if (!workingset_node_shadows(node) &&
+> -	    !list_empty(&node->private_list))
+> +	if (!node->exceptional && !list_empty(&node->private_list))
+>  		list_lru_del(&workingset_shadow_nodes,
+>  				&node->private_list);
+>  	__radix_tree_delete_node(&mapping->page_tree, node);
+
+Is this really correct now? The radix tree implementation can move a single
+exceptional entry at index 0 from a node into a direct pointer and free
+the node while it is still in the LRU list. Or am I missing something?
+To fix this I'd prefer to just have a callback from radix tree code when it
+is freeing a node, rather that trying to second-guess its implementation in
+the page-cache code...
+
+Otherwise the patch looks good to me and I really like the simplification!
+
+								Honza
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
