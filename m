@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4626B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 05:27:19 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r68so78560076wmd.0
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 02:27:19 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F0FA06B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 05:31:22 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so7633538wme.4
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 02:31:22 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e140si15745254wmd.117.2016.11.08.02.27.18
+        by mx.google.com with ESMTPS id fk2si15667493wjb.20.2016.11.08.02.31.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 02:27:18 -0800 (PST)
-Date: Tue, 8 Nov 2016 11:27:16 +0100
+        Tue, 08 Nov 2016 02:31:21 -0800 (PST)
+Date: Tue, 8 Nov 2016 11:31:19 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 5/6] mm: workingset: switch shadow entry tracking to
- radix tree exceptional counting
-Message-ID: <20161108102716.GL32353@quack2.suse.cz>
+Subject: Re: [PATCH 6/6] mm: workingset: restore refault tracking for
+ single-page files
+Message-ID: <20161108103119.GM32353@quack2.suse.cz>
 References: <20161107190741.3619-1-hannes@cmpxchg.org>
- <20161107190741.3619-6-hannes@cmpxchg.org>
+ <20161107190741.3619-7-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161107190741.3619-6-hannes@cmpxchg.org>
+In-Reply-To: <20161107190741.3619-7-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon 07-11-16 14:07:40, Johannes Weiner wrote:
-> Currently, we track the shadow entries in the page cache in the upper
-> bits of the radix_tree_node->count, behind the back of the radix tree
-> implementation. Because the radix tree code has no awareness of them,
-> we rely on random subtleties throughout the implementation (such as
-> the node->count != 1 check in the shrinking code which is meant to
-> exclude multi-entry nodes, but also happens to skip nodes with only
-> one shadow entry since it's accounted in the upper bits). This is
-> error prone and has, in fact, caused the bug fixed in d3798ae8c6f3
-> ("mm: filemap: don't plant shadow entries without radix tree node").
+On Mon 07-11-16 14:07:41, Johannes Weiner wrote:
+> Shadow entries in the page cache used to be accounted behind the radix
+> tree implementation's back in the upper bits of node->count, and the
+> radix tree code extending a single-entry tree with a shadow entry in
+> root->rnode would corrupt that counter. As a result, we could not put
+> shadow entries at index 0 if the tree didn't have any other entries,
+> and that means no refault detection for any single-page file.
 > 
-> To remove these subtleties, this patch moves shadow entry tracking
-> from the upper bits of node->count to the existing counter for
-> exceptional entries. node->count goes back to being a simple counter
-> of valid entries in the tree node and can be shrunk to a single byte.
+> Now that the shadow entries are tracked natively in the radix tree's
+> exceptional counter, this is no longer necessary. Extending and
+> shrinking the tree from and to single entries in root->rnode now does
+> the right thing when the entry is exceptional, remove that limitation.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-...
+The patch looks good to me. You can add:
 
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index 6ae44571d4c7..d3ce5f261f47 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -53,7 +53,6 @@ static void clear_exceptional_entry(struct address_space *mapping,
->  	mapping->nrexceptional--;
->  	if (!node)
->  		goto unlock;
-> -	workingset_node_shadows_dec(node);
->  	/*
->  	 * Don't track node without shadow entries.
->  	 *
-> @@ -61,8 +60,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
->  	 * The list_empty() test is safe as node->private_list is
->  	 * protected by mapping->tree_lock.
->  	 */
-> -	if (!workingset_node_shadows(node) &&
-> -	    !list_empty(&node->private_list))
-> +	if (!node->exceptional && !list_empty(&node->private_list))
->  		list_lru_del(&workingset_shadow_nodes,
->  				&node->private_list);
->  	__radix_tree_delete_node(&mapping->page_tree, node);
-
-Is this really correct now? The radix tree implementation can move a single
-exceptional entry at index 0 from a node into a direct pointer and free
-the node while it is still in the LRU list. Or am I missing something?
-To fix this I'd prefer to just have a callback from radix tree code when it
-is freeing a node, rather that trying to second-guess its implementation in
-the page-cache code...
-
-Otherwise the patch looks good to me and I really like the simplification!
+Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
+
+> ---
+>  mm/filemap.c | 13 +++----------
+>  1 file changed, 3 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 438f0b54f8fd..55a3b136a527 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -178,19 +178,12 @@ static void page_cache_tree_delete(struct address_space *mapping,
+>  
+>  		radix_tree_clear_tags(&mapping->page_tree, node, slot);
+>  
+> -		if (!node) {
+> -			VM_BUG_ON_PAGE(nr != 1, page);
+> -			/*
+> -			 * We need a node to properly account shadow
+> -			 * entries. Don't plant any without. XXX
+> -			 */
+> -			shadow = NULL;
+> -		}
+> -
+>  		__radix_tree_replace(&mapping->page_tree, node, slot, shadow);
+>  
+> -		if (!node)
+> +		if (!node) {
+> +			VM_BUG_ON_PAGE(nr != 1, page);
+>  			break;
+> +		}
+>  
+>  		if (!shadow &&
+>  		    __radix_tree_delete_node(&mapping->page_tree, node))
+> -- 
+> 2.10.1
+> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
