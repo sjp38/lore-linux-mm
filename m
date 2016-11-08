@@ -1,101 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D54D6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 23:49:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 17so61945657pfy.2
-        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 20:49:19 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id i4si29071853paf.279.2016.11.07.20.40.14
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D70806B0038
+	for <linux-mm@kvack.org>; Mon,  7 Nov 2016 23:52:51 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id b66so83879729ywh.2
+        for <linux-mm@kvack.org>; Mon, 07 Nov 2016 20:52:51 -0800 (PST)
+Received: from szxga03-in.huawei.com ([119.145.14.66])
+        by mx.google.com with ESMTPS id e128si10244299oih.159.2016.11.07.20.52.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Nov 2016 20:40:15 -0800 (PST)
-Received: from epcpsbgm2new.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OGB02W7S3N1RRE0@mailout2.samsung.com> for linux-mm@kvack.org;
- Tue, 08 Nov 2016 13:40:13 +0900 (KST)
-From: Ashish Kalra <ashish.kalra@samsung.com>
-Subject: [PATCH] mm: dmapool: Fixed following warnings
-Date: Tue, 08 Nov 2016 10:07:52 +0530
-Message-id: <1478579872-881-1-git-send-email-ashish.kalra@samsung.com>
+        Mon, 07 Nov 2016 20:52:51 -0800 (PST)
+Message-ID: <582157E5.8000106@huawei.com>
+Date: Tue, 8 Nov 2016 12:43:17 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: [RFC] mem-hotplug: shall we skip unmovable node when doing numa balance?
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Joe Perches <joe@perches.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ashish Kalra <ashish.kalra@samsung.com>, shailesh pandey <p.shailesh@samsung.com>, vidushi.koul@samsung.com
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "robert.liu@huawei.com" <robert.liu@huawei.com>
 
-From: AshishKalra <ashish.kalra@samsung.com>
+On mem-hotplug system, there is a problem, please see the following case.
 
-WARNING: Prefer 'unsigned int' to bare use of 'unsigned'
-WARNING: Symbolic permissions 'S_IRUGO' are not preferred. Consider using octal permissions '0444'.
-WARNING: Missing a blank line after declarations
-Warning were detected with checkpatch.pl
+memtester xxG, the memory will be alloced on a movable node. And after numa
+balancing, the memory may be migrated to the other node, it may be a unmovable
+node. This will reduce the free memory of the unmovable node, and may be oom
+later.
 
-Signed-off-by: AshishKalra <ashish.kalra@samsung.com>
----
- mm/dmapool.c |   13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+My question is that shall we skip unmovable node when doing numa balance?
+or just let the manager set some numa policies?
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index abcbfe8..9fde077 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -67,8 +67,8 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
- static ssize_t
- show_pools(struct device *dev, struct device_attribute *attr, char *buf)
- {
--	unsigned temp;
--	unsigned size;
-+	unsigned int temp;
-+	unsigned int size;
- 	char *next;
- 	struct dma_page *page;
- 	struct dma_pool *pool;
-@@ -82,8 +82,8 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 057964d..f0954ac 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2334,6 +2334,13 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ out:
+ 	mpol_cond_put(pol);
  
- 	mutex_lock(&pools_lock);
- 	list_for_each_entry(pool, &dev->dma_pools, pools) {
--		unsigned pages = 0;
--		unsigned blocks = 0;
-+		unsigned int pages = 0;
-+		unsigned int blocks = 0;
- 
- 		spin_lock_irq(&pool->lock);
- 		list_for_each_entry(page, &pool->page_list, page_list) {
-@@ -105,7 +105,7 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
- 	return PAGE_SIZE - size;
++	/* Skip unmovable nodes when do numa balancing */
++	if (movable_node_enabled && ret != -1) {
++		zone = NODE_DATA(ret)->node_zones + MAX_NR_ZONES - 1;
++		if (!populated_zone(zone))
++			ret = -1;
++	}
++
+ 	return ret;
  }
- 
--static DEVICE_ATTR(pools, S_IRUGO, show_pools, NULL);
-+static DEVICE_ATTR(pools, 0444, show_pools, NULL);
- 
- /**
-  * dma_pool_create - Creates a pool of consistent memory blocks, for dma.
-@@ -210,6 +210,7 @@ static void pool_initialise_page(struct dma_pool *pool, struct dma_page *page)
- 
- 	do {
- 		unsigned int next = offset + pool->size;
-+
- 		if (unlikely((next + pool->size) >= next_boundary)) {
- 			next = next_boundary;
- 			next_boundary += pool->boundary;
-@@ -286,6 +287,7 @@ void dma_pool_destroy(struct dma_pool *pool)
- 
- 	while (!list_empty(&pool->page_list)) {
- 		struct dma_page *page;
-+
- 		page = list_entry(pool->page_list.next,
- 				  struct dma_page, page_list);
- 		if (is_page_busy(page)) {
-@@ -443,6 +445,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
- 	}
- 	{
- 		unsigned int chain = page->offset;
-+
- 		while (chain < pool->allocation) {
- 			if (chain != offset) {
- 				chain = *(int *)(page->vaddr + chain);
--- 
-1.7.9.5
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
