@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 94E6B6B025E
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 18:17:29 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 144so60658702pfv.5
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 15:17:29 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p62si39003794pfi.27.2016.11.08.15.17.28
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DA6586B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 18:51:48 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id y126so113700659itb.5
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 15:51:48 -0800 (PST)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id l2si11276365itc.55.2016.11.08.15.51.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Nov 2016 15:17:28 -0800 (PST)
-Date: Tue, 8 Nov 2016 15:17:27 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, slab: faster active and free stats
-Message-Id: <20161108151727.b64035da825c69bced88b46d@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com>
-Mime-Version: 1.0
+        Tue, 08 Nov 2016 15:51:48 -0800 (PST)
+Date: Tue, 8 Nov 2016 17:51:46 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 1/2] memcg: Prevent memcg caches to be both OFF_SLAB
+ & OBJFREELIST_SLAB
+In-Reply-To: <20161107144931.edcf151a04f1af6d230b8a8a@linux-foundation.org>
+Message-ID: <alpine.DEB.2.20.1611081750410.22914@east.gentwo.org>
+References: <1478553075-120242-1-git-send-email-thgarnie@google.com> <20161107141919.fe50cef419918c7a4660f3c2@linux-foundation.org> <CAJcbSZGO1oVf2cQeCO2_qiUrNdSckhwDSah4sqnnc388J2Rruw@mail.gmail.com>
+ <20161107144931.edcf151a04f1af6d230b8a8a@linux-foundation.org>
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Greg Thelen <gthelen@google.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Thomas Garnier <thgarnie@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>
 
-On Tue, 8 Nov 2016 15:06:45 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Mon, 7 Nov 2016, Andrew Morton wrote:
 
-> Reading /proc/slabinfo or monitoring slabtop(1) can become very expensive
-> if there are many slab caches and if there are very lengthy per-node
-> partial and/or free lists.
-> 
-> Commit 07a63c41fa1f ("mm/slab: improve performance of gathering slabinfo
-> stats") addressed the per-node full lists which showed a significant
-> improvement when no objects were freed.  This patch has the same
-> motivation and optimizes the remainder of the usecases where there are
-> very lengthy partial and free lists.
-> 
-> This patch maintains per-node active_slabs (full and partial) and
-> free_slabs rather than iterating the lists at runtime when reading
-> /proc/slabinfo.
+> > I will add more details and send another round.
+>
+> Please simply send the additional changelog text in this thread -
+> processing an entire v4 patch just for a changelog fiddle is rather
+> heavyweight.
 
-Are there any nice numbers you can share?
+I think this patch is good for future cleanup. We have had a case here
+where an internal flag was passed to kmem_cache_create that caused issues
+later. This should not happen. We need to guard against this in the
+future.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
