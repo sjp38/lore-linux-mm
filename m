@@ -1,100 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 665566B0038
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 06:10:04 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so58772653wms.7
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 03:10:04 -0800 (PST)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id h8si34914918wjx.21.2016.11.08.03.10.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AE06B0038
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 06:24:09 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id i88so66703832pfk.3
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 03:24:09 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id sn2si28008608pac.336.2016.11.08.03.24.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 03:10:03 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id A6FB598F1A
-	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 11:10:02 +0000 (UTC)
-Date: Tue, 8 Nov 2016 11:03:51 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC][PATCH] mm: merge as soon as possible when pcp alloc/free
-Message-ID: <20161108110351.GA3614@techsingularity.net>
-References: <581D9103.1000202@huawei.com>
- <20161107154532.e3573bc08324e24aad6d1e26@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Nov 2016 03:24:08 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA8BJdQN119429
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 06:24:08 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26k9kk07xy-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Nov 2016 06:24:08 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Tue, 8 Nov 2016 11:24:05 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9993C2190056
+	for <linux-mm@kvack.org>; Tue,  8 Nov 2016 11:23:17 +0000 (GMT)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uA8BO3Hq15335712
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 11:24:03 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uA8BO21t024225
+	for <linux-mm@kvack.org>; Tue, 8 Nov 2016 04:24:03 -0700
+Date: Tue, 8 Nov 2016 12:24:01 +0100
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH] mm: only enable sys_pkey* when ARCH_HAS_PKEYS
+References: <1477958904-9903-1-git-send-email-mark.rutland@arm.com>
+ <c716d515-409f-4092-73d2-1a81db6c1ba3@linux.intel.com>
+ <20161104234459.GA18760@remoulade>
+ <20161108093042.GC3528@osiris>
+ <20161108104112.GM1041@n2100.armlinux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161107154532.e3573bc08324e24aad6d1e26@linux-foundation.org>
+In-Reply-To: <20161108104112.GM1041@n2100.armlinux.org.uk>
+Message-Id: <20161108112400.GE3528@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Yisheng Xie <xieyisheng1@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Mark Rutland <mark.rutland@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Thomas Gleixner <tglx@linutronix.de>, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 
-On Mon, Nov 07, 2016 at 03:45:32PM -0800, Andrew Morton wrote:
-> On Sat, 5 Nov 2016 15:57:55 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
+On Tue, Nov 08, 2016 at 10:41:12AM +0000, Russell King - ARM Linux wrote:
+> On Tue, Nov 08, 2016 at 10:30:42AM +0100, Heiko Carstens wrote:
+> > Two architectures (arm, mips) have wired them up and thus allocated system
+> > call numbers, even though they don't have ARCH_HAS_PKEYS set. Which seems a
+> > bit pointless.
 > 
-> > Usually the memory of android phones is very small, so after a long
-> > running, the fragment is very large. Kernel stack which called by
-> > alloc_thread_stack_node() usually alloc 16K memory, and it failed
-> > frequently.
-> > 
-> > However we have CONFIG_VMAP_STACK now, but it do not support arm64,
-> > and maybe it has some regression because of vmalloc, it need to
-> > find an area and create page table dynamically, this will take a short
-> > time.
-> > 
-> > I think we can merge as soon as possible when pcp alloc/free to reduce
-> > fragment. The pcp page is hot page, so free it will cause cache miss,
-> > I use perf to test it, but it seems the regression is not so much, maybe
-> > it need to test more. Any reply is welcome.
+> I don't think it's pointless at all.  First, read the LWN article for
+> the userspace side of the interface: https://lwn.net/Articles/689395/
 > 
-> per-cpu pages may not be worth the effort on such systems - probably
-> benefit is small.  I discussed this with Mel a few years ago and I
-> think he did some testing, but I forget the results?
+> From reading this, it seems (at least to me) that these pkey syscalls
+> are going to be the application level API - which means applications
+> are probably going to want to make these calls.
 > 
+> Sure, they'll have to go through glibc, and glibc can provide stubs,
+> but the problem with that is if we do get hardware pkey support (eg,
+> due to pressure to increase security) then we're going to end up
+> needing both kernel changes and glibc changes to add the calls.
+> 
+> Since one of the design goals of pkeys is to allow them to work when
+> there is no underlying hardware support, I see no reason not to wire
+> them up in architecture syscall tables today, so that we have a cross-
+> architecture kernel version where the pkey syscalls become available.
+> glibc (and other libcs) don't then have to mess around with per-
+> architecture recording of which kernel version the pkey syscalls were
+> added.
+> 
+> Not wiring up the syscalls doesn't really gain anything: the code
+> present when !ARCH_HAS_PKEYS will still be part of the kernel image,
+> it just won't be callable.
 
-I'm still on holidays so not in the position to review closely but in
-general, aggressively merging per-cpu pages is expected to be a bust and
-offset heavily by increased contention on zone lock. A batch free early in
-the lifetime of the system is going to hit such a heuristic aggressively
-even if fragmentation overall is fine.
+That can be easily solved (see below).
 
-> Anyway, if per-cpu pages are causing problems then perhaps we should
-> have a Kconfig option which simply eliminates them: free these pages
-> direct into the buddy.  If the resulting code is clean-looking and the
-> performance testing on small systems shows decent results then that
-> should address the issues you're seeing.
+> So, on balance, I've decided to wire them up on ARM, even though the
+> hardware doesn't support them, to avoid unnecessary pain in userspace
+> from the ARM side of things.
+> 
+> Obviously what other architectures do is their own business.
 
-I know for a fact that deleting the per-cpu allocator works but overall
-performance fell down a hole when there were multiple parallel allocation
-requests (multiple processes faulting for example). There were prototype
-patches that used per-socket locks to minimise costs of cache misses but it
-never improved the performance of the page allocator while having similar
-properties in terms of fragmentation.
+It would make sense if this would be handled the same across architectures.
 
-In general, my view is that the latency reduction of the page allocator
-went too far since 3.0 which had the strongest protection against
-fragmentation. It's now too willing to mix pageblocks together in the
-name of latency, mostly done in the name of THP and fragmentation simply
-degrades far faster than it used to. Tackling it from the per-cpu
-allocator is the wrong direction IMO.
+We could simply ifdef the small pkey block in mprotect.c and rely on the
+pkey cond_syscalls added with e2753293ac4b. The result would actually be
+the same what Mark proposed, except with less generated code.
 
-Overall, there is a definite lack of workloads that routinely create
-fragmentation in a manner that is reproducible, representative and
-measurable. A lot of the patches are vague hand waving and it's not a good
-enough basis for merging patches. I know the stress high-alloc workload
-exists which was fine in 3.0, but not fine today with larger memory sizes,
-the existance of SLUB high-order allocations and a much more aggressive
-mix of THP allocations. Ideally that point would be addressed first as a
-basis for further work.
+Something like this:
 
-After that, one approach would be to review control of pageblocks and be more
-willing to protect pageblocks by migrating movable pages out of pageblocks
-that MIGRATE_UNMOVABLE and MIGRATE_RECLAIMABLE steals even if it's deferred
-to kswapd with the view to avoiding further fragmentation. Back in 3.0, an
-unreleased prototype existed for that but the fragmentation protection was so
-strong, it had no benefit. I don't have the prototype any more unfortunately.
-
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 11936526b08b..9fb86b107e49 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -484,6 +484,8 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 	return do_mprotect_pkey(start, len, prot, -1);
+ }
+ 
++#ifdef CONFIG_ARCH_HAS_PKEYS
++
+ SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
+ 		unsigned long, prot, int, pkey)
+ {
+@@ -534,3 +536,4 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
+ 	 */
+ 	return ret;
+ }
++#endif /* CONFIG_ARCH_HAS_PKEYS */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
