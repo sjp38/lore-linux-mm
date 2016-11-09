@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C44236B0038
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 13:36:16 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id rf5so78743025pab.3
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 10:36:16 -0800 (PST)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id z14si638389pgh.163.2016.11.09.10.36.15
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E82AE6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 15:15:23 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id b123so246859663itb.3
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 12:15:23 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id tw2si854948pab.290.2016.11.09.12.15.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Nov 2016 10:36:15 -0800 (PST)
-Received: by mail-pf0-x234.google.com with SMTP id d2so130992394pfd.0
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 10:36:15 -0800 (PST)
-Date: Wed, 9 Nov 2016 10:36:06 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] drm/i915: Make GPU pages movable
-In-Reply-To: <20161109112835.kivhola7ux3lw4s6@phenom.ffwll.local>
-Message-ID: <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com> <1478271776-1194-2-git-send-email-akash.goel@intel.com> <20161109112835.kivhola7ux3lw4s6@phenom.ffwll.local>
+        Wed, 09 Nov 2016 12:15:23 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA9KDdgC106931
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2016 15:15:22 -0500
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26m6j79wrj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 09 Nov 2016 15:15:22 -0500
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Wed, 9 Nov 2016 13:15:21 -0700
+Date: Wed, 9 Nov 2016 14:15:14 -0600
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 4/4] of/fdt: mark hotpluggable memory
+References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
+ <CAL_JsqLmAv4Pueq9XveeWMD3Jn_o6mGUcyztx8OajBGTrEd0aQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <CAL_JsqLmAv4Pueq9XveeWMD3Jn_o6mGUcyztx8OajBGTrEd0aQ@mail.gmail.com>
+Message-Id: <20161109201513.6q5fgfwkmyb2k63n@arbab-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: akash.goel@intel.com, intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Sourab Gupta <sourab.gupta@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Rob Herring <robh+dt@kernel.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, 9 Nov 2016, Daniel Vetter wrote:
-> 
-> Hi all -mm folks!
-> 
-> Any feedback on these two? It's kinda an intermediate step towards a
-> full-blown gemfs, and I think useful for that. Or do we need to go
-> directly to our own backing storage thing? Aside from ack/nack from -mm I
-> think this is ready for merging.
+On Wed, Nov 09, 2016 at 12:12:55PM -0600, Rob Herring wrote:
+>On Mon, Nov 7, 2016 at 5:44 PM, Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
+>> +       hotpluggable = of_get_flat_dt_prop(node, "linux,hotpluggable", NULL);
+>
+>Memory being hotpluggable doesn't seem like a linux property to me.
+>I'd drop the linux prefix. Also, this needs to be documented.
 
-I'm currently considering them at last: will report back later.
+Sure, that makes sense. I'll do both in v7.
 
-Full-blown gemfs does not come in here, of course; but let me
-fire a warning shot since you mention it: if it's going to use swap,
-then we shall probably have to nak it in favour of continuing to use 
-infrastructure from mm/shmem.c.  I very much understand why you would
-love to avoid that dependence, but I doubt it can be safely bypassed.
-
-Hugh
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
