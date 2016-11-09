@@ -1,148 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B53016B0038
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 00:00:24 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a8so66387290pfg.0
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 21:00:24 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id 20si40344750pgk.101.2016.11.08.21.00.23
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE1A66B0038
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 02:09:17 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 144so69097193pfv.5
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 23:09:17 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0086.outbound.protection.outlook.com. [104.47.0.86])
+        by mx.google.com with ESMTPS id g6si40750779pfa.52.2016.11.08.23.09.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 21:00:23 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 00/12] mm: page migration enhancement for thp
-Date: Wed, 9 Nov 2016 04:59:27 +0000
-Message-ID: <20161109045926.GB7770@hori1.linux.bs1.fc.nec.co.jp>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <ee20300d-0367-5b2c-71f2-f86bce3d6b90@gmail.com>
-In-Reply-To: <ee20300d-0367-5b2c-71f2-f86bce3d6b90@gmail.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4FD04AB28C784F478330A49F406C589E@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 08 Nov 2016 23:09:16 -0800 (PST)
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: [PATCH v2 2/2] mm: hugetlb: support gigantic surplus pages
+Date: Wed, 9 Nov 2016 15:08:14 +0800
+Message-ID: <1478675294-2507-1-git-send-email-shijie.huang@arm.com>
+In-Reply-To: <1478141499-13825-3-git-send-email-shijie.huang@arm.com>
+References: <1478141499-13825-3-git-send-email-shijie.huang@arm.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: akpm@linux-foundation.org, catalin.marinas@arm.com
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, Huang Shijie <shijie.huang@arm.com>
 
-On Wed, Nov 09, 2016 at 01:32:04PM +1100, Balbir Singh wrote:
-> On 08/11/16 10:31, Naoya Horiguchi wrote:
-> > Hi everyone,
-> >=20
-> > I've updated thp migration patches for v4.9-rc2-mmotm-2016-10-27-18-27
-> > with feedbacks for ver.1.
-> >=20
-> > General description (no change since ver.1)
-> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> >=20
-> > This patchset enhances page migration functionality to handle thp migra=
-tion
-> > for various page migration's callers:
-> >  - mbind(2)
-> >  - move_pages(2)
-> >  - migrate_pages(2)
-> >  - cgroup/cpuset migration
-> >  - memory hotremove
-> >  - soft offline
-> >=20
-> > The main benefit is that we can avoid unnecessary thp splits, which hel=
-ps us
-> > avoid performance decrease when your applications handles NUMA optimiza=
-tion on
-> > their own.
-> >=20
-> > The implementation is similar to that of normal page migration, the key=
- point
-> > is that we modify a pmd to a pmd migration entry in swap-entry like for=
-mat.
-> >=20
-> > Changes / Notes
-> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> >=20
-> > - pmd_present() in x86 checks _PAGE_PRESENT, _PAGE_PROTNONE and _PAGE_P=
-SE
-> >   bits together, which makes implementing thp migration a bit hard beca=
-use
-> >   _PAGE_PSE bit is currently used by soft-dirty in swap-entry format.
-> >   I was advised to dropping _PAGE_PSE in pmd_present(), but I don't thi=
-nk
-> >   of the justification, so I keep it in this version. Instead, my appro=
-ach
-> >   is to move _PAGE_SWP_SOFT_DIRTY to bit 6 (unused) and reserve bit 7 f=
-or
-> >   pmd non-present cases.
->=20
-> Thanks, IIRC
->=20
-> pmd_present =3D _PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE
->=20
-> AutoNUMA balancing would change it to
->=20
-> pmd_present =3D _PAGE_PROTNONE | _PAGE_PSE
->=20
-> and PMD_SWP_SOFT_DIRTY would make it
->=20
-> pmd_present =3D _PAGE_PSE
->=20
-> What you seem to be suggesting in your comment is that
->=20
-> pmd_present should be _PAGE_PRESENT | _PAGE_PROTNONE
+When testing the gigantic page whose order is too large for the buddy
+allocator, the libhugetlbfs test case "counter.sh" will fail.
 
-This (no _PAGE_PSE) was a possibile solution, and as I described I gave up
-this solution, because I noticed that what I actually wanted was that
-pmd_present() certainly returns false during thp migration and that's done
-by moving _PAGE_SWP_SOFT_DIRTY. So
+The failure is caused by:
+ 1) kernel fails to allocate a gigantic page for the surplus case.
+    And the gather_surplus_pages() will return NULL in the end.
 
-  pmd_present =3D _PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE
+ 2) The condition checks for "over-commit" is wrong.
 
-is still correct in this patchset.
+This patch adds code to allocate the gigantic page in the
+__alloc_huge_page(). After this patch, gather_surplus_pages()
+can return a gigantic page for the surplus case.
 
->=20
-> Isn't that good enough?
->=20
-> For THP migration I guess we use
->=20
-> _PAGE_PRESENT | _PAGE_PROTNONE | is_migration_entry(pmd)
+This patch changes the condition checks for:
+     return_unused_surplus_pages()
+     nr_overcommit_hugepages_store()
+     hugetlb_overcommit_handler()
 
-Though I might misread your notations, I hope that the following code
-seems describe itself well.
+This patch also set @nid with proper value when NUMA_NO_NODE is
+passed to alloc_gigantic_page().
 
-  static inline int is_pmd_migration_entry(pmd_t pmd)                      =
-     =20
-  {                                                                        =
-     =20
-          return !pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(p=
-md));=20
-  }                                                                        =
-     =20
+After this patch, the counter.sh can pass for the gigantic page.
 
-Thanks,
-Naoya Horiguchi
+Acked-by: Steve Capper <steve.capper@arm.com>
+Signed-off-by: Huang Shijie <shijie.huang@arm.com>
+---
+  1. fix the wrong check in hugetlb_overcommit_handler();
+  2. try to fix the s390 issue.
+---
+ mm/hugetlb.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
 
->=20
->=20
-> >=20
-> > - this patchset still covers only x86_64. Zi Yan posted a patch for ppc=
-64
-> >   and I think it's favorably received so that's fine. But there's unsol=
-ved
-> >   minor suggestion by Aneesh, so I don't include it in this set, expect=
-ing
-> >   that it will be updated/reposted.
-> >=20
-> > - pte-mapped thp and doubly-mapped thp were not supported in ver.1, but
-> >   this version should work for such kinds of thp.
-> >=20
-> > - thp page cache is not tested yet, and it's at the head of my todo lis=
-t
-> >   for future version.
-> >=20
-> > Any comments or advices are welcomed.
->=20
-> Balbir Singh
-> =
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 9fdfc24..5dbfd62 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1095,6 +1095,9 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
+ 	unsigned long ret, pfn, flags;
+ 	struct zone *z;
+ 
++	if (nid == NUMA_NO_NODE)
++		nid = numa_mem_id();
++
+ 	z = NODE_DATA(nid)->node_zones;
+ 	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
+ 		spin_lock_irqsave(&z->lock, flags);
+@@ -1578,7 +1581,7 @@ static struct page *__alloc_huge_page(struct hstate *h,
+ 	struct page *page;
+ 	unsigned int r_nid;
+ 
+-	if (hstate_is_gigantic(h))
++	if (hstate_is_gigantic(h) && !gigantic_page_supported())
+ 		return NULL;
+ 
+ 	/*
+@@ -1623,7 +1626,13 @@ static struct page *__alloc_huge_page(struct hstate *h,
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
++	if (hstate_is_gigantic(h))  {
++		page = alloc_gigantic_page(nid, huge_page_order(h));
++		if (page)
++			prep_compound_gigantic_page(page, huge_page_order(h));
++	} else {
++		page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
++	}
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (page) {
+@@ -1790,8 +1799,7 @@ static void return_unused_surplus_pages(struct hstate *h,
+ 	/* Uncommit the reservation */
+ 	h->resv_huge_pages -= unused_resv_pages;
+ 
+-	/* Cannot return gigantic pages currently */
+-	if (hstate_is_gigantic(h))
++	if (hstate_is_gigantic(h) && !gigantic_page_supported())
+ 		return;
+ 
+ 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
+@@ -2443,7 +2451,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+ 	unsigned long input;
+ 	struct hstate *h = kobj_to_hstate(kobj, NULL);
+ 
+-	if (hstate_is_gigantic(h))
++	if (hstate_is_gigantic(h) && !gigantic_page_supported())
+ 		return -EINVAL;
+ 
+ 	err = kstrtoul(buf, 10, &input);
+@@ -2884,7 +2892,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+ 
+ 	tmp = h->nr_overcommit_huge_pages;
+ 
+-	if (write && hstate_is_gigantic(h))
++	if (write && hstate_is_gigantic(h) && !gigantic_page_supported())
+ 		return -EINVAL;
+ 
+ 	table->data = &tmp;
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
