@@ -1,114 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E18FD6B0038
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 05:23:40 -0500 (EST)
-Received: by mail-pa0-f71.google.com with SMTP id kr7so2305204pab.5
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 02:23:40 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m10si201945paw.24.2016.11.09.02.23.40
-        for <linux-mm@kvack.org>;
-        Wed, 09 Nov 2016 02:23:40 -0800 (PST)
-Date: Wed, 9 Nov 2016 10:23:36 +0000
-From: Brian Starkey <brian.starkey@arm.com>
-Subject: Re: [PATCH] [RFC] drivers: dma-coherent: use MEMREMAP_WB instead of
- MEMREMAP_WC
-Message-ID: <20161109102336.GB6009@e106950-lin.cambridge.arm.com>
-References: <1478682609-26477-1-git-send-email-jaewon31.kim@samsung.com>
- <CGME20161109092808epcas3p3e44ec4c60646f29c765d4cdac27f151c@epcas3p3.samsung.com>
- <20161109092726.GA6009@e106950-lin.cambridge.arm.com>
- <5822F0AE.30101@samsung.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DF996B0038
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 05:33:26 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 144so70343476pfv.5
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 02:33:26 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m10si234732paw.24.2016.11.09.02.33.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Nov 2016 02:33:25 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uA9ASqr9002975
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2016 05:33:24 -0500
+Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com [125.16.236.8])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26kybx0rbb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 09 Nov 2016 05:33:24 -0500
+Received: from localhost
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 9 Nov 2016 16:03:21 +0530
+Received: from d28relay06.in.ibm.com (d28relay06.in.ibm.com [9.184.220.150])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 8D15EE0045
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 16:03:24 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uA9AXJwf7405756
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2016 16:03:19 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uA9AXGTM000399
+	for <linux-mm@kvack.org>; Wed, 9 Nov 2016 16:03:19 +0530
+Subject: Re: [PATCH v2 00/12] mm: page migration enhancement for thp
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 9 Nov 2016 16:03:04 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5822F0AE.30101@samsung.com>
+In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <5822FB60.5040905@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaewon Kim <jaewon31.kim@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Hi,
+On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> Hi everyone,
+> 
+> I've updated thp migration patches for v4.9-rc2-mmotm-2016-10-27-18-27
+> with feedbacks for ver.1.
+> 
+> General description (no change since ver.1)
+> ===========================================
+> 
+> This patchset enhances page migration functionality to handle thp migration
+> for various page migration's callers:
+>  - mbind(2)
+>  - move_pages(2)
+>  - migrate_pages(2)
+>  - cgroup/cpuset migration
+>  - memory hotremove
+>  - soft offline
+> 
+> The main benefit is that we can avoid unnecessary thp splits, which helps us
+> avoid performance decrease when your applications handles NUMA optimization on
+> their own.
+> 
+> The implementation is similar to that of normal page migration, the key point
+> is that we modify a pmd to a pmd migration entry in swap-entry like format.
 
-On Wed, Nov 09, 2016 at 06:47:26PM +0900, Jaewon Kim wrote:
->
->
->On 2016e?? 11i?? 09i? 1/4  18:27, Brian Starkey wrote:
->> Hi Jaewon,
->>
->> On Wed, Nov 09, 2016 at 06:10:09PM +0900, Jaewon Kim wrote:
->>> Commit 6b03ae0d42bf (drivers: dma-coherent: use MEMREMAP_WC for DMA_MEMORY_MA)
->>> added MEMREMAP_WC for DMA_MEMORY_MAP. If, however, CPU cache can be used on
->>> DMA_MEMORY_MAP, I think MEMREMAP_WC can be changed to MEMREMAP_WB. On my local
->>> ARM device, memset in dma_alloc_from_coherent sometimes takes much longer with
->>> MEMREMAP_WC compared to MEMREMAP_WB.
->>>
->>> Test results on AArch64 by allocating 4MB with putting trace_printk right
->>> before and after memset.
->>>     MEMREMAP_WC : 11.0ms, 5.7ms, 4.2ms, 4.9ms, 5.4ms, 4.3ms, 3.5ms
->>>     MEMREMAP_WB : 0.7ms, 0.6ms, 0.6ms, 0.6ms, 0.6ms, 0.5ms, 0.4 ms
->>>
->>
->> This doesn't look like a good idea to me. The point of coherent memory
->> is to have it non-cached, however WB will make writes hit the cache.
->>
->> Writing to the cache is of course faster than writing to RAM, but
->> that's not what we want to do here.
->>
->> -Brian
->>
->Hi Brian
->
->Thank you for your comment.
->If allocated memory will be used by TZ side, however, I think cacheable
->also can be used to be fast on memset in dma_alloc_from_coherent.
-
-Are you trying to share the buffer between the secure and non-secure
-worlds on the CPU? In that case, I don't think caching really helps
-you. I'm not a TZ expert, but I believe the two worlds can never
-share cached data.
-
-If you want the secure world to see the non-secure world's data, as
-far as I know you will need to clean the cache in the non-secure world
-to make sure the secure world can see it (and vice-versa). I'd expect
-this to remove most of the speed advantage of using WB in the first
-place, except for some possible speedup from more efficient bursting.
-
-If you're sharing the buffer with other DMA masters, regardless of
-secure/non-secure you're not going to want WB mappings.
-
->How do you think to add another flag to distinguish this case?
-
-You could look into the streaming DMA API. It will depend on the exact
-implementation, but at some point you're still going to have to pay
-the penalty of syncing the CPU and device.
-
--Brian
-
->>> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->>> ---
->>> drivers/base/dma-coherent.c | 2 +-
->>> 1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/drivers/base/dma-coherent.c b/drivers/base/dma-coherent.c
->>> index 640a7e6..0512a1d 100644
->>> --- a/drivers/base/dma-coherent.c
->>> +++ b/drivers/base/dma-coherent.c
->>> @@ -33,7 +33,7 @@ static bool dma_init_coherent_memory(
->>>         goto out;
->>>
->>>     if (flags & DMA_MEMORY_MAP)
->>> -        mem_base = memremap(phys_addr, size, MEMREMAP_WC);
->>> +        mem_base = memremap(phys_addr, size, MEMREMAP_WB);
->>>     else
->>>         mem_base = ioremap(phys_addr, size);
->>>     if (!mem_base)
->>> --
->>> 1.9.1
->>>
->>
->>
->>
->
+Will it be better to have new THP_MIGRATE_SUCCESS and THP_MIGRATE_FAIL
+VM events to capture how many times the migration worked without first
+splitting the huge page and how many time it did not work ? Also do you
+have a test case which demonstrates this THP migration and kind of shows
+its better than the present split and move method ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
