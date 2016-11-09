@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DE946B0038
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 02:12:53 -0500 (EST)
-Received: by mail-pa0-f71.google.com with SMTP id hr10so71173793pac.2
-        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 23:12:53 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0066.outbound.protection.outlook.com. [104.47.1.66])
-        by mx.google.com with ESMTPS id z8si34014824pab.243.2016.11.08.23.12.51
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CA44D6B0038
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 02:41:46 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r68so97138507wmd.0
+        for <linux-mm@kvack.org>; Tue, 08 Nov 2016 23:41:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ho7si39808125wjb.156.2016.11.08.23.41.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 08 Nov 2016 23:12:52 -0800 (PST)
-Date: Wed, 9 Nov 2016 15:12:19 +0800
-From: Huang Shijie <shijie.huang@arm.com>
-Subject: Re: [PATCH 2/2] mm: hugetlb: support gigantic surplus pages
-Message-ID: <20161109071218.GA15044@sha-win-210.asiapac.arm.com>
-References: <1478141499-13825-1-git-send-email-shijie.huang@arm.com>
- <1478141499-13825-3-git-send-email-shijie.huang@arm.com>
- <20161107162504.17591806@thinkpad>
- <20161108021929.GA982@sha-win-210.asiapac.arm.com>
- <20161108070851.GA15044@sha-win-210.asiapac.arm.com>
- <20161108091725.GA18678@sha-win-210.asiapac.arm.com>
- <20161108202742.57ed120d@thinkpad>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Nov 2016 23:41:45 -0800 (PST)
+Date: Wed, 9 Nov 2016 08:41:42 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem
+ collapse error path
+Message-ID: <20161109074142.GW32353@quack2.suse.cz>
+References: <20161107190741.3619-1-hannes@cmpxchg.org>
+ <20161107190741.3619-2-hannes@cmpxchg.org>
+ <20161108095352.GH32353@quack2.suse.cz>
+ <20161108161245.GA4020@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161108202742.57ed120d@thinkpad>
+In-Reply-To: <20161108161245.GA4020@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, Nov 08, 2016 at 08:27:42PM +0100, Gerald Schaefer wrote:
-> On Tue, 8 Nov 2016 17:17:28 +0800
-> Huang Shijie <shijie.huang@arm.com> wrote:
-> 
-> > > I will look at the lockdep issue.
-> > I tested the new patch (will be sent out later) on the arm64 platform,
-> > and I did not meet the lockdep issue when I enabled the lockdep.
-> > The following is my config:
+On Tue 08-11-16 11:12:45, Johannes Weiner wrote:
+> On Tue, Nov 08, 2016 at 10:53:52AM +0100, Jan Kara wrote:
+> > On Mon 07-11-16 14:07:36, Johannes Weiner wrote:
+> > > The radix tree counts valid entries in each tree node. Entries stored
+> > > in the tree cannot be removed by simpling storing NULL in the slot or
+> > > the internal counters will be off and the node never gets freed again.
+> > > 
+> > > When collapsing a shmem page fails, restore the holes that were filled
+> > > with radix_tree_insert() with a proper radix tree deletion.
+> > > 
+> > > Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
+> > > Reported-by: Jan Kara <jack@suse.cz>
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > ---
+> > >  mm/khugepaged.c | 3 ++-
+> > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > > index 728d7790dc2d..eac6f0580e26 100644
+> > > --- a/mm/khugepaged.c
+> > > +++ b/mm/khugepaged.c
+> > > @@ -1520,7 +1520,8 @@ static void collapse_shmem(struct mm_struct *mm,
+> > >  				if (!nr_none)
+> > >  					break;
+> > >  				/* Put holes back where they were */
+> > > -				radix_tree_replace_slot(slot, NULL);
+> > > +				radix_tree_delete(&mapping->page_tree,
+> > > +						  iter.index);
 > > 
-> > 	CONFIG_LOCKD=y
-> > 	CONFIG_LOCKD_V4=y
-> > 	CONFIG_LOCKUP_DETECTOR=y
-> >         # CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
-> > 	CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC_VALUE=0
-> > 	CONFIG_DEBUG_SPINLOCK=y
-> > 	CONFIG_DEBUG_LOCK_ALLOC=y
-> > 	CONFIG_PROVE_LOCKING=y
-> > 	CONFIG_LOCKDEP=y
-> > 	CONFIG_LOCK_STAT=y
-> > 	CONFIG_DEBUG_LOCKDEP=y
-> > 	CONFIG_DEBUG_LOCKING_API_SELFTESTS=y
-> > 	
-> > So do I miss something? 
+> > Hum, but this is inside radix_tree_for_each_slot() iteration. And
+> > radix_tree_delete() may end up freeing nodes resulting in invalidating
+> > current slot pointer and the iteration code will do use-after-free.
 > 
-> Those options should be OK. Meanwhile I looked into this a little more,
-> and the problematic line/lock is spin_lock_irqsave(&z->lock, flags) at
-> the top of alloc_gigantic_page(). From the lockdep trace we see that
-> it is triggered by an mmap(), and then hugetlb_acct_memory() ->
-> __alloc_huge_page() -> alloc_gigantic_page().
+> Good point, we need to do another tree lookup after the deletion.
 > 
-> However, in between those functions (inside gather_surplus_pages())
-> a NUMA_NO_NODE node id comes into play. And this finally results in
-> alloc_gigantic_page() being called with NUMA_NO_NODE as nid (which is
-> -1), and NODE_DATA(nid)->node_zones will then reach into Nirvana.
-Thanks for pointing this.
-I sent out the new patch just now. Could you please try it again?
-I added a NUMA_NO_NODE check in the alloc_gigantic_page();
+> But there are other instances in the code, where we drop the lock
+> temporarily and somebody else could delete the node from under us.
+> 
+> In the main collapse path, I *think* this is prevented by the fact
+> that when we drop the tree lock we still hold the page lock of the
+> regular page that's in the tree while we isolate and unmap it, thus
+> pin the node. Even so, it would seem a little hairy to rely on that.
 
-thanks
-Huang Shijie
+Yeah, I think that is mostly right but I'm not sure whether shrinking of
+radix tree into direct pointer cannot bite us here as well. Generally that
+relies on internal implementatation of the radix tree and its iterator
+so what you did makes sense to me.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
