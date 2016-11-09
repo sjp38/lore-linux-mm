@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DB66B0253
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 16:21:15 -0500 (EST)
-Received: by mail-pa0-f72.google.com with SMTP id ro13so80780580pac.7
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 13:21:15 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c16si1275048pfc.102.2016.11.09.13.21.14
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DBA316B025E
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 16:21:38 -0500 (EST)
+Received: by mail-pa0-f71.google.com with SMTP id r13so80779944pag.1
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 13:21:38 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v18si1264935pfa.137.2016.11.09.13.21.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Nov 2016 13:21:14 -0800 (PST)
-Subject: [swiotlb PATCH v3 1/3] swiotlb: remove unused swiotlb_map_sg and
- swiotlb_unmap_sg functions
+        Wed, 09 Nov 2016 13:21:38 -0800 (PST)
+Subject: [swiotlb PATCH v3 2/3] swiotlb-xen: Enforce return of
+ DMA_ERROR_CODE in mapping function
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Wed, 09 Nov 2016 10:20:10 -0500
-Message-ID: <20161109152002.25151.39370.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Wed, 09 Nov 2016 10:20:34 -0500
+Message-ID: <20161109152015.25151.73103.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161109151639.25151.24290.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161109151639.25151.24290.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,70 +22,98 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, konrad.wilk@oracle.com
-Cc: netdev@vger.kernel.org, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Christoph Hellwig <hch@lst.de>
+The mapping function should always return DMA_ERROR_CODE when a mapping has
+failed as this is what the DMA API expects when a DMA error has occurred.
+The current function for mapping a page in Xen was returning either
+DMA_ERROR_CODE or 0 depending on where it failed.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+On x86 DMA_ERROR_CODE is 0, but on other architectures such as ARM it is
+~0. We need to make sure we return the same error value if either the
+mapping failed or the device is not capable of accessing the mapping.
+
+If we are returning DMA_ERROR_CODE as our error value we can drop the
+function for checking the error code as the default is to compare the
+return value against DMA_ERROR_CODE if no function is defined.
+
+Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- include/linux/swiotlb.h |    8 --------
- lib/swiotlb.c           |   16 ----------------
- 2 files changed, 24 deletions(-)
 
-diff --git a/include/linux/swiotlb.h b/include/linux/swiotlb.h
-index 5f81f8a..f0d2589 100644
---- a/include/linux/swiotlb.h
-+++ b/include/linux/swiotlb.h
-@@ -73,14 +73,6 @@ extern void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
- 			       unsigned long attrs);
+v1: Added this patch which was part of an earlier patch.
+v3: Undid changes to xen_swiotlb_map_page and only changed return value
+
+ arch/arm/xen/mm.c              |    1 -
+ arch/x86/xen/pci-swiotlb-xen.c |    1 -
+ drivers/xen/swiotlb-xen.c      |    9 +--------
+ include/xen/swiotlb-xen.h      |    3 ---
+ 4 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/arch/arm/xen/mm.c b/arch/arm/xen/mm.c
+index d062f08..bd62d94 100644
+--- a/arch/arm/xen/mm.c
++++ b/arch/arm/xen/mm.c
+@@ -186,7 +186,6 @@ struct dma_map_ops *xen_dma_ops;
+ EXPORT_SYMBOL(xen_dma_ops);
  
- extern int
--swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
--	       enum dma_data_direction dir);
--
--extern void
--swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
--		 enum dma_data_direction dir);
--
--extern int
- swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
- 		     enum dma_data_direction dir,
- 		     unsigned long attrs);
-diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-index 22e13a0..5005316 100644
---- a/lib/swiotlb.c
-+++ b/lib/swiotlb.c
-@@ -910,14 +910,6 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
+ static struct dma_map_ops xen_swiotlb_dma_ops = {
+-	.mapping_error = xen_swiotlb_dma_mapping_error,
+ 	.alloc = xen_swiotlb_alloc_coherent,
+ 	.free = xen_swiotlb_free_coherent,
+ 	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
+diff --git a/arch/x86/xen/pci-swiotlb-xen.c b/arch/x86/xen/pci-swiotlb-xen.c
+index 0e98e5d..a9fafb5 100644
+--- a/arch/x86/xen/pci-swiotlb-xen.c
++++ b/arch/x86/xen/pci-swiotlb-xen.c
+@@ -19,7 +19,6 @@
+ int xen_swiotlb __read_mostly;
+ 
+ static struct dma_map_ops xen_swiotlb_dma_ops = {
+-	.mapping_error = xen_swiotlb_dma_mapping_error,
+ 	.alloc = xen_swiotlb_alloc_coherent,
+ 	.free = xen_swiotlb_free_coherent,
+ 	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
+diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c
+index 87e6035..c36caa5 100644
+--- a/drivers/xen/swiotlb-xen.c
++++ b/drivers/xen/swiotlb-xen.c
+@@ -418,7 +418,7 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
+ 	 */
+ 	if (!dma_capable(dev, dev_addr, size)) {
+ 		swiotlb_tbl_unmap_single(dev, map, size, dir);
+-		dev_addr = 0;
++		return DMA_ERROR_CODE;
+ 	}
+ 	return dev_addr;
  }
- EXPORT_SYMBOL(swiotlb_map_sg_attrs);
+@@ -648,13 +648,6 @@ xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_sg_for_device);
  
 -int
--swiotlb_map_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
--	       enum dma_data_direction dir)
+-xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
 -{
--	return swiotlb_map_sg_attrs(hwdev, sgl, nelems, dir, 0);
+-	return !dma_addr;
 -}
--EXPORT_SYMBOL(swiotlb_map_sg);
+-EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mapping_error);
 -
  /*
-  * Unmap a set of streaming mode DMA translations.  Again, cpu read rules
-  * concerning calls here are the same as for swiotlb_unmap_page() above.
-@@ -938,14 +930,6 @@ swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
- }
- EXPORT_SYMBOL(swiotlb_unmap_sg_attrs);
+  * Return whether the given device DMA address mask can be supported
+  * properly.  For example, if your device can only drive the low 24-bits
+diff --git a/include/xen/swiotlb-xen.h b/include/xen/swiotlb-xen.h
+index 7c35e27..a0083be 100644
+--- a/include/xen/swiotlb-xen.h
++++ b/include/xen/swiotlb-xen.h
+@@ -51,9 +51,6 @@ xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
+ 			       int nelems, enum dma_data_direction dir);
  
--void
--swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
--		 enum dma_data_direction dir)
--{
--	return swiotlb_unmap_sg_attrs(hwdev, sgl, nelems, dir, 0);
--}
--EXPORT_SYMBOL(swiotlb_unmap_sg);
+ extern int
+-xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr);
 -
- /*
-  * Make physical memory consistent for a set of streaming mode DMA translations
-  * after a transfer.
+-extern int
+ xen_swiotlb_dma_supported(struct device *hwdev, u64 mask);
+ 
+ extern int
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
