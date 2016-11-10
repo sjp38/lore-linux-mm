@@ -1,131 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3596B02A0
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:25:44 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id m203so12011569wma.2
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:25:44 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id b18si5966434wjb.236.2016.11.10.08.25.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 08:25:43 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id m203so2494236wma.3
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:25:43 -0800 (PST)
-Date: Thu, 10 Nov 2016 19:25:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv4] shmem: avoid huge pages for small files
-Message-ID: <20161110162540.GA12743@node.shutemov.name>
-References: <20161021185103.117938-1-kirill.shutemov@linux.intel.com>
- <20161021224629.tnwuvruhblkg22qj@black.fi.intel.com>
- <alpine.LSU.2.11.1611071433340.1384@eggly.anvils>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E0B280253
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:36:14 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u144so12127948wmu.1
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:36:13 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id m187si1814076wmf.112.2016.11.10.08.36.12
+        for <linux-mm@kvack.org>;
+        Thu, 10 Nov 2016 08:36:12 -0800 (PST)
+Subject: Re: Proposal: HAVE_SEPARATE_IRQ_STACK?
+References: <CAHmME9oSUcAXVMhpLt0bqa9DKHE8rd3u+3JDb_wgviZnOpP7JA@mail.gmail.com>
+ <alpine.DEB.2.20.1611092227200.3501@nanos>
+ <CAHmME9pGoRogjHSSy-G-sB4-cHMGcjCeW9PSrNw1h5FsKzfWAw@mail.gmail.com>
+ <alpine.DEB.2.20.1611100959040.3501@nanos>
+ <CAHmME9pHYA82M3iDNfDtDE96gFaZORSsEAn_KnePd3rhFioqHQ@mail.gmail.com>
+From: Matt Redfearn <matt.redfearn@imgtec.com>
+Message-ID: <db056fb5-82b3-c17e-46ce-263872ef7334@imgtec.com>
+Date: Thu, 10 Nov 2016 16:36:10 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1611071433340.1384@eggly.anvils>
+In-Reply-To: <CAHmME9pHYA82M3iDNfDtDE96gFaZORSsEAn_KnePd3rhFioqHQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, WireGuard mailing list <wireguard@lists.zx2c4.com>, k@vodka.home.kg
 
-On Mon, Nov 07, 2016 at 03:17:11PM -0800, Hugh Dickins wrote:
-> On Sat, 22 Oct 2016, Kirill A. Shutemov wrote:
-> > 
-> > Huge pages are detrimental for small file: they causes noticible
-> > overhead on both allocation performance and memory footprint.
-> > 
-> > This patch aimed to address this issue by avoiding huge pages until file
-> > grown to size of huge page. This would cover most of the cases where huge
-> > pages causes regressions in performance.
-> > 
-> > Couple notes:
-> > 
-> >   - if shmem_enabled is set to 'force', the limit is ignored. We still
-> >     want to generate as many pages as possible for functional testing.
-> > 
-> >   - the limit doesn't affect khugepaged behaviour: it still can collapse
-> >     pages based on its settings;
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> 
-> Sorry, but NAK.  I was expecting a patch to tune within_size behaviour.
-> 
-> > ---
-> >  Documentation/vm/transhuge.txt | 3 +++
-> >  mm/shmem.c                     | 5 +++++
-> >  2 files changed, 8 insertions(+)
-> > 
-> > diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-> > index 2ec6adb5a4ce..d1889c7c8c46 100644
-> > --- a/Documentation/vm/transhuge.txt
-> > +++ b/Documentation/vm/transhuge.txt
-> > @@ -238,6 +238,9 @@ values:
-> >    - "force":
-> >      Force the huge option on for all - very useful for testing;
-> >  
-> > +To avoid overhead for small files, we don't allocate huge pages for a file
-> > +until it grows to size of huge pages.
-> > +
-> >  == Need of application restart ==
-> >  
-> >  The transparent_hugepage/enabled values and tmpfs mount option only affect
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index ad7813d73ea7..49618d2d6330 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -1692,6 +1692,11 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-> >  				goto alloc_huge;
-> >  			/* TODO: implement fadvise() hints */
-> >  			goto alloc_nohuge;
-> > +		case SHMEM_HUGE_ALWAYS:
-> > +			i_size = i_size_read(inode);
-> > +			if (index < HPAGE_PMD_NR && i_size < HPAGE_PMD_SIZE)
-> > +				goto alloc_nohuge;
-> > +			break;
-> >  		}
-> >  
-> >  alloc_huge:
-> 
-> So (eliding the SHMEM_HUGE_ADVISE case in between) you now have:
-> 
-> 		case SHMEM_HUGE_WITHIN_SIZE:
-> 			off = round_up(index, HPAGE_PMD_NR);
-> 			i_size = round_up(i_size_read(inode), PAGE_SIZE);
-> 			if (i_size >= HPAGE_PMD_SIZE &&
-> 					i_size >> PAGE_SHIFT >= off)
-> 				goto alloc_huge;
-> 			goto alloc_nohuge;
-> 		case SHMEM_HUGE_ALWAYS:
-> 			i_size = i_size_read(inode);
-> 			if (index < HPAGE_PMD_NR && i_size < HPAGE_PMD_SIZE)
-> 				goto alloc_nohuge;
-> 			goto alloc_huge;
-> 
-> I'll concede that those two conditions are not the same; but again you're
-> messing with huge=always to make it, not always, but conditional on size.
-> 
-> Please, keep huge=always as is: if I copy a 4MiB file into a huge tmpfs,
-> I got ShmemHugePages 4096 kB before, which is what I wanted.  Whereas
-> with this change I get only 2048 kB, just like with huge=within_size.
+Hi Jason,
 
-I don't think it's a problem really. We don't have guarantees anyway.
-And we can collapse the page later.
 
-But okay.
+On 10/11/16 11:41, Jason A. Donenfeld wrote:
+> On Thu, Nov 10, 2016 at 10:03 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+>> If you want to go with that config, then you need
+>> local_bh_disable()/enable() to fend softirqs off, which disables also
+>> preemption.
+> Thanks. Indeed this is what I want.
+>
+>>> What clever tricks do I have at my disposal, then?
+>> Make MIPS use interrupt stacks.
+> Yea, maybe I'll just implement this. It clearly is the most correct solution.
+> @MIPS maintainers: would you merge something like this if done well?
+> Are there reasons other than man-power why it isn't currently that
+> way?
 
-> Treating the first extent differently is a hack, and does not respect
-> that this is a filesystem, on which size is likely to increase.
-> 
-> By all means refine the condition for huge=within_size, and by all means
-> warn in transhuge.txt that huge=always may tend to waste valuable huge
-> pages if the filesystem is used for small files without good reason
+I don't see a reason not to do this - I'm taking a look into it.
 
-Would it be okay, if I just replace huge=within_size logic with what I
-proposed here for huge=always?
+Thanks,
+Matt
 
-That's not what I intended initially for this option, but...
+>> Does the slowdown come from the kmalloc overhead or mostly from the less
+>> efficient code?
+>>
+>> If it's mainly kmalloc, then you can preallocate the buffer once for the
+>> kthread you're running in and be done with it. If it's the code, then bad
+>> luck.
+> I fear both. GCC can optimize stack variables in ways that it cannot
+> optimize various memory reads and writes.
+>
+> Strangely, the solution that appeals to me most at the moment is to
+> kmalloc (or vmalloc?) a new stack, copy over thread_info, and fiddle
+> with the stack registers. I don't see any APIs, however, for a
+> platform independent way of doing this. And maybe this is a horrible
+> idea. But at least it'd allow me to keep my stack-based code the
+> same...
+>
 
-> (but maybe the implementation needs to reclaim those more effectively).
-
-It's more about cost of allocation than memory pressure.
-
------8<-----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
