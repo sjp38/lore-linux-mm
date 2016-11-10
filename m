@@ -1,196 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF4096B029E
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:22:40 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id n85so102031011pfi.4
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:22:40 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id i68si5639962pgc.178.2016.11.10.08.22.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3596B02A0
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:25:44 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id m203so12011569wma.2
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:25:44 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id b18si5966434wjb.236.2016.11.10.08.25.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 08:22:39 -0800 (PST)
-Subject: Re: [PATCH 1/2] shmem: Support for registration of driver/file owner
- specific ops
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
- <alpine.LSU.2.11.1611092057460.6221@eggly.anvils>
-From: "Goel, Akash" <akash.goel@intel.com>
-Message-ID: <e2ba6054-c090-16a5-6a33-42b5061b16ba@intel.com>
-Date: Thu, 10 Nov 2016 21:52:34 +0530
+        Thu, 10 Nov 2016 08:25:43 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id m203so2494236wma.3
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 08:25:43 -0800 (PST)
+Date: Thu, 10 Nov 2016 19:25:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4] shmem: avoid huge pages for small files
+Message-ID: <20161110162540.GA12743@node.shutemov.name>
+References: <20161021185103.117938-1-kirill.shutemov@linux.intel.com>
+ <20161021224629.tnwuvruhblkg22qj@black.fi.intel.com>
+ <alpine.LSU.2.11.1611071433340.1384@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1611092057460.6221@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1611071433340.1384@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, linux-kernel@vger.linux.org, Sourab Gupta <sourab.gupta@intel.com>, akash.goels@gmail.com, akash.goel@intel.com
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon, Nov 07, 2016 at 03:17:11PM -0800, Hugh Dickins wrote:
+> On Sat, 22 Oct 2016, Kirill A. Shutemov wrote:
+> > 
+> > Huge pages are detrimental for small file: they causes noticible
+> > overhead on both allocation performance and memory footprint.
+> > 
+> > This patch aimed to address this issue by avoiding huge pages until file
+> > grown to size of huge page. This would cover most of the cases where huge
+> > pages causes regressions in performance.
+> > 
+> > Couple notes:
+> > 
+> >   - if shmem_enabled is set to 'force', the limit is ignored. We still
+> >     want to generate as many pages as possible for functional testing.
+> > 
+> >   - the limit doesn't affect khugepaged behaviour: it still can collapse
+> >     pages based on its settings;
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
+> Sorry, but NAK.  I was expecting a patch to tune within_size behaviour.
+> 
+> > ---
+> >  Documentation/vm/transhuge.txt | 3 +++
+> >  mm/shmem.c                     | 5 +++++
+> >  2 files changed, 8 insertions(+)
+> > 
+> > diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+> > index 2ec6adb5a4ce..d1889c7c8c46 100644
+> > --- a/Documentation/vm/transhuge.txt
+> > +++ b/Documentation/vm/transhuge.txt
+> > @@ -238,6 +238,9 @@ values:
+> >    - "force":
+> >      Force the huge option on for all - very useful for testing;
+> >  
+> > +To avoid overhead for small files, we don't allocate huge pages for a file
+> > +until it grows to size of huge pages.
+> > +
+> >  == Need of application restart ==
+> >  
+> >  The transparent_hugepage/enabled values and tmpfs mount option only affect
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index ad7813d73ea7..49618d2d6330 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -1692,6 +1692,11 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+> >  				goto alloc_huge;
+> >  			/* TODO: implement fadvise() hints */
+> >  			goto alloc_nohuge;
+> > +		case SHMEM_HUGE_ALWAYS:
+> > +			i_size = i_size_read(inode);
+> > +			if (index < HPAGE_PMD_NR && i_size < HPAGE_PMD_SIZE)
+> > +				goto alloc_nohuge;
+> > +			break;
+> >  		}
+> >  
+> >  alloc_huge:
+> 
+> So (eliding the SHMEM_HUGE_ADVISE case in between) you now have:
+> 
+> 		case SHMEM_HUGE_WITHIN_SIZE:
+> 			off = round_up(index, HPAGE_PMD_NR);
+> 			i_size = round_up(i_size_read(inode), PAGE_SIZE);
+> 			if (i_size >= HPAGE_PMD_SIZE &&
+> 					i_size >> PAGE_SHIFT >= off)
+> 				goto alloc_huge;
+> 			goto alloc_nohuge;
+> 		case SHMEM_HUGE_ALWAYS:
+> 			i_size = i_size_read(inode);
+> 			if (index < HPAGE_PMD_NR && i_size < HPAGE_PMD_SIZE)
+> 				goto alloc_nohuge;
+> 			goto alloc_huge;
+> 
+> I'll concede that those two conditions are not the same; but again you're
+> messing with huge=always to make it, not always, but conditional on size.
+> 
+> Please, keep huge=always as is: if I copy a 4MiB file into a huge tmpfs,
+> I got ShmemHugePages 4096 kB before, which is what I wanted.  Whereas
+> with this change I get only 2048 kB, just like with huge=within_size.
 
+I don't think it's a problem really. We don't have guarantees anyway.
+And we can collapse the page later.
 
-On 11/10/2016 11:06 AM, Hugh Dickins wrote:
-> On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
->> From: Chris Wilson <chris@chris-wilson.co.uk>
->>
->> This provides support for the drivers or shmem file owners to register
->> a set of callbacks, which can be invoked from the address space
->> operations methods implemented by shmem.  This allow the file owners to
->> hook into the shmem address space operations to do some extra/custom
->> operations in addition to the default ones.
->>
->> The private_data field of address_space struct is used to store the
->> pointer to driver specific ops.  Currently only one ops field is defined,
->> which is migratepage, but can be extended on an as-needed basis.
->>
->> The need for driver specific operations arises since some of the
->> operations (like migratepage) may not be handled completely within shmem,
->> so as to be effective, and would need some driver specific handling also.
->> Specifically, i915.ko would like to participate in migratepage().
->> i915.ko uses shmemfs to provide swappable backing storage for its user
->> objects, but when those objects are in use by the GPU it must pin the
->> entire object until the GPU is idle.  As a result, large chunks of memory
->> can be arbitrarily withdrawn from page migration, resulting in premature
->> out-of-memory due to fragmentation.  However, if i915.ko can receive the
->> migratepage() request, it can then flush the object from the GPU, remove
->> its pin and thus enable the migration.
->>
->> Since gfx allocations are one of the major consumer of system memory, its
->> imperative to have such a mechanism to effectively deal with
->> fragmentation.  And therefore the need for such a provision for initiating
->> driver specific actions during address space operations.
->
-> Thank you for persisting with this, and sorry for all my delay.
->
->>
->> v2:
->> - Drop dev_ prefix from the members of shmem_dev_info structure. (Joonas)
->> - Change the return type of shmem_set_device_op() to void and remove the
->>   check for pre-existing data. (Joonas)
->> - Rename shmem_set_device_op() to shmem_set_dev_info() to be consistent
->>   with shmem_dev_info structure. (Joonas)
->>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: linux-mm@kvack.org
->> Cc: linux-kernel@vger.linux.org
->> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
->> Signed-off-by: Akash Goel <akash.goel@intel.com>
->> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
->
-> That doesn't seem quite right: the From line above implies that Chris
-> wrote it, and should be first Signer; but perhaps the From line is wrong.
->
-Chris only wrote this patch initially, will do the required correction.
+But okay.
 
->> ---
->>  include/linux/shmem_fs.h | 13 +++++++++++++
->>  mm/shmem.c               | 17 ++++++++++++++++-
->>  2 files changed, 29 insertions(+), 1 deletion(-)
->>
->> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
->> index ff078e7..454c3ba 100644
->> --- a/include/linux/shmem_fs.h
->> +++ b/include/linux/shmem_fs.h
->> @@ -39,11 +39,24 @@ struct shmem_sb_info {
->>  	unsigned long shrinklist_len; /* Length of shrinklist */
->>  };
->>
->> +struct shmem_dev_info {
->> +	void *private_data;
->> +	int (*migratepage)(struct address_space *mapping,
->> +			   struct page *newpage, struct page *page,
->> +			   enum migrate_mode mode, void *dev_priv_data);
->
-> Aren't the private_data field and dev_priv_data arg a little bit
-> confusing and redundant?  Can't the migratepage() deduce dev_priv
-> for itself from mapping->private_data (perhaps wrapped by a
-> shmem_get_dev_info()), by using container_of()?
->
-Yes looks like migratepage() can deduce dev_priv from mapping->private_data.
-Can we keep the private_data as a placeholder ?. Will 
-s/dev_priv_data/private_data/.
+> Treating the first extent differently is a hack, and does not respect
+> that this is a filesystem, on which size is likely to increase.
+> 
+> By all means refine the condition for huge=within_size, and by all means
+> warn in transhuge.txt that huge=always may tend to waste valuable huge
+> pages if the filesystem is used for small files without good reason
 
-As per your suggestion, in the other patch, object pointer can be 
-derived from mapping->private_data (container_of) and dev_priv in turn 
-can be derived from object pointer.
+Would it be okay, if I just replace huge=within_size logic with what I
+proposed here for huge=always?
 
->> +};
->> +
->>  static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
->>  {
->>  	return container_of(inode, struct shmem_inode_info, vfs_inode);
->>  }
->>
->> +static inline void shmem_set_dev_info(struct address_space *mapping,
->> +				      struct shmem_dev_info *info)
->> +{
->> +	mapping->private_data = info;
->
-> Nit: if this stays as is, I'd prefer dev_info there and above,
-> since shmem.c uses info all over for its shmem_inode_info pointer.
-> But in second patch I suggest obj_info may be better than dev_info.
->
-Fine will s/info/dev_info.
+That's not what I intended initially for this option, but...
 
-Best regards
-Akash
+> (but maybe the implementation needs to reclaim those more effectively).
 
->> +}
->> +
->>  /*
->>   * Functions in mm/shmem.c called directly from elsewhere:
->>   */
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index ad7813d..fce8de3 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -1290,6 +1290,21 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
->>  	return 0;
->>  }
->>
->> +#ifdef CONFIG_MIGRATION
->> +static int shmem_migratepage(struct address_space *mapping,
->> +			     struct page *newpage, struct page *page,
->> +			     enum migrate_mode mode)
->> +{
->> +	struct shmem_dev_info *dev_info = mapping->private_data;
->> +
->> +	if (dev_info && dev_info->migratepage)
->> +		return dev_info->migratepage(mapping, newpage, page,
->> +					     mode, dev_info->private_data);
->> +
->> +	return migrate_page(mapping, newpage, page, mode);
->> +}
->> +#endif
->> +
->>  #if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
->>  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
->>  {
->> @@ -3654,7 +3669,7 @@ static void shmem_destroy_inodecache(void)
->>  	.write_end	= shmem_write_end,
->>  #endif
->>  #ifdef CONFIG_MIGRATION
->> -	.migratepage	= migrate_page,
->> +	.migratepage	= shmem_migratepage,
->>  #endif
->>  	.error_remove_page = generic_error_remove_page,
->>  };
->> --
->> 1.9.2
->
-> I didn't like this very much; but every time I tried to "improve" it,
-> found good reasons why you chose the way you did (modularity of i915,
-> constness of a_ops, reluctance to copy and modify a_ops, reluctance
-> to export those shmem methods separately).
->
-> I think perhaps later we just add a gem_ops pointer to shmem_inode_info,
-> for i915 or other gems to fill in as they wish (and shmem divert off to
-> them if set, as you've done); but for now you're trying to avoid
-> enlarging the shmem inode, okay.
->
-> Hugh
->
+It's more about cost of allocation than memory pressure.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-----8<-----
