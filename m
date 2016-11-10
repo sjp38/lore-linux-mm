@@ -1,48 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D82E26B028B
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:28:43 -0500 (EST)
-Received: by mail-pa0-f70.google.com with SMTP id fp5so57702732pac.6
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 01:28:43 -0800 (PST)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id r4si3771840pgr.239.2016.11.10.01.28.41
-        for <linux-mm@kvack.org>;
-        Thu, 10 Nov 2016 01:28:43 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com> <013801d23b31$f47a7cb0$dd6f7610$@alibaba-inc.com> <20161110092134.GD9173@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20161110092134.GD9173@hori1.linux.bs1.fc.nec.co.jp>
-Subject: Re: [PATCH v2 07/12] mm: thp: check pmd migration entry in common path
-Date: Thu, 10 Nov 2016 17:28:20 +0800
-Message-ID: <014b01d23b34$c7a71600$56f54200$@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B6B76B028C
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:29:37 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id n85so100050140pfi.4
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 01:29:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id ze5si3200284pac.262.2016.11.10.01.29.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Nov 2016 01:29:36 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAA9T5PG007710
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:29:36 -0500
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26me9rksh8-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:29:35 -0500
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 10 Nov 2016 04:29:34 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 2/4] powerpc/mm: Rename hugetlb-radix.h to hugetlb.h
+Date: Thu, 10 Nov 2016 14:59:16 +0530
+In-Reply-To: <20161110092918.21139-1-aneesh.kumar@linux.vnet.ibm.com>
+References: <20161110092918.21139-1-aneesh.kumar@linux.vnet.ibm.com>
+Message-Id: <20161110092918.21139-2-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Dave Hansen' <dave.hansen@intel.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Michal Hocko' <mhocko@kernel.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Zi Yan' <zi.yan@cs.rutgers.edu>, 'Balbir Singh' <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>, 'Anshuman Khandual' <khandual@linux.vnet.ibm.com>
+To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thursday, November 10, 2016 5:22 PM Naoya Horiguchi wrote:
-> On Thu, Nov 10, 2016 at 05:08:07PM +0800, Hillf Danton wrote:
-> > On Tuesday, November 08, 2016 7:32 AM Naoya Horiguchi wrote:
-> > >
-> > > @@ -1013,6 +1027,9 @@ int do_huge_pmd_wp_page(struct fault_env *fe, pmd_t orig_pmd)
-> > >  	if (unlikely(!pmd_same(*fe->pmd, orig_pmd)))
-> > >  		goto out_unlock;
-> > >
-> > > +	if (unlikely(!pmd_present(orig_pmd)))
-> > > +		goto out_unlock;
-> > > +
-> >
-> > Can we encounter a migration entry after acquiring ptl ?
-> 
-> I think we can. thp migration code releases ptl after converting pmd into
-> migration entry, so other code can see it even within ptl.
-> 
-But we have a pmd_same check there, you see. 
+We will start moving some book3s specific hugetlb functions there.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/{hugetlb-radix.h => hugetlb.h} | 6 ++++--
+ arch/powerpc/include/asm/hugetlb.h                                | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+ rename arch/powerpc/include/asm/book3s/64/{hugetlb-radix.h => hugetlb.h} (84%)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb-radix.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+similarity index 84%
+rename from arch/powerpc/include/asm/book3s/64/hugetlb-radix.h
+rename to arch/powerpc/include/asm/book3s/64/hugetlb.h
+index c45189aa7476..a7d2b6107383 100644
+--- a/arch/powerpc/include/asm/book3s/64/hugetlb-radix.h
++++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+@@ -1,5 +1,5 @@
+-#ifndef _ASM_POWERPC_BOOK3S_64_HUGETLB_RADIX_H
+-#define _ASM_POWERPC_BOOK3S_64_HUGETLB_RADIX_H
++#ifndef _ASM_POWERPC_BOOK3S_64_HUGETLB_H
++#define _ASM_POWERPC_BOOK3S_64_HUGETLB_H
+ /*
+  * For radix we want generic code to handle hugetlb. But then if we want
+  * both hash and radix to be enabled together we need to workaround the
+@@ -21,6 +21,8 @@ static inline int hstate_get_psize(struct hstate *hstate)
+ 		return MMU_PAGE_2M;
+ 	else if (shift == mmu_psize_defs[MMU_PAGE_1G].shift)
+ 		return MMU_PAGE_1G;
++	else if (shift == mmu_psize_defs[MMU_PAGE_16M].shift)
++		return MMU_PAGE_16M;
+ 	else {
+ 		WARN(1, "Wrong huge page shift\n");
+ 		return mmu_virtual_psize;
+diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
+index c5517f463ec7..c03e0a3dd4d8 100644
+--- a/arch/powerpc/include/asm/hugetlb.h
++++ b/arch/powerpc/include/asm/hugetlb.h
+@@ -9,7 +9,7 @@ extern struct kmem_cache *hugepte_cache;
+ 
+ #ifdef CONFIG_PPC_BOOK3S_64
+ 
+-#include <asm/book3s/64/hugetlb-radix.h>
++#include <asm/book3s/64/hugetlb.h>
+ /*
+  * This should work for other subarchs too. But right now we use the
+  * new format only for 64bit book3s
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
