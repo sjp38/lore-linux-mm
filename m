@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F319B6B02BF
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 13:40:17 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id kr7so24200269pab.5
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 10:40:17 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id vz10si5257909pab.271.2016.11.10.10.40.17
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E0662280253
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 14:11:37 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u144so14292552wmu.1
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:11:37 -0800 (PST)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id g82si29480015wmc.54.2016.11.10.11.11.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 10:40:17 -0800 (PST)
-Date: Thu, 10 Nov 2016 12:40:14 -0600
-From: Richard Kuo <rkuo@codeaurora.org>
-Subject: Re: [mm PATCH v3 07/23] arch/hexagon: Add option to skip DMA sync as
- a part of mapping
-Message-ID: <20161110184014.GA30680@codeaurora.org>
-References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
- <20161110113452.76501.45864.stgit@ahduyck-blue-test.jf.intel.com>
+        Thu, 10 Nov 2016 11:11:36 -0800 (PST)
+Received: by mail-wm0-x22f.google.com with SMTP id t79so51386576wmt.0
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:11:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161110113452.76501.45864.stgit@ahduyck-blue-test.jf.intel.com>
+In-Reply-To: <20161104144534.14790-2-juerg.haefliger@hpe.com>
+References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
+ <20161104144534.14790-1-juerg.haefliger@hpe.com> <20161104144534.14790-2-juerg.haefliger@hpe.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 10 Nov 2016 11:11:34 -0800
+Message-ID: <CAGXu5jKY56q3Kp+dB0i-jgo7UrujCqnqhzw80+n_7keioKxWkQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership (XPFO)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-hexagon@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Juerg Haefliger <juerg.haefliger@hpe.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, linux-x86_64@vger.kernel.org, vpk@cs.columbia.edu
 
-On Thu, Nov 10, 2016 at 06:34:52AM -0500, Alexander Duyck wrote:
-> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-> avoid invoking cache line invalidation if the driver will just handle it
-> later via a sync_for_cpu or sync_for_device call.
-> 
-> Cc: Richard Kuo <rkuo@codeaurora.org>
-> Cc: linux-hexagon@vger.kernel.org
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> ---
->  arch/hexagon/kernel/dma.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
+On Fri, Nov 4, 2016 at 7:45 AM, Juerg Haefliger <juerg.haefliger@hpe.com> wrote:
+> This patch adds support for XPFO which protects against 'ret2dir' kernel
+> attacks. The basic idea is to enforce exclusive ownership of page frames
+> by either the kernel or userspace, unless explicitly requested by the
+> kernel. Whenever a page destined for userspace is allocated, it is
+> unmapped from physmap (the kernel's page table). When such a page is
+> reclaimed from userspace, it is mapped back to physmap.
+>
+> Additional fields in the page_ext struct are used for XPFO housekeeping.
+> Specifically two flags to distinguish user vs. kernel pages and to tag
+> unmapped pages and a reference counter to balance kmap/kunmap operations
+> and a lock to serialize access to the XPFO fields.
 
-For Hexagon:
+Thanks for keeping on this! I'd really like to see it land and then
+get more architectures to support it.
 
-Acked-by: Richard Kuo <rkuo@codeaurora.org>
+> Known issues/limitations:
+>   - Only supports x86-64 (for now)
+>   - Only supports 4k pages (for now)
+>   - There are most likely some legitimate uses cases where the kernel needs
+>     to access userspace which need to be made XPFO-aware
+>   - Performance penalty
 
+In the Kconfig you say "slight", but I'm curious what kinds of
+benchmarks you've done and if there's a more specific cost we can
+declare, just to give people more of an idea what the hit looks like?
+(What workloads would trigger a lot of XPFO unmapping, for example?)
 
+Thanks!
+
+-Kees
 
 -- 
-Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum, 
-a Linux Foundation Collaborative Project
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
