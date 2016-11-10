@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 226E128025B
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:36:25 -0500 (EST)
-Received: by mail-pa0-f71.google.com with SMTP id fp5so62174758pac.6
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:36:25 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id w3si6003997pgb.4.2016.11.10.09.36.24
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 156A228025B
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:36:30 -0500 (EST)
+Received: by mail-pa0-f72.google.com with SMTP id r13so93603986pag.1
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:36:30 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id z9si5069652pax.37.2016.11.10.09.36.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 09:36:24 -0800 (PST)
-Subject: [mm PATCH v3 11/23] arch/mips: Add option to skip DMA sync as a
+        Thu, 10 Nov 2016 09:36:29 -0800 (PST)
+Subject: [mm PATCH v3 12/23] arch/nios2: Add option to skip DMA sync as a
  part of map and unmap
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Thu, 10 Nov 2016 06:35:13 -0500
-Message-ID: <20161110113513.76501.32321.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Thu, 10 Nov 2016 06:35:18 -0500
+Message-ID: <20161110113518.76501.52225.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,74 +22,77 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: linux-mips@linux-mips.org, Keguang Zhang <keguang.zhang@gmail.com>, linux-kernel@vger.kernel.org, Ralf Baechle <ralf@linux-mips.org>, netdev@vger.kernel.org
+Cc: Ley Foon Tan <lftan@altera.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
 This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
 avoid invoking cache line invalidation if the driver will just handle it
 via a sync_for_cpu or sync_for_device call.
 
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: Keguang Zhang <keguang.zhang@gmail.com>
-Cc: linux-mips@linux-mips.org
+Cc: Ley Foon Tan <lftan@altera.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/mips/loongson64/common/dma-swiotlb.c |    2 +-
- arch/mips/mm/dma-default.c                |    8 +++++---
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ arch/nios2/mm/dma-mapping.c |   26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)
 
-diff --git a/arch/mips/loongson64/common/dma-swiotlb.c b/arch/mips/loongson64/common/dma-swiotlb.c
-index 1a80b6f..aab4fd6 100644
---- a/arch/mips/loongson64/common/dma-swiotlb.c
-+++ b/arch/mips/loongson64/common/dma-swiotlb.c
-@@ -61,7 +61,7 @@ static int loongson_dma_map_sg(struct device *dev, struct scatterlist *sg,
- 				int nents, enum dma_data_direction dir,
- 				unsigned long attrs)
+diff --git a/arch/nios2/mm/dma-mapping.c b/arch/nios2/mm/dma-mapping.c
+index d800fad..f6a5dcf 100644
+--- a/arch/nios2/mm/dma-mapping.c
++++ b/arch/nios2/mm/dma-mapping.c
+@@ -98,13 +98,17 @@ static int nios2_dma_map_sg(struct device *dev, struct scatterlist *sg,
+ 	int i;
+ 
+ 	for_each_sg(sg, sg, nents, i) {
+-		void *addr;
++		void *addr = sg_virt(sg);
+ 
+-		addr = sg_virt(sg);
+-		if (addr) {
+-			__dma_sync_for_device(addr, sg->length, direction);
+-			sg->dma_address = sg_phys(sg);
+-		}
++		if (!addr)
++			continue;
++
++		sg->dma_address = sg_phys(sg);
++
++		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++			continue;
++
++		__dma_sync_for_device(addr, sg->length, direction);
+ 	}
+ 
+ 	return nents;
+@@ -117,7 +121,9 @@ static dma_addr_t nios2_dma_map_page(struct device *dev, struct page *page,
  {
--	int r = swiotlb_map_sg_attrs(dev, sg, nents, dir, 0);
-+	int r = swiotlb_map_sg_attrs(dev, sg, nents, dir, attrs);
- 	mb();
+ 	void *addr = page_address(page) + offset;
  
- 	return r;
-diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
-index b2eadd6..dd998d7 100644
---- a/arch/mips/mm/dma-default.c
-+++ b/arch/mips/mm/dma-default.c
-@@ -293,7 +293,7 @@ static inline void __dma_sync(struct page *page,
- static void mips_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
- 	size_t size, enum dma_data_direction direction, unsigned long attrs)
+-	__dma_sync_for_device(addr, size, direction);
++	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
++		__dma_sync_for_device(addr, size, direction);
++
+ 	return page_to_phys(page) + offset;
+ }
+ 
+@@ -125,7 +131,8 @@ static void nios2_dma_unmap_page(struct device *dev, dma_addr_t dma_address,
+ 		size_t size, enum dma_data_direction direction,
+ 		unsigned long attrs)
  {
--	if (cpu_needs_post_dma_flush(dev))
-+	if (cpu_needs_post_dma_flush(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 		__dma_sync(dma_addr_to_page(dev, dma_addr),
- 			   dma_addr & ~PAGE_MASK, size, direction);
- 	plat_post_dma_flush(dev);
-@@ -307,7 +307,8 @@ static int mips_dma_map_sg(struct device *dev, struct scatterlist *sglist,
- 	struct scatterlist *sg;
+-	__dma_sync_for_cpu(phys_to_virt(dma_address), size, direction);
++	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
++		__dma_sync_for_cpu(phys_to_virt(dma_address), size, direction);
+ }
  
- 	for_each_sg(sglist, sg, nents, i) {
--		if (!plat_device_is_coherent(dev))
-+		if (!plat_device_is_coherent(dev) &&
-+		    !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 			__dma_sync(sg_page(sg), sg->offset, sg->length,
- 				   direction);
- #ifdef CONFIG_NEED_SG_DMA_LENGTH
-@@ -324,7 +325,7 @@ static dma_addr_t mips_dma_map_page(struct device *dev, struct page *page,
- 	unsigned long offset, size_t size, enum dma_data_direction direction,
- 	unsigned long attrs)
- {
--	if (!plat_device_is_coherent(dev))
-+	if (!plat_device_is_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
- 		__dma_sync(page, offset, size, direction);
+ static void nios2_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+@@ -138,6 +145,9 @@ static void nios2_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+ 	if (direction == DMA_TO_DEVICE)
+ 		return;
  
- 	return plat_map_dma_mem_page(dev, page) + offset;
-@@ -339,6 +340,7 @@ static void mips_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
- 
- 	for_each_sg(sglist, sg, nhwentries, i) {
- 		if (!plat_device_is_coherent(dev) &&
-+		    !(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
- 		    direction != DMA_TO_DEVICE)
- 			__dma_sync(sg_page(sg), sg->offset, sg->length,
- 				   direction);
++	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++		return;
++
+ 	for_each_sg(sg, sg, nhwentries, i) {
+ 		addr = sg_virt(sg);
+ 		if (addr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
