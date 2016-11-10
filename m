@@ -1,89 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ECADC6B0069
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 22:22:02 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id l20so114905145qta.3
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 19:22:02 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id q58si1912071qta.108.2016.11.09.19.22.01
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2A16B0069
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 00:36:09 -0500 (EST)
+Received: by mail-pa0-f71.google.com with SMTP id r13so87106018pag.1
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 21:36:09 -0800 (PST)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id d11si3036153pgf.70.2016.11.09.21.36.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Nov 2016 19:22:02 -0800 (PST)
-Message-ID: <5823E6AF.8040600@huawei.com>
-Date: Thu, 10 Nov 2016 11:17:03 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Nov 2016 21:36:08 -0800 (PST)
+Received: by mail-pf0-x232.google.com with SMTP id i88so139252566pfk.2
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 21:36:08 -0800 (PST)
+Date: Wed, 9 Nov 2016 21:36:00 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] shmem: Support for registration of driver/file owner
+ specific ops
+In-Reply-To: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
+Message-ID: <alpine.LSU.2.11.1611092057460.6221@eggly.anvils>
+References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] mem-hotplug: shall we skip unmovable node when doing numa
- balance?
-References: <582157E5.8000106@huawei.com> <20161109115827.GD3614@techsingularity.net>
-In-Reply-To: <20161109115827.GD3614@techsingularity.net>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "robert.liu@huawei.com" <robert.liu@huawei.com>
+To: Akash Goel <akash.goel@intel.com>
+Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.linux.org, Sourab Gupta <sourab.gupta@intel.com>
 
-On 2016/11/9 19:58, Mel Gorman wrote:
-
-> On Tue, Nov 08, 2016 at 12:43:17PM +0800, Xishi Qiu wrote:
->> On mem-hotplug system, there is a problem, please see the following case.
->>
->> memtester xxG, the memory will be alloced on a movable node. And after numa
->> balancing, the memory may be migrated to the other node, it may be a unmovable
->> node. This will reduce the free memory of the unmovable node, and may be oom
->> later.
->>
+On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
+> From: Chris Wilson <chris@chris-wilson.co.uk>
 > 
-> How would it OOM later? It's movable memmory that is moving via
-> automatic NUMA balancing so at the very least it can be reclaimed. If
-> the memory is mlocked or unable to migrate then it's irrelevant if
-> automatic balancing put it there.
+> This provides support for the drivers or shmem file owners to register
+> a set of callbacks, which can be invoked from the address space
+> operations methods implemented by shmem.  This allow the file owners to
+> hook into the shmem address space operations to do some extra/custom
+> operations in addition to the default ones.
 > 
-
-Hi Mel,
-
-memtester will mlock the memory, so we can not reclaim, then maybe oom, right?
-So let the manager set some numa policies to prevent the above case, right?
-
-Thanks,
-Xishi Qiu
-
->> My question is that shall we skip unmovable node when doing numa balance?
->> or just let the manager set some numa policies?
->>
+> The private_data field of address_space struct is used to store the
+> pointer to driver specific ops.  Currently only one ops field is defined,
+> which is migratepage, but can be extended on an as-needed basis.
 > 
-> If the unmovable node must be protected from automatic NUMA balancing
-> then policies are the appropriate step to prevent the processes running
-> on that node or from allocating memory on that node.
+> The need for driver specific operations arises since some of the
+> operations (like migratepage) may not be handled completely within shmem,
+> so as to be effective, and would need some driver specific handling also.
+> Specifically, i915.ko would like to participate in migratepage().
+> i915.ko uses shmemfs to provide swappable backing storage for its user
+> objects, but when those objects are in use by the GPU it must pin the
+> entire object until the GPU is idle.  As a result, large chunks of memory
+> can be arbitrarily withdrawn from page migration, resulting in premature
+> out-of-memory due to fragmentation.  However, if i915.ko can receive the
+> migratepage() request, it can then flush the object from the GPU, remove
+> its pin and thus enable the migration.
 > 
-> Either way, protecting unmovable nodes in the name of hotplug is pretty
-> much guaranteed to be a performance black hole because at the very
-> least, page table pages will always be remote accesses for processes
-> running on the unmovable node.
-> 
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index 057964d..f0954ac 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -2334,6 +2334,13 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
->>  out:
->>  	mpol_cond_put(pol);
->>  
->> +	/* Skip unmovable nodes when do numa balancing */
->> +	if (movable_node_enabled && ret != -1) {
->> +		zone = NODE_DATA(ret)->node_zones + MAX_NR_ZONES - 1;
->> +		if (!populated_zone(zone))
->> +			ret = -1;
->> +	}
->> +
->>  	return ret;
->>  }
-> 
-> Nak.
-> 
+> Since gfx allocations are one of the major consumer of system memory, its
+> imperative to have such a mechanism to effectively deal with
+> fragmentation.  And therefore the need for such a provision for initiating
+> driver specific actions during address space operations.
 
+Thank you for persisting with this, and sorry for all my delay.
 
+> 
+> v2:
+> - Drop dev_ prefix from the members of shmem_dev_info structure. (Joonas)
+> - Change the return type of shmem_set_device_op() to void and remove the
+>   check for pre-existing data. (Joonas)
+> - Rename shmem_set_device_op() to shmem_set_dev_info() to be consistent
+>   with shmem_dev_info structure. (Joonas)
+> 
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.linux.org
+> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
+> Signed-off-by: Akash Goel <akash.goel@intel.com>
+> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+
+That doesn't seem quite right: the From line above implies that Chris
+wrote it, and should be first Signer; but perhaps the From line is wrong.
+
+> ---
+>  include/linux/shmem_fs.h | 13 +++++++++++++
+>  mm/shmem.c               | 17 ++++++++++++++++-
+>  2 files changed, 29 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+> index ff078e7..454c3ba 100644
+> --- a/include/linux/shmem_fs.h
+> +++ b/include/linux/shmem_fs.h
+> @@ -39,11 +39,24 @@ struct shmem_sb_info {
+>  	unsigned long shrinklist_len; /* Length of shrinklist */
+>  };
+>  
+> +struct shmem_dev_info {
+> +	void *private_data;
+> +	int (*migratepage)(struct address_space *mapping,
+> +			   struct page *newpage, struct page *page,
+> +			   enum migrate_mode mode, void *dev_priv_data);
+
+Aren't the private_data field and dev_priv_data arg a little bit
+confusing and redundant?  Can't the migratepage() deduce dev_priv
+for itself from mapping->private_data (perhaps wrapped by a
+shmem_get_dev_info()), by using container_of()?
+
+> +};
+> +
+>  static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+>  {
+>  	return container_of(inode, struct shmem_inode_info, vfs_inode);
+>  }
+>  
+> +static inline void shmem_set_dev_info(struct address_space *mapping,
+> +				      struct shmem_dev_info *info)
+> +{
+> +	mapping->private_data = info;
+
+Nit: if this stays as is, I'd prefer dev_info there and above,
+since shmem.c uses info all over for its shmem_inode_info pointer.
+But in second patch I suggest obj_info may be better than dev_info.
+
+> +}
+> +
+>  /*
+>   * Functions in mm/shmem.c called directly from elsewhere:
+>   */
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index ad7813d..fce8de3 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1290,6 +1290,21 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+>  	return 0;
+>  }
+>  
+> +#ifdef CONFIG_MIGRATION
+> +static int shmem_migratepage(struct address_space *mapping,
+> +			     struct page *newpage, struct page *page,
+> +			     enum migrate_mode mode)
+> +{
+> +	struct shmem_dev_info *dev_info = mapping->private_data;
+> +
+> +	if (dev_info && dev_info->migratepage)
+> +		return dev_info->migratepage(mapping, newpage, page,
+> +					     mode, dev_info->private_data);
+> +
+> +	return migrate_page(mapping, newpage, page, mode);
+> +}
+> +#endif
+> +
+>  #if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
+>  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+>  {
+> @@ -3654,7 +3669,7 @@ static void shmem_destroy_inodecache(void)
+>  	.write_end	= shmem_write_end,
+>  #endif
+>  #ifdef CONFIG_MIGRATION
+> -	.migratepage	= migrate_page,
+> +	.migratepage	= shmem_migratepage,
+>  #endif
+>  	.error_remove_page = generic_error_remove_page,
+>  };
+> -- 
+> 1.9.2
+
+I didn't like this very much; but every time I tried to "improve" it,
+found good reasons why you chose the way you did (modularity of i915,
+constness of a_ops, reluctance to copy and modify a_ops, reluctance
+to export those shmem methods separately).
+
+I think perhaps later we just add a gem_ops pointer to shmem_inode_info,
+for i915 or other gems to fill in as they wish (and shmem divert off to
+them if set, as you've done); but for now you're trying to avoid
+enlarging the shmem inode, okay.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
