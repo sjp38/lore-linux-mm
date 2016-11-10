@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CC836B0038
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:15:04 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 83so106951090pfx.1
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 14:15:04 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id fn7si5837430pab.115.2016.11.10.14.14.59
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D22E2280278
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:52:24 -0500 (EST)
+Received: by mail-pa0-f69.google.com with SMTP id kr7so31671838pab.5
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 14:52:24 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id v5si5939162pag.30.2016.11.10.14.52.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 14:14:59 -0800 (PST)
-Subject: [PATCH] mm: add ZONE_DEVICE statistics to smaps
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 10 Nov 2016 14:11:57 -0800
-Message-ID: <147881591739.39198.1358237993213024627.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 14:52:23 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 05/12] mm: thp: add core routines for thp/pmd
+ migration
+Date: Thu, 10 Nov 2016 09:43:28 +0000
+Message-ID: <20161110094327.GE9173@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <58242FCF.50602@linux.vnet.ibm.com>
+In-Reply-To: <58242FCF.50602@linux.vnet.ibm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <E623130A30E4FB498C3E5F01334ADD59@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-nvdimm@lists.01.org, Christoph Hellwig <hch@lst.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-ZONE_DEVICE pages are mapped into a process via the filesystem-dax and
-device-dax mechanisms.  There are also proposals to use ZONE_DEVICE
-pages for other usages outside of dax.  Add statistics to smaps so
-applications can debug that they are obtaining the mappings they expect,
-or otherwise accounting them.
+On Thu, Nov 10, 2016 at 01:59:03PM +0530, Anshuman Khandual wrote:
+> On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> > This patch prepares thp migration's core code. These code will be open =
+when
+> > unmap_and_move() stops unconditionally splitting thp and get_new_page()=
+ starts
+> > to allocate destination thps.
+> >=20
+>=20
+> Snip
+>=20
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> > ChangeLog v1 -> v2:
+> > - support pte-mapped thp, doubly-mapped thp
+> > ---
+> >  arch/x86/include/asm/pgtable_64.h |   2 +
+> >  include/linux/swapops.h           |  61 +++++++++++++++
+> >  mm/huge_memory.c                  | 154 ++++++++++++++++++++++++++++++=
+++++++++
+> >  mm/migrate.c                      |  44 ++++++++++-
+> >  mm/pgtable-generic.c              |   3 +-
+> >  5 files changed, 262 insertions(+), 2 deletions(-)
+>=20
+>=20
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c v4.9-rc=
+2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> > index 71c5f91..6012343 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> > @@ -118,7 +118,8 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *=
+vma, unsigned long address,
+> >  {
+> >  	pmd_t pmd;
+> >  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> > -	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+> > +	VM_BUG_ON(pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
+> > +		  !pmd_devmap(*pmdp))
+>=20
+> Its a valid VM_BUG_ON check but is it related to THP migration or
+> just a regular fix up ?
 
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- fs/proc/task_mmu.c |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+Without this change, this VM_BUG_ON always triggers when migration happens
+on normal thp and it succeeds, so I included it here.
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 35b92d81692f..6765cafcf057 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -445,6 +445,8 @@ struct mem_size_stats {
- 	unsigned long swap;
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
-+	unsigned long device;
-+	unsigned long device_huge;
- 	u64 pss;
- 	u64 swap_pss;
- 	bool check_shmem_swap;
-@@ -458,6 +460,8 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
- 
- 	if (PageAnon(page))
- 		mss->anonymous += size;
-+	else if (is_zone_device_page(page))
-+		mss->device += size;
- 
- 	mss->resident += size;
- 	/* Accumulate the size in pages that have been accessed. */
-@@ -575,7 +579,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
- 	else if (PageSwapBacked(page))
- 		mss->shmem_thp += HPAGE_PMD_SIZE;
- 	else if (is_zone_device_page(page))
--		/* pass */;
-+		mss->device_huge += HPAGE_PMD_SIZE;
- 	else
- 		VM_BUG_ON_PAGE(1, page);
- 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
-@@ -774,6 +778,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   "ShmemPmdMapped: %8lu kB\n"
- 		   "Shared_Hugetlb: %8lu kB\n"
- 		   "Private_Hugetlb: %7lu kB\n"
-+		   "Device:         %8lu kB\n"
-+		   "DeviceHugePages: %7lu kB\n"
- 		   "Swap:           %8lu kB\n"
- 		   "SwapPss:        %8lu kB\n"
- 		   "KernelPageSize: %8lu kB\n"
-@@ -792,6 +798,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   mss.shmem_thp >> 10,
- 		   mss.shared_hugetlb >> 10,
- 		   mss.private_hugetlb >> 10,
-+		   mss.device >> 10,
-+		   mss.device_huge >> 10,
- 		   mss.swap >> 10,
- 		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
- 		   vma_kernel_pagesize(vma) >> 10,
+- Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
