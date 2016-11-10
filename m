@@ -1,51 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97F5328025B
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:37:19 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id h201so200246580qke.7
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:37:19 -0800 (PST)
-Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
-        by mx.google.com with ESMTPS id 23si3992288qkd.84.2016.11.10.09.37.15
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8522B28025B
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:37:22 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id o1so41386306ito.7
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:37:22 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id tx6si5020956pab.295.2016.11.10.09.37.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 10 Nov 2016 09:37:15 -0800 (PST)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id 4edd4bf5
-	for <linux-mm@kvack.org>;
-	Thu, 10 Nov 2016 17:35:07 +0000 (UTC)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id 6219ec76 (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
-	for <linux-mm@kvack.org>;
-	Thu, 10 Nov 2016 17:35:06 +0000 (UTC)
-Received: by mail-lf0-f49.google.com with SMTP id b14so195384767lfg.2
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:37:13 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Nov 2016 09:37:21 -0800 (PST)
+Subject: [mm PATCH v3 22/23] igb: Update driver to make use of
+ DMA_ATTR_SKIP_CPU_SYNC
+From: Alexander Duyck <alexander.h.duyck@intel.com>
+Date: Thu, 10 Nov 2016 06:36:11 -0500
+Message-ID: <20161110113611.76501.98897.stgit@ahduyck-blue-test.jf.intel.com>
+In-Reply-To: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
+References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <db056fb5-82b3-c17e-46ce-263872ef7334@imgtec.com>
-References: <CAHmME9oSUcAXVMhpLt0bqa9DKHE8rd3u+3JDb_wgviZnOpP7JA@mail.gmail.com>
- <alpine.DEB.2.20.1611092227200.3501@nanos> <CAHmME9pGoRogjHSSy-G-sB4-cHMGcjCeW9PSrNw1h5FsKzfWAw@mail.gmail.com>
- <alpine.DEB.2.20.1611100959040.3501@nanos> <CAHmME9pHYA82M3iDNfDtDE96gFaZORSsEAn_KnePd3rhFioqHQ@mail.gmail.com>
- <db056fb5-82b3-c17e-46ce-263872ef7334@imgtec.com>
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Date: Thu, 10 Nov 2016 18:37:10 +0100
-Message-ID: <CAHmME9ooeH2Qdu3zVS-_i_9_3AR0bDrEe_8+D3FS7E7NvMLG-Q@mail.gmail.com>
-Subject: Re: Proposal: HAVE_SEPARATE_IRQ_STACK?
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Redfearn <matt.redfearn@imgtec.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, WireGuard mailing list <wireguard@lists.zx2c4.com>, k@vodka.home.kg
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: netdev@vger.kernel.org, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, linux-kernel@vger.kernel.org
 
-Hi Matt,
+The ARM architecture provides a mechanism for deferring cache line
+invalidation in the case of map/unmap.  This patch makes use of this
+mechanism to avoid unnecessary synchronization.
 
-On Thu, Nov 10, 2016 at 5:36 PM, Matt Redfearn <matt.redfearn@imgtec.com> wrote:
->
-> I don't see a reason not to do this - I'm taking a look into it.
+A secondary effect of this change is that the portion of the page that has
+been synchronized for use by the CPU should be writable and could be passed
+up the stack (at least on ARM).
 
-Great thanks! This is good to hear. If you go into the arch/ directory
-and simply grep for "irq_stack", you can pretty easily base your
-implementation on a variety of other architectures' implementations.
+The last bit that occurred to me is that on architectures where the
+sync_for_cpu call invalidates cache lines we were prefetching and then
+invalidating the first 128 bytes of the packet.  To avoid that I have moved
+the sync up to before we perform the prefetch and allocate the skbuff so
+that we can actually make use of it.
 
-Jason
+Acked-by: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+---
+ drivers/net/ethernet/intel/igb/igb_main.c |   53 ++++++++++++++++++-----------
+ 1 file changed, 33 insertions(+), 20 deletions(-)
+
+diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
+index 942a89f..ba97392 100644
+--- a/drivers/net/ethernet/intel/igb/igb_main.c
++++ b/drivers/net/ethernet/intel/igb/igb_main.c
+@@ -3922,10 +3922,21 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
+ 		if (!buffer_info->page)
+ 			continue;
+ 
+-		dma_unmap_page(rx_ring->dev,
+-			       buffer_info->dma,
+-			       PAGE_SIZE,
+-			       DMA_FROM_DEVICE);
++		/* Invalidate cache lines that may have been written to by
++		 * device so that we avoid corrupting memory.
++		 */
++		dma_sync_single_range_for_cpu(rx_ring->dev,
++					      buffer_info->dma,
++					      buffer_info->page_offset,
++					      IGB_RX_BUFSZ,
++					      DMA_FROM_DEVICE);
++
++		/* free resources associated with mapping */
++		dma_unmap_page_attrs(rx_ring->dev,
++				     buffer_info->dma,
++				     PAGE_SIZE,
++				     DMA_FROM_DEVICE,
++				     DMA_ATTR_SKIP_CPU_SYNC);
+ 		__free_page(buffer_info->page);
+ 
+ 		buffer_info->page = NULL;
+@@ -6791,12 +6802,6 @@ static void igb_reuse_rx_page(struct igb_ring *rx_ring,
+ 
+ 	/* transfer page from old buffer to new buffer */
+ 	*new_buff = *old_buff;
+-
+-	/* sync the buffer for use by the device */
+-	dma_sync_single_range_for_device(rx_ring->dev, old_buff->dma,
+-					 old_buff->page_offset,
+-					 IGB_RX_BUFSZ,
+-					 DMA_FROM_DEVICE);
+ }
+ 
+ static inline bool igb_page_is_reserved(struct page *page)
+@@ -6917,6 +6922,13 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
+ 	page = rx_buffer->page;
+ 	prefetchw(page);
+ 
++	/* we are reusing so sync this buffer for CPU use */
++	dma_sync_single_range_for_cpu(rx_ring->dev,
++				      rx_buffer->dma,
++				      rx_buffer->page_offset,
++				      size,
++				      DMA_FROM_DEVICE);
++
+ 	if (likely(!skb)) {
+ 		void *page_addr = page_address(page) +
+ 				  rx_buffer->page_offset;
+@@ -6941,21 +6953,15 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
+ 		prefetchw(skb->data);
+ 	}
+ 
+-	/* we are reusing so sync this buffer for CPU use */
+-	dma_sync_single_range_for_cpu(rx_ring->dev,
+-				      rx_buffer->dma,
+-				      rx_buffer->page_offset,
+-				      size,
+-				      DMA_FROM_DEVICE);
+-
+ 	/* pull page into skb */
+ 	if (igb_add_rx_frag(rx_ring, rx_buffer, size, rx_desc, skb)) {
+ 		/* hand second half of page back to the ring */
+ 		igb_reuse_rx_page(rx_ring, rx_buffer);
+ 	} else {
+ 		/* we are not reusing the buffer so unmap it */
+-		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
+-			       PAGE_SIZE, DMA_FROM_DEVICE);
++		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
++				     PAGE_SIZE, DMA_FROM_DEVICE,
++				     DMA_ATTR_SKIP_CPU_SYNC);
+ 	}
+ 
+ 	/* clear contents of rx_buffer */
+@@ -7213,7 +7219,8 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
+ 	}
+ 
+ 	/* map page for use */
+-	dma = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
++	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
++				 DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+ 
+ 	/* if mapping failed free memory back to system since
+ 	 * there isn't much point in holding memory we can't use
+@@ -7254,6 +7261,12 @@ void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
+ 		if (!igb_alloc_mapped_page(rx_ring, bi))
+ 			break;
+ 
++		/* sync the buffer for use by the device */
++		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
++						 bi->page_offset,
++						 IGB_RX_BUFSZ,
++						 DMA_FROM_DEVICE);
++
+ 		/* Refresh the desc even if buffer_addrs didn't change
+ 		 * because each write-back erases this info.
+ 		 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
