@@ -1,82 +1,109 @@
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 07/25] mm/vmscan: Convert to hotplug state machine
-Date: Thu,  3 Nov 2016 15:50:03 +0100
-Message-ID: <20161103145021.28528-8-bigeasy@linutronix.de>
-References: <20161103145021.28528-1-bigeasy@linutronix.de>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v3 01/20] x86: Documentation for AMD Secure Memory
+ Encryption (SME)
+Date: Thu, 10 Nov 2016 11:51:14 +0100
+Message-ID: <20161110105114.oiwcgpb436dxrdpb@pd.tnic>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003439.3280.82634.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20161103145021.28528-1-bigeasy@linutronix.de>
+Content-Disposition: inline
+In-Reply-To: <20161110003439.3280.82634.stgit@tlendack-t1.amdoffice.net>
 Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: rt@linutronix.de, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>
 List-Id: linux-mm.kvack.org
 
-Install the callbacks via the state machine.
+On Wed, Nov 09, 2016 at 06:34:39PM -0600, Tom Lendacky wrote:
+> This patch adds a Documenation entry to decribe the AMD Secure Memory
+> Encryption (SME) feature.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  Documentation/kernel-parameters.txt         |    5 +++
+>  Documentation/x86/amd-memory-encryption.txt |   40 +++++++++++++++++++++++++++
+>  2 files changed, 45 insertions(+)
+>  create mode 100644 Documentation/x86/amd-memory-encryption.txt
+> 
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index 030e9e9..4c730b0 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -2282,6 +2282,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  			memory contents and reserves bad memory
+>  			regions that are detected.
+>  
+> +	mem_encrypt=	[X86-64] Enable AMD Secure Memory Encryption (SME)
+> +			Memory encryption is disabled by default, using this
+> +			switch, memory encryption can be enabled.
 
-Cc: linux-mm@kvack.org
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- mm/vmscan.c | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+I'd say here:
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 76fda2268148..b8404d32caf0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3556,24 +3556,21 @@ unsigned long shrink_all_memory(unsigned long nr_to=
-_reclaim)
-    not required for correctness.  So if the last cpu in a node goes
-    away, we get changed to run anywhere: as the first one comes back,
-    restore their cpu bindings. */
--static int cpu_callback(struct notifier_block *nfb, unsigned long action,
--			void *hcpu)
-+static int kswapd_cpu_online(unsigned int cpu)
- {
- 	int nid;
-=20
--	if (action =3D=3D CPU_ONLINE || action =3D=3D CPU_ONLINE_FROZEN) {
--		for_each_node_state(nid, N_MEMORY) {
--			pg_data_t *pgdat =3D NODE_DATA(nid);
--			const struct cpumask *mask;
-+	for_each_node_state(nid, N_MEMORY) {
-+		pg_data_t *pgdat =3D NODE_DATA(nid);
-+		const struct cpumask *mask;
-=20
--			mask =3D cpumask_of_node(pgdat->node_id);
-+		mask =3D cpumask_of_node(pgdat->node_id);
-=20
--			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
--				/* One of our CPUs online: restore mask */
--				set_cpus_allowed_ptr(pgdat->kswapd, mask);
--		}
-+		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
-+			/* One of our CPUs online: restore mask */
-+			set_cpus_allowed_ptr(pgdat->kswapd, mask);
- 	}
--	return NOTIFY_OK;
-+	return 0;
- }
-=20
- /*
-@@ -3615,12 +3612,15 @@ void kswapd_stop(int nid)
-=20
- static int __init kswapd_init(void)
- {
--	int nid;
-+	int nid, ret;
-=20
- 	swap_setup();
- 	for_each_node_state(nid, N_MEMORY)
-  		kswapd_run(nid);
--	hotcpu_notifier(cpu_callback, 0);
-+	ret =3D cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-+					"mm/vmscan:online", kswapd_cpu_online,
-+					NULL);
-+	WARN_ON(ret < 0);
- 	return 0;
- }
-=20
---=20
-2.10.2
+			"Force-enable memory encryption if it is disabled in the
+			BIOS."
+
+> +			on: enable memory encryption
+> +
+>  	meye.*=		[HW] Set MotionEye Camera parameters
+>  			See Documentation/video4linux/meye.txt.
+>  
+> diff --git a/Documentation/x86/amd-memory-encryption.txt b/Documentation/x86/amd-memory-encryption.txt
+> new file mode 100644
+> index 0000000..788d871
+> --- /dev/null
+> +++ b/Documentation/x86/amd-memory-encryption.txt
+> @@ -0,0 +1,40 @@
+> +Secure Memory Encryption (SME) is a feature found on AMD processors.
+> +
+> +SME provides the ability to mark individual pages of memory as encrypted using
+> +the standard x86 page tables.  A page that is marked encrypted will be
+> +automatically decrypted when read from DRAM and encrypted when written to
+> +DRAM.  SME can therefore be used to protect the contents of DRAM from physical
+> +attacks on the system.
+> +
+> +A page is encrypted when a page table entry has the encryption bit set (see
+> +below how to determine the position of the bit).  The encryption bit can be
+> +specified in the cr3 register, allowing the PGD table to be encrypted. Each
+> +successive level of page tables can also be encrypted.
+> +
+> +Support for SME can be determined through the CPUID instruction. The CPUID
+> +function 0x8000001f reports information related to SME:
+> +
+> +	0x8000001f[eax]:
+> +		Bit[0] indicates support for SME
+> +	0x8000001f[ebx]:
+> +		Bit[5:0]  pagetable bit number used to enable memory encryption
+> +		Bit[11:6] reduction in physical address space, in bits, when
+> +			  memory encryption is enabled (this only affects system
+> +			  physical addresses, not guest physical addresses)
+> +
+> +If support for SME is present, MSR 0xc00100010 (SYS_CFG) can be used to
+> +determine if SME is enabled and/or to enable memory encryption:
+> +
+> +	0xc0010010:
+> +		Bit[23]   0 = memory encryption features are disabled
+> +			  1 = memory encryption features are enabled
+> +
+> +Linux relies on BIOS to set this bit if BIOS has determined that the reduction
+> +in the physical address space as a result of enabling memory encryption (see
+> +CPUID information above) will not conflict with the address space resource
+> +requirements for the system.  If this bit is not set upon Linux startup then
+> +Linux itself will not set it and memory encryption will not be possible.
+> +
+> +SME support is configurable through the AMD_MEM_ENCRYPT config option.
+> +Additionally, the mem_encrypt=on command line parameter is required to activate
+> +memory encryption.
+
+So how am I to understand this? We won't have TSME or we will but it
+will be off by default and users will have to enable it in the BIOS or
+will have to boot with mem_encrypt=on...?
+
+Can you please expand on all the possible options there would be
+available to users?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
