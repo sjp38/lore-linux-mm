@@ -1,55 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C4F280253
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 18:29:53 -0500 (EST)
-Received: by mail-pa0-f72.google.com with SMTP id r13so1015752pag.1
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 15:29:53 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id s8si7159483pfd.186.2016.11.10.15.29.52
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D56E16B0038
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:03:40 -0500 (EST)
+Received: by mail-pa0-f70.google.com with SMTP id fp5so1624989pac.6
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 16:03:40 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id i27si7239436pgn.68.2016.11.10.16.03.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 15:29:52 -0800 (PST)
-Subject: Re: [PATCH v2 01/12] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to
- bit 6
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 16:03:39 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 09/12] mm: hwpoison: soft offline supports thp
+ migration
+Date: Thu, 10 Nov 2016 23:58:54 +0000
+Message-ID: <20161110235853.GB22792@hori1.linux.bs1.fc.nec.co.jp>
 References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <534caa72-c109-9716-15d2-5e80f4038f8d@intel.com>
-Date: Thu, 10 Nov 2016 15:29:51 -0800
+ <1478561517-4317-10-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <6e9aa943-31ea-5b08-8459-2e6a85940546@gmail.com>
+In-Reply-To: <6e9aa943-31ea-5b08-8459-2e6a85940546@gmail.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <4D9D0E56B3B998459004EF294D3939B4@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <1478561517-4317-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 11/07/2016 03:31 PM, Naoya Horiguchi wrote:
-> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid false negative
-> return when it races with thp spilt (during which _PAGE_PRESENT is temporary
-> cleared.) I don't think that dropping _PAGE_PSE check in pmd_present() works
-> well because it can hurt optimization of tlb handling in thp split.
-> In the current kernel, bit 6 is not used in non-present format because nonlinear
-> file mapping is obsolete, so let's move _PAGE_SWP_SOFT_DIRTY to that bit.
-> Bit 7 is used as reserved (always clear), so please don't use it for other
-> purpose.
-...
->  #ifdef CONFIG_MEM_SOFT_DIRTY
-> -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
-> +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_DIRTY
->  #else
->  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->  #endif
+On Thu, Nov 10, 2016 at 09:31:10PM +1100, Balbir Singh wrote:
+>=20
+>=20
+> On 08/11/16 10:31, Naoya Horiguchi wrote:
+> > This patch enables thp migration for soft offline.
+> >=20
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  mm/memory-failure.c | 31 ++++++++++++-------------------
+> >  1 file changed, 12 insertions(+), 19 deletions(-)
+> >=20
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory-failure.c v4.9-rc2=
+-mmotm-2016-10-27-18-27_patched/mm/memory-failure.c
+> > index 19e796d..6cc8157 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory-failure.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory-failure.c
+> > @@ -1485,7 +1485,17 @@ static struct page *new_page(struct page *p, uns=
+igned long private, int **x)
+> >  	if (PageHuge(p))
+> >  		return alloc_huge_page_node(page_hstate(compound_head(p)),
+> >  						   nid);
+> > -	else
+> > +	else if (thp_migration_supported() && PageTransHuge(p)) {
+> > +		struct page *thp;
+> > +
+> > +		thp =3D alloc_pages_node(nid,
+> > +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
+> > +			HPAGE_PMD_ORDER);
+> > +		if (!thp)
+> > +			return NULL;
+>=20
+> Just wondering if new_page() fails, migration of that entry fails. Do we =
+then
+> split and migrate? I guess this applies to THP migration in general.
 
-I'm not sure this works.  Take a look at commit 00839ee3b29 and the
-erratum it works around.  I _think_ this means that a system affected by
-the erratum might see an erroneous _PAGE_SWP_SOFT_DIRTY/_PAGE_DIRTY get
-set in swap ptes.
+Yes, that's not implemented yet, but can be helpful.
 
-There are much worse things that can happen, but I don't think bits 5
-(Accessed) and 6 (Dirty) are good choices since they're affected by the
-erratum.
+I think that there are 2 types of callers of page migration,
+one is a caller that specifies the target pages individually (like move_pag=
+es
+and soft offline), and another is a caller that specifies the target pages
+by (physical/virtual) address range basis.
+Maybe the former ones want to fall back immediately to split and retry if
+thp migration fails, and the latter ones want to retry thp migration more.
+If this makes sense, we can make some more changes on retry logic to fit
+the situation.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
