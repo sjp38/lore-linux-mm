@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D22828025B
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:35:53 -0500 (EST)
-Received: by mail-pa0-f70.google.com with SMTP id r13so93598039pag.1
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:35:53 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s5si6001730pgj.50.2016.11.10.09.35.52
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 76B9828025B
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:35:58 -0500 (EST)
+Received: by mail-pa0-f71.google.com with SMTP id r13so93598908pag.1
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:35:58 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id k62si5995370pgk.90.2016.11.10.09.35.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 09:35:52 -0800 (PST)
-Subject: [mm PATCH v3 05/23] arch/c6x: Add option to skip sync on DMA map
- and unmap
+        Thu, 10 Nov 2016 09:35:57 -0800 (PST)
+Subject: [mm PATCH v3 06/23] arch/frv: Add option to skip sync on DMA map
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Thu, 10 Nov 2016 06:34:42 -0500
-Message-ID: <20161110113442.76501.7673.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Thu, 10 Nov 2016 06:34:47 -0500
+Message-ID: <20161110113447.76501.93160.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,65 +21,90 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Mark Salter <msalter@redhat.com>
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-avoid invoking cache line invalidation if the driver will just handle it
-later via a sync_for_cpu or sync_for_device call.
+The use of DMA_ATTR_SKIP_CPU_SYNC was not consistent across all of the DMA
+APIs in the arch/arm folder.  This change is meant to correct that so that
+we get consistent behavior.
 
-Acked-by: Mark Salter <msalter@redhat.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/c6x/kernel/dma.c |   14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ arch/frv/mb93090-mb00/pci-dma-nommu.c |   14 ++++++++++----
+ arch/frv/mb93090-mb00/pci-dma.c       |    9 +++++++--
+ 2 files changed, 17 insertions(+), 6 deletions(-)
 
-diff --git a/arch/c6x/kernel/dma.c b/arch/c6x/kernel/dma.c
-index db4a6a3..6752df3 100644
---- a/arch/c6x/kernel/dma.c
-+++ b/arch/c6x/kernel/dma.c
-@@ -42,14 +42,17 @@ static dma_addr_t c6x_dma_map_page(struct device *dev, struct page *page,
+diff --git a/arch/frv/mb93090-mb00/pci-dma-nommu.c b/arch/frv/mb93090-mb00/pci-dma-nommu.c
+index 90f2e4c..1876881 100644
+--- a/arch/frv/mb93090-mb00/pci-dma-nommu.c
++++ b/arch/frv/mb93090-mb00/pci-dma-nommu.c
+@@ -109,16 +109,19 @@ static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
+ 		int nents, enum dma_data_direction direction,
+ 		unsigned long attrs)
  {
- 	dma_addr_t handle = virt_to_phys(page_address(page) + offset);
- 
--	c6x_dma_sync(handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		c6x_dma_sync(handle, size, dir);
+-	int i;
+ 	struct scatterlist *sg;
++	int i;
 +
- 	return handle;
- }
- 
- static void c6x_dma_unmap_page(struct device *dev, dma_addr_t handle,
- 		size_t size, enum dma_data_direction dir, unsigned long attrs)
- {
--	c6x_dma_sync(handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		c6x_dma_sync(handle, size, dir);
- }
- 
- static int c6x_dma_map_sg(struct device *dev, struct scatterlist *sglist,
-@@ -60,7 +63,8 @@ static int c6x_dma_map_sg(struct device *dev, struct scatterlist *sglist,
++	BUG_ON(direction == DMA_NONE);
++
++	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++		return nents;
  
  	for_each_sg(sglist, sg, nents, i) {
- 		sg->dma_address = sg_phys(sg);
--		c6x_dma_sync(sg->dma_address, sg->length, dir);
-+		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+			c6x_dma_sync(sg->dma_address, sg->length, dir);
+ 		frv_cache_wback_inv(sg_dma_address(sg),
+ 				    sg_dma_address(sg) + sg_dma_len(sg));
  	}
  
- 	return nents;
-@@ -72,9 +76,11 @@ static void c6x_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
- 	struct scatterlist *sg;
- 	int i;
- 
-+	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
-+		return;
-+
- 	for_each_sg(sglist, sg, nents, i)
- 		c6x_dma_sync(sg_dma_address(sg), sg->length, dir);
+-	BUG_ON(direction == DMA_NONE);
 -
+ 	return nents;
  }
  
- static void c6x_dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle,
+@@ -127,7 +130,10 @@ static dma_addr_t frv_dma_map_page(struct device *dev, struct page *page,
+ 		enum dma_data_direction direction, unsigned long attrs)
+ {
+ 	BUG_ON(direction == DMA_NONE);
+-	flush_dcache_page(page);
++
++	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
++		flush_dcache_page(page);
++
+ 	return (dma_addr_t) page_to_phys(page) + offset;
+ }
+ 
+diff --git a/arch/frv/mb93090-mb00/pci-dma.c b/arch/frv/mb93090-mb00/pci-dma.c
+index f585745..dba7df9 100644
+--- a/arch/frv/mb93090-mb00/pci-dma.c
++++ b/arch/frv/mb93090-mb00/pci-dma.c
+@@ -40,13 +40,16 @@ static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
+ 		int nents, enum dma_data_direction direction,
+ 		unsigned long attrs)
+ {
++	struct scatterlist *sg;
+ 	unsigned long dampr2;
+ 	void *vaddr;
+ 	int i;
+-	struct scatterlist *sg;
+ 
+ 	BUG_ON(direction == DMA_NONE);
+ 
++	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
++		return nents;
++
+ 	dampr2 = __get_DAMPR(2);
+ 
+ 	for_each_sg(sglist, sg, nents, i) {
+@@ -70,7 +73,9 @@ static dma_addr_t frv_dma_map_page(struct device *dev, struct page *page,
+ 		unsigned long offset, size_t size,
+ 		enum dma_data_direction direction, unsigned long attrs)
+ {
+-	flush_dcache_page(page);
++	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
++		flush_dcache_page(page);
++
+ 	return (dma_addr_t) page_to_phys(page) + offset;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
