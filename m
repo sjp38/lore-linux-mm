@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DB376B0253
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:36:28 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id hc3so75967641pac.4
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:36:28 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0058.outbound.protection.outlook.com. [104.47.40.58])
-        by mx.google.com with ESMTPS id 8si1773218pgc.318.2016.11.09.16.36.27
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 421FC6B0260
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:36:53 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 17so97811138pfy.2
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:36:53 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0077.outbound.protection.outlook.com. [104.47.38.77])
+        by mx.google.com with ESMTPS id pp19si1534887pab.322.2016.11.09.16.36.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Nov 2016 16:36:27 -0800 (PST)
+        Wed, 09 Nov 2016 16:36:52 -0800 (PST)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v3 09/20] x86: Insure that boot memory areas are mapped
- properly
-Date: Wed, 9 Nov 2016 18:36:20 -0600
-Message-ID: <20161110003620.3280.20613.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v3 10/20] Add support to access boot related data in the
+ clear
+Date: Wed, 9 Nov 2016 18:36:31 -0600
+Message-ID: <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -27,212 +27,333 @@ Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redh
  Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas
  Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-The boot data and command line data are present in memory in an
-un-encrypted state and are copied early in the boot process.  The early
-page fault support will map these areas as encrypted, so before attempting
-to copy them, add unencrypted mappings so the data is accessed properly
-when copied.
-
-For the initrd, encrypt this data in place. Since the future mapping of the
-initrd area will be mapped as encrypted the data will be accessed properly.
+Boot data (such as EFI related data) is not encrypted when the system is
+booted and needs to be accessed unencrypted.  Add support to apply the
+proper attributes to the EFI page tables and to the early_memremap and
+memremap APIs to identify the type of data being accessed so that the
+proper encryption attribute can be applied.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/mem_encrypt.h |   13 ++++++++
- arch/x86/kernel/head64.c           |   21 ++++++++++++--
- arch/x86/kernel/setup.c            |    9 ++++++
- arch/x86/mm/mem_encrypt.c          |   56 ++++++++++++++++++++++++++++++++++++
- 4 files changed, 96 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/e820.h    |    1 
+ arch/x86/kernel/e820.c         |   16 +++++++
+ arch/x86/mm/ioremap.c          |   89 ++++++++++++++++++++++++++++++++++++++++
+ arch/x86/platform/efi/efi_64.c |   12 ++++-
+ drivers/firmware/efi/efi.c     |   33 +++++++++++++++
+ include/linux/efi.h            |    2 +
+ kernel/memremap.c              |    8 +++-
+ mm/early_ioremap.c             |   18 +++++++-
+ 8 files changed, 172 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-index 2a8e186..0b40f79 100644
---- a/arch/x86/include/asm/mem_encrypt.h
-+++ b/arch/x86/include/asm/mem_encrypt.h
-@@ -26,6 +26,10 @@ void __init sme_early_mem_enc(resource_size_t paddr,
- void __init sme_early_mem_dec(resource_size_t paddr,
- 			      unsigned long size);
- 
-+void __init sme_map_bootdata(char *real_mode_data);
-+void __init sme_encrypt_ramdisk(resource_size_t paddr,
-+				unsigned long size);
-+
- void __init sme_early_init(void);
- 
- #define __sme_pa(x)		(__pa((x)) | sme_me_mask)
-@@ -45,6 +49,15 @@ static inline void __init sme_early_mem_dec(resource_size_t paddr,
- {
- }
- 
-+static inline void __init sme_map_bootdata(char *real_mode_data)
-+{
-+}
-+
-+static inline void __init sme_encrypt_ramdisk(resource_size_t paddr,
-+					      unsigned long size)
-+{
-+}
-+
- static inline void __init sme_early_init(void)
- {
- }
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 0540789..88d137e 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -47,12 +47,12 @@ static void __init reset_early_page_tables(void)
- }
- 
- /* Create a new PMD entry */
--int __init early_make_pgtable(unsigned long address)
-+int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
- {
- 	unsigned long physaddr = address - __PAGE_OFFSET;
- 	pgdval_t pgd, *pgd_p;
- 	pudval_t pud, *pud_p;
--	pmdval_t pmd, *pmd_p;
-+	pmdval_t *pmd_p;
- 
- 	/* Invalid address or early pgt is done ?  */
- 	if (physaddr >= MAXMEM || read_cr3() != __sme_pa_nodebug(early_level4_pgt))
-@@ -94,12 +94,21 @@ again:
- 		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
- 		*pud_p = (pudval_t)pmd_p - __START_KERNEL_map + phys_base + _KERNPG_TABLE;
- 	}
--	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
- 	pmd_p[pmd_index(address)] = pmd;
- 
+diff --git a/arch/x86/include/asm/e820.h b/arch/x86/include/asm/e820.h
+index 476b574..186f1d04 100644
+--- a/arch/x86/include/asm/e820.h
++++ b/arch/x86/include/asm/e820.h
+@@ -16,6 +16,7 @@ extern struct e820map *e820_saved;
+ extern unsigned long pci_mem_start;
+ extern int e820_any_mapped(u64 start, u64 end, unsigned type);
+ extern int e820_all_mapped(u64 start, u64 end, unsigned type);
++extern unsigned int e820_get_entry_type(u64 start, u64 end);
+ extern void e820_add_region(u64 start, u64 size, int type);
+ extern void e820_print_map(char *who);
+ extern int
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index b85fe5f..92fce4e 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -107,6 +107,22 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
  	return 0;
  }
  
-+int __init early_make_pgtable(unsigned long address)
++unsigned int e820_get_entry_type(u64 start, u64 end)
 +{
-+	unsigned long physaddr = address - __PAGE_OFFSET;
-+	pmdval_t pmd;
++	int i;
 +
-+	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
++	for (i = 0; i < e820->nr_map; i++) {
++		struct e820entry *ei = &e820->map[i];
 +
-+	return __early_make_pgtable(address, pmd);
++		if (ei->addr >= end || ei->addr + ei->size <= start)
++			continue;
++
++		return ei->type;
++	}
++
++	return 0;
 +}
 +
- /* Don't add a printk in there. printk relies on the PDA which is not initialized 
-    yet. */
- static void __init clear_bss(void)
-@@ -122,6 +131,12 @@ static void __init copy_bootdata(char *real_mode_data)
- 	char * command_line;
- 	unsigned long cmd_line_ptr;
- 
-+	/*
-+	 * If SME is active, this will create un-encrypted mappings of the
-+	 * boot data in advance of the copy operations
-+	 */
-+	sme_map_bootdata(real_mode_data);
-+
- 	memcpy(&boot_params, real_mode_data, sizeof boot_params);
- 	sanitize_boot_params(&boot_params);
- 	cmd_line_ptr = get_cmd_line_ptr();
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index bbfbca5..6a991adb 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -114,6 +114,7 @@
- #include <asm/microcode.h>
- #include <asm/mmu_context.h>
- #include <asm/kaslr.h>
-+#include <asm/mem_encrypt.h>
- 
  /*
-  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
-@@ -376,6 +377,14 @@ static void __init reserve_initrd(void)
- 	    !ramdisk_image || !ramdisk_size)
- 		return;		/* No initrd provided by bootloader */
- 
-+	/*
-+	 * This memory will be marked encrypted by the kernel when it is
-+	 * accessed (including relocation). However, the ramdisk image was
-+	 * loaded un-encrypted by the bootloader, so make sure that it is
-+	 * encrypted before accessing it.
-+	 */
-+	sme_encrypt_ramdisk(ramdisk_image, ramdisk_end - ramdisk_image);
-+
- 	initrd_start = 0;
- 
- 	mapped_size = memblock_mem_size(max_pfn_mapped);
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index 06235b4..411210d 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -16,8 +16,11 @@
- 
+  * Add a memory region to the kernel e820 map.
+  */
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index ff542cd..ee347c2 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -20,6 +20,9 @@
  #include <asm/tlbflush.h>
- #include <asm/fixmap.h>
+ #include <asm/pgalloc.h>
+ #include <asm/pat.h>
++#include <asm/e820.h>
 +#include <asm/setup.h>
-+#include <asm/bootparam.h>
++#include <linux/efi.h>
  
- extern pmdval_t early_pmd_flags;
-+int __init __early_make_pgtable(unsigned long, pmdval_t);
+ #include "physaddr.h"
  
- /*
-  * Since sme_me_mask is set early in the boot process it must reside in
-@@ -126,6 +129,59 @@ void __init sme_early_mem_dec(resource_size_t paddr, unsigned long size)
- 	}
+@@ -418,6 +421,92 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+ 	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
  }
  
-+static void __init *sme_bootdata_mapping(void *vaddr, unsigned long size)
++static bool memremap_setup_data(resource_size_t phys_addr,
++				unsigned long size)
 +{
-+	unsigned long paddr = (unsigned long)vaddr - __PAGE_OFFSET;
-+	pmdval_t pmd_flags, pmd;
-+	void *ret = vaddr;
++	u64 paddr;
 +
-+	/* Use early_pmd_flags but remove the encryption mask */
-+	pmd_flags = early_pmd_flags & ~sme_me_mask;
++	if (phys_addr == boot_params.hdr.setup_data)
++		return true;
 +
-+	do {
-+		pmd = (paddr & PMD_MASK) + pmd_flags;
-+		__early_make_pgtable((unsigned long)vaddr, pmd);
++	paddr = boot_params.efi_info.efi_memmap_hi;
++	paddr <<= 32;
++	paddr |= boot_params.efi_info.efi_memmap;
++	if (phys_addr == paddr)
++		return true;
 +
-+		vaddr += PMD_SIZE;
-+		paddr += PMD_SIZE;
-+		size = (size < PMD_SIZE) ? 0 : size - PMD_SIZE;
-+	} while (size);
++	paddr = boot_params.efi_info.efi_systab_hi;
++	paddr <<= 32;
++	paddr |= boot_params.efi_info.efi_systab;
++	if (phys_addr == paddr)
++		return true;
 +
-+	return ret;
++	if (efi_table_address_match(phys_addr))
++		return true;
++
++	return false;
 +}
 +
-+void __init sme_map_bootdata(char *real_mode_data)
++static bool memremap_apply_encryption(resource_size_t phys_addr,
++				      unsigned long size)
 +{
-+	struct boot_params *boot_data;
-+	unsigned long cmdline_paddr;
-+
++	/* SME is not active, just return true */
 +	if (!sme_me_mask)
-+		return;
++		return true;
 +
-+	/*
-+	 * The bootdata will not be encrypted, so it needs to be mapped
-+	 * as unencrypted data so it can be copied properly.
-+	 */
-+	boot_data = sme_bootdata_mapping(real_mode_data, sizeof(boot_params));
++	/* Check if the address is part of the setup data */
++	if (memremap_setup_data(phys_addr, size))
++		return false;
 +
-+	/*
-+	 * Determine the command line address only after having established
-+	 * the unencrypted mapping.
-+	 */
-+	cmdline_paddr = boot_data->hdr.cmd_line_ptr |
-+			((u64)boot_data->ext_cmd_line_ptr << 32);
-+	if (cmdline_paddr)
-+		sme_bootdata_mapping(__va(cmdline_paddr), COMMAND_LINE_SIZE);
++	/* Check if the address is part of EFI boot/runtime data */
++	switch (efi_mem_type(phys_addr)) {
++	case EFI_BOOT_SERVICES_DATA:
++	case EFI_RUNTIME_SERVICES_DATA:
++		return false;
++	}
++
++	/* Check if the address is outside kernel usable area */
++	switch (e820_get_entry_type(phys_addr, phys_addr + size - 1)) {
++	case E820_RESERVED:
++	case E820_ACPI:
++	case E820_NVS:
++	case E820_UNUSABLE:
++		return false;
++	}
++
++	return true;
 +}
 +
-+void __init sme_encrypt_ramdisk(resource_size_t paddr, unsigned long size)
++/*
++ * Architecure override of __weak function to prevent ram remap and use the
++ * architectural remap function.
++ */
++bool memremap_do_ram_remap(resource_size_t phys_addr, unsigned long size)
 +{
-+	if (!sme_me_mask)
-+		return;
++	if (!memremap_apply_encryption(phys_addr, size))
++		return false;
 +
-+	sme_early_mem_enc(paddr, size);
++	return true;
 +}
 +
- void __init sme_early_init(void)
++/*
++ * Architecure override of __weak function to adjust the protection attributes
++ * used when remapping memory.
++ */
++pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
++					     unsigned long size,
++					     pgprot_t prot)
++{
++	unsigned long prot_val = pgprot_val(prot);
++
++	if (memremap_apply_encryption(phys_addr, size))
++		prot_val |= _PAGE_ENC;
++	else
++		prot_val &= ~_PAGE_ENC;
++
++	return __pgprot(prot_val);
++}
++
+ /* Remap memory with encryption */
+ void __init *early_memremap_enc(resource_size_t phys_addr,
+ 				unsigned long size)
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 58b0f80..3f89179 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -221,7 +221,13 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ 	if (efi_enabled(EFI_OLD_MEMMAP))
+ 		return 0;
+ 
+-	efi_scratch.efi_pgt = (pgd_t *)__pa(efi_pgd);
++	/*
++	 * Since the PGD is encrypted, set the encryption mask so that when
++	 * this value is loaded into cr3 the PGD will be decrypted during
++	 * the pagetable walk.
++	 */
++	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
++
+ 	pgd = efi_pgd;
+ 
+ 	/*
+@@ -231,7 +237,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ 	 * phys_efi_set_virtual_address_map().
+ 	 */
+ 	pfn = pa_memmap >> PAGE_SHIFT;
+-	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX | _PAGE_RW)) {
++	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX | _PAGE_RW | _PAGE_ENC)) {
+ 		pr_err("Error ident-mapping new memmap (0x%lx)!\n", pa_memmap);
+ 		return 1;
+ 	}
+@@ -258,7 +264,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ 	text = __pa(_text);
+ 	pfn = text >> PAGE_SHIFT;
+ 
+-	if (kernel_map_pages_in_pgd(pgd, pfn, text, npages, _PAGE_RW)) {
++	if (kernel_map_pages_in_pgd(pgd, pfn, text, npages, _PAGE_RW | _PAGE_ENC)) {
+ 		pr_err("Failed to map kernel text 1:1\n");
+ 		return 1;
+ 	}
+diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+index 1ac199c..91c06ec 100644
+--- a/drivers/firmware/efi/efi.c
++++ b/drivers/firmware/efi/efi.c
+@@ -51,6 +51,25 @@ struct efi __read_mostly efi = {
+ };
+ EXPORT_SYMBOL(efi);
+ 
++static unsigned long *efi_tables[] = {
++	&efi.mps,
++	&efi.acpi,
++	&efi.acpi20,
++	&efi.smbios,
++	&efi.smbios3,
++	&efi.sal_systab,
++	&efi.boot_info,
++	&efi.hcdp,
++	&efi.uga,
++	&efi.uv_systab,
++	&efi.fw_vendor,
++	&efi.runtime,
++	&efi.config_table,
++	&efi.esrt,
++	&efi.properties_table,
++	&efi.mem_attr_table,
++};
++
+ static bool disable_runtime;
+ static int __init setup_noefi(char *arg)
  {
- 	unsigned int i;
+@@ -822,3 +841,17 @@ int efi_status_to_err(efi_status_t status)
+ 
+ 	return err;
+ }
++
++bool efi_table_address_match(unsigned long phys_addr)
++{
++	int i;
++
++	if (phys_addr == EFI_INVALID_TABLE_ADDR)
++		return false;
++
++	for (i = 0; i < ARRAY_SIZE(efi_tables); i++)
++		if (*(efi_tables[i]) == phys_addr)
++			return true;
++
++	return false;
++}
+diff --git a/include/linux/efi.h b/include/linux/efi.h
+index 2d08948..72d89bf 100644
+--- a/include/linux/efi.h
++++ b/include/linux/efi.h
+@@ -1070,6 +1070,8 @@ efi_capsule_pending(int *reset_type)
+ 
+ extern int efi_status_to_err(efi_status_t status);
+ 
++extern bool efi_table_address_match(unsigned long phys_addr);
++
+ /*
+  * Variable Attributes
+  */
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b501e39..ac1437e 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -34,12 +34,18 @@ static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
+ }
+ #endif
+ 
++bool __weak memremap_do_ram_remap(resource_size_t offset, size_t size)
++{
++	return true;
++}
++
+ static void *try_ram_remap(resource_size_t offset, size_t size)
+ {
+ 	unsigned long pfn = PHYS_PFN(offset);
+ 
+ 	/* In the simple case just return the existing linear address */
+-	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
++	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
++	    memremap_do_ram_remap(offset, size))
+ 		return __va(offset);
+ 	return NULL; /* fallback to arch_memremap_wb */
+ }
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index d71b98b..34af5b6 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -30,6 +30,13 @@ early_param("early_ioremap_debug", early_ioremap_debug_setup);
+ 
+ static int after_paging_init __initdata;
+ 
++pgprot_t __init __weak early_memremap_pgprot_adjust(resource_size_t phys_addr,
++						    unsigned long size,
++						    pgprot_t prot)
++{
++	return prot;
++}
++
+ void __init __weak early_ioremap_shutdown(void)
+ {
+ }
+@@ -215,14 +222,19 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+ void __init *
+ early_memremap(resource_size_t phys_addr, unsigned long size)
+ {
+-	return (__force void *)__early_ioremap(phys_addr, size,
+-					       FIXMAP_PAGE_NORMAL);
++	pgprot_t prot = early_memremap_pgprot_adjust(phys_addr, size,
++						     FIXMAP_PAGE_NORMAL);
++
++	return (__force void *)__early_ioremap(phys_addr, size, prot);
+ }
+ #ifdef FIXMAP_PAGE_RO
+ void __init *
+ early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+ {
+-	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
++	pgprot_t prot = early_memremap_pgprot_adjust(phys_addr, size,
++						     FIXMAP_PAGE_RO);
++
++	return (__force void *)__early_ioremap(phys_addr, size, prot);
+ }
+ #endif
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
