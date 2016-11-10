@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F3B36B026F
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:37:37 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id hr10so83948723pac.2
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:37:37 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0046.outbound.protection.outlook.com. [104.47.38.46])
-        by mx.google.com with ESMTPS id s5si1822068pfj.271.2016.11.09.16.37.36
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 171C56B0261
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:37:50 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id b123so929550itb.3
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:37:50 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0041.outbound.protection.outlook.com. [104.47.34.41])
+        by mx.google.com with ESMTPS id u58si944665otf.126.2016.11.09.16.37.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Nov 2016 16:37:36 -0800 (PST)
+        Wed, 09 Nov 2016 16:37:49 -0800 (PST)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v3 14/20] iommu/amd: Disable AMD IOMMU if memory
- encryption is active
-Date: Wed, 9 Nov 2016 18:37:32 -0600
-Message-ID: <20161110003731.3280.67205.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v3 15/20] x86: Check for memory encryption on the APs
+Date: Wed, 9 Nov 2016 18:37:40 -0600
+Message-ID: <20161110003740.3280.57300.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -27,37 +26,112 @@ Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redh
  Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas
  Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-For now, disable the AMD IOMMU if memory encryption is active. A future
-patch will re-enable the function with full memory encryption support.
+Add support to check if memory encryption is active in the kernel and that
+it has been enabled on the AP. If memory encryption is active in the kernel
+but has not been enabled on the AP then do not allow the AP to continue
+start up.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- drivers/iommu/amd_iommu_init.c |    5 +++++
- 1 file changed, 5 insertions(+)
+ arch/x86/include/asm/realmode.h      |   12 ++++++++++++
+ arch/x86/realmode/init.c             |    4 ++++
+ arch/x86/realmode/rm/trampoline_64.S |   19 +++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
-diff --git a/drivers/iommu/amd_iommu_init.c b/drivers/iommu/amd_iommu_init.c
-index 59741ea..136a24e 100644
---- a/drivers/iommu/amd_iommu_init.c
-+++ b/drivers/iommu/amd_iommu_init.c
-@@ -27,6 +27,7 @@
- #include <linux/amd-iommu.h>
- #include <linux/export.h>
- #include <linux/iommu.h>
-+#include <linux/mem_encrypt.h>
- #include <asm/pci-direct.h>
- #include <asm/iommu.h>
- #include <asm/gart.h>
-@@ -2388,6 +2389,10 @@ int __init amd_iommu_detect(void)
- 	if (amd_iommu_disabled)
- 		return -ENODEV;
+diff --git a/arch/x86/include/asm/realmode.h b/arch/x86/include/asm/realmode.h
+index 230e190..850dbe0 100644
+--- a/arch/x86/include/asm/realmode.h
++++ b/arch/x86/include/asm/realmode.h
+@@ -1,6 +1,15 @@
+ #ifndef _ARCH_X86_REALMODE_H
+ #define _ARCH_X86_REALMODE_H
  
-+	/* For now, disable the IOMMU if SME is active */
-+	if (sme_me_mask)
-+		return -ENODEV;
++/*
++ * Flag bit definitions for use with the flags field of the trampoline header
++ * when configured for X86_64
++ */
++#define TH_FLAGS_SME_ENABLE_BIT		0
++#define TH_FLAGS_SME_ENABLE		BIT_ULL(TH_FLAGS_SME_ENABLE_BIT)
 +
- 	ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
- 	if (ret)
- 		return ret;
++#ifndef __ASSEMBLY__
++
+ #include <linux/types.h>
+ #include <asm/io.h>
+ 
+@@ -38,6 +47,7 @@ struct trampoline_header {
+ 	u64 start;
+ 	u64 efer;
+ 	u32 cr4;
++	u32 flags;
+ #endif
+ };
+ 
+@@ -69,4 +79,6 @@ static inline size_t real_mode_size_needed(void)
+ void set_real_mode_mem(phys_addr_t mem, size_t size);
+ void reserve_real_mode(void);
+ 
++#endif /* __ASSEMBLY__ */
++
+ #endif /* _ARCH_X86_REALMODE_H */
+diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
+index 44ed32a..a8e7ebe 100644
+--- a/arch/x86/realmode/init.c
++++ b/arch/x86/realmode/init.c
+@@ -101,6 +101,10 @@ static void __init setup_real_mode(void)
+ 	trampoline_cr4_features = &trampoline_header->cr4;
+ 	*trampoline_cr4_features = mmu_cr4_features;
+ 
++	trampoline_header->flags = 0;
++	if (sme_me_mask)
++		trampoline_header->flags |= TH_FLAGS_SME_ENABLE;
++
+ 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+ 	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
+ 	trampoline_pgd[511] = init_level4_pgt[511].pgd;
+diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
+index dac7b20..94e29f4 100644
+--- a/arch/x86/realmode/rm/trampoline_64.S
++++ b/arch/x86/realmode/rm/trampoline_64.S
+@@ -30,6 +30,7 @@
+ #include <asm/msr.h>
+ #include <asm/segment.h>
+ #include <asm/processor-flags.h>
++#include <asm/realmode.h>
+ #include "realmode.h"
+ 
+ 	.text
+@@ -92,6 +93,23 @@ ENTRY(startup_32)
+ 	movl	%edx, %fs
+ 	movl	%edx, %gs
+ 
++	/* Check for memory encryption support */
++	bt	$TH_FLAGS_SME_ENABLE_BIT, pa_tr_flags
++	jnc	.Ldone
++	movl	$MSR_K8_SYSCFG, %ecx
++	rdmsr
++	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
++	jc	.Ldone
++
++	/*
++	 * Memory encryption is enabled but the MSR has not been set on this
++	 * CPU so we can't continue
++	 */
++.Lno_sme:
++	hlt
++	jmp	.Lno_sme
++.Ldone:
++
+ 	movl	pa_tr_cr4, %eax
+ 	movl	%eax, %cr4		# Enable PAE mode
+ 
+@@ -147,6 +165,7 @@ GLOBAL(trampoline_header)
+ 	tr_start:		.space	8
+ 	GLOBAL(tr_efer)		.space	8
+ 	GLOBAL(tr_cr4)		.space	4
++	GLOBAL(tr_flags)	.space	4
+ END(trampoline_header)
+ 
+ #include "trampoline_common.S"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
