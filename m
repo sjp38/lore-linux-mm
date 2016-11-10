@@ -1,85 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C29126B0038
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 18:53:43 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 83so97324536pfx.1
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 15:53:43 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id g68si1691728pfe.278.2016.11.09.15.53.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DAC36B0038
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:17:46 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c4so246271pfb.7
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:17:46 -0800 (PST)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0073.outbound.protection.outlook.com. [104.47.36.73])
+        by mx.google.com with ESMTPS id x27si1809214pff.112.2016.11.09.16.17.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 09 Nov 2016 15:53:42 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 00/12] mm: page migration enhancement for thp
-Date: Wed, 9 Nov 2016 23:52:25 +0000
-Message-ID: <20161109235223.GA31285@hori1.linux.bs1.fc.nec.co.jp>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5822FB60.5040905@linux.vnet.ibm.com>
-In-Reply-To: <5822FB60.5040905@linux.vnet.ibm.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <8D6B989798C35F4BA47BC60D561EFF77@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 09 Nov 2016 16:17:44 -0800 (PST)
+Message-ID: <5823BCA3.2020202@caviumnetworks.com>
+Date: Wed, 9 Nov 2016 16:17:39 -0800
+From: David Daney <ddaney@caviumnetworks.com>
 MIME-Version: 1.0
+Subject: Re: Proposal: HAVE_SEPARATE_IRQ_STACK?
+References: <CAHmME9oSUcAXVMhpLt0bqa9DKHE8rd3u+3JDb_wgviZnOpP7JA@mail.gmail.com>
+In-Reply-To: <CAHmME9oSUcAXVMhpLt0bqa9DKHE8rd3u+3JDb_wgviZnOpP7JA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mips@linux-mips.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, WireGuard mailing list <wireguard@lists.zx2c4.com>, k@vodka.home.kg
 
-Hi Anshuman,
+On 11/09/2016 01:27 PM, Jason A. Donenfeld wrote:
+> Hi folks,
+>
+> I do some ECC crypto in a kthread. A fast 32bit implementation usually
+> uses around 2k - 3k bytes of stack. Since kernel threads get 8k, I
+> figured this would be okay. And for the most part, it is. However,
+> everything falls apart on architectures like MIPS, which do not use a
+> separate irq stack.
 
-On Wed, Nov 09, 2016 at 04:03:04PM +0530, Anshuman Khandual wrote:
-> On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
-> > Hi everyone,
-> >=20
-> > I've updated thp migration patches for v4.9-rc2-mmotm-2016-10-27-18-27
-> > with feedbacks for ver.1.
-> >=20
-> > General description (no change since ver.1)
-> > =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> >=20
-> > This patchset enhances page migration functionality to handle thp migra=
-tion
-> > for various page migration's callers:
-> >  - mbind(2)
-> >  - move_pages(2)
-> >  - migrate_pages(2)
-> >  - cgroup/cpuset migration
-> >  - memory hotremove
-> >  - soft offline
-> >=20
-> > The main benefit is that we can avoid unnecessary thp splits, which hel=
-ps us
-> > avoid performance decrease when your applications handles NUMA optimiza=
-tion on
-> > their own.
-> >=20
-> > The implementation is similar to that of normal page migration, the key=
- point
-> > is that we modify a pmd to a pmd migration entry in swap-entry like for=
-mat.
->=20
-> Will it be better to have new THP_MIGRATE_SUCCESS and THP_MIGRATE_FAIL
-> VM events to capture how many times the migration worked without first
-> splitting the huge page and how many time it did not work ?
+Easiest thing to do would be to select 16K page size in your .config, I 
+think that will give you a similar sized stack.
 
-Thank you for the suggestion.
-I think that's helpful, so will try it in next version.
-
-> Also do you
-> have a test case which demonstrates this THP migration and kind of shows
-> its better than the present split and move method ?
-
-I don't have test cases which compare thp migration and split-then-migratio=
-n
-with some numbers. Maybe measuring/comparing the overhead of migration is
-a good start point, although I think the real benefit of thp migration come=
-s
-from workload "after migration" by avoiding thp split.
-
-Thanks,
-Naoya Horiguchi=
+>
+>>From what I can tell, on MIPS, the irq handler uses whichever stack
+> was in current at the time of interruption. At the end of the irq
+> handler, softirqs trigger if preemption hasn't been disabled. When the
+> softirq handler runs, it will still use the same interrupted stack. So
+> let's take some pathological case of huge softirq stack usage: wifi
+> driver inside of l2tp inside of gre inside of ppp. Now, my ECC crypto
+> is humming along happily in its kthread, when all of the sudden, a
+> wifi packet arrives, triggering the interrupt. Or, perhaps instead,
+> TCP sends an ack packet on softirq, using my kthread's stack. The
+> interrupt is serviced, and at the end of it, softirq is serviced,
+> using my kthread's stack, which was already half full. When this
+> softirq is serviced, it goes through our 4 layers of network device
+> drivers. Since we started with a half full stack, we very quickly blow
+> it up, and everything explodes, and users write angry mailing list
+> posts.
+>
+> It seems to me x86, ARM, SPARC, SH, ParisC, PPC, Metag, and UML all
+> concluded that letting the interrupt handler use current's stack was a
+> terrible idea, and instead have a per-cpu irq stack that gets used
+> when the handler is service. Whew!
+>
+> But for the remaining platforms, such as MIPS, this is still a
+> problem. In an effort to work around this in my code, rather than
+> having to invoke kmalloc for what should be stack-based variables, I
+> was thinking I'd just disable preemption for those functions that use
+> a lot of stack, so that stack-hungry softirq handlers don't crush it.
+> This is generally unsatisfactory, so I don't want to do this
+> unconditionally. Instead, I'd like to do some cludge such as:
+>
+>      #ifndef CONFIG_HAVE_SEPARATE_IRQ_STACK
+>      preempt_disable();
+>      #endif
+>
+>      some_func_that_uses_lots_of_stack();
+>
+>      #ifndef CONFIG_HAVE_SEPARATE_IRQ_STACK
+>      preempt_enable();
+>      #endif
+>
+> However, for this to work, I actual need that config variable. Would
+> you accept a patch that adds this config variable to the relavent
+> platforms? If not, do you have a better solution for me (which doesn't
+> involve using kmalloc or choosing a different crypto primitive)?
+>
+> Thanks,
+> Jason
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
