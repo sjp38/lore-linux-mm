@@ -1,64 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ABD56B026D
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 02:55:06 -0500 (EST)
-Received: by mail-pa0-f72.google.com with SMTP id ro13so88306347pac.7
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 23:55:06 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id p70si3468791pfd.221.2016.11.09.23.55.05
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D89E86B0267
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 03:29:15 -0500 (EST)
+Received: by mail-pa0-f71.google.com with SMTP id ro13so88614642pac.7
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 00:29:15 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l5si3543510pgk.200.2016.11.10.00.29.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Nov 2016 23:55:05 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id i88so3241384pfk.2
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 23:55:05 -0800 (PST)
-Date: Thu, 10 Nov 2016 08:54:58 +0100
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: don't fail kernel build if z3fold_header is too big
-Message-Id: <20161110085458.53273e9b1c3e0f09bb0e9655@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 10 Nov 2016 00:29:15 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAA8NkkC072253
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 03:29:14 -0500
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26mkqvcuvp-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 03:29:13 -0500
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 10 Nov 2016 18:29:10 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 32A8E357805A
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:29:08 +1100 (EST)
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAA8T8lq35717156
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:29:08 +1100
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAA8T6MY023258
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:29:08 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 05/12] mm: thp: add core routines for thp/pmd migration
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 10 Nov 2016 13:59:03 +0530
+MIME-Version: 1.0
+In-Reply-To: <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <58242FCF.50602@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Currently the whole kernel build will be stopped if the size of
-struct z3fold_header is greater than the size of one chunk, which
-is 64 bytes by default. This may stand in the way of automated
-test/debug builds so let's remove that and fail the z3fold
-initialization in such case instead.
+On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> This patch prepares thp migration's core code. These code will be open when
+> unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
+> to allocate destination thps.
+> 
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+Snip
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index cd3713d..5fe2652 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -866,10 +866,15 @@ MODULE_ALIAS("zpool-z3fold");
- 
- static int __init init_z3fold(void)
- {
--	/* Make sure the z3fold header will fit in one chunk */
--	BUILD_BUG_ON(sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED);
--	zpool_register_driver(&z3fold_zpool_driver);
-+	/* Fail the initialization if z3fold header won't fit in one chunk */
-+	if (sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED) {
-+		pr_err("z3fold: z3fold_header size (%d) is bigger than "
-+			"the chunk size (%d), can't proceed\n",
-+			sizeof(struct z3fold_header) , ZHDR_SIZE_ALIGNED);
-+		return -E2BIG;
-+	}
- 
-+	zpool_register_driver(&z3fold_zpool_driver);
- 	return 0;
- }
- 
--- 
-2.4.2
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> ChangeLog v1 -> v2:
+> - support pte-mapped thp, doubly-mapped thp
+> ---
+>  arch/x86/include/asm/pgtable_64.h |   2 +
+>  include/linux/swapops.h           |  61 +++++++++++++++
+>  mm/huge_memory.c                  | 154 ++++++++++++++++++++++++++++++++++++++
+>  mm/migrate.c                      |  44 ++++++++++-
+>  mm/pgtable-generic.c              |   3 +-
+>  5 files changed, 262 insertions(+), 2 deletions(-)
+
+
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> index 71c5f91..6012343 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> @@ -118,7 +118,8 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
+>  {
+>  	pmd_t pmd;
+>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> -	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+> +	VM_BUG_ON(pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
+> +		  !pmd_devmap(*pmdp))
+
+Its a valid VM_BUG_ON check but is it related to THP migration or
+just a regular fix up ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
