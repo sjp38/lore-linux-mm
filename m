@@ -1,104 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C7A828025B
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:27:18 -0500 (EST)
-Received: by mail-pa0-f71.google.com with SMTP id rf5so93425801pab.3
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:27:18 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o3si5989159pfj.172.2016.11.10.09.27.17
-        for <linux-mm@kvack.org>;
-        Thu, 10 Nov 2016 09:27:17 -0800 (PST)
-Date: Thu, 10 Nov 2016 17:27:20 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
-Message-ID: <20161110172720.GB17134@arm.com>
-References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
- <20161102045153.12008-1-takahiro.akashi@linaro.org>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DEB2E28025B
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 12:35:27 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id i88so101513677pfk.3
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 09:35:27 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id s17si5986965pgh.144.2016.11.10.09.35.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Nov 2016 09:35:26 -0800 (PST)
+Subject: [mm PATCH v3 00/23] Add support for DMA writable pages being
+ writable by the network stack
+From: Alexander Duyck <alexander.h.duyck@intel.com>
+Date: Thu, 10 Nov 2016 06:34:14 -0500
+Message-ID: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161102045153.12008-1-takahiro.akashi@linaro.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 02, 2016 at 01:51:53PM +0900, AKASHI Takahiro wrote:
-> Add memblock_cap_memory_range() which will remove all the memblock regions
-> except the range specified in the arguments.
-> 
-> This function, like memblock_mem_limit_remove_map(), will not remove
-> memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-> later as "device memory."
-> See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-> address the mem limit issue").
-> 
-> This function is used, in a succeeding patch in the series of arm64 kdump
-> suuport, to limit the range of usable memory, System RAM, on crash dump
-> kernel.
-> (Please note that "mem=" parameter is of little use for this purpose.)
-> 
-> Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  include/linux/memblock.h |  1 +
->  mm/memblock.c            | 28 ++++++++++++++++++++++++++++
->  2 files changed, 29 insertions(+)
-> 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 5b759c9..0e770af 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -334,6 +334,7 @@ phys_addr_t memblock_start_of_DRAM(void);
->  phys_addr_t memblock_end_of_DRAM(void);
->  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
->  void memblock_mem_limit_remove_map(phys_addr_t limit);
-> +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
->  bool memblock_is_memory(phys_addr_t addr);
->  int memblock_is_map_memory(phys_addr_t addr);
->  int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7608bc3..eb53876 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1544,6 +1544,34 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
->  			      (phys_addr_t)ULLONG_MAX);
->  }
->  
-> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> +{
-> +	int start_rgn, end_rgn;
-> +	int i, ret;
-> +
-> +	if (!size)
-> +		return;
-> +
-> +	ret = memblock_isolate_range(&memblock.memory, base, size,
-> +						&start_rgn, &end_rgn);
-> +	if (ret)
-> +		return;
-> +
-> +	/* remove all the MAP regions */
-> +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +			memblock_remove_region(&memblock.memory, i);
-> +
-> +	for (i = start_rgn - 1; i >= 0; i--)
-> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +			memblock_remove_region(&memblock.memory, i);
-> +
-> +	/* truncate the reserved regions */
-> +	memblock_remove_range(&memblock.reserved, 0, base);
-> +	memblock_remove_range(&memblock.reserved,
-> +			base + size, (phys_addr_t)ULLONG_MAX);
-> +}
+The first 19 patches in the set add support for the DMA attribute
+DMA_ATTR_SKIP_CPU_SYNC on multiple platforms/architectures.  This is needed
+so that we can flag the calls to dma_map/unmap_page so that we do not
+invalidate cache lines that do not currently belong to the device.  Instead
+we have to take care of this in the driver via a call to
+sync_single_range_for_cpu prior to freeing the Rx page.
 
-This duplicates a bunch of the logic in memblock_mem_limit_remove_map. Can
-you not implement that in terms of your new, more general, function? e.g.
-by passing base == 0, and size == limit?
+Patch 20 adds support for dma_map_page_attrs and dma_unmap_page_attrs so
+that we can unmap and map a page using the DMA_ATTR_SKIP_CPU_SYNC
+attribute.
 
-Will
+Patch 21 adds support for freeing a page that has multiple references being
+held by a single caller.  This way we can free page fragments that were
+allocated by a given driver.
+
+The last 2 patches use these updates in the igb driver, and lay the
+groundwork to allow for us to reimplement the use of build_skb.
+
+v1: Minor fixes based on issues found by kernel build bot
+    Few minor changes for issues found on code review
+    Added Acked-by for patches that were acked and not changed
+
+v2: Added a few more Acked-by
+    Submitting patches to mm instead of net-next
+
+v3: Added Acked-by for PowerPC architecture
+    Dropped first 3 patches which were accepted into swiotlb tree
+    Dropped comments describing swiotlb changes.
+
+---
+
+Alexander Duyck (23):
+      arch/arc: Add option to skip sync on DMA mapping
+      arch/arm: Add option to skip sync on DMA map and unmap
+      arch/avr32: Add option to skip sync on DMA map
+      arch/blackfin: Add option to skip sync on DMA map
+      arch/c6x: Add option to skip sync on DMA map and unmap
+      arch/frv: Add option to skip sync on DMA map
+      arch/hexagon: Add option to skip DMA sync as a part of mapping
+      arch/m68k: Add option to skip DMA sync as a part of mapping
+      arch/metag: Add option to skip DMA sync as a part of map and unmap
+      arch/microblaze: Add option to skip DMA sync as a part of map and unmap
+      arch/mips: Add option to skip DMA sync as a part of map and unmap
+      arch/nios2: Add option to skip DMA sync as a part of map and unmap
+      arch/openrisc: Add option to skip DMA sync as a part of mapping
+      arch/parisc: Add option to skip DMA sync as a part of map and unmap
+      arch/powerpc: Add option to skip DMA sync as a part of mapping
+      arch/sh: Add option to skip DMA sync as a part of mapping
+      arch/sparc: Add option to skip DMA sync as a part of map and unmap
+      arch/tile: Add option to skip DMA sync as a part of map and unmap
+      arch/xtensa: Add option to skip DMA sync as a part of mapping
+      dma: Add calls for dma_map_page_attrs and dma_unmap_page_attrs
+      mm: Add support for releasing multiple instances of a page
+      igb: Update driver to make use of DMA_ATTR_SKIP_CPU_SYNC
+      igb: Update code to better handle incrementing page count
+
+
+ arch/arc/mm/dma.c                         |    5 ++
+ arch/arm/common/dmabounce.c               |   16 ++++--
+ arch/avr32/mm/dma-coherent.c              |    7 ++-
+ arch/blackfin/kernel/dma-mapping.c        |    8 +++
+ arch/c6x/kernel/dma.c                     |   14 ++++-
+ arch/frv/mb93090-mb00/pci-dma-nommu.c     |   14 ++++-
+ arch/frv/mb93090-mb00/pci-dma.c           |    9 +++
+ arch/hexagon/kernel/dma.c                 |    6 ++
+ arch/m68k/kernel/dma.c                    |    8 +++
+ arch/metag/kernel/dma.c                   |   16 +++++-
+ arch/microblaze/kernel/dma.c              |   10 +++-
+ arch/mips/loongson64/common/dma-swiotlb.c |    2 -
+ arch/mips/mm/dma-default.c                |    8 ++-
+ arch/nios2/mm/dma-mapping.c               |   26 +++++++---
+ arch/openrisc/kernel/dma.c                |    3 +
+ arch/parisc/kernel/pci-dma.c              |   20 ++++++--
+ arch/powerpc/kernel/dma.c                 |    9 +++
+ arch/sh/kernel/dma-nommu.c                |    7 ++-
+ arch/sparc/kernel/iommu.c                 |    4 +-
+ arch/sparc/kernel/ioport.c                |    4 +-
+ arch/tile/kernel/pci-dma.c                |   12 ++++-
+ arch/xtensa/kernel/pci-dma.c              |    7 ++-
+ drivers/net/ethernet/intel/igb/igb.h      |    7 ++-
+ drivers/net/ethernet/intel/igb/igb_main.c |   77 +++++++++++++++++++----------
+ include/linux/dma-mapping.h               |   20 +++++---
+ include/linux/gfp.h                       |    2 +
+ mm/page_alloc.c                           |   14 +++++
+ 27 files changed, 246 insertions(+), 89 deletions(-)
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
