@@ -1,575 +1,640 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9CF280278
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 14:24:49 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g23so14527111wme.4
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:24:49 -0800 (PST)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id e200si17684258wma.2.2016.11.10.11.24.48
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68CF66B026E
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 14:36:56 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id 20so205864652uak.0
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:36:56 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id i38si1636539uaa.240.2016.11.10.11.36.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 11:24:48 -0800 (PST)
-Received: by mail-wm0-x235.google.com with SMTP id f82so52062680wmf.1
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 11:24:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161104144534.14790-2-juerg.haefliger@hpe.com>
-References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
- <20161104144534.14790-1-juerg.haefliger@hpe.com> <20161104144534.14790-2-juerg.haefliger@hpe.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 10 Nov 2016 11:24:46 -0800
-Message-ID: <CAGXu5jKvWZ6=YLkFkA2wEE0gTdESTEifeL5KVXUd+EjKjJm9WQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership (XPFO)
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 11:36:53 -0800 (PST)
+Message-ID: <1478806599.7430.139.camel@kernel.crashing.org>
+Subject: Re: [PATCH 3/4] hugetlb: Change the function prototype to take
+ vma_area_struct as arg
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Fri, 11 Nov 2016 06:36:39 +1100
+In-Reply-To: <20161110092918.21139-3-aneesh.kumar@linux.vnet.ibm.com>
+References: <20161110092918.21139-1-aneesh.kumar@linux.vnet.ibm.com>
+	 <20161110092918.21139-3-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Juerg Haefliger <juerg.haefliger@hpe.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, linux-x86_64@vger.kernel.org, vpk@cs.columbia.edu
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Fri, Nov 4, 2016 at 7:45 AM, Juerg Haefliger <juerg.haefliger@hpe.com> wrote:
-> This patch adds support for XPFO which protects against 'ret2dir' kernel
-> attacks. The basic idea is to enforce exclusive ownership of page frames
-> by either the kernel or userspace, unless explicitly requested by the
-> kernel. Whenever a page destined for userspace is allocated, it is
-> unmapped from physmap (the kernel's page table). When such a page is
-> reclaimed from userspace, it is mapped back to physmap.
->
-> Additional fields in the page_ext struct are used for XPFO housekeeping.
-> Specifically two flags to distinguish user vs. kernel pages and to tag
-> unmapped pages and a reference counter to balance kmap/kunmap operations
-> and a lock to serialize access to the XPFO fields.
->
-> Known issues/limitations:
->   - Only supports x86-64 (for now)
->   - Only supports 4k pages (for now)
->   - There are most likely some legitimate uses cases where the kernel needs
->     to access userspace which need to be made XPFO-aware
->   - Performance penalty
->
-> Reference paper by the original patch authors:
->   http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
+On Thu, 2016-11-10 at 14:59 +0530, Aneesh Kumar K.V wrote:
+> This help us to find the hugetlb page size which we need ot use on some
+> archs like ppc64 for tlbflush. This also make the interface consistent
+> with other hugetlb functions
 
-Would it be possible to create an lkdtm test that can exercise this protection?
+What about my requested simpler approach ?
 
-> Suggested-by: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
-> Signed-off-by: Juerg Haefliger <juerg.haefliger@hpe.com>
+For normal (non-huge) pages, we already know the size.
+
+For huge pages, can't we encode in the top SW bits of the PTE the
+page size that we obtain from set_pte_at ?
+
+That would be a lot less churn and avoid touching all these archs...
+especially since the current DD1 workaround is horrible and I want
+the fix to be backported, so something simpler and contained in
+arch/powerpc feels more suitable.
+
+Ben.
+
+
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > ---
->  arch/x86/Kconfig         |   3 +-
->  arch/x86/mm/init.c       |   2 +-
->  drivers/ata/libata-sff.c |   4 +-
->  include/linux/highmem.h  |  15 +++-
->  include/linux/page_ext.h |   7 ++
->  include/linux/xpfo.h     |  39 +++++++++
->  lib/swiotlb.c            |   3 +-
->  mm/Makefile              |   1 +
->  mm/page_alloc.c          |   2 +
->  mm/page_ext.c            |   4 +
->  mm/xpfo.c                | 206 +++++++++++++++++++++++++++++++++++++++++++++++
->  security/Kconfig         |  19 +++++
->  12 files changed, 298 insertions(+), 7 deletions(-)
->  create mode 100644 include/linux/xpfo.h
->  create mode 100644 mm/xpfo.c
->
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index bada636d1065..38b334f8fde5 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -165,6 +165,7 @@ config X86
->         select HAVE_STACK_VALIDATION            if X86_64
->         select ARCH_USES_HIGH_VMA_FLAGS         if X86_INTEL_MEMORY_PROTECTION_KEYS
->         select ARCH_HAS_PKEYS                   if X86_INTEL_MEMORY_PROTECTION_KEYS
-> +       select ARCH_SUPPORTS_XPFO               if X86_64
->
->  config INSTRUCTION_DECODER
->         def_bool y
-> @@ -1361,7 +1362,7 @@ config ARCH_DMA_ADDR_T_64BIT
->
->  config X86_DIRECT_GBPAGES
->         def_bool y
-> -       depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
-> +       depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK && !XPFO
->         ---help---
->           Certain kernel features effectively disable kernel
->           linear 1 GB mappings (even if the CPU otherwise
-> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-> index 22af912d66d2..a6fafbae02bb 100644
-> --- a/arch/x86/mm/init.c
-> +++ b/arch/x86/mm/init.c
-> @@ -161,7 +161,7 @@ static int page_size_mask;
->
->  static void __init probe_page_size_mask(void)
->  {
-> -#if !defined(CONFIG_KMEMCHECK)
-> +#if !defined(CONFIG_KMEMCHECK) && !defined(CONFIG_XPFO)
->         /*
->          * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
->          * use small pages.
-> diff --git a/drivers/ata/libata-sff.c b/drivers/ata/libata-sff.c
-> index 051b6158d1b7..58af734be25d 100644
-> --- a/drivers/ata/libata-sff.c
-> +++ b/drivers/ata/libata-sff.c
-> @@ -715,7 +715,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
->
->         DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
->
-> -       if (PageHighMem(page)) {
-> +       if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
->                 unsigned long flags;
->
->                 /* FIXME: use a bounce buffer */
-> @@ -860,7 +860,7 @@ static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
->
->         DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
->
-> -       if (PageHighMem(page)) {
-> +       if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
->                 unsigned long flags;
->
->                 /* FIXME: use bounce buffer */
-> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> index bb3f3297062a..7a17c166532f 100644
-> --- a/include/linux/highmem.h
-> +++ b/include/linux/highmem.h
-> @@ -7,6 +7,7 @@
->  #include <linux/mm.h>
->  #include <linux/uaccess.h>
->  #include <linux/hardirq.h>
-> +#include <linux/xpfo.h>
->
->  #include <asm/cacheflush.h>
->
-> @@ -55,24 +56,34 @@ static inline struct page *kmap_to_page(void *addr)
->  #ifndef ARCH_HAS_KMAP
->  static inline void *kmap(struct page *page)
->  {
-> +       void *kaddr;
+> A arch/arm/include/asm/hugetlb-3level.hA A A A A A A A |A A 8 ++++----
+> A arch/arm64/include/asm/hugetlb.hA A A A A A A A A A A A A |A A 4 ++--
+> A arch/arm64/mm/hugetlbpage.cA A A A A A A A A A A A A A A A A A |A A 7 +++++--
+> A arch/ia64/include/asm/hugetlb.hA A A A A A A A A A A A A A |A A 8 ++++----
+> A arch/metag/include/asm/hugetlb.hA A A A A A A A A A A A A |A A 8 ++++----
+> A arch/mips/include/asm/hugetlb.hA A A A A A A A A A A A A A |A A 7 ++++---
+> A arch/parisc/include/asm/hugetlb.hA A A A A A A A A A A A |A A 4 ++--
+> A arch/parisc/mm/hugetlbpage.cA A A A A A A A A A A A A A A A A |A A 6 ++++--
+> A arch/powerpc/include/asm/book3s/32/pgtable.h |A A 4 ++--
+> A arch/powerpc/include/asm/book3s/64/hugetlb.h | 10 ++++++++++
+> A arch/powerpc/include/asm/book3s/64/pgtable.h |A A 9 ---------
+> A arch/powerpc/include/asm/hugetlb.hA A A A A A A A A A A |A A 6 +++---
+> A arch/powerpc/include/asm/nohash/32/pgtable.h |A A 4 ++--
+> A arch/powerpc/include/asm/nohash/64/pgtable.h |A A 4 ++--
+> A arch/s390/include/asm/hugetlb.hA A A A A A A A A A A A A A | 12 ++++++------
+> A arch/s390/mm/hugetlbpage.cA A A A A A A A A A A A A A A A A A A |A A 3 ++-
+> A arch/sh/include/asm/hugetlb.hA A A A A A A A A A A A A A A A |A A 8 ++++----
+> A arch/sparc/include/asm/hugetlb.hA A A A A A A A A A A A A |A A 6 +++---
+> A arch/sparc/mm/hugetlbpage.cA A A A A A A A A A A A A A A A A A |A A 3 ++-
+> A arch/tile/include/asm/hugetlb.hA A A A A A A A A A A A A A |A A 8 ++++----
+> A arch/x86/include/asm/hugetlb.hA A A A A A A A A A A A A A A |A A 8 ++++----
+> A mm/hugetlb.cA A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A |A A 6 +++---
+> A 22 files changed, 76 insertions(+), 67 deletions(-)
+> 
+> diff --git a/arch/arm/include/asm/hugetlb-3level.h b/arch/arm/include/asm/hugetlb-3level.h
+> index d4014fbe5ea3..b71839e1786f 100644
+> --- a/arch/arm/include/asm/hugetlb-3level.h
+> +++ b/arch/arm/include/asm/hugetlb-3level.h
+> @@ -49,16 +49,16 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> > A 	ptep_clear_flush(vma, addr, ptep);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
+> index bbc1e35aa601..4e54d4b58d3e 100644
+> --- a/arch/arm64/include/asm/hugetlb.h
+> +++ b/arch/arm64/include/asm/hugetlb.h
+> @@ -76,9 +76,9 @@ extern void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> A extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> > A 				A A A A A A unsigned long addr, pte_t *ptep,
+> > A 				A A A A A A pte_t pte, int dirty);
+> -extern pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +extern pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 				A A A A A unsigned long addr, pte_t *ptep);
+> -extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +extern void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 				A A A A unsigned long addr, pte_t *ptep);
+> A extern void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> > A 				A A unsigned long addr, pte_t *ptep);
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 2e49bd252fe7..5c8903433cd9 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -197,10 +197,11 @@ pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> > A 	return entry;
+> A }
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 			A A A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	pte_t pte;
+> > +	struct mm_struct *mm = vma->vm_mm;
+> A 
+> > A 	if (pte_cont(*ptep)) {
+> > A 		int ncontig, i;
+> @@ -263,9 +264,11 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> > A 	}
+> A }
+> A 
+> -void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 			A A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > +	struct mm_struct *mm = vma->vm_mm;
 > +
->         might_sleep();
-> -       return page_address(page);
-> +       kaddr = page_address(page);
-> +       xpfo_kmap(kaddr, page);
-> +       return kaddr;
->  }
->
->  static inline void kunmap(struct page *page)
->  {
-> +       xpfo_kunmap(page_address(page), page);
->  }
->
->  static inline void *kmap_atomic(struct page *page)
->  {
-> +       void *kaddr;
+> > A 	if (pte_cont(*ptep)) {
+> > A 		int ncontig, i;
+> > A 		pte_t *cpte;
+> diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
+> index ef65f026b11e..eb1c1d674200 100644
+> --- a/arch/ia64/include/asm/hugetlb.h
+> +++ b/arch/ia64/include/asm/hugetlb.h
+> @@ -26,10 +26,10 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> @@ -47,10 +47,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/metag/include/asm/hugetlb.h b/arch/metag/include/asm/hugetlb.h
+> index 905ed422dbeb..310b103127a6 100644
+> --- a/arch/metag/include/asm/hugetlb.h
+> +++ b/arch/metag/include/asm/hugetlb.h
+> @@ -28,10 +28,10 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> @@ -49,10 +49,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
+> index 982bc0685330..4380acbff8e2 100644
+> --- a/arch/mips/include/asm/hugetlb.h
+> +++ b/arch/mips/include/asm/hugetlb.h
+> @@ -53,11 +53,12 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	pte_t clear;
+> > A 	pte_t pte = *ptep;
+> > +	struct mm_struct *mm = vma->vm_mm;
+> A 
+> > A 	pte_val(clear) = (unsigned long)invalid_pte_table;
+> > A 	set_pte_at(mm, addr, ptep, clear);
+> @@ -81,10 +82,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/parisc/include/asm/hugetlb.h b/arch/parisc/include/asm/hugetlb.h
+> index a65d888716c4..3a6070842016 100644
+> --- a/arch/parisc/include/asm/hugetlb.h
+> +++ b/arch/parisc/include/asm/hugetlb.h
+> @@ -8,7 +8,7 @@
+> A void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 		A A A A A pte_t *ptep, pte_t pte);
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma, unsigned long addr,
+> > A 			A A A A A A pte_t *ptep);
+> A 
+> A static inline int is_hugepage_only_range(struct mm_struct *mm,
+> @@ -54,7 +54,7 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep);
+> A 
+> A int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/parisc/mm/hugetlbpage.c b/arch/parisc/mm/hugetlbpage.c
+> index 5d6eea925cf4..e01fd08ed72c 100644
+> --- a/arch/parisc/mm/hugetlbpage.c
+> +++ b/arch/parisc/mm/hugetlbpage.c
+> @@ -142,11 +142,12 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> A }
+> A 
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma, unsigned long addr,
+> > A 			A A A A A A pte_t *ptep)
+> A {
+> > A 	unsigned long flags;
+> > A 	pte_t entry;
+> > +	struct mm_struct *mm = vma->vma_mm;
+> A 
+> > A 	purge_tlb_start(flags);
+> > A 	entry = *ptep;
+> @@ -157,11 +158,12 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> A }
+> A 
+> A 
+> -void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 				unsigned long addr, pte_t *ptep)
+> A {
+> > A 	unsigned long flags;
+> > A 	pte_t old_pte;
+> > +	struct mm_struct *mm = vma->vm_mm;
+> A 
+> > A 	purge_tlb_start(flags);
+> > A 	old_pte = *ptep;
+> diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
+> index 0713626e9189..34c8fd0c5d04 100644
+> --- a/arch/powerpc/include/asm/book3s/32/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
+> @@ -216,10 +216,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+> A {
+> > A 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
+> A }
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A 
+> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+> index a7d2b6107383..58e00dbbf15c 100644
+> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
+> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+> @@ -28,4 +28,14 @@ static inline int hstate_get_psize(struct hstate *hstate)
+> > A 		return mmu_virtual_psize;
+> > A 	}
+> A }
 > +
->         preempt_disable();
->         pagefault_disable();
-> -       return page_address(page);
-> +       kaddr = page_address(page);
-> +       xpfo_kmap(kaddr, page);
-> +       return kaddr;
->  }
->  #define kmap_atomic_prot(page, prot)   kmap_atomic(page)
->
->  static inline void __kunmap_atomic(void *addr)
->  {
-> +       xpfo_kunmap(addr, virt_to_page(addr));
->         pagefault_enable();
->         preempt_enable();
->  }
-> diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-> index 9298c393ddaa..0e451a42e5a3 100644
-> --- a/include/linux/page_ext.h
-> +++ b/include/linux/page_ext.h
-> @@ -29,6 +29,8 @@ enum page_ext_flags {
->         PAGE_EXT_DEBUG_POISON,          /* Page is poisoned */
->         PAGE_EXT_DEBUG_GUARD,
->         PAGE_EXT_OWNER,
-> +       PAGE_EXT_XPFO_KERNEL,           /* Page is a kernel page */
-> +       PAGE_EXT_XPFO_UNMAPPED,         /* Page is unmapped */
->  #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
->         PAGE_EXT_YOUNG,
->         PAGE_EXT_IDLE,
-> @@ -44,6 +46,11 @@ enum page_ext_flags {
->   */
->  struct page_ext {
->         unsigned long flags;
-> +#ifdef CONFIG_XPFO
-> +       int inited;             /* Map counter and lock initialized */
-> +       atomic_t mapcount;      /* Counter for balancing map/unmap requests */
-> +       spinlock_t maplock;     /* Lock to serialize map/unmap requests */
-> +#endif
->  };
->
->  extern void pgdat_page_ext_init(struct pglist_data *pgdat);
-> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-> new file mode 100644
-> index 000000000000..77187578ca33
-> --- /dev/null
-> +++ b/include/linux/xpfo.h
-> @@ -0,0 +1,39 @@
-> +/*
-> + * Copyright (C) 2016 Hewlett Packard Enterprise Development, L.P.
-> + * Copyright (C) 2016 Brown University. All rights reserved.
-> + *
-> + * Authors:
-> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
-> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of the GNU General Public License version 2 as published by
-> + * the Free Software Foundation.
-> + */
-> +
-> +#ifndef _LINUX_XPFO_H
-> +#define _LINUX_XPFO_H
-> +
-> +#ifdef CONFIG_XPFO
-> +
-> +extern struct page_ext_operations page_xpfo_ops;
-> +
-> +extern void xpfo_kmap(void *kaddr, struct page *page);
-> +extern void xpfo_kunmap(void *kaddr, struct page *page);
-> +extern void xpfo_alloc_page(struct page *page, int order, gfp_t gfp);
-> +extern void xpfo_free_page(struct page *page, int order);
-> +
-> +extern bool xpfo_page_is_unmapped(struct page *page);
-> +
-> +#else /* !CONFIG_XPFO */
-> +
-> +static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-> +static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
-> +static inline void xpfo_alloc_page(struct page *page, int order, gfp_t gfp) { }
-> +static inline void xpfo_free_page(struct page *page, int order) { }
-> +
-> +static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
-> +
-> +#endif /* CONFIG_XPFO */
-> +
-> +#endif /* _LINUX_XPFO_H */
-> diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-> index 22e13a0e19d7..455eff44604e 100644
-> --- a/lib/swiotlb.c
-> +++ b/lib/swiotlb.c
-> @@ -390,8 +390,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
->  {
->         unsigned long pfn = PFN_DOWN(orig_addr);
->         unsigned char *vaddr = phys_to_virt(tlb_addr);
-> +       struct page *page = pfn_to_page(pfn);
->
-> -       if (PageHighMem(pfn_to_page(pfn))) {
-> +       if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
->                 /* The buffer does not have a mapping.  Map it in and copy */
->                 unsigned int offset = orig_addr & ~PAGE_MASK;
->                 char *buffer;
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 295bd7a9f76b..175680f516aa 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -100,3 +100,4 @@ obj-$(CONFIG_IDLE_PAGE_TRACKING) += page_idle.o
->  obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
->  obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
->  obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
-> +obj-$(CONFIG_XPFO) += xpfo.o
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8fd42aa7c4bd..100e80e008e2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1045,6 +1045,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
->         kernel_poison_pages(page, 1 << order, 0);
->         kernel_map_pages(page, 1 << order, 0);
->         kasan_free_pages(page, order);
-> +       xpfo_free_page(page, order);
->
->         return true;
->  }
-> @@ -1745,6 +1746,7 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
->         kernel_map_pages(page, 1 << order, 1);
->         kernel_poison_pages(page, 1 << order, 1);
->         kasan_alloc_pages(page, order);
-> +       xpfo_alloc_page(page, order, gfp_flags);
->         set_page_owner(page, order, gfp_flags);
->  }
->
-> diff --git a/mm/page_ext.c b/mm/page_ext.c
-> index 121dcffc4ec1..ba6dbcacc2db 100644
-> --- a/mm/page_ext.c
-> +++ b/mm/page_ext.c
-> @@ -7,6 +7,7 @@
->  #include <linux/kmemleak.h>
->  #include <linux/page_owner.h>
->  #include <linux/page_idle.h>
-> +#include <linux/xpfo.h>
->
->  /*
->   * struct page extension
-> @@ -68,6 +69,9 @@ static struct page_ext_operations *page_ext_ops[] = {
->  #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
->         &page_idle_ops,
->  #endif
-> +#ifdef CONFIG_XPFO
-> +       &page_xpfo_ops,
-> +#endif
->  };
->
->  static unsigned long total_usage;
-> diff --git a/mm/xpfo.c b/mm/xpfo.c
-> new file mode 100644
-> index 000000000000..8e3a6a694b6a
-> --- /dev/null
-> +++ b/mm/xpfo.c
-> @@ -0,0 +1,206 @@
-> +/*
-> + * Copyright (C) 2016 Hewlett Packard Enterprise Development, L.P.
-> + * Copyright (C) 2016 Brown University. All rights reserved.
-> + *
-> + * Authors:
-> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
-> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of the GNU General Public License version 2 as published by
-> + * the Free Software Foundation.
-> + */
-> +
-> +#include <linux/mm.h>
-> +#include <linux/module.h>
-> +#include <linux/page_ext.h>
-> +#include <linux/xpfo.h>
-> +
-> +#include <asm/tlbflush.h>
-> +
-> +DEFINE_STATIC_KEY_FALSE(xpfo_inited);
-> +
-> +static bool need_xpfo(void)
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > +					A A A unsigned long addr, pte_t *ptep)
 > +{
-> +       return true;
+> > +	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
+> > +		return;
+> +
+> > +	pte_update(vma->vm_mm, addr, ptep, _PAGE_WRITE, 0, 1);
 > +}
 > +
-> +static void init_xpfo(void)
-> +{
-> +       printk(KERN_INFO "XPFO enabled\n");
-> +       static_branch_enable(&xpfo_inited);
-> +}
-> +
-> +struct page_ext_operations page_xpfo_ops = {
-> +       .need = need_xpfo,
-> +       .init = init_xpfo,
-> +};
-> +
-> +/*
-> + * Update a single kernel page table entry
-> + */
-> +static inline void set_kpte(struct page *page, unsigned long kaddr,
-> +                           pgprot_t prot) {
-> +       unsigned int level;
-> +       pte_t *kpte = lookup_address(kaddr, &level);
-> +
-> +       /* We only support 4k pages for now */
-> +       BUG_ON(!kpte || level != PG_LEVEL_4K);
-> +
-> +       set_pte_atomic(kpte, pfn_pte(page_to_pfn(page), canon_pgprot(prot)));
-> +}
-> +
-> +void xpfo_alloc_page(struct page *page, int order, gfp_t gfp)
-> +{
-> +       int i, flush_tlb = 0;
-> +       struct page_ext *page_ext;
-> +       unsigned long kaddr;
-> +
-> +       if (!static_branch_unlikely(&xpfo_inited))
-> +               return;
-> +
-> +       for (i = 0; i < (1 << order); i++)  {
-> +               page_ext = lookup_page_ext(page + i);
-> +
-> +               BUG_ON(test_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags));
-> +
-> +               /* Initialize the map lock and map counter */
-> +               if (!page_ext->inited) {
-> +                       spin_lock_init(&page_ext->maplock);
-> +                       atomic_set(&page_ext->mapcount, 0);
-> +                       page_ext->inited = 1;
-> +               }
-> +               BUG_ON(atomic_read(&page_ext->mapcount));
-> +
-> +               if ((gfp & GFP_HIGHUSER) == GFP_HIGHUSER) {
-> +                       /*
-> +                        * Flush the TLB if the page was previously allocated
-> +                        * to the kernel.
-> +                        */
-> +                       if (test_and_clear_bit(PAGE_EXT_XPFO_KERNEL,
-> +                                              &page_ext->flags))
-> +                               flush_tlb = 1;
-> +               } else {
-> +                       /* Tag the page as a kernel page */
-> +                       set_bit(PAGE_EXT_XPFO_KERNEL, &page_ext->flags);
-> +               }
-> +       }
-> +
-> +       if (flush_tlb) {
-> +               kaddr = (unsigned long)page_address(page);
-> +               flush_tlb_kernel_range(kaddr, kaddr + (1 << order) *
-> +                                      PAGE_SIZE);
-> +       }
-> +}
-> +
-> +void xpfo_free_page(struct page *page, int order)
-> +{
-> +       int i;
-> +       struct page_ext *page_ext;
-> +       unsigned long kaddr;
-> +
-> +       if (!static_branch_unlikely(&xpfo_inited))
-> +               return;
-> +
-> +       for (i = 0; i < (1 << order); i++) {
-> +               page_ext = lookup_page_ext(page + i);
-> +
-> +               if (!page_ext->inited) {
-> +                       /*
-> +                        * The page was allocated before page_ext was
-> +                        * initialized, so it is a kernel page and it needs to
-> +                        * be tagged accordingly.
-> +                        */
-> +                       set_bit(PAGE_EXT_XPFO_KERNEL, &page_ext->flags);
-> +                       continue;
-> +               }
-> +
-> +               /*
-> +                * Map the page back into the kernel if it was previously
-> +                * allocated to user space.
-> +                */
-> +               if (test_and_clear_bit(PAGE_EXT_XPFO_UNMAPPED,
-> +                                      &page_ext->flags)) {
-> +                       kaddr = (unsigned long)page_address(page + i);
-> +                       set_kpte(page + i,  kaddr, __pgprot(__PAGE_KERNEL));
-> +               }
-> +       }
-> +}
-> +
-> +void xpfo_kmap(void *kaddr, struct page *page)
-> +{
-> +       struct page_ext *page_ext;
-> +       unsigned long flags;
-> +
-> +       if (!static_branch_unlikely(&xpfo_inited))
-> +               return;
-> +
-> +       page_ext = lookup_page_ext(page);
-> +
-> +       /*
-> +        * The page was allocated before page_ext was initialized (which means
-> +        * it's a kernel page) or it's allocated to the kernel, so nothing to
-> +        * do.
-> +        */
-> +       if (!page_ext->inited ||
-> +           test_bit(PAGE_EXT_XPFO_KERNEL, &page_ext->flags))
-> +               return;
-> +
-> +       spin_lock_irqsave(&page_ext->maplock, flags);
-> +
-> +       /*
-> +        * The page was previously allocated to user space, so map it back
-> +        * into the kernel. No TLB flush required.
-> +        */
-> +       if ((atomic_inc_return(&page_ext->mapcount) == 1) &&
-> +           test_and_clear_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags))
-> +               set_kpte(page, (unsigned long)kaddr, __pgprot(__PAGE_KERNEL));
-> +
-> +       spin_unlock_irqrestore(&page_ext->maplock, flags);
-> +}
-> +EXPORT_SYMBOL(xpfo_kmap);
-> +
-> +void xpfo_kunmap(void *kaddr, struct page *page)
-> +{
-> +       struct page_ext *page_ext;
-> +       unsigned long flags;
-> +
-> +       if (!static_branch_unlikely(&xpfo_inited))
-> +               return;
-> +
-> +       page_ext = lookup_page_ext(page);
-> +
-> +       /*
-> +        * The page was allocated before page_ext was initialized (which means
-> +        * it's a kernel page) or it's allocated to the kernel, so nothing to
-> +        * do.
-> +        */
-> +       if (!page_ext->inited ||
-> +           test_bit(PAGE_EXT_XPFO_KERNEL, &page_ext->flags))
-> +               return;
-> +
-> +       spin_lock_irqsave(&page_ext->maplock, flags);
-> +
-> +       /*
-> +        * The page is to be allocated back to user space, so unmap it from the
-> +        * kernel, flush the TLB and tag it as a user page.
-> +        */
-> +       if (atomic_dec_return(&page_ext->mapcount) == 0) {
-> +               BUG_ON(test_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags));
-> +               set_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags);
-> +               set_kpte(page, (unsigned long)kaddr, __pgprot(0));
-> +               __flush_tlb_one((unsigned long)kaddr);
-> +       }
-> +
-> +       spin_unlock_irqrestore(&page_ext->maplock, flags);
-> +}
-> +EXPORT_SYMBOL(xpfo_kunmap);
-> +
-> +inline bool xpfo_page_is_unmapped(struct page *page)
-> +{
-> +       if (!static_branch_unlikely(&xpfo_inited))
-> +               return false;
-> +
-> +       return test_bit(PAGE_EXT_XPFO_UNMAPPED, &lookup_page_ext(page)->flags);
-> +}
-> +EXPORT_SYMBOL(xpfo_page_is_unmapped);
-> diff --git a/security/Kconfig b/security/Kconfig
-> index 118f4549404e..4502e15c8419 100644
-> --- a/security/Kconfig
-> +++ b/security/Kconfig
-> @@ -6,6 +6,25 @@ menu "Security options"
->
->  source security/keys/Kconfig
->
-> +config ARCH_SUPPORTS_XPFO
-> +       bool
-
-Can you include a "help" section here to describe what requirements an
-architecture needs to support XPFO? See HAVE_ARCH_SECCOMP_FILTER and
-HAVE_ARCH_VMAP_STACK or some examples.
-
-> +config XPFO
-> +       bool "Enable eXclusive Page Frame Ownership (XPFO)"
-> +       default n
-> +       depends on ARCH_SUPPORTS_XPFO
-> +       select PAGE_EXTENSION
-> +       help
-> +         This option offers protection against 'ret2dir' kernel attacks.
-> +         When enabled, every time a page frame is allocated to user space, it
-> +         is unmapped from the direct mapped RAM region in kernel space
-> +         (physmap). Similarly, when a page frame is freed/reclaimed, it is
-> +         mapped back to physmap.
-> +
-> +         There is a slight performance impact when this option is enabled.
-> +
-> +         If in doubt, say "N".
-> +
->  config SECURITY_DMESG_RESTRICT
->         bool "Restrict unprivileged access to the kernel syslog"
->         default n
-> --
-> 2.10.1
->
-
-I've added these patches to my kspp tree on kernel.org, so it should
-get some 0-day testing now...
-
-Thanks!
-
--Kees
-
--- 
-Kees Cook
-Nexus Security
+> A #endif
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> index 46d739457d68..ef2eef1ba99a 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> @@ -346,15 +346,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+> > A 	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> > -					A A A unsigned long addr, pte_t *ptep)
+> -{
+> > -	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
+> > -		return;
+> -
+> > -	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
+> -}
+> -
+> A #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+> A static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+> > A 				A A A A A A A unsigned long addr, pte_t *ptep)
+> diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
+> index c03e0a3dd4d8..b152e0c8dc4e 100644
+> --- a/arch/powerpc/include/asm/hugetlb.h
+> +++ b/arch/powerpc/include/asm/hugetlb.h
+> @@ -132,11 +132,11 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> A #ifdef CONFIG_PPC64
+> > -	return __pte(pte_update(mm, addr, ptep, ~0UL, 0, 1));
+> > +	return __pte(pte_update(vma->vm_mm, addr, ptep, ~0UL, 0, 1));
+> A #else
+> > A 	return __pte(pte_update(ptep, ~0UL, 0));
+> A #endif
+> @@ -146,7 +146,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> > A 					A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	pte_t pte;
+> > -	pte = huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> > +	pte = huge_ptep_get_and_clear(vma, addr, ptep);
+> > A 	flush_hugetlb_page(vma, addr);
+> A }
+> A 
+> diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
+> index 24ee66bf7223..db83c15f1d54 100644
+> --- a/arch/powerpc/include/asm/nohash/32/pgtable.h
+> +++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
+> @@ -260,10 +260,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+> A {
+> > A 	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
+> A }
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A 
+> diff --git a/arch/powerpc/include/asm/nohash/64/pgtable.h b/arch/powerpc/include/asm/nohash/64/pgtable.h
+> index 86d49dc60ec6..16c77d923209 100644
+> --- a/arch/powerpc/include/asm/nohash/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/nohash/64/pgtable.h
+> @@ -257,13 +257,13 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+> > A 	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
+> > A 		return;
+> A 
+> > -	pte_update(mm, addr, ptep, _PAGE_RW, 0, 1);
+> > +	pte_update(vma->vm_mm, addr, ptep, _PAGE_RW, 0, 1);
+> A }
+> A 
+> A /*
+> diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
+> index 4c7fac75090e..eb411d59ab77 100644
+> --- a/arch/s390/include/asm/hugetlb.h
+> +++ b/arch/s390/include/asm/hugetlb.h
+> @@ -19,7 +19,7 @@
+> A void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 		A A A A A pte_t *ptep, pte_t pte);
+> A pte_t huge_ptep_get(pte_t *ptep);
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 			A A A A A A unsigned long addr, pte_t *ptep);
+> A 
+> A /*
+> @@ -50,7 +50,7 @@ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> > A 					A unsigned long address, pte_t *ptep)
+> A {
+> > -	huge_ptep_get_and_clear(vma->vm_mm, address, ptep);
+> > +	huge_ptep_get_and_clear(vma, address, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> @@ -59,17 +59,17 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> A {
+> > A 	int changed = !pte_same(huge_ptep_get(ptep), pte);
+> > A 	if (changed) {
+> > -		huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> > +		huge_ptep_get_and_clear(vma, addr, ptep);
+> > A 		set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+> > A 	}
+> > A 	return changed;
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	pte_t pte = huge_ptep_get_and_clear(mm, addr, ptep);
+> > -	set_huge_pte_at(mm, addr, ptep, pte_wrprotect(pte));
+> > +	pte_t pte = huge_ptep_get_and_clear(vma, addr, ptep);
+> > +	set_huge_pte_at(vma->vm_mm, addr, ptep, pte_wrprotect(pte));
+> A }
+> A 
+> A static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
+> diff --git a/arch/s390/mm/hugetlbpage.c b/arch/s390/mm/hugetlbpage.c
+> index cd404aa3931c..61146137b0d2 100644
+> --- a/arch/s390/mm/hugetlbpage.c
+> +++ b/arch/s390/mm/hugetlbpage.c
+> @@ -136,12 +136,13 @@ pte_t huge_ptep_get(pte_t *ptep)
+> > A 	return __rste_to_pte(pte_val(*ptep));
+> A }
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 			A A A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	pte_t pte = huge_ptep_get(ptep);
+> > A 	pmd_t *pmdp = (pmd_t *) ptep;
+> > A 	pud_t *pudp = (pud_t *) ptep;
+> > +	struct mm_struct *mm = vma->vm_mm;
+> A 
+> > A 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+> > A 		pudp_xchg_direct(mm, addr, pudp, __pud(_REGION3_ENTRY_EMPTY));
+> diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
+> index ef489a56fcce..925cbc0b4da9 100644
+> --- a/arch/sh/include/asm/hugetlb.h
+> +++ b/arch/sh/include/asm/hugetlb.h
+> @@ -40,10 +40,10 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> @@ -61,10 +61,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
+> index dcbf985ab243..c7c21738b46c 100644
+> --- a/arch/sparc/include/asm/hugetlb.h
+> +++ b/arch/sparc/include/asm/hugetlb.h
+> @@ -8,7 +8,7 @@
+> A void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 		A A A A A pte_t *ptep, pte_t pte);
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma, unsigned long addr,
+> > A 			A A A A A A pte_t *ptep);
+> A 
+> A static inline int is_hugepage_only_range(struct mm_struct *mm,
+> @@ -46,11 +46,11 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > A 	pte_t old_pte = *ptep;
+> > -	set_huge_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
+> > +	set_huge_pte_at(vma->vm_mm, addr, ptep, pte_wrprotect(old_pte));
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
+> index 988acc8b1b80..c5d1fb4a83a7 100644
+> --- a/arch/sparc/mm/hugetlbpage.c
+> +++ b/arch/sparc/mm/hugetlbpage.c
+> @@ -174,10 +174,11 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	maybe_tlb_batch_add(mm, addr + REAL_HPAGE_SIZE, ptep, orig, 0);
+> A }
+> A 
+> -pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+> +pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma, unsigned long addr,
+> > A 			A A A A A A pte_t *ptep)
+> A {
+> > A 	pte_t entry;
+> > +	struct mm_struct *mm = vma->vm_mm;
+> A 
+> > A 	entry = *ptep;
+> > A 	if (pte_present(entry))
+> diff --git a/arch/tile/include/asm/hugetlb.h b/arch/tile/include/asm/hugetlb.h
+> index 2fac5be4de26..aab3ff1cdb10 100644
+> --- a/arch/tile/include/asm/hugetlb.h
+> +++ b/arch/tile/include/asm/hugetlb.h
+> @@ -54,10 +54,10 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte(ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> @@ -76,10 +76,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
+> index 3a106165e03a..47b7a102a6a2 100644
+> --- a/arch/x86/include/asm/hugetlb.h
+> +++ b/arch/x86/include/asm/hugetlb.h
+> @@ -41,10 +41,10 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+> > A 	set_pte_at(mm, addr, ptep, pte);
+> A }
+> A 
+> -static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+> +static inline pte_t huge_ptep_get_and_clear(struct vm_area_struct *vma,
+> > A 					A A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	return ptep_get_and_clear(mm, addr, ptep);
+> > +	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+> @@ -63,10 +63,10 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
+> > A 	return pte_wrprotect(pte);
+> A }
+> A 
+> -static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+> +static inline void huge_ptep_set_wrprotect(struct vm_area_struct *vma,
+> > A 					A A A unsigned long addr, pte_t *ptep)
+> A {
+> > -	ptep_set_wrprotect(mm, addr, ptep);
+> > +	ptep_set_wrprotect(vma->vm_mm, addr, ptep);
+> A }
+> A 
+> A static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ec49d9ef1eef..6b140f213e33 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3182,7 +3182,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+> > A 			set_huge_pte_at(dst, addr, dst_pte, entry);
+> > A 		} else {
+> > A 			if (cow) {
+> > -				huge_ptep_set_wrprotect(src, addr, src_pte);
+> > +				huge_ptep_set_wrprotect(vma, addr, src_pte);
+> > A 				mmu_notifier_invalidate_range(src, mmun_start,
+> > A 								A A A mmun_end);
+> > A 			}
+> @@ -3271,7 +3271,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> > A 			set_vma_resv_flags(vma, HPAGE_RESV_UNMAPPED);
+> > A 		}
+> A 
+> > -		pte = huge_ptep_get_and_clear(mm, address, ptep);
+> > +		pte = huge_ptep_get_and_clear(vma, address, ptep);
+> > A 		tlb_remove_tlb_entry(tlb, ptep, address);
+> > A 		if (huge_pte_dirty(pte))
+> > A 			set_page_dirty(page);
+> @@ -4020,7 +4020,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+> > A 			continue;
+> > A 		}
+> > A 		if (!huge_pte_none(pte)) {
+> > -			pte = huge_ptep_get_and_clear(mm, address, ptep);
+> > +			pte = huge_ptep_get_and_clear(vma, address, ptep);
+> > A 			pte = pte_mkhuge(huge_pte_modify(pte, newprot));
+> > A 			pte = arch_make_huge_pte(pte, vma, NULL, 0);
+> > A 			set_huge_pte_at(mm, address, ptep, pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
