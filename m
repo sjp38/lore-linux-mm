@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2BF6B025E
-	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:34:56 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id w132so983792ita.1
-        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:34:56 -0800 (PST)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0052.outbound.protection.outlook.com. [104.47.38.52])
-        by mx.google.com with ESMTPS id o123si14492128ita.61.2016.11.09.16.34.55
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FD636B0260
+	for <linux-mm@kvack.org>; Wed,  9 Nov 2016 19:35:11 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id w132so996978ita.1
+        for <linux-mm@kvack.org>; Wed, 09 Nov 2016 16:35:11 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0056.outbound.protection.outlook.com. [104.47.34.56])
+        by mx.google.com with ESMTPS id d186si14513556itc.21.2016.11.09.16.35.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 09 Nov 2016 16:34:56 -0800 (PST)
+        Wed, 09 Nov 2016 16:35:10 -0800 (PST)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v3 02/20] x86: Set the write-protect cache mode for full
- PAT support
-Date: Wed, 9 Nov 2016 18:34:48 -0600
-Message-ID: <20161110003448.3280.27573.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v3 03/20] x86: Add the Secure Memory Encryption cpu
+ feature
+Date: Wed, 9 Nov 2016 18:34:59 -0600
+Message-ID: <20161110003459.3280.25796.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -27,37 +27,39 @@ Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redh
  Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas
  Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-For processors that support PAT, set the write-protect cache mode
-(_PAGE_CACHE_MODE_WP) entry to the actual write-protect value (x05).
+Update the cpu features to include identifying and reporting on the
+Secure Memory Encryption feature.
 
-Acked-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/mm/pat.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/cpufeatures.h |    1 +
+ arch/x86/kernel/cpu/scattered.c    |    1 +
+ 2 files changed, 2 insertions(+)
 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 170cc4f..87e8952 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -355,7 +355,7 @@ void pat_init(void)
- 		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
- 		 *      011    3    UC : _PAGE_CACHE_MODE_UC
- 		 *      100    4    WB : Reserved
--		 *      101    5    WC : Reserved
-+		 *      101    5    WP : _PAGE_CACHE_MODE_WP
- 		 *      110    6    UC-: Reserved
- 		 *      111    7    WT : _PAGE_CACHE_MODE_WT
- 		 *
-@@ -363,7 +363,7 @@ void pat_init(void)
- 		 * corresponding types in the presence of PAT errata.
- 		 */
- 		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
--		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
-+		      PAT(4, WB) | PAT(5, WP) | PAT(6, UC_MINUS) | PAT(7, WT);
- 	}
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index b212b86..f083ea1 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -187,6 +187,7 @@
+  * Reuse free bits when adding new feature flags!
+  */
  
- 	if (!boot_cpu_done) {
++#define X86_FEATURE_SME		( 7*32+ 0) /* AMD Secure Memory Encryption */
+ #define X86_FEATURE_CPB		( 7*32+ 2) /* AMD Core Performance Boost */
+ #define X86_FEATURE_EPB		( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
+ 
+diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
+index 8cb57df..d86d9a5 100644
+--- a/arch/x86/kernel/cpu/scattered.c
++++ b/arch/x86/kernel/cpu/scattered.c
+@@ -37,6 +37,7 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
+ 		{ X86_FEATURE_HW_PSTATE,	CR_EDX, 7, 0x80000007, 0 },
+ 		{ X86_FEATURE_CPB,		CR_EDX, 9, 0x80000007, 0 },
+ 		{ X86_FEATURE_PROC_FEEDBACK,	CR_EDX,11, 0x80000007, 0 },
++		{ X86_FEATURE_SME,		CR_EAX, 0, 0x8000001f, 0 },
+ 		{ 0, 0, 0, 0, 0 }
+ 	};
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
