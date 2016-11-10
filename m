@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0894A6B027E
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:08:40 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i88so99071318pfk.3
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 01:08:40 -0800 (PST)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id 12si486626pfi.251.2016.11.10.01.08.37
-        for <linux-mm@kvack.org>;
-        Thu, 10 Nov 2016 01:08:39 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 07/12] mm: thp: check pmd migration entry in common path
-Date: Thu, 10 Nov 2016 17:08:07 +0800
-Message-ID: <013801d23b31$f47a7cb0$dd6f7610$@alibaba-inc.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B606B0281
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 04:12:39 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id a8so77437018pfg.0
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 01:12:39 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id qk7si3156108pac.167.2016.11.10.01.12.38
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 01:12:38 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 03/12] mm: thp: introduce separate TTU flag for thp
+ freezing
+Date: Thu, 10 Nov 2016 09:09:05 +0000
+Message-ID: <20161110090904.GA9173@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5824307C.7070105@linux.vnet.ibm.com>
+In-Reply-To: <5824307C.7070105@linux.vnet.ibm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <28695A655618C844BDCCAB546C54D2AD@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Dave Hansen' <dave.hansen@intel.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Michal Hocko' <mhocko@kernel.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Zi Yan' <zi.yan@cs.rutgers.edu>, 'Balbir Singh' <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, 'Naoya Horiguchi' <nao.horiguchi@gmail.com>, 'Anshuman Khandual' <khandual@linux.vnet.ibm.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Tuesday, November 08, 2016 7:32 AM Naoya Horiguchi wrote:
-> 
-> @@ -1013,6 +1027,9 @@ int do_huge_pmd_wp_page(struct fault_env *fe, pmd_t orig_pmd)
->  	if (unlikely(!pmd_same(*fe->pmd, orig_pmd)))
->  		goto out_unlock;
-> 
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out_unlock;
-> +
+On Thu, Nov 10, 2016 at 02:01:56PM +0530, Anshuman Khandual wrote:
+> On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> > TTU_MIGRATION is used to convert pte into migration entry until thp spl=
+it
+> > completes. This behavior conflicts with thp migration added later patch=
+es,
+>
+> Hmm, could you please explain why it conflicts with the PMD based
+> migration without split ? Why TTU_MIGRATION cannot be used to
+> freeze/hold on the PMD while it's being migrated ?
 
-Can we encounter a migration entry after acquiring ptl ?
+try_to_unmap() is used both for thp split (via freeze_page()) and page
+migration (via __unmap_and_move()). In freeze_page(), ttu_flag given for
+head page is like below (assuming anonymous thp):
 
->  	page = pmd_page(orig_pmd);
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
->  	/*
-[...]
-> @@ -3591,6 +3591,10 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  		int ret;
-> 
->  		barrier();
-> +		if (unlikely(is_pmd_migration_entry(orig_pmd))) {
-> +			pmd_migration_entry_wait(mm, fe.pmd);
-> +			return 0;
-> +		}
->  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
->  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
->  				return do_huge_pmd_numa_page(&fe, orig_pmd);
+    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
+     TTU_MIGRATION | TTU_SPLIT_HUGE_PMD)
+
+and ttu_flag given for tail pages is:
+
+    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
+     TTU_MIGRATION)
+
+__unmap_and_move() calls try_to_unmap() with ttu_flag:
+
+    (TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS)
+
+Now I'm trying to insert a branch for thp migration at the top of
+try_to_unmap_one() like below
+
+
+  static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma=
+,
+                       unsigned long address, void *arg)
+  {
+          ...
+          if (flags & TTU_MIGRATION) {
+                  if (!PageHuge(page) && PageTransCompound(page)) {
+                          set_pmd_migration_entry(page, vma, address);
+                          goto out;
+                  }
+          }
+
+, so try_to_unmap() for tail pages called by thp split can go into thp
+migration code path (which converts *pmd* into migration entry), while
+the expectation is to freeze thp (which converts *pte* into migration entry=
+.)
+
+I detected this failure as a "bad page state" error in a testcase where
+split_huge_page() is called from queue_pages_pte_range().
+
+Anyway, I'll add this explanation into the patch description in the next po=
+st.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
