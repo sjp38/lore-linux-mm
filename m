@@ -1,78 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 80BDD280296
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 11:29:12 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id m203so515493wma.2
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:29:12 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id y124si11722351wme.83.2016.11.11.08.29.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 75AA028029B
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 11:37:57 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u144so629409wmu.1
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:37:57 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id vv10si11146323wjc.14.2016.11.11.08.37.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Nov 2016 08:29:11 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id g23so10573945wme.1
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:29:11 -0800 (PST)
-Date: Fri, 11 Nov 2016 19:29:09 +0300
+        Fri, 11 Nov 2016 08:37:56 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id m203so8929913wma.3
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:37:56 -0800 (PST)
+Date: Fri, 11 Nov 2016 19:37:53 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/2] mm: THP page cache support for ppc64
-Message-ID: <20161111162909.GG19382@node.shutemov.name>
-References: <20161107083441.21901-1-aneesh.kumar@linux.vnet.ibm.com>
- <20161107083441.21901-2-aneesh.kumar@linux.vnet.ibm.com>
- <20161111101439.GB19382@node.shutemov.name>
- <8737iy1ahw.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem
+ collapse error path
+Message-ID: <20161111163753.GH19382@node.shutemov.name>
+References: <20161107190741.3619-1-hannes@cmpxchg.org>
+ <20161107190741.3619-2-hannes@cmpxchg.org>
+ <20161108095352.GH32353@quack2.suse.cz>
+ <20161108161245.GA4020@cmpxchg.org>
+ <20161111105921.GC19382@node.shutemov.name>
+ <20161111122224.GA5090@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8737iy1ahw.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20161111122224.GA5090@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>
-Cc: akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Jan Kara <jack@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Nov 11, 2016 at 05:42:11PM +0530, Aneesh Kumar K.V wrote:
-> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
+On Fri, Nov 11, 2016 at 01:22:24PM +0100, Jan Kara wrote:
+> On Fri 11-11-16 13:59:21, Kirill A. Shutemov wrote:
+> > On Tue, Nov 08, 2016 at 11:12:45AM -0500, Johannes Weiner wrote:
+> > > On Tue, Nov 08, 2016 at 10:53:52AM +0100, Jan Kara wrote:
+> > > > On Mon 07-11-16 14:07:36, Johannes Weiner wrote:
+> > > > > The radix tree counts valid entries in each tree node. Entries stored
+> > > > > in the tree cannot be removed by simpling storing NULL in the slot or
+> > > > > the internal counters will be off and the node never gets freed again.
+> > > > > 
+> > > > > When collapsing a shmem page fails, restore the holes that were filled
+> > > > > with radix_tree_insert() with a proper radix tree deletion.
+> > > > > 
+> > > > > Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
+> > > > > Reported-by: Jan Kara <jack@suse.cz>
+> > > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > > > ---
+> > > > >  mm/khugepaged.c | 3 ++-
+> > > > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > > > 
+> > > > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > > > > index 728d7790dc2d..eac6f0580e26 100644
+> > > > > --- a/mm/khugepaged.c
+> > > > > +++ b/mm/khugepaged.c
+> > > > > @@ -1520,7 +1520,8 @@ static void collapse_shmem(struct mm_struct *mm,
+> > > > >  				if (!nr_none)
+> > > > >  					break;
+> > > > >  				/* Put holes back where they were */
+> > > > > -				radix_tree_replace_slot(slot, NULL);
+> > > > > +				radix_tree_delete(&mapping->page_tree,
+> > > > > +						  iter.index);
+> > > > 
+> > > > Hum, but this is inside radix_tree_for_each_slot() iteration. And
+> > > > radix_tree_delete() may end up freeing nodes resulting in invalidating
+> > > > current slot pointer and the iteration code will do use-after-free.
+> > > 
+> > > Good point, we need to do another tree lookup after the deletion.
+> > > 
+> > > But there are other instances in the code, where we drop the lock
+> > > temporarily and somebody else could delete the node from under us.
+> > > 
+> > > In the main collapse path, I *think* this is prevented by the fact
+> > > that when we drop the tree lock we still hold the page lock of the
+> > > regular page that's in the tree while we isolate and unmap it, thus
+> > > pin the node. Even so, it would seem a little hairy to rely on that.
+> > > 
+> > > Kirill?
+> > 
+> > [ sorry for delay ]
+> > 
+> > Yes, we make sure that locked page still belong to the radix tree and fall
+> > off if it's not. Locked page cannot be removed from radix-tree, so we
+> > should be fine.
 > 
-> > On Mon, Nov 07, 2016 at 02:04:41PM +0530, Aneesh Kumar K.V wrote:
-> >> @@ -2953,6 +2966,13 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
-> >>  	ret = VM_FAULT_FALLBACK;
-> >>  	page = compound_head(page);
-> >>  
-> >> +	/*
-> >> +	 * Archs like ppc64 need additonal space to store information
-> >> +	 * related to pte entry. Use the preallocated table for that.
-> >> +	 */
-> >> +	if (arch_needs_pgtable_deposit() && !fe->prealloc_pte)
-> >> +		fe->prealloc_pte = pte_alloc_one(vma->vm_mm, fe->address);
-> >> +
-> >
-> > -ENOMEM handling?
-> 
-> How about
-> 
-> 	if (arch_needs_pgtable_deposit() && !fe->prealloc_pte) {
-> 		fe->prealloc_pte = pte_alloc_one(vma->vm_mm, fe->address);
-> 		if (!fe->prealloc_pte)
-> 			return VM_FAULT_OOM;
-> 	}
-> 
-> 
-> 
-> >
-> > I think we should do this way before this point. Maybe in do_fault() or
-> > something.
-> 
-> doing this in do_set_pmd keeps this closer to where we set the pmd. Any
-> reason you thing we should move it higher up the stack. We already do
-> pte_alloc() at the same level for a non transhuge case in
-> alloc_set_pte().
+> Well, it cannot be removed from the radix tree but radix tree code is still
+> free to collapse / expand the tree nodes as it sees fit (currently the only
+> real case is when changing direct page pointer in the tree root to a node
+> pointer or vice versa but still...). So code should not really assume that
+> the node page is referenced from does not change once tree_lock is dropped.
+> It leads to subtle bugs...
 
-I vaguely remember Hugh mentioned deadlock of allocation under page-lock vs.
-OOM-killer (or something else?).
+Hm. Okay.
 
-If the deadlock is still there it would be matter of making preallocation
-unconditional to fix the issue.
-
-But what you propose about doesn't make situation any worse. I'm fine with
-that.
+What is the right way re-validate that slot is still valid? Do I need full
+look up again? Can I pin node explicitly?
 
 -- 
  Kirill A. Shutemov
