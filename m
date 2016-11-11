@@ -1,96 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5016E6B02C7
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 07:22:29 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id y16so25126160wmd.6
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 04:22:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f13si9964796wjr.133.2016.11.11.04.22.27
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AB98B6B02DA
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:02:14 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id b132so107651044iti.5
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 05:02:14 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id m10si8435402paf.346.2016.11.11.05.02.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Nov 2016 04:22:27 -0800 (PST)
-Date: Fri, 11 Nov 2016 13:22:24 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem
- collapse error path
-Message-ID: <20161111122224.GA5090@quack2.suse.cz>
-References: <20161107190741.3619-1-hannes@cmpxchg.org>
- <20161107190741.3619-2-hannes@cmpxchg.org>
- <20161108095352.GH32353@quack2.suse.cz>
- <20161108161245.GA4020@cmpxchg.org>
- <20161111105921.GC19382@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161111105921.GC19382@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Nov 2016 05:02:14 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id e9so1563282pgc.1
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 05:02:13 -0800 (PST)
+Date: Fri, 11 Nov 2016 14:02:07 +0100
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: discourage use of pages that weren't compacted
+Message-Id: <20161111140207.1a5d89af4e0b37e9d23dcd36@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 11-11-16 13:59:21, Kirill A. Shutemov wrote:
-> On Tue, Nov 08, 2016 at 11:12:45AM -0500, Johannes Weiner wrote:
-> > On Tue, Nov 08, 2016 at 10:53:52AM +0100, Jan Kara wrote:
-> > > On Mon 07-11-16 14:07:36, Johannes Weiner wrote:
-> > > > The radix tree counts valid entries in each tree node. Entries stored
-> > > > in the tree cannot be removed by simpling storing NULL in the slot or
-> > > > the internal counters will be off and the node never gets freed again.
-> > > > 
-> > > > When collapsing a shmem page fails, restore the holes that were filled
-> > > > with radix_tree_insert() with a proper radix tree deletion.
-> > > > 
-> > > > Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
-> > > > Reported-by: Jan Kara <jack@suse.cz>
-> > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > ---
-> > > >  mm/khugepaged.c | 3 ++-
-> > > >  1 file changed, 2 insertions(+), 1 deletion(-)
-> > > > 
-> > > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> > > > index 728d7790dc2d..eac6f0580e26 100644
-> > > > --- a/mm/khugepaged.c
-> > > > +++ b/mm/khugepaged.c
-> > > > @@ -1520,7 +1520,8 @@ static void collapse_shmem(struct mm_struct *mm,
-> > > >  				if (!nr_none)
-> > > >  					break;
-> > > >  				/* Put holes back where they were */
-> > > > -				radix_tree_replace_slot(slot, NULL);
-> > > > +				radix_tree_delete(&mapping->page_tree,
-> > > > +						  iter.index);
-> > > 
-> > > Hum, but this is inside radix_tree_for_each_slot() iteration. And
-> > > radix_tree_delete() may end up freeing nodes resulting in invalidating
-> > > current slot pointer and the iteration code will do use-after-free.
-> > 
-> > Good point, we need to do another tree lookup after the deletion.
-> > 
-> > But there are other instances in the code, where we drop the lock
-> > temporarily and somebody else could delete the node from under us.
-> > 
-> > In the main collapse path, I *think* this is prevented by the fact
-> > that when we drop the tree lock we still hold the page lock of the
-> > regular page that's in the tree while we isolate and unmap it, thus
-> > pin the node. Even so, it would seem a little hairy to rely on that.
-> > 
-> > Kirill?
-> 
-> [ sorry for delay ]
-> 
-> Yes, we make sure that locked page still belong to the radix tree and fall
-> off if it's not. Locked page cannot be removed from radix-tree, so we
-> should be fine.
+If a z3fold page couldn't be compacted, we don't want it to be
+used for next object allocation in the first place. It makes more
+sense to add it to the end of the relevant unbuddied list. If that
+page gets compacted later, it will be added to the beginning of
+the list then.
 
-Well, it cannot be removed from the radix tree but radix tree code is still
-free to collapse / expand the tree nodes as it sees fit (currently the only
-real case is when changing direct page pointer in the tree root to a node
-pointer or vice versa but still...). So code should not really assume that
-the node page is referenced from does not change once tree_lock is dropped.
-It leads to subtle bugs...
+This simple idea gives 5-7% improvement in randrw fio tests and
+about 10% improvement in fio sequential read/write.
 
-								Honza
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 32 ++++++++++++++++++++++----------
+ 1 file changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 5fe2652..eb8f9a0 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -277,10 +277,10 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
+ 
+ #define BIG_CHUNK_GAP	3
+ /* Has to be called with lock held */
+-static int z3fold_compact_page(struct z3fold_header *zhdr)
++static bool z3fold_compact_page(struct z3fold_header *zhdr)
+ {
+ 	struct page *page = virt_to_page(zhdr);
+-	int ret = 0;
++	bool ret = false;
+ 
+ 	if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
+ 		goto out;
+@@ -292,7 +292,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
+ 			zhdr->middle_chunks = 0;
+ 			zhdr->start_middle = 0;
+ 			zhdr->first_num++;
+-			ret = 1;
++			ret = true;
+ 			goto out;
+ 		}
+ 
+@@ -304,7 +304,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
+ 		    zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
+ 			mchunk_memmove(zhdr, zhdr->first_chunks + 1);
+ 			zhdr->start_middle = zhdr->first_chunks + 1;
+-			ret = 1;
++			ret = true;
+ 			goto out;
+ 		}
+ 		if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
+@@ -314,7 +314,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
+ 				zhdr->middle_chunks;
+ 			mchunk_memmove(zhdr, new_start);
+ 			zhdr->start_middle = new_start;
+-			ret = 1;
++			ret = true;
+ 			goto out;
+ 		}
+ 	}
+@@ -535,11 +535,19 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		free_z3fold_page(zhdr);
+ 		atomic64_dec(&pool->pages_nr);
+ 	} else {
+-		z3fold_compact_page(zhdr);
++		bool compacted = z3fold_compact_page(zhdr);
+ 		/* Add to the unbuddied list */
+ 		spin_lock(&pool->lock);
+ 		freechunks = num_free_chunks(zhdr);
+-		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		/*
++		 * If the page has been compacted, we want to use it
++		 * in the first place.
++		 */
++		if (compacted)
++			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		else
++			list_add_tail(&zhdr->buddy,
++				      &pool->unbuddied[freechunks]);
+ 		spin_unlock(&pool->lock);
+ 		z3fold_page_unlock(zhdr);
+ 	}
+@@ -668,12 +676,16 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 				spin_lock(&pool->lock);
+ 				list_add(&zhdr->buddy, &pool->buddied);
+ 			} else {
+-				z3fold_compact_page(zhdr);
++				bool compacted = z3fold_compact_page(zhdr);
+ 				/* add to unbuddied list */
+ 				spin_lock(&pool->lock);
+ 				freechunks = num_free_chunks(zhdr);
+-				list_add(&zhdr->buddy,
+-					 &pool->unbuddied[freechunks]);
++				if (compacted)
++					list_add(&zhdr->buddy,
++						&pool->unbuddied[freechunks]);
++				else
++					list_add_tail(&zhdr->buddy,
++						&pool->unbuddied[freechunks]);
+ 			}
+ 		}
+ 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
