@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E7736B026F
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:09:47 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id q124so77199598itd.2
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:09:47 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id i15si6226170pag.284.2016.11.10.17.09.46
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE11280284
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:17:27 -0500 (EST)
+Received: by mail-pa0-f69.google.com with SMTP id kr7so3669280pab.5
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:17:27 -0800 (PST)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id e19si7414892pgk.268.2016.11.10.17.17.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Nov 2016 17:09:46 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 01/12] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7
- to bit 6
-Date: Fri, 11 Nov 2016 01:08:36 +0000
-Message-ID: <20161111010834.GA28679@hori1.linux.bs1.fc.nec.co.jp>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <534caa72-c109-9716-15d2-5e80f4038f8d@intel.com>
-In-Reply-To: <534caa72-c109-9716-15d2-5e80f4038f8d@intel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4519D00B843E514D95B1F7709ACA6AA8@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Nov 2016 17:17:27 -0800 (PST)
+Received: by mail-pf0-x243.google.com with SMTP id y68so337099pfb.1
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:17:27 -0800 (PST)
+Subject: Re: [PATCH v6 4/4] of/fdt: mark hotpluggable memory
+References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <2627373d-b90c-10f6-90b6-2ee74029b74f@gmail.com>
+Date: Fri, 11 Nov 2016 12:17:18 +1100
 MIME-Version: 1.0
+In-Reply-To: <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-On Thu, Nov 10, 2016 at 03:29:51PM -0800, Dave Hansen wrote:
-> On 11/07/2016 03:31 PM, Naoya Horiguchi wrote:
-> > pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid false =
-negative
-> > return when it races with thp spilt (during which _PAGE_PRESENT is temp=
-orary
-> > cleared.) I don't think that dropping _PAGE_PSE check in pmd_present() =
-works
-> > well because it can hurt optimization of tlb handling in thp split.
-> > In the current kernel, bit 6 is not used in non-present format because =
-nonlinear
-> > file mapping is obsolete, so let's move _PAGE_SWP_SOFT_DIRTY to that bi=
-t.
-> > Bit 7 is used as reserved (always clear), so please don't use it for ot=
-her
-> > purpose.
-> ...
-> >  #ifdef CONFIG_MEM_SOFT_DIRTY
-> > -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
-> > +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_DIRTY
-> >  #else
-> >  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
-> >  #endif
->=20
-> I'm not sure this works.  Take a look at commit 00839ee3b29 and the
-> erratum it works around.  I _think_ this means that a system affected by
-> the erratum might see an erroneous _PAGE_SWP_SOFT_DIRTY/_PAGE_DIRTY get
-> set in swap ptes.
->=20
-> There are much worse things that can happen, but I don't think bits 5
-> (Accessed) and 6 (Dirty) are good choices since they're affected by the
-> erratum.
 
-Thank you for the information. According to 00839ee3b29, some bits which
-are safe from the errata are reclaimed, so assigning one of such bits for
-_PAGE_SWP_SOFT_DIRTY seems to work. And I'll update the description.
 
-Thanks,
-Naoya Horiguchi=
+On 08/11/16 10:44, Reza Arbab wrote:
+> When movable nodes are enabled, any node containing only hotpluggable
+> memory is made movable at boot time.
+> 
+> On x86, hotpluggable memory is discovered by parsing the ACPI SRAT,
+> making corresponding calls to memblock_mark_hotplug().
+> 
+> If we introduce a dt property to describe memory as hotpluggable,
+> configs supporting early fdt may then also do this marking and use
+> movable nodes.
+> 
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> ---
+
+Tested-by: Balbir Singh <bsingharora@gmail.com>
+
+I tested this with a custom device tree and it worked quite well for me.
+It also means that the guest and bare-metal have two different mechanisms
+of marking something as hotpluggable. But given that your patch enables
+all architectures using OF, it might be worth it.
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
