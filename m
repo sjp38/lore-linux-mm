@@ -1,68 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE5D28027D
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 05:30:42 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 17so9613367pfy.2
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 02:30:42 -0800 (PST)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id cs1si7960352pac.117.2016.11.11.02.30.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 989FE280290
+	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 05:58:23 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r68so24093174wmd.0
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 02:58:23 -0800 (PST)
+Received: from sym2.noone.org (sym2.noone.org. [178.63.92.236])
+        by mx.google.com with ESMTPS id fk2si9683389wjb.20.2016.11.11.02.58.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Nov 2016 02:30:41 -0800 (PST)
-Received: by mail-pf0-x231.google.com with SMTP id d2so10225750pfd.0
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 02:30:41 -0800 (PST)
-Date: Fri, 11 Nov 2016 02:30:39 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, slab: faster active and free stats
-In-Reply-To: <20161111055326.GA16336@js1304-P5Q-DELUXE>
-Message-ID: <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com> <20161108151727.b64035da825c69bced88b46d@linux-foundation.org> <alpine.DEB.2.10.1611091637460.125130@chino.kir.corp.google.com> <20161111055326.GA16336@js1304-P5Q-DELUXE>
+        Fri, 11 Nov 2016 02:58:22 -0800 (PST)
+Date: Fri, 11 Nov 2016 11:58:19 +0100
+From: Tobias Klauser <tklauser@distanz.ch>
+Subject: Re: [mm PATCH v3 12/23] arch/nios2: Add option to skip DMA sync as a
+ part of map and unmap
+Message-ID: <20161111105818.GB9338@distanz.ch>
+References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
+ <20161110113518.76501.52225.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161110113518.76501.52225.stgit@ahduyck-blue-test.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Ley Foon Tan <lftan@altera.com>, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On Fri, 11 Nov 2016, Joonsoo Kim wrote:
-
-> Hello, David.
+On 2016-11-10 at 12:35:18 +0100, Alexander Duyck <alexander.h.duyck@intel.com> wrote:
+> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
+> avoid invoking cache line invalidation if the driver will just handle it
+> via a sync_for_cpu or sync_for_device call.
 > 
-> Maintaining acitve/free_slab counters looks so complex. And, I think
-> that we don't need to maintain these counters for faster slabinfo.
-> Key point is to remove iterating n->slabs_partial list.
-> 
-> We can calculate active slab/object by following equation as you did in
-> this patch.
-> 
-> active_slab(n) = n->num_slab - the number of free_slab
-> active_object(n) = n->num_slab * cachep->num - n->free_objects
-> 
-> To get the number of free_slab, we need to iterate n->slabs_free list
-> but I guess it would be small enough.
-> 
-> If you don't like to iterate n->slabs_free list in slabinfo, just
-> maintaining the number of slabs_free would be enough.
-> 
+> Cc: Ley Foon Tan <lftan@altera.com>
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 
-Hi Joonsoo,
-
-It's a good point, although I don't think the patch has overly complex 
-logic to keep track of slab state.
-
-We don't prefer to do any iteration in get_slabinfo() since users can 
-read /proc/slabinfo constantly; it's better to just settle the stats when 
-slab state changes instead of repeating an expensive operation over and 
-over if someone is running slabtop(1) or /proc/slabinfo is scraped 
-regularly for stats.
-
-That said, I imagine there are more clever ways to arrive at the same 
-answer, and you bring up a good point about maintaining a n->num_slabs and 
-n->free_slabs rather than n->active_slabs and n->free_slabs.
-
-I don't feel strongly about either approach, but I think some improvement, 
-such as what this patch provides, is needed to prevent how expensive 
-simply reading /proc/slabinfo can be.
+Reviewed-by: Tobias Klauser <tklauser@distanz.ch>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
