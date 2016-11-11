@@ -1,111 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 89537280284
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 22:18:32 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c4so3389570pfb.7
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:18:32 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 123si7851863pgj.89.2016.11.10.19.18.31
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6CF280284
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 22:19:17 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id i88so3489834pfk.3
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:19:17 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0048.outbound.protection.outlook.com. [104.47.1.48])
+        by mx.google.com with ESMTPS id v1si7876992pge.21.2016.11.10.19.19.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 19:18:31 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAB3DpGH130020
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 22:18:30 -0500
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 26mxqpgejm-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 22:18:30 -0500
-Received: from localhost
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 11 Nov 2016 08:48:27 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 8CB72E005F
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:48:30 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAB3IOtC44892316
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:48:24 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAB3IKRI015843
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 08:48:23 +0530
-Subject: Re: [PATCH v2 03/12] mm: thp: introduce separate TTU flag for thp
- freezing
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5824307C.7070105@linux.vnet.ibm.com>
- <20161110090904.GA9173@hori1.linux.bs1.fc.nec.co.jp>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 11 Nov 2016 08:48:19 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 19:19:16 -0800 (PST)
+Date: Fri, 11 Nov 2016 11:19:04 +0800
+From: Dennis Chen <dennis.chen@arm.com>
+Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
+Message-ID: <20161111031903.GB15997@arm.com>
+References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
+ <20161102045153.12008-1-takahiro.akashi@linaro.org>
+ <20161110172720.GB17134@arm.com>
+ <20161111025049.GG381@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20161110090904.GA9173@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Message-Id: <5825387B.2060606@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20161111025049.GG381@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: AKASHI Takahiro <takahiro.akashi@linaro.org>, Will Deacon <will.deacon@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On 11/10/2016 02:39 PM, Naoya Horiguchi wrote:
-> On Thu, Nov 10, 2016 at 02:01:56PM +0530, Anshuman Khandual wrote:
->> > On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
->>> > > TTU_MIGRATION is used to convert pte into migration entry until thp split
->>> > > completes. This behavior conflicts with thp migration added later patches,
->> >
->> > Hmm, could you please explain why it conflicts with the PMD based
->> > migration without split ? Why TTU_MIGRATION cannot be used to
->> > freeze/hold on the PMD while it's being migrated ?
-> try_to_unmap() is used both for thp split (via freeze_page()) and page
-> migration (via __unmap_and_move()). In freeze_page(), ttu_flag given for
-> head page is like below (assuming anonymous thp):
+On Fri, Nov 11, 2016 at 11:50:50AM +0900, AKASHI Takahiro wrote:
+> Will,
+> (+ Cc: Dennis)
 > 
->     (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
->      TTU_MIGRATION | TTU_SPLIT_HUGE_PMD)
-
-Right.
-
+> On Thu, Nov 10, 2016 at 05:27:20PM +0000, Will Deacon wrote:
+> > On Wed, Nov 02, 2016 at 01:51:53PM +0900, AKASHI Takahiro wrote:
+> > > Add memblock_cap_memory_range() which will remove all the memblock regions
+> > > except the range specified in the arguments.
+> > > 
+> > > This function, like memblock_mem_limit_remove_map(), will not remove
+> > > memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
+> > > later as "device memory."
+> > > See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
+> > > address the mem limit issue").
+> > > 
+> > > This function is used, in a succeeding patch in the series of arm64 kdump
+> > > suuport, to limit the range of usable memory, System RAM, on crash dump
+> > > kernel.
+> > > (Please note that "mem=" parameter is of little use for this purpose.)
+> > > 
+> > > Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+> > > Cc: linux-mm@kvack.org
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > ---
+> > >  include/linux/memblock.h |  1 +
+> > >  mm/memblock.c            | 28 ++++++++++++++++++++++++++++
+> > >  2 files changed, 29 insertions(+)
+> > > 
+> > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > > index 5b759c9..0e770af 100644
+> > > --- a/include/linux/memblock.h
+> > > +++ b/include/linux/memblock.h
+> > > @@ -334,6 +334,7 @@ phys_addr_t memblock_start_of_DRAM(void);
+> > >  phys_addr_t memblock_end_of_DRAM(void);
+> > >  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+> > >  void memblock_mem_limit_remove_map(phys_addr_t limit);
+> > > +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+> > >  bool memblock_is_memory(phys_addr_t addr);
+> > >  int memblock_is_map_memory(phys_addr_t addr);
+> > >  int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+> > > diff --git a/mm/memblock.c b/mm/memblock.c
+> > > index 7608bc3..eb53876 100644
+> > > --- a/mm/memblock.c
+> > > +++ b/mm/memblock.c
+> > > @@ -1544,6 +1544,34 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+> > >  			      (phys_addr_t)ULLONG_MAX);
+> > >  }
+> > >  
+> > > +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> > > +{
+> > > +	int start_rgn, end_rgn;
+> > > +	int i, ret;
+> > > +
+> > > +	if (!size)
+> > > +		return;
+> > > +
+> > > +	ret = memblock_isolate_range(&memblock.memory, base, size,
+> > > +						&start_rgn, &end_rgn);
+> > > +	if (ret)
+> > > +		return;
+> > > +
+> > > +	/* remove all the MAP regions */
+> > > +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+> > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > > +			memblock_remove_region(&memblock.memory, i);
+> > > +
+> > > +	for (i = start_rgn - 1; i >= 0; i--)
+> > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > > +			memblock_remove_region(&memblock.memory, i);
+> > > +
+> > > +	/* truncate the reserved regions */
+> > > +	memblock_remove_range(&memblock.reserved, 0, base);
+> > > +	memblock_remove_range(&memblock.reserved,
+> > > +			base + size, (phys_addr_t)ULLONG_MAX);
+> > > +}
+> > 
+> > This duplicates a bunch of the logic in memblock_mem_limit_remove_map. Can
+> > you not implement that in terms of your new, more general, function? e.g.
+> > by passing base == 0, and size == limit?
 > 
-> and ttu_flag given for tail pages is:
+> Obviously it's possible.
+> I actually talked to Dennis before about merging them,
+> but he was against my idea.
+>
+Oops! I thought we have reached agreement in the thread:http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/442817.html
+So feel free to do that as Will'll do
 > 
->     (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
->      TTU_MIGRATION)
-
-Right.
-
+> Thanks,
+> -Takahiro AKASHI
 > 
-> __unmap_and_move() calls try_to_unmap() with ttu_flag:
-> 
->     (TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS)
-> 
-> Now I'm trying to insert a branch for thp migration at the top of
-> try_to_unmap_one() like below
-> 
-> 
->   static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->                        unsigned long address, void *arg)
->   {
->           ...
->           if (flags & TTU_MIGRATION) {
->                   if (!PageHuge(page) && PageTransCompound(page)) {
->                           set_pmd_migration_entry(page, vma, address);
->                           goto out;
->                   }
->           }
-> 
-> , so try_to_unmap() for tail pages called by thp split can go into thp
-> migration code path (which converts *pmd* into migration entry), while
-> the expectation is to freeze thp (which converts *pte* into migration entry.)
-
-Got it.
-
-> 
-> I detected this failure as a "bad page state" error in a testcase where
-> split_huge_page() is called from queue_pages_pte_range().
-> 
-> Anyway, I'll add this explanation into the patch description in the next post.
-
-Sure, thanks for the explanation.
+> > Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
