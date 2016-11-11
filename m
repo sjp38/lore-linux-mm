@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE11280284
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:17:27 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id kr7so3669280pab.5
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:17:27 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id e19si7414892pgk.268.2016.11.10.17.17.27
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 347776B0274
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:26:51 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id m76so4113670ybm.5
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:26:51 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0092.outbound.protection.outlook.com. [104.47.34.92])
+        by mx.google.com with ESMTPS id 107si1079951oti.250.2016.11.10.17.26.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 17:17:27 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id y68so337099pfb.1
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:17:27 -0800 (PST)
-Subject: Re: [PATCH v6 4/4] of/fdt: mark hotpluggable memory
-References: <1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <2627373d-b90c-10f6-90b6-2ee74029b74f@gmail.com>
-Date: Fri, 11 Nov 2016 12:17:18 +1100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 17:26:50 -0800 (PST)
+From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Subject: Re: [RFC PATCH v3 02/20] x86: Set the write-protect cache mode for
+ full PAT support
+Date: Fri, 11 Nov 2016 01:26:48 +0000
+Message-ID: <1478827480.20881.142.camel@hpe.com>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+	 <20161110003448.3280.27573.stgit@tlendack-t1.amdoffice.net>
+	 <20161110131400.bmeoojsrin2zi2w2@pd.tnic>
+In-Reply-To: <20161110131400.bmeoojsrin2zi2w2@pd.tnic>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <5A008A45AA7B1344A2346C26C53E4AD3@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "bp@alien8.de" <bp@alien8.de>
+Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dvyukov@google.com" <dvyukov@google.com>, "corbet@lwn.net" <corbet@lwn.net>, "arnd@arndb.de" <arnd@arndb.de>, "matt@codeblueprint.co.uk" <matt@codeblueprint.co.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "mingo@redhat.com" <mingo@redhat.com>, "joro@8bytes.org" <joro@8bytes.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "luto@kernel.org" <luto@kernel.org>, "glider@google.com" <glider@google.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "rkrcmar@redhat.com" <rkrcmar@redhat.com>
 
-
-
-On 08/11/16 10:44, Reza Arbab wrote:
-> When movable nodes are enabled, any node containing only hotpluggable
-> memory is made movable at boot time.
-> 
-> On x86, hotpluggable memory is discovered by parsing the ACPI SRAT,
-> making corresponding calls to memblock_mark_hotplug().
-> 
-> If we introduce a dt property to describe memory as hotpluggable,
-> configs supporting early fdt may then also do this marking and use
-> movable nodes.
-> 
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
-
-Tested-by: Balbir Singh <bsingharora@gmail.com>
-
-I tested this with a custom device tree and it worked quite well for me.
-It also means that the guest and bare-metal have two different mechanisms
-of marking something as hotpluggable. But given that your patch enables
-all architectures using OF, it might be worth it.
-
-Balbir Singh.
+T24gVGh1LCAyMDE2LTExLTEwIGF0IDE0OjE0ICswMTAwLCBCb3Jpc2xhdiBQZXRrb3Ygd3JvdGU6
+DQo+ICsgVG9zaGkuDQo+IA0KPiBPbiBXZWQsIE5vdiAwOSwgMjAxNiBhdCAwNjozNDo0OFBNIC0w
+NjAwLCBUb20gTGVuZGFja3kgd3JvdGU6DQo+ID4gDQo+ID4gRm9yIHByb2Nlc3NvcnMgdGhhdCBz
+dXBwb3J0IFBBVCwgc2V0IHRoZSB3cml0ZS1wcm90ZWN0IGNhY2hlIG1vZGUNCj4gPiAoX1BBR0Vf
+Q0FDSEVfTU9ERV9XUCkgZW50cnkgdG8gdGhlIGFjdHVhbCB3cml0ZS1wcm90ZWN0IHZhbHVlDQo+
+ID4gKHgwNSkuDQoNClVzaW5nIHNsb3QgNiBtYXkgYmUgbW9yZSBjYXV0aW91cyAoZm9yIHRoZSBz
+YW1lIHJlYXNvbiBzbG90IDcgd2FzIHVzZWQNCmZvciBXVCksIGJ1dCBJIGRvIG5vdCBoYXZlIGEg
+c3Ryb25nIG9waW5pb24gZm9yIGl0Lg0KDQpzZXRfcGFnZV9tZW10eXBlKCkgY2Fubm90IHRyYWNr
+IHRoZSB1c2Ugb2YgV1AgdHlwZSBzaW5jZSB0aGVyZSBpcyBubw0KZXh0cmEtYml0IGF2YWlsYWJs
+ZSBmb3IgV1AsIGJ1dCBXUCBpcyBvbmx5IHN1cHBvcnRlZCBieQ0KZWFybHlfbWVtcmVtYXBfeHgo
+KSBpbnRlcmZhY2VzIGluIHRoaXMgc2VyaWVzLiDCoFNvLCBJIHRoaW5rIHdlIHNob3VsZA0KanVz
+dCBkb2N1bWVudCB0aGF0IFdQIGlzIG9ubHkgaW50ZW5kZWQgZm9yIHRlbXBvcmFyeSBtYXBwaW5n
+cyBhdCBib290LQ0KdGltZSB1bnRpbCB0aGlzIGlzc3VlIGlzIHJlc29sdmVkLiDCoEFsc28sIHdl
+IG5lZWQgdG8gbWFrZSBzdXJlIHRoYXQNCnRoaXMgZWFybHlfbWVtcmVtYXAgZm9yIFdQIGlzIG9u
+bHkgY2FsbGVkIGFmdGVyIHBhdF9pbml0KCkgaXMgZG9uZS4NCg0KQSBuaXQgLSBwbGVhc2UgYWRk
+IFdQIHRvIHRoZSBmdW5jdGlvbiBoZWFkZXIgY29tbWVudCBiZWxvdy4NCiJUaGlzIGZ1bmN0aW9u
+IGluaXRpYWxpemVzIFBBVCBNU1IgYW5kIFBBVCB0YWJsZSB3aXRoIGFuIE9TLWRlZmluZWQNCnZh
+bHVlIHRvIGVuYWJsZSBhZGRpdGlvbmFsIGNhY2hlIGF0dHJpYnV0ZXMsIFdDIGFuZCBXVC4iDQoN
+ClRoYW5rcywNCi1Ub3NoaQ==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
