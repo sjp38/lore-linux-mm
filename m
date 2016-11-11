@@ -1,67 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD6A280286
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:39:09 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c4so1992161pfb.7
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:39:09 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p185si7553879pfb.132.2016.11.10.17.39.08
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A8F14280283
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 21:42:24 -0500 (EST)
+Received: by mail-pa0-f71.google.com with SMTP id hc3so5999721pac.4
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 18:42:24 -0800 (PST)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id o79si7772633pfa.97.2016.11.10.18.42.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 17:39:08 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAB1d73C091688
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:39:07 -0500
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 26mwra855f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:39:07 -0500
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 10 Nov 2016 18:39:01 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/4] hugetlb: Change the function prototype to take vma_area_struct as arg
-In-Reply-To: <1478806599.7430.139.camel@kernel.crashing.org>
-References: <20161110092918.21139-1-aneesh.kumar@linux.vnet.ibm.com> <20161110092918.21139-3-aneesh.kumar@linux.vnet.ibm.com> <1478806599.7430.139.camel@kernel.crashing.org>
-Date: Fri, 11 Nov 2016 07:08:50 +0530
+        Thu, 10 Nov 2016 18:42:23 -0800 (PST)
+Received: by mail-pf0-x236.google.com with SMTP id d2so3134680pfd.0
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 18:42:23 -0800 (PST)
+Date: Fri, 11 Nov 2016 11:50:50 +0900
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
+Message-ID: <20161111025049.GG381@linaro.org>
+References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
+ <20161102045153.12008-1-takahiro.akashi@linaro.org>
+ <20161110172720.GB17134@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <8760nu23th.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161110172720.GB17134@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, paulus@samba.org, mpe@ellerman.id.au, akpm@linux-foundation.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, dennis.chen@arm.com
 
-Benjamin Herrenschmidt <benh@kernel.crashing.org> writes:
+Will,
+(+ Cc: Dennis)
 
-> On Thu, 2016-11-10 at 14:59 +0530, Aneesh Kumar K.V wrote:
->> This help us to find the hugetlb page size which we need ot use on some
->> archs like ppc64 for tlbflush. This also make the interface consistent
->> with other hugetlb functions
->
-> What about my requested simpler approach ?
+On Thu, Nov 10, 2016 at 05:27:20PM +0000, Will Deacon wrote:
+> On Wed, Nov 02, 2016 at 01:51:53PM +0900, AKASHI Takahiro wrote:
+> > Add memblock_cap_memory_range() which will remove all the memblock regions
+> > except the range specified in the arguments.
+> > 
+> > This function, like memblock_mem_limit_remove_map(), will not remove
+> > memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
+> > later as "device memory."
+> > See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
+> > address the mem limit issue").
+> > 
+> > This function is used, in a succeeding patch in the series of arm64 kdump
+> > suuport, to limit the range of usable memory, System RAM, on crash dump
+> > kernel.
+> > (Please note that "mem=" parameter is of little use for this purpose.)
+> > 
+> > Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+> > Cc: linux-mm@kvack.org
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> >  include/linux/memblock.h |  1 +
+> >  mm/memblock.c            | 28 ++++++++++++++++++++++++++++
+> >  2 files changed, 29 insertions(+)
+> > 
+> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > index 5b759c9..0e770af 100644
+> > --- a/include/linux/memblock.h
+> > +++ b/include/linux/memblock.h
+> > @@ -334,6 +334,7 @@ phys_addr_t memblock_start_of_DRAM(void);
+> >  phys_addr_t memblock_end_of_DRAM(void);
+> >  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+> >  void memblock_mem_limit_remove_map(phys_addr_t limit);
+> > +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+> >  bool memblock_is_memory(phys_addr_t addr);
+> >  int memblock_is_map_memory(phys_addr_t addr);
+> >  int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 7608bc3..eb53876 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -1544,6 +1544,34 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+> >  			      (phys_addr_t)ULLONG_MAX);
+> >  }
+> >  
+> > +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> > +{
+> > +	int start_rgn, end_rgn;
+> > +	int i, ret;
+> > +
+> > +	if (!size)
+> > +		return;
+> > +
+> > +	ret = memblock_isolate_range(&memblock.memory, base, size,
+> > +						&start_rgn, &end_rgn);
+> > +	if (ret)
+> > +		return;
+> > +
+> > +	/* remove all the MAP regions */
+> > +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+> > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > +			memblock_remove_region(&memblock.memory, i);
+> > +
+> > +	for (i = start_rgn - 1; i >= 0; i--)
+> > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > +			memblock_remove_region(&memblock.memory, i);
+> > +
+> > +	/* truncate the reserved regions */
+> > +	memblock_remove_range(&memblock.reserved, 0, base);
+> > +	memblock_remove_range(&memblock.reserved,
+> > +			base + size, (phys_addr_t)ULLONG_MAX);
+> > +}
+> 
+> This duplicates a bunch of the logic in memblock_mem_limit_remove_map. Can
+> you not implement that in terms of your new, more general, function? e.g.
+> by passing base == 0, and size == limit?
 
-Still working on the changes.
+Obviously it's possible.
+I actually talked to Dennis before about merging them,
+but he was against my idea.
 
->
-> For normal (non-huge) pages, we already know the size.
->
-> For huge pages, can't we encode in the top SW bits of the PTE the
-> page size that we obtain from set_pte_at ?
->
-> That would be a lot less churn and avoid touching all these archs...
-> especially since the current DD1 workaround is horrible and I want
-> the fix to be backported, so something simpler and contained in
-> arch/powerpc feels more suitable.
->
+Thanks,
+-Takahiro AKASHI
 
-My take as of now is even though the modification lines will be less, it
-is going to be much more difficult to follow and backport. I will try to
-do a patch to show the complexity and we can decide which approach is
-simpler.
-
--aneesh
+> Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
