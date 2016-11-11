@@ -1,148 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B70B28027E
-	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 19:58:16 -0500 (EST)
-Received: by mail-pa0-f72.google.com with SMTP id bi5so3431045pad.0
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 16:58:16 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id c16si7430566pfc.102.2016.11.10.16.58.15
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7736B026F
+	for <linux-mm@kvack.org>; Thu, 10 Nov 2016 20:09:47 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id q124so77199598itd.2
+        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 17:09:47 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id i15si6226170pag.284.2016.11.10.17.09.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Nov 2016 16:58:15 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id 144so291957pfv.0
-        for <linux-mm@kvack.org>; Thu, 10 Nov 2016 16:58:15 -0800 (PST)
-Date: Fri, 11 Nov 2016 11:58:01 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 1/2] mm: Use owner_priv bit for PageSwapCache, valid
- when PageSwapBacked
-Message-ID: <20161111115801.04f4f3c3@roar.ozlabs.ibm.com>
-In-Reply-To: <alpine.LSU.2.11.1611031806520.4958@eggly.anvils>
-References: <20161102070346.12489-1-npiggin@gmail.com>
-	<20161102070346.12489-2-npiggin@gmail.com>
-	<alpine.LSU.2.11.1611031806520.4958@eggly.anvils>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Nov 2016 17:09:46 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 01/12] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7
+ to bit 6
+Date: Fri, 11 Nov 2016 01:08:36 +0000
+Message-ID: <20161111010834.GA28679@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <534caa72-c109-9716-15d2-5e80f4038f8d@intel.com>
+In-Reply-To: <534caa72-c109-9716-15d2-5e80f4038f8d@intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <4519D00B843E514D95B1F7709ACA6AA8@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 3 Nov 2016 19:20:23 -0700 (PDT)
-Hugh Dickins <hughd@google.com> wrote:
-
-> On Wed, 2 Nov 2016, Nicholas Piggin wrote:
-> 
-> > Can we do this? Seems too easy, I must be missing something.
-> 
-> I have not tried running with it, which might show up a few more
-> adjustments, but no showstoppers: I think you can well do this.
-
-Hi Hugh,
-
-Great, thanks for taking a look.
-
-> I'll be sorry to see "owner_priv_1" in my pageflags output,
-> but oh well.
-
-We might be able to complicate that with some logic to
-derive the fact it's swap cache.
-
-> The only thing I think you miss is PAGE_FLAGS_CHECK_AT_FREE:
-> that includes PG_swapcache, but not PG_owner_priv_1 or its
-> synonyms PG_checked, PG_pinned, PG_foreign (I wish we didn't
-> do those PG_synonyms!) - so, we've been making sure that a page
-> is never freed with the swapcache bit set, but nobody has cared
-> about the others, so you might hit somewhere they're not cleared
-> before freeing a page.
-> 
-> Easily remedied by removing PG_swapcache from the list,
-> I don't remember that PG_swapcache check ever being important.
-
-Okay I'll have to take a look at that. I think the kernel test
-robot might have thrown up a bad page flag for this, but I
-haven't got around to looking at it yet. I'll get to it next
-week.
-
-> 
-> shmem_replace_page() looks wrong to me currently (where do
-> PageLocked and PageSwapBacked get set?), but that's just
-> something noticed in considering your patch (it's reassuring
-> if SwapBacked is always set before SwapCache), not a problem
-> with your patch.
-> 
-> When mucking with pageflags, two easily overlooked places worth
-> checking are mm/huge_memory.c __split_huge_page_tail() (no
-> problem there) and mm/migrate.c migrate_page_move_mapping()
-> and migrate_page_copy() (look okay, though some repetition).
-
-Okay, I'll go over the patch again with your comments in mind.
-
-
-> > ---
-> >  include/linux/page-flags.h     | 12 ++++++++++--
-> >  include/trace/events/mmflags.h |  1 -
-> >  2 files changed, 10 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> > index 74e4dda..58d30b8 100644
-> > --- a/include/linux/page-flags.h
-> > +++ b/include/linux/page-flags.h
-> > @@ -87,7 +87,6 @@ enum pageflags {
-> >  	PG_private_2,		/* If pagecache, has fs aux data */
-> >  	PG_writeback,		/* Page is under writeback */
-> >  	PG_head,		/* A head page */
-> > -	PG_swapcache,		/* Swap page: swp_entry_t in private */
-> >  	PG_mappedtodisk,	/* Has blocks allocated on-disk */
-> 
-> Did you consider using PG_mappedtodisk instead of PG_owner_priv_1?
-> I think it's an even better candidate, actually having a relevant
-> name, and also only used on file pages before now, I believe.
-> 
-> But you may have found a good reason not to use it, or at least
-> enough doubt to avoid it (tmpfs does not call cleancache_init_fs():
-> I believe that's enough to make __delete_from_page_cache() safe).
-
-Well... PG_mappedtodisk is *almost* another PG_owner_priv_. We probably
-can't get rid of it because some users use PG_checked as well. So the
-similarity of semantics is certainly there, but I wouldn't really like
-to see them start sharing codepaths which would turn it from a private
-flag into an mm-wide flag.
-
-> 
-> >  	PG_reclaim,		/* To be reclaimed asap */
-> >  	PG_swapbacked,		/* Page is backed by RAM/swap */
-> > @@ -110,6 +109,9 @@ enum pageflags {
-> >  	/* Filesystems */
-> >  	PG_checked = PG_owner_priv_1,
-> >  
-> > +	/* SwapBacked */
-> > +	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
-> > +
-> >  	/* Two page bits are conscripted by FS-Cache to maintain local caching
-> >  	 * state.  These bits are set on pages belonging to the netfs's inodes
-> >  	 * when those inodes are being locally cached.
-> > @@ -314,7 +316,13 @@ PAGEFLAG_FALSE(HighMem)
+On Thu, Nov 10, 2016 at 03:29:51PM -0800, Dave Hansen wrote:
+> On 11/07/2016 03:31 PM, Naoya Horiguchi wrote:
+> > pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid false =
+negative
+> > return when it races with thp spilt (during which _PAGE_PRESENT is temp=
+orary
+> > cleared.) I don't think that dropping _PAGE_PSE check in pmd_present() =
+works
+> > well because it can hurt optimization of tlb handling in thp split.
+> > In the current kernel, bit 6 is not used in non-present format because =
+nonlinear
+> > file mapping is obsolete, so let's move _PAGE_SWP_SOFT_DIRTY to that bi=
+t.
+> > Bit 7 is used as reserved (always clear), so please don't use it for ot=
+her
+> > purpose.
+> ...
+> >  #ifdef CONFIG_MEM_SOFT_DIRTY
+> > -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
+> > +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_DIRTY
+> >  #else
+> >  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
 > >  #endif
-> >  
-> >  #ifdef CONFIG_SWAP
-> > -PAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-> > +static __always_inline int PageSwapCache(struct page *page)
-> > +{
-> > +	return PageSwapBacked(page) && test_bit(PG_swapcache, &page->flags);
-> > +
-> > +}
-> > +SETPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-> > +CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-> 
-> The people interested in swapping THPs might want to be warned of that,
-> let's Cc them in case.
-> 
-> Don't expect any comment from me on the meatier 2/2 patch to
-> unlock_page(): I'll leave that to you and Linus and Peter.
+>=20
+> I'm not sure this works.  Take a look at commit 00839ee3b29 and the
+> erratum it works around.  I _think_ this means that a system affected by
+> the erratum might see an erroneous _PAGE_SWP_SOFT_DIRTY/_PAGE_DIRTY get
+> set in swap ptes.
+>=20
+> There are much worse things that can happen, but I don't think bits 5
+> (Accessed) and 6 (Dirty) are good choices since they're affected by the
+> erratum.
+
+Thank you for the information. According to 00839ee3b29, some bits which
+are safe from the errata are reclaimed, so assigning one of such bits for
+_PAGE_SWP_SOFT_DIRTY seems to work. And I'll update the description.
 
 Thanks,
-Nick
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
