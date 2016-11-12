@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C054D28029E
-	for <linux-mm@kvack.org>; Fri, 11 Nov 2016 23:24:43 -0500 (EST)
-Received: by mail-pa0-f70.google.com with SMTP id hr10so38800214pac.2
-        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 20:24:43 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id k6si13538804pgc.183.2016.11.11.20.24.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Nov 2016 20:24:42 -0800 (PST)
-Subject: [PATCH] mm: disable numa migration faults for dax vmas
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 11 Nov 2016 20:21:41 -0800
-Message-ID: <147892450132.22062.16875659431109209179.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 587A82802A1
+	for <linux-mm@kvack.org>; Sat, 12 Nov 2016 00:43:17 -0500 (EST)
+Received: by mail-pa0-f72.google.com with SMTP id kr7so39552267pab.5
+        for <linux-mm@kvack.org>; Fri, 11 Nov 2016 21:43:17 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j19si13845779pgk.185.2016.11.11.21.43.16
+        for <linux-mm@kvack.org>;
+        Fri, 11 Nov 2016 21:43:16 -0800 (PST)
+Date: Sat, 12 Nov 2016 05:43:19 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH RFC] mm: Add debug_virt_to_phys()
+Message-ID: <20161112054318.GB24127@arm.com>
+References: <20161112004449.30566-1-f.fainelli@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161112004449.30566-1-f.fainelli@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Nicolas Pitre <nicolas.pitre@linaro.org>, Chris Brandt <chris.brandt@renesas.com>, Pratyush Anand <panand@redhat.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Neeraj Upadhyay <neeraju@codeaurora.org>, Laura Abbott <labbott@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Marchand <jmarchan@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>, "open list:GENERIC INCLUDE/ASM HEADER FILES" <linux-arch@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Mark dax vmas as not migratable to exclude them from task_numa_work().
-This is especially relevant for device-dax which wants to ensure
-predictable access latency and not incur periodic faults.
+On Fri, Nov 11, 2016 at 04:44:43PM -0800, Florian Fainelli wrote:
+> When CONFIG_DEBUG_VM is turned on, virt_to_phys() maps to
+> debug_virt_to_phys() which helps catch vmalloc space addresses being
+> passed. This is helpful in debugging bogus drivers that just assume
+> linear mappings all over the place.
+> 
+> For ARM, ARM64, Unicore32 and Microblaze, the architectures define
+> __virt_to_phys() as being the functional implementation of the address
+> translation, so we special case the debug stub to call into
+> __virt_to_phys directly.
+> 
+> Signed-off-by: Florian Fainelli <f.fainelli@gmail.com>
+> ---
+>  arch/arm/include/asm/memory.h      |  4 ++++
+>  arch/arm64/include/asm/memory.h    |  4 ++++
+>  include/asm-generic/memory_model.h |  4 ++++
+>  mm/debug.c                         | 15 +++++++++++++++
+>  4 files changed, 27 insertions(+)
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Reported-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/mempolicy.h |    4 ++++
- 1 file changed, 4 insertions(+)
+What's the interaction between this and the DEBUG_VIRTUAL patches from Laura?
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 5e5b2969d931..d72c691afaa6 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -7,6 +7,7 @@
- 
- 
- #include <linux/mmzone.h>
-+#include <linux/dax.h>
- #include <linux/slab.h>
- #include <linux/rbtree.h>
- #include <linux/spinlock.h>
-@@ -177,6 +178,9 @@ static inline bool vma_migratable(struct vm_area_struct *vma)
- 	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
- 		return false;
- 
-+	if (vma_is_dax(vma))
-+		return false;
-+
- #ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	if (vma->vm_flags & VM_HUGETLB)
- 		return false;
+http://lkml.kernel.org/r/20161102210054.16621-7-labbott@redhat.com
+
+They seem to be tackling the exact same problem afaict.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
