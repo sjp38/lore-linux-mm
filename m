@@ -1,190 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E172A6B0038
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 02:57:27 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a20so22857837wme.5
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:57:27 -0800 (PST)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id ju1si22554255wjc.128.2016.11.13.23.57.26
+	by kanga.kvack.org (Postfix) with ESMTP id 43CC36B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 03:07:48 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id w13so23070927wmw.0
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 00:07:48 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o9si703649wmo.54.2016.11.14.00.07.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Nov 2016 23:57:26 -0800 (PST)
-Received: by mail-wm0-x243.google.com with SMTP id a20so12954617wme.2
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:57:26 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 14 Nov 2016 00:07:46 -0800 (PST)
+Date: Mon, 14 Nov 2016 09:07:44 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem
+ collapse error path
+Message-ID: <20161114080744.GA2524@quack2.suse.cz>
+References: <20161107190741.3619-1-hannes@cmpxchg.org>
+ <20161107190741.3619-2-hannes@cmpxchg.org>
+ <20161108095352.GH32353@quack2.suse.cz>
+ <20161108161245.GA4020@cmpxchg.org>
+ <20161111105921.GC19382@node.shutemov.name>
+ <20161111122224.GA5090@quack2.suse.cz>
+ <20161111163753.GH19382@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com>
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
- <1478271776-1194-2-git-send-email-akash.goel@intel.com> <alpine.LSU.2.11.1611092137360.6221@eggly.anvils>
- <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com>
-From: akash goel <akash.goels@gmail.com>
-Date: Mon, 14 Nov 2016 13:27:25 +0530
-Message-ID: <CAK_0AV0+1oizfRMfoJ45FWCRi_4X93W-ZtseY-s-R_wavE3fZQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] drm/i915: Make GPU pages movable
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161111163753.GH19382@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, akash goel <akash.goels@gmail.com>, Sourab Gupta <sourab.gupta@intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu, Nov 10, 2016 at 1:00 PM, Goel, Akash <akash.goel@intel.com> wrote:
->
->
-> On 11/10/2016 12:09 PM, Hugh Dickins wrote:
->>
->> On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
->>>
->>> From: Chris Wilson <chris@chris-wilson.co.uk>
->>>
->>> On a long run of more than 2-3 days, physical memory tends to get
->>> fragmented severely, which considerably slows down the system. In such a
->>> scenario, the shrinker is also unable to help as lack of memory is not
->>> the actual problem, since it has been observed that there are enough free
->>> pages of 0 order. This also manifests itself when an indiviual zone in
->>> the mm runs out of pages and if we cannot migrate pages between zones,
->>> the kernel hits an out-of-memory even though there are free pages (and
->>> often all of swap) available.
->>>
->>> To address the issue of external fragementation, kernel does a compaction
->>> (which involves migration of pages) but it's efficacy depends upon how
->>> many pages are marked as MOVABLE, as only those pages can be migrated.
->>>
->>> Currently the backing pages for GPU buffers are allocated from shmemfs
->>> with GFP_RECLAIMABLE flag, in units of 4KB pages.  In the case of limited
->>> swap space, it may not be possible always to reclaim or swap-out pages of
->>> all the inactive objects, to make way for free space allowing formation
->>> of higher order groups of physically-contiguous pages on compaction.
->>>
->>> Just marking the GPU pages as MOVABLE will not suffice, as i915.ko has to
->>> pin the pages if they are in use by GPU, which will prevent their
->>> migration. So the migratepage callback in shmem is also hooked up to get
->>> a notification when kernel initiates the page migration. On the
->>> notification, i915.ko appropriately unpin the pages.  With this we can
->>> effectively mark the GPU pages as MOVABLE and hence mitigate the
->>> fragmentation problem.
->>>
->>> v2:
->>>  - Rename the migration routine to gem_shrink_migratepage, move it to the
->>>    shrinker file, and use the existing constructs (Chris)
->>>  - To cleanup, add a new helper function to encapsulate all page
->>> migration
->>>    skip conditions (Chris)
->>>  - Add a new local helper function in shrinker file, for dropping the
->>>    backing pages, and call the same from gem_shrink() also (Chris)
->>>
->>> v3:
->>>  - Fix/invert the check on the return value of unsafe_drop_pages (Chris)
->>>
->>> v4:
->>>  - Minor tidy
->>>
->>> v5:
->>>  - Fix unsafe usage of unsafe_drop_pages()
->>>  - Rebase onto vmap-notifier
->>>
->>> v6:
->>> - Remove i915_gem_object_get/put across unsafe_drop_pages() as with
->>>   struct_mutex protection object can't disappear. (Chris)
->>>
->>> Testcase: igt/gem_shrink
->>> Bugzilla: (e.g.) https://bugs.freedesktop.org/show_bug.cgi?id=90254
->>> Cc: Hugh Dickins <hughd@google.com>
->>> Cc: linux-mm@kvack.org
->>> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
->>> Signed-off-by: Akash Goel <akash.goel@intel.com>
->>> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
->>> Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
->>> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
->>
->>
->> I'm confused!  But perhaps it's gone around and around between you all,
->> I'm not sure what the rules are then.  I think this sequence implies
->> that Sourab wrote it originally, then Akash and Chris passed it on
->> with refinements - but then Chris wouldn't add Reviewed-by.
->>
-> Thank you very much for the review and sorry for all the needless confusion.
->
-> Chris actually conceived the patches and prepared an initial version of them
-> (hence he is the Author).
-> I & Sourab did the further refinements and fixed issues (all those
-> page_private stuff).
-> Chris then reviewed the final patch and also recently did a rebase for it.
->
->
->>> ---
->>>  drivers/gpu/drm/i915/i915_drv.h          |   2 +
->>>  drivers/gpu/drm/i915/i915_gem.c          |   9 ++-
->>>  drivers/gpu/drm/i915/i915_gem_shrinker.c | 132
->>> +++++++++++++++++++++++++++++++
->>>  3 files changed, 142 insertions(+), 1 deletion(-)
->>>
-snip
->>
->>> @@ -4185,6 +4189,8 @@ struct drm_i915_gem_object *
->>>                 goto fail;
->>>
->>>         mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
->>> +       if (IS_ENABLED(MIGRATION))
->>> +               mask |= __GFP_MOVABLE;
->>
->>
->> I was going to suggest just make that unconditional,
->>         mask = GFP_HIGHUSER_MOVABLE | __GFP_RECLAIMABLE;
->>
->> But then I wondered what that __GFP_RECLAIMABLE actually achieves?
->> These pages are already __GFP_RECLAIM (inside GFP_HIGHUSER) and on
->> the LRU.  It affects gfpflags_to_migratetype(), but I'm not familiar
->> with what that different migratetype will end up doing.
->>
->
-> Will check for this.
->
+On Fri 11-11-16 19:37:53, Kirill A. Shutemov wrote:
+> On Fri, Nov 11, 2016 at 01:22:24PM +0100, Jan Kara wrote:
+> > On Fri 11-11-16 13:59:21, Kirill A. Shutemov wrote:
+> > > On Tue, Nov 08, 2016 at 11:12:45AM -0500, Johannes Weiner wrote:
+> > > > On Tue, Nov 08, 2016 at 10:53:52AM +0100, Jan Kara wrote:
+> > > > > On Mon 07-11-16 14:07:36, Johannes Weiner wrote:
+> > > > > > The radix tree counts valid entries in each tree node. Entries stored
+> > > > > > in the tree cannot be removed by simpling storing NULL in the slot or
+> > > > > > the internal counters will be off and the node never gets freed again.
+> > > > > > 
+> > > > > > When collapsing a shmem page fails, restore the holes that were filled
+> > > > > > with radix_tree_insert() with a proper radix tree deletion.
+> > > > > > 
+> > > > > > Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
+> > > > > > Reported-by: Jan Kara <jack@suse.cz>
+> > > > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > > > > ---
+> > > > > >  mm/khugepaged.c | 3 ++-
+> > > > > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > > > > > 
+> > > > > > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > > > > > index 728d7790dc2d..eac6f0580e26 100644
+> > > > > > --- a/mm/khugepaged.c
+> > > > > > +++ b/mm/khugepaged.c
+> > > > > > @@ -1520,7 +1520,8 @@ static void collapse_shmem(struct mm_struct *mm,
+> > > > > >  				if (!nr_none)
+> > > > > >  					break;
+> > > > > >  				/* Put holes back where they were */
+> > > > > > -				radix_tree_replace_slot(slot, NULL);
+> > > > > > +				radix_tree_delete(&mapping->page_tree,
+> > > > > > +						  iter.index);
+> > > > > 
+> > > > > Hum, but this is inside radix_tree_for_each_slot() iteration. And
+> > > > > radix_tree_delete() may end up freeing nodes resulting in invalidating
+> > > > > current slot pointer and the iteration code will do use-after-free.
+> > > > 
+> > > > Good point, we need to do another tree lookup after the deletion.
+> > > > 
+> > > > But there are other instances in the code, where we drop the lock
+> > > > temporarily and somebody else could delete the node from under us.
+> > > > 
+> > > > In the main collapse path, I *think* this is prevented by the fact
+> > > > that when we drop the tree lock we still hold the page lock of the
+> > > > regular page that's in the tree while we isolate and unmap it, thus
+> > > > pin the node. Even so, it would seem a little hairy to rely on that.
+> > > > 
+> > > > Kirill?
+> > > 
+> > > [ sorry for delay ]
+> > > 
+> > > Yes, we make sure that locked page still belong to the radix tree and fall
+> > > off if it's not. Locked page cannot be removed from radix-tree, so we
+> > > should be fine.
+> > 
+> > Well, it cannot be removed from the radix tree but radix tree code is still
+> > free to collapse / expand the tree nodes as it sees fit (currently the only
+> > real case is when changing direct page pointer in the tree root to a node
+> > pointer or vice versa but still...). So code should not really assume that
+> > the node page is referenced from does not change once tree_lock is dropped.
+> > It leads to subtle bugs...
+> 
+> Hm. Okay.
+> 
+> What is the right way re-validate that slot is still valid? Do I need full
+> look up again? Can I pin node explicitly?
 
-The anti-fragmentation technique used by kernel is based on the idea
-of grouping pages with identical mobility (UNMOVABLE, RECLAIMABLE,
-MOVABLE) together.
-__GFP_RECLAIMABLE, like  __GFP_MOVABLE, specifies the
-mobility/migration type of the page and serves a different purpose
-than __GFP_RECLAIM.
+Full lookup is the only way to re-validate the slot. There is no way to pin
+a radix tree node.
 
-Also as per the below snippet from gfpflags_to_migratetype(), looks
-like __GFP_MOVABLE &  __GFP_RECLAIMABLE can't be used together, which
-makes sense.
-/* Convert GFP flags to their corresponding migrate type */
-#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
-static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-{
-        VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-.....
-
-So probably would need to update the mask like this,
-       mask = GFP_HIGHUSER;
-       if (IS_ENABLED(MIGRATION))
-             mask |= __GFP_MOVABLE;
-       else
-             mask |=  __GFP_RECLAIMABLE;
-
-Please kindly let us know if this looks fine to you or not.
-
-Best regards
-Akash
-
->
->>>         if (IS_CRESTLINE(dev_priv) || IS_BROADWATER(dev_priv)) {
->>>                 /* 965gm cannot relocate objects above 4GiB. */
->>>                 mask &= ~__GFP_HIGHMEM;
->>> @@ -4193,6 +4199,7 @@ struct drm_i915_gem_object *
->>>
->>>         mapping = obj->base.filp->f_mapping;
->>>         mapping_set_gfp_mask(mapping, mask);
->>> +       shmem_set_dev_info(mapping, &dev_priv->mm.shmem_info);
->>>
->>>         i915_gem_object_init(obj, &i915_gem_object_ops);
->>>
->>>  }
->>>
->>>  /**
->>> --
->>> 1.9.2
+									Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
