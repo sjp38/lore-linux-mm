@@ -1,84 +1,425 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FEC16B0038
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 06:12:58 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 83so42440304pfx.1
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 03:12:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j19si21795974pgk.185.2016.11.14.03.12.57
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A18AF6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 06:45:07 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id y16so26026510wmd.6
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 03:45:07 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id l74si4678488wmg.40.2016.11.14.03.45.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Nov 2016 03:12:57 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAEB8xN6034133
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 06:12:56 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26q70c66jh-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 06:12:56 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Mon, 14 Nov 2016 11:12:55 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id ED8632190023
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 11:12:05 +0000 (GMT)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAEBCq2Z39649446
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 11:12:52 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAEBCqam017097
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 04:12:52 -0700
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH] mm/pkeys: generate pkey system call code only if ARCH_HAS_PKEYS is selected
-Date: Mon, 14 Nov 2016 12:12:51 +0100
-Message-Id: <20161114111251.70084-1-heiko.carstens@de.ibm.com>
+        Mon, 14 Nov 2016 03:45:06 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id g23so14592890wme.1
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 03:45:05 -0800 (PST)
+Date: Mon, 14 Nov 2016 14:45:03 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2 05/12] mm: thp: add core routines for thp/pmd migration
+Message-ID: <20161114114503.GA9231@node.shutemov.name>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1478561517-4317-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, Mark Rutland <mark.rutland@arm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Having code for the pkey_mprotect, pkey_alloc and pkey_free system
-calls makes only sense if ARCH_HAS_PKEYS is selected. If not selected
-these system calls will always return -ENOSPC or -EINVAL.
+On Tue, Nov 08, 2016 at 08:31:50AM +0900, Naoya Horiguchi wrote:
+> This patch prepares thp migration's core code. These code will be open when
+> unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
+> to allocate destination thps.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> ChangeLog v1 -> v2:
+> - support pte-mapped thp, doubly-mapped thp
+> ---
+>  arch/x86/include/asm/pgtable_64.h |   2 +
+>  include/linux/swapops.h           |  61 +++++++++++++++
+>  mm/huge_memory.c                  | 154 ++++++++++++++++++++++++++++++++++++++
+>  mm/migrate.c                      |  44 ++++++++++-
+>  mm/pgtable-generic.c              |   3 +-
+>  5 files changed, 262 insertions(+), 2 deletions(-)
+> 
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/include/asm/pgtable_64.h v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/include/asm/pgtable_64.h
+> index 1cc82ec..3a1b48e 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/include/asm/pgtable_64.h
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/include/asm/pgtable_64.h
+> @@ -167,7 +167,9 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+>  					 ((type) << (SWP_TYPE_FIRST_BIT)) \
+>  					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
+>  #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+> +#define __pmd_to_swp_entry(pte)		((swp_entry_t) { pmd_val((pmd)) })
+>  #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+> +#define __swp_entry_to_pmd(x)		((pmd_t) { .pmd = (x).val })
+>  
+>  extern int kern_addr_valid(unsigned long addr);
+>  extern void cleanup_highmap(void);
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/swapops.h v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/swapops.h
+> index 5c3a5f3..b6b22a2 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/swapops.h
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/swapops.h
+> @@ -163,6 +163,67 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+>  
+>  #endif
+>  
+> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> +extern void set_pmd_migration_entry(struct page *page,
+> +		struct vm_area_struct *vma, unsigned long address);
+> +
+> +extern int remove_migration_pmd(struct page *new, pmd_t *pmd,
+> +		struct vm_area_struct *vma, unsigned long addr, void *old);
+> +
+> +extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
+> +
+> +static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+> +{
+> +	swp_entry_t arch_entry;
+> +
+> +	arch_entry = __pmd_to_swp_entry(pmd);
+> +	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+> +}
+> +
+> +static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> +{
+> +	swp_entry_t arch_entry;
+> +
+> +	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
+> +	return __swp_entry_to_pmd(arch_entry);
+> +}
+> +
+> +static inline int is_pmd_migration_entry(pmd_t pmd)
+> +{
+> +	return !pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
+> +}
+> +#else
+> +static inline void set_pmd_migration_entry(struct page *page,
+> +			struct vm_area_struct *vma, unsigned long address)
+> +{
 
-To simplify things and have less code generate the pkey system call
-code only if ARCH_HAS_PKEYS is selected.
+VM_BUG()? Or BUILD_BUG()?
 
-For architectures which have already wired up the system calls, but do
-not select ARCH_HAS_PKEYS this will result in less generated code and
-a different return code: the three system calls will now always return
--ENOSYS, using the cond_syscall mechanism.
+> +}
+> +
+> +static inline int remove_migration_pmd(struct page *new, pmd_t *pmd,
+> +		struct vm_area_struct *vma, unsigned long addr, void *old)
+> +{
+> +	return 0;
 
-For architectures which have not wired up the system calls less
-unreachable code will be generated.
+Ditto.
 
-Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
----
- mm/mprotect.c | 4 ++++
- 1 file changed, 4 insertions(+)
+> +}
+> +
+> +static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
+> +
+> +static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+> +{
+> +	return swp_entry(0, 0);
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 11936526b08b..a06e91c4de29 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -484,6 +484,8 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- 	return do_mprotect_pkey(start, len, prot, -1);
- }
- 
-+#ifdef CONFIG_ARCH_HAS_PKEYS
-+
- SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot, int, pkey)
- {
-@@ -534,3 +536,5 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
- 	 */
- 	return ret;
- }
-+
-+#endif /* CONFIG_ARCH_HAS_PKEYS */
+Ditto.
+
+> +}
+> +
+> +static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> +{
+> +	pmd_t pmd = {};
+
+Ditto.
+
+> +	return pmd;
+> +}
+> +
+> +static inline int is_pmd_migration_entry(pmd_t pmd)
+> +{
+> +	return 0;
+> +}
+> +#endif
+> +
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  
+>  extern atomic_long_t num_poisoned_pages __read_mostly;
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
+> index 0509d17..b3022b3 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
+> @@ -2310,3 +2310,157 @@ static int __init split_huge_pages_debugfs(void)
+>  }
+>  late_initcall(split_huge_pages_debugfs);
+>  #endif
+> +
+> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> +void set_pmd_migration_entry(struct page *page, struct vm_area_struct *vma,
+> +				unsigned long addr)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pmd_t pmdval;
+> +	swp_entry_t entry;
+> +	spinlock_t *ptl;
+> +
+> +	pgd = pgd_offset(mm, addr);
+> +	if (!pgd_present(*pgd))
+> +		return;
+> +	pud = pud_offset(pgd, addr);
+> +	if (!pud_present(*pud))
+> +		return;
+> +	pmd = pmd_offset(pud, addr);
+> +	pmdval = *pmd;
+> +	barrier();
+> +	if (!pmd_present(pmdval))
+> +		return;
+> +
+> +	mmu_notifier_invalidate_range_start(mm, addr, addr + HPAGE_PMD_SIZE);
+> +	if (pmd_trans_huge(pmdval)) {
+> +		pmd_t pmdswp;
+> +
+> +		ptl = pmd_lock(mm, pmd);
+> +		if (!pmd_present(*pmd))
+> +			goto unlock_pmd;
+> +		if (unlikely(!pmd_trans_huge(*pmd)))
+> +			goto unlock_pmd;
+
+Just check *pmd == pmdval?
+
+> +		if (pmd_page(*pmd) != page)
+> +			goto unlock_pmd;
+> +
+> +		pmdval = pmdp_huge_get_and_clear(mm, addr, pmd);
+> +		if (pmd_dirty(pmdval))
+> +			set_page_dirty(page);
+> +		entry = make_migration_entry(page, pmd_write(pmdval));
+> +		pmdswp = swp_entry_to_pmd(entry);
+> +		pmdswp = pmd_mkhuge(pmdswp);
+> +		set_pmd_at(mm, addr, pmd, pmdswp);
+> +		page_remove_rmap(page, true);
+> +		put_page(page);
+> +unlock_pmd:
+> +		spin_unlock(ptl);
+> +	} else { /* pte-mapped thp */
+> +		pte_t *pte;
+> +		pte_t pteval;
+> +		struct page *tmp = compound_head(page);
+> +		unsigned long address = addr & HPAGE_PMD_MASK;
+> +		pte_t swp_pte;
+> +		int i;
+> +
+> +		pte = pte_offset_map(pmd, address);
+> +		ptl = pte_lockptr(mm, pmd);
+> +		spin_lock(ptl);
+
+pte_offset_map_lock() ?
+
+> +		for (i = 0; i < HPAGE_PMD_NR; i++, pte++, tmp++) {
+> +			if (!(pte_present(*pte) &&
+> +			      page_to_pfn(tmp) == pte_pfn(*pte)))
+
+			if (!pte_present(*pte) || pte_page(*pte) != tmp) ?
+
+> +				continue;
+> +			pteval = ptep_clear_flush(vma, address, pte);
+> +			if (pte_dirty(pteval))
+> +				set_page_dirty(tmp);
+> +			entry = make_migration_entry(tmp, pte_write(pteval));
+> +			swp_pte = swp_entry_to_pte(entry);
+> +			set_pte_at(mm, address, pte, swp_pte);
+> +			page_remove_rmap(tmp, false);
+> +			put_page(tmp);
+> +		}
+> +		pte_unmap_unlock(pte, ptl);
+> +	}
+> +	mmu_notifier_invalidate_range_end(mm, addr, addr + HPAGE_PMD_SIZE);
+> +	return;
+> +}
+> +
+> +int remove_migration_pmd(struct page *new, pmd_t *pmd,
+> +		struct vm_area_struct *vma, unsigned long addr, void *old)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	spinlock_t *ptl;
+> +	pmd_t pmde;
+> +	swp_entry_t entry;
+> +
+> +	pmde = *pmd;
+> +	barrier();
+> +
+> +	if (!pmd_present(pmde)) {
+> +		if (is_migration_entry(pmd_to_swp_entry(pmde))) {
+
+		if (!is_migration_entry(pmd_to_swp_entry(pmde)))
+			return SWAP_AGAIN;
+
+And one level less indentation below.
+
+> +			unsigned long mmun_start = addr & HPAGE_PMD_MASK;
+> +			unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
+> +
+> +			ptl = pmd_lock(mm, pmd);
+> +			entry = pmd_to_swp_entry(*pmd);
+> +			if (migration_entry_to_page(entry) != old)
+> +				goto unlock_ptl;
+> +			get_page(new);
+> +			pmde = pmd_mkold(mk_huge_pmd(new, vma->vm_page_prot));
+> +			if (is_write_migration_entry(entry))
+> +				pmde = maybe_pmd_mkwrite(pmde, vma);
+> +			flush_cache_range(vma, mmun_start, mmun_end);
+> +			page_add_anon_rmap(new, vma, mmun_start, true);
+> +			pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
+> +			set_pmd_at(mm, mmun_start, pmd, pmde);
+> +			flush_tlb_range(vma, mmun_start, mmun_end);
+> +			if (vma->vm_flags & VM_LOCKED)
+> +				mlock_vma_page(new);
+> +			update_mmu_cache_pmd(vma, addr, pmd);
+> +unlock_ptl:
+> +			spin_unlock(ptl);
+
+			return SWAP_AGAIN;
+
+And one level less indentation below.
+
+> +		}
+> +	} else { /* pte-mapped thp */
+> +		pte_t *ptep;
+> +		pte_t pte;
+> +		int i;
+> +		struct page *tmpnew = compound_head(new);
+> +		struct page *tmpold = compound_head((struct page *)old);
+> +		unsigned long address = addr & HPAGE_PMD_MASK;
+> +
+> +		ptep = pte_offset_map(pmd, addr);
+> +		ptl = pte_lockptr(mm, pmd);
+> +		spin_lock(ptl);
+
+pte_offset_map_lock() ?
+
+> +
+> +		for (i = 0; i < HPAGE_PMD_NR;
+> +		     i++, ptep++, tmpnew++, tmpold++, address += PAGE_SIZE) {
+> +			pte = *ptep;
+> +			if (!is_swap_pte(pte))
+> +				continue;
+> +			entry = pte_to_swp_entry(pte);
+> +			if (!is_migration_entry(entry) ||
+> +			    migration_entry_to_page(entry) != tmpold)
+> +				continue;
+> +			get_page(tmpnew);
+> +			pte = pte_mkold(mk_pte(tmpnew,
+> +					       READ_ONCE(vma->vm_page_prot)));
+
+READ_ONCE()? Do we get here under mmap_sem, right?
+
+> +			if (pte_swp_soft_dirty(*ptep))
+> +				pte = pte_mksoft_dirty(pte);
+> +			if (is_write_migration_entry(entry))
+> +				pte = maybe_mkwrite(pte, vma);
+> +			flush_dcache_page(tmpnew);
+> +			set_pte_at(mm, address, ptep, pte);
+> +			if (PageAnon(new))
+> +				page_add_anon_rmap(tmpnew, vma, address, false);
+> +			else
+> +				page_add_file_rmap(tmpnew, false);
+> +			update_mmu_cache(vma, address, ptep);
+> +		}
+> +		pte_unmap_unlock(ptep, ptl);
+> +	}
+> +	return SWAP_AGAIN;
+> +}
+> +#endif
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/migrate.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/migrate.c
+> index 66ce6b4..54f2eb6 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/migrate.c
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/migrate.c
+> @@ -198,6 +198,8 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	swp_entry_t entry;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+>   	pmd_t *pmd;
+>  	pte_t *ptep, pte;
+>   	spinlock_t *ptl;
+> @@ -208,10 +210,29 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+>  			goto out;
+>  		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
+>  	} else {
+> -		pmd = mm_find_pmd(mm, addr);
+> +		pmd_t pmde;
+> +
+> +		pgd = pgd_offset(mm, addr);
+> +		if (!pgd_present(*pgd))
+> +			goto out;
+> +		pud = pud_offset(pgd, addr);
+> +		if (!pud_present(*pud))
+> +			goto out;
+> +		pmd = pmd_offset(pud, addr);
+>  		if (!pmd)
+>  			goto out;
+>  
+> +		if (PageTransCompound(new)) {
+> +			remove_migration_pmd(new, pmd, vma, addr, old);
+> +			goto out;
+> +		}
+> +
+> +		pmde = *pmd;
+> +		barrier();
+> +
+> +		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+> +			goto out;
+> +
+>  		ptep = pte_offset_map(pmd, addr);
+>  
+>  		/*
+> @@ -344,6 +365,27 @@ void migration_entry_wait_huge(struct vm_area_struct *vma,
+>  	__migration_entry_wait(mm, pte, ptl);
+>  }
+>  
+> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> +void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
+> +{
+> +	spinlock_t *ptl;
+> +	struct page *page;
+> +
+> +	ptl = pmd_lock(mm, pmd);
+> +	if (!is_pmd_migration_entry(*pmd))
+> +		goto unlock;
+> +	page = migration_entry_to_page(pmd_to_swp_entry(*pmd));
+> +	if (!get_page_unless_zero(page))
+> +		goto unlock;
+> +	spin_unlock(ptl);
+> +	wait_on_page_locked(page);
+> +	put_page(page);
+> +	return;
+> +unlock:
+> +	spin_unlock(ptl);
+> +}
+> +#endif
+> +
+>  #ifdef CONFIG_BLOCK
+>  /* Returns true if all buffers are successfully locked */
+>  static bool buffer_migrate_lock_buffers(struct buffer_head *head,
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> index 71c5f91..6012343 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/pgtable-generic.c
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/pgtable-generic.c
+> @@ -118,7 +118,8 @@ pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,
+>  {
+>  	pmd_t pmd;
+>  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> -	VM_BUG_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+> +	VM_BUG_ON(pmd_present(*pmdp) && !pmd_trans_huge(*pmdp) &&
+> +		  !pmd_devmap(*pmdp));
+>  	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+>  	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+>  	return pmd;
+> -- 
+> 2.7.0
+> 
+
 -- 
-2.8.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
