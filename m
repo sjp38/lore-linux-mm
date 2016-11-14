@@ -1,107 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 201866B0267
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 02:09:14 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id ro13so82834048pac.7
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:09:14 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0084.outbound.protection.outlook.com. [104.47.1.84])
-        by mx.google.com with ESMTPS id g68si21159173pfc.88.2016.11.13.23.09.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E172A6B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 02:57:27 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a20so22857837wme.5
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:57:27 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id ju1si22554255wjc.128.2016.11.13.23.57.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 13 Nov 2016 23:09:13 -0800 (PST)
-From: Huang Shijie <shijie.huang@arm.com>
-Subject: [PATCH v2 6/6] mm: hugetlb: support gigantic surplus pages
-Date: Mon, 14 Nov 2016 15:07:39 +0800
-Message-ID: <1479107259-2011-7-git-send-email-shijie.huang@arm.com>
-In-Reply-To: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 13 Nov 2016 23:57:26 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id a20so12954617wme.2
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:57:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com>
+References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
+ <1478271776-1194-2-git-send-email-akash.goel@intel.com> <alpine.LSU.2.11.1611092137360.6221@eggly.anvils>
+ <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com>
+From: akash goel <akash.goels@gmail.com>
+Date: Mon, 14 Nov 2016 13:27:25 +0530
+Message-ID: <CAK_0AV0+1oizfRMfoJ45FWCRi_4X93W-ZtseY-s-R_wavE3fZQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] drm/i915: Make GPU pages movable
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, catalin.marinas@arm.com
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, Huang Shijie <shijie.huang@arm.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, akash goel <akash.goels@gmail.com>, Sourab Gupta <sourab.gupta@intel.com>
 
-When testing the gigantic page whose order is too large for the buddy
-allocator, the libhugetlbfs test case "counter.sh" will fail.
+On Thu, Nov 10, 2016 at 1:00 PM, Goel, Akash <akash.goel@intel.com> wrote:
+>
+>
+> On 11/10/2016 12:09 PM, Hugh Dickins wrote:
+>>
+>> On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
+>>>
+>>> From: Chris Wilson <chris@chris-wilson.co.uk>
+>>>
+>>> On a long run of more than 2-3 days, physical memory tends to get
+>>> fragmented severely, which considerably slows down the system. In such a
+>>> scenario, the shrinker is also unable to help as lack of memory is not
+>>> the actual problem, since it has been observed that there are enough free
+>>> pages of 0 order. This also manifests itself when an indiviual zone in
+>>> the mm runs out of pages and if we cannot migrate pages between zones,
+>>> the kernel hits an out-of-memory even though there are free pages (and
+>>> often all of swap) available.
+>>>
+>>> To address the issue of external fragementation, kernel does a compaction
+>>> (which involves migration of pages) but it's efficacy depends upon how
+>>> many pages are marked as MOVABLE, as only those pages can be migrated.
+>>>
+>>> Currently the backing pages for GPU buffers are allocated from shmemfs
+>>> with GFP_RECLAIMABLE flag, in units of 4KB pages.  In the case of limited
+>>> swap space, it may not be possible always to reclaim or swap-out pages of
+>>> all the inactive objects, to make way for free space allowing formation
+>>> of higher order groups of physically-contiguous pages on compaction.
+>>>
+>>> Just marking the GPU pages as MOVABLE will not suffice, as i915.ko has to
+>>> pin the pages if they are in use by GPU, which will prevent their
+>>> migration. So the migratepage callback in shmem is also hooked up to get
+>>> a notification when kernel initiates the page migration. On the
+>>> notification, i915.ko appropriately unpin the pages.  With this we can
+>>> effectively mark the GPU pages as MOVABLE and hence mitigate the
+>>> fragmentation problem.
+>>>
+>>> v2:
+>>>  - Rename the migration routine to gem_shrink_migratepage, move it to the
+>>>    shrinker file, and use the existing constructs (Chris)
+>>>  - To cleanup, add a new helper function to encapsulate all page
+>>> migration
+>>>    skip conditions (Chris)
+>>>  - Add a new local helper function in shrinker file, for dropping the
+>>>    backing pages, and call the same from gem_shrink() also (Chris)
+>>>
+>>> v3:
+>>>  - Fix/invert the check on the return value of unsafe_drop_pages (Chris)
+>>>
+>>> v4:
+>>>  - Minor tidy
+>>>
+>>> v5:
+>>>  - Fix unsafe usage of unsafe_drop_pages()
+>>>  - Rebase onto vmap-notifier
+>>>
+>>> v6:
+>>> - Remove i915_gem_object_get/put across unsafe_drop_pages() as with
+>>>   struct_mutex protection object can't disappear. (Chris)
+>>>
+>>> Testcase: igt/gem_shrink
+>>> Bugzilla: (e.g.) https://bugs.freedesktop.org/show_bug.cgi?id=90254
+>>> Cc: Hugh Dickins <hughd@google.com>
+>>> Cc: linux-mm@kvack.org
+>>> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
+>>> Signed-off-by: Akash Goel <akash.goel@intel.com>
+>>> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+>>> Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+>>> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+>>
+>>
+>> I'm confused!  But perhaps it's gone around and around between you all,
+>> I'm not sure what the rules are then.  I think this sequence implies
+>> that Sourab wrote it originally, then Akash and Chris passed it on
+>> with refinements - but then Chris wouldn't add Reviewed-by.
+>>
+> Thank you very much for the review and sorry for all the needless confusion.
+>
+> Chris actually conceived the patches and prepared an initial version of them
+> (hence he is the Author).
+> I & Sourab did the further refinements and fixed issues (all those
+> page_private stuff).
+> Chris then reviewed the final patch and also recently did a rebase for it.
+>
+>
+>>> ---
+>>>  drivers/gpu/drm/i915/i915_drv.h          |   2 +
+>>>  drivers/gpu/drm/i915/i915_gem.c          |   9 ++-
+>>>  drivers/gpu/drm/i915/i915_gem_shrinker.c | 132
+>>> +++++++++++++++++++++++++++++++
+>>>  3 files changed, 142 insertions(+), 1 deletion(-)
+>>>
+snip
+>>
+>>> @@ -4185,6 +4189,8 @@ struct drm_i915_gem_object *
+>>>                 goto fail;
+>>>
+>>>         mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
+>>> +       if (IS_ENABLED(MIGRATION))
+>>> +               mask |= __GFP_MOVABLE;
+>>
+>>
+>> I was going to suggest just make that unconditional,
+>>         mask = GFP_HIGHUSER_MOVABLE | __GFP_RECLAIMABLE;
+>>
+>> But then I wondered what that __GFP_RECLAIMABLE actually achieves?
+>> These pages are already __GFP_RECLAIM (inside GFP_HIGHUSER) and on
+>> the LRU.  It affects gfpflags_to_migratetype(), but I'm not familiar
+>> with what that different migratetype will end up doing.
+>>
+>
+> Will check for this.
+>
 
-The failure is caused by:
- 1) kernel fails to allocate a gigantic page for the surplus case.
-    And the gather_surplus_pages() will return NULL in the end.
+The anti-fragmentation technique used by kernel is based on the idea
+of grouping pages with identical mobility (UNMOVABLE, RECLAIMABLE,
+MOVABLE) together.
+__GFP_RECLAIMABLE, like  __GFP_MOVABLE, specifies the
+mobility/migration type of the page and serves a different purpose
+than __GFP_RECLAIM.
 
- 2) The condition checks for "over-commit" is wrong.
+Also as per the below snippet from gfpflags_to_migratetype(), looks
+like __GFP_MOVABLE &  __GFP_RECLAIMABLE can't be used together, which
+makes sense.
+/* Convert GFP flags to their corresponding migrate type */
+#define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
+static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+{
+        VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+.....
 
-This patch uses __hugetlb_alloc_gigantic_page() to allocate the
-gigantic page in the __alloc_huge_page(). After this patch,
- gather_surplus_pages() can return a gigantic page for the surplus case.
+So probably would need to update the mask like this,
+       mask = GFP_HIGHUSER;
+       if (IS_ENABLED(MIGRATION))
+             mask |= __GFP_MOVABLE;
+       else
+             mask |=  __GFP_RECLAIMABLE;
 
-This patch also changes the condition checks for:
-     return_unused_surplus_pages()
-     nr_overcommit_hugepages_store()
-     hugetlb_overcommit_handler()
+Please kindly let us know if this looks fine to you or not.
 
-After this patch, the counter.sh can pass for the gigantic page.
+Best regards
+Akash
 
-Signed-off-by: Huang Shijie <shijie.huang@arm.com>
----
- mm/hugetlb.c | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 58a59f0..08e66ca 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1647,7 +1647,7 @@ static struct page *__alloc_huge_page(struct hstate *h,
- 	struct page *page;
- 	unsigned int r_nid;
- 
--	if (hstate_is_gigantic(h))
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return NULL;
- 
- 	/*
-@@ -1692,7 +1692,10 @@ static struct page *__alloc_huge_page(struct hstate *h,
- 	}
- 	spin_unlock(&hugetlb_lock);
- 
--	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
-+	if (hstate_is_gigantic(h))
-+		page = __hugetlb_alloc_gigantic_page(h, vma, addr, nid);
-+	else
-+		page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
- 
- 	spin_lock(&hugetlb_lock);
- 	if (page) {
-@@ -1859,8 +1862,7 @@ static void return_unused_surplus_pages(struct hstate *h,
- 	/* Uncommit the reservation */
- 	h->resv_huge_pages -= unused_resv_pages;
- 
--	/* Cannot return gigantic pages currently */
--	if (hstate_is_gigantic(h))
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return;
- 
- 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
-@@ -2577,7 +2579,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
- 	unsigned long input;
- 	struct hstate *h = kobj_to_hstate(kobj, NULL);
- 
--	if (hstate_is_gigantic(h))
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return -EINVAL;
- 
- 	err = kstrtoul(buf, 10, &input);
-@@ -3018,7 +3020,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
- 
- 	tmp = h->nr_overcommit_huge_pages;
- 
--	if (write && hstate_is_gigantic(h))
-+	if (write && hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return -EINVAL;
- 
- 	table->data = &tmp;
--- 
-2.5.5
+>
+>>>         if (IS_CRESTLINE(dev_priv) || IS_BROADWATER(dev_priv)) {
+>>>                 /* 965gm cannot relocate objects above 4GiB. */
+>>>                 mask &= ~__GFP_HIGHMEM;
+>>> @@ -4193,6 +4199,7 @@ struct drm_i915_gem_object *
+>>>
+>>>         mapping = obj->base.filp->f_mapping;
+>>>         mapping_set_gfp_mask(mapping, mask);
+>>> +       shmem_set_dev_info(mapping, &dev_priv->mm.shmem_info);
+>>>
+>>>         i915_gem_object_init(obj, &i915_gem_object_ops);
+>>>
+>>>  }
+>>>
+>>>  /**
+>>> --
+>>> 1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
