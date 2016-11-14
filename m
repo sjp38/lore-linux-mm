@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C830B6B0038
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:44:31 -0500 (EST)
-Received: by mail-pa0-f71.google.com with SMTP id bi5so101050053pad.0
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 14:44:31 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r11si23920439pfk.40.2016.11.14.14.44.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 252876B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 18:20:10 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id j128so37272530pfg.4
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:20:10 -0800 (PST)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id l7si24039324pgl.92.2016.11.14.15.20.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Nov 2016 14:44:31 -0800 (PST)
-Date: Mon, 14 Nov 2016 14:44:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/6] mm: fix the "counter.sh" failure for
- libhugetlbfs
-Message-Id: <20161114144429.4386e89a2761504bde340032@linux-foundation.org>
-In-Reply-To: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 14 Nov 2016 15:20:08 -0800 (PST)
+Received: by mail-pf0-x241.google.com with SMTP id y68so6817895pfb.1
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:20:08 -0800 (PST)
+Subject: Re: [PATCH v7 2/5] mm: remove x86-only restriction of movable_node
+References: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1479160961-25840-3-git-send-email-arbab@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <37a9339f-0ce9-261f-90de-be8463705bb5@gmail.com>
+Date: Tue, 15 Nov 2016 10:20:00 +1100
+MIME-Version: 1.0
+In-Reply-To: <1479160961-25840-3-git-send-email-arbab@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <shijie.huang@arm.com>
-Cc: catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-On Mon, 14 Nov 2016 15:07:33 +0800 Huang Shijie <shijie.huang@arm.com> wrote:
 
-> (1) Background
->    For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
->    In the 4K page environment, the max page order is 10 (max_order - 1),
->    so 32M page is the gigantic page.    
+
+On 15/11/16 09:02, Reza Arbab wrote:
+> In commit c5320926e370 ("mem-hotplug: introduce movable_node boot
+> option"), the memblock allocation direction is changed to bottom-up and
+> then back to top-down like this:
 > 
->    The arm64 MMU supports a Contiguous bit which is a hint that the TTE
->    is one of a set of contiguous entries which can be cached in a single
->    TLB entry.  Please refer to the arm64v8 mannul :
->        DDI0487A_f_armv8_arm.pdf (in page D4-1811)
+> 1. memblock_set_bottom_up(true), called by cmdline_parse_movable_node().
+> 2. memblock_set_bottom_up(false), called by x86's numa_init().
 > 
-> (2) The bug   
->    After I tested the libhugetlbfs, I found the test case "counter.sh"
->    will fail with the gigantic page (32M page in arm64 board).
+> Even though (1) occurs in generic mm code, it is wrapped by #ifdef
+> CONFIG_MOVABLE_NODE, which depends on X86_64.
 > 
->    This patch set adds support for gigantic surplus hugetlb pages,
->    allowing the counter.sh unit test to pass.   
+> This means that when we extend CONFIG_MOVABLE_NODE to non-x86 arches,
+> things will be unbalanced. (1) will happen for them, but (2) will not.
+> 
+> This toggle was added in the first place because x86 has a delay between
+> adding memblocks and marking them as hotpluggable. Since other arches do
+> this marking either immediately or not at all, they do not require the
+> bottom-up toggle.
+> 
+> So, resolve things by moving (1) from cmdline_parse_movable_node() to
+> x86's setup_arch(), immediately after the movable_node parameter has
+> been parsed.
+> 
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 
-I'm not really seeing a description of the actual bug.  I don't know
-what counter.sh is, there is no copy of counter.sh included in the
-changelogs and there is no description of the kernel error which
-counter.sh demonstrates.
 
-So can you pleaser send to me a copy of counter.sh as well as a
-suitable description of the kernel error which counter.sh triggers?
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
