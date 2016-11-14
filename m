@@ -1,79 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FB1D6B025E
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2016 21:11:49 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so19983403wmu.1
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 18:11:49 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id r70si20954429wme.125.2016.11.13.18.11.47
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AF606B0261
+	for <linux-mm@kvack.org>; Sun, 13 Nov 2016 21:26:30 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a20so20030663wme.5
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 18:26:30 -0800 (PST)
+Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
+        by mx.google.com with ESMTPS id fa9si21676439wjb.103.2016.11.13.18.26.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Nov 2016 18:11:48 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id m203so11543150wma.3
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 18:11:47 -0800 (PST)
-Date: Mon, 14 Nov 2016 05:11:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V3 2/2] mm: THP page cache support for ppc64
-Message-ID: <20161114021145.GA5180@node.shutemov.name>
-References: <20161113150025.17942-1-aneesh.kumar@linux.vnet.ibm.com>
- <20161113150025.17942-2-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Sun, 13 Nov 2016 18:26:29 -0800 (PST)
+Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
-In-Reply-To: <20161113150025.17942-2-aneesh.kumar@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Mon, 14 Nov 2016 00:14:20 +0000
+Message-ID: <lsq.1479082460.903306366@decadent.org.uk>
+Subject: [PATCH 3.16 169/346] x86/mm: Disable preemption during CR3 read+write
+In-Reply-To: <lsq.1479082458.755945576@decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, benh@au1.ibm.com, michaele@au1.ibm.com, michael.neuling@au1.ibm.com, paulus@au1.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: akpm@linux-foundation.org, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Rik van Riel <riel@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Borislav Petkov <bp@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Sun, Nov 13, 2016 at 08:30:25PM +0530, Aneesh Kumar K.V wrote:
-> Add arch specific callback in the generic THP page cache code that will
-> deposit and withdarw preallocated page table. Archs like ppc64 use
-> this preallocated table to store the hash pte slot information.
-> 
-> Testing:
-> kernel build of the patch series on tmpfs mounted with option huge=always
-> 
-> The related thp stat:
-> thp_fault_alloc 72939
-> thp_fault_fallback 60547
-> thp_collapse_alloc 603
-> thp_collapse_alloc_failed 0
-> thp_file_alloc 253763
-> thp_file_mapped 4251
-> thp_split_page 51518
-> thp_split_page_failed 1
-> thp_deferred_split_page 73566
-> thp_split_pmd 665
-> thp_zero_page_alloc 3
-> thp_zero_page_alloc_failed 0
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+3.16.39-rc1 review patch.  If anyone has any objections, please let me know.
 
-One nit-pick below, but otherwise
+------------------
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-> @@ -2975,6 +3004,13 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
->  	ret = 0;
->  	count_vm_event(THP_FILE_MAPPED);
->  out:
-> +	/*
-> +	 * If we are going to fallback to pte mapping, do a
-> +	 * withdraw with pmd lock held.
-> +	 */
-> +	if (arch_needs_pgtable_deposit() && (ret == VM_FAULT_FALLBACK))
+commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
 
-Parenthesis are redundant around ret check.
+There's a subtle preemption race on UP kernels:
 
-> +		fe->prealloc_pte = pgtable_trans_huge_withdraw(vma->vm_mm,
-> +							       fe->pmd);
->  	spin_unlock(fe->ptl);
->  	return ret;
->  }
+Usually current->mm (and therefore mm->pgd) stays the same during the
+lifetime of a task so it does not matter if a task gets preempted during
+the read and write of the CR3.
 
--- 
- Kirill A. Shutemov
+But then, there is this scenario on x86-UP:
+
+TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
+
+ -> mmput()
+ -> exit_mmap()
+ -> tlb_finish_mmu()
+ -> tlb_flush_mmu()
+ -> tlb_flush_mmu_tlbonly()
+ -> tlb_flush()
+ -> flush_tlb_mm_range()
+ -> __flush_tlb_up()
+ -> __flush_tlb()
+ ->  __native_flush_tlb()
+
+At this point current->mm is NULL but current->active_mm still points to
+the "old" mm.
+
+Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
+own mm so CR3 has changed.
+
+Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
+mm and so CR3 remains unchanged. Once taskA gets active it continues
+where it was interrupted and that means it writes its old CR3 value
+back. Everything is fine because userland won't need its memory
+anymore.
+
+Now the fun part:
+
+Let's preempt taskA one more time and get back to taskB. This
+time switch_mm() won't do a thing because oldmm (->active_mm)
+is the same as mm (as per context_switch()). So we remain
+with a bad CR3 / PGD and return to userland.
+
+The next thing that happens is handle_mm_fault() with an address for
+the execution of its code in userland. handle_mm_fault() realizes that
+it has a PTE with proper rights so it returns doing nothing. But the
+CPU looks at the wrong PGD and insists that something is wrong and
+faults again. And again. And one more timea?|
+
+This pagefault circle continues until the scheduler gets tired of it and
+puts another task on the CPU. It gets little difficult if the task is a
+RT task with a high priority. The system will either freeze or it gets
+fixed by the software watchdog thread which usually runs at RT-max prio.
+But waiting for the watchdog will increase the latency of the RT task
+which is no good.
+
+Fix this by disabling preemption across the critical code section.
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
+[ Prettified the changelog. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
+---
+ arch/x86/include/asm/tlbflush.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -17,7 +17,14 @@
+ 
+ static inline void __native_flush_tlb(void)
+ {
++	/*
++	 * If current->mm == NULL then we borrow a mm which may change during a
++	 * task switch and therefore we must not be preempted while we write CR3
++	 * back:
++	 */
++	preempt_disable();
+ 	native_write_cr3(native_read_cr3());
++	preempt_enable();
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
