@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 70D596B0038
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 76BA76B0069
 	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:49 -0500 (EST)
-Received: by mail-pa0-f72.google.com with SMTP id r13so100103394pag.1
+Received: by mail-pa0-f69.google.com with SMTP id ro13so99748273pac.7
         for <linux-mm@kvack.org>; Mon, 14 Nov 2016 14:02:49 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t124si23789932pgt.334.2016.11.14.14.02.48
+        by mx.google.com with ESMTPS id w126si23811342pgb.85.2016.11.14.14.02.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 14 Nov 2016 14:02:48 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAELwWX2074738
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAELwV57144046
 	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:47 -0500
 Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26qe4rfb6f-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26qnd9gqes-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:47 -0500
 Received: from localhost
@@ -21,124 +21,41 @@ Received: from localhost
 	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
 	Mon, 14 Nov 2016 15:02:46 -0700
 From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v7 2/5] mm: remove x86-only restriction of movable_node
-Date: Mon, 14 Nov 2016 16:02:38 -0600
+Subject: [PATCH v7 5/5] dt: add documentation of "hotpluggable" memory property
+Date: Mon, 14 Nov 2016 16:02:41 -0600
 In-Reply-To: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
 References: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
-Message-Id: <1479160961-25840-3-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <1479160961-25840-6-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-In commit c5320926e370 ("mem-hotplug: introduce movable_node boot
-option"), the memblock allocation direction is changed to bottom-up and
-then back to top-down like this:
-
-1. memblock_set_bottom_up(true), called by cmdline_parse_movable_node().
-2. memblock_set_bottom_up(false), called by x86's numa_init().
-
-Even though (1) occurs in generic mm code, it is wrapped by #ifdef
-CONFIG_MOVABLE_NODE, which depends on X86_64.
-
-This means that when we extend CONFIG_MOVABLE_NODE to non-x86 arches,
-things will be unbalanced. (1) will happen for them, but (2) will not.
-
-This toggle was added in the first place because x86 has a delay between
-adding memblocks and marking them as hotpluggable. Since other arches do
-this marking either immediately or not at all, they do not require the
-bottom-up toggle.
-
-So, resolve things by moving (1) from cmdline_parse_movable_node() to
-x86's setup_arch(), immediately after the movable_node parameter has
-been parsed.
+Summarize the "hotpluggable" property of dt memory nodes.
 
 Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 ---
- Documentation/kernel-parameters.txt |  2 +-
- arch/x86/kernel/setup.c             | 24 ++++++++++++++++++++++++
- mm/memory_hotplug.c                 | 20 --------------------
- 3 files changed, 25 insertions(+), 21 deletions(-)
+ Documentation/devicetree/booting-without-of.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 37babf9..adcccd5 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2401,7 +2401,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
+diff --git a/Documentation/devicetree/booting-without-of.txt b/Documentation/devicetree/booting-without-of.txt
+index 3f1437f..280d283 100644
+--- a/Documentation/devicetree/booting-without-of.txt
++++ b/Documentation/devicetree/booting-without-of.txt
+@@ -974,6 +974,13 @@ compatibility.
+       4Gb. Some vendors prefer splitting those ranges into smaller
+       segments, but the kernel doesn't care.
  
--	movable_node	[KNL,X86] Boot-time switch to enable the effects
-+	movable_node	[KNL] Boot-time switch to enable the effects
- 			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
- 
- 	MTD_Partition=	[MTD]
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 9c337b0..4cfba94 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -985,6 +985,30 @@ void __init setup_arch(char **cmdline_p)
- 
- 	parse_early_param();
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/*
-+	 * Memory used by the kernel cannot be hot-removed because Linux
-+	 * cannot migrate the kernel pages. When memory hotplug is
-+	 * enabled, we should prevent memblock from allocating memory
-+	 * for the kernel.
-+	 *
-+	 * ACPI SRAT records all hotpluggable memory ranges. But before
-+	 * SRAT is parsed, we don't know about it.
-+	 *
-+	 * The kernel image is loaded into memory at very early time. We
-+	 * cannot prevent this anyway. So on NUMA system, we set any
-+	 * node the kernel resides in as un-hotpluggable.
-+	 *
-+	 * Since on modern servers, one node could have double-digit
-+	 * gigabytes memory, we can assume the memory around the kernel
-+	 * image is also un-hotpluggable. So before SRAT is parsed, just
-+	 * allocate memory near the kernel image to try the best to keep
-+	 * the kernel away from hotpluggable memory.
-+	 */
-+	if (movable_node_is_enabled())
-+		memblock_set_bottom_up(true);
-+#endif
++  Additional properties:
 +
- 	x86_report_nx();
++    - hotpluggable : The presence of this property provides an explicit
++      hint to the operating system that this memory may potentially be
++      removed later. The kernel can take this into consideration when
++      doing nonmovable allocations and when laying out memory zones.
++
+   e) The /chosen node
  
- 	/* after early param, so could get panic from serial */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index cad4b91..e43142c1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1727,26 +1727,6 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
- static int __init cmdline_parse_movable_node(char *p)
- {
- #ifdef CONFIG_MOVABLE_NODE
--	/*
--	 * Memory used by the kernel cannot be hot-removed because Linux
--	 * cannot migrate the kernel pages. When memory hotplug is
--	 * enabled, we should prevent memblock from allocating memory
--	 * for the kernel.
--	 *
--	 * ACPI SRAT records all hotpluggable memory ranges. But before
--	 * SRAT is parsed, we don't know about it.
--	 *
--	 * The kernel image is loaded into memory at very early time. We
--	 * cannot prevent this anyway. So on NUMA system, we set any
--	 * node the kernel resides in as un-hotpluggable.
--	 *
--	 * Since on modern servers, one node could have double-digit
--	 * gigabytes memory, we can assume the memory around the kernel
--	 * image is also un-hotpluggable. So before SRAT is parsed, just
--	 * allocate memory near the kernel image to try the best to keep
--	 * the kernel away from hotpluggable memory.
--	 */
--	memblock_set_bottom_up(true);
- 	movable_node_enabled = true;
- #else
- 	pr_warn("movable_node option not supported\n");
+   This node is a bit "special". Normally, that's where Open Firmware
 -- 
 1.8.3.1
 
