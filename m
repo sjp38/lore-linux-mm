@@ -1,115 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F21C86B0069
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:49 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id kr7so99608095pab.5
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 14:02:49 -0800 (PST)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9C86B0266
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:50 -0500 (EST)
+Received: by mail-pa0-f72.google.com with SMTP id rf5so99929497pab.3
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 14:02:50 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j62si23830726pgc.104.2016.11.14.14.02.48
+        by mx.google.com with ESMTPS id r88si23847050pfg.173.2016.11.14.14.02.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Nov 2016 14:02:48 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAELwd1u050328
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:48 -0500
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26qfsx2453-1
+        Mon, 14 Nov 2016 14:02:49 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAELwWXD076272
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:49 -0500
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26qkyjm7rb-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:47 -0500
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 17:02:48 -0500
 Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 14 Nov 2016 17:02:46 -0500
+	Mon, 14 Nov 2016 15:02:48 -0700
 From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v7 0/5] enable movable nodes on non-x86 configs
-Date: Mon, 14 Nov 2016 16:02:36 -0600
-Message-Id: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
+Subject: [PATCH v7 4/5] of/fdt: mark hotpluggable memory
+Date: Mon, 14 Nov 2016 16:02:40 -0600
+In-Reply-To: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1479160961-25840-1-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <1479160961-25840-5-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, devicetree@vger.kernel.org, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-This patchset allows more configs to make use of movable nodes. When
-CONFIG_MOVABLE_NODE is selected, there are two ways to introduce such
-nodes into the system:
+When movable nodes are enabled, any node containing only hotpluggable
+memory is made movable at boot time.
 
-1. Discover movable nodes at boot. Currently this is only possible on
-   x86, but we will enable configs supporting fdt to do the same.
+On x86, hotpluggable memory is discovered by parsing the ACPI SRAT,
+making corresponding calls to memblock_mark_hotplug().
 
-2. Hotplug and online all of a node's memory using online_movable. This
-   is already possible on any config supporting memory hotplug, not
-   just x86, but the Kconfig doesn't say so. We will fix that.
+If we introduce a dt property to describe memory as hotpluggable,
+configs supporting early fdt may then also do this marking and use
+movable nodes.
 
-We'll also remove some cruft on power which would prevent (2).
+Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+Tested-by: Balbir Singh <bsingharora@gmail.com>
+---
+ drivers/of/fdt.c       | 19 +++++++++++++++++++
+ include/linux/of_fdt.h |  1 +
+ mm/Kconfig             |  2 +-
+ 3 files changed, 21 insertions(+), 1 deletion(-)
 
-/* changelog */
-
-v7:
-* Fix error when !CONFIG_HAVE_MEMBLOCK, found by the kbuild test robot.
-
-* Remove the prefix of "linux,hotpluggable". Document the property's purpose.
-
-v6:
-* http://lkml.kernel.org/r/1478562276-25539-1-git-send-email-arbab@linux.vnet.ibm.com
-
-* Add a patch enabling the fdt to describe hotpluggable memory.
-
-v5:
-* http://lkml.kernel.org/r/1477339089-5455-1-git-send-email-arbab@linux.vnet.ibm.com
-
-* Drop the patches which recognize the "status" property of dt memory
-  nodes. Firmware can set the size of "linux,usable-memory" to zero instead.
-
-v4:
-* http://lkml.kernel.org/r/1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com
-
-* Rename of_fdt_is_available() to of_fdt_device_is_available().
-  Rename of_flat_dt_is_available() to of_flat_dt_device_is_available().
-
-* Instead of restoring top-down allocation, ensure it never goes
-  bottom-up in the first place, by making movable_node arch-specific.
-
-* Use MEMORY_HOTPLUG instead of PPC64 in the mm/Kconfig patch.
-
-v3:
-* http://lkml.kernel.org/r/1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com
-
-* Use Rob Herring's suggestions to improve the node availability check.
-
-* More verbose commit log in the patch enabling CONFIG_MOVABLE_NODE.
-
-* Add a patch to restore top-down allocation the way x86 does.
-
-v2:
-* http://lkml.kernel.org/r/1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com
-
-* Use the "status" property of standard dt memory nodes instead of
-  introducing a new "ibm,hotplug-aperture" compatible id.
-
-* Remove the patch which explicitly creates a memoryless node. This set
-  no longer has any bearing on whether the pgdat is created at boot or
-  at the time of memory addition.
-
-v1:
-* http://lkml.kernel.org/r/1470680843-28702-1-git-send-email-arbab@linux.vnet.ibm.com
-
-Reza Arbab (5):
-  powerpc/mm: allow memory hotplug into a memoryless node
-  mm: remove x86-only restriction of movable_node
-  mm: enable CONFIG_MOVABLE_NODE on non-x86 arches
-  of/fdt: mark hotpluggable memory
-  dt: add documentation of "hotpluggable" memory property
-
- Documentation/devicetree/booting-without-of.txt |  7 +++++++
- Documentation/kernel-parameters.txt             |  2 +-
- arch/powerpc/mm/numa.c                          | 13 +------------
- arch/x86/kernel/setup.c                         | 24 ++++++++++++++++++++++++
- drivers/of/fdt.c                                | 19 +++++++++++++++++++
- include/linux/of_fdt.h                          |  1 +
- mm/Kconfig                                      |  2 +-
- mm/memory_hotplug.c                             | 20 --------------------
- 8 files changed, 54 insertions(+), 34 deletions(-)
-
+diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+index c89d5d2..c9b5cac 100644
+--- a/drivers/of/fdt.c
++++ b/drivers/of/fdt.c
+@@ -1015,6 +1015,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+ 	const __be32 *reg, *endp;
+ 	int l;
++	bool hotpluggable;
+ 
+ 	/* We are scanning "memory" nodes only */
+ 	if (type == NULL) {
+@@ -1034,6 +1035,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 		return 0;
+ 
+ 	endp = reg + (l / sizeof(__be32));
++	hotpluggable = of_get_flat_dt_prop(node, "hotpluggable", NULL);
+ 
+ 	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
+ 
+@@ -1049,6 +1051,13 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+ 		    (unsigned long long)size);
+ 
+ 		early_init_dt_add_memory_arch(base, size);
++
++		if (!hotpluggable)
++			continue;
++
++		if (early_init_dt_mark_hotplug_memory_arch(base, size))
++			pr_warn("failed to mark hotplug range 0x%llx - 0x%llx\n",
++				base, base + size);
+ 	}
+ 
+ 	return 0;
+@@ -1146,6 +1155,11 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
+ 	memblock_add(base, size);
+ }
+ 
++int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
++{
++	return memblock_mark_hotplug(base, size);
++}
++
+ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
+ 					phys_addr_t size, bool nomap)
+ {
+@@ -1168,6 +1182,11 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
+ 	WARN_ON(1);
+ }
+ 
++int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
++{
++	return -ENOSYS;
++}
++
+ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
+ 					phys_addr_t size, bool nomap)
+ {
+diff --git a/include/linux/of_fdt.h b/include/linux/of_fdt.h
+index 4341f32..271b3fd 100644
+--- a/include/linux/of_fdt.h
++++ b/include/linux/of_fdt.h
+@@ -71,6 +71,7 @@ extern int early_init_dt_scan_memory(unsigned long node, const char *uname,
+ extern void early_init_fdt_scan_reserved_mem(void);
+ extern void early_init_fdt_reserve_self(void);
+ extern void early_init_dt_add_memory_arch(u64 base, u64 size);
++extern int early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size);
+ extern int early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
+ 					     bool no_map);
+ extern void * early_init_dt_alloc_memory_arch(u64 size, u64 align);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 061b46b..33a9b06 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -153,7 +153,7 @@ config MOVABLE_NODE
+ 	bool "Enable to assign a node which has only movable memory"
+ 	depends on HAVE_MEMBLOCK
+ 	depends on NO_BOOTMEM
+-	depends on X86_64 || MEMORY_HOTPLUG
++	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
+ 	depends on NUMA
+ 	default n
+ 	help
 -- 
 1.8.3.1
 
