@@ -1,132 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AF606B0261
-	for <linux-mm@kvack.org>; Sun, 13 Nov 2016 21:26:30 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a20so20030663wme.5
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 18:26:30 -0800 (PST)
-Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id fa9si21676439wjb.103.2016.11.13.18.26.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Nov 2016 18:26:29 -0800 (PST)
-Content-Type: text/plain; charset="UTF-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 584866B0038
+	for <linux-mm@kvack.org>; Sun, 13 Nov 2016 22:16:36 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y71so65879993pgd.0
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 19:16:36 -0800 (PST)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id 68si12111996pfn.75.2016.11.13.19.16.34
+        for <linux-mm@kvack.org>;
+        Sun, 13 Nov 2016 19:16:35 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161113033328.9250-1-jeremy.lefaure@lse.epita.fr>
+In-Reply-To: <20161113033328.9250-1-jeremy.lefaure@lse.epita.fr>
+Subject: Re: [PATCH] thb: propagate conditional compilation to code depending on sysfs in khugepaged.c
+Date: Mon, 14 Nov 2016 11:16:21 +0800
+Message-ID: <024001d23e25$79591900$6c0b4b00$@alibaba-inc.com>
 MIME-Version: 1.0
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Mon, 14 Nov 2016 00:14:20 +0000
-Message-ID: <lsq.1479082460.903306366@decadent.org.uk>
-Subject: [PATCH 3.16 169/346] x86/mm: Disable preemption during CR3 read+write
-In-Reply-To: <lsq.1479082458.755945576@decadent.org.uk>
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: akpm@linux-foundation.org, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Rik van Riel <riel@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Borislav Petkov <bp@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>
-
-3.16.39-rc1 review patch.  If anyone has any objections, please let me know.
-
-------------------
-
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-
-commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
-
-There's a subtle preemption race on UP kernels:
-
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
-
-But then, there is this scenario on x86-UP:
-
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
-
- -> mmput()
- -> exit_mmap()
- -> tlb_finish_mmu()
- -> tlb_flush_mmu()
- -> tlb_flush_mmu_tlbonly()
- -> tlb_flush()
- -> flush_tlb_mm_range()
- -> __flush_tlb_up()
- -> __flush_tlb()
- ->  __native_flush_tlb()
-
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
-
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
-
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
-
-Now the fun part:
-
-Let's preempt taskA one more time and get back to taskB. This
-time switch_mm() won't do a thing because oldmm (->active_mm)
-is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / PGD and return to userland.
-
-The next thing that happens is handle_mm_fault() with an address for
-the execution of its code in userland. handle_mm_fault() realizes that
-it has a PTE with proper rights so it returns doing nothing. But the
-CPU looks at the wrong PGD and insists that something is wrong and
-faults again. And again. And one more timea?|
-
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
-
-Fix this by disabling preemption across the critical code section.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
+To: =?UTF-8?Q?'J=C3=A9r=C3=A9my_Lefaure'?= <jeremy.lefaure@lse.epita.fr>, 'Andrew Morton' <akpm@linux-foundation.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
-[ Prettified the changelog. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
----
- arch/x86/include/asm/tlbflush.h | 7 +++++++
- 1 file changed, 7 insertions(+)
 
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -17,7 +17,14 @@
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * If current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back:
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
+>=20
+> Commit b46e756f5e47 ("thp: extract khugepaged from mm/huge_memory.c")
+> moved code from huge_memory.c to khugepaged.c. Some of this code =
+should
+> be compiled only when CONFIG_SYSFS is enabled but the condition around
+> this code was not moved into khugepaged.c. The result is a compilation
+> error when CONFIG_SYSFS is disabled:
+>=20
+> mm/built-in.o: In function `khugepaged_defrag_store':
+> khugepaged.c:(.text+0x2d095): undefined reference to
+> `single_hugepage_flag_store'
+> mm/built-in.o: In function `khugepaged_defrag_show':
+> khugepaged.c:(.text+0x2d0ab): undefined reference to
+> `single_hugepage_flag_show'
+>=20
+> This commit adds the #ifdef CONFIG_SYSFS around the code related to
+> sysfs.
+>=20
+> Signed-off-by: J=C3=A9r=C3=A9my Lefaure <jeremy.lefaure@lse.epita.fr>
+> ---
+
+Hey, can you spin with the subject line corrected, please?
+
+>  mm/khugepaged.c | 2 ++
+>  1 file changed, 2 insertions(+)
+>=20
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index 728d779..87e1a7ca 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -103,6 +103,7 @@ static struct khugepaged_scan khugepaged_scan =3D =
+{
+>  	.mm_head =3D LIST_HEAD_INIT(khugepaged_scan.mm_head),
+>  };
+>=20
+> +#ifdef CONFIG_SYSFS
+>  static ssize_t scan_sleep_millisecs_show(struct kobject *kobj,
+>  					 struct kobj_attribute *attr,
+>  					 char *buf)
+> @@ -295,6 +296,7 @@ struct attribute_group khugepaged_attr_group =3D {
+>  	.attrs =3D khugepaged_attr,
+>  	.name =3D "khugepaged",
+>  };
+> +#endif /* CONFIG_SYSFS */
+>=20
+>  #define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB)
+>=20
+> --
+> 2.10.2
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
