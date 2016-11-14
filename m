@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 026546B0260
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 18:44:28 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g186so86148445pgc.2
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:44:27 -0800 (PST)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id tx6si20099300pab.295.2016.11.14.15.44.27
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 519C96B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 18:59:38 -0500 (EST)
+Received: by mail-pa0-f72.google.com with SMTP id ro13so101167749pac.7
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:59:38 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k72si24136675pge.102.2016.11.14.15.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Nov 2016 15:44:27 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id i88so6817321pfk.2
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:44:27 -0800 (PST)
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: [PATCH v1 3/3] powerpc: fix node_possible_map limitations
-Date: Tue, 15 Nov 2016 10:44:05 +1100
-Message-Id: <1479167045-28136-4-git-send-email-bsingharora@gmail.com>
-In-Reply-To: <1479167045-28136-1-git-send-email-bsingharora@gmail.com>
-References: <1479167045-28136-1-git-send-email-bsingharora@gmail.com>
+        Mon, 14 Nov 2016 15:59:37 -0800 (PST)
+Date: Tue, 15 Nov 2016 07:58:51 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [linux-next:master 5439/5763] fs/namespace.c:1185:9-10: WARNING:
+ return of 0/1 in function 'path_is_mountpoint' with return type bool
+Message-ID: <201611150731.dUsDxUoh%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, mpe@ellerman.id.au, akpm@linux-foundation.org, tj@kernel.org, Balbir Singh <bsingharora@gmail.com>
+To: Ian Kent <ikent@redhat.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-We've fixed the memory hotplug issue with memcg, hence
-this work around should not be required.
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   b60de3eba5c3cf3a230c121def7c57aafa72c4f8
+commit: 5910290273fdaf6dc1f6e8d4afdee5c5608b2b69 [5439/5763] vfs: add path_is_mountpoint() helper
 
-Fixes: commit 3af229f2071f
-("powerpc/numa: Reset node_possible_map to only node_online_map")
 
-Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+coccinelle warnings: (new ones prefixed by >>)
+
+>> fs/namespace.c:1185:9-10: WARNING: return of 0/1 in function 'path_is_mountpoint' with return type bool
+>> fs/namespace.c:1199:9-10: WARNING: return of 0/1 in function 'path_is_mountpoint_rcu' with return type bool
+
+Please review and possibly fold the followup patch.
+
 ---
- arch/powerpc/mm/numa.c | 7 -------
- 1 file changed, 7 deletions(-)
-
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index a51c188..ca8c2ab 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -916,13 +916,6 @@ void __init initmem_init(void)
- 
- 	memblock_dump_all();
- 
--	/*
--	 * Reduce the possible NUMA nodes to the online NUMA nodes,
--	 * since we do not support node hotplug. This ensures that  we
--	 * lower the maximum NUMA node ID to what is actually present.
--	 */
--	nodes_and(node_possible_map, node_possible_map, node_online_map);
--
- 	for_each_online_node(nid) {
- 		unsigned long start_pfn, end_pfn;
- 
--- 
-2.5.5
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
