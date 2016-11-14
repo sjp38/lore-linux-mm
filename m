@@ -1,69 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E1146B0069
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 14:40:58 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id m203so33381149wma.2
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 11:40:58 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id k81si7330wmk.114.2016.11.14.11.40.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Nov 2016 11:40:57 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id u144so18312188wmu.0
-        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 11:40:57 -0800 (PST)
-Date: Mon, 14 Nov 2016 22:40:54 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/6] mm: khugepaged: fix radix tree node leak in shmem
- collapse error path
-Message-ID: <20161114194054.GA12829@node.shutemov.name>
-References: <20161107190741.3619-2-hannes@cmpxchg.org>
- <20161108095352.GH32353@quack2.suse.cz>
- <20161108161245.GA4020@cmpxchg.org>
- <20161111105921.GC19382@node.shutemov.name>
- <20161111122224.GA5090@quack2.suse.cz>
- <20161111163753.GH19382@node.shutemov.name>
- <20161114080744.GA2524@quack2.suse.cz>
- <20161114142902.GA10455@node.shutemov.name>
- <20161114155250.GB3291@cmpxchg.org>
- <20161114164822.GB5141@cmpxchg.org>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3406B0069
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 15:12:16 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a20so33992882wme.5
+        for <linux-mm@kvack.org>; Mon, 14 Nov 2016 12:12:16 -0800 (PST)
+Received: from vps202351.ovh.net (blatinox.fr. [51.254.120.209])
+        by mx.google.com with ESMTP id ye10si25126493wjb.105.2016.11.14.12.12.15
+        for <linux-mm@kvack.org>;
+        Mon, 14 Nov 2016 12:12:15 -0800 (PST)
+From: =?UTF-8?q?J=C3=A9r=C3=A9my=20Lefaure?= <jeremy.lefaure@lse.epita.fr>
+Subject: [PATCH v2] mm, thb: propagation of conditional compilation in khugepaged.c
+Date: Mon, 14 Nov 2016 15:12:08 -0500
+Message-Id: <20161114201208.11474-1-jeremy.lefaure@lse.epita.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161114164822.GB5141@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, =?UTF-8?q?J=C3=A9r=C3=A9my=20Lefaure?= <jeremy.lefaure@lse.epita.fr>
 
-On Mon, Nov 14, 2016 at 11:48:22AM -0500, Johannes Weiner wrote:
-> On Mon, Nov 14, 2016 at 10:52:50AM -0500, Johannes Weiner wrote:
-> > On Mon, Nov 14, 2016 at 05:29:02PM +0300, Kirill A. Shutemov wrote:
-> > > @@ -1400,7 +1400,9 @@ static void collapse_shmem(struct mm_struct *mm,
-> > >  					PAGE_SIZE, 0);
-> > >  
-> > >  		spin_lock_irq(&mapping->tree_lock);
-> > > -
-> > > +		slot = radix_tree_lookup_slot(&mapping->page_tree, index);
-> > > +		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
-> > > +					&mapping->tree_lock), page);
-> > >  		VM_BUG_ON_PAGE(page_mapped(page), page);
-> > 
-> > That looks good to me. The slot may get relocated, but the content
-> > shouldn't change with the page locked.
-> > 
-> > Are you going to send a full patch with changelog and sign-off? If so,
-> > please add:
-> > 
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Just to clarify, this is in addition to my radix_tree_iter_next()
-> change. The iterator still needs to be reloaded because the number of
-> valid slots that come after the current one can change as well.
+Commit b46e756f5e47 ("thp: extract khugepaged from mm/huge_memory.c")
+moved code from huge_memory.c to khugepaged.c. Some of this code should
+be compiled only when CONFIG_SYSFS is enabled but the condition around
+this code was not moved into khugepaged.c. The result is a compilation
+error when CONFIG_SYSFS is disabled:
 
-Could you just amend all these fixups into your patch?
+mm/built-in.o: In function `khugepaged_defrag_store':
+khugepaged.c:(.text+0x2d095): undefined reference to
+`single_hugepage_flag_store'
+mm/built-in.o: In function `khugepaged_defrag_show':
+khugepaged.c:(.text+0x2d0ab): undefined reference to
+`single_hugepage_flag_show'
 
+This commit adds the #ifdef CONFIG_SYSFS around the code related to
+sysfs.
+
+Signed-off-by: JA(C)rA(C)my Lefaure <jeremy.lefaure@lse.epita.fr>
+---
+After having discuted with Hillf, I changed the subject to replace "thb" by
+"mm, thb". I also rewrote the subject.
+
+ mm/khugepaged.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 728d779..87e1a7ca 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -103,6 +103,7 @@ static struct khugepaged_scan khugepaged_scan = {
+ 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
+ };
+ 
++#ifdef CONFIG_SYSFS
+ static ssize_t scan_sleep_millisecs_show(struct kobject *kobj,
+ 					 struct kobj_attribute *attr,
+ 					 char *buf)
+@@ -295,6 +296,7 @@ struct attribute_group khugepaged_attr_group = {
+ 	.attrs = khugepaged_attr,
+ 	.name = "khugepaged",
+ };
++#endif /* CONFIG_SYSFS */
+ 
+ #define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB)
+ 
 -- 
- Kirill A. Shutemov
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
