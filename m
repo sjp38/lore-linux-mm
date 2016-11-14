@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09B276B0038
-	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 01:07:45 -0500 (EST)
-Received: by mail-pa0-f69.google.com with SMTP id rf5so82000281pab.3
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 22:07:45 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id e17si20959514pgj.133.2016.11.13.22.07.43
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3D06B0038
+	for <linux-mm@kvack.org>; Mon, 14 Nov 2016 02:08:40 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id l139so203760661ywe.5
+        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 23:08:40 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40049.outbound.protection.outlook.com. [40.107.4.49])
+        by mx.google.com with ESMTPS id p51si9338950otb.286.2016.11.13.23.08.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Nov 2016 22:07:43 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id i88so5584635pfk.2
-        for <linux-mm@kvack.org>; Sun, 13 Nov 2016 22:07:43 -0800 (PST)
-Subject: Re: [PATCH V3 1/2] mm: move vma_is_anonymous check within
- pmd_move_must_withdraw
-References: <20161113150025.17942-1-aneesh.kumar@linux.vnet.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <a8ff3bc4-45f8-fc3c-2ffe-7d25ce259513@gmail.com>
-Date: Mon, 14 Nov 2016 17:07:37 +1100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 13 Nov 2016 23:08:39 -0800 (PST)
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: [PATCH v2 0/6] mm: fix the "counter.sh" failure for libhugetlbfs 
+Date: Mon, 14 Nov 2016 15:07:33 +0800
+Message-ID: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20161113150025.17942-1-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, benh@au1.ibm.com, michaele@au1.ibm.com, michael.neuling@au1.ibm.com, paulus@au1.ibm.com, "Kirill A . Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, catalin.marinas@arm.com
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, Huang Shijie <shijie.huang@arm.com>
 
+(1) Background
+   For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
+   In the 4K page environment, the max page order is 10 (max_order - 1),
+   so 32M page is the gigantic page.    
 
+   The arm64 MMU supports a Contiguous bit which is a hint that the TTE
+   is one of a set of contiguous entries which can be cached in a single
+   TLB entry.  Please refer to the arm64v8 mannul :
+       DDI0487A_f_armv8_arm.pdf (in page D4-1811)
 
-On 14/11/16 02:00, Aneesh Kumar K.V wrote:
-> Architectures like ppc64 want to use page table deposit/withraw
-> even with huge pmd dax entries. Allow arch to override the
-> vma_is_anonymous check by moving that to pmd_move_must_withdraw
-> function
-> 
+(2) The bug   
+   After I tested the libhugetlbfs, I found the test case "counter.sh"
+   will fail with the gigantic page (32M page in arm64 board).
 
-I think the changelog can be reworded a bit
+   This patch set adds support for gigantic surplus hugetlb pages,
+   allowing the counter.sh unit test to pass.   
 
-Independent of whether the vma is for anonymous memory, some arches
-like ppc64 would like to override pmd_move_must_withdraw(). One option
-is to encapsulate the vma_is_anonymous() check for general architectures
-inside pmd_move_must_withdraw() so that is always called and architectures
-that need unconditional overriding can override this function. ppc64
-needs to override the function when the MMU is configured to use hash
-PTE's.
+v1 -- > v2:
+   1.) fix the compiler error in X86.
+   2.) add new patches for NUMA.
+       The patch #2 ~ #5 are new patches.
 
-What do you think?
+Huang Shijie (6):
+  mm: hugetlb: rename some allocation functions
+  mm: hugetlb: add a new parameter for some functions
+  mm: hugetlb: change the return type for alloc_fresh_gigantic_page
+  mm: mempolicy: intruduce a helper huge_nodemask()
+  mm: hugetlb: add a new function to allocate a new gigantic page
+  mm: hugetlb: support gigantic surplus pages
 
-Balbir Singh.
+ include/linux/mempolicy.h |   8 +++
+ mm/hugetlb.c              | 128 ++++++++++++++++++++++++++++++++++++----------
+ mm/mempolicy.c            |  20 ++++++++
+ 3 files changed, 130 insertions(+), 26 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
