@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A29E86B02B5
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:18:16 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id n68so19362663itn.4
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 13:18:16 -0800 (PST)
-Received: from mail-it0-x230.google.com (mail-it0-x230.google.com. [2607:f8b0:4001:c0b::230])
-        by mx.google.com with ESMTPS id a76si3211219ita.52.2016.11.15.13.18.15
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C53DF6B02B6
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:22:56 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id b202so107703965oii.3
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 13:22:56 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0081.outbound.protection.outlook.com. [104.47.34.81])
+        by mx.google.com with ESMTPS id i131si12240875oib.236.2016.11.15.13.22.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 13:18:15 -0800 (PST)
-Received: by mail-it0-x230.google.com with SMTP id c20so174920179itb.0
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 13:18:15 -0800 (PST)
-Subject: Re: [PATCH/RFC] mm: don't cap request size based on read-ahead
- setting
-References: <7d8739c2-09ea-8c1f-cef7-9b8b40766c6a@kernel.dk>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <6e924b0e-a2fc-5983-fd7d-80c956308937@kernel.dk>
-Date: Tue, 15 Nov 2016 14:18:12 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 15 Nov 2016 13:22:56 -0800 (PST)
+Subject: Re: [RFC PATCH v3 04/20] x86: Handle reduction in physical address
+ size with SME
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
+ <20161115121035.GD24857@8bytes.org> <20161115121456.f4slpk4i2jl3e2ke@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <39da89c3-b89f-1d93-6af3-ea93cb750c45@amd.com>
+Date: Tue, 15 Nov 2016 15:22:45 -0600
 MIME-Version: 1.0
-In-Reply-To: <7d8739c2-09ea-8c1f-cef7-9b8b40766c6a@kernel.dk>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20161115121456.f4slpk4i2jl3e2ke@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>, Joerg Roedel <joro@8bytes.org>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 11/10/2016 10:00 AM, Jens Axboe wrote:
-> Hi,
->
-> We ran into a funky issue, where someone doing 256K buffered reads saw
-> 128K requests at the device level. Turns out it is read-ahead capping
-> the request size, since we use 128K as the default setting. This doesn't
-> make a lot of sense - if someone is issuing 256K reads, they should see
-> 256K reads, regardless of the read-ahead setting.
->
-> To make matters more confusing, there's an odd interaction with the
-> fadvise hint setting. If we tell the kernel we're doing sequential IO on
-> this file descriptor, we can get twice the read-ahead size. But if we
-> tell the kernel that we are doing random IO, hence disabling read-ahead,
-> we do get nice 256K requests at the lower level. An application
-> developer will be, rightfully, scratching his head at this point,
-> wondering wtf is going on. A good one will dive into the kernel source,
-> and silently weep.
->
-> This patch introduces a bdi hint, io_pages. This is the soft max IO size
-> for the lower level, I've hooked it up to the bdev settings here.
-> Read-ahead is modified to issue the maximum of the user request size,
-> and the read-ahead max size, but capped to the max request size on the
-> device side. The latter is done to avoid reading ahead too much, if the
-> application asks for a huge read. With this patch, the kernel behaves
-> like the application expects.
+On 11/15/2016 6:14 AM, Borislav Petkov wrote:
+> On Tue, Nov 15, 2016 at 01:10:35PM +0100, Joerg Roedel wrote:
+>> Maybe add a comment here why you can't use cpu_has (yet).
+> 
+> So that could be alleviated by moving this function *after*
+> init_scattered_cpuid_features(). Then you can simply do *cpu_has().
+> 
 
-Any comments on this?
+Hmmm... I still need the ebx value from the CPUID instruction to
+calculate the proper reduction in physical bits, so I'll still need
+to make the CPUID call.
 
--- 
-Jens Axboe
+Thanks,
+Tom
+
+> Also, I'm not sure why we're checking CPUID for the SME feature when we
+> have sme_get_me_mask() et al which have been setup much earlier...
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
