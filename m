@@ -1,288 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A5656B029A
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 11:07:30 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w13so3063965wmw.0
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:07:30 -0800 (PST)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id jo3si12431813wjc.34.2016.11.15.08.07.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 08:07:29 -0800 (PST)
-Received: by mail-wm0-x22f.google.com with SMTP id u144so24151195wmu.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:07:28 -0800 (PST)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] kasan: support use-after-scope detection
-Date: Tue, 15 Nov 2016 17:07:25 +0100
-Message-Id: <1479226045-145148-1-git-send-email-dvyukov@google.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C84AA6B029D
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 11:33:54 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id s63so3309057wms.7
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:33:54 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id q14si3667415wmd.13.2016.11.15.08.33.53
+        for <linux-mm@kvack.org>;
+        Tue, 15 Nov 2016 08:33:53 -0800 (PST)
+Date: Tue, 15 Nov 2016 17:33:50 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v3 04/20] x86: Handle reduction in physical address
+ size with SME
+Message-ID: <20161115163350.jal7sd6ghbmk5sqc@pd.tnic>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
+ <20161115121035.GD24857@8bytes.org>
+ <20161115121456.f4slpk4i2jl3e2ke@pd.tnic>
+ <a4cc5b07-89e1-aaa0-1977-1de95883ba62@amd.com>
+ <20161115153338.a2cxmatnpqcgiaiy@pd.tnic>
+ <bb47e943-f5b6-0d73-cf9a-fea002a5c70e@amd.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <bb47e943-f5b6-0d73-cf9a-fea002a5c70e@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, glider@google.com, akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Joerg Roedel <joro@8bytes.org>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Gcc revision 241896 implements use-after-scope detection.
-Will be available in gcc 7. Support it in KASAN.
+On Tue, Nov 15, 2016 at 10:06:16AM -0600, Tom Lendacky wrote:
+> Yes, but that doesn't relate to the physical address space reduction.
+> 
+> Once the SYS_CFG MSR bit for SME is set, even if the encryption bit is
+> never used, there is a physical reduction of the address space. So when
+> checking whether to adjust the physical address bits I can't rely on the
+> sme_me_mask, I have to look at the MSR.
+> 
+> But when I'm looking to decide whether to encrypt or decrypt something,
+> I use the sme_me_mask to decide if that is needed.  If the sme_me_mask
+> is not set then the encrypt/decrypt op shouldn't be performed.
+> 
+> I might not be grasping the point you're trying to make...
 
-Gcc emits 2 new callbacks to poison/unpoison large stack
-objects when they go in/out of scope.
-Implement the callbacks and add a test.
+Ok, let me try to summarize how I see it. There are a couple of states:
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: aryabinin@virtuozzo.com
-Cc: glider@google.com
-Cc: akpm@linux-foundation.org
-Cc: kasan-dev@googlegroups.com
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+* CPUID bit in 0x8000001f - that's SME supported
 
----
-FTR here are reports from the test with gcc 7:
+* Reduction of address space - MSR bit. That could be called "SME
+BIOS-eenabled".
 
-kasan test: use_after_scope_test use-after-scope on int
-==================================================================
-BUG: KASAN: use-after-scope in use_after_scope_test+0xe0/0x25b [test_kasan] at addr ffff8800359b72b0
-Write of size 1 by task insmod/6644
-page:ffffea0000d66dc0 count:0 mapcount:0 mapping:          (null) index:0x0
-flags: 0x1fffc0000000000()
-page dumped because: kasan: bad access detected
-CPU: 2 PID: 6644 Comm: insmod Tainted: G    B           4.9.0-rc5+ #39
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffff8800359b71f0 ffffffff834c2999 ffffffff00000002 1ffff10006b36dd1
- ffffed0006b36dc9 0000000041b58ab3 ffffffff89575430 ffffffff834c26ab
- 0000000000000000 0000000000000000 0000000000000001 0000000000000000
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff834c2999>] dump_stack+0x2ee/0x3f5 lib/dump_stack.c:51
- [<     inline     >] print_address_description mm/kasan/report.c:207
- [<     inline     >] kasan_report_error mm/kasan/report.c:286
- [<ffffffff819f0ec0>] kasan_report+0x490/0x4c0 mm/kasan/report.c:306
- [<ffffffff819f0fac>] __asan_report_store1_noabort+0x1c/0x20 mm/kasan/report.c:334
- [<ffffffffa00102ba>] use_after_scope_test+0xe0/0x25b [test_kasan] lib/test_kasan.c:424
- [<ffffffffa00114b8>] kmalloc_tests_init+0x72/0x79 [test_kasan]
- [<ffffffff8100244b>] do_one_initcall+0xfb/0x3f0 init/main.c:778
- [<ffffffff8184a813>] do_init_module+0x219/0x59c kernel/module.c:3386
- [<ffffffff81658218>] load_module+0x5918/0x8c40 kernel/module.c:3706
- [<ffffffff8165b939>] SYSC_init_module+0x3f9/0x470 kernel/module.c:3776
- [<ffffffff8165bd2e>] SyS_init_module+0xe/0x10 kernel/module.c:3759
- [<ffffffff88143885>] entry_SYSCALL_64_fastpath+0x23/0xc6 arch/x86/entry/entry_64.S:209
-Memory state around the buggy address:
- ffff8800359b7180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- ffff8800359b7200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
->ffff8800359b7280: 00 00 f1 f1 f1 f1 f8 f2 f2 f2 f2 f2 f2 f2 00 f2
-                                     ^
- ffff8800359b7300: f2 f2 f2 f2 f2 f2 00 00 00 00 00 00 00 00 00 00
- ffff8800359b7380: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-==================================================================
-==================================================================
-BUG: KASAN: use-after-scope in use_after_scope_test+0x118/0x25b [test_kasan] at addr ffff8800359b72b3
-Write of size 1 by task insmod/6644
-page:ffffea0000d66dc0 count:0 mapcount:0 mapping:          (null) index:0x0
-flags: 0x1fffc0000000000()
-page dumped because: kasan: bad access detected
-CPU: 2 PID: 6644 Comm: insmod Tainted: G    B           4.9.0-rc5+ #39
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffff8800359b71f0 ffffffff834c2999 ffffffff00000002 1ffff10006b36dd1
- ffffed0006b36dc9 0000000041b58ab3 ffffffff89575430 ffffffff834c26ab
- 0000000000000000 0000000000000000 0000000000000001 0000000000000000
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff834c2999>] dump_stack+0x2ee/0x3f5 lib/dump_stack.c:51
- [<     inline     >] print_address_description mm/kasan/report.c:207
- [<     inline     >] kasan_report_error mm/kasan/report.c:286
- [<ffffffff819f0ec0>] kasan_report+0x490/0x4c0 mm/kasan/report.c:306
- [<ffffffff819f0fac>] __asan_report_store1_noabort+0x1c/0x20 mm/kasan/report.c:334
- [<ffffffffa00102f2>] use_after_scope_test+0x118/0x25b [test_kasan] lib/test_kasan.c:425
- [<ffffffffa00114b8>] kmalloc_tests_init+0x72/0x79 [test_kasan]
- [<ffffffff8100244b>] do_one_initcall+0xfb/0x3f0 init/main.c:778
- [<ffffffff8184a813>] do_init_module+0x219/0x59c kernel/module.c:3386
- [<ffffffff81658218>] load_module+0x5918/0x8c40 kernel/module.c:3706
- [<ffffffff8165b939>] SYSC_init_module+0x3f9/0x470 kernel/module.c:3776
- [<ffffffff8165bd2e>] SyS_init_module+0xe/0x10 kernel/module.c:3759
- [<ffffffff88143885>] entry_SYSCALL_64_fastpath+0x23/0xc6 arch/x86/entry/entry_64.S:209
-Memory state around the buggy address:
- ffff8800359b7180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- ffff8800359b7200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
->ffff8800359b7280: 00 00 f1 f1 f1 f1 f8 f2 f2 f2 f2 f2 f2 f2 00 f2
-                                     ^
- ffff8800359b7300: f2 f2 f2 f2 f2 f2 00 00 00 00 00 00 00 00 00 00
- ffff8800359b7380: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-==================================================================
-kasan test: use_after_scope_test use-after-scope on array
-==================================================================
-BUG: KASAN: use-after-scope in use_after_scope_test+0x1ee/0x25b [test_kasan] at addr ffff8800359b7330
-Write of size 1 by task insmod/6644
-page:ffffea0000d66dc0 count:0 mapcount:0 mapping:          (null) index:0x0
-flags: 0x1fffc0000000000()
-page dumped because: kasan: bad access detected
-CPU: 2 PID: 6644 Comm: insmod Tainted: G    B           4.9.0-rc5+ #39
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffff8800359b71f0 ffffffff834c2999 ffffffff00000002 1ffff10006b36dd1
- ffffed0006b36dc9 0000000041b58ab3 ffffffff89575430 ffffffff834c26ab
- 0000000000000000 0000000000000000 0000000000000001 0000000000000000
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff834c2999>] dump_stack+0x2ee/0x3f5 lib/dump_stack.c:51
- [<     inline     >] print_address_description mm/kasan/report.c:207
- [<     inline     >] kasan_report_error mm/kasan/report.c:286
- [<ffffffff819f0ec0>] kasan_report+0x490/0x4c0 mm/kasan/report.c:306
- [<ffffffff819f0fac>] __asan_report_store1_noabort+0x1c/0x20 mm/kasan/report.c:334
- [<ffffffffa00103c8>] use_after_scope_test+0x1ee/0x25b [test_kasan] lib/test_kasan.c:433
- [<ffffffffa00114b8>] kmalloc_tests_init+0x72/0x79 [test_kasan]
- [<ffffffff8100244b>] do_one_initcall+0xfb/0x3f0 init/main.c:778
- [<ffffffff8184a813>] do_init_module+0x219/0x59c kernel/module.c:3386
- [<ffffffff81658218>] load_module+0x5918/0x8c40 kernel/module.c:3706
- [<ffffffff8165b939>] SYSC_init_module+0x3f9/0x470 kernel/module.c:3776
- [<ffffffff8165bd2e>] SyS_init_module+0xe/0x10 kernel/module.c:3759
- [<ffffffff88143885>] entry_SYSCALL_64_fastpath+0x23/0xc6 arch/x86/entry/entry_64.S:209
-Memory state around the buggy address:
- ffff8800359b7200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- ffff8800359b7280: 00 00 f1 f1 f1 f1 f8 f2 f2 f2 f2 f2 f2 f2 00 f2
->ffff8800359b7300: f2 f2 f2 f2 f2 f2 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8
-                                     ^
- ffff8800359b7380: f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8
- ffff8800359b7400: f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8
-==================================================================
-==================================================================
-BUG: KASAN: use-after-scope in use_after_scope_test+0x229/0x25b [test_kasan] at addr ffff8800359b772f
-Write of size 1 by task insmod/6644
-page:ffffea0000d66dc0 count:0 mapcount:0 mapping:          (null) index:0x0
-flags: 0x1fffc0000000000()
-page dumped because: kasan: bad access detected
-CPU: 2 PID: 6644 Comm: insmod Tainted: G    B           4.9.0-rc5+ #39
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffff8800359b71f0 ffffffff834c2999 ffffffff00000002 1ffff10006b36dd1
- ffffed0006b36dc9 0000000041b58ab3 ffffffff89575430 ffffffff834c26ab
- 0000000000000000 0000000000000000 0000000000000001 0000000000000000
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff834c2999>] dump_stack+0x2ee/0x3f5 lib/dump_stack.c:51
- [<     inline     >] print_address_description mm/kasan/report.c:207
- [<     inline     >] kasan_report_error mm/kasan/report.c:286
- [<ffffffff819f0ec0>] kasan_report+0x490/0x4c0 mm/kasan/report.c:306
- [<ffffffff819f0fac>] __asan_report_store1_noabort+0x1c/0x20 mm/kasan/report.c:334
- [<ffffffffa0010403>] use_after_scope_test+0x229/0x25b [test_kasan] lib/test_kasan.c:434
- [<ffffffffa00114b8>] kmalloc_tests_init+0x72/0x79 [test_kasan]
- [<ffffffff8100244b>] do_one_initcall+0xfb/0x3f0 init/main.c:778
- [<ffffffff8184a813>] do_init_module+0x219/0x59c kernel/module.c:3386
- [<ffffffff81658218>] load_module+0x5918/0x8c40 kernel/module.c:3706
- [<ffffffff8165b939>] SYSC_init_module+0x3f9/0x470 kernel/module.c:3776
- [<ffffffff8165bd2e>] SyS_init_module+0xe/0x10 kernel/module.c:3759
- [<ffffffff88143885>] entry_SYSCALL_64_fastpath+0x23/0xc6 arch/x86/entry/entry_64.S:209
-Memory state around the buggy address:
- ffff8800359b7600: f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8
- ffff8800359b7680: f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8 f8
->ffff8800359b7700: f8 f8 f8 f8 f8 f8 f3 f3 f3 f3 00 00 00 00 00 00
-                                  ^
- ffff8800359b7780: 00 00 00 f1 f1 f1 f1 00 f2 f2 f2 f2 f2 f2 f2 00
- ffff8800359b7800: f2 f2 f2 f2 f2 f2 f2 00 f2 f2 f2 f2 f2 f2 f2 00
-==================================================================
----
- lib/test_kasan.c  | 24 ++++++++++++++++++++++++
- mm/kasan/kasan.c  | 19 +++++++++++++++++++
- mm/kasan/kasan.h  |  1 +
- mm/kasan/report.c |  3 +++
- 4 files changed, 47 insertions(+)
+* SME active. That's both of the above and is sme_me_mask != 0.
 
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-index 5e51872b..e8d6b88 100644
---- a/lib/test_kasan.c
-+++ b/lib/test_kasan.c
-@@ -411,6 +411,29 @@ static noinline void __init copy_user_test(void)
- 	kfree(kmem);
- }
- 
-+static noinline void __init use_after_scope_test(void)
-+{
-+	volatile char *volatile p;
-+
-+	pr_info("use-after-scope on int\n");
-+	{
-+		int local = 0;
-+
-+		p = (char *)&local;
-+	}
-+	p[0] = 1;
-+	p[3] = 1;
-+
-+	pr_info("use-after-scope on array\n");
-+	{
-+		char local[1024] = {0};
-+
-+		p = local;
-+	}
-+	p[0] = 1;
-+	p[1023] = 1;
-+}
-+
- static int __init kmalloc_tests_init(void)
- {
- 	kmalloc_oob_right();
-@@ -436,6 +459,7 @@ static int __init kmalloc_tests_init(void)
- 	kasan_global_oob();
- 	ksize_unpoisons_memory();
- 	copy_user_test();
-+	use_after_scope_test();
- 	return -EAGAIN;
- }
- 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 70c0097..4653616 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -764,6 +764,25 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
- void __asan_handle_no_return(void) {}
- EXPORT_SYMBOL(__asan_handle_no_return);
- 
-+/* Emitted by compiler to poison large objects when they go out of scope. */
-+void __asan_poison_stack_memory(const void *addr, size_t size)
-+{
-+	/*
-+	 * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
-+	 * by redzones, so we simply round up size to simplify logic.
-+	 */
-+	kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
-+			    KASAN_USE_AFTER_SCOPE);
-+}
-+EXPORT_SYMBOL(__asan_poison_stack_memory);
-+
-+/* Emitted by compiler to unpoison large objects when they go into of scope. */
-+void __asan_unpoison_stack_memory(const void *addr, size_t size)
-+{
-+	kasan_unpoison_shadow(addr, size);
-+}
-+EXPORT_SYMBOL(__asan_unpoison_stack_memory);
-+
- #ifdef CONFIG_MEMORY_HOTPLUG
- static int kasan_mem_notifier(struct notifier_block *nb,
- 			unsigned long action, void *data)
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index e5c2181..46fb5ca 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -21,6 +21,7 @@
- #define KASAN_STACK_MID         0xF2
- #define KASAN_STACK_RIGHT       0xF3
- #define KASAN_STACK_PARTIAL     0xF4
-+#define KASAN_USE_AFTER_SCOPE   0xF8
- 
- /* Don't break randconfig/all*config builds */
- #ifndef KASAN_ABI_VERSION
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 24c1211..073325a 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -90,6 +90,9 @@ static void print_error_description(struct kasan_access_info *info)
- 	case KASAN_KMALLOC_FREE:
- 		bug_type = "use-after-free";
- 		break;
-+	case KASAN_USE_AFTER_SCOPE:
-+		bug_type = "use-after-scope";
-+		break;
- 	}
- 
- 	pr_err("BUG: KASAN: %s in %pS at addr %p\n",
+Right?
+
+So you said previously "The feature may be present and enabled even if
+it is not currently active."
+
+But then you say "active" below
+
+> > And in patch 12 you have:
+> > 
+> > +       /*
+> > +        * If memory encryption is active, the trampoline area will need to
+> > +        * be in un-encrypted memory in order to bring up other processors
+> > +        * successfully.
+> > +        */
+> > +       sme_early_mem_dec(__pa(base), size);
+> > +       sme_set_mem_unenc(base, size);
+
+and test sme_me_mask. Which makes sense now after having explained which
+hw setting controls what.
+
+So can we agree on the nomenclature for all the different SME states
+first and use those throughout the code? And hold those states down in
+Documentation/x86/amd-memory-encryption.txt so that it is perfectly
+clear to people looking at the code.
+
+Also, if we need to check those states more than once, we should add
+inline helpers:
+
+sme_supported()
+sme_bios_enabled()
+sme_active()
+
+How does that sound?
+
 -- 
-2.8.0.rc3.226.g39d4020
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
