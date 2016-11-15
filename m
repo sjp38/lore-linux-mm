@@ -1,57 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 010476B0277
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 07:10:48 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so49729426wmf.3
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 04:10:47 -0800 (PST)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTPS id p21si2799506wmb.29.2016.11.15.04.10.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 04:10:46 -0800 (PST)
-Date: Tue, 15 Nov 2016 13:10:35 +0100
-From: Joerg Roedel <joro@8bytes.org>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D42EC6B0279
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 07:14:58 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id u144so49756170wmu.1
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 04:14:58 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id jt9si8496009wjb.163.2016.11.15.04.14.57
+        for <linux-mm@kvack.org>;
+        Tue, 15 Nov 2016 04:14:57 -0800 (PST)
+Date: Tue, 15 Nov 2016 13:14:56 +0100
+From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [RFC PATCH v3 04/20] x86: Handle reduction in physical address
  size with SME
-Message-ID: <20161115121035.GD24857@8bytes.org>
+Message-ID: <20161115121456.f4slpk4i2jl3e2ke@pd.tnic>
 References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
  <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
+ <20161115121035.GD24857@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20161115121035.GD24857@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, Nov 09, 2016 at 06:35:13PM -0600, Tom Lendacky wrote:
-> +/*
-> + * AMD Secure Memory Encryption (SME) can reduce the size of the physical
-> + * address space if it is enabled, even if memory encryption is not active.
-> + * Adjust x86_phys_bits if SME is enabled.
-> + */
-> +static void phys_bits_adjust(struct cpuinfo_x86 *c)
-> +{
+On Tue, Nov 15, 2016 at 01:10:35PM +0100, Joerg Roedel wrote:
+> Maybe add a comment here why you can't use cpu_has (yet).
 
-Better call this function amd_sme_phys_bits_adjust(). This name makes it
-clear at the call-site why it is there and what it does.
+So that could be alleviated by moving this function *after*
+init_scattered_cpuid_features(). Then you can simply do *cpu_has().
 
-> +	u32 eax, ebx, ecx, edx;
-> +	u64 msr;
-> +
-> +	if (c->x86_vendor != X86_VENDOR_AMD)
-> +		return;
-> +
-> +	if (c->extended_cpuid_level < 0x8000001f)
-> +		return;
-> +
-> +	/* Check for SME feature */
-> +	cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
-> +	if (!(eax & 0x01))
-> +		return;
+Also, I'm not sure why we're checking CPUID for the SME feature when we
+have sme_get_me_mask() et al which have been setup much earlier...
 
-Maybe add a comment here why you can't use cpu_has (yet).
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
