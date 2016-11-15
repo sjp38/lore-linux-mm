@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F4EB6B02FA
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 18:48:53 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e9so122485484pgc.5
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 15:48:53 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id j9si28665996pgn.234.2016.11.15.15.48.52
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A7D756B0303
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 18:50:58 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id q10so122627347pgq.7
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 15:50:58 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id w12si28740684pfi.107.2016.11.15.15.50.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 15:48:52 -0800 (PST)
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: [PATCH v3 8/8] mm/swap: Enable swap slots cache usage
-Date: Tue, 15 Nov 2016 15:47:41 -0800
-Message-Id: <2cd01187c9e4664e08c783a64ad5aa47c5a1a82d.1479252493.git.tim.c.chen@linux.intel.com>
-In-Reply-To: <cover.1479252493.git.tim.c.chen@linux.intel.com>
-References: <cover.1479252493.git.tim.c.chen@linux.intel.com>
-In-Reply-To: <cover.1479252493.git.tim.c.chen@linux.intel.com>
-References: <cover.1479252493.git.tim.c.chen@linux.intel.com>
+        Tue, 15 Nov 2016 15:50:57 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [kernel-hardening] Re: [PATCH] slab: Add POISON_POINTER_DELTA to ZERO_SIZE_PTR
+In-Reply-To: <CAGXu5j+3pD7Ss_PBY9H_A6B5-Ers2wYqFJ1y4iryKzqc=jCxXg@mail.gmail.com>
+References: <1479207422-6535-1-git-send-email-mpe@ellerman.id.au> <CAGXu5j+3pD7Ss_PBY9H_A6B5-Ers2wYqFJ1y4iryKzqc=jCxXg@mail.gmail.com>
+Date: Wed, 16 Nov 2016 10:50:52 +1100
+Message-ID: <87twb8xpyb.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Initialize swap slots cache and enable it on swap on.
-Drain all swap slots on swap off.
+Kees Cook <keescook@chromium.org> writes:
 
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- mm/swapfile.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+> On Tue, Nov 15, 2016 at 2:57 AM, Michael Ellerman <mpe@ellerman.id.au> wrote:
+>> POISON_POINTER_DELTA is defined in poison.h, and is intended to be used
+>> to shift poison values so that they don't alias userspace.
+>>
+>> We should add it to ZERO_SIZE_PTR so that attackers can't use
+>> ZERO_SIZE_PTR as a way to get a pointer to userspace.
+>
+> Ah, when dealing with a 0-sized malloc or similar?
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 0bd105d..9cbdbfc 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2184,6 +2184,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	spin_unlock(&p->lock);
- 	spin_unlock(&swap_lock);
- 
-+	disable_swap_slots_cache_lock();
-+
- 	set_current_oom_origin();
- 	err = try_to_unuse(p->type, false, 0); /* force unuse all pages */
- 	clear_current_oom_origin();
-@@ -2191,9 +2193,12 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (err) {
- 		/* re-insert swap space back into swap_list */
- 		reinsert_swap_info(p);
-+		reenable_swap_slots_cache_unlock();
- 		goto out_dput;
- 	}
- 
-+	reenable_swap_slots_cache_unlock();
-+
- 	flush_work(&p->discard_work);
- 
- 	destroy_swap_extents(p);
-@@ -2869,6 +2874,8 @@ out:
- 		putname(name);
- 	if (inode && S_ISREG(inode->i_mode))
- 		inode_unlock(inode);
-+	if (!error)
-+		enable_swap_slots_cache();
- 	return error;
- }
- 
--- 
-2.5.5
+Yeah as returned by a 0-sized kmalloc for example.
+
+> Do you have pointers to exploits that rely on this?
+
+Not real ones, it was used in the StringIPC challenge:
+
+https://poppopret.org/2015/11/16/csaw-ctf-2015-kernel-exploitation-challenge/
+
+Though that included the ability to seek to an arbitrary offset from the
+zero size pointer, so this wouldn't have helped.
+
+> Regardless, normally PAN/SMAP-like things should be sufficient to
+> protect against this.
+
+True. Not everyone has PAN/SMAP though :)
+
+> Additionally, on everything but x86_64 and arm64, POISON_POINTER_DELTA
+> == 0, if I'm reading correctly:
+
+You are reading correctly. All 64-bit arches should be able to define it
+to something though.
+
+> Is the plan to add ILLEGAL_POINTER_VALUE for powerpc too?
+
+Yep. I should have CC'ed you on the patch :)
+
+> And either way, this patch, IIUC, will break the ZERO_OR_NULL_PTR()
+> check, since suddenly all of userspace will match it. (Though maybe
+> that's okay?)
+
+Yeah I wasn't sure what to do with that.
+
+I don't think it breaks it, but it does become a bit fishy because as
+you say all of userspace (and more) will now match.
+
+It should probably just become two separate tests, though that
+potentially has issues with double evaluation of the argument. AFAICS
+none of the callers pass an expression though.
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
