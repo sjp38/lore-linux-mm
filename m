@@ -1,178 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17FC56B0275
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 06:18:15 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id d128so174261961ybh.6
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 03:18:15 -0800 (PST)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id a83si11553626oif.108.2016.11.15.03.18.14
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 010476B0277
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 07:10:48 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i131so49729426wmf.3
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 04:10:47 -0800 (PST)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id p21si2799506wmb.29.2016.11.15.04.10.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 03:18:14 -0800 (PST)
-Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership
- (XPFO)
-References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
- <20161104144534.14790-1-juerg.haefliger@hpe.com>
- <20161104144534.14790-2-juerg.haefliger@hpe.com>
- <CAGXu5jKvWZ6=YLkFkA2wEE0gTdESTEifeL5KVXUd+EjKjJm9WQ@mail.gmail.com>
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-Message-ID: <9c558dfc-112a-bb52-88c5-206f5ca4fc42@hpe.com>
-Date: Tue, 15 Nov 2016 12:18:10 +0100
+        Tue, 15 Nov 2016 04:10:46 -0800 (PST)
+Date: Tue, 15 Nov 2016 13:10:35 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [RFC PATCH v3 04/20] x86: Handle reduction in physical address
+ size with SME
+Message-ID: <20161115121035.GD24857@8bytes.org>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKvWZ6=YLkFkA2wEE0gTdESTEifeL5KVXUd+EjKjJm9WQ@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="tIVC2OL3od72E71xQ07EDiAJ4OLahkkKF"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, linux-x86_64@vger.kernel.org, vpk@cs.columbia.edu
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---tIVC2OL3od72E71xQ07EDiAJ4OLahkkKF
-Content-Type: multipart/mixed; boundary="rclb8TCNqwCQ5eCEnVAGCpLPAekUixeEA";
- protected-headers="v1"
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
- "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>,
- linux-x86_64@vger.kernel.org, vpk@cs.columbia.edu
-Message-ID: <9c558dfc-112a-bb52-88c5-206f5ca4fc42@hpe.com>
-Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership
- (XPFO)
-References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
- <20161104144534.14790-1-juerg.haefliger@hpe.com>
- <20161104144534.14790-2-juerg.haefliger@hpe.com>
- <CAGXu5jKvWZ6=YLkFkA2wEE0gTdESTEifeL5KVXUd+EjKjJm9WQ@mail.gmail.com>
-In-Reply-To: <CAGXu5jKvWZ6=YLkFkA2wEE0gTdESTEifeL5KVXUd+EjKjJm9WQ@mail.gmail.com>
+On Wed, Nov 09, 2016 at 06:35:13PM -0600, Tom Lendacky wrote:
+> +/*
+> + * AMD Secure Memory Encryption (SME) can reduce the size of the physical
+> + * address space if it is enabled, even if memory encryption is not active.
+> + * Adjust x86_phys_bits if SME is enabled.
+> + */
+> +static void phys_bits_adjust(struct cpuinfo_x86 *c)
+> +{
 
---rclb8TCNqwCQ5eCEnVAGCpLPAekUixeEA
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Better call this function amd_sme_phys_bits_adjust(). This name makes it
+clear at the call-site why it is there and what it does.
 
-On 11/10/2016 08:24 PM, Kees Cook wrote:
-> On Fri, Nov 4, 2016 at 7:45 AM, Juerg Haefliger <juerg.haefliger@hpe.co=
-m> wrote:
->> This patch adds support for XPFO which protects against 'ret2dir' kern=
-el
->> attacks. The basic idea is to enforce exclusive ownership of page fram=
-es
->> by either the kernel or userspace, unless explicitly requested by the
->> kernel. Whenever a page destined for userspace is allocated, it is
->> unmapped from physmap (the kernel's page table). When such a page is
->> reclaimed from userspace, it is mapped back to physmap.
->>
->> Additional fields in the page_ext struct are used for XPFO housekeepin=
-g.
->> Specifically two flags to distinguish user vs. kernel pages and to tag=
+> +	u32 eax, ebx, ecx, edx;
+> +	u64 msr;
+> +
+> +	if (c->x86_vendor != X86_VENDOR_AMD)
+> +		return;
+> +
+> +	if (c->extended_cpuid_level < 0x8000001f)
+> +		return;
+> +
+> +	/* Check for SME feature */
+> +	cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
+> +	if (!(eax & 0x01))
+> +		return;
 
->> unmapped pages and a reference counter to balance kmap/kunmap operatio=
-ns
->> and a lock to serialize access to the XPFO fields.
->>
->> Known issues/limitations:
->>   - Only supports x86-64 (for now)
->>   - Only supports 4k pages (for now)
->>   - There are most likely some legitimate uses cases where the kernel =
-needs
->>     to access userspace which need to be made XPFO-aware
->>   - Performance penalty
->>
->> Reference paper by the original patch authors:
->>   http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
->=20
-> Would it be possible to create an lkdtm test that can exercise this pro=
-tection?
-
-I'll look into it.
-
-
->> diff --git a/security/Kconfig b/security/Kconfig
->> index 118f4549404e..4502e15c8419 100644
->> --- a/security/Kconfig
->> +++ b/security/Kconfig
->> @@ -6,6 +6,25 @@ menu "Security options"
->>
->>  source security/keys/Kconfig
->>
->> +config ARCH_SUPPORTS_XPFO
->> +       bool
->=20
-> Can you include a "help" section here to describe what requirements an
-> architecture needs to support XPFO? See HAVE_ARCH_SECCOMP_FILTER and
-> HAVE_ARCH_VMAP_STACK or some examples.
-
-Will do.
-
-
->> +config XPFO
->> +       bool "Enable eXclusive Page Frame Ownership (XPFO)"
->> +       default n
->> +       depends on ARCH_SUPPORTS_XPFO
->> +       select PAGE_EXTENSION
->> +       help
->> +         This option offers protection against 'ret2dir' kernel attac=
-ks.
->> +         When enabled, every time a page frame is allocated to user s=
-pace, it
->> +         is unmapped from the direct mapped RAM region in kernel spac=
-e
->> +         (physmap). Similarly, when a page frame is freed/reclaimed, =
-it is
->> +         mapped back to physmap.
->> +
->> +         There is a slight performance impact when this option is ena=
-bled.
->> +
->> +         If in doubt, say "N".
->> +
->>  config SECURITY_DMESG_RESTRICT
->>         bool "Restrict unprivileged access to the kernel syslog"
->>         default n
->=20
-> I've added these patches to my kspp tree on kernel.org, so it should
-> get some 0-day testing now...
-
-Very good. Thanks!
-
-
-> Thanks!
-
-Appreciate the feedback.
-
-=2E..Juerg
-
-
-> -Kees
->=20
-
-
-
---rclb8TCNqwCQ5eCEnVAGCpLPAekUixeEA--
-
---tIVC2OL3od72E71xQ07EDiAJ4OLahkkKF
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBCAAGBQJYKu7zAAoJEHVMOpb5+LSMThkP/1ZSAODxbIB2ebdrvax2absi
-nJwtgo56pBL7g7OJu/OrxUXvMHi9LGfahZOUTUmRCiQIL60EdjCJvQB9wcASVr3i
-7AO1ztMGZxmGl/UlobukQs0xTlFU9FcYJFxTqKQPHA8PFnzQZe5jqG1JwTjhw4Z7
-ANULiFZGG0G0vSXAagWwiwdzZJyt4HCSamfoESBKSBTK8TywvIFDqy/qsHHlmpjd
-EExwax4E/VB+Yl8Tg2RvgHHI1kQpTB1dPBfAQvXOTjujdHVGxVZSZBss+3HXL5vi
-BbNA0Gez+aNvVp2tTTeyWce9y11nIAZgU4rcjxkBqGoU73S+I2ltlIN7MCbKOYR3
-/wGxXpCeOCWRVcFxm4yxnQcWOXWMa7aIVHMf7uHU53oKOqGtglFQcMR6V4bcmNG9
-n+jLQZr/ADR9PJ2Rsb1vVyOlNiy+uQ+JCA5lBfEe+ckPW2MSc5GedzeETGYQgdUS
-u9ZzGrbtW9++PXXjgm6YBoaij0vjhVH2/Q1WU3wwdzBDGIaRpy1Bh0zShDdQ7S8y
-G83c8dHH4Yc1CIljCA0+Ipur3nvuoJKdc6Kxy+j1JK86t6dK8sktXS/1SnBIGM7T
-L30CH60pgfyvpDEWbSXoQXjdyuYMaQALBYX258KXuH8e9+vjPrO/UC8prgJqK/C1
-rbWnk9S8v1HGxMfThiYi
-=Vrrl
------END PGP SIGNATURE-----
-
---tIVC2OL3od72E71xQ07EDiAJ4OLahkkKF--
+Maybe add a comment here why you can't use cpu_has (yet).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
