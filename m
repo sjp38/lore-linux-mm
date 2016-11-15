@@ -1,73 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0D326B0281
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 09:22:28 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u144so704428wmu.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 06:22:28 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id f9si28646554wjw.135.2016.11.15.06.22.27
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2506B0282
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 09:33:16 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id g187so1723907itc.2
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 06:33:16 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0062.outbound.protection.outlook.com. [104.47.38.62])
+        by mx.google.com with ESMTPS id n34si15814960ioe.222.2016.11.15.06.33.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 06:22:27 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id a197so170078678wmd.0
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 06:22:27 -0800 (PST)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] kasan: update kasan_global for gcc 7
-Date: Tue, 15 Nov 2016 15:22:23 +0100
-Message-Id: <1479219743-28682-1-git-send-email-dvyukov@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 15 Nov 2016 06:33:15 -0800 (PST)
+Subject: Re: [RFC PATCH v3 04/20] x86: Handle reduction in physical address
+ size with SME
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003513.3280.12104.stgit@tlendack-t1.amdoffice.net>
+ <20161115121035.GD24857@8bytes.org>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <f36306aa-cc28-ae2e-1a7e-a6b69c474daf@amd.com>
+Date: Tue, 15 Nov 2016 08:32:50 -0600
+MIME-Version: 1.0
+In-Reply-To: <20161115121035.GD24857@8bytes.org>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, glider@google.com, akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joerg Roedel <joro@8bytes.org>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-kasan_global struct is part of compiler/runtime ABI.
-gcc revision 241983 has added a new field to kasan_global struct.
-Update kernel definition of kasan_global struct to include
-the new field.
+On 11/15/2016 6:10 AM, Joerg Roedel wrote:
+> On Wed, Nov 09, 2016 at 06:35:13PM -0600, Tom Lendacky wrote:
+>> +/*
+>> + * AMD Secure Memory Encryption (SME) can reduce the size of the physical
+>> + * address space if it is enabled, even if memory encryption is not active.
+>> + * Adjust x86_phys_bits if SME is enabled.
+>> + */
+>> +static void phys_bits_adjust(struct cpuinfo_x86 *c)
+>> +{
+> 
+> Better call this function amd_sme_phys_bits_adjust(). This name makes it
+> clear at the call-site why it is there and what it does.
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: aryabinin@virtuozzo.com
-Cc: glider@google.com
-Cc: akpm@linux-foundation.org
-Cc: kasan-dev@googlegroups.com
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- include/linux/compiler-gcc.h | 4 +++-
- mm/kasan/kasan.h             | 3 +++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+Will do.
 
-diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
-index 432f5c9..928e5ca 100644
---- a/include/linux/compiler-gcc.h
-+++ b/include/linux/compiler-gcc.h
-@@ -263,7 +263,9 @@
- #endif
- #endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP && !__CHECKER__ */
- 
--#if GCC_VERSION >= 50000
-+#if GCC_VERSION >= 70000
-+#define KASAN_ABI_VERSION 5
-+#elif GCC_VERSION >= 50000
- #define KASAN_ABI_VERSION 4
- #elif GCC_VERSION >= 40902
- #define KASAN_ABI_VERSION 3
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index e5c2181..03f4545 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -53,6 +53,9 @@ struct kasan_global {
- #if KASAN_ABI_VERSION >= 4
- 	struct kasan_source_location *location;
- #endif
-+#if KASAN_ABI_VERSION >= 5
-+	char *odr_indicator;
-+#endif
- };
- 
- /**
--- 
-2.8.0.rc3.226.g39d4020
+> 
+>> +	u32 eax, ebx, ecx, edx;
+>> +	u64 msr;
+>> +
+>> +	if (c->x86_vendor != X86_VENDOR_AMD)
+>> +		return;
+>> +
+>> +	if (c->extended_cpuid_level < 0x8000001f)
+>> +		return;
+>> +
+>> +	/* Check for SME feature */
+>> +	cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
+>> +	if (!(eax & 0x01))
+>> +		return;
+> 
+> Maybe add a comment here why you can't use cpu_has (yet).
+> 
+
+Ok, will do.
+
+Thanks,
+Tom
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
