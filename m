@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 205526B0293
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 11:00:24 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id w132so6581449ita.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:00:24 -0800 (PST)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id h200si16091651ioe.75.2016.11.15.08.00.21
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B426B0294
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 11:00:39 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id b123so6300853itb.3
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:00:39 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id 21si16162835iol.180.2016.11.15.08.00.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 08:00:21 -0800 (PST)
-Received: by mail-pg0-x241.google.com with SMTP id x23so12151362pgx.3
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:00:21 -0800 (PST)
-Date: Tue, 15 Nov 2016 17:00:14 +0100
+        Tue, 15 Nov 2016 08:00:36 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 3so12154678pgd.0
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 08:00:36 -0800 (PST)
+Date: Tue, 15 Nov 2016 17:00:30 +0100
 From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH 1/3] z3fold: use per-page spinlock
-Message-Id: <20161115170014.db7859b144d44985e3805ea3@gmail.com>
+Subject: [PATCH 2/3] z3fold: don't fail kernel build if z3fold_header is too
+ big
+Message-Id: <20161115170030.f0396011fa00423ff711a3b4@gmail.com>
 In-Reply-To: <20161115165538.878698352bd45e212751b57a@gmail.com>
 References: <20161115165538.878698352bd45e212751b57a@gmail.com>
 Mime-Version: 1.0
@@ -25,383 +26,40 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Most of z3fold operations are in-page, such as modifying z3fold
-page header or moving z3fold objects within a page. Taking
-per-pool spinlock to protect per-page objects is therefore
-suboptimal, and the idea of having a per-page spinlock (or rwlock)
-has been around for some time.
-
-This patch implements raw spinlock-based per-page locking mechanism
-which is lightweight enough to normally fit ok into the z3fold
-header.
-
-Changes from v1 [1]:
-- custom locking mechanism changed to spinlocks
-- no read/write locks, just per-page spinlock
-
-Changes from v2 [2]:
-- if a page is taken off its list by z3fold_alloc(), bail out from
-  z3fold_free() early
-
-Changes from v3 [3]:
-- spinlock changed to raw spinlock to avoid BUILD_BUG_ON trigger
-
-[1] https://lkml.org/lkml/2016/11/5/59
-[2] https://lkml.org/lkml/2016/11/8/400
-[3] https://lkml.org/lkml/2016/11/9/146
+Currently the whole kernel build will be stopped if the size of
+struct z3fold_header is greater than the size of one chunk, which
+is 64 bytes by default. This may stand in the way of automated
+test/debug builds so let's remove that and just fail the z3fold
+initialization in such case instead.
 
 Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 ---
- mm/z3fold.c | 136 +++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 97 insertions(+), 39 deletions(-)
+ mm/z3fold.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
 diff --git a/mm/z3fold.c b/mm/z3fold.c
-index d2e8aec..7ad70fa 100644
+index 7ad70fa..ffd9353 100644
 --- a/mm/z3fold.c
 +++ b/mm/z3fold.c
-@@ -98,6 +98,7 @@ enum buddy {
-  * struct z3fold_header - z3fold page metadata occupying the first chunk of each
-  *			z3fold page, except for HEADLESS pages
-  * @buddy:	links the z3fold page into the relevant list in the pool
-+ * @page_lock:		per-page lock
-  * @first_chunks:	the size of the first buddy in chunks, 0 if free
-  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
-  * @last_chunks:	the size of the last buddy in chunks, 0 if free
-@@ -105,6 +106,7 @@ enum buddy {
-  */
- struct z3fold_header {
- 	struct list_head buddy;
-+	raw_spinlock_t page_lock;
- 	unsigned short first_chunks;
- 	unsigned short middle_chunks;
- 	unsigned short last_chunks;
-@@ -144,6 +146,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
- 	clear_bit(PAGE_HEADLESS, &page->private);
- 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
+@@ -870,10 +870,15 @@ MODULE_ALIAS("zpool-z3fold");
  
-+	raw_spin_lock_init(&zhdr->page_lock);
- 	zhdr->first_chunks = 0;
- 	zhdr->middle_chunks = 0;
- 	zhdr->last_chunks = 0;
-@@ -159,6 +162,19 @@ static void free_z3fold_page(struct z3fold_header *zhdr)
- 	__free_page(virt_to_page(zhdr));
- }
- 
-+/* Lock a z3fold page */
-+static inline void z3fold_page_lock(struct z3fold_header *zhdr)
-+{
-+	raw_spin_lock(&zhdr->page_lock);
-+}
-+
-+/* Unlock a z3fold page */
-+static inline void z3fold_page_unlock(struct z3fold_header *zhdr)
-+{
-+	raw_spin_unlock(&zhdr->page_lock);
-+}
-+
-+
- /*
-  * Encodes the handle of a particular buddy within a z3fold page
-  * Pool lock should be held as this function accesses first_num
-@@ -347,50 +363,60 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 		bud = HEADLESS;
- 	else {
- 		chunks = size_to_chunks(size);
--		spin_lock(&pool->lock);
- 
- 		/* First, try to find an unbuddied z3fold page. */
- 		zhdr = NULL;
- 		for_each_unbuddied_list(i, chunks) {
--			if (!list_empty(&pool->unbuddied[i])) {
--				zhdr = list_first_entry(&pool->unbuddied[i],
-+			spin_lock(&pool->lock);
-+			zhdr = list_first_entry_or_null(&pool->unbuddied[i],
- 						struct z3fold_header, buddy);
--				page = virt_to_page(zhdr);
--				if (zhdr->first_chunks == 0) {
--					if (zhdr->middle_chunks != 0 &&
--					    chunks >= zhdr->start_middle)
--						bud = LAST;
--					else
--						bud = FIRST;
--				} else if (zhdr->last_chunks == 0)
-+			if (!zhdr) {
-+				spin_unlock(&pool->lock);
-+				continue;
-+			}
-+			list_del_init(&zhdr->buddy);
-+			spin_unlock(&pool->lock);
-+
-+			page = virt_to_page(zhdr);
-+			z3fold_page_lock(zhdr);
-+			if (zhdr->first_chunks == 0) {
-+				if (zhdr->middle_chunks != 0 &&
-+				    chunks >= zhdr->start_middle)
- 					bud = LAST;
--				else if (zhdr->middle_chunks == 0)
--					bud = MIDDLE;
--				else {
--					pr_err("No free chunks in unbuddied\n");
--					WARN_ON(1);
--					continue;
--				}
--				list_del(&zhdr->buddy);
--				goto found;
-+				else
-+					bud = FIRST;
-+			} else if (zhdr->last_chunks == 0)
-+				bud = LAST;
-+			else if (zhdr->middle_chunks == 0)
-+				bud = MIDDLE;
-+			else {
-+				spin_lock(&pool->lock);
-+				list_add(&zhdr->buddy, &pool->buddied);
-+				spin_unlock(&pool->lock);
-+				z3fold_page_unlock(zhdr);
-+				pr_err("No free chunks in unbuddied\n");
-+				WARN_ON(1);
-+				continue;
- 			}
-+			goto found;
- 		}
- 		bud = FIRST;
--		spin_unlock(&pool->lock);
- 	}
- 
- 	/* Couldn't find unbuddied z3fold page, create new one */
- 	page = alloc_page(gfp);
- 	if (!page)
- 		return -ENOMEM;
--	spin_lock(&pool->lock);
-+
- 	atomic64_inc(&pool->pages_nr);
- 	zhdr = init_z3fold_page(page);
- 
- 	if (bud == HEADLESS) {
- 		set_bit(PAGE_HEADLESS, &page->private);
-+		spin_lock(&pool->lock);
- 		goto headless;
- 	}
-+	z3fold_page_lock(zhdr);
- 
- found:
- 	if (bud == FIRST)
-@@ -402,6 +428,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 		zhdr->start_middle = zhdr->first_chunks + 1;
- 	}
- 
-+	spin_lock(&pool->lock);
- 	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0 ||
- 			zhdr->middle_chunks == 0) {
- 		/* Add to unbuddied list */
-@@ -421,6 +448,8 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 
- 	*handle = encode_handle(zhdr, bud);
- 	spin_unlock(&pool->lock);
-+	if (bud != HEADLESS)
-+		z3fold_page_unlock(zhdr);
- 
- 	return 0;
- }
-@@ -442,7 +471,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 	struct page *page;
- 	enum buddy bud;
- 
--	spin_lock(&pool->lock);
- 	zhdr = handle_to_z3fold_header(handle);
- 	page = virt_to_page(zhdr);
- 
-@@ -450,6 +478,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		/* HEADLESS page stored */
- 		bud = HEADLESS;
- 	} else {
-+		z3fold_page_lock(zhdr);
- 		bud = handle_to_buddy(handle);
- 
- 		switch (bud) {
-@@ -466,37 +495,59 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		default:
- 			pr_err("%s: unknown bud %d\n", __func__, bud);
- 			WARN_ON(1);
--			spin_unlock(&pool->lock);
-+			z3fold_page_unlock(zhdr);
- 			return;
- 		}
- 	}
- 
- 	if (test_bit(UNDER_RECLAIM, &page->private)) {
- 		/* z3fold page is under reclaim, reclaim will free */
--		spin_unlock(&pool->lock);
-+		if (bud != HEADLESS)
-+			z3fold_page_unlock(zhdr);
- 		return;
- 	}
- 
- 	/* Remove from existing buddy list */
--	if (bud != HEADLESS)
--		list_del(&zhdr->buddy);
-+	if (bud != HEADLESS) {
-+		spin_lock(&pool->lock);
-+		/*
-+		 * this object may have been removed from its list by
-+		 * z3fold_alloc(). In that case we just do nothing,
-+		 * z3fold_alloc() will allocate an object and add the page
-+		 * to the relevant list.
-+		 */
-+		if (!list_empty(&zhdr->buddy)) {
-+			list_del(&zhdr->buddy);
-+		} else {
-+			spin_unlock(&pool->lock);
-+			z3fold_page_unlock(zhdr);
-+			return;
-+		}
-+		spin_unlock(&pool->lock);
+ static int __init init_z3fold(void)
+ {
+-	/* Make sure the z3fold header will fit in one chunk */
+-	BUILD_BUG_ON(sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED);
+-	zpool_register_driver(&z3fold_zpool_driver);
++	/* Fail the initialization if z3fold header won't fit in one chunk */
++	if (sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED) {
++		pr_err("z3fold: z3fold_header size (%d) is bigger than "
++			"the chunk size (%d), can't proceed\n",
++			sizeof(struct z3fold_header) , ZHDR_SIZE_ALIGNED);
++		return -E2BIG;
 +	}
  
- 	if (bud == HEADLESS ||
- 	    (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
- 			zhdr->last_chunks == 0)) {
- 		/* z3fold page is empty, free */
-+		spin_lock(&pool->lock);
- 		list_del(&page->lru);
-+		spin_unlock(&pool->lock);
- 		clear_bit(PAGE_HEADLESS, &page->private);
-+		if (bud != HEADLESS)
-+			z3fold_page_unlock(zhdr);
- 		free_z3fold_page(zhdr);
- 		atomic64_dec(&pool->pages_nr);
- 	} else {
- 		z3fold_compact_page(zhdr);
- 		/* Add to the unbuddied list */
-+		spin_lock(&pool->lock);
- 		freechunks = num_free_chunks(zhdr);
- 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+		spin_unlock(&pool->lock);
-+		z3fold_page_unlock(zhdr);
- 	}
- 
--	spin_unlock(&pool->lock);
++	zpool_register_driver(&z3fold_zpool_driver);
+ 	return 0;
  }
  
- /**
-@@ -557,6 +608,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		zhdr = page_address(page);
- 		if (!test_bit(PAGE_HEADLESS, &page->private)) {
- 			list_del(&zhdr->buddy);
-+			spin_unlock(&pool->lock);
-+			z3fold_page_lock(zhdr);
- 			/*
- 			 * We need encode the handles before unlocking, since
- 			 * we can race with free that will set
-@@ -571,13 +624,13 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 				middle_handle = encode_handle(zhdr, MIDDLE);
- 			if (zhdr->last_chunks)
- 				last_handle = encode_handle(zhdr, LAST);
-+			z3fold_page_unlock(zhdr);
- 		} else {
- 			first_handle = encode_handle(zhdr, HEADLESS);
- 			last_handle = middle_handle = 0;
-+			spin_unlock(&pool->lock);
- 		}
- 
--		spin_unlock(&pool->lock);
--
- 		/* Issue the eviction callback(s) */
- 		if (middle_handle) {
- 			ret = pool->ops->evict(pool, middle_handle);
-@@ -595,7 +648,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 				goto next;
- 		}
- next:
--		spin_lock(&pool->lock);
-+		if (!test_bit(PAGE_HEADLESS, &page->private))
-+			z3fold_page_lock(zhdr);
- 		clear_bit(UNDER_RECLAIM, &page->private);
- 		if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
- 		    (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
-@@ -605,19 +659,22 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			 * return success.
- 			 */
- 			clear_bit(PAGE_HEADLESS, &page->private);
-+			if (!test_bit(PAGE_HEADLESS, &page->private))
-+				z3fold_page_unlock(zhdr);
- 			free_z3fold_page(zhdr);
- 			atomic64_dec(&pool->pages_nr);
--			spin_unlock(&pool->lock);
- 			return 0;
- 		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (zhdr->first_chunks != 0 &&
- 			    zhdr->last_chunks != 0 &&
- 			    zhdr->middle_chunks != 0) {
- 				/* Full, add to buddied list */
-+				spin_lock(&pool->lock);
- 				list_add(&zhdr->buddy, &pool->buddied);
- 			} else {
- 				z3fold_compact_page(zhdr);
- 				/* add to unbuddied list */
-+				spin_lock(&pool->lock);
- 				freechunks = num_free_chunks(zhdr);
- 				list_add(&zhdr->buddy,
- 					 &pool->unbuddied[freechunks]);
-@@ -628,6 +685,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		list_add(&page->lru, &pool->lru);
- 	}
- 	spin_unlock(&pool->lock);
-+	if (!test_bit(PAGE_HEADLESS, &page->private))
-+		z3fold_page_unlock(zhdr);
- 	return -EAGAIN;
- }
- 
-@@ -648,7 +707,6 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 	void *addr;
- 	enum buddy buddy;
- 
--	spin_lock(&pool->lock);
- 	zhdr = handle_to_z3fold_header(handle);
- 	addr = zhdr;
- 	page = virt_to_page(zhdr);
-@@ -656,6 +714,7 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 	if (test_bit(PAGE_HEADLESS, &page->private))
- 		goto out;
- 
-+	z3fold_page_lock(zhdr);
- 	buddy = handle_to_buddy(handle);
- 	switch (buddy) {
- 	case FIRST:
-@@ -674,8 +733,9 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 		addr = NULL;
- 		break;
- 	}
-+
-+	z3fold_page_unlock(zhdr);
- out:
--	spin_unlock(&pool->lock);
- 	return addr;
- }
- 
-@@ -690,19 +750,17 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
- 	struct page *page;
- 	enum buddy buddy;
- 
--	spin_lock(&pool->lock);
- 	zhdr = handle_to_z3fold_header(handle);
- 	page = virt_to_page(zhdr);
- 
--	if (test_bit(PAGE_HEADLESS, &page->private)) {
--		spin_unlock(&pool->lock);
-+	if (test_bit(PAGE_HEADLESS, &page->private))
- 		return;
--	}
- 
-+	z3fold_page_lock(zhdr);
- 	buddy = handle_to_buddy(handle);
- 	if (buddy == MIDDLE)
- 		clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
--	spin_unlock(&pool->lock);
-+	z3fold_page_unlock(zhdr);
- }
- 
- /**
 -- 
 2.4.2
 
