@@ -1,54 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FDD26B02E3
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 17:57:16 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id m203so10295742wma.2
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 14:57:16 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id f125si4791408wmf.44.2016.11.15.14.57.14
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA4A06B02E5
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 18:40:03 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p66so123035430pga.4
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 15:40:03 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q14si28617982pgn.274.2016.11.15.15.40.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 14:57:14 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id m203so4990531wma.3
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 14:57:14 -0800 (PST)
-Date: Wed, 16 Nov 2016 01:57:11 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 17/21] mm: Change return values of finish_mkwrite_fault()
-Message-ID: <20161115225711.GQ23021@node>
-References: <1478233517-3571-1-git-send-email-jack@suse.cz>
- <1478233517-3571-18-git-send-email-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478233517-3571-18-git-send-email-jack@suse.cz>
+        Tue, 15 Nov 2016 15:40:03 -0800 (PST)
+Date: Tue, 15 Nov 2016 15:40:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] kasan: support use-after-scope detection
+Message-Id: <20161115154002.0c4c7a5e1fd23f12474fc80e@linux-foundation.org>
+In-Reply-To: <1479226045-145148-1-git-send-email-dvyukov@google.com>
+References: <1479226045-145148-1-git-send-email-dvyukov@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: aryabinin@virtuozzo.com, glider@google.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 04, 2016 at 05:25:13AM +0100, Jan Kara wrote:
-> Currently finish_mkwrite_fault() returns 0 when PTE got changed before
-> we acquired PTE lock and VM_FAULT_WRITE when we succeeded in modifying
-> the PTE. This is somewhat confusing since 0 generally means success, it
-> is also inconsistent with finish_fault() which returns 0 on success.
-> Change finish_mkwrite_fault() to return 0 on success and VM_FAULT_NOPAGE
-> when PTE changed. Practically, there should be no behavioral difference
-> since we bail out from the fault the same way regardless whether we
-> return 0, VM_FAULT_NOPAGE, or VM_FAULT_WRITE. Also note that
-> VM_FAULT_WRITE has no effect for shared mappings since the only two
-> places that check it - KSM and GUP - care about private mappings only.
-> Generally the meaning of VM_FAULT_WRITE for shared mappings is not well
-> defined and we should probably clean that up.
+On Tue, 15 Nov 2016 17:07:25 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
+
+> Gcc revision 241896 implements use-after-scope detection.
+> Will be available in gcc 7. Support it in KASAN.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> Gcc emits 2 new callbacks to poison/unpoison large stack
+> objects when they go in/out of scope.
+> Implement the callbacks and add a test.
+> 
+> ...
+>
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -411,6 +411,29 @@ static noinline void __init copy_user_test(void)
+>  	kfree(kmem);
+>  }
+>  
+> +static noinline void __init use_after_scope_test(void)
 
-Sounds right.
+This reader has no idea why this code uses noinline, and I expect
+others will have the same issue.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-
--- 
- Kirill A. Shutemov
+Can we please get a code comment in there to reveal the reason?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
