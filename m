@@ -1,174 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE1C6B0313
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 22:12:21 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id p66so130346552pga.4
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 19:12:21 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFBBE6B0314
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 22:12:22 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y71so129640751pgd.0
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 19:12:22 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 23si29455179pgb.38.2016.11.15.19.12.19
+        by mx.google.com with ESMTPS id 23si29455179pgb.38.2016.11.15.19.12.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 19:12:20 -0800 (PST)
+        Tue, 15 Nov 2016 19:12:22 -0800 (PST)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v5 0/9] THP swap: Delay splitting THP during swapping out
-Date: Wed, 16 Nov 2016 11:10:48 +0800
-Message-Id: <20161116031057.12977-1-ying.huang@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH -v5 1/9] mm, swap: Make swap cluster size same of THP size on x86_64
+Date: Wed, 16 Nov 2016 11:10:49 +0800
+Message-Id: <20161116031057.12977-2-ying.huang@intel.com>
+In-Reply-To: <20161116031057.12977-1-ying.huang@intel.com>
+References: <20161116031057.12977-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-This patchset is to optimize the performance of Transparent Huge Page
-(THP) swap.
+In this patch, the size of the swap cluster is changed to that of the
+THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
+the THP swap support on x86_64.  Where one swap cluster will be used to
+hold the contents of each THP swapped out.  And some information of the
+swapped out THP (such as compound map count) will be recorded in the
+swap_cluster_info data structure.
 
-Hi, Andrew, could you help me to check whether the overall design is
-reasonable?
+For other architectures which want THP swap support,
+ARCH_USES_THP_SWAP_CLUSTER need to be selected in the Kconfig file for
+the architecture.
 
-Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
-swap part of the patchset?  Especially [1/9], [3/9], [4/9], [5/9],
-[6/9], [9/9].
+In effect, this will enlarge swap cluster size by 2 times on x86_64.
+Which may make it harder to find a free cluster when the swap space
+becomes fragmented.  So that, this may reduce the continuous swap space
+allocation and sequential write in theory.  The performance test in 0day
+shows no regressions caused by this.
 
-Hi, Andrea and Kirill, could you help me to review the THP part of the
-patchset?  Especially [2/9], [7/9] and [8/9].
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+---
+ arch/x86/Kconfig |  1 +
+ mm/Kconfig       | 13 +++++++++++++
+ mm/swapfile.c    |  4 ++++
+ 3 files changed, 18 insertions(+)
 
-Hi, Johannes, Michal and Vladimir, I am not very confident about the
-memory cgroup part, especially [2/9].  Could you help me to review it?
-
-And for all, Any comment is welcome!
-
-
-Recently, the performance of the storage devices improved so fast that
-we cannot saturate the disk bandwidth with single logical CPU when do
-page swap out even on a high-end server machine.  Because the
-performance of the storage device improved faster than that of single
-logical CPU.  And it seems that the trend will not change in the near
-future.  On the other hand, the THP becomes more and more popular
-because of increased memory size.  So it becomes necessary to optimize
-THP swap performance.
-
-The advantages of the THP swap support include:
-
-- Batch the swap operations for the THP to reduce lock
-  acquiring/releasing, including allocating/freeing the swap space,
-  adding/deleting to/from the swap cache, and writing/reading the swap
-  space, etc.  This will help improve the performance of the THP swap.
-
-- The THP swap space read/write will be 2M sequential IO.  It is
-  particularly helpful for the swap read, which are usually 4k random
-  IO.  This will improve the performance of the THP swap too.
-
-- It will help the memory fragmentation, especially when the THP is
-  heavily used by the applications.  The 2M continuous pages will be
-  free up after THP swapping out.
-
-- It will improve the THP utilization on the system with the swap
-  turned on.  Because the speed for khugepaged to collapse the normal
-  pages into the THP is quite slow.  After the THP is split during the
-  swapping out, it will take quite long time for the normal pages to
-  collapse back into the THP after being swapped in.  The high THP
-  utilization helps the efficiency of the page based memory management
-  too.
-
-There are some concerns regarding THP swap in, mainly because possible
-enlarged read/write IO size (for swap in/out) may put more overhead on
-the storage device.  To deal with that, the THP swap in should be
-turned on only when necessary.  For example, it can be selected via
-"always/never/madvise" logic, to be turned on globally, turned off
-globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
-
-This patchset is based on 11/08 head of mmotm/master.
-
-This patchset is the first step for the THP swap support.  The plan is
-to delay splitting THP step by step, finally avoid splitting THP
-during the THP swapping out and swap out/in the THP as a whole.
-
-As the first step, in this patchset, the splitting huge page is
-delayed from almost the first step of swapping out to after allocating
-the swap space for the THP and adding the THP into the swap cache.
-This will reduce lock acquiring/releasing for the locks used for the
-swap cache management.
-
-With the patchset, the swap out throughput improves 12.1% (from about
-1.12GB/s to about 1.25GB/s) in the vm-scalability swap-w-seq test case
-with 16 processes.  The test is done on a Xeon E5 v3 system.  The swap
-device used is a RAM simulated PMEM (persistent memory) device.  To
-test the sequential swapping out, the test case uses 16 processes,
-which sequentially allocate and write to the anonymous pages until the
-RAM and part of the swap device is used up.
-
-The detailed compare result is as follow,
-
-base             base+patchset
----------------- -------------------------- 
-         %stddev     %change         %stddev
-             \          |                \  
-   1118821 A+-  0%     +12.1%    1254241 A+-  1%  vmstat.swap.so
-   2460636 A+-  1%     +10.6%    2720983 A+-  1%  vm-scalability.throughput
-    308.79 A+-  1%      -7.9%     284.53 A+-  1%  vm-scalability.time.elapsed_time
-      1639 A+-  4%    +232.3%       5446 A+-  1%  meminfo.SwapCached
-      0.70 A+-  3%      +8.7%       0.77 A+-  5%  perf-stat.ipc
-      9.82 A+-  8%     -31.6%       6.72 A+-  2%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
-
-
->From the swap out throughput number, we can find, even tested on a RAM
-simulated PMEM (Persistent Memory) device, the swap out throughput can
-reach only about 1.1GB/s.  While, in the file IO test, the sequential
-write throughput of an Intel P3700 SSD can reach about 1.8GB/s
-steadily.  And according the following URL,
-
-https://www-ssl.intel.com/content/www/us/en/solid-state-drives/intel-ssd-dc-family-for-pcie.html
-
-The sequential write throughput of Intel P3608 SSD can reach about
-3.0GB/s, while the random read IOPS can reach about 850k.  It is clear
-that the bottleneck has moved from the disk to the kernel swap
-component itself.
-
-The improved storage device performance should have made the swap
-becomes a better feature than before with better performance.  But
-because of the issues of kernel swap component itself, the swap
-performance is still kept at the low level.  That prevents the swap
-feature to be used by more users.  And this in turn causes few kernel
-developers think it is necessary to optimize kernel swap component.
-To break the loop, we need to optimize the performance of kernel swap
-component.  Optimize the THP swap performance is part of it.
-
-
-Changelog:
-
-v5:
-
-- Per Hillf's comments, fix a locking bug in error path of
-  __add_to_swap_cache().  And merge the code to calculate extra_pins
-  into can_split_huge_page().
-
-v4:
-
-- Per Johannes' comments, simplified swap cgroup array accessing code.
-- Per Kirill and Dave Hansen's comments, used HPAGE_PMD_NR instead of
-  HPAGE_SIZE/PAGE_SIZE.
-- Per Anshuman's comments, used HPAGE_PMD_NR instead of 512 in patch
-  description.
-
-v3:
-
-- Per Andrew's suggestion, used a more systematical way to determine
-  whether to enable THP swap optimization
-- Per Andrew's comments, moved as much as possible code into
-  #ifdef CONFIG_TRANSPARENT_HUGE_PAGE/#endif or "if (PageTransHuge())"
-- Fixed some coding style warning.
-
-v2:
-
-- Original [1/11] sent separately and merged
-- Use switch in 10/10 per Hiff's suggestion
-
-Best Regards,
-Huang, Ying
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 8b93519..59dc488 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -165,6 +165,7 @@ config X86
+ 	select HAVE_STACK_VALIDATION		if X86_64
+ 	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
++	select ARCH_USES_THP_SWAP_CLUSTER	if X86_64
+ 
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 86e3e0e..5a63c87 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -503,6 +503,19 @@ config FRONTSWAP
+ 
+ 	  If unsure, say Y to enable frontswap.
+ 
++config ARCH_USES_THP_SWAP_CLUSTER
++	bool
++	default n
++
++config THP_SWAP_CLUSTER
++	bool
++	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
++	default y
++	help
++	  Use one swap cluster to hold the contents of the THP
++	  (Transparent Huge Page) swapped out.  The size of the swap
++	  cluster will be same as that of THP.
++
+ config CMA
+ 	bool "Contiguous Memory Allocator"
+ 	depends on HAVE_MEMBLOCK && MMU
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f304389..34888e5b 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -196,7 +196,11 @@ static void discard_swap_cluster(struct swap_info_struct *si,
+ 	}
+ }
+ 
++#ifdef CONFIG_THP_SWAP_CLUSTER
++#define SWAPFILE_CLUSTER	HPAGE_PMD_NR
++#else
+ #define SWAPFILE_CLUSTER	256
++#endif
+ #define LATENCY_LIMIT		256
+ 
+ static inline void cluster_set_flag(struct swap_cluster_info *info,
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
