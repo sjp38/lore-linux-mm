@@ -1,207 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 338436B0285
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 13:48:13 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id o1so60472384ito.7
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 10:48:13 -0800 (PST)
-Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
-        by mx.google.com with ESMTPS id 21si6347768itw.74.2016.11.16.10.48.12
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FA286B0287
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 13:53:53 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id q128so142357185qkd.3
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 10:53:53 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id q185si22505321qke.330.2016.11.16.10.53.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 10:48:12 -0800 (PST)
-Received: by mail-it0-x22e.google.com with SMTP id b123so68785334itb.0
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 10:48:12 -0800 (PST)
-Subject: Re: [PATCH/RFC] mm: don't cap request size based on read-ahead
- setting
-References: <7d8739c2-09ea-8c1f-cef7-9b8b40766c6a@kernel.dk>
- <20161115222734.GA2300@cmpxchg.org>
- <65f0b407-6fe5-8ba9-4c10-5259e195a038@kernel.dk>
- <20161116174425.GA18090@cmpxchg.org>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <a5e7b28b-3139-6878-1ca1-d5ef7545aa13@kernel.dk>
-Date: Wed, 16 Nov 2016 11:47:56 -0700
+        Wed, 16 Nov 2016 10:53:52 -0800 (PST)
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
+ for huge page UFFDIO_COPY
+References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
+ <1478115245-32090-16-git-send-email-aarcange@redhat.com>
+ <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
+ <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
+ <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
+ <20161104193626.GU4611@redhat.com>
+ <1805f956-1777-471c-1401-46c984189c88@oracle.com>
+ <20161116182809.GC26185@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com>
+Date: Wed, 16 Nov 2016 10:53:39 -0800
 MIME-Version: 1.0
-In-Reply-To: <20161116174425.GA18090@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20161116182809.GC26185@redhat.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On 11/16/2016 10:44 AM, Johannes Weiner wrote:
-> On Tue, Nov 15, 2016 at 03:41:58PM -0700, Jens Axboe wrote:
->> On 11/15/2016 03:27 PM, Johannes Weiner wrote:
->>> Hi Jens,
->>>
->>> On Thu, Nov 10, 2016 at 10:00:37AM -0700, Jens Axboe wrote:
->>>> Hi,
->>>>
->>>> We ran into a funky issue, where someone doing 256K buffered reads saw
->>>> 128K requests at the device level. Turns out it is read-ahead capping
->>>> the request size, since we use 128K as the default setting. This doesn't
->>>> make a lot of sense - if someone is issuing 256K reads, they should see
->>>> 256K reads, regardless of the read-ahead setting.
->>>>
->>>> To make matters more confusing, there's an odd interaction with the
->>>> fadvise hint setting. If we tell the kernel we're doing sequential IO on
->>>> this file descriptor, we can get twice the read-ahead size. But if we
->>>> tell the kernel that we are doing random IO, hence disabling read-ahead,
->>>> we do get nice 256K requests at the lower level. An application
->>>> developer will be, rightfully, scratching his head at this point,
->>>> wondering wtf is going on. A good one will dive into the kernel source,
->>>> and silently weep.
->>>>
->>>> This patch introduces a bdi hint, io_pages. This is the soft max IO size
->>>> for the lower level, I've hooked it up to the bdev settings here.
->>>> Read-ahead is modified to issue the maximum of the user request size,
->>>> and the read-ahead max size, but capped to the max request size on the
->>>> device side. The latter is done to avoid reading ahead too much, if the
->>>> application asks for a huge read. With this patch, the kernel behaves
->>>> like the application expects.
->>>>
->>>>
->>>> diff --git a/block/blk-settings.c b/block/blk-settings.c
->>>> index f679ae122843..65f16cf4f850 100644
->>>> --- a/block/blk-settings.c
->>>> +++ b/block/blk-settings.c
->>>> @@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q,
->>>> unsigned int max_hw_secto
->>>>  	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
->>>>  	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
->>>>  	limits->max_sectors = max_sectors;
->>>> +	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
->>>
->>> Could we simply set q->backing_dev_info.ra_pages here? This would
->>> start the disk out with a less magical readahead setting than the
->>> current 128k default, while retaining the ability for the user to
->>> override it in sysfs later on. Plus, one less attribute to juggle.
+On 11/16/2016 10:28 AM, Andrea Arcangeli wrote:
+> Hello Mike,
+> 
+> On Tue, Nov 08, 2016 at 01:06:06PM -0800, Mike Kravetz wrote:
+>> -- 
+>> Mike Kravetz
 >>
->> We could, but then we'd have two places that tweak the same knob. I
->> think it's perfectly valid to have the read-ahead size be bigger than
->> the max request size, if you want some pipelining, for instance.
->
-> I'm not sure I follow. Which would be the two places and which knob?
-
-It's actually three knobs, since I looked:
-
-1) /sys/block/<dev>/queue/read_ahead_kb
-2) /sys/class/bdi/<dev>/read_ahead_kb
-3) /sys/block/<dev>/queue/max_sectors_kb
-
-The first 2 control the same thing, bdi->ra_pages. If we update ->pages
-from max_sectors_kb as well, that'd make three. At least the first two
-tell you what they do, don't like having the max_sectors_kb fiddle it
-automatically too.
-
-> What I meant how it could work is this: when the queue gets allocated,
-> we set ra_pages to the hard-coded 128K, like we do right now. When the
-> driver initializes and calls blk_queue_max_hw_sectors() it would set
-> ra_pages to the more informed, device-optimized max_sectors >>
-> (PAGE_SHIFT - 9). And once it's all initialized, the user can still
-> make adjustments to the default we picked in the kernel heuristic.
->
->> The 128k default is silly, though, that should be smarter. It should
->> probably default to the max request size.
->
-> Could you clarify the difference between max request size and what
-> blk_queue_max_hw_sectors() sets? The way I understood your patch is
-> that we want to use a readahead cap that's better suited to the
-> underlying IO device than the magic 128K. What am I missing?
-
-This ties in with the above, so I'm just replying here. max_hw_sectors
-is a hardware limit, the max size for a single command. max_sectors is a
-user setting. For latency reasons, we don't necessarily want to issue
-IOs up to the full hardware size, so we cap the kernel initiated size.
-Eg for most hardware that can do 32-64MB in a command, we still limit
-the default size to 512k.
-
-The limit I added limits us to the user setting, not the hardware
-setting.
-
->>>> @@ -369,10 +369,18 @@ ondemand_readahead(struct address_space *mapping,
->>>>  		   bool hit_readahead_marker, pgoff_t offset,
->>>>  		   unsigned long req_size)
->>>>  {
->>>> -	unsigned long max = ra->ra_pages;
->>>> +	unsigned long max_pages;
->>>>  	pgoff_t prev_offset;
->>>>
->>>>  	/*
->>>> +	 * Use the max of the read-ahead pages setting and the requested IO
->>>> +	 * size, and then the min of that and the soft IO size for the
->>>> +	 * underlying device.
->>>> +	 */
->>>> +	max_pages = max_t(unsigned long, ra->ra_pages, req_size);
->>>> +	max_pages = min_not_zero(inode_to_bdi(mapping->host)->io_pages, max_pages);
->>>
->>> This code would then go away, and it would apply the benefit of this
->>> patch automatically to explicit readahead(2) and FADV_WILLNEED calls
->>> going through force_page_cache_readahead() as well.
+>> From: Mike Kravetz <mike.kravetz@oracle.com>
 >>
->> The path from the force actually works, which is why you get the weird
->> behavior with a file marked as RANDOM getting the full request size, and
->> not being limited by ra_pages.
->
-> How so? do_generic_file_read() calls page_cache_sync_readahead(), and
-> if the file is marked random it goes to force_page_cache_readahead():
->
-> void page_cache_sync_readahead(struct address_space *mapping,
-> 			       struct file_ra_state *ra, struct file *filp,
-> 			       pgoff_t offset, unsigned long req_size)
-> {
-> 	/* no read-ahead */
-> 	if (!ra->ra_pages)
-> 		return;
->
-> 	/* be dumb */
-> 	if (filp && (filp->f_mode & FMODE_RANDOM)) {
-> 		force_page_cache_readahead(mapping, filp, offset, req_size);
-> 		return;
-> 	}
->
-> 	/* do read-ahead */
-> 	ondemand_readahead(mapping, ra, filp, false, offset, req_size);
-> }
->
-> That function in turn still caps the reads to the default 128K ra_pages:
->
-> int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> 		pgoff_t offset, unsigned long nr_to_read)
-> {
-> 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
-> 		return -EINVAL;
->
-> 	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-> 	while (nr_to_read) {
-> 		int err;
->
-> 		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
->
-> 		if (this_chunk > nr_to_read)
-> 			this_chunk = nr_to_read;
-> 		err = __do_page_cache_readahead(mapping, filp,
-> 						offset, this_chunk, 0);
-> 		if (err < 0)
-> 			return err;
->
-> 		offset += this_chunk;
-> 		nr_to_read -= this_chunk;
-> 	}
-> 	return 0;
-> }
->
-> How could you get IO requests bigger than the 128k ra_pages there?
+>> userfaultfd: hugetlbfs: fix __mcopy_atomic_hugetlb retry/error processing
+>>
+>> The new routine copy_huge_page_from_user() uses kmap_atomic() to map
+>> PAGE_SIZE pages.  However, this prevents page faults in the subsequent
+>> call to copy_from_user().  This is OK in the case where the routine
+>> is copied with mmap_sema held.  However, in another case we want to
+>> allow page faults.  So, add a new argument allow_pagefault to indicate
+>> if the routine should allow page faults.
+>>
+>> A patch (mm/hugetlb: fix huge page reservation leak in private mapping
+>> error paths) was recently submitted and is being added to -mm tree.  It
+>> addresses the issue huge page reservations when a huge page is allocated,
+>> and free'ed before being instantiated in an address space.  This would
+>> typically happen in error paths.  The routine __mcopy_atomic_hugetlb has
+>> such an error path, so it will need to call restore_reserve_on_error()
+>> before free'ing the huge page.  restore_reserve_on_error is currently
+>> only visible in mm/hugetlb.c.  So, add it to a header file so that it
+>> can be used in mm/userfaultfd.c.  Another option would be to move
+>> __mcopy_atomic_hugetlb into mm/hugetlb.c
+> 
+> It would have been better to split this in two patches.
+> 
+>> @@ -302,8 +302,10 @@ static __always_inline ssize_t
+>> __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+>>  out_unlock:
+>>  	up_read(&dst_mm->mmap_sem);
+>>  out:
+>> -	if (page)
+>> +	if (page) {
+>> +		restore_reserve_on_error(h, dst_vma, dst_addr, page);
+>>  		put_page(page);
+>> +	}
+>>  	BUG_ON(copied < 0);
+> 
+> If the revalidation fails dst_vma could even be NULL.
+> 
+> We get there with page not NULL only if something in the revalidation
+> fails effectively... I'll have to drop the above change as the fix
+> will hurt more than the vma reservation not being restored. Didn't
+> think too much about it, but there was no obvious way to restore the
+> reservation of a vma, after we drop the mmap_sem. However if we don't
+> drop the mmap_sem, we'd recurse into it, and it'll deadlock in current
+> implementation if a down_write is already pending somewhere else. In
+> this specific case fairness is not an issue, but it's not checking
+> it's the same thread taking it again, so it's doesn't allow to recurse
+> (checking it's the same thread would make it slower).
 
-Sorry, what I meant is that if we mark it random through fadvise, then
-read-ahead doesn't get in the way and we get the full size. If we end up
-through read-ahead, we get limited. So you are right, I should fix up
-force_page_cache_readahead as well.
+Thanks for reviewing this Andrea.  You are correct, we can not call
+restore_reserve_on_error without mmap_sem held.
 
-I'll send out a v3.
+I was running some tests with error injection to exercise the error
+path and noticed the reservation leaks as the system eventually ran
+out of huge pages.  I need to think about it some more, but we may
+want to at least do something like the following before put_page (with
+a BIG comment):
+
+	if (unlikely(PagePrivate(page)))
+		ClearPagePrivate(page);
+
+That would at least keep the global reservation count from increasing.
+Let me look into that.
+
+> I also fixed the gup support for userfaultfd, could you review it?
+
+I will take a look, and 'may' have a test that can be modified for this.
 
 -- 
-Jens Axboe
+Mike Kravetz
+
+> Beware, untested... will test it shortly with qemu postcopy live
+> migration with hugetlbfs instead of THP (that currently gracefully
+> complains about FAULT_FLAG_ALLOW_RETRY missing, KVM ioctl returns
+> badaddr and DEBUG_VM=y clearly showed the stack trace of where
+> FAULT_FLAG_ALLOW_RETRY was missing).
+> 
+> I think this enhancement is needed by Oracle too, so that you don't
+> get an error from I/O syscalls, and you instead get an userfault.
+> 
+> We need to update the selftest to trigger userfaults not only with the
+> CPU but with O_DIRECT too.
+> 
+> Note, the FOLL_NOWAIT is needed to offload the userfaults to async
+> page faults. KVM tries an async fault first (FOLL_NOWAIT, nonblocking
+> = NULL), if that fails it offload a blocking (*nonblocking = 1) fault
+> through async page fault kernel thread while guest scheduler schedule
+> away the blocked process. So the userfaults behave like SSD swapins
+> from disk hitting on a single guest thread and not the whole host vcpu
+> thread. Clearly hugetlbfs cannot ever block for I/O, FOLL_NOWAIT is
+> only useful to avoid blocking in the vcpu thread in
+> handle_userfault().
+> 
+> From ff1ce62ee0acb14ed71621ba99f01f008a5d212d Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Wed, 16 Nov 2016 18:34:20 +0100
+> Subject: [PATCH 1/1] userfaultfd: hugetlbfs: gup: support VM_FAULT_RETRY
+> 
+> Add support for VM_FAULT_RETRY to follow_hugetlb_page() so that
+> get_user_pages_unlocked/locked and "nonblocking/FOLL_NOWAIT" features
+> will work on hugetlbfs. This is required for fully functional
+> userfaultfd non-present support on hugetlbfs.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  include/linux/hugetlb.h |  5 +++--
+>  mm/gup.c                |  2 +-
+>  mm/hugetlb.c            | 48 ++++++++++++++++++++++++++++++++++++++++--------
+>  3 files changed, 44 insertions(+), 11 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index bf02b7e..542416d 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -65,7 +65,8 @@ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
+>  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+>  long follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
+>  			 struct page **, struct vm_area_struct **,
+> -			 unsigned long *, unsigned long *, long, unsigned int);
+> +			 unsigned long *, unsigned long *, long, unsigned int,
+> +			 int *);
+>  void unmap_hugepage_range(struct vm_area_struct *,
+>  			  unsigned long, unsigned long, struct page *);
+>  void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+> @@ -138,7 +139,7 @@ static inline unsigned long hugetlb_total_pages(void)
+>  	return 0;
+>  }
+>  
+> -#define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
+> +#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ BUG(); 0; })
+>  #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+>  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+>  static inline void hugetlb_report_meminfo(struct seq_file *m)
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ec4f827..36e88a9 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -572,7 +572,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  			if (is_vm_hugetlb_page(vma)) {
+>  				i = follow_hugetlb_page(mm, vma, pages, vmas,
+>  						&start, &nr_pages, i,
+> -						gup_flags);
+> +						gup_flags, nonblocking);
+>  				continue;
+>  			}
+>  		}
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 9ce8ecb..022750d 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4039,7 +4039,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			 struct page **pages, struct vm_area_struct **vmas,
+>  			 unsigned long *position, unsigned long *nr_pages,
+> -			 long i, unsigned int flags)
+> +			 long i, unsigned int flags, int *nonblocking)
+>  {
+>  	unsigned long pfn_offset;
+>  	unsigned long vaddr = *position;
+> @@ -4102,16 +4102,43 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		    ((flags & FOLL_WRITE) &&
+>  		      !huge_pte_write(huge_ptep_get(pte)))) {
+>  			int ret;
+> +			unsigned int fault_flags = 0;
+>  
+>  			if (pte)
+>  				spin_unlock(ptl);
+> -			ret = hugetlb_fault(mm, vma, vaddr,
+> -				(flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+> -			if (!(ret & VM_FAULT_ERROR))
+> -				continue;
+> -
+> -			remainder = 0;
+> -			break;
+> +			if (flags & FOLL_WRITE)
+> +				fault_flags |= FAULT_FLAG_WRITE;
+> +			if (nonblocking)
+> +				fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+> +			if (flags & FOLL_NOWAIT)
+> +				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
+> +					FAULT_FLAG_RETRY_NOWAIT;
+> +			if (flags & FOLL_TRIED) {
+> +				VM_WARN_ON_ONCE(fault_flags &
+> +						FAULT_FLAG_ALLOW_RETRY);
+> +				fault_flags |= FAULT_FLAG_TRIED;
+> +			}
+> +			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
+> +			if (ret & VM_FAULT_ERROR) {
+> +				remainder = 0;
+> +				break;
+> +			}
+> +			if (ret & VM_FAULT_RETRY) {
+> +				if (nonblocking)
+> +					*nonblocking = 0;
+> +				*nr_pages = 0;
+> +				/*
+> +				 * VM_FAULT_RETRY must not return an
+> +				 * error, it will return zero
+> +				 * instead.
+> +				 *
+> +				 * No need to update "position" as the
+> +				 * caller will not check it after
+> +				 * *nr_pages is set to 0.
+> +				 */
+> +				return i;
+> +			}
+> +			continue;
+>  		}
+>  
+>  		pfn_offset = (vaddr & ~huge_page_mask(h)) >> PAGE_SHIFT;
+> @@ -4140,6 +4167,11 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		spin_unlock(ptl);
+>  	}
+>  	*nr_pages = remainder;
+> +	/*
+> +	 * setting position is actually required only if remainder is
+> +	 * not zero but it's faster not to add a "if (remainder)"
+> +	 * branch.
+> +	 */
+>  	*position = vaddr;
+>  
+>  	return i ? i : -EFAULT;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
