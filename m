@@ -1,265 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FA286B0287
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 13:53:53 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id q128so142357185qkd.3
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 10:53:53 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id q185si22505321qke.330.2016.11.16.10.53.51
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B10BC6B0288
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:22:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so163319657pgd.0
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 11:22:49 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0077.outbound.protection.outlook.com. [104.47.38.77])
+        by mx.google.com with ESMTPS id c17si33101906pgh.177.2016.11.16.11.22.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 10:53:52 -0800 (PST)
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
- for huge page UFFDIO_COPY
-References: <1478115245-32090-1-git-send-email-aarcange@redhat.com>
- <1478115245-32090-16-git-send-email-aarcange@redhat.com>
- <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
- <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
- <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
- <20161104193626.GU4611@redhat.com>
- <1805f956-1777-471c-1401-46c984189c88@oracle.com>
- <20161116182809.GC26185@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com>
-Date: Wed, 16 Nov 2016 10:53:39 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 16 Nov 2016 11:22:48 -0800 (PST)
+Subject: Re: [RFC PATCH v3 08/20] x86: Add support for early
+ encryption/decryption of memory
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003610.3280.22043.stgit@tlendack-t1.amdoffice.net>
+ <20161116104656.qz5wp33zzyja373r@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <3a9e093a-9e80-8d2b-2615-56675cf6f147@amd.com>
+Date: Wed, 16 Nov 2016 13:22:36 -0600
 MIME-Version: 1.0
-In-Reply-To: <20161116182809.GC26185@redhat.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20161116104656.qz5wp33zzyja373r@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 11/16/2016 10:28 AM, Andrea Arcangeli wrote:
-> Hello Mike,
-> 
-> On Tue, Nov 08, 2016 at 01:06:06PM -0800, Mike Kravetz wrote:
->> -- 
->> Mike Kravetz
->>
->> From: Mike Kravetz <mike.kravetz@oracle.com>
->>
->> userfaultfd: hugetlbfs: fix __mcopy_atomic_hugetlb retry/error processing
->>
->> The new routine copy_huge_page_from_user() uses kmap_atomic() to map
->> PAGE_SIZE pages.  However, this prevents page faults in the subsequent
->> call to copy_from_user().  This is OK in the case where the routine
->> is copied with mmap_sema held.  However, in another case we want to
->> allow page faults.  So, add a new argument allow_pagefault to indicate
->> if the routine should allow page faults.
->>
->> A patch (mm/hugetlb: fix huge page reservation leak in private mapping
->> error paths) was recently submitted and is being added to -mm tree.  It
->> addresses the issue huge page reservations when a huge page is allocated,
->> and free'ed before being instantiated in an address space.  This would
->> typically happen in error paths.  The routine __mcopy_atomic_hugetlb has
->> such an error path, so it will need to call restore_reserve_on_error()
->> before free'ing the huge page.  restore_reserve_on_error is currently
->> only visible in mm/hugetlb.c.  So, add it to a header file so that it
->> can be used in mm/userfaultfd.c.  Another option would be to move
->> __mcopy_atomic_hugetlb into mm/hugetlb.c
-> 
-> It would have been better to split this in two patches.
-> 
->> @@ -302,8 +302,10 @@ static __always_inline ssize_t
->> __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
->>  out_unlock:
->>  	up_read(&dst_mm->mmap_sem);
->>  out:
->> -	if (page)
->> +	if (page) {
->> +		restore_reserve_on_error(h, dst_vma, dst_addr, page);
->>  		put_page(page);
->> +	}
->>  	BUG_ON(copied < 0);
-> 
-> If the revalidation fails dst_vma could even be NULL.
-> 
-> We get there with page not NULL only if something in the revalidation
-> fails effectively... I'll have to drop the above change as the fix
-> will hurt more than the vma reservation not being restored. Didn't
-> think too much about it, but there was no obvious way to restore the
-> reservation of a vma, after we drop the mmap_sem. However if we don't
-> drop the mmap_sem, we'd recurse into it, and it'll deadlock in current
-> implementation if a down_write is already pending somewhere else. In
-> this specific case fairness is not an issue, but it's not checking
-> it's the same thread taking it again, so it's doesn't allow to recurse
-> (checking it's the same thread would make it slower).
+On 11/16/2016 4:46 AM, Borislav Petkov wrote:
+> Btw, for your next submission, this patch can be split in two exactly
+> like the commit message paragraphs are:
 
-Thanks for reviewing this Andrea.  You are correct, we can not call
-restore_reserve_on_error without mmap_sem held.
+I think I originally had it that way, I don't know why I combined them.
+I'll split them out.
 
-I was running some tests with error injection to exercise the error
-path and noticed the reservation leaks as the system eventually ran
-out of huge pages.  I need to think about it some more, but we may
-want to at least do something like the following before put_page (with
-a BIG comment):
-
-	if (unlikely(PagePrivate(page)))
-		ClearPagePrivate(page);
-
-That would at least keep the global reservation count from increasing.
-Let me look into that.
-
-> I also fixed the gup support for userfaultfd, could you review it?
-
-I will take a look, and 'may' have a test that can be modified for this.
-
--- 
-Mike Kravetz
-
-> Beware, untested... will test it shortly with qemu postcopy live
-> migration with hugetlbfs instead of THP (that currently gracefully
-> complains about FAULT_FLAG_ALLOW_RETRY missing, KVM ioctl returns
-> badaddr and DEBUG_VM=y clearly showed the stack trace of where
-> FAULT_FLAG_ALLOW_RETRY was missing).
 > 
-> I think this enhancement is needed by Oracle too, so that you don't
-> get an error from I/O syscalls, and you instead get an userfault.
+> On Wed, Nov 09, 2016 at 06:36:10PM -0600, Tom Lendacky wrote:
+>> Add support to be able to either encrypt or decrypt data in place during
+>> the early stages of booting the kernel. This does not change the memory
+>> encryption attribute - it is used for ensuring that data present in either
+>> an encrypted or un-encrypted memory area is in the proper state (for
+>> example the initrd will have been loaded by the boot loader and will not be
+>> encrypted, but the memory that it resides in is marked as encrypted).
 > 
-> We need to update the selftest to trigger userfaults not only with the
-> CPU but with O_DIRECT too.
+> Patch 2: users of the new memmap change
 > 
-> Note, the FOLL_NOWAIT is needed to offload the userfaults to async
-> page faults. KVM tries an async fault first (FOLL_NOWAIT, nonblocking
-> = NULL), if that fails it offload a blocking (*nonblocking = 1) fault
-> through async page fault kernel thread while guest scheduler schedule
-> away the blocked process. So the userfaults behave like SSD swapins
-> from disk hitting on a single guest thread and not the whole host vcpu
-> thread. Clearly hugetlbfs cannot ever block for I/O, FOLL_NOWAIT is
-> only useful to avoid blocking in the vcpu thread in
-> handle_userfault().
+>> The early_memmap support is enhanced to specify encrypted and un-encrypted
+>> mappings with and without write-protection. The use of write-protection is
+>> necessary when encrypting data "in place". The write-protect attribute is
+>> considered cacheable for loads, but not stores. This implies that the
+>> hardware will never give the core a dirty line with this memtype.
 > 
-> From ff1ce62ee0acb14ed71621ba99f01f008a5d212d Mon Sep 17 00:00:00 2001
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Date: Wed, 16 Nov 2016 18:34:20 +0100
-> Subject: [PATCH 1/1] userfaultfd: hugetlbfs: gup: support VM_FAULT_RETRY
+> Patch 1: change memmap
 > 
-> Add support for VM_FAULT_RETRY to follow_hugetlb_page() so that
-> get_user_pages_unlocked/locked and "nonblocking/FOLL_NOWAIT" features
-> will work on hugetlbfs. This is required for fully functional
-> userfaultfd non-present support on hugetlbfs.
+> This makes this aspect of the patchset much clearer and is better for
+> bisection.
 > 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/include/asm/fixmap.h        |    9 +++
+>>  arch/x86/include/asm/mem_encrypt.h   |   15 +++++
+>>  arch/x86/include/asm/pgtable_types.h |    8 +++
+>>  arch/x86/mm/ioremap.c                |   28 +++++++++
+>>  arch/x86/mm/mem_encrypt.c            |  102 ++++++++++++++++++++++++++++++++++
+>>  include/asm-generic/early_ioremap.h  |    2 +
+>>  mm/early_ioremap.c                   |   15 +++++
+>>  7 files changed, 179 insertions(+)
+> 
+> ...
+> 
+>> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+>> index d642cc5..06235b4 100644
+>> --- a/arch/x86/mm/mem_encrypt.c
+>> +++ b/arch/x86/mm/mem_encrypt.c
+>> @@ -14,6 +14,9 @@
+>>  #include <linux/init.h>
+>>  #include <linux/mm.h>
+>>  
+>> +#include <asm/tlbflush.h>
+>> +#include <asm/fixmap.h>
+>> +
+>>  extern pmdval_t early_pmd_flags;
+>>  
+>>  /*
+>> @@ -24,6 +27,105 @@ extern pmdval_t early_pmd_flags;
+>>  unsigned long sme_me_mask __section(.data) = 0;
+>>  EXPORT_SYMBOL_GPL(sme_me_mask);
+>>  
+>> +/* Buffer used for early in-place encryption by BSP, no locking needed */
+>> +static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
+>> +
+>> +/*
+>> + * This routine does not change the underlying encryption setting of the
+>> + * page(s) that map this memory. It assumes that eventually the memory is
+>> + * meant to be accessed as encrypted but the contents are currently not
+>> + * encrypted.
+>> + */
+>> +void __init sme_early_mem_enc(resource_size_t paddr, unsigned long size)
+>> +{
+>> +	void *src, *dst;
+>> +	size_t len;
+>> +
+>> +	if (!sme_me_mask)
+>> +		return;
+>> +
+>> +	local_flush_tlb();
+>> +	wbinvd();
+>> +
+>> +	/*
+>> +	 * There are limited number of early mapping slots, so map (at most)
+>> +	 * one page at time.
+>> +	 */
+>> +	while (size) {
+>> +		len = min_t(size_t, sizeof(sme_early_buffer), size);
+>> +
+>> +		/* Create a mapping for non-encrypted write-protected memory */
+>> +		src = early_memremap_dec_wp(paddr, len);
+>> +
+>> +		/* Create a mapping for encrypted memory */
+>> +		dst = early_memremap_enc(paddr, len);
+>> +
+>> +		/*
+>> +		 * If a mapping can't be obtained to perform the encryption,
+>> +		 * then encrypted access to that area will end up causing
+>> +		 * a crash.
+>> +		 */
+>> +		BUG_ON(!src || !dst);
+>> +
+>> +		memcpy(sme_early_buffer, src, len);
+>> +		memcpy(dst, sme_early_buffer, len);
+> 
+> I still am missing the short explanation why we need the temporary buffer.
+
+Ok, I'll add that.
+
+> 
+> 
+> Oh, and we can save us the code duplication a little. Diff ontop of yours:
+
+Yup, makes sense.  I'll incorporate this.
+
+Thanks,
+Tom
+
+> 
 > ---
->  include/linux/hugetlb.h |  5 +++--
->  mm/gup.c                |  2 +-
->  mm/hugetlb.c            | 48 ++++++++++++++++++++++++++++++++++++++++--------
->  3 files changed, 44 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index bf02b7e..542416d 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -65,7 +65,8 @@ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
->  int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
->  long follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
->  			 struct page **, struct vm_area_struct **,
-> -			 unsigned long *, unsigned long *, long, unsigned int);
-> +			 unsigned long *, unsigned long *, long, unsigned int,
-> +			 int *);
->  void unmap_hugepage_range(struct vm_area_struct *,
->  			  unsigned long, unsigned long, struct page *);
->  void __unmap_hugepage_range_final(struct mmu_gather *tlb,
-> @@ -138,7 +139,7 @@ static inline unsigned long hugetlb_total_pages(void)
->  	return 0;
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 06235b477d7c..50e2c4fc7338 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -36,7 +36,8 @@ static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
+>   * meant to be accessed as encrypted but the contents are currently not
+>   * encrypted.
+>   */
+> -void __init sme_early_mem_enc(resource_size_t paddr, unsigned long size)
+> +static void __init noinline
+> +__mem_enc_dec(resource_size_t paddr, unsigned long size, bool enc)
+>  {
+>  	void *src, *dst;
+>  	size_t len;
+> @@ -54,15 +55,15 @@ void __init sme_early_mem_enc(resource_size_t paddr, unsigned long size)
+>  	while (size) {
+>  		len = min_t(size_t, sizeof(sme_early_buffer), size);
+>  
+> -		/* Create a mapping for non-encrypted write-protected memory */
+> -		src = early_memremap_dec_wp(paddr, len);
+> +		src = (enc ? early_memremap_dec_wp(paddr, len)
+> +			   : early_memremap_enc_wp(paddr, len));
+>  
+> -		/* Create a mapping for encrypted memory */
+> -		dst = early_memremap_enc(paddr, len);
+> +		dst = (enc ? early_memremap_enc(paddr, len)
+> +			   : early_memremap_dec(paddr, len));
+>  
+>  		/*
+> -		 * If a mapping can't be obtained to perform the encryption,
+> -		 * then encrypted access to that area will end up causing
+> +		 * If a mapping can't be obtained to perform the dec/encryption,
+> +		 * then (un-)encrypted access to that area will end up causing
+>  		 * a crash.
+>  		 */
+>  		BUG_ON(!src || !dst);
+> @@ -78,52 +79,14 @@ void __init sme_early_mem_enc(resource_size_t paddr, unsigned long size)
+>  	}
 >  }
 >  
-> -#define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
-> +#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ BUG(); 0; })
->  #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
->  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
->  static inline void hugetlb_report_meminfo(struct seq_file *m)
-> diff --git a/mm/gup.c b/mm/gup.c
-> index ec4f827..36e88a9 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -572,7 +572,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  			if (is_vm_hugetlb_page(vma)) {
->  				i = follow_hugetlb_page(mm, vma, pages, vmas,
->  						&start, &nr_pages, i,
-> -						gup_flags);
-> +						gup_flags, nonblocking);
->  				continue;
->  			}
->  		}
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 9ce8ecb..022750d 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4039,7 +4039,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			 struct page **pages, struct vm_area_struct **vmas,
->  			 unsigned long *position, unsigned long *nr_pages,
-> -			 long i, unsigned int flags)
-> +			 long i, unsigned int flags, int *nonblocking)
+> -/*
+> - * This routine does not change the underlying encryption setting of the
+> - * page(s) that map this memory. It assumes that eventually the memory is
+> - * meant to be accessed as not encrypted but the contents are currently
+> - * encrypted.
+> - */
+> -void __init sme_early_mem_dec(resource_size_t paddr, unsigned long size)
+> +void __init sme_early_mem_enc(resource_size_t paddr, unsigned long size)
 >  {
->  	unsigned long pfn_offset;
->  	unsigned long vaddr = *position;
-> @@ -4102,16 +4102,43 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		    ((flags & FOLL_WRITE) &&
->  		      !huge_pte_write(huge_ptep_get(pte)))) {
->  			int ret;
-> +			unsigned int fault_flags = 0;
->  
->  			if (pte)
->  				spin_unlock(ptl);
-> -			ret = hugetlb_fault(mm, vma, vaddr,
-> -				(flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
-> -			if (!(ret & VM_FAULT_ERROR))
-> -				continue;
+> -	void *src, *dst;
+> -	size_t len;
 > -
-> -			remainder = 0;
-> -			break;
-> +			if (flags & FOLL_WRITE)
-> +				fault_flags |= FAULT_FLAG_WRITE;
-> +			if (nonblocking)
-> +				fault_flags |= FAULT_FLAG_ALLOW_RETRY;
-> +			if (flags & FOLL_NOWAIT)
-> +				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
-> +					FAULT_FLAG_RETRY_NOWAIT;
-> +			if (flags & FOLL_TRIED) {
-> +				VM_WARN_ON_ONCE(fault_flags &
-> +						FAULT_FLAG_ALLOW_RETRY);
-> +				fault_flags |= FAULT_FLAG_TRIED;
-> +			}
-> +			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
-> +			if (ret & VM_FAULT_ERROR) {
-> +				remainder = 0;
-> +				break;
-> +			}
-> +			if (ret & VM_FAULT_RETRY) {
-> +				if (nonblocking)
-> +					*nonblocking = 0;
-> +				*nr_pages = 0;
-> +				/*
-> +				 * VM_FAULT_RETRY must not return an
-> +				 * error, it will return zero
-> +				 * instead.
-> +				 *
-> +				 * No need to update "position" as the
-> +				 * caller will not check it after
-> +				 * *nr_pages is set to 0.
-> +				 */
-> +				return i;
-> +			}
-> +			continue;
->  		}
+> -	if (!sme_me_mask)
+> -		return;
+> -
+> -	local_flush_tlb();
+> -	wbinvd();
+> -
+> -	/*
+> -	 * There are limited number of early mapping slots, so map (at most)
+> -	 * one page at time.
+> -	 */
+> -	while (size) {
+> -		len = min_t(size_t, sizeof(sme_early_buffer), size);
+> -
+> -		/* Create a mapping for encrypted write-protected memory */
+> -		src = early_memremap_enc_wp(paddr, len);
+> -
+> -		/* Create a mapping for non-encrypted memory */
+> -		dst = early_memremap_dec(paddr, len);
+> -
+> -		/*
+> -		 * If a mapping can't be obtained to perform the decryption,
+> -		 * then un-encrypted access to that area will end up causing
+> -		 * a crash.
+> -		 */
+> -		BUG_ON(!src || !dst);
+> -
+> -		memcpy(sme_early_buffer, src, len);
+> -		memcpy(dst, sme_early_buffer, len);
+> -
+> -		early_memunmap(dst, len);
+> -		early_memunmap(src, len);
+> +	return __mem_enc_dec(paddr, size, true);
+> +}
 >  
->  		pfn_offset = (vaddr & ~huge_page_mask(h)) >> PAGE_SHIFT;
-> @@ -4140,6 +4167,11 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		spin_unlock(ptl);
->  	}
->  	*nr_pages = remainder;
-> +	/*
-> +	 * setting position is actually required only if remainder is
-> +	 * not zero but it's faster not to add a "if (remainder)"
-> +	 * branch.
-> +	 */
->  	*position = vaddr;
+> -		paddr += len;
+> -		size -= len;
+> -	}
+> +void __init sme_early_mem_dec(resource_size_t paddr, unsigned long size)
+> +{
+> +	return __mem_enc_dec(paddr, size, false);
+>  }
 >  
->  	return i ? i : -EFAULT;
+>  void __init sme_early_init(void)
 > 
 
 --
