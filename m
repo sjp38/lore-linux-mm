@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C34CD6B026D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 09:43:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id u144so26209011wmu.1
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 06:43:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v5si7511800wme.84.2016.11.16.06.43.06
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E806B026F
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 10:12:14 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id g187so48973019itc.2
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 07:12:14 -0800 (PST)
+Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
+        by mx.google.com with ESMTPS id j8si19501435iof.9.2016.11.16.07.12.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 Nov 2016 06:43:06 -0800 (PST)
-Date: Wed, 16 Nov 2016 15:43:03 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 11/21] mm: Remove unnecessary vma->vm_ops check
-Message-ID: <20161116144303.GP21785@quack2.suse.cz>
-References: <1478233517-3571-1-git-send-email-jack@suse.cz>
- <1478233517-3571-12-git-send-email-jack@suse.cz>
- <20161115222819.GK23021@node>
- <20161116132918.GK21785@quack2.suse.cz>
- <20161116142755.GA28051@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Nov 2016 07:12:13 -0800 (PST)
+Received: by mail-it0-x235.google.com with SMTP id c20so214447775itb.0
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 07:12:13 -0800 (PST)
+Subject: Re: [PATCH] mm: don't cap request size based on read-ahead setting
+References: <6e2dec0d-cef5-60ac-2cf6-a89ded82e2f4@kernel.dk>
+ <000701d23fd9$805dcdd0$81196970$@alibaba-inc.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <7b150e70-66ef-f42f-a0b9-2ddb7b739076@kernel.dk>
+Date: Wed, 16 Nov 2016 08:12:09 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161116142755.GA28051@node.shutemov.name>
+In-Reply-To: <000701d23fd9$805dcdd0$81196970$@alibaba-inc.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-block@vger.kernel.org, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>
 
-On Wed 16-11-16 17:27:55, Kirill A. Shutemov wrote:
-> On Wed, Nov 16, 2016 at 02:29:18PM +0100, Jan Kara wrote:
-> > On Wed 16-11-16 01:28:19, Kirill A. Shutemov wrote:
-> > > On Fri, Nov 04, 2016 at 05:25:07AM +0100, Jan Kara wrote:
-> > > > We don't check whether vma->vm_ops is NULL in do_shared_fault() so
-> > > > there's hardly any point in checking it in wp_page_shared() or
-> > > > wp_pfn_shared() which get called only for shared file mappings as well.
-> > > > 
-> > > > Signed-off-by: Jan Kara <jack@suse.cz>
-> > > 
-> > > Well, I'm not sure about this.
-> > > 
-> > > do_shared_fault() doesn't have the check since we checked it upper by
-> > > stack: see vma_is_anonymous() in handle_pte_fault().
-> > > 
-> > > In principal, it should be fine. But random crappy driver has potential to
-> > > blow it up.
-> > 
-> > Ok, so do you prefer me to keep this patch or discard it? Either is fine with
-> > me. It was just a cleanup I wrote when factoring out the functionality.
-> 
-> I would rather drop it.
-> 
-> Eventually, we need to make sure that all file-backed vma has vm_ops.
-> I tried to do this once, but that back-fired...
+On 11/16/2016 12:17 AM, Hillf Danton wrote:
+> On Wednesday, November 16, 2016 12:31 PM Jens Axboe wrote:
+>> @@ -369,10 +369,25 @@ ondemand_readahead(struct address_space *mapping,
+>>   		   bool hit_readahead_marker, pgoff_t offset,
+>>   		   unsigned long req_size)
+>>   {
+>> -	unsigned long max = ra->ra_pages;
+>> +	unsigned long io_pages, max_pages;
+>>   	pgoff_t prev_offset;
+>>
+>>   	/*
+>> +	 * If bdi->io_pages is set, that indicates the (soft) max IO size
+>> +	 * per command for that device. If we have that available, use
+>> +	 * that as the max suitable read-ahead size for this IO. Instead of
+>> +	 * capping read-ahead at ra_pages if req_size is larger, we can go
+>> +	 * up to io_pages. If io_pages isn't set, fall back to using
+>> +	 * ra_pages as a safe max.
+>> +	 */
+>> +	io_pages = inode_to_bdi(mapping->host)->io_pages;
+>> +	if (io_pages) {
+>> +		max_pages = max_t(unsigned long, ra->ra_pages, req_size);
+>> +		io_pages = min(io_pages, max_pages);
+>
+> Doubt if you mean
+> 		max_pages = min(io_pages, max_pages);
 
-OK, will do.
+No, that is what I mean. We want the maximum of the RA setting and the
+user IO size, but the minimum of that and the device max command size.
 
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
