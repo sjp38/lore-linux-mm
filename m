@@ -1,128 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 261756B032D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 01:55:54 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 83so76933352pfx.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 22:55:54 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0085.outbound.protection.outlook.com. [104.47.0.85])
-        by mx.google.com with ESMTPS id r25si30327333pgn.297.2016.11.15.22.55.52
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C4D6B0069
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 02:16:03 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id i88so76160275pfk.3
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 23:16:03 -0800 (PST)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30080.outbound.protection.outlook.com. [40.107.3.80])
+        by mx.google.com with ESMTPS id r62si30415293pgr.202.2016.11.15.23.16.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 15 Nov 2016 22:55:53 -0800 (PST)
+        Tue, 15 Nov 2016 23:16:02 -0800 (PST)
+Date: Wed, 16 Nov 2016 15:15:55 +0800
 From: Huang Shijie <shijie.huang@arm.com>
-Subject: [PATCH V2 fix 5/6] mm: hugetlb: add a new function to allocate a new gigantic page
-Date: Wed, 16 Nov 2016 14:55:04 +0800
-Message-ID: <1479279304-31379-1-git-send-email-shijie.huang@arm.com>
-In-Reply-To: <1479107259-2011-6-git-send-email-shijie.huang@arm.com>
-References: <1479107259-2011-6-git-send-email-shijie.huang@arm.com>
+Subject: Re: Hugetlb gigantic page and dynamic allocation
+Message-ID: <20161116071553.GA31541@sha-win-210.asiapac.arm.com>
+References: <877f83ncfa.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <877f83ncfa.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, catalin.marinas@arm.com
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, Huang Shijie <shijie.huang@arm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, nd@arm.com
 
-There are three ways we can allocate a new gigantic page:
+On Wed, Nov 16, 2016 at 12:23:13PM +0530, Aneesh Kumar K.V wrote:
+> 
+> Hi,
+> 
+> I was looking at this w.r.t a recent patch series and wondering whether
+> the usage of alloc_contig_page is correct there. We do
+> 
+> 
+> static int __alloc_gigantic_page(unsigned long start_pfn,
+> 				unsigned long nr_pages)
+> {
+> 	unsigned long end_pfn = start_pfn + nr_pages;
+> 	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+> }
+> 
+> 
+> That implies, if we fail in certain case we will mark the page block
+> migrate type MIGRATE_MOVABLE . Do we want to do that in all case ?
+> What if the start_pfn was convering a page block of MIGRATE_CMA type ?
+> Should we skip pageblock with MIGRATE_CMA type when trying to allocate
+> gigantic huge page ?
+I have not read the code so deep. I will study it when I have time.
 
-1. When the NUMA is not enabled, use alloc_gigantic_page() to get
-   the gigantic page.
+Btw: Do we really need the free_contig_range() run like this?
+free page one by one? I guess we can optimize it to free pages at the unit
+of the page order.
 
-2. The NUMA is enabled, but the vma is NULL.
-   There is no memory policy we can refer to.
-   So create a @nodes_allowed, initialize it with init_nodemask_of_mempolicy()
-   or init_nodemask_of_node(). Then use alloc_fresh_gigantic_page() to get
-   the gigantic page.
-
-3. The NUMA is enabled, and the vma is valid.
-   We can follow the memory policy of the @vma.
-
-   Get @nodes_allowed by huge_nodemask(), and use alloc_fresh_gigantic_page()
-   to get the gigantic page.
-
-Signed-off-by: Huang Shijie <shijie.huang@arm.com>
----
-Since the huge_nodemask() is changed, we have to change this function a little.
-
----
- mm/hugetlb.c | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 63 insertions(+)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6995087..c33bddc 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1502,6 +1502,69 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- 
- /*
-  * There are 3 ways this can get called:
-+ *
-+ * 1. When the NUMA is not enabled, use alloc_gigantic_page() to get
-+ *    the gigantic page.
-+ *
-+ * 2. The NUMA is enabled, but the vma is NULL.
-+ *    Create a @nodes_allowed, and use alloc_fresh_gigantic_page() to get
-+ *    the gigantic page.
-+ *
-+ * 3. The NUMA is enabled, and the vma is valid.
-+ *    Use the @vma's memory policy.
-+ *    Get @nodes_allowed by huge_nodemask(), and use alloc_fresh_gigantic_page()
-+ *    to get the gigantic page.
-+ */
-+static struct page *__hugetlb_alloc_gigantic_page(struct hstate *h,
-+		struct vm_area_struct *vma, unsigned long addr, int nid)
-+{
-+	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
-+	struct page *page = NULL;
-+
-+	/* Not NUMA */
-+	if (!IS_ENABLED(CONFIG_NUMA)) {
-+		if (nid == NUMA_NO_NODE)
-+			nid = numa_mem_id();
-+
-+		page = alloc_gigantic_page(nid, huge_page_order(h));
-+		if (page)
-+			prep_compound_gigantic_page(page, huge_page_order(h));
-+
-+		NODEMASK_FREE(nodes_allowed);
-+		return page;
-+	}
-+
-+	/* NUMA && !vma */
-+	if (!vma) {
-+		if (nid == NUMA_NO_NODE) {
-+			if (!init_nodemask_of_mempolicy(nodes_allowed)) {
-+				NODEMASK_FREE(nodes_allowed);
-+				nodes_allowed = &node_states[N_MEMORY];
-+			}
-+		} else if (nodes_allowed) {
-+			init_nodemask_of_node(nodes_allowed, nid);
-+		} else {
-+			nodes_allowed = &node_states[N_MEMORY];
-+		}
-+
-+		page = alloc_fresh_gigantic_page(h, nodes_allowed, true);
-+
-+		if (nodes_allowed != &node_states[N_MEMORY])
-+			NODEMASK_FREE(nodes_allowed);
-+
-+		return page;
-+	}
-+
-+	/* NUMA && vma */
-+	if (huge_nodemask(vma, addr, nodes_allowed))
-+		page = alloc_fresh_gigantic_page(h, nodes_allowed, true);
-+
-+	NODEMASK_FREE(nodes_allowed);
-+	return page;
-+}
-+
-+/*
-+ * There are 3 ways this can get called:
-  * 1. With vma+addr: we use the VMA's memory policy
-  * 2. With !vma, but nid=NUMA_NO_NODE:  We try to allocate a huge
-  *    page from any node, and let the buddy allocator itself figure
--- 
-2.5.5
+Thanks
+Huang Shijie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
