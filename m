@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3840D6B030D
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 19:35:32 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 17so70135685pfy.2
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:35:32 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id y21si28870686pgh.97.2016.11.15.16.35.31
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2AC6B030E
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 19:49:00 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id v84so118392338oie.0
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:49:00 -0800 (PST)
+Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
+        by mx.google.com with ESMTPS id o57si12164220oto.107.2016.11.15.16.48.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 16:35:31 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id 144so8722595pfv.0
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:35:31 -0800 (PST)
-Subject: Re: [PATCH] slab: Add POISON_POINTER_DELTA to ZERO_SIZE_PTR
-References: <1479207422-6535-1-git-send-email-mpe@ellerman.id.au>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <ab8d90fd-a0b9-d6df-b359-9a4b0d415f28@gmail.com>
-Date: Wed, 16 Nov 2016 11:35:25 +1100
+        Tue, 15 Nov 2016 16:48:59 -0800 (PST)
+Received: by mail-oi0-x22d.google.com with SMTP id z62so44757440oiz.1
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 16:48:59 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1479207422-6535-1-git-send-email-mpe@ellerman.id.au>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1c6d61ef-2331-e517-d0d8-d4eefea8b18a@intel.com>
+References: <147881591739.39198.1358237993213024627.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <1c6d61ef-2331-e517-d0d8-d4eefea8b18a@intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 15 Nov 2016 16:48:58 -0800
+Message-ID: <CAPcyv4gGWxpntc141nDJ6Lwg=17e30O8=xDTpHBpJ=79+fT=VQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: add ZONE_DEVICE statistics to smaps
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, keescook@chromium.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
+On Tue, Nov 15, 2016 at 4:15 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+> On 11/10/2016 02:11 PM, Dan Williams wrote:
+>> @@ -774,6 +778,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+>>                  "ShmemPmdMapped: %8lu kB\n"
+>>                  "Shared_Hugetlb: %8lu kB\n"
+>>                  "Private_Hugetlb: %7lu kB\n"
+>> +                "Device:         %8lu kB\n"
+>> +                "DeviceHugePages: %7lu kB\n"
+>>                  "Swap:           %8lu kB\n"
+>>                  "SwapPss:        %8lu kB\n"
+>>                  "KernelPageSize: %8lu kB\n"
+>
+> So, a couple of nits...
+>
+> smaps is getting a bit big, and the fields that get added in this patch
+> are going to be pretty infrequently used.  Is it OK if smaps grows
+> forever, even if most of them items are "0 kB"?
+>
+> IOW, Could we make it output Device* only for DAX VMAs?  All the parsers
+> have to handle that field being there or not (for old kernels).
 
+How about just hiding the field if it is zero?  That way it's not an
+backdoor way to leak vma_is_dax() which was Christoph's concern.
 
-On 15/11/16 21:57, Michael Ellerman wrote:
-> POISON_POINTER_DELTA is defined in poison.h, and is intended to be used
-> to shift poison values so that they don't alias userspace.
-> 
-> We should add it to ZERO_SIZE_PTR so that attackers can't use
-> ZERO_SIZE_PTR as a way to get a pointer to userspace.
-> 
-> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
-> ---
->  include/linux/slab.h | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 084b12bad198..17ddd7aea2dd 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -12,6 +12,7 @@
->  #define	_LINUX_SLAB_H
->  
->  #include <linux/gfp.h>
-> +#include <linux/poison.h>
->  #include <linux/types.h>
->  #include <linux/workqueue.h>
->  
-> @@ -109,7 +110,7 @@
->   * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
->   * Both make kfree a no-op.
->   */
-> -#define ZERO_SIZE_PTR ((void *)16)
-> +#define ZERO_SIZE_PTR ((void *)(16 + POISON_POINTER_DELTA))
->  
->  #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
->  				(unsigned long)ZERO_SIZE_PTR)
-> 
+> The other thing missing for DAX is the page size.  DAX mappings support
+> mixed page sizes, so MMUPageSize in this context is pretty worthless.
+> What will we do in here for 1GB DAX pages?
 
-I wonder if we should make this a variable with boot time entropy
-within a certain region
-
-Balbir Singh.
+I was thinking that would be yet another field "DeviceGiganticPages?"
+when we eventually add 1GB support (not there today).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
