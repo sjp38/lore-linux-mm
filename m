@@ -1,195 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC8D6B0327
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 23:30:49 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f188so129238837pgc.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 20:30:49 -0800 (PST)
-Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
-        by mx.google.com with ESMTPS id 26si29771083pfo.279.2016.11.15.20.30.48
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BF36B0329
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 00:13:04 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id i131so15462921wmf.3
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 21:13:04 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id e8si31564586wjh.217.2016.11.15.21.13.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 20:30:48 -0800 (PST)
-Received: by mail-pg0-x231.google.com with SMTP id p66so74507171pga.2
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 20:30:48 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH] mm: don't cap request size based on read-ahead setting
-Message-ID: <6e2dec0d-cef5-60ac-2cf6-a89ded82e2f4@kernel.dk>
-Date: Tue, 15 Nov 2016 21:30:45 -0700
+        Tue, 15 Nov 2016 21:13:03 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id g23so7186989wme.1
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 21:13:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.LSU.2.11.1611151438090.1910@eggly.anvils>
+References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
+ <1478271776-1194-2-git-send-email-akash.goel@intel.com> <alpine.LSU.2.11.1611092137360.6221@eggly.anvils>
+ <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com> <CAK_0AV0+1oizfRMfoJ45FWCRi_4X93W-ZtseY-s-R_wavE3fZQ@mail.gmail.com>
+ <alpine.LSU.2.11.1611151438090.1910@eggly.anvils>
+From: akash goel <akash.goels@gmail.com>
+Date: Wed, 16 Nov 2016 10:43:01 +0530
+Message-ID: <CAK_0AV1n6+x3fj7UNPGYG+=eRwUp=SMXe91X5=aZ59tTuZraAw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] drm/i915: Make GPU pages movable
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Sourab Gupta <sourab.gupta@intel.com>, akash goel <akash.goels@gmail.com>
 
-Hi,
+On Wed, Nov 16, 2016 at 6:55 AM, Hugh Dickins <hughd@google.com> wrote:
+> On Mon, 14 Nov 2016, akash goel wrote:
+>> On Thu, Nov 10, 2016 at 1:00 PM, Goel, Akash <akash.goel@intel.com> wrote:
+>> > On 11/10/2016 12:09 PM, Hugh Dickins wrote:
+>> >> On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
+>> >>> @@ -4185,6 +4189,8 @@ struct drm_i915_gem_object *
+>> >>>
+>> >>>         mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
+>> >>> +       if (IS_ENABLED(MIGRATION))
+>
+> Oh, I knew I'd seen a line like that recently, and it was bugging me
+> that I ought to search my mailboxes for it; but now I'm glad to find
+> it again.  If that condition stays, it would really need to say
+>               if (IS_ENABLED(CONFIG_MIGRATION))
+> wouldn't it?
+>
+Sorry this was a blooper, should have been
+             if (IS_ENABLED(CONFIG_MIGRATION))
 
-We ran into a funky issue, where someone doing 256K buffered reads saw
-128K requests at the device level. Turns out it is read-ahead capping
-the request size, since we use 128K as the default setting. This doesn't
-make a lot of sense - if someone is issuing 256K reads, they should see
-256K reads, regardless of the read-ahead setting, if the underlying
-device can support a 256K read in a single command.
+>> >>> +               mask |= __GFP_MOVABLE;
+>> >>
+>> >>
+>> >> I was going to suggest just make that unconditional,
+>> >>         mask = GFP_HIGHUSER_MOVABLE | __GFP_RECLAIMABLE;
+>> >>
+>> >> But then I wondered what that __GFP_RECLAIMABLE actually achieves?
+>> >> These pages are already __GFP_RECLAIM (inside GFP_HIGHUSER) and on
+>> >> the LRU.  It affects gfpflags_to_migratetype(), but I'm not familiar
+>> >> with what that different migratetype will end up doing.
+>> >>
+>> >
+>> > Will check for this.
+>> >
+>>
+>> The anti-fragmentation technique used by kernel is based on the idea
+>> of grouping pages with identical mobility (UNMOVABLE, RECLAIMABLE,
+>> MOVABLE) together.
+>
+> Yes.
+>
+>> __GFP_RECLAIMABLE, like  __GFP_MOVABLE, specifies the
+>> mobility/migration type of the page and serves a different purpose
+>> than __GFP_RECLAIM.
+>
+> Yes, I was wrong to mention __GFP_RECLAIM above: it describes what
+> to do when in difficulty allocating a page, but says nothing at all
+> about the nature of the page to be allocated.
+>
+Right, nicely phrased, thanks.
 
-To make matters more confusing, there's an odd interaction with the
-fadvise hint setting. If we tell the kernel we're doing sequential IO on
-this file descriptor, we can get twice the read-ahead size. But if we
-tell the kernel that we are doing random IO, hence disabling read-ahead,
-we do get nice 256K requests at the lower level. This is because
-ondemand and forced read-ahead behave differently, with the latter doing
-the right thing. An application developer will be, rightfully,
-scratching his head at this point, wondering wtf is going on. A good one
-will dive into the kernel source, and silently weep.
+>>
+>> Also as per the below snippet from gfpflags_to_migratetype(), looks
+>> like __GFP_MOVABLE &  __GFP_RECLAIMABLE can't be used together, which
+>> makes sense.
+>> /* Convert GFP flags to their corresponding migrate type */
+>> #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
+>> static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+>> {
+>>         VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+>> .....
+>
+> You're right, that does exclude them from being used together.  And it
+> makes sense inasmuch as they're expected to be appled to quite different
+> uses of a page (lru pages versus slab pages).
+>
+> The comment on __GFP_MOVABLE says "or can be reclaimed"; and
+> the comment on __GFP_RECLAIMABLE says "used for slab allocations...".
+> Though it does not say "used for allocations not put on a reclaimable
+> lru", I think that is the intention; whereas shmem allocations are put
+> on a reclaimable lru (though they might need your shrinker to unpin them).
+>
 
-This patch introduces a bdi hint, io_pages. This is the soft max IO size
-for the lower level, I've hooked it up to the bdev settings here.
-Read-ahead is modified to issue the maximum of the user request size,
-and the read-ahead max size, but capped to the max request size on the
-device side. The latter is done to avoid reading ahead too much, if the
-application asks for a huge read. With this patch, the kernel behaves
-like the application expects.
+As per my understanding both  __GFP_MOVABLE & __GFP_RECLAIMABLE type
+pages would get added to the LRU list for reclaiming.
+Irrespective of whether a shmem page is allocated as __GFP_MOVABLE
+type or  __GFP_RECLAIMABLE type, it will be added to the LRU list.
 
-Signed-off-by: Jens Axboe <axboe@fb.com>
+>>
+>> So probably would need to update the mask like this,
+>>        mask = GFP_HIGHUSER;
+>>        if (IS_ENABLED(MIGRATION))
+>>              mask |= __GFP_MOVABLE;
+>>        else
+>>              mask |=  __GFP_RECLAIMABLE;
+>>
+>> Please kindly let us know if this looks fine to you or not.
+>
+> Thanks for looking into it more deeply.  You leave me thinking that
+> it should simply say
+>
+>         mask = GFP_HIGHUSER_MOVABLE;
+>
+> Which is the default anyway, but it then has the Crestline+Broadwater
+> condition to modify the mask further, so it's probably clearest to
+> leave the mask = GFP_HIGHUSER_MOVABLE explicit.
+>
+> GFP_HIGHUSER_MOVABLE is used in many places, and includes __GFP_MOVABLE
+> without any condition on CONFIG_MIGRATION - because the migratetype is
+> irrelevant if there is no migration, I presume.
+>
+> Would you lose something by not or'ing in __GFP_RECLAIMABLE when
+> CONFIG_MIGRATION=n?  No, because __GFP_RECLAIMABLE is not used for
+> anything but the migratetype, and the migratetype is then irrelevant.
+> (I didn't study the code closely enough to say whether the grouping
+> can still happen even when migration is disabled, but even if it
+> does still happen, I can't see that it would have any benefit.)
+>
+The freelist, for a particular order,  in buddy allocator is always
+organized based on the migrate type.
+from <mmzone.h>
+struct free_area {
+       struct list_head free_list[MIGRATE_TYPES];
+        unsigned long nr_free;
+};
+And the page grouping, based on migrate type, is also always done by the kernel.
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index f679ae122843..65f16cf4f850 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue 
-*q, unsigned int max_hw_secto
-  	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
-  	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
-  	limits->max_sectors = max_sectors;
-+	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
-  }
-  EXPORT_SYMBOL(blk_queue_max_hw_sectors);
+Its just that when CONFIG_MIGRATION=n, the actual migration does not
+take place, leveraging the page grouping, so no compaction effectively
+happens.
+I think even without the migration, the page grouping could still be
+beneficial in limiting the fragmentation to some extent, as at least
+the non-movable pages will not be scattered/dispersed randomly.
+But yes when CONFIG_MIGRATION=n,  __GFP_MOVABLE & __GFP_RECLAIMABLE
+would be equivalent of each other, as then reclaiming is the only way
+to facilitate the formation of higher order free page.
+So as you suggested looks like we can simply set
+              mask = GFP_HIGHUSER_MOVABLE;
 
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index 9cc8d7c5439a..ea374e820775 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -212,6 +212,7 @@ queue_max_sectors_store(struct request_queue *q, 
-const char *page, size_t count)
+Many thanks for all your inputs.
 
-  	spin_lock_irq(q->queue_lock);
-  	q->limits.max_sectors = max_sectors_kb << 1;
-+	q->backing_dev_info.io_pages = max_sectors_kb >> (PAGE_SHIFT - 10);
-  	spin_unlock_irq(q->queue_lock);
+Best regards
+Akash
 
-  	return ret;
-diff --git a/include/linux/backing-dev-defs.h 
-b/include/linux/backing-dev-defs.h
-index c357f27d5483..b8144b2d59ce 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -136,6 +136,7 @@ struct bdi_writeback {
-  struct backing_dev_info {
-  	struct list_head bdi_list;
-  	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
-+	unsigned long io_pages;	/* max allowed IO size */
-  	unsigned int capabilities; /* Device capabilities */
-  	congested_fn *congested_fn; /* Function pointer if device is md/dm */
-  	void *congested_data;	/* Pointer to aux data for congested func */
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c8a955b1297e..4eaec947c7c9 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -369,10 +369,25 @@ ondemand_readahead(struct address_space *mapping,
-  		   bool hit_readahead_marker, pgoff_t offset,
-  		   unsigned long req_size)
-  {
--	unsigned long max = ra->ra_pages;
-+	unsigned long io_pages, max_pages;
-  	pgoff_t prev_offset;
-
-  	/*
-+	 * If bdi->io_pages is set, that indicates the (soft) max IO size
-+	 * per command for that device. If we have that available, use
-+	 * that as the max suitable read-ahead size for this IO. Instead of
-+	 * capping read-ahead at ra_pages if req_size is larger, we can go
-+	 * up to io_pages. If io_pages isn't set, fall back to using
-+	 * ra_pages as a safe max.
-+	 */
-+	io_pages = inode_to_bdi(mapping->host)->io_pages;
-+	if (io_pages) {
-+		max_pages = max_t(unsigned long, ra->ra_pages, req_size);
-+		io_pages = min(io_pages, max_pages);
-+	} else
-+		max_pages = ra->ra_pages;
-+
-+	/*
-  	 * start of file
-  	 */
-  	if (!offset)
-@@ -385,7 +400,7 @@ ondemand_readahead(struct address_space *mapping,
-  	if ((offset == (ra->start + ra->size - ra->async_size) ||
-  	     offset == (ra->start + ra->size))) {
-  		ra->start += ra->size;
--		ra->size = get_next_ra_size(ra, max);
-+		ra->size = get_next_ra_size(ra, max_pages);
-  		ra->async_size = ra->size;
-  		goto readit;
-  	}
-@@ -400,16 +415,16 @@ ondemand_readahead(struct address_space *mapping,
-  		pgoff_t start;
-
-  		rcu_read_lock();
--		start = page_cache_next_hole(mapping, offset + 1, max);
-+		start = page_cache_next_hole(mapping, offset + 1, max_pages);
-  		rcu_read_unlock();
-
--		if (!start || start - offset > max)
-+		if (!start || start - offset > max_pages)
-  			return 0;
-
-  		ra->start = start;
-  		ra->size = start - offset;	/* old async_size */
-  		ra->size += req_size;
--		ra->size = get_next_ra_size(ra, max);
-+		ra->size = get_next_ra_size(ra, max_pages);
-  		ra->async_size = ra->size;
-  		goto readit;
-  	}
-@@ -417,7 +432,7 @@ ondemand_readahead(struct address_space *mapping,
-  	/*
-  	 * oversize read
-  	 */
--	if (req_size > max)
-+	if (req_size > max_pages)
-  		goto initial_readahead;
-
-  	/*
-@@ -433,7 +448,7 @@ ondemand_readahead(struct address_space *mapping,
-  	 * Query the page cache and look for the traces(cached history pages)
-  	 * that a sequential stream would leave behind.
-  	 */
--	if (try_context_readahead(mapping, ra, offset, req_size, max))
-+	if (try_context_readahead(mapping, ra, offset, req_size, max_pages))
-  		goto readit;
-
-  	/*
-@@ -444,7 +459,7 @@ ondemand_readahead(struct address_space *mapping,
-
-  initial_readahead:
-  	ra->start = offset;
--	ra->size = get_init_ra_size(req_size, max);
-+	ra->size = get_init_ra_size(req_size, max_pages);
-  	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
-
-  readit:
-@@ -454,7 +469,7 @@ ondemand_readahead(struct address_space *mapping,
-  	 * the resulted next readahead window into the current one.
-  	 */
-  	if (offset == ra->start && ra->size == ra->async_size) {
--		ra->async_size = get_next_ra_size(ra, max);
-+		ra->async_size = get_next_ra_size(ra, max_pages);
-  		ra->size += ra->async_size;
-  	}
-
-
--- 
-Jens Axboe
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
