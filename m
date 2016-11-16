@@ -1,126 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC00F6B0311
-	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 20:26:04 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q10so125979768pgq.7
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 17:26:04 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id p64si29016552pfa.181.2016.11.15.17.26.03
+	by kanga.kvack.org (Postfix) with ESMTP id 0CE1C6B0313
+	for <linux-mm@kvack.org>; Tue, 15 Nov 2016 22:12:21 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id p66so130346552pga.4
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 19:12:21 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 23si29455179pgb.38.2016.11.15.19.12.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 17:26:03 -0800 (PST)
-Received: by mail-pf0-x22b.google.com with SMTP id d2so39266736pfd.0
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 17:26:03 -0800 (PST)
-Date: Tue, 15 Nov 2016 17:25:48 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] drm/i915: Make GPU pages movable
-In-Reply-To: <CAK_0AV0+1oizfRMfoJ45FWCRi_4X93W-ZtseY-s-R_wavE3fZQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1611151438090.1910@eggly.anvils>
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com> <1478271776-1194-2-git-send-email-akash.goel@intel.com> <alpine.LSU.2.11.1611092137360.6221@eggly.anvils> <5ff5aabf-2efe-7ee3-aab7-6c4b132c523d@intel.com>
- <CAK_0AV0+1oizfRMfoJ45FWCRi_4X93W-ZtseY-s-R_wavE3fZQ@mail.gmail.com>
+        Tue, 15 Nov 2016 19:12:20 -0800 (PST)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -v5 0/9] THP swap: Delay splitting THP during swapping out
+Date: Wed, 16 Nov 2016 11:10:48 +0800
+Message-Id: <20161116031057.12977-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akash goel <akash.goels@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Chris Wilson <chris@chris-wilson.co.uk>, Sourab Gupta <sourab.gupta@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Mon, 14 Nov 2016, akash goel wrote:
-> On Thu, Nov 10, 2016 at 1:00 PM, Goel, Akash <akash.goel@intel.com> wrote:
-> > On 11/10/2016 12:09 PM, Hugh Dickins wrote:
-> >> On Fri, 4 Nov 2016, akash.goel@intel.com wrote:
-> >>> @@ -4185,6 +4189,8 @@ struct drm_i915_gem_object *
-> >>>
-> >>>         mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-> >>> +       if (IS_ENABLED(MIGRATION))
+From: Huang Ying <ying.huang@intel.com>
 
-Oh, I knew I'd seen a line like that recently, and it was bugging me
-that I ought to search my mailboxes for it; but now I'm glad to find
-it again.  If that condition stays, it would really need to say
-              if (IS_ENABLED(CONFIG_MIGRATION))
-wouldn't it?
+This patchset is to optimize the performance of Transparent Huge Page
+(THP) swap.
 
-> >>> +               mask |= __GFP_MOVABLE;
-> >>
-> >>
-> >> I was going to suggest just make that unconditional,
-> >>         mask = GFP_HIGHUSER_MOVABLE | __GFP_RECLAIMABLE;
-> >>
-> >> But then I wondered what that __GFP_RECLAIMABLE actually achieves?
-> >> These pages are already __GFP_RECLAIM (inside GFP_HIGHUSER) and on
-> >> the LRU.  It affects gfpflags_to_migratetype(), but I'm not familiar
-> >> with what that different migratetype will end up doing.
-> >>
-> >
-> > Will check for this.
-> >
-> 
-> The anti-fragmentation technique used by kernel is based on the idea
-> of grouping pages with identical mobility (UNMOVABLE, RECLAIMABLE,
-> MOVABLE) together.
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-Yes.
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [1/9], [3/9], [4/9], [5/9],
+[6/9], [9/9].
 
-> __GFP_RECLAIMABLE, like  __GFP_MOVABLE, specifies the
-> mobility/migration type of the page and serves a different purpose
-> than __GFP_RECLAIM.
+Hi, Andrea and Kirill, could you help me to review the THP part of the
+patchset?  Especially [2/9], [7/9] and [8/9].
 
-Yes, I was wrong to mention __GFP_RECLAIM above: it describes what
-to do when in difficulty allocating a page, but says nothing at all
-about the nature of the page to be allocated.
+Hi, Johannes, Michal and Vladimir, I am not very confident about the
+memory cgroup part, especially [2/9].  Could you help me to review it?
 
-> 
-> Also as per the below snippet from gfpflags_to_migratetype(), looks
-> like __GFP_MOVABLE &  __GFP_RECLAIMABLE can't be used together, which
-> makes sense.
-> /* Convert GFP flags to their corresponding migrate type */
-> #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE | __GFP_MOVABLE)
-> static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
-> {
->         VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-> .....
+And for all, Any comment is welcome!
 
-You're right, that does exclude them from being used together.  And it
-makes sense inasmuch as they're expected to be appled to quite different
-uses of a page (lru pages versus slab pages).
 
-The comment on __GFP_MOVABLE says "or can be reclaimed"; and
-the comment on __GFP_RECLAIMABLE says "used for slab allocations...".
-Though it does not say "used for allocations not put on a reclaimable
-lru", I think that is the intention; whereas shmem allocations are put
-on a reclaimable lru (though they might need your shrinker to unpin them).
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swap out even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
 
-> 
-> So probably would need to update the mask like this,
->        mask = GFP_HIGHUSER;
->        if (IS_ENABLED(MIGRATION))
->              mask |= __GFP_MOVABLE;
->        else
->              mask |=  __GFP_RECLAIMABLE;
-> 
-> Please kindly let us know if this looks fine to you or not.
+The advantages of the THP swap support include:
 
-Thanks for looking into it more deeply.  You leave me thinking that
-it should simply say
+- Batch the swap operations for the THP to reduce lock
+  acquiring/releasing, including allocating/freeing the swap space,
+  adding/deleting to/from the swap cache, and writing/reading the swap
+  space, etc.  This will help improve the performance of the THP swap.
 
-        mask = GFP_HIGHUSER_MOVABLE;
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which are usually 4k random
+  IO.  This will improve the performance of the THP swap too.
 
-Which is the default anyway, but it then has the Crestline+Broadwater
-condition to modify the mask further, so it's probably clearest to
-leave the mask = GFP_HIGHUSER_MOVABLE explicit.
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after THP swapping out.
 
-GFP_HIGHUSER_MOVABLE is used in many places, and includes __GFP_MOVABLE
-without any condition on CONFIG_MIGRATION - because the migratetype is
-irrelevant if there is no migration, I presume.
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapping out, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapped in.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
 
-Would you lose something by not or'ing in __GFP_RECLAIMABLE when
-CONFIG_MIGRATION=n?  No, because __GFP_RECLAIMABLE is not used for
-anything but the migratetype, and the migratetype is then irrelevant.
-(I didn't study the code closely enough to say whether the grouping
-can still happen even when migration is disabled, but even if it
-does still happen, I can't see that it would have any benefit.)
+There are some concerns regarding THP swap in, mainly because possible
+enlarged read/write IO size (for swap in/out) may put more overhead on
+the storage device.  To deal with that, the THP swap in should be
+turned on only when necessary.  For example, it can be selected via
+"always/never/madvise" logic, to be turned on globally, turned off
+globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
 
-Hugh
+This patchset is based on 11/08 head of mmotm/master.
+
+This patchset is the first step for the THP swap support.  The plan is
+to delay splitting THP step by step, finally avoid splitting THP
+during the THP swapping out and swap out/in the THP as a whole.
+
+As the first step, in this patchset, the splitting huge page is
+delayed from almost the first step of swapping out to after allocating
+the swap space for the THP and adding the THP into the swap cache.
+This will reduce lock acquiring/releasing for the locks used for the
+swap cache management.
+
+With the patchset, the swap out throughput improves 12.1% (from about
+1.12GB/s to about 1.25GB/s) in the vm-scalability swap-w-seq test case
+with 16 processes.  The test is done on a Xeon E5 v3 system.  The swap
+device used is a RAM simulated PMEM (persistent memory) device.  To
+test the sequential swapping out, the test case uses 16 processes,
+which sequentially allocate and write to the anonymous pages until the
+RAM and part of the swap device is used up.
+
+The detailed compare result is as follow,
+
+base             base+patchset
+---------------- -------------------------- 
+         %stddev     %change         %stddev
+             \          |                \  
+   1118821 A+-  0%     +12.1%    1254241 A+-  1%  vmstat.swap.so
+   2460636 A+-  1%     +10.6%    2720983 A+-  1%  vm-scalability.throughput
+    308.79 A+-  1%      -7.9%     284.53 A+-  1%  vm-scalability.time.elapsed_time
+      1639 A+-  4%    +232.3%       5446 A+-  1%  meminfo.SwapCached
+      0.70 A+-  3%      +8.7%       0.77 A+-  5%  perf-stat.ipc
+      9.82 A+-  8%     -31.6%       6.72 A+-  2%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
+
+
+>From the swap out throughput number, we can find, even tested on a RAM
+simulated PMEM (Persistent Memory) device, the swap out throughput can
+reach only about 1.1GB/s.  While, in the file IO test, the sequential
+write throughput of an Intel P3700 SSD can reach about 1.8GB/s
+steadily.  And according the following URL,
+
+https://www-ssl.intel.com/content/www/us/en/solid-state-drives/intel-ssd-dc-family-for-pcie.html
+
+The sequential write throughput of Intel P3608 SSD can reach about
+3.0GB/s, while the random read IOPS can reach about 850k.  It is clear
+that the bottleneck has moved from the disk to the kernel swap
+component itself.
+
+The improved storage device performance should have made the swap
+becomes a better feature than before with better performance.  But
+because of the issues of kernel swap component itself, the swap
+performance is still kept at the low level.  That prevents the swap
+feature to be used by more users.  And this in turn causes few kernel
+developers think it is necessary to optimize kernel swap component.
+To break the loop, we need to optimize the performance of kernel swap
+component.  Optimize the THP swap performance is part of it.
+
+
+Changelog:
+
+v5:
+
+- Per Hillf's comments, fix a locking bug in error path of
+  __add_to_swap_cache().  And merge the code to calculate extra_pins
+  into can_split_huge_page().
+
+v4:
+
+- Per Johannes' comments, simplified swap cgroup array accessing code.
+- Per Kirill and Dave Hansen's comments, used HPAGE_PMD_NR instead of
+  HPAGE_SIZE/PAGE_SIZE.
+- Per Anshuman's comments, used HPAGE_PMD_NR instead of 512 in patch
+  description.
+
+v3:
+
+- Per Andrew's suggestion, used a more systematical way to determine
+  whether to enable THP swap optimization
+- Per Andrew's comments, moved as much as possible code into
+  #ifdef CONFIG_TRANSPARENT_HUGE_PAGE/#endif or "if (PageTransHuge())"
+- Fixed some coding style warning.
+
+v2:
+
+- Original [1/11] sent separately and merged
+- Use switch in 10/10 per Hiff's suggestion
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
