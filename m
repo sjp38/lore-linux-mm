@@ -1,62 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2417D6B0260
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 02:24:08 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id d45so53661697qta.2
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 23:24:08 -0800 (PST)
-Received: from mail-qk0-x231.google.com (mail-qk0-x231.google.com. [2607:f8b0:400d:c09::231])
-        by mx.google.com with ESMTPS id i4si14411885qkf.212.2016.11.15.23.24.07
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB626B0069
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 02:40:14 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id s63so17364659wms.7
+        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 23:40:14 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u124si6120311wmb.125.2016.11.15.23.40.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Nov 2016 23:24:07 -0800 (PST)
-Received: by mail-qk0-x231.google.com with SMTP id q130so164960729qke.1
-        for <linux-mm@kvack.org>; Tue, 15 Nov 2016 23:24:07 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161115154002.0c4c7a5e1fd23f12474fc80e@linux-foundation.org>
-References: <1479226045-145148-1-git-send-email-dvyukov@google.com> <20161115154002.0c4c7a5e1fd23f12474fc80e@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 16 Nov 2016 08:23:46 +0100
-Message-ID: <CACT4Y+ZBhPhV+DjGKuFUprq87aexz2RpCH_Fn2NYkYzsCzWF8w@mail.gmail.com>
-Subject: Re: [PATCH] kasan: support use-after-scope detection
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 15 Nov 2016 23:40:13 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm, rmap: handle anon_vma_prepare() common case inline
+Date: Wed, 16 Nov 2016 08:40:05 +0100
+Message-Id: <20161116074005.22768-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, Nov 16, 2016 at 12:40 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 15 Nov 2016 17:07:25 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
->
->> Gcc revision 241896 implements use-after-scope detection.
->> Will be available in gcc 7. Support it in KASAN.
->>
->> Gcc emits 2 new callbacks to poison/unpoison large stack
->> objects when they go in/out of scope.
->> Implement the callbacks and add a test.
->>
->> ...
->>
->> --- a/lib/test_kasan.c
->> +++ b/lib/test_kasan.c
->> @@ -411,6 +411,29 @@ static noinline void __init copy_user_test(void)
->>       kfree(kmem);
->>  }
->>
->> +static noinline void __init use_after_scope_test(void)
->
-> This reader has no idea why this code uses noinline, and I expect
-> others will have the same issue.
->
-> Can we please get a code comment in there to reveal the reason?
+The anon_vma_prepare() function is mostly a large "if (unlikely(...))" block,
+as the expected common case is that an anon_vma already exists. We could turn
+the condition around and return 0, but it also makes sense to do it inline and
+avoid a call for the common case.
 
-Mailed v2 with a comment re noinline.
+Bloat-o-meter naturally shows that inlining the check has some code size costs:
 
-Taking the opportunity also fixed a type in the new comment:
+add/remove: 1/1 grow/shrink: 4/0 up/down: 475/-373 (102)
+function                                     old     new   delta
+__anon_vma_prepare                             -     359    +359
+handle_mm_fault                             2744    2796     +52
+hugetlb_cow                                 1146    1170     +24
+hugetlb_fault                               2123    2145     +22
+wp_page_copy                                1469    1487     +18
+anon_vma_prepare                             373       -    -373
 
-- /* Emitted by compiler to unpoison large objects when they go into
-of scope. */
-+ /* Emitted by compiler to unpoison large objects when they go into scope. */
+Checking the asm however confirms that the hot paths now avoid a call, which
+is now moved away.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>
+---
+ include/linux/rmap.h | 10 ++++++-
+ mm/rmap.c            | 73 ++++++++++++++++++++++++++--------------------------
+ 2 files changed, 45 insertions(+), 38 deletions(-)
+
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index b46bb5620a76..850da50c574e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -137,11 +137,19 @@ static inline void anon_vma_unlock_read(struct anon_vma *anon_vma)
+  * anon_vma helper functions.
+  */
+ void anon_vma_init(void);	/* create anon_vma_cachep */
+-int  anon_vma_prepare(struct vm_area_struct *);
++int  __anon_vma_prepare(struct vm_area_struct *);
+ void unlink_anon_vmas(struct vm_area_struct *);
+ int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+ int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
+ 
++static inline int anon_vma_prepare(struct vm_area_struct * vma)
++{
++	if (likely(vma->anon_vma))
++		return 0;
++
++	return __anon_vma_prepare(vma);
++}
++
+ static inline void anon_vma_merge(struct vm_area_struct *vma,
+ 				  struct vm_area_struct *next)
+ {
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1ef36404e7b2..91619fd70939 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -141,14 +141,15 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
+ }
+ 
+ /**
+- * anon_vma_prepare - attach an anon_vma to a memory region
++ * __anon_vma_prepare - attach an anon_vma to a memory region
+  * @vma: the memory region in question
+  *
+  * This makes sure the memory mapping described by 'vma' has
+  * an 'anon_vma' attached to it, so that we can associate the
+  * anonymous pages mapped into it with that anon_vma.
+  *
+- * The common case will be that we already have one, but if
++ * The common case will be that we already have one, which
++ * is handled inline by anon_vma_prepare(). But if
+  * not we either need to find an adjacent mapping that we
+  * can re-use the anon_vma from (very common when the only
+  * reason for splitting a vma has been mprotect()), or we
+@@ -167,48 +168,46 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
+  *
+  * This must be called with the mmap_sem held for reading.
+  */
+-int anon_vma_prepare(struct vm_area_struct *vma)
++int __anon_vma_prepare(struct vm_area_struct *vma)
+ {
+-	struct anon_vma *anon_vma = vma->anon_vma;
++	struct mm_struct *mm = vma->vm_mm;
++	struct anon_vma *anon_vma, *allocated;
+ 	struct anon_vma_chain *avc;
+ 
+ 	might_sleep();
+-	if (unlikely(!anon_vma)) {
+-		struct mm_struct *mm = vma->vm_mm;
+-		struct anon_vma *allocated;
+ 
+-		avc = anon_vma_chain_alloc(GFP_KERNEL);
+-		if (!avc)
+-			goto out_enomem;
++	avc = anon_vma_chain_alloc(GFP_KERNEL);
++	if (!avc)
++		goto out_enomem;
+ 
+-		anon_vma = find_mergeable_anon_vma(vma);
+-		allocated = NULL;
+-		if (!anon_vma) {
+-			anon_vma = anon_vma_alloc();
+-			if (unlikely(!anon_vma))
+-				goto out_enomem_free_avc;
+-			allocated = anon_vma;
+-		}
+-
+-		anon_vma_lock_write(anon_vma);
+-		/* page_table_lock to protect against threads */
+-		spin_lock(&mm->page_table_lock);
+-		if (likely(!vma->anon_vma)) {
+-			vma->anon_vma = anon_vma;
+-			anon_vma_chain_link(vma, avc, anon_vma);
+-			/* vma reference or self-parent link for new root */
+-			anon_vma->degree++;
+-			allocated = NULL;
+-			avc = NULL;
+-		}
+-		spin_unlock(&mm->page_table_lock);
+-		anon_vma_unlock_write(anon_vma);
+-
+-		if (unlikely(allocated))
+-			put_anon_vma(allocated);
+-		if (unlikely(avc))
+-			anon_vma_chain_free(avc);
++	anon_vma = find_mergeable_anon_vma(vma);
++	allocated = NULL;
++	if (!anon_vma) {
++		anon_vma = anon_vma_alloc();
++		if (unlikely(!anon_vma))
++			goto out_enomem_free_avc;
++		allocated = anon_vma;
+ 	}
++
++	anon_vma_lock_write(anon_vma);
++	/* page_table_lock to protect against threads */
++	spin_lock(&mm->page_table_lock);
++	if (likely(!vma->anon_vma)) {
++		vma->anon_vma = anon_vma;
++		anon_vma_chain_link(vma, avc, anon_vma);
++		/* vma reference or self-parent link for new root */
++		anon_vma->degree++;
++		allocated = NULL;
++		avc = NULL;
++	}
++	spin_unlock(&mm->page_table_lock);
++	anon_vma_unlock_write(anon_vma);
++
++	if (unlikely(allocated))
++		put_anon_vma(allocated);
++	if (unlikely(avc))
++		anon_vma_chain_free(avc);
++
+ 	return 0;
+ 
+  out_enomem_free_avc:
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
