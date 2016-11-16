@@ -1,141 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D3D946B027D
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 12:32:23 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i88so88610705pfk.3
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 09:32:23 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 90si32727298pfk.12.2016.11.16.09.32.22
-        for <linux-mm@kvack.org>;
-        Wed, 16 Nov 2016 09:32:22 -0800 (PST)
-Date: Wed, 16 Nov 2016 17:32:17 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv2 5/6] arm64: Use __pa_symbol for _end
-Message-ID: <20161116173217.GB3224@e104818-lin.cambridge.arm.com>
-References: <20161102210054.16621-1-labbott@redhat.com>
- <20161102210054.16621-6-labbott@redhat.com>
- <20161102225241.GA19591@remoulade>
- <3724ea58-3c04-1248-8359-e2927da03aaf@redhat.com>
- <20161103155106.GF25852@remoulade>
- <20161114181937.GG3096@e104818-lin.cambridge.arm.com>
- <06569a6b-3846-5e18-28c1-7c16a9697663@redhat.com>
- <20161115183508.GJ3096@e104818-lin.cambridge.arm.com>
- <95d1f7bb-d451-3b0a-1a32-957a24023a49@redhat.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 945BC6B027F
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 12:44:31 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id g23so30008912wme.4
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 09:44:31 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id k186si8135097wma.76.2016.11.16.09.44.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Nov 2016 09:44:30 -0800 (PST)
+Date: Wed, 16 Nov 2016 12:44:25 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH/RFC] mm: don't cap request size based on read-ahead
+ setting
+Message-ID: <20161116174425.GA18090@cmpxchg.org>
+References: <7d8739c2-09ea-8c1f-cef7-9b8b40766c6a@kernel.dk>
+ <20161115222734.GA2300@cmpxchg.org>
+ <65f0b407-6fe5-8ba9-4c10-5259e195a038@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <95d1f7bb-d451-3b0a-1a32-957a24023a49@redhat.com>
+In-Reply-To: <65f0b407-6fe5-8ba9-4c10-5259e195a038@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, x86@kernel.org, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 15, 2016 at 04:09:07PM -0800, Laura Abbott wrote:
-> On 11/15/2016 10:35 AM, Catalin Marinas wrote:
-> > I'm fine with __pa_symbol use entirely from under arch/arm64. But if you
-> > want to use __pa_symbol, I tried to change most (all?) places where
-> > necessary, together with making virt_to_phys() only deal with the kernel
-> > linear mapping. Not sure it looks cleaner, especially the
-> > __va(__pa_symbol()) cases (we could replace the latter with another
-> > macro and proper comment):
+On Tue, Nov 15, 2016 at 03:41:58PM -0700, Jens Axboe wrote:
+> On 11/15/2016 03:27 PM, Johannes Weiner wrote:
+> > Hi Jens,
+> > 
+> > On Thu, Nov 10, 2016 at 10:00:37AM -0700, Jens Axboe wrote:
+> > > Hi,
+> > > 
+> > > We ran into a funky issue, where someone doing 256K buffered reads saw
+> > > 128K requests at the device level. Turns out it is read-ahead capping
+> > > the request size, since we use 128K as the default setting. This doesn't
+> > > make a lot of sense - if someone is issuing 256K reads, they should see
+> > > 256K reads, regardless of the read-ahead setting.
+> > > 
+> > > To make matters more confusing, there's an odd interaction with the
+> > > fadvise hint setting. If we tell the kernel we're doing sequential IO on
+> > > this file descriptor, we can get twice the read-ahead size. But if we
+> > > tell the kernel that we are doing random IO, hence disabling read-ahead,
+> > > we do get nice 256K requests at the lower level. An application
+> > > developer will be, rightfully, scratching his head at this point,
+> > > wondering wtf is going on. A good one will dive into the kernel source,
+> > > and silently weep.
+> > > 
+> > > This patch introduces a bdi hint, io_pages. This is the soft max IO size
+> > > for the lower level, I've hooked it up to the bdev settings here.
+> > > Read-ahead is modified to issue the maximum of the user request size,
+> > > and the read-ahead max size, but capped to the max request size on the
+> > > device side. The latter is done to avoid reading ahead too much, if the
+> > > application asks for a huge read. With this patch, the kernel behaves
+> > > like the application expects.
+> > > 
+> > > 
+> > > diff --git a/block/blk-settings.c b/block/blk-settings.c
+> > > index f679ae122843..65f16cf4f850 100644
+> > > --- a/block/blk-settings.c
+> > > +++ b/block/blk-settings.c
+> > > @@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q,
+> > > unsigned int max_hw_secto
+> > >  	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
+> > >  	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
+> > >  	limits->max_sectors = max_sectors;
+> > > +	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
+> > 
+> > Could we simply set q->backing_dev_info.ra_pages here? This would
+> > start the disk out with a less magical readahead setting than the
+> > current 128k default, while retaining the ability for the user to
+> > override it in sysfs later on. Plus, one less attribute to juggle.
 > 
-> I agree everything should be converted over, I was considering doing
-> that in a separate patch but this covers everything nicely. Are you
-> okay with me folding this in? (Few comments below)
+> We could, but then we'd have two places that tweak the same knob. I
+> think it's perfectly valid to have the read-ahead size be bigger than
+> the max request size, if you want some pipelining, for instance.
 
-Yes. I would also like Ard to review it since he introduced the current
-__virt_to_phys() macro.
+I'm not sure I follow. Which would be the two places and which knob?
 
-> > diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> > index eac3dbb7e313..e02f45e5ee1b 100644
-> > --- a/arch/arm64/include/asm/memory.h
-> > +++ b/arch/arm64/include/asm/memory.h
-> > @@ -169,15 +169,22 @@ extern u64			kimage_voffset;
-> >   */
-> >  #define __virt_to_phys_nodebug(x) ({					\
-> >  	phys_addr_t __x = (phys_addr_t)(x);				\
-> > -	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
-> > -				 (__x - kimage_voffset); })
-> > +	VM_BUG_ON(!(__x & BIT(VA_BITS - 1)));				\
-> > +	((__x & ~PAGE_OFFSET) + PHYS_OFFSET);				\
-> > +})
+What I meant how it could work is this: when the queue gets allocated,
+we set ra_pages to the hard-coded 128K, like we do right now. When the
+driver initializes and calls blk_queue_max_hw_sectors() it would set
+ra_pages to the more informed, device-optimized max_sectors >>
+(PAGE_SHIFT - 9). And once it's all initialized, the user can still
+make adjustments to the default we picked in the kernel heuristic.
+
+> The 128k default is silly, though, that should be smarter. It should
+> probably default to the max request size.
+
+Could you clarify the difference between max request size and what
+blk_queue_max_hw_sectors() sets? The way I understood your patch is
+that we want to use a readahead cap that's better suited to the
+underlying IO device than the magic 128K. What am I missing?
+
+> > > @@ -369,10 +369,18 @@ ondemand_readahead(struct address_space *mapping,
+> > >  		   bool hit_readahead_marker, pgoff_t offset,
+> > >  		   unsigned long req_size)
+> > >  {
+> > > -	unsigned long max = ra->ra_pages;
+> > > +	unsigned long max_pages;
+> > >  	pgoff_t prev_offset;
+> > > 
+> > >  	/*
+> > > +	 * Use the max of the read-ahead pages setting and the requested IO
+> > > +	 * size, and then the min of that and the soft IO size for the
+> > > +	 * underlying device.
+> > > +	 */
+> > > +	max_pages = max_t(unsigned long, ra->ra_pages, req_size);
+> > > +	max_pages = min_not_zero(inode_to_bdi(mapping->host)->io_pages, max_pages);
+> > 
+> > This code would then go away, and it would apply the benefit of this
+> > patch automatically to explicit readahead(2) and FADV_WILLNEED calls
+> > going through force_page_cache_readahead() as well.
 > 
-> I do think this is easier to understand vs the ternary operator.
-> I'll add a comment detailing the use of __pa vs __pa_symbol somewhere
-> as well.
+> The path from the force actually works, which is why you get the weird
+> behavior with a file marked as RANDOM getting the full request size, and
+> not being limited by ra_pages.
 
-Of course, a comment is welcome (I just did a quick hack to check that
-it works).
+How so? do_generic_file_read() calls page_cache_sync_readahead(), and
+if the file is marked random it goes to force_page_cache_readahead():
 
-> > --- a/arch/arm64/include/asm/mmu_context.h
-> > +++ b/arch/arm64/include/asm/mmu_context.h
-> > @@ -44,7 +44,7 @@ static inline void contextidr_thread_switch(struct task_struct *next)
-> >   */
-> >  static inline void cpu_set_reserved_ttbr0(void)
-> >  {
-> > -	unsigned long ttbr = virt_to_phys(empty_zero_page);
-> > +	unsigned long ttbr = __pa_symbol(empty_zero_page);
-> >  
-> >  	write_sysreg(ttbr, ttbr0_el1);
-> >  	isb();
-> > @@ -113,7 +113,7 @@ static inline void cpu_install_idmap(void)
-> >  	local_flush_tlb_all();
-> >  	cpu_set_idmap_tcr_t0sz();
-> >  
-> > -	cpu_switch_mm(idmap_pg_dir, &init_mm);
-> > +	cpu_switch_mm(__va(__pa_symbol(idmap_pg_dir)), &init_mm);
-> 
-> Yes, the __va(__pa_symbol(..)) idiom needs to be macroized and commented...
+void page_cache_sync_readahead(struct address_space *mapping,
+			       struct file_ra_state *ra, struct file *filp,
+			       pgoff_t offset, unsigned long req_size)
+{
+	/* no read-ahead */
+	if (!ra->ra_pages)
+		return;
 
-Indeed. At the same time we should also replace the LMADDR macro in
-hibernate.c with whatever you come up with.
+	/* be dumb */
+	if (filp && (filp->f_mode & FMODE_RANDOM)) {
+		force_page_cache_readahead(mapping, filp, offset, req_size);
+		return;
+	}
 
-> > diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-> > index d55a7b09959b..81c03c74e5fe 100644
-> > --- a/arch/arm64/kernel/hibernate.c
-> > +++ b/arch/arm64/kernel/hibernate.c
-> > @@ -51,7 +51,7 @@
-> >  extern int in_suspend;
-> >  
-> >  /* Find a symbols alias in the linear map */
-> > -#define LMADDR(x)	phys_to_virt(virt_to_phys(x))
-> > +#define LMADDR(x)	__va(__pa_symbol(x))
-> 
-> ...Perhaps just borrowing this macro?
+	/* do read-ahead */
+	ondemand_readahead(mapping, ra, filp, false, offset, req_size);
+}
 
-Yes but I don't particularly like the name, especially since it goes
-into a .h file. Maybe __lm_sym_addr() or something else if you have a
-better idea.
+That function in turn still caps the reads to the default 128K ra_pages:
 
-> > diff --git a/arch/arm64/mm/physaddr.c b/arch/arm64/mm/physaddr.c
-> > index 874c78201a2b..98dae943e496 100644
-> > --- a/arch/arm64/mm/physaddr.c
-> > +++ b/arch/arm64/mm/physaddr.c
-> > @@ -14,8 +14,8 @@ unsigned long __virt_to_phys(unsigned long x)
-> >  		 */
-> >  		return (__x & ~PAGE_OFFSET) + PHYS_OFFSET;
-> >  	} else {
-> > -		VIRTUAL_BUG_ON(x < kimage_vaddr || x >= (unsigned long)_end);
-> > -		return (__x - kimage_voffset);
-> > +		WARN_ON(1);
-> 
-> Was the deletion of the BUG_ON here intentional? VIRTUAL_BUG_ON
-> is the check enabled by CONFIG_DEBUG_VIRTUAL vs just CONFIG_DEBUG_VM.
-> I intentionally kept CONFIG_DEBUG_VIRTUAL separate since the checks
-> are expensive.
+int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+		pgoff_t offset, unsigned long nr_to_read)
+{
+	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+		return -EINVAL;
 
-I wanted to always get a warning but fall back to __phys_addr_symbol()
-so that I can track down other uses of __virt_to_phys() on kernel
-symbols without killing the kernel. A better option would have been
-VIRTUAL_WARN_ON (or *_ONCE) but we don't have it. VM_WARN_ON, as you
-said, is independent of CONFIG_DEBUG_VIRTUAL.
+	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
+	while (nr_to_read) {
+		int err;
 
-We could as well kill the system with VIRTUAL_BUG_ON in this case but I
-thought we should be more gentle until all the __virt_to_phys use-cases
-are sorted out.
+		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
 
--- 
-Catalin
+		if (this_chunk > nr_to_read)
+			this_chunk = nr_to_read;
+		err = __do_page_cache_readahead(mapping, filp,
+						offset, this_chunk, 0);
+		if (err < 0)
+			return err;
+
+		offset += this_chunk;
+		nr_to_read -= this_chunk;
+	}
+	return 0;
+}
+
+How could you get IO requests bigger than the 128k ra_pages there?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
