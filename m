@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D3696B0276
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 11:45:11 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id p66so158036038pga.4
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 08:45:11 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q204si32549477pfq.242.2016.11.16.08.45.10
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 572E16B0279
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 12:21:14 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id o1so55476165ito.7
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 09:21:14 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id n128si6153554itg.92.2016.11.16.09.21.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 08:45:10 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAGGdNtB098118
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 11:45:09 -0500
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26rts31w05-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 11:45:09 -0500
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 16 Nov 2016 11:45:08 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH] powerpc/mm: allow memory hotplug into an offline node
-Date: Wed, 16 Nov 2016 10:45:03 -0600
-In-Reply-To: <20161116164057.mzlhfigsuwn53r72@arbab-laptop.austin.ibm.com>
-References: <20161116164057.mzlhfigsuwn53r72@arbab-laptop.austin.ibm.com>
-Message-Id: <1479314703-18989-1-git-send-email-arbab@linux.vnet.ibm.com>
+        Wed, 16 Nov 2016 09:21:13 -0800 (PST)
+Date: Wed, 16 Nov 2016 18:21:08 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 01/21] mm: Join struct fault_env and vm_fault
+Message-ID: <20161116172108.GV3142@twins.programming.kicks-ass.net>
+References: <1478233517-3571-1-git-send-email-jack@suse.cz>
+ <1478233517-3571-2-git-send-email-jack@suse.cz>
+ <20161115215021.GA23021@node>
+ <20161116105132.GR3142@twins.programming.kicks-ass.net>
+ <20161116110101.GE21785@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161116110101.GE21785@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Balbir Singh <bsingharora@gmail.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, John Allen <jallen@linux.vnet.ibm.com>
+To: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Relax the check preventing us from hotplugging into an offline node.
+On Wed, Nov 16, 2016 at 12:01:01PM +0100, Jan Kara wrote:
+> On Wed 16-11-16 11:51:32, Peter Zijlstra wrote:
 
-This limitation was added in commit 482ec7c403d2 ("[PATCH] powerpc numa:
-Support sparse online node map") to prevent adding resources to an
-uninitialized node.
+> > Now, I'm entirely out of touch wrt DAX, so I've not idea what that
+> > needs/wants.
+> 
+> Yeah, DAX does not have 'struct page' for its pages so it directly installs
+> PFNs in the page tables. As a result it needs to know about page tables and
+> stuff.
 
-These days, there is no harm in doing so. The addition will actually
-cause the node to be initialized and onlined; add_memory_resource()
-calls hotadd_new_pgdat() (if necessary) and node_set_online().
+Not convinced, a physical address should then be the equivalent of a
+struct page. You still don't need access to the actual pages tables. The
+VM core can then convert the physical address to a PFN and stuff it in
+the PTE entry.
 
-Cc: Balbir Singh <bsingharora@gmail.com>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: John Allen <jallen@linux.vnet.ibm.com>
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
----
-This applies on top of "powerpc/mm: allow memory hotplug into a
-memoryless node", currently in the -mm tree:
-http://lkml.kernel.org/r/1479160961-25840-2-git-send-email-arbab@linux.vnet.ibm.com
+> Now I've abstracted knowledge about that into helper functions back
+> in mm/ but still we need to pass the information through the ->fault handler
+> into those helpers and vm_fault structure is simply natural for that.
+> So far we have tried to avoid that but the result was not pretty (special
+> return codes from DAX ->fault handlers essentially leaking information
+> about DAX internal locking into mm/ code to direct generic mm code to do
+> the right thing for DAX).
 
- arch/powerpc/mm/numa.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index d69f6f6..07620c9 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -1091,7 +1091,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
- 		nid = hot_add_node_scn_to_nid(scn_addr);
- 	}
- 
--	if (nid < 0 || !node_online(nid))
-+	if (nid < 0 || !node_possible(nid))
- 		nid = first_online_node;
- 
- 	return nid;
--- 
-1.8.3.1
+Its probably the DAX locking bit I'm missing, because I cannot see why
+VM_FAULT_DAX_LOCKED is 'broken' -- also, I'd have called that
+VM_FAULT_PFN or similar and not have used the full entry but only the
+PFN bits from it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
