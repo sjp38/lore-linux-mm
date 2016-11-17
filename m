@@ -1,73 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D26706B0363
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:11:29 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id g186so221287660pgc.2
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:29 -0800 (PST)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id g80si4933501pfg.11.2016.11.17.14.11.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 68E9D6B0366
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:17:40 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so218965014pgc.1
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:17:40 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id j190si4920472pgd.278.2016.11.17.14.17.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 14:11:28 -0800 (PST)
-Received: by mail-pf0-x231.google.com with SMTP id d2so50977519pfd.0
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:28 -0800 (PST)
-Date: Thu, 17 Nov 2016 14:11:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, zone: track number of pages in free area by
- migratetype
-In-Reply-To: <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
-Message-ID: <alpine.DEB.2.10.1611171405210.99747@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com> <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
+        Thu, 17 Nov 2016 14:17:39 -0800 (PST)
+Date: Thu, 17 Nov 2016 15:17:38 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 00/29] Improve radix tree for 4.10
+Message-ID: <20161117221738.GA2738@linux.intel.com>
+References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1479341856-30320-37-git-send-email-mawilcox@linuxonhyperv.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1479341856-30320-37-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <mawilcox@linuxonhyperv.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, 17 Nov 2016, Vlastimil Babka wrote:
-
-> > The total number of free pages is still tracked, however, to not make
-> > zone_watermark_ok() more expensive.  Reading /proc/pagetypeinfo, however,
-> > is faster.
+On Wed, Nov 16, 2016 at 04:17:01PM -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Yeah I've already seen a case with /proc/pagetypeinfo causing soft
-> lockups due to high number of iterations...
+> Hi Andrew,
 > 
+> Please include these patches in the -mm tree for 4.10.  Mostly these are
+> improvements; the only bug fixes in here relate to multiorder entries
+> (which as far as I'm aware remain unused).  
 
-Thanks for taking a look at the patchset!
+My DAX PMD patches use multiorder entries, and are queued for v4.10 merge:
 
-Wow, I haven't seen /proc/pagetypeinfo soft lockups yet, I thought this 
-was a relatively minor point :)  But it looks like we need some 
-improvement in this behavior independent of memory compaction anyway.
-
-> > This patch introduces no functional change and increases the amount of
-> > per-zone metadata at worst by 48 bytes per memory zone (when CONFIG_CMA
-> > and CONFIG_MEMORY_ISOLATION are enabled).
-> 
-> Isn't it 48 bytes per zone and order?
-> 
-
-Yes, sorry, I'll fix that in v2.  I think less than half a kilobyte for 
-each memory zone is satisfactory for extra tracking, compaction 
-improvements, and optimized /proc/pagetypeinfo, though.
-
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> 
-> I'd be for this if there are no performance regressions. It affects hot
-> paths and increases cache footprint. I think at least some allocator
-> intensive microbenchmark should be used.
-> 
-
-I can easily implement a test to stress movable page allocations from 
-fallback MIGRATE_UNMOVABLE pageblocks and freeing back to the same 
-pageblocks.  I assume we're not interested in memory offline benchmarks.
-
-What do you think about the logic presented in patch 2/2?  Are you 
-comfortable with a hard-coded ratio such as 1/64th of free memory or would 
-you prefer to look at the zone's watermark with the number of free pages 
-from MIGRATE_MOVABLE pageblocks rather than NR_FREE_PAGES?  I was split 
-between the two options.
+http://www.spinics.net/lists/linux-fsdevel/msg104041.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
