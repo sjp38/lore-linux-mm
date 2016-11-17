@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D0E6B0360
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:50:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g23so59987535wme.4
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 13:50:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p123si13051638wmg.154.2016.11.17.13.50.05
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 40C1B6B0362
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:53:49 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id i88so122926596pfk.3
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 13:53:49 -0800 (PST)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id q71si4856106pfj.175.2016.11.17.13.53.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Nov 2016 13:50:06 -0800 (PST)
-Subject: Re: [Bug 186671] New: OOM on system with just rsync running 32GB of
- ram 30GB of pagecache
-References: <bug-186671-27@https.bugzilla.kernel.org/>
- <20161103115353.de87ff35756a4ca8b21d2c57@linux-foundation.org>
- <b5b0cef0-8482-e4de-cb81-69a4dd3410fb@suse.cz>
- <CAJtFHUQcJKSnyQ7t7-eDpiF2C+U23+iWpZ+X6fGEzN8qdbzmtA@mail.gmail.com>
- <a8cf869e-f527-9c65-d16d-ac70cf66472a@suse.cz>
- <CAJtFHUQgkvFaPdyRcoiV-m5hynDGo2qXfMXzZvGahoWp2LL_KA@mail.gmail.com>
- <bbcd6cb7-3b73-02e9-0409-4601a6f573f5@suse.cz>
- <CAJtFHUSka8nbaO5RNEcWVRi7VoQ7UORWkMu_7pNW3n_9iRRdew@mail.gmail.com>
- <CAJtFHUTn9Ejvyj3vJkqnsLoa6gci104-TPu5viG=epfJ9Rk_qg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <4c85dfa5-9dbe-ea3c-7816-1ab321931e1c@suse.cz>
-Date: Thu, 17 Nov 2016 22:49:54 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Nov 2016 13:53:48 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20161019172917.GE1210@laptop.thejh.net>
+	<CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
+	<87pomwi5p2.fsf@xmission.com>
+	<CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
+	<87pomwghda.fsf@xmission.com>
+	<CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+	<87twb6avk8.fsf_-_@xmission.com> <87inrmavax.fsf_-_@xmission.com>
+	<20161117204707.GB10421@1wt.eu>
+	<CAGXu5jJc6TmzdVp+4OMDAt5Kd68hHbNBXaRPD8X0+m558hx3qw@mail.gmail.com>
+	<20161117213258.GA10839@1wt.eu>
+Date: Thu, 17 Nov 2016 15:51:09 -0600
+In-Reply-To: <20161117213258.GA10839@1wt.eu> (Willy Tarreau's message of "Thu,
+	17 Nov 2016 22:32:59 +0100")
+Message-ID: <874m3522sy.fsf@xmission.com>
 MIME-Version: 1.0
-In-Reply-To: <CAJtFHUTn9Ejvyj3vJkqnsLoa6gci104-TPu5viG=epfJ9Rk_qg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: Re: [REVIEW][PATCH 2/3] exec: Don't allow ptracing an exec of an unreadable file
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: E V <eliventer@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, linux-btrfs <linux-btrfs@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Willy Tarreau <w@1wt.eu>
+Cc: Kees Cook <keescook@chromium.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Andy Lutomirski <luto@amacapital.net>
 
-On 11/16/2016 02:39 PM, E V wrote:
-> System panic'd overnight running 4.9rc5 & rsync. Attached a photo of
-> the stack trace, and the 38 call traces in a 2 minute window shortly
-> before, to the bugzilla case for those not on it's e-mail list:
-> 
-> https://bugzilla.kernel.org/show_bug.cgi?id=186671
+Willy Tarreau <w@1wt.eu> writes:
 
-The panic screenshot has only the last part, but the end marker says
-it's OOM with no killable processes. The DEBUG_VM config thus didn't
-trigger anything, and still there's tons of pagecache, mostly clean,
-that's not being reclaimed.
+> On Thu, Nov 17, 2016 at 01:07:33PM -0800, Kees Cook wrote:
+>> I'm not opposed to a sysctl for this. Regardless, I think we need to
+>> embrace this idea now, though, since we'll soon end up with
+>> architectures that enforce executable-only memory, in which case
+>> ptrace will again fail. Almost better to get started here and then not
+>> have more surprises later.
+>
+> Also that makes me realize that by far the largest use case of ptrace
+> is strace and that strace needs very little capabilities. I guess that
+> most users would be fine with having only pointers and not contents
+> for addresses or read/write of data, as they have on some other OSes,
+> when the process is not readable. But in my opinion when a process
+> is executable we should be able to trace its execution (even without
+> memory read access).
 
-Could you now try this?
-- enable CONFIG_PAGE_OWNER
-- boot with kernel option: page_owner=on
-- after the first oom, "cat /sys/kernel/debug/page_owner > file"
-- provide the file (compressed, it will be quite large)
+Given all of this I will respin this series with a replacement patch
+that adds a permission check ion the path where ptrace calls
+access_process_vm.
 
-Vlastimil
+I avoided it because the patch is a bit larger and with full ptrace control
+is much better at leaking information.  Even if you can't read the
+data.  But ptrace works even if it won't give you the memory based
+arguments to system calls anymore.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
