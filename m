@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A43BF6B02A1
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3236B0297
 	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:05 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id w132so75383702ita.1
+Received: by mail-it0-f69.google.com with SMTP id w132so75383689ita.1
         for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id u189si224902ioe.210.2016.11.16.14.24.03
+        by mx.google.com with ESMTPS id e7si238924ioa.127.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 14:24:03 -0800 (PST)
+        Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 04/29] radix tree test suite: Free preallocated nodes
-Date: Wed, 16 Nov 2016 16:16:29 -0800
-Message-Id: <1479341856-30320-5-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 17/29] radix-tree: Improve dump output
+Date: Wed, 16 Nov 2016 16:16:44 -0800
+Message-Id: <1479341856-30320-20-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,51 +22,99 @@ Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-m
 
 From: Matthew Wilcox <willy@infradead.org>
 
-It can be a source of mild concern when the test suite shows that we're
-leaking nodes.  While poring over the source code looking for leaks
-can lead to some fascinating bugs being discovered, sometimes the leak
-is simply that these nodes were preallocated and are sitting on the
-per-CPU list.  Free them by faking a CPU_DEAD event.
+Print the indices of the entries as unsigned (instead of signed) integers
+and print the parent node of each entry to help navigate around larger
+trees where the layout is not quite so obvious.  Print the indices
+covered by a node.  Rearrange the order of fields printed so the indices
+and parents line up for each type of entry.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- tools/testing/radix-tree/main.c | 3 +++
- tools/testing/radix-tree/test.h | 4 ++++
- 2 files changed, 7 insertions(+)
+ lib/radix-tree.c | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)
 
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 64ffe67..2930560 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -344,6 +344,9 @@ int main(int argc, char **argv)
- 	iteration_test();
- 	single_thread_tests(long_run);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 2c3fac4..09c5f1d 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -214,15 +214,29 @@ radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
+ 	return RADIX_TREE_MAP_SIZE;
+ }
  
-+	/* Free any remaining preallocated nodes */
-+	radix_tree_callback(NULL, CPU_DEAD, NULL);
++/*
++ * The maximum index which can be stored in a radix tree
++ */
++static inline unsigned long shift_maxindex(unsigned int shift)
++{
++	return (RADIX_TREE_MAP_SIZE << shift) - 1;
++}
 +
- 	sleep(1);
- 	printf("after sleep(1): %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index 217fb24..8cd666a 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -2,6 +2,8 @@
- #include <linux/types.h>
- #include <linux/radix-tree.h>
- #include <linux/rcupdate.h>
-+#include <linux/notifier.h>
-+#include <linux/cpu.h>
++static inline unsigned long node_maxindex(struct radix_tree_node *node)
++{
++	return shift_maxindex(node->shift);
++}
++
+ #ifndef __KERNEL__
+ static void dump_node(struct radix_tree_node *node, unsigned long index)
+ {
+ 	unsigned long i;
  
- struct item {
- 	unsigned long index;
-@@ -44,3 +46,5 @@ void radix_tree_dump(struct radix_tree_root *root);
- int root_tag_get(struct radix_tree_root *root, unsigned int tag);
- unsigned long node_maxindex(struct radix_tree_node *);
- unsigned long shift_maxindex(unsigned int shift);
-+int radix_tree_callback(struct notifier_block *nfb,
-+			unsigned long action, void *hcpu);
+-	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
+-		node, node->offset,
++	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d\n",
++		node, node->offset, index, index | node_maxindex(node),
++		node->parent,
+ 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
+-		node->shift, node->count, node->parent);
++		node->shift, node->count);
+ 
+ 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+ 		unsigned long first = index | (i << node->shift);
+@@ -231,16 +245,15 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
+ 		if (!entry)
+ 			continue;
+ 		if (entry == RADIX_TREE_RETRY) {
+-			pr_debug("radix retry offset %ld indices %ld-%ld\n",
+-					i, first, last);
+-		} else if (is_sibling_entry(node, entry)) {
+-			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
+-					entry, i,
+-					*(void **)entry_to_node(entry),
+-					first, last);
++			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
++					i, first, last, node);
+ 		} else if (!radix_tree_is_internal_node(entry)) {
+-			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
+-					entry, i, first, last);
++			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
++					entry, i, first, last, node);
++		} else if (is_sibling_entry(node, entry)) {
++			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
++					entry, i, first, last, node,
++					*(void **)entry_to_node(entry));
+ 		} else {
+ 			dump_node(entry_to_node(entry), first);
+ 		}
+@@ -477,19 +490,6 @@ int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
+ 	return __radix_tree_preload(gfp_mask, nr_nodes);
+ }
+ 
+-/*
+- * The maximum index which can be stored in a radix tree
+- */
+-static inline unsigned long shift_maxindex(unsigned int shift)
+-{
+-	return (RADIX_TREE_MAP_SIZE << shift) - 1;
+-}
+-
+-static inline unsigned long node_maxindex(struct radix_tree_node *node)
+-{
+-	return shift_maxindex(node->shift);
+-}
+-
+ static unsigned radix_tree_load_root(struct radix_tree_root *root,
+ 		struct radix_tree_node **nodep, unsigned long *maxindex)
+ {
 -- 
 2.10.2
 
