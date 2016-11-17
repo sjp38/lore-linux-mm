@@ -1,467 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C3206B037B
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:56:28 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i131so1518689wmf.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 15:56:28 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id h5si5013493wjj.224.2016.11.17.15.56.26
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B3776B037C
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:57:56 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id b123so5017688itb.3
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 15:57:56 -0800 (PST)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id k40si3935092iod.92.2016.11.17.15.57.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 15:56:26 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id m203so738713wma.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 15:56:26 -0800 (PST)
-Date: Fri, 18 Nov 2016 02:56:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 07/12] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20161117235624.GA8891@node>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Thu, 17 Nov 2016 15:57:55 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
+	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
+	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
+	<87k2d5nytz.fsf_-_@xmission.com>
+	<CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
+	<87y41kjn6l.fsf@xmission.com> <20161019172917.GE1210@laptop.thejh.net>
+	<CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
+	<87pomwi5p2.fsf@xmission.com>
+	<CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
+	<87pomwghda.fsf@xmission.com>
+	<CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+	<87twb6avk8.fsf_-_@xmission.com> <87inrmavax.fsf_-_@xmission.com>
+	<CALCETrUvKpRCXRE+K512E_q9-o8Gzgb+3XsAzSo+ZFdgqeX-eQ@mail.gmail.com>
+Date: Thu, 17 Nov 2016 17:55:16 -0600
+In-Reply-To: <CALCETrUvKpRCXRE+K512E_q9-o8Gzgb+3XsAzSo+ZFdgqeX-eQ@mail.gmail.com>
+	(Andy Lutomirski's message of "Thu, 17 Nov 2016 15:29:43 -0800")
+Message-ID: <87mvgxwtjv.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain
+Subject: Re: [REVIEW][PATCH 2/3] exec: Don't allow ptracing an exec of an unreadable file
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Willy Tarreau <w@1wt.eu>, Kees Cook <keescook@chromium.org>
 
-On Tue, Nov 08, 2016 at 08:31:52AM +0900, Naoya Horiguchi wrote:
-> If one of callers of page migration starts to handle thp, memory management code
-> start to see pmd migration entry, so we need to prepare for it before enabling.
-> This patch changes various code point which checks the status of given pmds in
-> order to prevent race between thp migration and the pmd-related works.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
-> ChangeLog v1 -> v2:
-> - introduce pmd_related() (I know the naming is not good, but can't think up
->   no better name. Any suggesntion is welcomed.)
-> ---
->  arch/x86/mm/gup.c       |  4 +--
->  fs/proc/task_mmu.c      | 23 +++++++------
->  include/linux/huge_mm.h |  9 ++++-
->  mm/gup.c                | 10 ++++--
->  mm/huge_memory.c        | 88 ++++++++++++++++++++++++++++++++++++++++---------
->  mm/madvise.c            |  2 +-
->  mm/memcontrol.c         |  2 ++
->  mm/memory.c             |  6 +++-
->  mm/mprotect.c           |  2 ++
->  mm/mremap.c             |  2 +-
->  10 files changed, 114 insertions(+), 34 deletions(-)
-> 
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/mm/gup.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/mm/gup.c
-> index 0d4fb3e..78a153d 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/mm/gup.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/mm/gup.c
-> @@ -222,9 +222,9 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		pmd_t pmd = *pmdp;
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd))
->  			return 0;
-> -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
-> +		if (unlikely(pmd_large(pmd))) {
->  			/*
->  			 * NUMA hinting faults need to be handled in the GUP
->  			 * slowpath for accounting purposes and so that they
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/fs/proc/task_mmu.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/fs/proc/task_mmu.c
-> index 35b92d8..c1f9cf4 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/fs/proc/task_mmu.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/fs/proc/task_mmu.c
-> @@ -596,7 +596,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  
->  	ptl = pmd_trans_huge_lock(pmd, vma);
->  	if (ptl) {
-> -		smaps_pmd_entry(pmd, addr, walk);
-> +		if (pmd_present(*pmd))
-> +			smaps_pmd_entry(pmd, addr, walk);
->  		spin_unlock(ptl);
->  		return 0;
->  	}
-> @@ -929,6 +930,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
->  			goto out;
->  		}
->  
-> +		if (!pmd_present(*pmd))
-> +			goto out;
-> +
+Andy Lutomirski <luto@amacapital.net> writes:
 
-Hm. Looks like clear_soft_dirty_pmd() should handle !present. It doesn't.
+> On Thu, Nov 17, 2016 at 9:08 AM, Eric W. Biederman
+> <ebiederm@xmission.com> wrote:
+>>
+>> It is the reasonable expectation that if an executable file is not
+>> readable there will be no way for a user without special privileges to
+>> read the file.  This is enforced in ptrace_attach but if we are
+>> already attached there is no enforcement if a readonly executable
+>> is exec'd.
+>>
+>> Therefore do the simple thing and if there is a non-dumpable
+>> executable that we are tracing without privilege fail to exec it.
+>>
+>> Fixes: v1.0
+>> Cc: stable@vger.kernel.org
+>> Reported-by: Andy Lutomirski <luto@amacapital.net>
+>> Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
+>> ---
+>>  fs/exec.c | 8 +++++++-
+>>  1 file changed, 7 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/fs/exec.c b/fs/exec.c
+>> index fdec760bfac3..de107f74e055 100644
+>> --- a/fs/exec.c
+>> +++ b/fs/exec.c
+>> @@ -1230,6 +1230,11 @@ int flush_old_exec(struct linux_binprm * bprm)
+>>  {
+>>         int retval;
+>>
+>> +       /* Fail if the tracer can't read the executable */
+>> +       if ((bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) &&
+>> +           !ptracer_capable(current, bprm->mm->user_ns))
+>> +               return -EPERM;
+>> +
+>
+> At the very least, I think that BINPRM_FLAGS_ENFORCE_NONDUMP needs to
+> check capable_wrt_inode_uidgid too.  Otherwise we risk breaking:
+>
+> $ gcc whatever.c
+> $ chmod 400 a.out
+> $ strace a.out
 
-Ah.. Found it in 08/12.
+It is an invariant that if you have caps in mm->user_ns you will
+also be capable_write_inode_uidgid of all files that a process exec's.
 
->  		page = pmd_page(*pmd);
->  
->  		/* Clear accessed and referenced bits. */
-> @@ -1208,19 +1212,18 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
->  	if (ptl) {
->  		u64 flags = 0, frame = 0;
->  		pmd_t pmd = *pmdp;
-> +		struct page *page;
->  
->  		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
->  			flags |= PM_SOFT_DIRTY;
->  
-> -		/*
-> -		 * Currently pmd for thp is always present because thp
-> -		 * can not be swapped-out, migrated, or HWPOISONed
-> -		 * (split in such cases instead.)
-> -		 * This if-check is just to prepare for future implementation.
-> -		 */
-> -		if (pmd_present(pmd)) {
-> -			struct page *page = pmd_page(pmd);
-> -
-> +		if (is_pmd_migration_entry(pmd)) {
-> +			swp_entry_t entry = pmd_to_swp_entry(pmd);
-> +			frame = swp_type(entry) |
-> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> +			page = migration_entry_to_page(entry);
-> +		} else if (pmd_present(pmd)) {
-> +			page = pmd_page(pmd);
->  			if (page_mapcount(page) == 1)
->  				flags |= PM_MMAP_EXCLUSIVE;
->  
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/huge_mm.h v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/huge_mm.h
-> index fcbca51..3c252cd 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/huge_mm.h
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/huge_mm.h
-> @@ -125,12 +125,19 @@ extern void vma_adjust_trans_huge(struct vm_area_struct *vma,
->  				    long adjust_next);
->  extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma);
-> +
-> +static inline int pmd_related(pmd_t pmd)
-> +{
-> +	return !pmd_none(pmd) &&
-> +		(!pmd_present(pmd) || pmd_trans_huge(pmd) || pmd_devmap(pmd));
-> +}
-> +
+My third patch winds up changing mm->user_ns to maintain this invariant.
 
-I would rather create is_swap_pmd() -- (!none && !present) and leave the
-reset open-codded.
+It is also true that Willy convinced me while this check is trivial it
+will break historic uses so I have replaced this patch with:
+"ptrace: Don't allow accessing an undumpable mm.
 
+Eric
 
->  /* mmap_sem must be held on entry */
->  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma)
->  {
->  	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
-> -	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-> +	if (pmd_related(*pmd))
->  		return __pmd_trans_huge_lock(pmd, vma);
->  	else
->  		return NULL;
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/gup.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/gup.c
-> index e50178c..2dc4978 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/gup.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/gup.c
-> @@ -267,6 +267,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->  	}
->  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
->  		return no_page_table(vma, flags);
-> +	if (!pmd_present(*pmd))
-> +		return no_page_table(vma, flags);
-
-Don't we need FOLL_MIGRATION, like on pte side?
-
->  	if (pmd_devmap(*pmd)) {
->  		ptl = pmd_lock(mm, pmd);
->  		page = follow_devmap_pmd(vma, address, pmd, flags);
-> @@ -278,6 +280,10 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
->  		return follow_page_pte(vma, address, pmd, flags);
->  
->  	ptl = pmd_lock(mm, pmd);
-> +	if (unlikely(!pmd_present(*pmd))) {
-> +		spin_unlock(ptl);
-> +		return no_page_table(vma, flags);
-> +	}
-
-Ditto.
-
->  	if (unlikely(!pmd_trans_huge(*pmd))) {
->  		spin_unlock(ptl);
->  		return follow_page_pte(vma, address, pmd, flags);
-> @@ -333,7 +339,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
->  	pud = pud_offset(pgd, address);
->  	BUG_ON(pud_none(*pud));
->  	pmd = pmd_offset(pud, address);
-> -	if (pmd_none(*pmd))
-> +	if (!pmd_present(*pmd))
->  		return -EFAULT;
->  	VM_BUG_ON(pmd_trans_huge(*pmd));
->  	pte = pte_offset_map(pmd, address);
-> @@ -1357,7 +1363,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		pmd_t pmd = READ_ONCE(*pmdp);
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd))
->  			return 0;
->  
->  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
-> index b3022b3..4e9090c 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
-> @@ -825,6 +825,20 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  
->  	ret = -EAGAIN;
->  	pmd = *src_pmd;
-> +
-> +	if (unlikely(is_pmd_migration_entry(pmd))) {
-> +		swp_entry_t entry = pmd_to_swp_entry(pmd);
-> +
-> +		if (is_write_migration_entry(entry)) {
-> +			make_migration_entry_read(&entry);
-> +			pmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(src_mm, addr, src_pmd, pmd);
-> +		}
-
-I think we should put at least WARN_ONCE() in 'else' here. We don't want
-to miss such places when swap will be supported (or other swap entry type).
-
-> +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-> +		ret = 0;
-> +		goto out_unlock;
-> +	}
-> +
->  	if (unlikely(!pmd_trans_huge(pmd))) {
->  		pte_free(dst_mm, pgtable);
->  		goto out_unlock;
-> @@ -1013,6 +1027,9 @@ int do_huge_pmd_wp_page(struct fault_env *fe, pmd_t orig_pmd)
->  	if (unlikely(!pmd_same(*fe->pmd, orig_pmd)))
->  		goto out_unlock;
->  
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out_unlock;
-> +
->  	page = pmd_page(orig_pmd);
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
->  	/*
-> @@ -1137,7 +1154,14 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
->  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
->  		goto out;
->  
-> -	page = pmd_page(*pmd);
-> +	if (is_pmd_migration_entry(*pmd)) {
-> +		swp_entry_t entry;
-> +		entry = pmd_to_swp_entry(*pmd);
-> +		page = pfn_to_page(swp_offset(entry));
-> +		if (!is_migration_entry(entry))
-> +			goto out;
-
-follow_page_pte() does different thing: wait for page to be migrated and
-retry. Any reason you don't do the same?
-
-> +	} else
-> +		page = pmd_page(*pmd);
->  	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
->  	if (flags & FOLL_TOUCH)
->  		touch_pmd(vma, addr, pmd);
-> @@ -1332,6 +1356,9 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	if (is_huge_zero_pmd(orig_pmd))
->  		goto out;
->  
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out;
-> +
->  	page = pmd_page(orig_pmd);
->  	/*
->  	 * If other processes are mapping this page, we couldn't discard
-> @@ -1410,20 +1437,35 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
->  	} else {
->  		struct page *page = pmd_page(orig_pmd);
-> -		page_remove_rmap(page, true);
-> -		VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
-> -		VM_BUG_ON_PAGE(!PageHead(page), page);
-> -		if (PageAnon(page)) {
-> -			pgtable_t pgtable;
-> -			pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
-> -			pte_free(tlb->mm, pgtable);
-> -			atomic_long_dec(&tlb->mm->nr_ptes);
-> -			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-> +		int migration = 0;
-> +
-> +		if (!is_pmd_migration_entry(orig_pmd)) {
-> +			page_remove_rmap(page, true);
-> +			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
-> +			VM_BUG_ON_PAGE(!PageHead(page), page);
-> +			if (PageAnon(page)) {
-> +				pgtable_t pgtable;
-> +				pgtable = pgtable_trans_huge_withdraw(tlb->mm,
-> +								      pmd);
-> +				pte_free(tlb->mm, pgtable);
-> +				atomic_long_dec(&tlb->mm->nr_ptes);
-> +				add_mm_counter(tlb->mm, MM_ANONPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			} else {
-> +				add_mm_counter(tlb->mm, MM_FILEPAGES,
-> +					       -HPAGE_PMD_NR);
-> +			}
->  		} else {
-> -			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-> +			swp_entry_t entry;
-> +
-> +			entry = pmd_to_swp_entry(orig_pmd);
-> +			free_swap_and_cache(entry); /* waring in failure? */
-> +			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-> +			migration = 1;
->  		}
->  		spin_unlock(ptl);
-> -		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
-> +		if (!migration)
-> +			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
->  	}
->  	return 1;
->  }
-> @@ -1496,14 +1538,27 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  		bool preserve_write = prot_numa && pmd_write(*pmd);
->  		ret = 1;
->  
-> +		if (!pmd_present(*pmd))
-> +			goto unlock;
->  		/*
->  		 * Avoid trapping faults against the zero page. The read-only
->  		 * data is likely to be read-cached on the local CPU and
->  		 * local/remote hits to the zero page are not interesting.
->  		 */
-> -		if (prot_numa && is_huge_zero_pmd(*pmd)) {
-> -			spin_unlock(ptl);
-> -			return ret;
-> +		if (prot_numa && is_huge_zero_pmd(*pmd))
-> +			goto unlock;
-> +
-> +		if (is_pmd_migration_entry(*pmd)) {
-
-Hm? But we filtered out !present above?
-
-> +			swp_entry_t entry = pmd_to_swp_entry(*pmd);
-> +
-> +			if (is_write_migration_entry(entry)) {
-> +				pmd_t newpmd;
-> +
-> +				make_migration_entry_read(&entry);
-> +				newpmd = swp_entry_to_pmd(entry);
-> +				set_pmd_at(mm, addr, pmd, newpmd);
-> +			}
-> +			goto unlock;
->  		}
->  
->  		if (!prot_numa || !pmd_protnone(*pmd)) {
-> @@ -1516,6 +1571,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
->  					pmd_write(entry));
->  		}
-> +unlock:
->  		spin_unlock(ptl);
->  	}
->  
-> @@ -1532,7 +1588,7 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
->  {
->  	spinlock_t *ptl;
->  	ptl = pmd_lock(vma->vm_mm, pmd);
-> -	if (likely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
-> +	if (likely(pmd_related(*pmd)))
->  		return ptl;
->  	spin_unlock(ptl);
->  	return NULL;
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/madvise.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/madvise.c
-> index 0e3828e..eaa2b02 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/madvise.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/madvise.c
-> @@ -274,7 +274,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  	unsigned long next;
->  
->  	next = pmd_addr_end(addr, end);
-> -	if (pmd_trans_huge(*pmd))
-> +	if (pmd_related(*pmd))
-
-I don't see a point going for madvise_free_huge_pmd(), just to fall off on
-!present inside.
-
-And is it safe for devmap?
-
->  		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
->  			goto next;
->  
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memcontrol.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memcontrol.c
-> index 91dfc7c..ebc2c42 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memcontrol.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memcontrol.c
-> @@ -4635,6 +4635,8 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
->  	struct page *page = NULL;
->  	enum mc_target_type ret = MC_TARGET_NONE;
->  
-> +	if (unlikely(!pmd_present(pmd)))
-> +		return ret;
->  	page = pmd_page(pmd);
->  	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
->  	if (!(mc.flags & MOVE_ANON))
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory.c
-> index 94b5e2c..33fa439 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory.c
-> @@ -999,7 +999,7 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
->  	src_pmd = pmd_offset(src_pud, addr);
->  	do {
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
-> +		if (pmd_related(*src_pmd)) {
->  			int err;
->  			VM_BUG_ON(next-addr != HPAGE_PMD_SIZE);
->  			err = copy_huge_pmd(dst_mm, src_mm,
-> @@ -3591,6 +3591,10 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  		int ret;
->  
->  		barrier();
-> +		if (unlikely(is_pmd_migration_entry(orig_pmd))) {
-> +			pmd_migration_entry_wait(mm, fe.pmd);
-> +			return 0;
-> +		}
->  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
->  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
->  				return do_huge_pmd_numa_page(&fe, orig_pmd);
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mprotect.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mprotect.c
-> index c5ba2aa..81186e3 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mprotect.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mprotect.c
-> @@ -164,6 +164,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  		unsigned long this_pages;
->  
->  		next = pmd_addr_end(addr, end);
-> +		if (!pmd_present(*pmd))
-> +			continue;
->  		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
->  				&& pmd_none_or_clear_bad(pmd))
->  			continue;
-> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mremap.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mremap.c
-> index da22ad2..a94a698 100644
-> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mremap.c
-> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mremap.c
-> @@ -194,7 +194,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
->  		if (!new_pmd)
->  			break;
-> -		if (pmd_trans_huge(*old_pmd)) {
-> +		if (pmd_related(*old_pmd)) {
->  			if (extent == HPAGE_PMD_SIZE) {
->  				bool moved;
->  				/* See comment in move_ptes() */
-> -- 
-> 2.7.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
