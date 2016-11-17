@@ -1,122 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DA1886B02E2
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:55 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id o1so73037909ito.7
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:55 -0800 (PST)
-Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id v97si225641ioi.223.2016.11.16.14.24.04
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 887FF6B02E4
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:56 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id q186so74089591itb.0
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:56 -0800 (PST)
+Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
+        by mx.google.com with ESMTPS id n187si6747987itn.35.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 07/29] radix tree test suite: Use rcu_barrier
-Date: Wed, 16 Nov 2016 16:16:33 -0800
-Message-Id: <1479341856-30320-9-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 16/29] radix-tree: Make radix_tree_find_next_bit more useful
+Date: Wed, 16 Nov 2016 16:17:19 -0800
+Message-Id: <1479341856-30320-55-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Calling rcu_barrier() allows all of the rcu-freed memory to be actually
-returned to the pool, and allows nr_allocated to return to 0.  As well
-as allowing diffs between runs to be more useful, it also lets us
-pinpoint leaks more effectively.
+Since this function is specialised to the radix tree, pass in the node
+and tag to calculate the address of the bitmap in radix_tree_find_next_bit()
+instead of the caller.  Likewise, there is no need to pass in the size of
+the bitmap.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- tools/testing/radix-tree/main.c      | 12 ++++++++++--
- tools/testing/radix-tree/tag_check.c |  5 +++++
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ lib/radix-tree.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index f43706c..8621542 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
- 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	multiorder_checks();
-+	rcu_barrier();
- 	printf("after multiorder_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	locate_check();
-+	rcu_barrier();
- 	printf("after locate_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	tag_check();
-+	rcu_barrier();
- 	printf("after tag_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	gang_check();
-+	rcu_barrier();
- 	printf("after gang_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	add_and_check();
-+	rcu_barrier();
- 	printf("after add_and_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	dynamic_height_check();
-+	rcu_barrier();
- 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	big_gang_check(long_run);
-+	rcu_barrier();
- 	printf("after big_gang_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
-@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
- 		printf("%d ", i);
- 		fflush(stdout);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index bf1303f..2c3fac4 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -191,13 +191,12 @@ static inline int any_tag_set(struct radix_tree_node *node, unsigned int tag)
+  * Returns next bit offset, or size if nothing found.
+  */
+ static __always_inline unsigned long
+-radix_tree_find_next_bit(const unsigned long *addr,
+-			 unsigned long size, unsigned long offset)
++radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
++			 unsigned long offset)
+ {
+-	if (!__builtin_constant_p(size))
+-		return find_next_bit(addr, size, offset);
++	const unsigned long *addr = node->tags[tag];
+ 
+-	if (offset < size) {
++	if (offset < RADIX_TREE_MAP_SIZE) {
+ 		unsigned long tmp;
+ 
+ 		addr += offset / BITS_PER_LONG;
+@@ -205,14 +204,14 @@ radix_tree_find_next_bit(const unsigned long *addr,
+ 		if (tmp)
+ 			return __ffs(tmp) + offset;
+ 		offset = (offset + BITS_PER_LONG) & ~(BITS_PER_LONG - 1);
+-		while (offset < size) {
++		while (offset < RADIX_TREE_MAP_SIZE) {
+ 			tmp = *++addr;
+ 			if (tmp)
+ 				return __ffs(tmp) + offset;
+ 			offset += BITS_PER_LONG;
+ 		}
  	}
-+	rcu_barrier();
- 	printf("after copy_tag_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- }
-@@ -354,8 +362,8 @@ int main(int argc, char **argv)
- 
- 	benchmark();
- 
--	sleep(1);
--	printf("after sleep(1): %d allocated, preempt %d\n",
-+	rcu_barrier();
-+	printf("after rcu_barrier: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	rcu_unregister_thread();
- 
-diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
-index b0ac057..186f6e4 100644
---- a/tools/testing/radix-tree/tag_check.c
-+++ b/tools/testing/radix-tree/tag_check.c
-@@ -51,6 +51,7 @@ void simple_checks(void)
- 	verify_tag_consistency(&tree, 1);
- 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
- 	item_kill_tree(&tree);
-+	rcu_barrier();
- 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
+-	return size;
++	return RADIX_TREE_MAP_SIZE;
  }
  
-@@ -331,12 +332,16 @@ void tag_check(void)
- 	single_check();
- 	extend_checks();
- 	contract_checks();
-+	rcu_barrier();
- 	printf("after extend_checks: %d allocated\n", nr_allocated);
- 	__leak_check();
- 	leak_check();
-+	rcu_barrier();
- 	printf("after leak_check: %d allocated\n", nr_allocated);
- 	simple_checks();
-+	rcu_barrier();
- 	printf("after simple_checks: %d allocated\n", nr_allocated);
- 	thrash_tags();
-+	rcu_barrier();
- 	printf("after thrash_tags: %d allocated\n", nr_allocated);
- }
+ #ifndef __KERNEL__
+@@ -1197,9 +1196,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
+ 				return NULL;
+ 
+ 			if (flags & RADIX_TREE_ITER_TAGGED)
+-				offset = radix_tree_find_next_bit(
+-						node->tags[tag],
+-						RADIX_TREE_MAP_SIZE,
++				offset = radix_tree_find_next_bit(node, tag,
+ 						offset + 1);
+ 			else
+ 				while (++offset	< RADIX_TREE_MAP_SIZE) {
 -- 
 2.10.2
 
