@@ -1,94 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7051C6B0354
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 15:01:55 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so57922859wmf.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 12:01:55 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id fj9si4330981wjb.13.2016.11.17.12.01.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 12:01:53 -0800 (PST)
-Received: by mail-wm0-x232.google.com with SMTP id f82so169541484wmf.1
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 12:01:53 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 918596B0357
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 15:47:25 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so59014181wme.4
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 12:47:25 -0800 (PST)
+Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
+        by mx.google.com with ESMTP id km9si4426569wjb.282.2016.11.17.12.47.23
+        for <linux-mm@kvack.org>;
+        Thu, 17 Nov 2016 12:47:24 -0800 (PST)
+Date: Thu, 17 Nov 2016 21:47:07 +0100
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: [REVIEW][PATCH 2/3] exec: Don't allow ptracing an exec of an
+ unreadable file
+Message-ID: <20161117204707.GB10421@1wt.eu>
+References: <CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
+ <87y41kjn6l.fsf@xmission.com>
+ <20161019172917.GE1210@laptop.thejh.net>
+ <CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
+ <87pomwi5p2.fsf@xmission.com>
+ <CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
+ <87pomwghda.fsf@xmission.com>
+ <CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+ <87twb6avk8.fsf_-_@xmission.com>
+ <87inrmavax.fsf_-_@xmission.com>
 MIME-Version: 1.0
-In-Reply-To: <1479376267-18486-1-git-send-email-mpe@ellerman.id.au>
-References: <1479376267-18486-1-git-send-email-mpe@ellerman.id.au>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 17 Nov 2016 12:01:51 -0800
-Message-ID: <CAGXu5j++5zg8+uLyMfYgq4jiUg_1AM6kKyD_ZgKUczrsg2yiTA@mail.gmail.com>
-Subject: Re: [PATCH v2] slab: Add POISON_POINTER_DELTA to ZERO_SIZE_PTR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87inrmavax.fsf_-_@xmission.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>
 
-On Thu, Nov 17, 2016 at 1:51 AM, Michael Ellerman <mpe@ellerman.id.au> wrote:
-> POISON_POINTER_DELTA is defined in poison.h, and is intended to be used
-> to shift poison values so that they don't alias userspace.
->
-> We should add it to ZERO_SIZE_PTR so that attackers can't use
-> ZERO_SIZE_PTR as a way to get a non-NULL pointer to userspace.
->
-> Currently ZERO_OR_NULL_PTR() uses a trick of doing a single check that
-> x <= ZERO_SIZE_PTR, and ignoring the fact that it also matches 1-15.
-> That no longer really works once we add the poison delta, so split it
-> into two checks. Assign x to a temporary to avoid evaluating it
-> twice (suggested by Kees Cook).
->
-> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+On Thu, Nov 17, 2016 at 11:08:22AM -0600, Eric W. Biederman wrote:
+> 
+> It is the reasonable expectation that if an executable file is not
+> readable there will be no way for a user without special privileges to
+> read the file.  This is enforced in ptrace_attach but if we are
+> already attached there is no enforcement if a readonly executable
+> is exec'd.
 
-I continue to like this idea. If we want to avoid the loss of the 1-15
-check, we could just explicitly retain it, see craziness below...
+I'm really scared by this Eric. At least you want to make it a hardening
+option that can be disabled at run time, otherwise it can easily break a
+lot of userspace :
 
-> ---
->  include/linux/slab.h | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
->
-> v2: Rework ZERO_OR_NULL_PTR() to do the two checks separately.
->
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 084b12bad198..404419d9860f 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -12,6 +12,7 @@
->  #define        _LINUX_SLAB_H
->
->  #include <linux/gfp.h>
-> +#include <linux/poison.h>
->  #include <linux/types.h>
->  #include <linux/workqueue.h>
->
-> @@ -109,10 +110,13 @@
->   * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
->   * Both make kfree a no-op.
->   */
-> -#define ZERO_SIZE_PTR ((void *)16)
+admin@aloha:~$ ll /bin/bash /bin/coreutils /bin/ls /usr/bin/telnet
+-r-xr-x--x 1 root adm 549272 Oct 28 16:25 /bin/bash
+-rwx--x--x 1 root adm 765624 Oct 28 16:27 /bin/coreutils
+lrwxrwxrwx 1 root root 9 Oct 28 16:27 /bin/ls -> coreutils
+-r-xr-x--x 1 root adm  70344 Oct 28 16:34 /usr/bin/telnet
 
-#define __ZERO_SIZE_PTR((void *)16)
-#define ZERO_SIZE_PTR ((void *)(__ZERO_SIZE_PTR + POISON_POINTER_DELTA))
+And I've not invented it, I've being taught to do this more than 20
+years ago and been doing this since on any slightly hardened server
+just because in pratice it's efficient at stopping quite a bunch of
+rootkits which require to copy and modify your executables. Sure
+they could get the contents using ptrace, but using cp is much more
+common than ptrace in scripts and that works. This has prooven quite
+efficient in field at stopping some rootkits several times over the
+last two decades and I know I'm not the only one to do it. In fact
+I *never* install an executable with read permissions for users if
+there's no need for random users to copy it. Does it mean that
+nobody should be able to see why their favorite utility doesn't
+work anymore ? Not in my opinion, at least not by default.
 
->
-> -#define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
-> -                               (unsigned long)ZERO_SIZE_PTR)
-> +#define ZERO_OR_NULL_PTR(x)                            \
-> +       ({                                              \
-> +               void *p = (void *)(x);                  \
-              (p < __ZERO_SIZE_PTR || p == ZERO_SIZE_PTR);      \
-> +       })
+So here I fear that we'll break strace at many places where strace
+precisely matters to debug things.
 
-#undef __ZERO_SIZE_PTR
+However I'd love to have this feature controlled by a sysctl (to
+enforce it by default where possible).
 
-?
-
-Anyone else have thoughts on this?
-
--Kees
-
--- 
-Kees Cook
-Nexus Security
+Thanks,
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
