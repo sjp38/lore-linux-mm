@@ -1,312 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91E776B02C2
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:30 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id w132so75470041ita.1
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:30 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id n185si6762862ite.39.2016.11.16.14.24.04
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9806B02C4
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:31 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id o1so73013525ito.7
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:31 -0800 (PST)
+Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
+        by mx.google.com with ESMTPS id u78si262180ita.9.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 09/29] radix tree test suite: Use common find-bit code
-Date: Wed, 16 Nov 2016 16:16:36 -0800
-Message-Id: <1479341856-30320-12-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 25/29] rxrpc: Abstract away knowledge of IDR internals
+Date: Wed, 16 Nov 2016 16:16:53 -0800
+Message-Id: <1479341856-30320-29-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Remove the old find_next_bit code in favour of linking in the find_bit
-code from tools/lib.
+Add idr_get_cursor() / idr_set_cursor() APIs, and remove the rounding
+up to IDR_SIZE.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/Makefile                  |  7 ++-
- tools/testing/radix-tree/find_next_bit.c           | 57 ----------------------
- tools/testing/radix-tree/linux/bitops.h            | 40 +++++++++------
- tools/testing/radix-tree/linux/bitops/non-atomic.h | 13 +++--
- tools/testing/radix-tree/linux/kernel.h            | 11 +++++
- 5 files changed, 48 insertions(+), 80 deletions(-)
- delete mode 100644 tools/testing/radix-tree/find_next_bit.c
+ include/linux/idr.h     | 26 ++++++++++++++++++++++++++
+ net/rxrpc/af_rxrpc.c    | 11 ++++++-----
+ net/rxrpc/conn_client.c |  4 ++--
+ 3 files changed, 34 insertions(+), 7 deletions(-)
 
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 08283a8..3635e4d 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -18,7 +18,12 @@ main:	$(OFILES)
- clean:
- 	$(RM) -f $(TARGETS) *.o radix-tree.c
- 
--$(OFILES): *.h */*.h ../../../include/linux/radix-tree.h ../../include/linux/*.h
-+find_next_bit.o: ../../lib/find_bit.c
-+	$(CC) $(CFLAGS) -c -o $@ $<
-+
-+$(OFILES): *.h */*.h \
-+	../../include/linux/*.h \
-+	../../../include/linux/radix-tree.h
- 
- radix-tree.c: ../../../lib/radix-tree.c
- 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
-diff --git a/tools/testing/radix-tree/find_next_bit.c b/tools/testing/radix-tree/find_next_bit.c
-deleted file mode 100644
-index d1c2178..0000000
---- a/tools/testing/radix-tree/find_next_bit.c
-+++ /dev/null
-@@ -1,57 +0,0 @@
--/* find_next_bit.c: fallback find next bit implementation
-- *
-- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
-- * Written by David Howells (dhowells@redhat.com)
-- *
-- * This program is free software; you can redistribute it and/or
-- * modify it under the terms of the GNU General Public License
-- * as published by the Free Software Foundation; either version
-- * 2 of the License, or (at your option) any later version.
-- */
--
--#include <linux/types.h>
--#include <linux/bitops.h>
--
--#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
--
--/*
-- * Find the next set bit in a memory region.
-- */
--unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
--			    unsigned long offset)
--{
--	const unsigned long *p = addr + BITOP_WORD(offset);
--	unsigned long result = offset & ~(BITS_PER_LONG-1);
--	unsigned long tmp;
--
--	if (offset >= size)
--		return size;
--	size -= result;
--	offset %= BITS_PER_LONG;
--	if (offset) {
--		tmp = *(p++);
--		tmp &= (~0UL << offset);
--		if (size < BITS_PER_LONG)
--			goto found_first;
--		if (tmp)
--			goto found_middle;
--		size -= BITS_PER_LONG;
--		result += BITS_PER_LONG;
--	}
--	while (size & ~(BITS_PER_LONG-1)) {
--		if ((tmp = *(p++)))
--			goto found_middle;
--		result += BITS_PER_LONG;
--		size -= BITS_PER_LONG;
--	}
--	if (!size)
--		return result;
--	tmp = *p;
--
--found_first:
--	tmp &= (~0UL >> (BITS_PER_LONG - size));
--	if (tmp == 0UL)		/* Are any bits set? */
--		return result + size;	/* Nope. */
--found_middle:
--	return result + __ffs(tmp);
--}
-diff --git a/tools/testing/radix-tree/linux/bitops.h b/tools/testing/radix-tree/linux/bitops.h
-index 71d58427..a13e9bc 100644
---- a/tools/testing/radix-tree/linux/bitops.h
-+++ b/tools/testing/radix-tree/linux/bitops.h
-@@ -2,9 +2,14 @@
- #define _ASM_GENERIC_BITOPS_NON_ATOMIC_H_
- 
- #include <linux/types.h>
-+#include <linux/bitops/find.h>
-+#include <linux/bitops/hweight.h>
-+#include <linux/kernel.h>
- 
--#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
--#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
-+#define BIT_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
-+#define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-+#define BITS_PER_BYTE		8
-+#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
+diff --git a/include/linux/idr.h b/include/linux/idr.h
+index 3639a28..1eb755f 100644
+--- a/include/linux/idr.h
++++ b/include/linux/idr.h
+@@ -56,6 +56,32 @@ struct idr {
+ #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
  
  /**
-  * __set_bit - Set a bit in memory
-@@ -17,16 +22,16 @@
-  */
- static inline void __set_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 
- 	*p  |= mask;
- }
- 
- static inline void __clear_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 
- 	*p &= ~mask;
- }
-@@ -42,8 +47,8 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
-  */
- static inline void __change_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 
- 	*p ^= mask;
- }
-@@ -59,8 +64,8 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
-  */
- static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 	unsigned long old = *p;
- 
- 	*p = old | mask;
-@@ -78,8 +83,8 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
-  */
- static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 	unsigned long old = *p;
- 
- 	*p = old & ~mask;
-@@ -90,8 +95,8 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
- static inline int __test_and_change_bit(int nr,
- 					    volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
--	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-+	unsigned long mask = BIT_MASK(nr);
-+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
- 	unsigned long old = *p;
- 
- 	*p = old ^ mask;
-@@ -105,7 +110,7 @@ static inline int __test_and_change_bit(int nr,
-  */
- static inline int test_bit(int nr, const volatile unsigned long *addr)
- {
--	return 1UL & (addr[BITOP_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
-+	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
- }
- 
- /**
-@@ -147,4 +152,9 @@ unsigned long find_next_bit(const unsigned long *addr,
- 			    unsigned long size,
- 			    unsigned long offset);
- 
-+static inline unsigned long hweight_long(unsigned long w)
++ * idr_get_cursor - Return the current position of the cyclic allocator
++ * @idr: idr handle
++ *
++ * The value returned is the value that will be next returned from
++ * idr_alloc_cyclic() if it is free (otherwise the search will start from
++ * this position).
++ */
++static inline unsigned int idr_get_cursor(struct idr *idr)
 +{
-+	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
++	return READ_ONCE(idr->cur);
 +}
 +
- #endif /* _ASM_GENERIC_BITOPS_NON_ATOMIC_H_ */
-diff --git a/tools/testing/radix-tree/linux/bitops/non-atomic.h b/tools/testing/radix-tree/linux/bitops/non-atomic.h
-index 46a825c..6a1bcb9 100644
---- a/tools/testing/radix-tree/linux/bitops/non-atomic.h
-+++ b/tools/testing/radix-tree/linux/bitops/non-atomic.h
-@@ -3,7 +3,6 @@
- 
- #include <asm/types.h>
- 
--#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
- #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
- 
- /**
-@@ -17,7 +16,7 @@
-  */
- static inline void __set_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 
- 	*p  |= mask;
-@@ -25,7 +24,7 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
- 
- static inline void __clear_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 
- 	*p &= ~mask;
-@@ -42,7 +41,7 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
-  */
- static inline void __change_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 
- 	*p ^= mask;
-@@ -59,7 +58,7 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
-  */
- static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 	unsigned long old = *p;
- 
-@@ -78,7 +77,7 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
-  */
- static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 	unsigned long old = *p;
- 
-@@ -90,7 +89,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
- static inline int __test_and_change_bit(int nr,
- 					    volatile unsigned long *addr)
- {
--	unsigned long mask = BITOP_MASK(nr);
-+	unsigned long mask = BIT_MASK(nr);
- 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
- 	unsigned long old = *p;
- 
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index dbe4b92..23e77f5 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -47,4 +47,15 @@ static inline int in_interrupt(void)
- {
- 	return 0;
- }
-+
-+/*
-+ * This looks more complex than it should be. But we need to
-+ * get the type for the ~ right in round_down (it needs to be
-+ * as wide as the result!), and we want to evaluate the macro
-+ * arguments just once each.
++/**
++ * idr_set_cursor - Set the current position of the cyclic allocator
++ * @idr: idr handle
++ * @val: new position
++ *
++ * The next call to idr_alloc_cyclic() will return @val if it is free
++ * (otherwise the search will start from this position).
 + */
-+#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-+#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
-+#define round_down(x, y) ((x) & ~__round_mask(x, y))
++static inline void idr_set_cursor(struct idr *idr, unsigned int val)
++{
++	WRITE_ONCE(idr->cur, val);
++}
 +
- #endif /* _KERNEL_H */
++/**
+  * DOC: idr sync
+  * idr synchronization (stolen from radix-tree.h)
+  *
+diff --git a/net/rxrpc/af_rxrpc.c b/net/rxrpc/af_rxrpc.c
+index 2d59c9b..5f63f6d 100644
+--- a/net/rxrpc/af_rxrpc.c
++++ b/net/rxrpc/af_rxrpc.c
+@@ -762,16 +762,17 @@ static const struct net_proto_family rxrpc_family_ops = {
+ static int __init af_rxrpc_init(void)
+ {
+ 	int ret = -1;
++	unsigned int tmp;
+ 
+ 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
+ 
+ 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
+ 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
+-	get_random_bytes(&rxrpc_client_conn_ids.cur,
+-			 sizeof(rxrpc_client_conn_ids.cur));
+-	rxrpc_client_conn_ids.cur &= 0x3fffffff;
+-	if (rxrpc_client_conn_ids.cur == 0)
+-		rxrpc_client_conn_ids.cur = 1;
++	get_random_bytes(&tmp, sizeof(tmp));
++	tmp &= 0x3fffffff;
++	if (tmp == 0)
++		tmp = 1;
++	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
+ 
+ 	ret = -ENOMEM;
+ 	rxrpc_call_jar = kmem_cache_create(
+diff --git a/net/rxrpc/conn_client.c b/net/rxrpc/conn_client.c
+index 60ef960..9706f60 100644
+--- a/net/rxrpc/conn_client.c
++++ b/net/rxrpc/conn_client.c
+@@ -263,12 +263,12 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
+ 	 * times the maximum number of client conns away from the current
+ 	 * allocation point to try and keep the IDs concentrated.
+ 	 */
+-	id_cursor = READ_ONCE(rxrpc_client_conn_ids.cur);
++	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
+ 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
+ 	distance = id - id_cursor;
+ 	if (distance < 0)
+ 		distance = -distance;
+-	limit = round_up(rxrpc_max_client_connections, IDR_SIZE) * 4;
++	limit = rxrpc_max_client_connections * 4;
+ 	if (distance > limit)
+ 		goto mark_dont_reuse;
+ 
 -- 
 2.10.2
 
