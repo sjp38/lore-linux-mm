@@ -1,120 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E3236B0297
+	by kanga.kvack.org (Postfix) with ESMTP id DF1B06B02A1
 	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:05 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id w132so75383689ita.1
+Received: by mail-it0-f69.google.com with SMTP id n68so71750309itn.4
         for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id e7si238924ioa.127.2016.11.16.14.24.04
+        by mx.google.com with ESMTPS id p191si6768976itg.2.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 17/29] radix-tree: Improve dump output
-Date: Wed, 16 Nov 2016 16:16:44 -0800
-Message-Id: <1479341856-30320-20-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 09/29] radix tree test suite: Use common find-bit code
+Date: Wed, 16 Nov 2016 16:17:12 -0800
+Message-Id: <1479341856-30320-48-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@infradead.org>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Print the indices of the entries as unsigned (instead of signed) integers
-and print the parent node of each entry to help navigate around larger
-trees where the layout is not quite so obvious.  Print the indices
-covered by a node.  Rearrange the order of fields printed so the indices
-and parents line up for each type of entry.
+Remove the old find_next_bit code in favour of linking in the find_bit
+code from tools/lib.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- lib/radix-tree.c | 50 +++++++++++++++++++++++++-------------------------
- 1 file changed, 25 insertions(+), 25 deletions(-)
+ tools/testing/radix-tree/Makefile                  |  7 ++-
+ tools/testing/radix-tree/find_next_bit.c           | 57 ----------------------
+ tools/testing/radix-tree/linux/bitops.h            | 40 +++++++++------
+ tools/testing/radix-tree/linux/bitops/non-atomic.h | 13 +++--
+ tools/testing/radix-tree/linux/kernel.h            | 11 +++++
+ 5 files changed, 48 insertions(+), 80 deletions(-)
+ delete mode 100644 tools/testing/radix-tree/find_next_bit.c
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 2c3fac4..09c5f1d 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -214,15 +214,29 @@ radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
- 	return RADIX_TREE_MAP_SIZE;
- }
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 08283a8..3635e4d 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -18,7 +18,12 @@ main:	$(OFILES)
+ clean:
+ 	$(RM) -f $(TARGETS) *.o radix-tree.c
  
-+/*
-+ * The maximum index which can be stored in a radix tree
-+ */
-+static inline unsigned long shift_maxindex(unsigned int shift)
-+{
-+	return (RADIX_TREE_MAP_SIZE << shift) - 1;
-+}
+-$(OFILES): *.h */*.h ../../../include/linux/radix-tree.h ../../include/linux/*.h
++find_next_bit.o: ../../lib/find_bit.c
++	$(CC) $(CFLAGS) -c -o $@ $<
 +
-+static inline unsigned long node_maxindex(struct radix_tree_node *node)
-+{
-+	return shift_maxindex(node->shift);
-+}
-+
- #ifndef __KERNEL__
- static void dump_node(struct radix_tree_node *node, unsigned long index)
- {
- 	unsigned long i;
++$(OFILES): *.h */*.h \
++	../../include/linux/*.h \
++	../../../include/linux/radix-tree.h
  
--	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
--		node, node->offset,
-+	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d\n",
-+		node, node->offset, index, index | node_maxindex(node),
-+		node->parent,
- 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
--		node->shift, node->count, node->parent);
-+		node->shift, node->count);
- 
- 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
- 		unsigned long first = index | (i << node->shift);
-@@ -231,16 +245,15 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
- 		if (!entry)
- 			continue;
- 		if (entry == RADIX_TREE_RETRY) {
--			pr_debug("radix retry offset %ld indices %ld-%ld\n",
--					i, first, last);
--		} else if (is_sibling_entry(node, entry)) {
--			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
--					entry, i,
--					*(void **)entry_to_node(entry),
--					first, last);
-+			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
-+					i, first, last, node);
- 		} else if (!radix_tree_is_internal_node(entry)) {
--			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
--					entry, i, first, last);
-+			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
-+					entry, i, first, last, node);
-+		} else if (is_sibling_entry(node, entry)) {
-+			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
-+					entry, i, first, last, node,
-+					*(void **)entry_to_node(entry));
- 		} else {
- 			dump_node(entry_to_node(entry), first);
- 		}
-@@ -477,19 +490,6 @@ int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
- 	return __radix_tree_preload(gfp_mask, nr_nodes);
- }
- 
--/*
-- * The maximum index which can be stored in a radix tree
+ radix-tree.c: ../../../lib/radix-tree.c
+ 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+diff --git a/tools/testing/radix-tree/find_next_bit.c b/tools/testing/radix-tree/find_next_bit.c
+deleted file mode 100644
+index d1c2178..0000000
+--- a/tools/testing/radix-tree/find_next_bit.c
++++ /dev/null
+@@ -1,57 +0,0 @@
+-/* find_next_bit.c: fallback find next bit implementation
+- *
+- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+- * Written by David Howells (dhowells@redhat.com)
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version
+- * 2 of the License, or (at your option) any later version.
 - */
--static inline unsigned long shift_maxindex(unsigned int shift)
--{
--	return (RADIX_TREE_MAP_SIZE << shift) - 1;
--}
 -
--static inline unsigned long node_maxindex(struct radix_tree_node *node)
--{
--	return shift_maxindex(node->shift);
--}
+-#include <linux/types.h>
+-#include <linux/bitops.h>
 -
- static unsigned radix_tree_load_root(struct radix_tree_root *root,
- 		struct radix_tree_node **nodep, unsigned long *maxindex)
+-#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
+-
+-/*
+- * Find the next set bit in a memory region.
+- */
+-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
+-			    unsigned long offset)
+-{
+-	const unsigned long *p = addr + BITOP_WORD(offset);
+-	unsigned long result = offset & ~(BITS_PER_LONG-1);
+-	unsigned long tmp;
+-
+-	if (offset >= size)
+-		return size;
+-	size -= result;
+-	offset %= BITS_PER_LONG;
+-	if (offset) {
+-		tmp = *(p++);
+-		tmp &= (~0UL << offset);
+-		if (size < BITS_PER_LONG)
+-			goto found_first;
+-		if (tmp)
+-			goto found_middle;
+-		size -= BITS_PER_LONG;
+-		result += BITS_PER_LONG;
+-	}
+-	while (size & ~(BITS_PER_LONG-1)) {
+-		if ((tmp = *(p++)))
+-			goto found_middle;
+-		result += BITS_PER_LONG;
+-		size -= BITS_PER_LONG;
+-	}
+-	if (!size)
+-		return result;
+-	tmp = *p;
+-
+-found_first:
+-	tmp &= (~0UL >> (BITS_PER_LONG - size));
+-	if (tmp == 0UL)		/* Are any bits set? */
+-		return result + size;	/* Nope. */
+-found_middle:
+-	return result + __ffs(tmp);
+-}
+diff --git a/tools/testing/radix-tree/linux/bitops.h b/tools/testing/radix-tree/linux/bitops.h
+index 71d58427..a13e9bc 100644
+--- a/tools/testing/radix-tree/linux/bitops.h
++++ b/tools/testing/radix-tree/linux/bitops.h
+@@ -2,9 +2,14 @@
+ #define _ASM_GENERIC_BITOPS_NON_ATOMIC_H_
+ 
+ #include <linux/types.h>
++#include <linux/bitops/find.h>
++#include <linux/bitops/hweight.h>
++#include <linux/kernel.h>
+ 
+-#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
+-#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
++#define BIT_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
++#define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
++#define BITS_PER_BYTE		8
++#define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
+ 
+ /**
+  * __set_bit - Set a bit in memory
+@@ -17,16 +22,16 @@
+  */
+ static inline void __set_bit(int nr, volatile unsigned long *addr)
  {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 
+ 	*p  |= mask;
+ }
+ 
+ static inline void __clear_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 
+ 	*p &= ~mask;
+ }
+@@ -42,8 +47,8 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline void __change_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 
+ 	*p ^= mask;
+ }
+@@ -59,8 +64,8 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 	unsigned long old = *p;
+ 
+ 	*p = old | mask;
+@@ -78,8 +83,8 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 	unsigned long old = *p;
+ 
+ 	*p = old & ~mask;
+@@ -90,8 +95,8 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+ static inline int __test_and_change_bit(int nr,
+ 					    volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
+-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
++	unsigned long mask = BIT_MASK(nr);
++	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+ 	unsigned long old = *p;
+ 
+ 	*p = old ^ mask;
+@@ -105,7 +110,7 @@ static inline int __test_and_change_bit(int nr,
+  */
+ static inline int test_bit(int nr, const volatile unsigned long *addr)
+ {
+-	return 1UL & (addr[BITOP_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
++	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
+ }
+ 
+ /**
+@@ -147,4 +152,9 @@ unsigned long find_next_bit(const unsigned long *addr,
+ 			    unsigned long size,
+ 			    unsigned long offset);
+ 
++static inline unsigned long hweight_long(unsigned long w)
++{
++	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
++}
++
+ #endif /* _ASM_GENERIC_BITOPS_NON_ATOMIC_H_ */
+diff --git a/tools/testing/radix-tree/linux/bitops/non-atomic.h b/tools/testing/radix-tree/linux/bitops/non-atomic.h
+index 46a825c..6a1bcb9 100644
+--- a/tools/testing/radix-tree/linux/bitops/non-atomic.h
++++ b/tools/testing/radix-tree/linux/bitops/non-atomic.h
+@@ -3,7 +3,6 @@
+ 
+ #include <asm/types.h>
+ 
+-#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
+ #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
+ 
+ /**
+@@ -17,7 +16,7 @@
+  */
+ static inline void __set_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 
+ 	*p  |= mask;
+@@ -25,7 +24,7 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
+ 
+ static inline void __clear_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 
+ 	*p &= ~mask;
+@@ -42,7 +41,7 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline void __change_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 
+ 	*p ^= mask;
+@@ -59,7 +58,7 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 	unsigned long old = *p;
+ 
+@@ -78,7 +77,7 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+  */
+ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 	unsigned long old = *p;
+ 
+@@ -90,7 +89,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+ static inline int __test_and_change_bit(int nr,
+ 					    volatile unsigned long *addr)
+ {
+-	unsigned long mask = BITOP_MASK(nr);
++	unsigned long mask = BIT_MASK(nr);
+ 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
+ 	unsigned long old = *p;
+ 
+diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
+index dbe4b92..23e77f5 100644
+--- a/tools/testing/radix-tree/linux/kernel.h
++++ b/tools/testing/radix-tree/linux/kernel.h
+@@ -47,4 +47,15 @@ static inline int in_interrupt(void)
+ {
+ 	return 0;
+ }
++
++/*
++ * This looks more complex than it should be. But we need to
++ * get the type for the ~ right in round_down (it needs to be
++ * as wide as the result!), and we want to evaluate the macro
++ * arguments just once each.
++ */
++#define __round_mask(x, y) ((__typeof__(x))((y)-1))
++#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
++#define round_down(x, y) ((x) & ~__round_mask(x, y))
++
+ #endif /* _KERNEL_H */
 -- 
 2.10.2
 
