@@ -1,87 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E92F6B02F6
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:26:04 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id n68so71866320itn.4
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:26:04 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 124CE6B02F7
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:26:06 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id n68so71867709itn.4
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:26:06 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id c30si239018ioa.139.2016.11.16.14.24.04
+        by mx.google.com with ESMTPS id j62si255164itg.18.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 16/29] radix-tree: Make radix_tree_find_next_bit more useful
-Date: Wed, 16 Nov 2016 16:16:43 -0800
-Message-Id: <1479341856-30320-19-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 02/29] radix tree test suite: Allow GFP_ATOMIC allocations to fail
+Date: Wed, 16 Nov 2016 16:17:03 -0800
+Message-Id: <1479341856-30320-39-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-Since this function is specialised to the radix tree, pass in the node
-and tag to calculate the address of the bitmap in radix_tree_find_next_bit()
-instead of the caller.  Likewise, there is no need to pass in the size of
-the bitmap.
+In order to test the preload code, it is necessary to fail GFP_ATOMIC
+allocations, which requires defining GFP_KERNEL and GFP_ATOMIC properly.
+Remove the obsolete __GFP_WAIT and copy the definitions of the __GFP
+flags which are used from the kernel include files.  We also need the
+real definition of gfpflags_allow_blocking() to persuade the radix tree
+to actually use its preallocated nodes.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- lib/radix-tree.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ tools/testing/radix-tree/linux.c      |  7 ++++++-
+ tools/testing/radix-tree/linux/gfp.h  | 22 +++++++++++++++++++---
+ tools/testing/radix-tree/linux/slab.h |  5 -----
+ 3 files changed, 25 insertions(+), 9 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index bf1303f..2c3fac4 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -191,13 +191,12 @@ static inline int any_tag_set(struct radix_tree_node *node, unsigned int tag)
-  * Returns next bit offset, or size if nothing found.
-  */
- static __always_inline unsigned long
--radix_tree_find_next_bit(const unsigned long *addr,
--			 unsigned long size, unsigned long offset)
-+radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
-+			 unsigned long offset)
+diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
+index 1548237..3cfb04e 100644
+--- a/tools/testing/radix-tree/linux.c
++++ b/tools/testing/radix-tree/linux.c
+@@ -33,7 +33,12 @@ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+ 
+ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
  {
--	if (!__builtin_constant_p(size))
--		return find_next_bit(addr, size, offset);
-+	const unsigned long *addr = node->tags[tag];
+-	void *ret = malloc(cachep->size);
++	void *ret;
++
++	if (flags & __GFP_NOWARN)
++		return NULL;
++
++	ret = malloc(cachep->size);
+ 	if (cachep->ctor)
+ 		cachep->ctor(ret);
+ 	uatomic_inc(&nr_allocated);
+diff --git a/tools/testing/radix-tree/linux/gfp.h b/tools/testing/radix-tree/linux/gfp.h
+index 5201b91..5b09b2c 100644
+--- a/tools/testing/radix-tree/linux/gfp.h
++++ b/tools/testing/radix-tree/linux/gfp.h
+@@ -3,8 +3,24 @@
  
--	if (offset < size) {
-+	if (offset < RADIX_TREE_MAP_SIZE) {
- 		unsigned long tmp;
+ #define __GFP_BITS_SHIFT 26
+ #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+-#define __GFP_WAIT 1
+-#define __GFP_ACCOUNT 0
+-#define __GFP_NOWARN 0
++
++#define __GFP_HIGH		0x20u
++#define __GFP_IO		0x40u
++#define __GFP_FS		0x80u
++#define __GFP_NOWARN		0x200u
++#define __GFP_ATOMIC		0x80000u
++#define __GFP_ACCOUNT		0x100000u
++#define __GFP_DIRECT_RECLAIM	0x400000u
++#define __GFP_KSWAPD_RECLAIM	0x2000000u
++
++#define __GFP_RECLAIM		(__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
++
++#define GFP_ATOMIC		(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
++#define GFP_KERNEL		(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
++
++static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
++{
++	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
++}
  
- 		addr += offset / BITS_PER_LONG;
-@@ -205,14 +204,14 @@ radix_tree_find_next_bit(const unsigned long *addr,
- 		if (tmp)
- 			return __ffs(tmp) + offset;
- 		offset = (offset + BITS_PER_LONG) & ~(BITS_PER_LONG - 1);
--		while (offset < size) {
-+		while (offset < RADIX_TREE_MAP_SIZE) {
- 			tmp = *++addr;
- 			if (tmp)
- 				return __ffs(tmp) + offset;
- 			offset += BITS_PER_LONG;
- 		}
- 	}
--	return size;
-+	return RADIX_TREE_MAP_SIZE;
- }
+ #endif
+diff --git a/tools/testing/radix-tree/linux/slab.h b/tools/testing/radix-tree/linux/slab.h
+index 6d5a347..452e2bf 100644
+--- a/tools/testing/radix-tree/linux/slab.h
++++ b/tools/testing/radix-tree/linux/slab.h
+@@ -7,11 +7,6 @@
+ #define SLAB_PANIC 2
+ #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
  
- #ifndef __KERNEL__
-@@ -1197,9 +1196,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- 				return NULL;
- 
- 			if (flags & RADIX_TREE_ITER_TAGGED)
--				offset = radix_tree_find_next_bit(
--						node->tags[tag],
--						RADIX_TREE_MAP_SIZE,
-+				offset = radix_tree_find_next_bit(node, tag,
- 						offset + 1);
- 			else
- 				while (++offset	< RADIX_TREE_MAP_SIZE) {
+-static inline int gfpflags_allow_blocking(gfp_t mask)
+-{
+-	return 1;
+-}
+-
+ struct kmem_cache {
+ 	int size;
+ 	void (*ctor)(void *);
 -- 
 2.10.2
 
