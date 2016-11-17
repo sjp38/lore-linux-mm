@@ -1,123 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 416676B025E
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 06:19:20 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id x23so196619539pgx.6
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 03:19:20 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o69si2879834pfg.230.2016.11.17.03.19.19
-        for <linux-mm@kvack.org>;
-        Thu, 17 Nov 2016 03:19:19 -0800 (PST)
-Date: Thu, 17 Nov 2016 11:19:18 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
-Message-ID: <20161117111917.GA22855@arm.com>
-References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
- <20161102045153.12008-1-takahiro.akashi@linaro.org>
- <20161110172720.GB17134@arm.com>
- <20161111025049.GG381@linaro.org>
- <20161111031903.GB15997@arm.com>
- <20161114055515.GH381@linaro.org>
- <20161116163015.GM7928@arm.com>
- <20161117022023.GA5704@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161117022023.GA5704@linaro.org>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9936F6B0327
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 07:51:24 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id o1so113422485ito.7
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 04:51:24 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id w140si3140371itc.124.2016.11.17.04.51.23
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 Nov 2016 04:51:23 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm/page_alloc: Don't fail costly __GFP_NOFAIL allocations.
+Date: Thu, 17 Nov 2016 21:50:04 +0900
+Message-Id: <1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: AKASHI Takahiro <takahiro.akashi@linaro.org>, Dennis Chen <dennis.chen@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.orgnd@arm.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org
 
-Hi Akashi,
+Filesystem code might request costly __GFP_NOFAIL !__GFP_REPEAT GFP_NOFS
+allocations. But commit 0a0337e0d1d13446 ("mm, oom: rework oom detection")
+overlooked that __GFP_NOFAIL allocation requests need to invoke the OOM
+killer and retry even if order > PAGE_ALLOC_COSTLY_ORDER && !__GFP_REPEAT.
+The caller will crash if such allocation request failed.
 
-On Thu, Nov 17, 2016 at 02:34:24PM +0900, AKASHI Takahiro wrote:
-> On Wed, Nov 16, 2016 at 04:30:15PM +0000, Will Deacon wrote:
-> > I thought limit was just a physical address, and then
-> 
-> No, it's not.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: <stable@vger.kernel.org> # 4.7+
+---
+ mm/page_alloc.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-Quite right, it's a size. Sorry about that.
-
-> > memblock_mem_limit_remove_map operated on the end of the nearest memblock?
-> 
-> No, but "max_addr" returned by __find_max_addr() is a physical address
-> and the end address of memory of "limit" size in total.
-> 
-> > You could leave the __find_max_addr call in memblock_mem_limit_remove_map,
-> > given that I don't think you need/want it for memblock_cap_memory_range.
-> > 
-> > > So I added an extra argument, exact, to a common function to specify
-> > > distinct behaviors. Confusing? Please see the patch below.
-> > 
-> > Oh yikes, this certainly wasn't what I had in mind! My observation was
-> > just that memblock_mem_limit_remove_map(limit) does:
-> > 
-> > 
-> >   1. memblock_isolate_range(limit - limit+ULLONG_MAX)
-> >   2. memblock_remove_region(all non-nomap regions in the isolated region)
-> >   3. truncate reserved regions to limit
-> > 
-> > and your memblock_cap_memory_range(base, size) does:
-> > 
-> >   1. memblock_isolate_range(base - base+size)
-> >   2, memblock_remove_region(all non-nomap regions above and below the
-> >      isolated region)
-> >   3. truncate reserved regions around the isolated region
-> > 
-> > so, assuming we can invert the isolation in one of the cases, then they
-> > could share the same underlying implementation.
-> 
-> Please see my simplified patch below which would explain what I meant.
-> (Note that the size is calculated by 'max_addr - 0'.)
-> 
-> > I'm probably just missing something here, because the patch you've ended
-> > up with is far more involved than I anticipated...
-> 
-> I hope that it will meet almost your anticipation.
-
-It looks much better, thanks! Just one question below.
-
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7608bc3..fea1688 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
->  			      (phys_addr_t)ULLONG_MAX);
->  }
->  
-> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> +{
-> +	int start_rgn, end_rgn;
-> +	int i, ret;
-> +
-> +	if (!size)
-> +		return;
-> +
-> +	ret = memblock_isolate_range(&memblock.memory, base, size,
-> +						&start_rgn, &end_rgn);
-> +	if (ret)
-> +		return;
-> +
-> +	/* remove all the MAP regions */
-> +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +			memblock_remove_region(&memblock.memory, i);
-
-In the case that we have only one, giant memblock that covers base all
-of base + size, can't we end up with start_rgn = end_rgn = 0? In which
-case, we'd end up accidentally removing the map regions here.
-
-The existing code:
-
-> -	/* remove all the MAP regions above the limit */
-> -	for (i = end_rgn - 1; i >= start_rgn; i--) {
-> -		if (!memblock_is_nomap(&type->regions[i]))
-> -			memblock_remove_region(type, i);
-> -	}
-
-seems to handle this.
-
-Will
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6de9440..b458f00 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3650,9 +3650,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 
+ 	/*
+ 	 * Do not retry costly high order allocations unless they are
+-	 * __GFP_REPEAT
++	 * __GFP_REPEAT or __GFP_NOFAIL
+ 	 */
+-	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
++	if (order > PAGE_ALLOC_COSTLY_ORDER &&
++	    !(gfp_mask & (__GFP_REPEAT | __GFP_NOFAIL)))
+ 		goto nopage;
+ 
+ 	/* Make sure we know about allocations which stall for too long */
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
