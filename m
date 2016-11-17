@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D2FC36B033C
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:54 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g23so57384796wme.4
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 11:11:54 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 231C36B033E
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:57 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u144so56952425wmu.1
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 11:11:57 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id d7si4144445wjf.81.2016.11.17.11.11.53
+        by mx.google.com with ESMTPS id f184si4044003wme.33.2016.11.17.11.11.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 11:11:53 -0800 (PST)
+        Thu, 17 Nov 2016 11:11:56 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 1/9] mm: khugepaged: close use-after-free race during shmem collapsing
-Date: Thu, 17 Nov 2016 14:11:30 -0500
-Message-Id: <20161117191138.22769-2-hannes@cmpxchg.org>
+Subject: [PATCH 2/9] mm: khugepaged: fix radix tree node leak in shmem collapse error path
+Date: Thu, 17 Nov 2016 14:11:31 -0500
+Message-Id: <20161117191138.22769-3-hannes@cmpxchg.org>
 In-Reply-To: <20161117191138.22769-1-hannes@cmpxchg.org>
 References: <20161117191138.22769-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,38 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-When a radix tree iteration drops the tree lock, another thread might
-swoop in and free the node holding the current slot. The iteration
-needs to do another tree lookup from the current index to continue.
+The radix tree counts valid entries in each tree node. Entries stored
+in the tree cannot be removed by simpling storing NULL in the slot or
+the internal counters will be off and the node never gets freed again.
 
-[kirill.shutemov@linux.intel.com: re-lookup for replacement]
+When collapsing a shmem page fails, restore the holes that were filled
+with radix_tree_insert() with a proper radix tree deletion.
+
 Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
+Reported-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/khugepaged.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ mm/khugepaged.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 728d7790dc2d..bdfdab40a813 100644
+index bdfdab40a813..d553c294de40 100644
 --- a/mm/khugepaged.c
 +++ b/mm/khugepaged.c
-@@ -1401,6 +1401,9 @@ static void collapse_shmem(struct mm_struct *mm,
+@@ -1523,9 +1523,11 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			if (!page || iter.index < page->index) {
+ 				if (!nr_none)
+ 					break;
+-				/* Put holes back where they were */
+-				radix_tree_replace_slot(slot, NULL);
+ 				nr_none--;
++				/* Put holes back where they were */
++				radix_tree_delete(&mapping->page_tree,
++						  iter.index);
++				slot = radix_tree_iter_next(&iter);
+ 				continue;
+ 			}
  
- 		spin_lock_irq(&mapping->tree_lock);
- 
-+		slot = radix_tree_lookup_slot(&mapping->page_tree, index);
-+		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
-+					&mapping->tree_lock), page);
- 		VM_BUG_ON_PAGE(page_mapped(page), page);
- 
- 		/*
-@@ -1424,6 +1427,7 @@ static void collapse_shmem(struct mm_struct *mm,
- 		radix_tree_replace_slot(slot,
- 				new_page + (index % HPAGE_PMD_NR));
- 
-+		slot = radix_tree_iter_next(&iter);
- 		index++;
- 		continue;
- out_lru:
-@@ -1535,6 +1539,7 @@ static void collapse_shmem(struct mm_struct *mm,
- 			putback_lru_page(page);
- 			unlock_page(page);
- 			spin_lock_irq(&mapping->tree_lock);
-+			slot = radix_tree_iter_next(&iter);
- 		}
- 		VM_BUG_ON(nr_none);
- 		spin_unlock_irq(&mapping->tree_lock);
 -- 
 2.10.2
 
