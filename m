@@ -1,205 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E8BF46B0319
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 00:35:01 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 83so103862612pfx.1
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 21:35:01 -0800 (PST)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id 7si1556791pgt.1.2016.11.16.21.35.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A50C66B0306
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:41:06 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 83so105999072pfx.1
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 23:41:06 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id s21si2047267pfi.53.2016.11.16.23.41.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 21:35:00 -0800 (PST)
-Received: by mail-pg0-x234.google.com with SMTP id p66so87614867pga.2
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 21:35:00 -0800 (PST)
-Date: Thu, 17 Nov 2016 14:34:24 +0900
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
-Message-ID: <20161117022023.GA5704@linaro.org>
-References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
- <20161102045153.12008-1-takahiro.akashi@linaro.org>
- <20161110172720.GB17134@arm.com>
- <20161111025049.GG381@linaro.org>
- <20161111031903.GB15997@arm.com>
- <20161114055515.GH381@linaro.org>
- <20161116163015.GM7928@arm.com>
+        Wed, 16 Nov 2016 23:41:05 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAH7XiSZ003887
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:41:05 -0500
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26s62aw9kb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:41:04 -0500
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 17 Nov 2016 17:41:02 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 7E3FA2BB0055
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:40:59 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAH7exYB54591668
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:40:59 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAH7eweL011450
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:40:59 +1100
+Subject: Re: [RFC 2/8] mm: Add specialized fallback zonelist for coherent
+ device memory nodes
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1477283517-2504-3-git-send-email-khandual@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 17 Nov 2016 13:10:50 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161116163015.GM7928@arm.com>
+In-Reply-To: <1477283517-2504-3-git-send-email-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <582D5F02.6010705@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Dennis Chen <dennis.chen@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.orgnd@arm.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com
 
-Will,
-
-On Wed, Nov 16, 2016 at 04:30:15PM +0000, Will Deacon wrote:
-> Hi Akashi,
+On 10/24/2016 10:01 AM, Anshuman Khandual wrote:
+> This change is part of the isolation requiring coherent device memory
+> node's implementation.
 > 
-> On Mon, Nov 14, 2016 at 02:55:16PM +0900, AKASHI Takahiro wrote:
-> > On Fri, Nov 11, 2016 at 11:19:04AM +0800, Dennis Chen wrote:
-> > > On Fri, Nov 11, 2016 at 11:50:50AM +0900, AKASHI Takahiro wrote:
-> > > > On Thu, Nov 10, 2016 at 05:27:20PM +0000, Will Deacon wrote:
-> > > > > On Wed, Nov 02, 2016 at 01:51:53PM +0900, AKASHI Takahiro wrote:
-> > > > > > +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> > > > > > +{
-> > > > > > +	int start_rgn, end_rgn;
-> > > > > > +	int i, ret;
-> > > > > > +
-> > > > > > +	if (!size)
-> > > > > > +		return;
-> > > > > > +
-> > > > > > +	ret = memblock_isolate_range(&memblock.memory, base, size,
-> > > > > > +						&start_rgn, &end_rgn);
-> > > > > > +	if (ret)
-> > > > > > +		return;
-> > > > > > +
-> > > > > > +	/* remove all the MAP regions */
-> > > > > > +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> > > > > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> > > > > > +			memblock_remove_region(&memblock.memory, i);
-> > > > > > +
-> > > > > > +	for (i = start_rgn - 1; i >= 0; i--)
-> > > > > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> > > > > > +			memblock_remove_region(&memblock.memory, i);
-> > > > > > +
-> > > > > > +	/* truncate the reserved regions */
-> > > > > > +	memblock_remove_range(&memblock.reserved, 0, base);
-> > > > > > +	memblock_remove_range(&memblock.reserved,
-> > > > > > +			base + size, (phys_addr_t)ULLONG_MAX);
-> > > > > > +}
-> > > > > 
-> > > > > This duplicates a bunch of the logic in memblock_mem_limit_remove_map. Can
-> > > > > you not implement that in terms of your new, more general, function? e.g.
-> > > > > by passing base == 0, and size == limit?
-> > > > 
-> > > > Obviously it's possible.
-> > > > I actually talked to Dennis before about merging them,
-> > > > but he was against my idea.
-> > > >
-> > > Oops! I thought we have reached agreement in the thread:http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/442817.html
-> > > So feel free to do that as Will'll do
-> > 
-> > OK, but I found that the two functions have a bit different semantics
-> > in clipping memory range, in particular, when the range [base,base+size)
-> > goes across several regions with a gap.
-> > (This does not happen in my arm64 kdump, though.)
-> > That is, 'limit' in memblock_mem_limit_remove_map() means total size of
-> > available memory, while 'size' in memblock_cap_memory_range() indicates
-> > the size of _continuous_ memory range.
+> Isolation seeking coherent memory node requires isolation from implicit
+> memory allocations from user space but at the same time there should also
+> have an explicit way to do the allocation. Kernel allocation to this memory
+> can be prevented by putting the entire memory in ZONE_MOVABLE for example.
 > 
-> I thought limit was just a physical address, and then
-
-No, it's not.
-
-> memblock_mem_limit_remove_map operated on the end of the nearest memblock?
-
-No, but "max_addr" returned by __find_max_addr() is a physical address
-and the end address of memory of "limit" size in total.
-
-> You could leave the __find_max_addr call in memblock_mem_limit_remove_map,
-> given that I don't think you need/want it for memblock_cap_memory_range.
+> Platform node's both zonelists are fundamental to where the memory comes
+> when there is an allocation request. In order to achieve the two objectives
+> stated above, zonelists building process has to change as both zonelists
+> (FALLBACK and NOFALLBACK) gives access to the node's memory zones during
+> any kind of memory allocation. The following changes are implemented in
+> this regard.
 > 
-> > So I added an extra argument, exact, to a common function to specify
-> > distinct behaviors. Confusing? Please see the patch below.
+> (1) Coherent node's zones are not part of any other node's FALLBACK list
+> (2) Coherent node's FALLBACK list contains it's own memory zones followed
+>     by all system RAM zones in normal order
+> (3) Coherent node's zones are part of it's own NOFALLBACK list
 > 
-> Oh yikes, this certainly wasn't what I had in mind! My observation was
-> just that memblock_mem_limit_remove_map(limit) does:
+> The above changes which will ensure the following which in turn isolates
+> the coherent memory node as desired.
 > 
+> (1) There wont be any implicit allocation ending up in the coherent node
+> (2) __GFP_THISNODE marked allocations will come from the coherent node
+> (3) Coherent memory can also be allocated through MPOL_BIND interface
 > 
->   1. memblock_isolate_range(limit - limit+ULLONG_MAX)
->   2. memblock_remove_region(all non-nomap regions in the isolated region)
->   3. truncate reserved regions to limit
+> Sample zonelist configuration:
 > 
-> and your memblock_cap_memory_range(base, size) does:
+> [NODE (0)]						System RAM node
+>         ZONELIST_FALLBACK (0xc00000000140da00)
+>                 (0) (node 0) (DMA     0xc00000000140c000)
+>                 (1) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc000000001411a10)
+>                 (0) (node 0) (DMA     0xc00000000140c000)
+> [NODE (1)]						System RAM node
+>         ZONELIST_FALLBACK (0xc000000100001a00)
+>                 (0) (node 1) (DMA     0xc000000100000000)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>         ZONELIST_NOFALLBACK (0xc000000100005a10)
+>                 (0) (node 1) (DMA     0xc000000100000000)
+> [NODE (2)]						Coherent memory
+>         ZONELIST_FALLBACK (0xc000000001427700)
+>                 (0) (node 2) (Movable 0xc000000001427080)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc00000000142b710)
+>                 (0) (node 2) (Movable 0xc000000001427080)
+> [NODE (3)]						Coherent memory
+>         ZONELIST_FALLBACK (0xc000000001431400)
+>                 (0) (node 3) (Movable 0xc000000001430d80)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc000000001435410)
+>                 (0) (node 3) (Movable 0xc000000001430d80)
+> [NODE (4)]						Coherent memory
+>         ZONELIST_FALLBACK (0xc00000000143b100)
+>                 (0) (node 4) (Movable 0xc00000000143aa80)
+>                 (1) (node 0) (DMA     0xc00000000140c000)
+>                 (2) (node 1) (DMA     0xc000000100000000)
+>         ZONELIST_NOFALLBACK (0xc00000000143f110)
+>                 (0) (node 4) (Movable 0xc00000000143aa80)
 > 
->   1. memblock_isolate_range(base - base+size)
->   2, memblock_remove_region(all non-nomap regions above and below the
->      isolated region)
->   3. truncate reserved regions around the isolated region
-> 
-> so, assuming we can invert the isolation in one of the cases, then they
-> could share the same underlying implementation.
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
 
-Please see my simplified patch below which would explain what I meant.
-(Note that the size is calculated by 'max_addr - 0'.)
-
-> I'm probably just missing something here, because the patch you've ended
-> up with is far more involved than I anticipated...
-
-I hope that it will meet almost your anticipation.
-
-Thanks,
--Takahiro AKASHI
-
-> 
-> Will
-===8<===
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc3..fea1688 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
- 			      (phys_addr_t)ULLONG_MAX);
- }
- 
-+void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-+{
-+	int start_rgn, end_rgn;
-+	int i, ret;
-+
-+	if (!size)
-+		return;
-+
-+	ret = memblock_isolate_range(&memblock.memory, base, size,
-+						&start_rgn, &end_rgn);
-+	if (ret)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = start_rgn - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, base);
-+	memblock_remove_range(&memblock.reserved,
-+			base + size, (phys_addr_t)ULLONG_MAX);
-+}
-+
- void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- {
--	struct memblock_type *type = &memblock.memory;
- 	phys_addr_t max_addr;
--	int i, ret, start_rgn, end_rgn;
- 
- 	if (!limit)
- 		return;
-@@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 	if (max_addr == (phys_addr_t)ULLONG_MAX)
- 		return;
- 
--	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
--				&start_rgn, &end_rgn);
--	if (ret)
--		return;
--
--	/* remove all the MAP regions above the limit */
--	for (i = end_rgn - 1; i >= start_rgn; i--) {
--		if (!memblock_is_nomap(&type->regions[i]))
--			memblock_remove_region(type, i);
--	}
--	/* truncate the reserved regions */
--	memblock_remove_range(&memblock.reserved, max_addr,
--			      (phys_addr_t)ULLONG_MAX);
-+	memblock_cap_memory_range(0, max_addr);
- }
- 
- static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
+Another way of achieving isolation of the CDM nodes from user space
+allocations would be through cpuset changes. Will be sending out
+couple of draft patches in this direction. Then we can look into
+whether the current method or the cpuset method is a better way to
+go forward.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
