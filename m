@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C9A6D6B0315
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 20:32:36 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g186so176138221pgc.2
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:36 -0800 (PST)
-Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
-        by mx.google.com with ESMTPS id 126si585094pgb.180.2016.11.16.17.32.35
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3E56B0317
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 20:32:38 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y68so99586729pfb.6
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:38 -0800 (PST)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id i67si519988pfg.292.2016.11.16.17.32.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 17:32:35 -0800 (PST)
-Received: by mail-pg0-x236.google.com with SMTP id x23so82511437pgx.1
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:35 -0800 (PST)
-Date: Wed, 16 Nov 2016 17:32:33 -0800 (PST)
+        Wed, 16 Nov 2016 17:32:37 -0800 (PST)
+Received: by mail-pf0-x22c.google.com with SMTP id c4so33883478pfb.1
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:37 -0800 (PST)
+Date: Wed, 16 Nov 2016 17:32:36 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 1/2] mm, zone: track number of pages in free area by
- migratetype
-Message-ID: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
+Subject: [patch 2/2] mm, compaction: avoid async compaction if most free
+ memory is ineligible
+In-Reply-To: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1611161732180.17379@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -23,261 +25,399 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Each zone's free_area tracks the number of free pages for all free lists.
-This does not allow the number of free pages for a specific migratetype
-to be determined without iterating its free list.
+Memory compaction will only migrate memory to MIGRATE_MOVABLE pageblocks
+for asynchronous compaction.
 
-An upcoming change will use this information to preclude doing async
-memory compaction when the number of MIGRATE_UNMOVABLE pageblocks is
-below a certain threshold.
+If most free memory on the system is not eligible for migration in this
+context, isolate_freepages() can take an extreme amount of time trying to
+find a free page.  For example, we have encountered the following
+scenario many times, specifically due to slab fragmentation:
 
-The total number of free pages is still tracked, however, to not make
-zone_watermark_ok() more expensive.  Reading /proc/pagetypeinfo, however,
-is faster.
+Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
+Node    0, zone   Normal, type    Unmovable  40000   3778      2      0      0      0      0      0      0      0      0 
+Node    0, zone   Normal, type  Reclaimable     11      6      0      0      0      0      0      0      0      0      0 
+Node    0, zone   Normal, type      Movable      1      1      0      0      0      0      0      0      0      0      0 
+Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      0
 
-This patch introduces no functional change and increases the amount of
-per-zone metadata at worst by 48 bytes per memory zone (when CONFIG_CMA
-and CONFIG_MEMORY_ISOLATION are enabled).
+The compaction freeing scanner will end up scanning this entire zone,
+perhaps finding no memory free and terminating compaction after pages
+have already been isolated for migration.  It is unnecessary to even
+start async compaction in a scenario where free memory cannot be
+isolated as a migration target.
+
+This patch does not deem async compaction to be suitable when 1/64th or
+less of free memory is from MIGRATE_MOVABLE pageblocks.  This heuristic
+is somewhat arbitrarily defined, but in the example above would easily
+trigger earlier when async compaction will become very expensive.
+
+It would also be possible to check zone watermarks in
+__compaction_suitable() using the amount of MIGRATE_MOVABLE memory as
+an alternative.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- include/linux/mmzone.h |  3 ++-
- mm/compaction.c        |  4 ++--
- mm/page_alloc.c        | 47 ++++++++++++++++++++++++++++-------------------
- mm/vmstat.c            | 18 +++++-------------
- 4 files changed, 37 insertions(+), 35 deletions(-)
+ fs/buffer.c                |  2 +-
+ include/linux/compaction.h |  8 ++++----
+ include/linux/swap.h       |  3 ++-
+ mm/compaction.c            | 49 +++++++++++++++++++++++++++++++++++++---------
+ mm/internal.h              |  1 +
+ mm/page_alloc.c            | 15 +++++++-------
+ mm/vmscan.c                | 20 ++++++++++++++++---
+ 7 files changed, 73 insertions(+), 25 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -89,7 +89,8 @@ extern int page_group_by_mobility_disabled;
+diff --git a/fs/buffer.c b/fs/buffer.c
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -268,7 +268,7 @@ static void free_more_memory(void)
+ 						gfp_zone(GFP_NOFS), NULL);
+ 		if (z->zone)
+ 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
+-						GFP_NOFS, NULL);
++					  GFP_NOFS, MIN_COMPACT_PRIORITY, NULL);
+ 	}
+ }
  
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
--	unsigned long		nr_free;
-+	unsigned long		nr_free[MIGRATE_TYPES];
-+	unsigned long		total_free;
- };
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -97,7 +97,7 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+ 		const struct alloc_context *ac, enum compact_priority prio);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern enum compact_result compaction_suitable(struct zone *zone, int order,
+-		unsigned int alloc_flags, int classzone_idx);
++		unsigned int alloc_flags, int classzone_idx, bool sync);
  
- struct pglist_data;
+ extern void defer_compaction(struct zone *zone, int order);
+ extern bool compaction_deferred(struct zone *zone, int order);
+@@ -171,7 +171,7 @@ static inline bool compaction_withdrawn(enum compact_result result)
+ 
+ 
+ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+-					int alloc_flags);
++				  int alloc_flags, enum compact_priority prio);
+ 
+ extern int kcompactd_run(int nid);
+ extern void kcompactd_stop(int nid);
+@@ -182,8 +182,8 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
+ {
+ }
+ 
+-static inline enum compact_result compaction_suitable(struct zone *zone, int order,
+-					int alloc_flags, int classzone_idx)
++static inline enum compact_result compaction_suitable(struct zone *zone,
++		int order, int alloc_flags, int classzone_idx, bool sync)
+ {
+ 	return COMPACT_SKIPPED;
+ }
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -11,6 +11,7 @@
+ #include <linux/fs.h>
+ #include <linux/atomic.h>
+ #include <linux/page-flags.h>
++#include <linux/compaction.h>
+ #include <asm/page.h>
+ 
+ struct notifier_block;
+@@ -315,7 +316,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
+ extern unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat);
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+-					gfp_t gfp_mask, nodemask_t *mask);
++		gfp_t gfp_mask, enum compact_priority prio, nodemask_t *mask);
+ extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 						  unsigned long nr_pages,
 diff --git a/mm/compaction.c b/mm/compaction.c
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1320,13 +1320,13 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
- 		bool can_steal;
+@@ -1365,7 +1365,7 @@ static enum compact_result compact_finished(struct zone *zone,
+ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 					unsigned int alloc_flags,
+ 					int classzone_idx,
+-					unsigned long wmark_target)
++					unsigned long wmark_target, bool sync)
+ {
+ 	unsigned long watermark;
  
- 		/* Job done if page is free of the right migratetype */
--		if (!list_empty(&area->free_list[migratetype]))
-+		if (area->nr_free[migratetype])
- 			return COMPACT_SUCCESS;
+@@ -1402,18 +1402,46 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 						ALLOC_CMA, wmark_target))
+ 		return COMPACT_SKIPPED;
  
- #ifdef CONFIG_CMA
- 		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
- 		if (migratetype == MIGRATE_MOVABLE &&
--			!list_empty(&area->free_list[MIGRATE_CMA]))
-+						area->nr_free[MIGRATE_CMA])
- 			return COMPACT_SUCCESS;
- #endif
- 		/*
++	if (!sync) {
++		unsigned long nr_movable_free_pages = 0;
++		unsigned long nr_free_pages;
++		int i;
++
++		for (i = 0; i < MAX_ORDER; i++) {
++			nr_movable_free_pages +=
++				zone->free_area[i].nr_free[MIGRATE_MOVABLE];
++#ifdef CONFIG_CMA
++			nr_movable_free_pages +=
++				zone->free_area[i].nr_free[MIGRATE_CMA];
++#endif
++		}
++		nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
++#ifdef CONFIG_CMA
++		nr_free_pages += zone_page_state(zone, NR_FREE_CMA_PAGES);
++#endif
++		/*
++		 * Page migration can only migrate pages to MIGRATE_MOVABLE or
++		 * MIGRATE_CMA pageblocks for async compaction.  If the amount
++		 * of ineligible pageblocks substantially outweighs the amount
++		 * of eligible pageblocks, do not attempt compaction since it
++		 * will be unnecessarily expensive.
++		 */
++		if (nr_movable_free_pages <= (nr_free_pages / 64))
++			return COMPACT_SKIPPED;
++	}
++
+ 	return COMPACT_CONTINUE;
+ }
+ 
+ enum compact_result compaction_suitable(struct zone *zone, int order,
+ 					unsigned int alloc_flags,
+-					int classzone_idx)
++					int classzone_idx, bool sync)
+ {
+ 	enum compact_result ret;
+ 	int fragindex;
+ 
+ 	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
+-				    zone_page_state(zone, NR_FREE_PAGES));
++				    zone_page_state(zone, NR_FREE_PAGES), sync);
+ 	/*
+ 	 * fragmentation index determines if allocation failures are due to
+ 	 * low memory or external fragmentation
+@@ -1444,7 +1472,7 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
+ }
+ 
+ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+-		int alloc_flags)
++				  int alloc_flags, enum compact_priority prio)
+ {
+ 	struct zone *zone;
+ 	struct zoneref *z;
+@@ -1467,7 +1495,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 		available = zone_reclaimable_pages(zone) / order;
+ 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+ 		compact_result = __compaction_suitable(zone, order, alloc_flags,
+-				ac_classzone_idx(ac), available);
++				ac_classzone_idx(ac), available, prio);
+ 		if (compact_result != COMPACT_SKIPPED)
+ 			return true;
+ 	}
+@@ -1484,7 +1512,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
+ 
+ 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
+-							cc->classzone_idx);
++				  cc->classzone_idx, sync);
+ 	/* Compaction is likely to fail */
+ 	if (ret == COMPACT_SUCCESS || ret == COMPACT_SKIPPED)
+ 		return ret;
+@@ -1860,13 +1888,16 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
+ 	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
+ 
+ 	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
++		enum compact_result result;
++
+ 		zone = &pgdat->node_zones[zoneid];
+ 
+ 		if (!populated_zone(zone))
+ 			continue;
+ 
+-		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
+-					classzone_idx) == COMPACT_CONTINUE)
++		result = compaction_suitable(zone, pgdat->kcompactd_max_order,
++					     0, classzone_idx, true);
++		if (result == COMPACT_CONTINUE)
+ 			return true;
+ 	}
+ 
+@@ -1903,7 +1934,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		if (compaction_deferred(zone, cc.order))
+ 			continue;
+ 
+-		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
++		if (compaction_suitable(zone, cc.order, 0, zoneid, true) !=
+ 							COMPACT_CONTINUE)
+ 			continue;
+ 
+diff --git a/mm/internal.h b/mm/internal.h
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -451,6 +451,7 @@ extern unsigned long  __must_check vm_mmap_pgoff(struct file *, unsigned long,
+ 
+ extern void set_pageblock_order(void);
+ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
++					    enum migrate_mode mode,
+ 					    struct list_head *page_list);
+ /* The ALLOC_WMARK bits are used as an index to zone->watermark */
+ #define ALLOC_WMARK_MIN		WMARK_MIN
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -821,7 +821,8 @@ static inline void __free_one_page(struct page *page,
- 			clear_page_guard(zone, buddy, order, migratetype);
- 		} else {
- 			list_del(&buddy->lru);
--			zone->free_area[order].nr_free--;
-+			zone->free_area[order].nr_free[migratetype]--;
-+			zone->free_area[order].total_free--;
- 			rmv_page_order(buddy);
- 		}
- 		combined_idx = buddy_idx & page_idx;
-@@ -880,7 +881,8 @@ static inline void __free_one_page(struct page *page,
- 
- 	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
- out:
--	zone->free_area[order].nr_free++;
-+	zone->free_area[order].nr_free[migratetype]++;
-+	zone->free_area[order].total_free++;
- }
- 
- /*
-@@ -1648,7 +1650,8 @@ static inline void expand(struct zone *zone, struct page *page,
- 			continue;
- 
- 		list_add(&page[size].lru, &area->free_list[migratetype]);
--		area->nr_free++;
-+		area->nr_free[migratetype]++;
-+		area->total_free++;
- 		set_page_order(&page[size], high);
- 	}
- }
-@@ -1802,7 +1805,8 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 			continue;
- 		list_del(&page->lru);
- 		rmv_page_order(page);
--		area->nr_free--;
-+		area->nr_free[migratetype]--;
-+		area->total_free--;
- 		expand(zone, page, order, current_order, area, migratetype);
- 		set_pcppage_migratetype(page, migratetype);
- 		return page;
-@@ -1991,7 +1995,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- 	int i;
- 	int fallback_mt;
- 
--	if (area->nr_free == 0)
-+	if (!area->total_free)
- 		return -1;
- 
- 	*can_steal = false;
-@@ -2000,7 +2004,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
- 		if (fallback_mt == MIGRATE_TYPES)
- 			break;
- 
--		if (list_empty(&area->free_list[fallback_mt]))
-+		if (!area->nr_free[fallback_mt])
- 			continue;
- 
- 		if (can_steal_fallback(order, migratetype))
-@@ -2163,7 +2167,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 			steal_suitable_fallback(zone, page, start_migratetype);
- 
- 		/* Remove the page from the freelists */
--		area->nr_free--;
-+		area->nr_free[fallback_mt]--;
-+		area->total_free--;
- 		list_del(&page->lru);
- 		rmv_page_order(page);
- 
-@@ -2549,7 +2554,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 
- 	/* Remove page from free list */
- 	list_del(&page->lru);
--	zone->free_area[order].nr_free--;
-+	zone->free_area[order].nr_free[mt]--;
-+	zone->free_area[order].total_free--;
- 	rmv_page_order(page);
+@@ -3217,7 +3217,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	 * compaction.
+ 	 */
+ 	if (compaction_withdrawn(compact_result))
+-		return compaction_zonelist_suitable(ac, order, alloc_flags);
++		return compaction_zonelist_suitable(ac, order, alloc_flags,
++						    *compact_priority);
  
  	/*
-@@ -2808,22 +2814,19 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 		struct free_area *area = &z->free_area[o];
- 		int mt;
+ 	 * !costly requests are much more important than __GFP_REPEAT
+@@ -3287,7 +3288,7 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
+ /* Perform direct synchronous page reclaim */
+ static int
+ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+-					const struct alloc_context *ac)
++		  const struct alloc_context *ac, enum compact_priority prio)
+ {
+ 	struct reclaim_state reclaim_state;
+ 	int progress;
+@@ -3301,7 +3302,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	reclaim_state.reclaimed_slab = 0;
+ 	current->reclaim_state = &reclaim_state;
  
--		if (!area->nr_free)
-+		if (!area->total_free)
- 			continue;
+-	progress = try_to_free_pages(ac->zonelist, order, gfp_mask,
++	progress = try_to_free_pages(ac->zonelist, order, gfp_mask, prio,
+ 								ac->nodemask);
  
- 		if (alloc_harder)
- 			return true;
+ 	current->reclaim_state = NULL;
+@@ -3317,12 +3318,12 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ static inline struct page *
+ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		unsigned long *did_some_progress)
++		enum compact_priority prio, unsigned long *did_some_progress)
+ {
+ 	struct page *page = NULL;
+ 	bool drained = false;
  
--		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
--			if (!list_empty(&area->free_list[mt]))
-+		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++)
-+			if (area->nr_free[mt])
- 				return true;
--		}
+-	*did_some_progress = __perform_reclaim(gfp_mask, order, ac);
++	*did_some_progress = __perform_reclaim(gfp_mask, order, ac, prio);
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
  
- #ifdef CONFIG_CMA
--		if ((alloc_flags & ALLOC_CMA) &&
--		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-+		if ((alloc_flags & ALLOC_CMA) && area->nr_free[MIGRATE_CMA])
- 			return true;
--		}
- #endif
- 	}
- 	return false;
-@@ -4431,12 +4434,12 @@ void show_free_areas(unsigned int filter)
- 			struct free_area *area = &zone->free_area[order];
- 			int type;
+@@ -3666,7 +3667,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  
--			nr[order] = area->nr_free;
-+			nr[order] = area->total_free;
- 			total += nr[order] << order;
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+-							&did_some_progress);
++					compact_priority, &did_some_progress);
+ 	if (page)
+ 		goto got_pg;
  
- 			types[order] = 0;
- 			for (type = 0; type < MIGRATE_TYPES; type++) {
--				if (!list_empty(&area->free_list[type]))
-+				if (area->nr_free[type])
- 					types[order] |= 1 << type;
- 			}
+@@ -7191,7 +7192,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 			break;
  		}
-@@ -5100,8 +5103,10 @@ static void __meminit zone_init_free_lists(struct zone *zone)
- 	unsigned int order, t;
- 	for_each_migratetype_order(order, t) {
- 		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
--		zone->free_area[order].nr_free = 0;
-+		zone->free_area[order].nr_free[t] = 0;
- 	}
-+	for (order = 0; order < MAX_ORDER; order++)
-+		zone->free_area[order].total_free = 0;
- }
  
- #ifndef __HAVE_ARCH_MEMMAP_INIT
-@@ -7416,6 +7421,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	spin_lock_irqsave(&zone->lock, flags);
- 	pfn = start_pfn;
- 	while (pfn < end_pfn) {
-+		int migratetype;
+-		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
++		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone, cc->mode,
+ 							&cc->migratepages);
+ 		cc->nr_migratepages -= nr_reclaimed;
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -84,6 +84,8 @@ struct scan_control {
+ 	/* Scan (total_size >> priority) pages at once */
+ 	int priority;
+ 
++	enum compact_priority compact_priority;
 +
- 		if (!pfn_valid(pfn)) {
- 			pfn++;
+ 	/* The highest zone to isolate pages for reclaim from */
+ 	enum zone_type reclaim_idx;
+ 
+@@ -1275,11 +1277,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ }
+ 
+ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
++					    enum migrate_mode mode,
+ 					    struct list_head *page_list)
+ {
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.priority = DEF_PRIORITY,
++		.compact_priority = mode == MIGRATE_ASYNC ?
++				    COMPACT_PRIO_ASYNC :
++				    COMPACT_PRIO_SYNC_LIGHT,
+ 		.may_unmap = 1,
+ 	};
+ 	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
+@@ -2500,7 +2506,8 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 		if (!managed_zone(zone))
  			continue;
-@@ -7438,9 +7445,11 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 		pr_info("remove from free list %lx %d %lx\n",
- 			pfn, 1 << order, end_pfn);
- #endif
-+		migratetype = get_pageblock_migratetype(page);
- 		list_del(&page->lru);
- 		rmv_page_order(page);
--		zone->free_area[order].nr_free--;
-+		zone->free_area[order].nr_free[migratetype]--;
-+		zone->free_area[order].total_free--;
- 		for (i = 0; i < (1 << order); i++)
- 			SetPageReserved((page+i));
- 		pfn += (1 << order);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -846,7 +846,7 @@ static void fill_contig_page_info(struct zone *zone,
- 		unsigned long blocks;
  
- 		/* Count number of free blocks */
--		blocks = zone->free_area[order].nr_free;
-+		blocks = zone->free_area[order].total_free;
- 		info->free_blocks_total += blocks;
+-		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx)) {
++		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx,
++					    sc->compact_priority)) {
+ 		case COMPACT_SUCCESS:
+ 		case COMPACT_CONTINUE:
+ 			return false;
+@@ -2613,7 +2620,8 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+ 	unsigned long watermark;
+ 	enum compact_result suitable;
  
- 		/* Count free base pages */
-@@ -1146,7 +1146,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
- 
- 	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
- 	for (order = 0; order < MAX_ORDER; ++order)
--		seq_printf(m, "%6lu ", zone->free_area[order].nr_free);
-+		seq_printf(m, "%6lu ", zone->free_area[order].total_free);
- 	seq_putc(m, '\n');
+-	suitable = compaction_suitable(zone, sc->order, 0, sc->reclaim_idx);
++	suitable = compaction_suitable(zone, sc->order, 0, sc->reclaim_idx,
++				       sc->compact_priority);
+ 	if (suitable == COMPACT_SUCCESS)
+ 		/* Allocation should succeed already. Don't reclaim. */
+ 		return true;
+@@ -2942,7 +2950,8 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
  }
  
-@@ -1170,17 +1170,9 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
- 					pgdat->node_id,
- 					zone->name,
- 					migratetype_names[mtype]);
--		for (order = 0; order < MAX_ORDER; ++order) {
--			unsigned long freecount = 0;
--			struct free_area *area;
--			struct list_head *curr;
--
--			area = &(zone->free_area[order]);
--
--			list_for_each(curr, &area->free_list[mtype])
--				freecount++;
--			seq_printf(m, "%6lu ", freecount);
--		}
-+		for (order = 0; order < MAX_ORDER; ++order)
-+			seq_printf(m, "%6lu ",
-+				   zone->free_area[order].nr_free[mtype]);
- 		seq_putc(m, '\n');
- 	}
- }
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+-				gfp_t gfp_mask, nodemask_t *nodemask)
++				gfp_t gfp_mask, enum compact_priority prio,
++				nodemask_t *nodemask)
+ {
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+@@ -2952,6 +2961,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.order = order,
+ 		.nodemask = nodemask,
+ 		.priority = DEF_PRIORITY,
++		.compact_priority = prio,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+@@ -3032,6 +3042,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 		.reclaim_idx = MAX_NR_ZONES - 1,
+ 		.target_mem_cgroup = memcg,
+ 		.priority = DEF_PRIORITY,
++		.compact_priority = DEF_COMPACT_PRIORITY,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = may_swap,
+@@ -3203,6 +3214,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		.gfp_mask = GFP_KERNEL,
+ 		.order = order,
+ 		.priority = DEF_PRIORITY,
++		.compact_priority = DEF_COMPACT_PRIORITY,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+@@ -3536,6 +3548,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+ 		.reclaim_idx = MAX_NR_ZONES - 1,
+ 		.priority = DEF_PRIORITY,
++		.compact_priority = DEF_COMPACT_PRIORITY,
+ 		.may_writepage = 1,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+@@ -3724,6 +3737,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
+ 		.order = order,
+ 		.priority = NODE_RECLAIM_PRIORITY,
++		.compact_priority = DEF_COMPACT_PRIORITY,
+ 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
+ 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+ 		.may_swap = 1,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
