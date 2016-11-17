@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 741906B0329
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 12:04:23 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so54619171wmf.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 09:04:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mp16si3620279wjb.279.2016.11.17.09.04.21
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DDEEF6B032E
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 12:07:35 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id 41so83841451qtn.7
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 09:07:35 -0800 (PST)
+Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
+        by mx.google.com with ESMTPS id s194si1531888oih.181.2016.11.17.09.07.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Nov 2016 09:04:22 -0800 (PST)
-Subject: Re: [patch 1/2] mm, zone: track number of pages in free area by
- migratetype
-References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
-Date: Thu, 17 Nov 2016 18:04:08 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Nov 2016 09:07:35 -0800 (PST)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
+	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
+	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
+	<87k2d5nytz.fsf_-_@xmission.com>
+	<CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
+	<87y41kjn6l.fsf@xmission.com> <20161019172917.GE1210@laptop.thejh.net>
+	<CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
+	<87pomwi5p2.fsf@xmission.com>
+	<CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
+	<87pomwghda.fsf@xmission.com>
+	<CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+Date: Thu, 17 Nov 2016 11:02:47 -0600
+In-Reply-To: <CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+	(Andy Lutomirski's message of "Wed, 19 Oct 2016 16:17:30 -0700")
+Message-ID: <87twb6avk8.fsf_-_@xmission.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: [REVIEW][PATCH 0/3] Fixing ptrace vs exec vs userns interactions
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux Containers <containers@lists.linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Willy Tarreau <w@1wt.eu>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>
 
-On 11/17/2016 02:32 AM, David Rientjes wrote:
-> Each zone's free_area tracks the number of free pages for all free lists.
-> This does not allow the number of free pages for a specific migratetype
-> to be determined without iterating its free list.
-> 
-> An upcoming change will use this information to preclude doing async
-> memory compaction when the number of MIGRATE_UNMOVABLE pageblocks is
-> below a certain threshold.
-> 
-> The total number of free pages is still tracked, however, to not make
-> zone_watermark_ok() more expensive.  Reading /proc/pagetypeinfo, however,
-> is faster.
 
-Yeah I've already seen a case with /proc/pagetypeinfo causing soft
-lockups due to high number of iterations...
+With everyone heading to Kernel Summit and Plumbers I put this set of
+patches down temporarily.   Now is the time to take it back up and to
+make certain I am not missing something stupid in this set of patches.
 
-> This patch introduces no functional change and increases the amount of
-> per-zone metadata at worst by 48 bytes per memory zone (when CONFIG_CMA
-> and CONFIG_MEMORY_ISOLATION are enabled).
+There are other issues in this area as well, but these are the pieces
+that I can see clearly, and have tested fixes for.
 
-Isn't it 48 bytes per zone and order?
+Andy as to your criticism about using strace sudo I can't possibly see
+how that is effective or useful.  Under strace sudo won't run as root
+today, and will immediately exit because it is not root.  Furthermore
+the only place I can find non-readable executables is people hardening
+suid root executables so they are more difficult to trace.  So I
+definitely think we should honor the unix permissions and people's
+expressed wishes.
 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Eric W. Biederman (3):
+      ptrace: Capture the ptracer's creds not PT_PTRACE_CAP
+      exec: Don't allow ptracing an exec of an unreadable file
+      exec: Ensure mm->user_ns contains the execed files
 
-I'd be for this if there are no performance regressions. It affects hot
-paths and increases cache footprint. I think at least some allocator
-intensive microbenchmark should be used.
+ fs/exec.c                  | 26 +++++++++++++++++++++++---
+ include/linux/capability.h |  2 ++
+ include/linux/ptrace.h     |  1 -
+ include/linux/sched.h      |  1 +
+ kernel/capability.c        | 36 ++++++++++++++++++++++++++++++++++--
+ kernel/ptrace.c            | 12 +++++++-----
+ 6 files changed, 67 insertions(+), 11 deletions(-)
 
-Vlastimil
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
