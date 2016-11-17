@@ -1,483 +1,328 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C3B6B02A0
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:06 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id l8so76526937iti.6
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:06 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id b128si247497itb.35.2016.11.16.14.24.04
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7586B02AB
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:08 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id b132so76817210iti.5
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:08 -0800 (PST)
+Received: from p3plsmtps2ded03.prod.phx3.secureserver.net (p3plsmtps2ded03.prod.phx3.secureserver.net. [208.109.80.60])
+        by mx.google.com with ESMTPS id d67si252090ioe.67.2016.11.16.14.24.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 14:24:05 -0800 (PST)
+        Wed, 16 Nov 2016 14:24:07 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 20/29] radix tree: Improve multiorder iterators
-Date: Wed, 16 Nov 2016 16:17:23 -0800
-Message-Id: <1479341856-30320-59-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 10/29] radix-tree: Add radix_tree_join
+Date: Wed, 16 Nov 2016 16:16:37 -0800
+Message-Id: <1479341856-30320-13-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-This fixes several interlinked problems with the iterators in the
-presence of multiorder entries.
+This new function allows for the replacement of many smaller entries in
+the radix tree with one larger multiorder entry.  From the point of view
+of an RCU walker, they may see a mixture of the smaller entries and the
+large entry during the same walk, but they will never see NULL for an
+index which was populated before the join.
 
-1. radix_tree_iter_next() would only advance by one slot, which would
-result in the iterators returning the same entry more than once if there
-were sibling entries.
-
-2. radix_tree_next_slot() could return an internal pointer instead of
-a user pointer if a tagged multiorder entry was immediately followed by
-an entry of lower order.
-
-3. radix_tree_next_slot() expanded to a lot more code than it used to
-when multiorder support was compiled in.  And I wasn't comfortable with
-entry_to_node() being in a header file.
-
-Fixing radix_tree_iter_next() for the presence of sibling entries
-necessarily involves examining the contents of the radix tree, so we now
-need to pass 'slot' to radix_tree_iter_next(), and we need to change the
-calling convention so it is called *before* dropping the lock which
-protects the tree.  Fortunately, unconverted code won't compile.
-
-radix_tree_next_slot() becomes closer to how it looked before multiorder
-support was introduced.  It only checks to see if the next entry in the
-chunk is a sibling entry or a pointer to a node; this should be rare
-enough that handling this case out of line is not a performance impact
-(and such impact is amortised by the fact that the entry we just
-processed was a multiorder entry).  Also, radix_tree_next_slot() used
-to force a new chunk lookup for untagged entries, which is more
-expensive than the out of line sibling entry skipping.
-
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- fs/btrfs/tests/btrfs-tests.c               |  2 +-
- include/linux/radix-tree.h                 | 63 ++++++++------------
- lib/radix-tree.c                           | 94 ++++++++++++++++++++++++++++++
- mm/khugepaged.c                            |  2 +-
- mm/shmem.c                                 |  6 +-
- tools/testing/radix-tree/iteration_check.c |  4 +-
- tools/testing/radix-tree/multiorder.c      | 12 ++++
- tools/testing/radix-tree/regression3.c     |  6 +-
- tools/testing/radix-tree/test.h            |  1 +
- 9 files changed, 142 insertions(+), 48 deletions(-)
+ include/linux/radix-tree.h            |   2 +
+ lib/radix-tree.c                      | 159 +++++++++++++++++++++++++++-------
+ tools/testing/radix-tree/multiorder.c |  32 +++++++
+ 3 files changed, 163 insertions(+), 30 deletions(-)
 
-diff --git a/fs/btrfs/tests/btrfs-tests.c b/fs/btrfs/tests/btrfs-tests.c
-index 73076a0..6d3457a 100644
---- a/fs/btrfs/tests/btrfs-tests.c
-+++ b/fs/btrfs/tests/btrfs-tests.c
-@@ -162,7 +162,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
- 				slot = radix_tree_iter_retry(&iter);
- 			continue;
- 		}
--		slot = radix_tree_iter_next(&iter);
-+		slot = radix_tree_iter_next(slot, &iter);
- 		spin_unlock(&fs_info->buffer_lock);
- 		free_extent_buffer_stale(eb);
- 		spin_lock(&fs_info->buffer_lock);
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 66fb8c0..36c6175 100644
+index af3581b..1efd81f 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -424,15 +424,10 @@ __radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
+@@ -319,6 +319,8 @@ static inline void radix_tree_preload_end(void)
+ 	preempt_enable();
+ }
+ 
++int radix_tree_join(struct radix_tree_root *, unsigned long index,
++			unsigned new_order, void *);
+ /**
+  * struct radix_tree_iter - radix tree iterator state
   *
-  * If the iterator needs to release then reacquire a lock, the chunk may
-  * have been invalidated by an insertion or deletion.  Call this function
-- * to continue the iteration from the next index.
-+ * before releasing the lock to continue the iteration from the next index.
-  */
--static inline __must_check
--void **radix_tree_iter_next(struct radix_tree_iter *iter)
--{
--	iter->next_index = __radix_tree_iter_add(iter, 1);
--	iter->tags = 0;
--	return NULL;
--}
-+void **__must_check radix_tree_iter_next(void **slot,
-+					struct radix_tree_iter *iter);
- 
- /**
-  * radix_tree_chunk_size - get current chunk size
-@@ -446,10 +441,17 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
- 	return (iter->next_index - iter->index) >> iter_shift(iter);
- }
- 
--static inline struct radix_tree_node *entry_to_node(void *ptr)
-+#ifdef CONFIG_RADIX_TREE_MULTIORDER
-+void ** __radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
-+				unsigned flags);
-+#else
-+/* Can't happen without sibling entries, but the compiler can't tell that */
-+static inline void ** __radix_tree_next_slot(void **slot,
-+				struct radix_tree_iter *iter, unsigned flags)
- {
--	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
-+	return slot;
- }
-+#endif
- 
- /**
-  * radix_tree_next_slot - find next slot in chunk
-@@ -474,51 +476,31 @@ static __always_inline void **
- radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
- {
- 	if (flags & RADIX_TREE_ITER_TAGGED) {
--		void *canon = slot;
--
- 		iter->tags >>= 1;
- 		if (unlikely(!iter->tags))
- 			return NULL;
--		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
--					radix_tree_is_internal_node(slot[1])) {
--			if (entry_to_node(slot[1]) == canon) {
--				iter->tags >>= 1;
--				iter->index = __radix_tree_iter_add(iter, 1);
--				slot++;
--				continue;
--			}
--			iter->next_index = __radix_tree_iter_add(iter, 1);
--			return NULL;
--		}
- 		if (likely(iter->tags & 1ul)) {
- 			iter->index = __radix_tree_iter_add(iter, 1);
--			return slot + 1;
-+			slot++;
-+			goto found;
- 		}
- 		if (!(flags & RADIX_TREE_ITER_CONTIG)) {
- 			unsigned offset = __ffs(iter->tags);
- 
--			iter->tags >>= offset;
--			iter->index = __radix_tree_iter_add(iter, offset + 1);
--			return slot + offset + 1;
-+			iter->tags >>= offset++;
-+			iter->index = __radix_tree_iter_add(iter, offset);
-+			slot += offset;
-+			goto found;
- 		}
- 	} else {
- 		long count = radix_tree_chunk_size(iter);
--		void *canon = slot;
- 
- 		while (--count > 0) {
- 			slot++;
- 			iter->index = __radix_tree_iter_add(iter, 1);
- 
--			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
--			    radix_tree_is_internal_node(*slot)) {
--				if (entry_to_node(*slot) == canon)
--					continue;
--				iter->next_index = iter->index;
--				break;
--			}
--
- 			if (likely(*slot))
--				return slot;
-+				goto found;
- 			if (flags & RADIX_TREE_ITER_CONTIG) {
- 				/* forbid switching to the next chunk */
- 				iter->next_index = 0;
-@@ -527,6 +509,11 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
- 		}
- 	}
- 	return NULL;
-+
-+ found:
-+	if (unlikely(radix_tree_is_internal_node(*slot)))
-+		return __radix_tree_next_slot(slot, iter, flags);
-+	return slot;
- }
- 
- /**
-@@ -577,6 +564,6 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
- 	     slot || (slot = radix_tree_next_chunk(root, iter,		\
- 			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
- 	     slot = radix_tree_next_slot(slot, iter,			\
--				RADIX_TREE_ITER_TAGGED))
-+				RADIX_TREE_ITER_TAGGED | tag))
- 
- #endif /* _LINUX_RADIX_TREE_H */
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 09c5f1d..27b53ef 100644
+index 8e6d552..6a76252 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -69,6 +69,11 @@ struct radix_tree_preload {
- };
- static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
- 
-+static inline struct radix_tree_node *entry_to_node(void *ptr)
-+{
-+	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
-+}
-+
- static inline void *node_to_entry(void *ptr)
+@@ -314,18 +314,14 @@ static void radix_tree_node_rcu_free(struct rcu_head *head)
  {
- 	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
-@@ -1138,6 +1143,95 @@ static inline void __set_iter_shift(struct radix_tree_iter *iter,
- #endif
- }
+ 	struct radix_tree_node *node =
+ 			container_of(head, struct radix_tree_node, rcu_head);
+-	int i;
  
-+static void ** __radix_tree_iter_next(struct radix_tree_node **nodep,
-+			void **slot, struct radix_tree_iter *iter)
-+{
-+	void *sib = node_to_entry(slot - 1);
-+
-+	while (iter->index < iter->next_index) {
-+		*nodep = rcu_dereference_raw(*slot);
-+		if (*nodep && *nodep != sib)
-+			return slot;
-+		slot++;
-+		iter->index = __radix_tree_iter_add(iter, 1);
-+		iter->tags >>= 1;
-+	}
-+
-+	*nodep = NULL;
-+	return NULL;
+ 	/*
+-	 * must only free zeroed nodes into the slab. radix_tree_shrink
+-	 * can leave us with a non-NULL entry in the first slot, so clear
+-	 * that here to make sure.
++	 * Must only free zeroed nodes into the slab.  We can be left with
++	 * non-NULL entries by radix_tree_free_nodes, so clear the entries
++	 * and tags here.
+ 	 */
+-	for (i = 0; i < RADIX_TREE_MAX_TAGS; i++)
+-		tag_clear(node, i, 0);
+-
+-	node->slots[0] = NULL;
+-	node->count = 0;
++	memset(node->slots, 0, sizeof(node->slots));
++	memset(node->tags, 0, sizeof(node->tags));
+ 
+ 	kmem_cache_free(radix_tree_node_cachep, node);
+ }
+@@ -563,14 +559,14 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 	shift = radix_tree_load_root(root, &child, &maxindex);
+ 
+ 	/* Make sure the tree is high enough.  */
++	if (order > 0 && max == ((1UL << order) - 1))
++		max++;
+ 	if (max > maxindex) {
+ 		int error = radix_tree_extend(root, max, shift);
+ 		if (error < 0)
+ 			return error;
+ 		shift = error;
+ 		child = root->rnode;
+-		if (order == shift)
+-			shift += RADIX_TREE_MAP_SHIFT;
+ 	}
+ 
+ 	while (shift > order) {
+@@ -582,6 +578,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 				return -ENOMEM;
+ 			child->shift = shift;
+ 			child->offset = offset;
++			child->count = 0;
+ 			child->parent = node;
+ 			rcu_assign_pointer(*slot, node_to_entry(child));
+ 			if (node)
+@@ -595,31 +592,113 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 		slot = &node->slots[offset];
+ 	}
+ 
++	if (nodep)
++		*nodep = node;
++	if (slotp)
++		*slotp = slot;
++	return 0;
 +}
 +
-+#ifdef CONFIG_RADIX_TREE_MULTIORDER
-+void ** __radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
-+					unsigned flags)
+ #ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	/* Insert pointers to the canonical entry */
+-	if (order > shift) {
+-		unsigned i, n = 1 << (order - shift);
++/*
++ * Free any nodes below this node.  The tree is presumed to not need
++ * shrinking, and any user data in the tree is presumed to not need a
++ * destructor called on it.  If we need to add a destructor, we can
++ * add that functionality later.  Note that we may not clear tags or
++ * slots from the tree as an RCU walker may still have a pointer into
++ * this subtree.  We could replace the entries with RADIX_TREE_RETRY,
++ * but we'll still have to clear those in rcu_free.
++ */
++static void radix_tree_free_nodes(struct radix_tree_node *node)
 +{
-+	unsigned tag = flags & RADIX_TREE_ITER_TAG_MASK;
-+	struct radix_tree_node *node = rcu_dereference_raw(*slot);
++	unsigned offset = 0;
++	struct radix_tree_node *child = entry_to_node(node);
 +
-+	slot = __radix_tree_iter_next(&node, slot, iter);
-+
-+	while (radix_tree_is_internal_node(node)) {
-+		unsigned offset;
-+
-+		if (node == RADIX_TREE_RETRY)
-+			return slot;
-+		node = entry_to_node(node);
-+
-+		if (flags & RADIX_TREE_ITER_TAGGED) {
-+			unsigned tag_long, tag_bit;
-+			offset = radix_tree_find_next_bit(node, tag, 0);
-+			if (offset == RADIX_TREE_MAP_SIZE)
-+				return NULL;
-+			slot = &node->slots[offset];
-+
-+			tag_long = offset / BITS_PER_LONG;
-+			tag_bit  = offset % BITS_PER_LONG;
-+			iter->tags = node->tags[tag][tag_long] >> tag_bit;
-+			BUG_ON(iter->tags >= (RADIX_TREE_MAP_SIZE * 2));
-+			node = rcu_dereference_raw(*slot);
-+		} else {
++	for (;;) {
++		void *entry = child->slots[offset];
++		if (radix_tree_is_internal_node(entry) &&
++					!is_sibling_entry(child, entry)) {
++			child = entry_to_node(entry);
 +			offset = 0;
-+			slot = &node->slots[0];
-+			for (;;) {
-+				node = rcu_dereference_raw(*slot);
-+				if (node)
-+					break;
-+				slot++;
-+				offset++;
-+				if (offset == RADIX_TREE_MAP_SIZE)
-+					return NULL;
-+			}
++			continue;
 +		}
-+		if ((flags & RADIX_TREE_ITER_CONTIG) && (offset > 0))
-+			goto none;
-+		iter->shift -= RADIX_TREE_MAP_SHIFT;
-+		iter->index = __radix_tree_iter_add(iter, offset);
-+		iter->next_index = (iter->index | shift_maxindex(iter->shift)) +
-+					1;
++		offset++;
++		while (offset == RADIX_TREE_MAP_SIZE) {
++			struct radix_tree_node *old = child;
++			offset = child->offset + 1;
++			child = child->parent;
++			radix_tree_node_free(old);
++			if (old == entry_to_node(node))
++				return;
++		}
++	}
++}
++
++static inline int insert_entries(struct radix_tree_node *node, void **slot,
++				void *ptr, unsigned order, bool replace)
++{
++	struct radix_tree_node *child;
++	unsigned i, n, tag, offset, tags = 0;
++
++	if (node) {
++		n = 1 << (order - node->shift);
++		offset = get_slot_offset(node, slot);
++	} else {
++		n = 1;
++		offset = 0;
 +	}
 +
-+	return slot;
-+ none:
-+	iter->next_index = 0;
-+	return NULL;
-+}
-+EXPORT_SYMBOL(__radix_tree_next_slot);
-+#endif
++	if (n > 1) {
+ 		offset = offset & ~(n - 1);
+ 		slot = &node->slots[offset];
+-		child = node_to_entry(slot);
+-		for (i = 0; i < n; i++) {
+-			if (slot[i])
++	}
++	child = node_to_entry(slot);
 +
-+void **radix_tree_iter_next(void **slot, struct radix_tree_iter *iter)
++	for (i = 0; i < n; i++) {
++		if (slot[i]) {
++			if (replace) {
++				node->count--;
++				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++					if (tag_get(node, tag, offset + i))
++						tags |= 1 << tag;
++			} else
+ 				return -EEXIST;
+ 		}
++	}
+ 
+-		for (i = 1; i < n; i++) {
++	for (i = 0; i < n; i++) {
++		struct radix_tree_node *old = slot[i];
++		if (i) {
+ 			rcu_assign_pointer(slot[i], child);
+-			node->count++;
++			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++				if (tags & (1 << tag))
++					tag_clear(node, tag, offset + i);
++		} else {
++			rcu_assign_pointer(slot[i], ptr);
++			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
++				if (tags & (1 << tag))
++					tag_set(node, tag, offset);
+ 		}
++		if (radix_tree_is_internal_node(old) &&
++					!is_sibling_entry(node, old))
++			radix_tree_free_nodes(old);
+ 	}
+-#endif
+-
+-	if (nodep)
+-		*nodep = node;
+-	if (slotp)
+-		*slotp = slot;
+-	return 0;
++	if (node)
++		node->count += n;
++	return n;
++}
++#else
++static inline int insert_entries(struct radix_tree_node *node, void **slot,
++				void *ptr, unsigned order, bool replace)
++{
++	if (*slot)
++		return -EEXIST;
++	rcu_assign_pointer(*slot, ptr);
++	if (node)
++		node->count++;
++	return 1;
+ }
++#endif
+ 
+ /**
+  *	__radix_tree_insert    -    insert into a radix tree
+@@ -642,13 +721,13 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
+ 	error = __radix_tree_create(root, index, order, &node, &slot);
+ 	if (error)
+ 		return error;
+-	if (*slot != NULL)
+-		return -EEXIST;
+-	rcu_assign_pointer(*slot, item);
++
++	error = insert_entries(node, slot, item, order, false);
++	if (error < 0)
++		return error;
+ 
+ 	if (node) {
+ 		unsigned offset = get_slot_offset(node, slot);
+-		node->count++;
+ 		BUG_ON(tag_get(node, 0, offset));
+ 		BUG_ON(tag_get(node, 1, offset));
+ 		BUG_ON(tag_get(node, 2, offset));
+@@ -746,6 +825,26 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
+ }
+ EXPORT_SYMBOL(radix_tree_lookup);
+ 
++#ifdef CONFIG_RADIX_TREE_MULTIORDER
++int radix_tree_join(struct radix_tree_root *root, unsigned long index,
++			unsigned order, void *item)
 +{
 +	struct radix_tree_node *node;
++	void **slot;
++	int error;
 +
-+	slot++;
-+	iter->index = __radix_tree_iter_add(iter, 1);
-+	node = rcu_dereference_raw(*slot);
-+	__radix_tree_iter_next(&node, slot, iter);
-+	iter->next_index = iter->index;
-+	iter->tags = 0;
-+	return NULL;
++	BUG_ON(radix_tree_is_internal_node(item));
++
++	error = __radix_tree_create(root, index, order, &node, &slot);
++	if (!error)
++		error = insert_entries(node, slot, item, order, true);
++	if (error > 0)
++		error = 0;
++
++	return error;
 +}
-+EXPORT_SYMBOL(radix_tree_iter_next);
++#endif
 +
  /**
-  * radix_tree_next_chunk - find next chunk of slots for iteration
-  *
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 728d779..46155d1 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1614,8 +1614,8 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 		present++;
- 
- 		if (need_resched()) {
-+			slot = radix_tree_iter_next(slot, &iter);
- 			cond_resched_rcu();
--			slot = radix_tree_iter_next(&iter);
- 		}
- 	}
- 	rcu_read_unlock();
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 166ebf5..0b3fe33 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -658,8 +658,8 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
- 			swapped++;
- 
- 		if (need_resched()) {
-+			slot = radix_tree_iter_next(slot, &iter);
- 			cond_resched_rcu();
--			slot = radix_tree_iter_next(&iter);
- 		}
- 	}
- 
-@@ -2434,8 +2434,8 @@ static void shmem_tag_pins(struct address_space *mapping)
- 		}
- 
- 		if (need_resched()) {
-+			slot = radix_tree_iter_next(slot, &iter);
- 			cond_resched_rcu();
--			slot = radix_tree_iter_next(&iter);
- 		}
- 	}
- 	rcu_read_unlock();
-@@ -2504,8 +2504,8 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 			spin_unlock_irq(&mapping->tree_lock);
- continue_resched:
- 			if (need_resched()) {
-+				slot = radix_tree_iter_next(slot, &iter);
- 				cond_resched_rcu();
--				slot = radix_tree_iter_next(&iter);
- 			}
- 		}
- 		rcu_read_unlock();
-diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
-index df71cb8..6eca4c2 100644
---- a/tools/testing/radix-tree/iteration_check.c
-+++ b/tools/testing/radix-tree/iteration_check.c
-@@ -79,7 +79,7 @@ static void *tagged_iteration_fn(void *arg)
- 			}
- 
- 			if (rand_r(&seeds[0]) % 50 == 0) {
--				slot = radix_tree_iter_next(&iter);
-+				slot = radix_tree_iter_next(slot, &iter);
- 				rcu_read_unlock();
- 				rcu_barrier();
- 				rcu_read_lock();
-@@ -127,7 +127,7 @@ static void *untagged_iteration_fn(void *arg)
- 			}
- 
- 			if (rand_r(&seeds[1]) % 50 == 0) {
--				slot = radix_tree_iter_next(&iter);
-+				slot = radix_tree_iter_next(slot, &iter);
- 				rcu_read_unlock();
- 				rcu_barrier();
- 				rcu_read_lock();
+  *	radix_tree_tag_set - set a tag on a radix tree node
+  *	@root:		radix tree root
 diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 25e0463..588209a 100644
+index 05d7bc4..4c66acc 100644
 --- a/tools/testing/radix-tree/multiorder.c
 +++ b/tools/testing/radix-tree/multiorder.c
-@@ -232,10 +232,14 @@ void multiorder_iteration(void)
- 			int height = order[i] / RADIX_TREE_MAP_SHIFT;
- 			int shift = height * RADIX_TREE_MAP_SHIFT;
- 			int mask = (1 << order[i]) - 1;
-+			struct item *item = *slot;
+@@ -325,6 +325,37 @@ void multiorder_tagged_iteration(void)
+ 	item_kill_tree(&tree);
+ }
  
- 			assert(iter.index >= (index[i] &~ mask));
- 			assert(iter.index <= (index[i] | mask));
- 			assert(iter.shift == shift);
-+			assert(!radix_tree_is_internal_node(item));
-+			assert(item->index >= (index[i] &~ mask));
-+			assert(item->index <= (index[i] | mask));
- 			i++;
- 		}
- 	}
-@@ -279,12 +283,16 @@ void multiorder_tagged_iteration(void)
- 		}
- 
- 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 1) {
-+			struct item *item = *slot;
- 			for (k = i; index[k] < tag_index[i]; k++)
- 				;
- 			mask = (1 << order[k]) - 1;
- 
- 			assert(iter.index >= (tag_index[i] &~ mask));
- 			assert(iter.index <= (tag_index[i] | mask));
-+			assert(!radix_tree_is_internal_node(item));
-+			assert(item->index >= (tag_index[i] &~ mask));
-+			assert(item->index <= (tag_index[i] | mask));
- 			i++;
- 		}
- 	}
-@@ -303,12 +311,16 @@ void multiorder_tagged_iteration(void)
- 		}
- 
- 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 2) {
-+			struct item *item = *slot;
- 			for (k = i; index[k] < tag_index[i]; k++)
- 				;
- 			mask = (1 << order[k]) - 1;
- 
- 			assert(iter.index >= (tag_index[i] &~ mask));
- 			assert(iter.index <= (tag_index[i] | mask));
-+			assert(!radix_tree_is_internal_node(item));
-+			assert(item->index >= (tag_index[i] &~ mask));
-+			assert(item->index <= (tag_index[i] | mask));
- 			i++;
- 		}
- 	}
-diff --git a/tools/testing/radix-tree/regression3.c b/tools/testing/radix-tree/regression3.c
-index 1f06ed7..4d28eeb 100644
---- a/tools/testing/radix-tree/regression3.c
-+++ b/tools/testing/radix-tree/regression3.c
-@@ -88,7 +88,7 @@ void regression3_test(void)
- 		printf("slot %ld %p\n", iter.index, *slot);
- 		if (!iter.index) {
- 			printf("next at %ld\n", iter.index);
--			slot = radix_tree_iter_next(&iter);
-+			slot = radix_tree_iter_next(slot, &iter);
- 		}
- 	}
- 
-@@ -96,7 +96,7 @@ void regression3_test(void)
- 		printf("contig %ld %p\n", iter.index, *slot);
- 		if (!iter.index) {
- 			printf("next at %ld\n", iter.index);
--			slot = radix_tree_iter_next(&iter);
-+			slot = radix_tree_iter_next(slot, &iter);
- 		}
- 	}
- 
-@@ -106,7 +106,7 @@ void regression3_test(void)
- 		printf("tagged %ld %p\n", iter.index, *slot);
- 		if (!iter.index) {
- 			printf("next at %ld\n", iter.index);
--			slot = radix_tree_iter_next(&iter);
-+			slot = radix_tree_iter_next(slot, &iter);
- 		}
- 	}
- 
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index 33d2b6b..b678f13 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -43,6 +43,7 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag);
- extern int nr_allocated;
- 
- /* Normally private parts of lib/radix-tree.c */
-+struct radix_tree_node *entry_to_node(void *ptr);
- void radix_tree_dump(struct radix_tree_root *root);
- int root_tag_get(struct radix_tree_root *root, unsigned int tag);
- unsigned long node_maxindex(struct radix_tree_node *);
++static void __multiorder_join(unsigned long index,
++				unsigned order1, unsigned order2)
++{
++	unsigned long loc;
++	void *item, *item2 = item_create(index + 1);
++	RADIX_TREE(tree, GFP_KERNEL);
++
++	item_insert_order(&tree, index, order2);
++	item = radix_tree_lookup(&tree, index);
++	radix_tree_join(&tree, index + 1, order1, item2);
++	loc = radix_tree_locate_item(&tree, item);
++	if (loc == -1)
++		free(item);
++	item = radix_tree_lookup(&tree, index + 1);
++	assert(item == item2);
++	item_kill_tree(&tree);
++}
++
++static void multiorder_join(void)
++{
++	int i, j, idx;
++
++	for (idx = 0; idx < 1024; idx = idx * 2 + 3) {
++		for (i = 1; i < 15; i++) {
++			for (j = 0; j < i; j++) {
++				__multiorder_join(idx, i, j);
++			}
++		}
++	}
++}
++
+ void multiorder_checks(void)
+ {
+ 	int i;
+@@ -342,4 +373,5 @@ void multiorder_checks(void)
+ 	multiorder_tag_tests();
+ 	multiorder_iteration();
+ 	multiorder_tagged_iteration();
++	multiorder_join();
+ }
 -- 
 2.10.2
 
