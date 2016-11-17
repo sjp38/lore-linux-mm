@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4504B6B033B
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:52 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id y16so56955953wmd.6
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 11:11:52 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D2FC36B033C
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:54 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g23so57384796wme.4
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 11:11:54 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b124si4026829wmg.77.2016.11.17.11.11.50
+        by mx.google.com with ESMTPS id d7si4144445wjf.81.2016.11.17.11.11.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 11:11:51 -0800 (PST)
+        Thu, 17 Nov 2016 11:11:53 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 0/9] mm: workingset: radix tree subtleties & single-page file refaults v3
-Date: Thu, 17 Nov 2016 14:11:29 -0500
-Message-Id: <20161117191138.22769-1-hannes@cmpxchg.org>
+Subject: [PATCH 1/9] mm: khugepaged: close use-after-free race during shmem collapsing
+Date: Thu, 17 Nov 2016 14:11:30 -0500
+Message-Id: <20161117191138.22769-2-hannes@cmpxchg.org>
+In-Reply-To: <20161117191138.22769-1-hannes@cmpxchg.org>
+References: <20161117191138.22769-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-This is another revision of the radix tree / workingset patches based
-on feedback from Jan and Kirill. Thanks for your input.
+When a radix tree iteration drops the tree lock, another thread might
+swoop in and free the node holding the current slot. The iteration
+needs to do another tree lookup from the current index to continue.
 
-This is a follow-up to d3798ae8c6f3 ("mm: filemap: don't plant shadow
-entries without radix tree node"). That patch fixed an issue that was
-caused mainly by the page cache sneaking special shadow page entries
-into the radix tree and relying on subtleties in the radix tree code
-to make that work. The fix also had to stop tracking refaults for
-single-page files because shadow pages stored as direct pointers in
-radix_tree_root->rnode weren't properly handled during tree extension.
+[kirill.shutemov@linux.intel.com: re-lookup for replacement]
+Fixes: f3f0e1d2150b ("khugepaged: add support of collapse for tmpfs/shmem pages")
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/khugepaged.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-These patches make the radix tree code explicitely support and track
-such special entries, to eliminate the subtleties and to restore the
-thrash detection for single-page files.
-
-Changes since v2:
-- Shadow entry accounting and radix tree node tracking are fully gone
-  from the page cache code, making it much simpler and robust. Counts
-  are kept natively in the radix tree, node tracking is done from one
-  simple callback function in the workingset code. Thanks Jan.
-- One more radix tree fix in khugepaged's new shmem collapsing code.
-  Thanks Kirill and Jan.
-
- arch/s390/mm/gmap.c                   |   2 +-
- drivers/sh/intc/virq.c                |   2 +-
- fs/dax.c                              |  10 +-
- include/linux/radix-tree.h            |  34 ++--
- include/linux/swap.h                  |  34 +---
- lib/radix-tree.c                      | 297 ++++++++++++++++++++------------
- mm/filemap.c                          |  63 +------
- mm/khugepaged.c                       |  16 +-
- mm/migrate.c                          |   4 +-
- mm/shmem.c                            |   9 +-
- mm/truncate.c                         |  21 +--
- mm/workingset.c                       |  70 ++++++--
- tools/testing/radix-tree/multiorder.c |   2 +-
- 13 files changed, 292 insertions(+), 272 deletions(-)
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 728d7790dc2d..bdfdab40a813 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1401,6 +1401,9 @@ static void collapse_shmem(struct mm_struct *mm,
+ 
+ 		spin_lock_irq(&mapping->tree_lock);
+ 
++		slot = radix_tree_lookup_slot(&mapping->page_tree, index);
++		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
++					&mapping->tree_lock), page);
+ 		VM_BUG_ON_PAGE(page_mapped(page), page);
+ 
+ 		/*
+@@ -1424,6 +1427,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		radix_tree_replace_slot(slot,
+ 				new_page + (index % HPAGE_PMD_NR));
+ 
++		slot = radix_tree_iter_next(&iter);
+ 		index++;
+ 		continue;
+ out_lru:
+@@ -1535,6 +1539,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			putback_lru_page(page);
+ 			unlock_page(page);
+ 			spin_lock_irq(&mapping->tree_lock);
++			slot = radix_tree_iter_next(&iter);
+ 		}
+ 		VM_BUG_ON(nr_none);
+ 		spin_unlock_irq(&mapping->tree_lock);
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
