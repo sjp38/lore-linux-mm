@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C1B6B0362
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:53:49 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id i88so122926596pfk.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 13:53:49 -0800 (PST)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id q71si4856106pfj.175.2016.11.17.13.53.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D26706B0363
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:11:29 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g186so221287660pgc.2
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:29 -0800 (PST)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id g80si4933501pfg.11.2016.11.17.14.11.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 13:53:48 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20161019172917.GE1210@laptop.thejh.net>
-	<CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
-	<87pomwi5p2.fsf@xmission.com>
-	<CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
-	<87pomwghda.fsf@xmission.com>
-	<CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
-	<87twb6avk8.fsf_-_@xmission.com> <87inrmavax.fsf_-_@xmission.com>
-	<20161117204707.GB10421@1wt.eu>
-	<CAGXu5jJc6TmzdVp+4OMDAt5Kd68hHbNBXaRPD8X0+m558hx3qw@mail.gmail.com>
-	<20161117213258.GA10839@1wt.eu>
-Date: Thu, 17 Nov 2016 15:51:09 -0600
-In-Reply-To: <20161117213258.GA10839@1wt.eu> (Willy Tarreau's message of "Thu,
-	17 Nov 2016 22:32:59 +0100")
-Message-ID: <874m3522sy.fsf@xmission.com>
+        Thu, 17 Nov 2016 14:11:28 -0800 (PST)
+Received: by mail-pf0-x231.google.com with SMTP id d2so50977519pfd.0
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 14:11:28 -0800 (PST)
+Date: Thu, 17 Nov 2016 14:11:27 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, zone: track number of pages in free area by
+ migratetype
+In-Reply-To: <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
+Message-ID: <alpine.DEB.2.10.1611171405210.99747@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com> <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [REVIEW][PATCH 2/3] exec: Don't allow ptracing an exec of an unreadable file
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Willy Tarreau <w@1wt.eu>
-Cc: Kees Cook <keescook@chromium.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Andy Lutomirski <luto@amacapital.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Willy Tarreau <w@1wt.eu> writes:
+On Thu, 17 Nov 2016, Vlastimil Babka wrote:
 
-> On Thu, Nov 17, 2016 at 01:07:33PM -0800, Kees Cook wrote:
->> I'm not opposed to a sysctl for this. Regardless, I think we need to
->> embrace this idea now, though, since we'll soon end up with
->> architectures that enforce executable-only memory, in which case
->> ptrace will again fail. Almost better to get started here and then not
->> have more surprises later.
->
-> Also that makes me realize that by far the largest use case of ptrace
-> is strace and that strace needs very little capabilities. I guess that
-> most users would be fine with having only pointers and not contents
-> for addresses or read/write of data, as they have on some other OSes,
-> when the process is not readable. But in my opinion when a process
-> is executable we should be able to trace its execution (even without
-> memory read access).
+> > The total number of free pages is still tracked, however, to not make
+> > zone_watermark_ok() more expensive.  Reading /proc/pagetypeinfo, however,
+> > is faster.
+> 
+> Yeah I've already seen a case with /proc/pagetypeinfo causing soft
+> lockups due to high number of iterations...
+> 
 
-Given all of this I will respin this series with a replacement patch
-that adds a permission check ion the path where ptrace calls
-access_process_vm.
+Thanks for taking a look at the patchset!
 
-I avoided it because the patch is a bit larger and with full ptrace control
-is much better at leaking information.  Even if you can't read the
-data.  But ptrace works even if it won't give you the memory based
-arguments to system calls anymore.
+Wow, I haven't seen /proc/pagetypeinfo soft lockups yet, I thought this 
+was a relatively minor point :)  But it looks like we need some 
+improvement in this behavior independent of memory compaction anyway.
 
-Eric
+> > This patch introduces no functional change and increases the amount of
+> > per-zone metadata at worst by 48 bytes per memory zone (when CONFIG_CMA
+> > and CONFIG_MEMORY_ISOLATION are enabled).
+> 
+> Isn't it 48 bytes per zone and order?
+> 
+
+Yes, sorry, I'll fix that in v2.  I think less than half a kilobyte for 
+each memory zone is satisfactory for extra tracking, compaction 
+improvements, and optimized /proc/pagetypeinfo, though.
+
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> I'd be for this if there are no performance regressions. It affects hot
+> paths and increases cache footprint. I think at least some allocator
+> intensive microbenchmark should be used.
+> 
+
+I can easily implement a test to stress movable page allocations from 
+fallback MIGRATE_UNMOVABLE pageblocks and freeing back to the same 
+pageblocks.  I assume we're not interested in memory offline benchmarks.
+
+What do you think about the logic presented in patch 2/2?  Are you 
+comfortable with a hard-coded ratio such as 1/64th of free memory or would 
+you prefer to look at the zone's watermark with the number of free pages 
+from MIGRATE_MOVABLE pageblocks rather than NR_FREE_PAGES?  I was split 
+between the two options.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
