@@ -1,129 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 614446B035E
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:47:12 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so59622161wmf.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 13:47:12 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bz3si4645072wjc.141.2016.11.17.13.47.10
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 83D0E6B0360
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:50:07 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g23so59987535wme.4
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 13:50:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p123si13051638wmg.154.2016.11.17.13.50.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 13:47:11 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH] mm: workingset: update shadow limit to reflect bigger active list
-Date: Thu, 17 Nov 2016 16:47:01 -0500
-Message-Id: <20161117214701.29000-1-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 Nov 2016 13:50:06 -0800 (PST)
+Subject: Re: [Bug 186671] New: OOM on system with just rsync running 32GB of
+ ram 30GB of pagecache
+References: <bug-186671-27@https.bugzilla.kernel.org/>
+ <20161103115353.de87ff35756a4ca8b21d2c57@linux-foundation.org>
+ <b5b0cef0-8482-e4de-cb81-69a4dd3410fb@suse.cz>
+ <CAJtFHUQcJKSnyQ7t7-eDpiF2C+U23+iWpZ+X6fGEzN8qdbzmtA@mail.gmail.com>
+ <a8cf869e-f527-9c65-d16d-ac70cf66472a@suse.cz>
+ <CAJtFHUQgkvFaPdyRcoiV-m5hynDGo2qXfMXzZvGahoWp2LL_KA@mail.gmail.com>
+ <bbcd6cb7-3b73-02e9-0409-4601a6f573f5@suse.cz>
+ <CAJtFHUSka8nbaO5RNEcWVRi7VoQ7UORWkMu_7pNW3n_9iRRdew@mail.gmail.com>
+ <CAJtFHUTn9Ejvyj3vJkqnsLoa6gci104-TPu5viG=epfJ9Rk_qg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4c85dfa5-9dbe-ea3c-7816-1ab321931e1c@suse.cz>
+Date: Thu, 17 Nov 2016 22:49:54 +0100
+MIME-Version: 1.0
+In-Reply-To: <CAJtFHUTn9Ejvyj3vJkqnsLoa6gci104-TPu5viG=epfJ9Rk_qg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: E V <eliventer@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, linux-btrfs <linux-btrfs@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Since 59dc76b0d4df ("mm: vmscan: reduce size of inactive file list")
-the size of the active file list is no longer limited to half of
-memory. Increase the shadow node limit accordingly to avoid throwing
-out shadow entries that might still result in eligible refaults.
+On 11/16/2016 02:39 PM, E V wrote:
+> System panic'd overnight running 4.9rc5 & rsync. Attached a photo of
+> the stack trace, and the 38 call traces in a 2 minute window shortly
+> before, to the bugzilla case for those not on it's e-mail list:
+> 
+> https://bugzilla.kernel.org/show_bug.cgi?id=186671
 
-The exact size of the active list now depends on the overall size of
-the page cache, but converges toward taking up most of the space:
+The panic screenshot has only the last part, but the end marker says
+it's OOM with no killable processes. The DEBUG_VM config thus didn't
+trigger anything, and still there's tons of pagecache, mostly clean,
+that's not being reclaimed.
 
->From mm/vmscan.c::inactive_list_is_low(),
+Could you now try this?
+- enable CONFIG_PAGE_OWNER
+- boot with kernel option: page_owner=on
+- after the first oom, "cat /sys/kernel/debug/page_owner > file"
+- provide the file (compressed, it will be quite large)
 
- * total     target    max
- * memory    ratio     inactive
- * -------------------------------------
- *   10MB       1         5MB
- *  100MB       1        50MB
- *    1GB       3       250MB
- *   10GB      10       0.9GB
- *  100GB      31         3GB
- *    1TB     101        10GB
- *   10TB     320        32GB
-
-It would be possible to apply the same precise ratios when determining
-the limit for radix tree nodes containing shadow entries, but since it
-is merely an approximation of the oldest refault distances in the wild
-and the code also makes assumptions about the node population density,
-keep it simple and always target the full cache size.
-
-While at it, clarify the comment and the formula for memory footprint.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/workingset.c | 44 +++++++++++++++++++++++++-------------------
- 1 file changed, 25 insertions(+), 19 deletions(-)
-
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 111e06559892..02ab8746abde 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -369,40 +369,46 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
- {
- 	unsigned long max_nodes;
- 	unsigned long nodes;
--	unsigned long pages;
-+	unsigned long cache;
- 
- 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
- 	local_irq_disable();
- 	nodes = list_lru_shrink_count(&shadow_nodes, sc);
- 	local_irq_enable();
- 
--	if (memcg_kmem_enabled()) {
--		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
--						     LRU_ALL_FILE);
--	} else {
--		pages = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
--			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
--	}
--
- 	/*
--	 * Active cache pages are limited to 50% of memory, and shadow
--	 * entries that represent a refault distance bigger than that
--	 * do not have any effect.  Limit the number of shadow nodes
--	 * such that shadow entries do not exceed the number of active
--	 * cache pages, assuming a worst-case node population density
--	 * of 1/8th on average.
-+	 * Approximate a reasonable limit for the radix tree nodes
-+	 * containing shadow entries. We don't need to keep more
-+	 * shadow entries than possible pages on the active list,
-+	 * since refault distances bigger than that are dismissed.
-+	 *
-+	 * The size of the active list converges toward 100% of
-+	 * overall page cache as memory grows, with only a tiny
-+	 * inactive list. Assume the total cache size for that.
-+	 *
-+	 * Nodes might be sparsely populated, with only one shadow
-+	 * entry in the extreme case. Obviously, we cannot keep one
-+	 * node for every eligible shadow entry, so compromise on a
-+	 * worst-case density of 1/8th. Below that, not all eligible
-+	 * refaults can be detected anymore.
- 	 *
- 	 * On 64-bit with 7 radix_tree_nodes per page and 64 slots
- 	 * each, this will reclaim shadow entries when they consume
--	 * ~2% of available memory:
-+	 * ~1.8% of available memory:
- 	 *
--	 * PAGE_SIZE / radix_tree_nodes / node_entries / PAGE_SIZE
-+	 * PAGE_SIZE / radix_tree_nodes / node_entries * 8 / PAGE_SIZE
- 	 */
--	max_nodes = pages >> (1 + RADIX_TREE_MAP_SHIFT - 3);
-+	if (memcg_kmem_enabled()) {
-+		cache = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
-+						     LRU_ALL_FILE);
-+	} else {
-+		cache = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
-+			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
-+	}
-+	max_nodes = cache >> (RADIX_TREE_MAP_SHIFT - 3);
- 
- 	if (nodes <= max_nodes)
- 		return 0;
--
- 	return nodes - max_nodes;
- }
- 
--- 
-2.10.2
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
