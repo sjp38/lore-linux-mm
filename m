@@ -1,423 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3E56B0317
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 20:32:38 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y68so99586729pfb.6
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:38 -0800 (PST)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id i67si519988pfg.292.2016.11.16.17.32.37
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E8BF46B0319
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 00:35:01 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 83so103862612pfx.1
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 21:35:01 -0800 (PST)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id 7si1556791pgt.1.2016.11.16.21.35.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 17:32:37 -0800 (PST)
-Received: by mail-pf0-x22c.google.com with SMTP id c4so33883478pfb.1
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:32:37 -0800 (PST)
-Date: Wed, 16 Nov 2016 17:32:36 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] mm, compaction: avoid async compaction if most free
- memory is ineligible
-In-Reply-To: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1611161732180.17379@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
+        Wed, 16 Nov 2016 21:35:00 -0800 (PST)
+Received: by mail-pg0-x234.google.com with SMTP id p66so87614867pga.2
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 21:35:00 -0800 (PST)
+Date: Thu, 17 Nov 2016 14:34:24 +0900
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
+Message-ID: <20161117022023.GA5704@linaro.org>
+References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
+ <20161102045153.12008-1-takahiro.akashi@linaro.org>
+ <20161110172720.GB17134@arm.com>
+ <20161111025049.GG381@linaro.org>
+ <20161111031903.GB15997@arm.com>
+ <20161114055515.GH381@linaro.org>
+ <20161116163015.GM7928@arm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161116163015.GM7928@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Dennis Chen <dennis.chen@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.orgnd@arm.com
 
-Memory compaction will only migrate memory to MIGRATE_MOVABLE pageblocks
-for asynchronous compaction.
+Will,
 
-If most free memory on the system is not eligible for migration in this
-context, isolate_freepages() can take an extreme amount of time trying to
-find a free page.  For example, we have encountered the following
-scenario many times, specifically due to slab fragmentation:
+On Wed, Nov 16, 2016 at 04:30:15PM +0000, Will Deacon wrote:
+> Hi Akashi,
+> 
+> On Mon, Nov 14, 2016 at 02:55:16PM +0900, AKASHI Takahiro wrote:
+> > On Fri, Nov 11, 2016 at 11:19:04AM +0800, Dennis Chen wrote:
+> > > On Fri, Nov 11, 2016 at 11:50:50AM +0900, AKASHI Takahiro wrote:
+> > > > On Thu, Nov 10, 2016 at 05:27:20PM +0000, Will Deacon wrote:
+> > > > > On Wed, Nov 02, 2016 at 01:51:53PM +0900, AKASHI Takahiro wrote:
+> > > > > > +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> > > > > > +{
+> > > > > > +	int start_rgn, end_rgn;
+> > > > > > +	int i, ret;
+> > > > > > +
+> > > > > > +	if (!size)
+> > > > > > +		return;
+> > > > > > +
+> > > > > > +	ret = memblock_isolate_range(&memblock.memory, base, size,
+> > > > > > +						&start_rgn, &end_rgn);
+> > > > > > +	if (ret)
+> > > > > > +		return;
+> > > > > > +
+> > > > > > +	/* remove all the MAP regions */
+> > > > > > +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+> > > > > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > > > > > +			memblock_remove_region(&memblock.memory, i);
+> > > > > > +
+> > > > > > +	for (i = start_rgn - 1; i >= 0; i--)
+> > > > > > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> > > > > > +			memblock_remove_region(&memblock.memory, i);
+> > > > > > +
+> > > > > > +	/* truncate the reserved regions */
+> > > > > > +	memblock_remove_range(&memblock.reserved, 0, base);
+> > > > > > +	memblock_remove_range(&memblock.reserved,
+> > > > > > +			base + size, (phys_addr_t)ULLONG_MAX);
+> > > > > > +}
+> > > > > 
+> > > > > This duplicates a bunch of the logic in memblock_mem_limit_remove_map. Can
+> > > > > you not implement that in terms of your new, more general, function? e.g.
+> > > > > by passing base == 0, and size == limit?
+> > > > 
+> > > > Obviously it's possible.
+> > > > I actually talked to Dennis before about merging them,
+> > > > but he was against my idea.
+> > > >
+> > > Oops! I thought we have reached agreement in the thread:http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/442817.html
+> > > So feel free to do that as Will'll do
+> > 
+> > OK, but I found that the two functions have a bit different semantics
+> > in clipping memory range, in particular, when the range [base,base+size)
+> > goes across several regions with a gap.
+> > (This does not happen in my arm64 kdump, though.)
+> > That is, 'limit' in memblock_mem_limit_remove_map() means total size of
+> > available memory, while 'size' in memblock_cap_memory_range() indicates
+> > the size of _continuous_ memory range.
+> 
+> I thought limit was just a physical address, and then
 
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    0, zone   Normal, type    Unmovable  40000   3778      2      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type  Reclaimable     11      6      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Movable      1      1      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      0
+No, it's not.
 
-The compaction freeing scanner will end up scanning this entire zone,
-perhaps finding no memory free and terminating compaction after pages
-have already been isolated for migration.  It is unnecessary to even
-start async compaction in a scenario where free memory cannot be
-isolated as a migration target.
+> memblock_mem_limit_remove_map operated on the end of the nearest memblock?
 
-This patch does not deem async compaction to be suitable when 1/64th or
-less of free memory is from MIGRATE_MOVABLE pageblocks.  This heuristic
-is somewhat arbitrarily defined, but in the example above would easily
-trigger earlier when async compaction will become very expensive.
+No, but "max_addr" returned by __find_max_addr() is a physical address
+and the end address of memory of "limit" size in total.
 
-It would also be possible to check zone watermarks in
-__compaction_suitable() using the amount of MIGRATE_MOVABLE memory as
-an alternative.
+> You could leave the __find_max_addr call in memblock_mem_limit_remove_map,
+> given that I don't think you need/want it for memblock_cap_memory_range.
+> 
+> > So I added an extra argument, exact, to a common function to specify
+> > distinct behaviors. Confusing? Please see the patch below.
+> 
+> Oh yikes, this certainly wasn't what I had in mind! My observation was
+> just that memblock_mem_limit_remove_map(limit) does:
+> 
+> 
+>   1. memblock_isolate_range(limit - limit+ULLONG_MAX)
+>   2. memblock_remove_region(all non-nomap regions in the isolated region)
+>   3. truncate reserved regions to limit
+> 
+> and your memblock_cap_memory_range(base, size) does:
+> 
+>   1. memblock_isolate_range(base - base+size)
+>   2, memblock_remove_region(all non-nomap regions above and below the
+>      isolated region)
+>   3. truncate reserved regions around the isolated region
+> 
+> so, assuming we can invert the isolation in one of the cases, then they
+> could share the same underlying implementation.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- fs/buffer.c                |  2 +-
- include/linux/compaction.h |  8 ++++----
- include/linux/swap.h       |  3 ++-
- mm/compaction.c            | 49 +++++++++++++++++++++++++++++++++++++---------
- mm/internal.h              |  1 +
- mm/page_alloc.c            | 15 +++++++-------
- mm/vmscan.c                | 20 ++++++++++++++++---
- 7 files changed, 73 insertions(+), 25 deletions(-)
+Please see my simplified patch below which would explain what I meant.
+(Note that the size is calculated by 'max_addr - 0'.)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -268,7 +268,7 @@ static void free_more_memory(void)
- 						gfp_zone(GFP_NOFS), NULL);
- 		if (z->zone)
- 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
--						GFP_NOFS, NULL);
-+					  GFP_NOFS, MIN_COMPACT_PRIORITY, NULL);
- 	}
+> I'm probably just missing something here, because the patch you've ended
+> up with is far more involved than I anticipated...
+
+I hope that it will meet almost your anticipation.
+
+Thanks,
+-Takahiro AKASHI
+
+> 
+> Will
+===8<===
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 7608bc3..fea1688 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+ 			      (phys_addr_t)ULLONG_MAX);
  }
  
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -97,7 +97,7 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
- 		const struct alloc_context *ac, enum compact_priority prio);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern enum compact_result compaction_suitable(struct zone *zone, int order,
--		unsigned int alloc_flags, int classzone_idx);
-+		unsigned int alloc_flags, int classzone_idx, bool sync);
- 
- extern void defer_compaction(struct zone *zone, int order);
- extern bool compaction_deferred(struct zone *zone, int order);
-@@ -171,7 +171,7 @@ static inline bool compaction_withdrawn(enum compact_result result)
- 
- 
- bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
--					int alloc_flags);
-+				  int alloc_flags, enum compact_priority prio);
- 
- extern int kcompactd_run(int nid);
- extern void kcompactd_stop(int nid);
-@@ -182,8 +182,8 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
- {
- }
- 
--static inline enum compact_result compaction_suitable(struct zone *zone, int order,
--					int alloc_flags, int classzone_idx)
-+static inline enum compact_result compaction_suitable(struct zone *zone,
-+		int order, int alloc_flags, int classzone_idx, bool sync)
- {
- 	return COMPACT_SKIPPED;
- }
-diff --git a/include/linux/swap.h b/include/linux/swap.h
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -11,6 +11,7 @@
- #include <linux/fs.h>
- #include <linux/atomic.h>
- #include <linux/page-flags.h>
-+#include <linux/compaction.h>
- #include <asm/page.h>
- 
- struct notifier_block;
-@@ -315,7 +316,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
- extern unsigned long zone_reclaimable_pages(struct zone *zone);
- extern unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat);
- extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
--					gfp_t gfp_mask, nodemask_t *mask);
-+		gfp_t gfp_mask, enum compact_priority prio, nodemask_t *mask);
- extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 						  unsigned long nr_pages,
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1365,7 +1365,7 @@ static enum compact_result compact_finished(struct zone *zone,
- static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 					unsigned int alloc_flags,
- 					int classzone_idx,
--					unsigned long wmark_target)
-+					unsigned long wmark_target, bool sync)
- {
- 	unsigned long watermark;
- 
-@@ -1402,18 +1402,46 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 						ALLOC_CMA, wmark_target))
- 		return COMPACT_SKIPPED;
- 
-+	if (!sync) {
-+		unsigned long nr_movable_free_pages = 0;
-+		unsigned long nr_free_pages;
-+		int i;
++void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
++{
++	int start_rgn, end_rgn;
++	int i, ret;
 +
-+		for (i = 0; i < MAX_ORDER; i++) {
-+			nr_movable_free_pages +=
-+				zone->free_area[i].nr_free[MIGRATE_MOVABLE];
-+#ifdef CONFIG_CMA
-+			nr_movable_free_pages +=
-+				zone->free_area[i].nr_free[MIGRATE_CMA];
-+#endif
-+		}
-+		nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-+#ifdef CONFIG_CMA
-+		nr_free_pages += zone_page_state(zone, NR_FREE_CMA_PAGES);
-+#endif
-+		/*
-+		 * Page migration can only migrate pages to MIGRATE_MOVABLE or
-+		 * MIGRATE_CMA pageblocks for async compaction.  If the amount
-+		 * of ineligible pageblocks substantially outweighs the amount
-+		 * of eligible pageblocks, do not attempt compaction since it
-+		 * will be unnecessarily expensive.
-+		 */
-+		if (nr_movable_free_pages <= (nr_free_pages / 64))
-+			return COMPACT_SKIPPED;
-+	}
++	if (!size)
++		return;
 +
- 	return COMPACT_CONTINUE;
- }
- 
- enum compact_result compaction_suitable(struct zone *zone, int order,
- 					unsigned int alloc_flags,
--					int classzone_idx)
-+					int classzone_idx, bool sync)
- {
- 	enum compact_result ret;
- 	int fragindex;
- 
- 	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
--				    zone_page_state(zone, NR_FREE_PAGES));
-+				    zone_page_state(zone, NR_FREE_PAGES), sync);
- 	/*
- 	 * fragmentation index determines if allocation failures are due to
- 	 * low memory or external fragmentation
-@@ -1444,7 +1472,7 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
- }
- 
- bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
--		int alloc_flags)
-+				  int alloc_flags, enum compact_priority prio)
- {
- 	struct zone *zone;
- 	struct zoneref *z;
-@@ -1467,7 +1495,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 		available = zone_reclaimable_pages(zone) / order;
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
- 		compact_result = __compaction_suitable(zone, order, alloc_flags,
--				ac_classzone_idx(ac), available);
-+				ac_classzone_idx(ac), available, prio);
- 		if (compact_result != COMPACT_SKIPPED)
- 			return true;
- 	}
-@@ -1484,7 +1512,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
- 
- 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
--							cc->classzone_idx);
-+				  cc->classzone_idx, sync);
- 	/* Compaction is likely to fail */
- 	if (ret == COMPACT_SUCCESS || ret == COMPACT_SKIPPED)
- 		return ret;
-@@ -1860,13 +1888,16 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
- 	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
- 
- 	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
-+		enum compact_result result;
++	ret = memblock_isolate_range(&memblock.memory, base, size,
++						&start_rgn, &end_rgn);
++	if (ret)
++		return;
 +
- 		zone = &pgdat->node_zones[zoneid];
- 
- 		if (!populated_zone(zone))
- 			continue;
- 
--		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
--					classzone_idx) == COMPACT_CONTINUE)
-+		result = compaction_suitable(zone, pgdat->kcompactd_max_order,
-+					     0, classzone_idx, true);
-+		if (result == COMPACT_CONTINUE)
- 			return true;
- 	}
- 
-@@ -1903,7 +1934,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		if (compaction_deferred(zone, cc.order))
- 			continue;
- 
--		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
-+		if (compaction_suitable(zone, cc.order, 0, zoneid, true) !=
- 							COMPACT_CONTINUE)
- 			continue;
- 
-diff --git a/mm/internal.h b/mm/internal.h
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -451,6 +451,7 @@ extern unsigned long  __must_check vm_mmap_pgoff(struct file *, unsigned long,
- 
- extern void set_pageblock_order(void);
- unsigned long reclaim_clean_pages_from_list(struct zone *zone,
-+					    enum migrate_mode mode,
- 					    struct list_head *page_list);
- /* The ALLOC_WMARK bits are used as an index to zone->watermark */
- #define ALLOC_WMARK_MIN		WMARK_MIN
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3217,7 +3217,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
- 	 * compaction.
- 	 */
- 	if (compaction_withdrawn(compact_result))
--		return compaction_zonelist_suitable(ac, order, alloc_flags);
-+		return compaction_zonelist_suitable(ac, order, alloc_flags,
-+						    *compact_priority);
- 
- 	/*
- 	 * !costly requests are much more important than __GFP_REPEAT
-@@ -3287,7 +3288,7 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
- /* Perform direct synchronous page reclaim */
- static int
- __perform_reclaim(gfp_t gfp_mask, unsigned int order,
--					const struct alloc_context *ac)
-+		  const struct alloc_context *ac, enum compact_priority prio)
- {
- 	struct reclaim_state reclaim_state;
- 	int progress;
-@@ -3301,7 +3302,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
- 	reclaim_state.reclaimed_slab = 0;
- 	current->reclaim_state = &reclaim_state;
- 
--	progress = try_to_free_pages(ac->zonelist, order, gfp_mask,
-+	progress = try_to_free_pages(ac->zonelist, order, gfp_mask, prio,
- 								ac->nodemask);
- 
- 	current->reclaim_state = NULL;
-@@ -3317,12 +3318,12 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
- static inline struct page *
- __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 		unsigned int alloc_flags, const struct alloc_context *ac,
--		unsigned long *did_some_progress)
-+		enum compact_priority prio, unsigned long *did_some_progress)
- {
- 	struct page *page = NULL;
- 	bool drained = false;
- 
--	*did_some_progress = __perform_reclaim(gfp_mask, order, ac);
-+	*did_some_progress = __perform_reclaim(gfp_mask, order, ac, prio);
- 	if (unlikely(!(*did_some_progress)))
- 		return NULL;
- 
-@@ -3666,7 +3667,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
--							&did_some_progress);
-+					compact_priority, &did_some_progress);
- 	if (page)
- 		goto got_pg;
- 
-@@ -7191,7 +7192,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 			break;
- 		}
- 
--		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone,
-+		nr_reclaimed = reclaim_clean_pages_from_list(cc->zone, cc->mode,
- 							&cc->migratepages);
- 		cc->nr_migratepages -= nr_reclaimed;
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -84,6 +84,8 @@ struct scan_control {
- 	/* Scan (total_size >> priority) pages at once */
- 	int priority;
- 
-+	enum compact_priority compact_priority;
++	/* remove all the MAP regions */
++	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
++		if (!memblock_is_nomap(&memblock.memory.regions[i]))
++			memblock_remove_region(&memblock.memory, i);
 +
- 	/* The highest zone to isolate pages for reclaim from */
- 	enum zone_type reclaim_idx;
++	for (i = start_rgn - 1; i >= 0; i--)
++		if (!memblock_is_nomap(&memblock.memory.regions[i]))
++			memblock_remove_region(&memblock.memory, i);
++
++	/* truncate the reserved regions */
++	memblock_remove_range(&memblock.reserved, 0, base);
++	memblock_remove_range(&memblock.reserved,
++			base + size, (phys_addr_t)ULLONG_MAX);
++}
++
+ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+ {
+-	struct memblock_type *type = &memblock.memory;
+ 	phys_addr_t max_addr;
+-	int i, ret, start_rgn, end_rgn;
  
-@@ -1275,11 +1277,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 	if (!limit)
+ 		return;
+@@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+ 	if (max_addr == (phys_addr_t)ULLONG_MAX)
+ 		return;
+ 
+-	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
+-				&start_rgn, &end_rgn);
+-	if (ret)
+-		return;
+-
+-	/* remove all the MAP regions above the limit */
+-	for (i = end_rgn - 1; i >= start_rgn; i--) {
+-		if (!memblock_is_nomap(&type->regions[i]))
+-			memblock_remove_region(type, i);
+-	}
+-	/* truncate the reserved regions */
+-	memblock_remove_range(&memblock.reserved, max_addr,
+-			      (phys_addr_t)ULLONG_MAX);
++	memblock_cap_memory_range(0, max_addr);
  }
  
- unsigned long reclaim_clean_pages_from_list(struct zone *zone,
-+					    enum migrate_mode mode,
- 					    struct list_head *page_list)
- {
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.priority = DEF_PRIORITY,
-+		.compact_priority = mode == MIGRATE_ASYNC ?
-+				    COMPACT_PRIO_ASYNC :
-+				    COMPACT_PRIO_SYNC_LIGHT,
- 		.may_unmap = 1,
- 	};
- 	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
-@@ -2500,7 +2506,8 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 		if (!managed_zone(zone))
- 			continue;
- 
--		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx)) {
-+		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx,
-+					    sc->compact_priority)) {
- 		case COMPACT_SUCCESS:
- 		case COMPACT_CONTINUE:
- 			return false;
-@@ -2613,7 +2620,8 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
- 	unsigned long watermark;
- 	enum compact_result suitable;
- 
--	suitable = compaction_suitable(zone, sc->order, 0, sc->reclaim_idx);
-+	suitable = compaction_suitable(zone, sc->order, 0, sc->reclaim_idx,
-+				       sc->compact_priority);
- 	if (suitable == COMPACT_SUCCESS)
- 		/* Allocation should succeed already. Don't reclaim. */
- 		return true;
-@@ -2942,7 +2950,8 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- }
- 
- unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
--				gfp_t gfp_mask, nodemask_t *nodemask)
-+				gfp_t gfp_mask, enum compact_priority prio,
-+				nodemask_t *nodemask)
- {
- 	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
-@@ -2952,6 +2961,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.order = order,
- 		.nodemask = nodemask,
- 		.priority = DEF_PRIORITY,
-+		.compact_priority = prio,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-@@ -3032,6 +3042,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 		.reclaim_idx = MAX_NR_ZONES - 1,
- 		.target_mem_cgroup = memcg,
- 		.priority = DEF_PRIORITY,
-+		.compact_priority = DEF_COMPACT_PRIORITY,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = may_swap,
-@@ -3203,6 +3214,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 		.gfp_mask = GFP_KERNEL,
- 		.order = order,
- 		.priority = DEF_PRIORITY,
-+		.compact_priority = DEF_COMPACT_PRIORITY,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-@@ -3536,6 +3548,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
- 		.reclaim_idx = MAX_NR_ZONES - 1,
- 		.priority = DEF_PRIORITY,
-+		.compact_priority = DEF_COMPACT_PRIORITY,
- 		.may_writepage = 1,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-@@ -3724,6 +3737,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
- 		.order = order,
- 		.priority = NODE_RECLAIM_PRIORITY,
-+		.compact_priority = DEF_COMPACT_PRIORITY,
- 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
- 		.may_swap = 1,
+ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
