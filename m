@@ -1,120 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A256B02CE
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:40 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id b123so74847069itb.3
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:40 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 50D6C6B02D0
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:43 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id o1so73025337ito.7
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:43 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id v129si230723itd.79.2016.11.16.14.24.04
+        by mx.google.com with ESMTPS id o80si248772ito.31.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 25/29] rxrpc: Abstract away knowledge of IDR internals
-Date: Wed, 16 Nov 2016 16:17:29 -0800
-Message-Id: <1479341856-30320-65-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 06/29] radix tree test suite: benchmark for iterator
+Date: Wed, 16 Nov 2016 16:16:32 -0800
+Message-Id: <1479341856-30320-8-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
 
-Add idr_get_cursor() / idr_set_cursor() APIs, and remove the rounding
-up to IDR_SIZE.
+This adds simple benchmark for iterator similar to one I've used for
+commit 78c1d78 ("radix-tree: introduce bit-optimized iterator")
 
+Building with make BENCHMARK=1 set radix tree order to 6, this allows
+to get performance comparable to in kernel performance.
+
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/idr.h     | 26 ++++++++++++++++++++++++++
- net/rxrpc/af_rxrpc.c    | 11 ++++++-----
- net/rxrpc/conn_client.c |  4 ++--
- 3 files changed, 34 insertions(+), 7 deletions(-)
+ tools/testing/radix-tree/Makefile       |  6 +-
+ tools/testing/radix-tree/benchmark.c    | 98 +++++++++++++++++++++++++++++++++
+ tools/testing/radix-tree/linux/kernel.h |  4 ++
+ tools/testing/radix-tree/main.c         |  2 +
+ tools/testing/radix-tree/test.h         |  1 +
+ 5 files changed, 110 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/radix-tree/benchmark.c
 
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 3639a28..1eb755f 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -56,6 +56,32 @@ struct idr {
- #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 3c338dc..08283a8 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -4,7 +4,11 @@ LDFLAGS += -lpthread -lurcu
+ TARGETS = main
+ OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
+ 	 regression1.o regression2.o regression3.o multiorder.o \
+-	 iteration_check.o
++	 iteration_check.o benchmark.o
++
++ifdef BENCHMARK
++	CFLAGS += -DBENCHMARK=1
++endif
  
- /**
-+ * idr_get_cursor - Return the current position of the cyclic allocator
-+ * @idr: idr handle
+ targets: $(TARGETS)
+ 
+diff --git a/tools/testing/radix-tree/benchmark.c b/tools/testing/radix-tree/benchmark.c
+new file mode 100644
+index 0000000..215ca86
+--- /dev/null
++++ b/tools/testing/radix-tree/benchmark.c
+@@ -0,0 +1,98 @@
++/*
++ * benchmark.c:
++ * Author: Konstantin Khlebnikov <koct9i@gmail.com>
 + *
-+ * The value returned is the value that will be next returned from
-+ * idr_alloc_cyclic() if it is free (otherwise the search will start from
-+ * this position).
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
 + */
-+static inline unsigned int idr_get_cursor(struct idr *idr)
++#include <linux/radix-tree.h>
++#include <linux/slab.h>
++#include <linux/errno.h>
++#include <time.h>
++#include "test.h"
++
++#define NSEC_PER_SEC	1000000000L
++
++static long long benchmark_iter(struct radix_tree_root *root, bool tagged)
 +{
-+	return READ_ONCE(idr->cur);
++	volatile unsigned long sink = 0;
++	struct radix_tree_iter iter;
++	struct timespec start, finish;
++	long long nsec;
++	int l, loops = 1;
++	void **slot;
++
++#ifdef BENCHMARK
++again:
++#endif
++	clock_gettime(CLOCK_MONOTONIC, &start);
++	for (l = 0; l < loops; l++) {
++		if (tagged) {
++			radix_tree_for_each_tagged(slot, root, &iter, 0, 0)
++				sink ^= (unsigned long)slot;
++		} else {
++			radix_tree_for_each_slot(slot, root, &iter, 0)
++				sink ^= (unsigned long)slot;
++		}
++	}
++	clock_gettime(CLOCK_MONOTONIC, &finish);
++
++	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
++	       (finish.tv_nsec - start.tv_nsec);
++
++#ifdef BENCHMARK
++	if (loops == 1 && nsec * 5 < NSEC_PER_SEC) {
++		loops = NSEC_PER_SEC / nsec / 4 + 1;
++		goto again;
++	}
++#endif
++
++	nsec /= loops;
++	return nsec;
 +}
 +
-+/**
-+ * idr_set_cursor - Set the current position of the cyclic allocator
-+ * @idr: idr handle
-+ * @val: new position
-+ *
-+ * The next call to idr_alloc_cyclic() will return @val if it is free
-+ * (otherwise the search will start from this position).
-+ */
-+static inline void idr_set_cursor(struct idr *idr, unsigned int val)
++static void benchmark_size(unsigned long size, unsigned long step, int order)
 +{
-+	WRITE_ONCE(idr->cur, val);
++	RADIX_TREE(tree, GFP_KERNEL);
++	long long normal, tagged;
++	unsigned long index;
++
++	for (index = 0 ; index < size ; index += step) {
++		item_insert_order(&tree, index, order);
++		radix_tree_tag_set(&tree, index, 0);
++	}
++
++	tagged = benchmark_iter(&tree, true);
++	normal = benchmark_iter(&tree, false);
++
++	printf("Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
++		size, step, order, tagged, normal);
++
++	item_kill_tree(&tree);
++	rcu_barrier();
 +}
 +
-+/**
-  * DOC: idr sync
-  * idr synchronization (stolen from radix-tree.h)
-  *
-diff --git a/net/rxrpc/af_rxrpc.c b/net/rxrpc/af_rxrpc.c
-index 2d59c9b..5f63f6d 100644
---- a/net/rxrpc/af_rxrpc.c
-+++ b/net/rxrpc/af_rxrpc.c
-@@ -762,16 +762,17 @@ static const struct net_proto_family rxrpc_family_ops = {
- static int __init af_rxrpc_init(void)
- {
- 	int ret = -1;
-+	unsigned int tmp;
++void benchmark(void)
++{
++	unsigned long size[] = {1 << 10, 1 << 20, 0};
++	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
++				128, 256, 512, 12345, 0};
++	int c, s;
++
++	printf("starting benchmarks\n");
++	printf("RADIX_TREE_MAP_SHIFT = %d\n", RADIX_TREE_MAP_SHIFT);
++
++	for (c = 0; size[c]; c++)
++		for (s = 0; step[s]; s++)
++			benchmark_size(size[c], step[s], 0);
++
++	for (c = 0; size[c]; c++)
++		for (s = 0; step[s]; s++)
++			benchmark_size(size[c], step[s] << 9, 9);
++}
+diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
+index be98a47..dbe4b92 100644
+--- a/tools/testing/radix-tree/linux/kernel.h
++++ b/tools/testing/radix-tree/linux/kernel.h
+@@ -10,7 +10,11 @@
+ #include "../../include/linux/compiler.h"
+ #include "../../../include/linux/kconfig.h"
  
- 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
++#ifdef BENCHMARK
++#define RADIX_TREE_MAP_SHIFT	6
++#else
+ #define RADIX_TREE_MAP_SHIFT	3
++#endif
  
- 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
- 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
--	get_random_bytes(&rxrpc_client_conn_ids.cur,
--			 sizeof(rxrpc_client_conn_ids.cur));
--	rxrpc_client_conn_ids.cur &= 0x3fffffff;
--	if (rxrpc_client_conn_ids.cur == 0)
--		rxrpc_client_conn_ids.cur = 1;
-+	get_random_bytes(&tmp, sizeof(tmp));
-+	tmp &= 0x3fffffff;
-+	if (tmp == 0)
-+		tmp = 1;
-+	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
+ #ifndef NULL
+ #define NULL	0
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 5ddec8e..f43706c 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -352,6 +352,8 @@ int main(int argc, char **argv)
+ 	/* Free any remaining preallocated nodes */
+ 	radix_tree_callback(NULL, CPU_DEAD, NULL);
  
- 	ret = -ENOMEM;
- 	rxrpc_call_jar = kmem_cache_create(
-diff --git a/net/rxrpc/conn_client.c b/net/rxrpc/conn_client.c
-index 60ef960..9706f60 100644
---- a/net/rxrpc/conn_client.c
-+++ b/net/rxrpc/conn_client.c
-@@ -263,12 +263,12 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
- 	 * times the maximum number of client conns away from the current
- 	 * allocation point to try and keep the IDs concentrated.
- 	 */
--	id_cursor = READ_ONCE(rxrpc_client_conn_ids.cur);
-+	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
- 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
- 	distance = id - id_cursor;
- 	if (distance < 0)
- 		distance = -distance;
--	limit = round_up(rxrpc_max_client_connections, IDR_SIZE) * 4;
-+	limit = rxrpc_max_client_connections * 4;
- 	if (distance > limit)
- 		goto mark_dont_reuse;
++	benchmark();
++
+ 	sleep(1);
+ 	printf("after sleep(1): %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
+index 8cd666a..f2dc35f 100644
+--- a/tools/testing/radix-tree/test.h
++++ b/tools/testing/radix-tree/test.h
+@@ -30,6 +30,7 @@ void item_kill_tree(struct radix_tree_root *root);
+ void tag_check(void);
+ void multiorder_checks(void);
+ void iteration_test(void);
++void benchmark(void);
  
+ struct item *
+ item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
 -- 
 2.10.2
 
