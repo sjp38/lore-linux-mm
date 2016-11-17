@@ -1,58 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A69A66B02A2
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BDEEF6B029C
 	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:05 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id n68so71750135itn.4
+Received: by mail-it0-f72.google.com with SMTP id q186so73979170itb.0
         for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:05 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id q200si235460iod.156.2016.11.16.14.24.04
+Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
+        by mx.google.com with ESMTPS id k16si6746378itk.36.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 26/29] idr: Reduce the number of bits per level from 8 to 6
-Date: Wed, 16 Nov 2016 16:17:30 -0800
-Message-Id: <1479341856-30320-66-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 07/29] radix tree test suite: Use rcu_barrier
+Date: Wed, 16 Nov 2016 16:17:09 -0800
+Message-Id: <1479341856-30320-45-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-In preparation for merging the IDR and radix tree, reduce the fanout at
-each level from 256 to 64.  If this causes a performance problem then
-a bisect will point to this commit, and we'll have a better idea about
-what we might do to fix it.
+Calling rcu_barrier() allows all of the rcu-freed memory to be actually
+returned to the pool, and allows nr_allocated to return to 0.  As well
+as allowing diffs between runs to be more useful, it also lets us
+pinpoint leaks more effectively.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/idr.h | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ tools/testing/radix-tree/main.c      | 12 ++++++++++--
+ tools/testing/radix-tree/tag_check.c |  5 +++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 1eb755f..3c01b89 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -18,12 +18,11 @@
- #include <linux/rcupdate.h>
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index f43706c..8621542 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
+ 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	multiorder_checks();
++	rcu_barrier();
+ 	printf("after multiorder_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	locate_check();
++	rcu_barrier();
+ 	printf("after locate_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	tag_check();
++	rcu_barrier();
+ 	printf("after tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	gang_check();
++	rcu_barrier();
+ 	printf("after gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	add_and_check();
++	rcu_barrier();
+ 	printf("after add_and_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	dynamic_height_check();
++	rcu_barrier();
+ 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	big_gang_check(long_run);
++	rcu_barrier();
+ 	printf("after big_gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
+ 		printf("%d ", i);
+ 		fflush(stdout);
+ 	}
++	rcu_barrier();
+ 	printf("after copy_tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ }
+@@ -354,8 +362,8 @@ int main(int argc, char **argv)
  
- /*
-- * We want shallower trees and thus more bits covered at each layer.  8
-- * bits gives us large enough first layer for most use cases and maximum
-- * tree depth of 4.  Each idr_layer is slightly larger than 2k on 64bit and
-- * 1k on 32bit.
-+ * Using 6 bits at each layer allows us to allocate 7 layers out of each page.
-+ * 8 bits only gave us 3 layers out of every pair of pages, which is less
-+ * efficient except for trees with a largest element between 192-255 inclusive.
-  */
--#define IDR_BITS 8
-+#define IDR_BITS 6
- #define IDR_SIZE (1 << IDR_BITS)
- #define IDR_MASK ((1 << IDR_BITS)-1)
+ 	benchmark();
  
+-	sleep(1);
+-	printf("after sleep(1): %d allocated, preempt %d\n",
++	rcu_barrier();
++	printf("after rcu_barrier: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	rcu_unregister_thread();
+ 
+diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
+index b0ac057..186f6e4 100644
+--- a/tools/testing/radix-tree/tag_check.c
++++ b/tools/testing/radix-tree/tag_check.c
+@@ -51,6 +51,7 @@ void simple_checks(void)
+ 	verify_tag_consistency(&tree, 1);
+ 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
+ 	item_kill_tree(&tree);
++	rcu_barrier();
+ 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
+ }
+ 
+@@ -331,12 +332,16 @@ void tag_check(void)
+ 	single_check();
+ 	extend_checks();
+ 	contract_checks();
++	rcu_barrier();
+ 	printf("after extend_checks: %d allocated\n", nr_allocated);
+ 	__leak_check();
+ 	leak_check();
++	rcu_barrier();
+ 	printf("after leak_check: %d allocated\n", nr_allocated);
+ 	simple_checks();
++	rcu_barrier();
+ 	printf("after simple_checks: %d allocated\n", nr_allocated);
+ 	thrash_tags();
++	rcu_barrier();
+ 	printf("after thrash_tags: %d allocated\n", nr_allocated);
+ }
 -- 
 2.10.2
 
