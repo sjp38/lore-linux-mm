@@ -1,107 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CEC76B0293
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1DB6B0294
 	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:24:04 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id n68so71748952itn.4
+Received: by mail-it0-f70.google.com with SMTP id o1so72927693ito.7
         for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:24:04 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id y15si221447ioe.241.2016.11.16.14.24.03
+        by mx.google.com with ESMTPS id n124si257964iof.45.2016.11.16.14.24.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:03 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 02/29] radix tree test suite: Allow GFP_ATOMIC allocations to fail
-Date: Wed, 16 Nov 2016 16:16:27 -0800
-Message-Id: <1479341856-30320-3-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 03/29] radix tree test suite: Track preempt_count
+Date: Wed, 16 Nov 2016 16:16:28 -0800
+Message-Id: <1479341856-30320-4-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <willy@infradead.org>
 
-In order to test the preload code, it is necessary to fail GFP_ATOMIC
-allocations, which requires defining GFP_KERNEL and GFP_ATOMIC properly.
-Remove the obsolete __GFP_WAIT and copy the definitions of the __GFP
-flags which are used from the kernel include files.  We also need the
-real definition of gfpflags_allow_blocking() to persuade the radix tree
-to actually use its preallocated nodes.
+Rather than simply NOP out preempt_enable() and preempt_disable(),
+keep track of preempt_count and display it regularly in case either
+the test suite or the code under test is forgetting to balance the
+enables & disables.  Only found a test-case that was forgetting to
+re-enable preemption, but it's a possibility worth checking.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- tools/testing/radix-tree/linux.c      |  7 ++++++-
- tools/testing/radix-tree/linux/gfp.h  | 22 +++++++++++++++++++---
- tools/testing/radix-tree/linux/slab.h |  5 -----
- 3 files changed, 25 insertions(+), 9 deletions(-)
+ tools/testing/radix-tree/linux.c         |  1 +
+ tools/testing/radix-tree/linux/preempt.h |  6 +++---
+ tools/testing/radix-tree/main.c          | 30 ++++++++++++++++++++----------
+ 3 files changed, 24 insertions(+), 13 deletions(-)
 
 diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
-index 1548237..3cfb04e 100644
+index 3cfb04e..1f32a16 100644
 --- a/tools/testing/radix-tree/linux.c
 +++ b/tools/testing/radix-tree/linux.c
-@@ -33,7 +33,12 @@ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+@@ -9,6 +9,7 @@
+ #include <urcu/uatomic.h>
  
- void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
+ int nr_allocated;
++int preempt_count;
+ 
+ void *mempool_alloc(mempool_t *pool, int gfp_mask)
  {
--	void *ret = malloc(cachep->size);
-+	void *ret;
-+
-+	if (flags & __GFP_NOWARN)
-+		return NULL;
-+
-+	ret = malloc(cachep->size);
- 	if (cachep->ctor)
- 		cachep->ctor(ret);
- 	uatomic_inc(&nr_allocated);
-diff --git a/tools/testing/radix-tree/linux/gfp.h b/tools/testing/radix-tree/linux/gfp.h
-index 5201b91..5b09b2c 100644
---- a/tools/testing/radix-tree/linux/gfp.h
-+++ b/tools/testing/radix-tree/linux/gfp.h
-@@ -3,8 +3,24 @@
+diff --git a/tools/testing/radix-tree/linux/preempt.h b/tools/testing/radix-tree/linux/preempt.h
+index 6210672..65c04c2 100644
+--- a/tools/testing/radix-tree/linux/preempt.h
++++ b/tools/testing/radix-tree/linux/preempt.h
+@@ -1,4 +1,4 @@
+-/* */
++extern int preempt_count;
  
- #define __GFP_BITS_SHIFT 26
- #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
--#define __GFP_WAIT 1
--#define __GFP_ACCOUNT 0
--#define __GFP_NOWARN 0
-+
-+#define __GFP_HIGH		0x20u
-+#define __GFP_IO		0x40u
-+#define __GFP_FS		0x80u
-+#define __GFP_NOWARN		0x200u
-+#define __GFP_ATOMIC		0x80000u
-+#define __GFP_ACCOUNT		0x100000u
-+#define __GFP_DIRECT_RECLAIM	0x400000u
-+#define __GFP_KSWAPD_RECLAIM	0x2000000u
-+
-+#define __GFP_RECLAIM		(__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
-+
-+#define GFP_ATOMIC		(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
-+#define GFP_KERNEL		(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
-+
-+static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-+{
-+	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
-+}
+-#define preempt_disable() do { } while (0)
+-#define preempt_enable() do { } while (0)
++#define preempt_disable()	uatomic_inc(&preempt_count)
++#define preempt_enable()	uatomic_dec(&preempt_count)
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index daa9010..64ffe67 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -293,27 +293,36 @@ static void single_thread_tests(bool long_run)
+ {
+ 	int i;
  
- #endif
-diff --git a/tools/testing/radix-tree/linux/slab.h b/tools/testing/radix-tree/linux/slab.h
-index 6d5a347..452e2bf 100644
---- a/tools/testing/radix-tree/linux/slab.h
-+++ b/tools/testing/radix-tree/linux/slab.h
-@@ -7,11 +7,6 @@
- #define SLAB_PANIC 2
- #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
+-	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
++	printf("starting single_thread_tests: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	multiorder_checks();
+-	printf("after multiorder_check: %d allocated\n", nr_allocated);
++	printf("after multiorder_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	locate_check();
+-	printf("after locate_check: %d allocated\n", nr_allocated);
++	printf("after locate_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	tag_check();
+-	printf("after tag_check: %d allocated\n", nr_allocated);
++	printf("after tag_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	gang_check();
+-	printf("after gang_check: %d allocated\n", nr_allocated);
++	printf("after gang_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	add_and_check();
+-	printf("after add_and_check: %d allocated\n", nr_allocated);
++	printf("after add_and_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	dynamic_height_check();
+-	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
++	printf("after dynamic_height_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	big_gang_check(long_run);
+-	printf("after big_gang_check: %d allocated\n", nr_allocated);
++	printf("after big_gang_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+ 		copy_tag_check();
+ 		printf("%d ", i);
+ 		fflush(stdout);
+ 	}
+-	printf("after copy_tag_check: %d allocated\n", nr_allocated);
++	printf("after copy_tag_check: %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ }
  
--static inline int gfpflags_allow_blocking(gfp_t mask)
--{
--	return 1;
--}
--
- struct kmem_cache {
- 	int size;
- 	void (*ctor)(void *);
+ int main(int argc, char **argv)
+@@ -336,7 +345,8 @@ int main(int argc, char **argv)
+ 	single_thread_tests(long_run);
+ 
+ 	sleep(1);
+-	printf("after sleep(1): %d allocated\n", nr_allocated);
++	printf("after sleep(1): %d allocated, preempt %d\n",
++		nr_allocated, preempt_count);
+ 	rcu_unregister_thread();
+ 
+ 	exit(0);
 -- 
 2.10.2
 
