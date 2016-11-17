@@ -1,68 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 049F86B02DC
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:50 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id g187so70587172itc.2
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:50 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id r21si238914itb.54.2016.11.16.14.24.05
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4898F6B02DE
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:54 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id l8so76635973iti.6
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:54 -0800 (PST)
+Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
+        by mx.google.com with ESMTPS id 141si234214itm.68.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 28/29] radix-tree: Create all_tag_set
-Date: Wed, 16 Nov 2016 16:17:35 -0800
-Message-Id: <1479341856-30320-71-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 19/29] radix tree test suite: iteration test misuses RCU
+Date: Wed, 16 Nov 2016 16:16:46 -0800
+Message-Id: <1479341856-30320-22-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-all_tag_set() sets every tag on a node.  This is useful for the IDR code
-when we're creating new nodes which contain only free slots.
+Each thread needs to register itself with RCU, otherwise the reading
+thread's read lock has no effect and the freeing thread will free the
+memory in the tree without waiting for the read lock to be dropped.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- lib/radix-tree.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ tools/testing/radix-tree/iteration_check.c | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index c8ef657..e063ca2 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -22,6 +22,8 @@
-  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-  */
+diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
+index 11d570c..df71cb8 100644
+--- a/tools/testing/radix-tree/iteration_check.c
++++ b/tools/testing/radix-tree/iteration_check.c
+@@ -29,6 +29,8 @@ static void *add_entries_fn(void *arg)
+ {
+ 	int pgoff;
  
-+#include <linux/bitmap.h>
-+#include <linux/bitops.h>
- #include <linux/errno.h>
- #include <linux/init.h>
- #include <linux/kernel.h>
-@@ -33,7 +35,6 @@
- #include <linux/notifier.h>
- #include <linux/cpu.h>
- #include <linux/string.h>
--#include <linux/bitops.h>
- #include <linux/rcupdate.h>
- #include <linux/preempt.h>		/* in_interrupt() */
++	rcu_register_thread();
++
+ 	while (!test_complete) {
+ 		for (pgoff = 0; pgoff < 100; pgoff++) {
+ 			pthread_mutex_lock(&tree_lock);
+@@ -38,6 +40,8 @@ static void *add_entries_fn(void *arg)
+ 		}
+ 	}
  
-@@ -184,6 +185,11 @@ static inline int any_tag_set(struct radix_tree_node *node, unsigned int tag)
- 	return 0;
++	rcu_unregister_thread();
++
+ 	return NULL;
  }
  
-+static inline void all_tag_set(struct radix_tree_node *node, unsigned int tag)
-+{
-+	bitmap_fill(node->tags[tag], RADIX_TREE_MAP_SIZE);
-+}
+@@ -53,6 +57,8 @@ static void *tagged_iteration_fn(void *arg)
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+ 
++	rcu_register_thread();
 +
- /**
-  * radix_tree_find_next_bit - find the next set bit in a memory region
-  *
+ 	while (!test_complete) {
+ 		rcu_read_lock();
+ 		radix_tree_for_each_tagged(slot, &tree, &iter, 0, TAG) {
+@@ -72,12 +78,18 @@ static void *tagged_iteration_fn(void *arg)
+ 				continue;
+ 			}
+ 
+-			if (rand_r(&seeds[0]) % 50 == 0)
++			if (rand_r(&seeds[0]) % 50 == 0) {
+ 				slot = radix_tree_iter_next(&iter);
++				rcu_read_unlock();
++				rcu_barrier();
++				rcu_read_lock();
++			}
+ 		}
+ 		rcu_read_unlock();
+ 	}
+ 
++	rcu_unregister_thread();
++
+ 	return NULL;
+ }
+ 
+@@ -93,6 +105,8 @@ static void *untagged_iteration_fn(void *arg)
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+ 
++	rcu_register_thread();
++
+ 	while (!test_complete) {
+ 		rcu_read_lock();
+ 		radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+@@ -112,12 +126,18 @@ static void *untagged_iteration_fn(void *arg)
+ 				continue;
+ 			}
+ 
+-			if (rand_r(&seeds[1]) % 50 == 0)
++			if (rand_r(&seeds[1]) % 50 == 0) {
+ 				slot = radix_tree_iter_next(&iter);
++				rcu_read_unlock();
++				rcu_barrier();
++				rcu_read_lock();
++			}
+ 		}
+ 		rcu_read_unlock();
+ 	}
+ 
++	rcu_unregister_thread();
++
+ 	return NULL;
+ }
+ 
+@@ -127,6 +147,8 @@ static void *untagged_iteration_fn(void *arg)
+  */
+ static void *remove_entries_fn(void *arg)
+ {
++	rcu_register_thread();
++
+ 	while (!test_complete) {
+ 		int pgoff;
+ 
+@@ -137,6 +159,8 @@ static void *remove_entries_fn(void *arg)
+ 		pthread_mutex_unlock(&tree_lock);
+ 	}
+ 
++	rcu_unregister_thread();
++
+ 	return NULL;
+ }
+ 
 -- 
 2.10.2
 
