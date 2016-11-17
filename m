@@ -1,96 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E22016B02B7
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:24 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id g187so70562177itc.2
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:24 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2426B02BB
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:25 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id l8so76607693iti.6
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:25 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id h24si258814ioi.35.2016.11.16.14.24.04
+        by mx.google.com with ESMTPS id v23si6755538ite.28.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 08/29] tools: Add more bitmap functions
-Date: Wed, 16 Nov 2016 16:17:11 -0800
-Message-Id: <1479341856-30320-47-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 04/29] radix tree test suite: Free preallocated nodes
+Date: Wed, 16 Nov 2016 16:17:05 -0800
+Message-Id: <1479341856-30320-41-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <willy@infradead.org>
 
-I need the following functions for the radix tree:
+It can be a source of mild concern when the test suite shows that we're
+leaking nodes.  While poring over the source code looking for leaks
+can lead to some fascinating bugs being discovered, sometimes the leak
+is simply that these nodes were preallocated and are sitting on the
+per-CPU list.  Free them by faking a CPU_DEAD event.
 
-bitmap_fill
-find_next_zero_bit
-bitmap_empty
-bitmap_full
-
-Copy the implementations from include/linux/bitmap.h and lib/find_bit.c
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- tools/include/linux/bitmap.h | 26 ++++++++++++++++++++++++++
- tools/lib/find_bit.c         |  8 ++++++++
- 2 files changed, 34 insertions(+)
+ tools/testing/radix-tree/main.c | 3 +++
+ tools/testing/radix-tree/test.h | 4 ++++
+ 2 files changed, 7 insertions(+)
 
-diff --git a/tools/include/linux/bitmap.h b/tools/include/linux/bitmap.h
-index 43c1c50..eef41d5 100644
---- a/tools/include/linux/bitmap.h
-+++ b/tools/include/linux/bitmap.h
-@@ -35,6 +35,32 @@ static inline void bitmap_zero(unsigned long *dst, int nbits)
- 	}
- }
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 64ffe67..2930560 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -344,6 +344,9 @@ int main(int argc, char **argv)
+ 	iteration_test();
+ 	single_thread_tests(long_run);
  
-+static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
-+{
-+	unsigned int nlongs = BITS_TO_LONGS(nbits);
-+	if (!small_const_nbits(nbits)) {
-+		unsigned int len = (nlongs - 1) * sizeof(unsigned long);
-+		memset(dst, 0xff,  len);
-+	}
-+	dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
-+}
++	/* Free any remaining preallocated nodes */
++	radix_tree_callback(NULL, CPU_DEAD, NULL);
 +
-+static inline int bitmap_empty(const unsigned long *src, unsigned nbits)
-+{
-+	if (small_const_nbits(nbits))
-+		return ! (*src & BITMAP_LAST_WORD_MASK(nbits));
-+
-+	return find_first_bit(src, nbits) == nbits;
-+}
-+
-+static inline int bitmap_full(const unsigned long *src, unsigned int nbits)
-+{
-+	if (small_const_nbits(nbits))
-+		return ! (~(*src) & BITMAP_LAST_WORD_MASK(nbits));
-+
-+	return find_first_zero_bit(src, nbits) == nbits;
-+}
-+
- static inline int bitmap_weight(const unsigned long *src, int nbits)
- {
- 	if (small_const_nbits(nbits))
-diff --git a/tools/lib/find_bit.c b/tools/lib/find_bit.c
-index 9122a9e..de26b6f 100644
---- a/tools/lib/find_bit.c
-+++ b/tools/lib/find_bit.c
-@@ -66,6 +66,14 @@ unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
- }
- #endif
+ 	sleep(1);
+ 	printf("after sleep(1): %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
+index 217fb24..8cd666a 100644
+--- a/tools/testing/radix-tree/test.h
++++ b/tools/testing/radix-tree/test.h
+@@ -2,6 +2,8 @@
+ #include <linux/types.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rcupdate.h>
++#include <linux/notifier.h>
++#include <linux/cpu.h>
  
-+#ifndef find_next_zero_bit
-+unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-+				unsigned long offset)
-+{
-+	return _find_next_bit(addr, size, offset, ~0UL);
-+}
-+#endif
-+
- #ifndef find_first_bit
- /*
-  * Find the first set bit in a memory region.
+ struct item {
+ 	unsigned long index;
+@@ -44,3 +46,5 @@ void radix_tree_dump(struct radix_tree_root *root);
+ int root_tag_get(struct radix_tree_root *root, unsigned int tag);
+ unsigned long node_maxindex(struct radix_tree_node *);
+ unsigned long shift_maxindex(unsigned int shift);
++int radix_tree_callback(struct notifier_block *nfb,
++			unsigned long action, void *hcpu);
 -- 
 2.10.2
 
