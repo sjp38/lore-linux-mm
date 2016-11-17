@@ -1,96 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7E46B02E0
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DA1886B02E2
 	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:55 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id w132so75494389ita.1
+Received: by mail-it0-f72.google.com with SMTP id o1so73037909ito.7
         for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:55 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id y15si221447ioe.241.2016.11.16.14.24.04
+        by mx.google.com with ESMTPS id v97si225641ioi.223.2016.11.16.14.24.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 14:24:04 -0800 (PST)
+        Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 08/29] tools: Add more bitmap functions
-Date: Wed, 16 Nov 2016 16:16:35 -0800
-Message-Id: <1479341856-30320-11-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 07/29] radix tree test suite: Use rcu_barrier
+Date: Wed, 16 Nov 2016 16:16:33 -0800
+Message-Id: <1479341856-30320-9-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-I need the following functions for the radix tree:
+Calling rcu_barrier() allows all of the rcu-freed memory to be actually
+returned to the pool, and allows nr_allocated to return to 0.  As well
+as allowing diffs between runs to be more useful, it also lets us
+pinpoint leaks more effectively.
 
-bitmap_fill
-find_next_zero_bit
-bitmap_empty
-bitmap_full
-
-Copy the implementations from include/linux/bitmap.h and lib/find_bit.c
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/include/linux/bitmap.h | 26 ++++++++++++++++++++++++++
- tools/lib/find_bit.c         |  8 ++++++++
- 2 files changed, 34 insertions(+)
+ tools/testing/radix-tree/main.c      | 12 ++++++++++--
+ tools/testing/radix-tree/tag_check.c |  5 +++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
 
-diff --git a/tools/include/linux/bitmap.h b/tools/include/linux/bitmap.h
-index 43c1c50..eef41d5 100644
---- a/tools/include/linux/bitmap.h
-+++ b/tools/include/linux/bitmap.h
-@@ -35,6 +35,32 @@ static inline void bitmap_zero(unsigned long *dst, int nbits)
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index f43706c..8621542 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
+ 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	multiorder_checks();
++	rcu_barrier();
+ 	printf("after multiorder_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	locate_check();
++	rcu_barrier();
+ 	printf("after locate_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	tag_check();
++	rcu_barrier();
+ 	printf("after tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	gang_check();
++	rcu_barrier();
+ 	printf("after gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	add_and_check();
++	rcu_barrier();
+ 	printf("after add_and_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	dynamic_height_check();
++	rcu_barrier();
+ 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	big_gang_check(long_run);
++	rcu_barrier();
+ 	printf("after big_gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
+ 		printf("%d ", i);
+ 		fflush(stdout);
  	}
++	rcu_barrier();
+ 	printf("after copy_tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ }
+@@ -354,8 +362,8 @@ int main(int argc, char **argv)
+ 
+ 	benchmark();
+ 
+-	sleep(1);
+-	printf("after sleep(1): %d allocated, preempt %d\n",
++	rcu_barrier();
++	printf("after rcu_barrier: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	rcu_unregister_thread();
+ 
+diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
+index b0ac057..186f6e4 100644
+--- a/tools/testing/radix-tree/tag_check.c
++++ b/tools/testing/radix-tree/tag_check.c
+@@ -51,6 +51,7 @@ void simple_checks(void)
+ 	verify_tag_consistency(&tree, 1);
+ 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
+ 	item_kill_tree(&tree);
++	rcu_barrier();
+ 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
  }
  
-+static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
-+{
-+	unsigned int nlongs = BITS_TO_LONGS(nbits);
-+	if (!small_const_nbits(nbits)) {
-+		unsigned int len = (nlongs - 1) * sizeof(unsigned long);
-+		memset(dst, 0xff,  len);
-+	}
-+	dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
-+}
-+
-+static inline int bitmap_empty(const unsigned long *src, unsigned nbits)
-+{
-+	if (small_const_nbits(nbits))
-+		return ! (*src & BITMAP_LAST_WORD_MASK(nbits));
-+
-+	return find_first_bit(src, nbits) == nbits;
-+}
-+
-+static inline int bitmap_full(const unsigned long *src, unsigned int nbits)
-+{
-+	if (small_const_nbits(nbits))
-+		return ! (~(*src) & BITMAP_LAST_WORD_MASK(nbits));
-+
-+	return find_first_zero_bit(src, nbits) == nbits;
-+}
-+
- static inline int bitmap_weight(const unsigned long *src, int nbits)
- {
- 	if (small_const_nbits(nbits))
-diff --git a/tools/lib/find_bit.c b/tools/lib/find_bit.c
-index 9122a9e..de26b6f 100644
---- a/tools/lib/find_bit.c
-+++ b/tools/lib/find_bit.c
-@@ -66,6 +66,14 @@ unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
+@@ -331,12 +332,16 @@ void tag_check(void)
+ 	single_check();
+ 	extend_checks();
+ 	contract_checks();
++	rcu_barrier();
+ 	printf("after extend_checks: %d allocated\n", nr_allocated);
+ 	__leak_check();
+ 	leak_check();
++	rcu_barrier();
+ 	printf("after leak_check: %d allocated\n", nr_allocated);
+ 	simple_checks();
++	rcu_barrier();
+ 	printf("after simple_checks: %d allocated\n", nr_allocated);
+ 	thrash_tags();
++	rcu_barrier();
+ 	printf("after thrash_tags: %d allocated\n", nr_allocated);
  }
- #endif
- 
-+#ifndef find_next_zero_bit
-+unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-+				unsigned long offset)
-+{
-+	return _find_next_bit(addr, size, offset, ~0UL);
-+}
-+#endif
-+
- #ifndef find_first_bit
- /*
-  * Find the first set bit in a memory region.
 -- 
 2.10.2
 
