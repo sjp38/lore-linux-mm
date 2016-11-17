@@ -1,311 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B6016B030A
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:45:43 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so187668237pgq.7
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 23:45:43 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a187si2059885pge.103.2016.11.16.23.45.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 21CFF6B0253
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:59:21 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 83so106295560pfx.1
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 23:59:21 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j63si2121148pfg.51.2016.11.16.23.59.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Nov 2016 23:45:41 -0800 (PST)
-Date: Thu, 17 Nov 2016 15:45:38 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH] mremap: fix race between mremap() and page cleanning
-Message-ID: <20161117074538.GA1713@aaronlu.sh.intel.com>
-References: <026b73f6-ca1d-e7bb-766c-4aaeb7071ce6@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="AqsLC8rIMeq19msA"
-Content-Disposition: inline
-In-Reply-To: <026b73f6-ca1d-e7bb-766c-4aaeb7071ce6@intel.com>
+        Wed, 16 Nov 2016 23:59:20 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAH7xDKD010918
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:59:19 -0500
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26s8jbr5s6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:59:19 -0500
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 17 Nov 2016 17:59:16 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id C12492BB0057
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:59:12 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAH7xCZO62324792
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:59:12 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAH7xCfj024872
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 18:59:12 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [DRAFT 1/2] mm/cpuset: Exclude CDM nodes from each task's mems_allowed node mask
+Date: Thu, 17 Nov 2016 13:29:08 +0530
+In-Reply-To: <582D5F02.6010705@linux.vnet.ibm.com>
+References: <582D5F02.6010705@linux.vnet.ibm.com>
+Message-Id: <1479369549-13309-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com
 
+task->mems_allowed decides the final node mask of nodes from which memory
+can be allocated irrespective of process or VMA based memory policy. CDM
+nodes should not be used for any user space memory allocation, hence they
+should not be part of any mems_allowed mask in user space to begin with.
+This adds a function system_ram() which computes system RAM only nodes
+and excludes all the CDM nodes on the platform. This resultant system RAM
+nodemask is used instead of N_MEMORY mask during cpuset and mems_allowed
+initialization. This achieves isolation of the coherent device memory
+from userspace allocations.
 
---AqsLC8rIMeq19msA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+This completely isolates CDM nodes from user space allocations. Hence
+explicit allocation to the CDM nodes would not be possible any more.
+To again enable explicit allocation capability from user space, cpuset
+needs to be changed to accommodate CDM nodes into task's mems_allowed.
 
-+LKML.
+ include/linux/mm.h |  9 +++++++++
+ kernel/cpuset.c    | 12 +++++++-----
+ 2 files changed, 16 insertions(+), 5 deletions(-)
 
-Also attached the kernel patch that enlarges the race window and the
-user space test code raceremap.c, which you can put in will-it-scale's
-tests directory and run it as:
-# ./raceremap_threads -t 2 -s 1
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a92c8d7..f338492 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -446,6 +446,15 @@ static inline int put_page_testzero(struct page *page)
+ 	return page_ref_dec_and_test(page);
+ }
+ 
++static inline nodemask_t system_ram(void)
++{
++	nodemask_t ram_nodes;
++
++	nodes_clear(ram_nodes);
++	nodes_andnot(ram_nodes, node_states[N_MEMORY], node_states[N_COHERENT_DEVICE]);
++	return ram_nodes;
++}
++
+ /*
+  * Try to grab a ref unless the page has a refcount of zero, return false if
+  * that is the case.
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 29f815d..78c6fa3 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -364,9 +364,11 @@ static void guarantee_online_cpus(struct cpuset *cs, struct cpumask *pmask)
+  */
+ static void guarantee_online_mems(struct cpuset *cs, nodemask_t *pmask)
+ {
+-	while (!nodes_intersects(cs->effective_mems, node_states[N_MEMORY]))
++	nodemask_t nodes = system_ram();
++
++	while (!nodes_intersects(cs->effective_mems, nodes))
+ 		cs = parent_cs(cs);
+-	nodes_and(*pmask, cs->effective_mems, node_states[N_MEMORY]);
++	nodes_and(*pmask, cs->effective_mems, nodes);
+ }
+ 
+ /*
+@@ -2301,7 +2303,7 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
+ 
+ 	/* fetch the available cpus/mems and find out which changed how */
+ 	cpumask_copy(&new_cpus, cpu_active_mask);
+-	new_mems = node_states[N_MEMORY];
++	new_mems = system_ram();
+ 
+ 	cpus_updated = !cpumask_equal(top_cpuset.effective_cpus, &new_cpus);
+ 	mems_updated = !nodes_equal(top_cpuset.effective_mems, new_mems);
+@@ -2393,11 +2395,11 @@ static int cpuset_track_online_nodes(struct notifier_block *self,
+ void __init cpuset_init_smp(void)
+ {
+ 	cpumask_copy(top_cpuset.cpus_allowed, cpu_active_mask);
+-	top_cpuset.mems_allowed = node_states[N_MEMORY];
++	top_cpuset.mems_allowed = system_ram();
+ 	top_cpuset.old_mems_allowed = top_cpuset.mems_allowed;
+ 
+ 	cpumask_copy(top_cpuset.effective_cpus, cpu_active_mask);
+-	top_cpuset.effective_mems = node_states[N_MEMORY];
++	top_cpuset.effective_mems = system_ram();
+ 
+ 	register_hotmemory_notifier(&cpuset_track_online_nodes_nb);
+ 
+-- 
+1.8.3.1
 
-Make sure "cpu0 runs" appeared in the first line.
-
-If you get SEGFAULT:
-[aaron@aaronlu will-it-scale]$ sudo ./raceremap_threads -t 2 -s 1
-cpu0 runs
-cpu1 runs
-cpu0: going to remap
-testcase:mremap
-warmup
-cpu1: going to clean the page
-cpu1: going to write 2
-min:0 max:0 total:0
-min:0 max:0 total:0
-cpu0: remap done
-Segmentation fault
-
-That means the race doesn't occur.
-
-If you get "*cpu1 wrote 2 gets lost":
-[aaron@aaronlu will-it-scale]$ sudo ./raceremap_threads -t 2 -s 1
-cpu1 runs
-testcase:mremap
-warmup
-cpu0 runs
-cpu0: going to remap
-cpu1: going to clean the page
-cpu1: going to write 2
-cpu1 wrote 2
-min:0 max:0 total:0
-min:0 max:0 total:0
-cpu0: remap done
-*cpu1 wrote 2 gets lost
-
-That means the race occurred.
-
-Thanks,
-Aaron
-
-On Thu, Nov 10, 2016 at 05:16:33PM +0800, Aaron Lu wrote:
-> Prior to 3.15, there was a race between zap_pte_range() and
-> page_mkclean() where writes to a page could be lost.  Dave Hansen
-> discovered by inspection that there is a similar race between
-> move_ptes() and  page_mkclean().
-> 
-> We've been able to reproduce the issue by enlarging the race window with
-> a msleep(), but have not been able to hit it without modifying the code.
-> So, we think it's a real issue, but is difficult or impossible to hit
-> in practice.
-> 
-> The zap_pte_range() issue is fixed by commit 1cf35d47712d("mm: split
-> 'tlb_flush_mmu()' into tlb flushing and memory freeing parts"). And
-> this patch is to fix the race between page_mkclean() and mremap().
-> 
-> Here is one possible way to hit the race: suppose a process mmapped a
-> file with READ | WRITE and SHARED, it has two threads and they are bound
-> to 2 different CPUs, e.g. CPU1 and CPU2. mmap returned X, then thread 1
-> did a write to addr X so that CPU1 now has a writable TLB for addr X
-> on it. Thread 2 starts mremaping from addr X to Y while thread 1 cleaned
-> the page and then did another write to the old addr X again. The 2nd
-> write from thread 1 could succeed but the value will get lost.
-> 
->         thread 1                           thread 2
->      (bound to CPU1)                    (bound to CPU2)
-> 
->   1: write 1 to addr X to get a
->      writeable TLB on this CPU
-> 
->                                         2: mremap starts
-> 
->                                         3: move_ptes emptied PTE for addr X
->                                            and setup new PTE for addr Y and
->                                            then dropped PTL for X and Y
-> 
->   4: page laundering for N by doing
->      fadvise FADV_DONTNEED. When done,
->      pageframe N is deemed clean.
-> 
->   5: *write 2 to addr X
-> 
->                                         6: tlb flush for addr X
-> 
->   7: munmap (Y, pagesize) to make the
->      page unmapped
-> 
->   8: fadvise with FADV_DONTNEED again
->      to kick the page off the pagecache
-> 
->   9: pread the page from file to verify
->      the value. If 1 is there, it means
->      we have lost the written 2.
-> 
->   *the write may or may not cause segmentation fault, it depends on
->   if the TLB is still on the CPU.
-> 
-> Please note that this is only one specific way of how the race could
-> occur, it didn't mean that the race could only occur in exact the above
-> config, e.g. more than 2 threads could be involved and fadvise() could
-> be done in another thread, etc.
-> 
-> For anonymous pages, they could race between mremap() and page reclaim:
-> THP: a huge PMD is moved by mremap to a new huge PMD, then the new huge PMD
-> gets unmapped/splitted/pagedout before the flush tlb happened for the old
-> huge PMD in move_page_tables() and we could still write data to it.
-> The normal anonymous page has similar situation.
-> 
-> To fix this, check for any dirty PTE in move_ptes()/move_huge_pmd() and
-> if any, did the flush before dropping the PTL. If we did the flush for
-> every move_ptes()/move_huge_pmd() call then we do not need to do the
-> flush in move_pages_tables() for the whole range. But if we didn't, we
-> still need to do the whole range flush.
-> 
-> Alternatively, we can track which part of the range is flushed in
-> move_ptes()/move_huge_pmd() and which didn't to avoid flushing the whole
-> range in move_page_tables(). But that would require multiple tlb flushes
-> for the different sub-ranges and should be less efficient than the
-> single whole range flush.
-> 
-> KBuild test on my Sandybridge desktop doesn't show any noticeable change.
-> v4.9-rc4:
-> real    5m14.048s
-> user    32m19.800s
-> sys     4m50.320s
-> 
-> With this commit:
-> real    5m13.888s
-> user    32m19.330s
-> sys     4m51.200s
-> 
-> Reported-by: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
-> ---
->  include/linux/huge_mm.h |  2 +-
->  mm/huge_memory.c        |  9 ++++++++-
->  mm/mremap.c             | 30 +++++++++++++++++++++---------
->  3 files changed, 30 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 9b9f65d99873..e35e6de633b9 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -22,7 +22,7 @@ extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned char *vec);
->  extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  			 unsigned long new_addr, unsigned long old_end,
-> -			 pmd_t *old_pmd, pmd_t *new_pmd);
-> +			 pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush);
->  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned long addr, pgprot_t newprot,
->  			int prot_numa);
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index cdcd25cb30fe..eff3de359d50 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1426,11 +1426,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  
->  bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  		  unsigned long new_addr, unsigned long old_end,
-> -		  pmd_t *old_pmd, pmd_t *new_pmd)
-> +		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
->  {
->  	spinlock_t *old_ptl, *new_ptl;
->  	pmd_t pmd;
->  	struct mm_struct *mm = vma->vm_mm;
-> +	bool force_flush = false;
->  
->  	if ((old_addr & ~HPAGE_PMD_MASK) ||
->  	    (new_addr & ~HPAGE_PMD_MASK) ||
-> @@ -1455,6 +1456,8 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  		new_ptl = pmd_lockptr(mm, new_pmd);
->  		if (new_ptl != old_ptl)
->  			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-> +		if (pmd_present(*old_pmd) && pmd_dirty(*old_pmd))
-> +			force_flush = true;
->  		pmd = pmdp_huge_get_and_clear(mm, old_addr, old_pmd);
->  		VM_BUG_ON(!pmd_none(*new_pmd));
->  
-> @@ -1467,6 +1470,10 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
->  		if (new_ptl != old_ptl)
->  			spin_unlock(new_ptl);
-> +		if (force_flush)
-> +			flush_tlb_range(vma, old_addr, old_addr + PMD_SIZE);
-> +		else
-> +			*need_flush = true;
->  		spin_unlock(old_ptl);
->  		return true;
->  	}
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index da22ad2a5678..6ccecc03f56a 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -104,11 +104,13 @@ static pte_t move_soft_dirty_pte(pte_t pte)
->  static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  		unsigned long old_addr, unsigned long old_end,
->  		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-> -		unsigned long new_addr, bool need_rmap_locks)
-> +		unsigned long new_addr, bool need_rmap_locks, bool *need_flush)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  	pte_t *old_pte, *new_pte, pte;
->  	spinlock_t *old_ptl, *new_ptl;
-> +	bool force_flush = false;
-> +	unsigned long len = old_end - old_addr;
->  
->  	/*
->  	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
-> @@ -146,6 +148,14 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  				   new_pte++, new_addr += PAGE_SIZE) {
->  		if (pte_none(*old_pte))
->  			continue;
-> +
-> +		/*
-> +		 * We are remapping a dirty PTE, make sure to
-> +		 * flush TLB before we drop the PTL for the
-> +		 * old PTE or we may race with page_mkclean().
-> +		 */
-> +		if (pte_present(*old_pte) && pte_dirty(*old_pte))
-> +			force_flush = true;
->  		pte = ptep_get_and_clear(mm, old_addr, old_pte);
->  		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
->  		pte = move_soft_dirty_pte(pte);
-> @@ -156,6 +166,10 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
->  	if (new_ptl != old_ptl)
->  		spin_unlock(new_ptl);
->  	pte_unmap(new_pte - 1);
-> +	if (force_flush)
-> +		flush_tlb_range(vma, old_end - len, old_end);
-> +	else
-> +		*need_flush = true;
->  	pte_unmap_unlock(old_pte - 1, old_ptl);
->  	if (need_rmap_locks)
->  		drop_rmap_locks(vma);
-> @@ -201,13 +215,12 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  				if (need_rmap_locks)
->  					take_rmap_locks(vma);
->  				moved = move_huge_pmd(vma, old_addr, new_addr,
-> -						    old_end, old_pmd, new_pmd);
-> +						    old_end, old_pmd, new_pmd,
-> +						    &need_flush);
->  				if (need_rmap_locks)
->  					drop_rmap_locks(vma);
-> -				if (moved) {
-> -					need_flush = true;
-> +				if (moved)
->  					continue;
-> -				}
->  			}
->  			split_huge_pmd(vma, old_pmd, old_addr);
->  			if (pmd_trans_unstable(old_pmd))
-> @@ -220,11 +233,10 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  			extent = next - new_addr;
->  		if (extent > LATENCY_LIMIT)
->  			extent = LATENCY_LIMIT;
-> -		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-> -			  new_vma, new_pmd, new_addr, need_rmap_locks);
-> -		need_flush = true;
-> +		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,
-> +			  new_pmd, new_addr, need_rmap_locks, &need_flush);
->  	}
-> -	if (likely(need_flush))
-> +	if (need_flush)
->  		flush_tlb_range(vma, old_end-len, old_addr);
->  
->  	mmu_notifier_invalidate_range_end(vma->vm_mm, mmun_start, mmun_end);
-> -- 
-> 2.5.5
-> 
-
---AqsLC8rIMeq19msA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="0001-mremap-add-a-2s-delay-for-MAP_FIXED-case.patch"
-
-
---AqsLC8rIMeq19msA--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
