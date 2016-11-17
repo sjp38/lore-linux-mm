@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC496B02DA
-	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:49 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id q186so74082278itb.0
-        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:49 -0800 (PST)
-Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id 73si250344iog.73.2016.11.16.14.24.04
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 049F86B02DC
+	for <linux-mm@kvack.org>; Wed, 16 Nov 2016 17:25:50 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id g187so70587172itc.2
+        for <linux-mm@kvack.org>; Wed, 16 Nov 2016 14:25:50 -0800 (PST)
+Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
+        by mx.google.com with ESMTPS id r21si238914itb.54.2016.11.16.14.24.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 16 Nov 2016 14:24:05 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 23/29] idr: Add ida_is_empty
-Date: Wed, 16 Nov 2016 16:17:26 -0800
-Message-Id: <1479341856-30320-62-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 28/29] radix-tree: Create all_tag_set
+Date: Wed, 16 Nov 2016 16:17:35 -0800
+Message-Id: <1479341856-30320-71-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,94 +22,47 @@ Cc: linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, linux
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-Two of the USB Gadgets were poking around in the internals of struct ida
-in order to determine if it is empty.  Add the appropriate abstraction.
+all_tag_set() sets every tag on a node.  This is useful for the IDR code
+when we're creating new nodes which contain only free slots.
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- drivers/usb/gadget/function/f_hid.c     | 6 +++---
- drivers/usb/gadget/function/f_printer.c | 6 +++---
- include/linux/idr.h                     | 5 +++++
- 3 files changed, 11 insertions(+), 6 deletions(-)
+ lib/radix-tree.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/usb/gadget/function/f_hid.c b/drivers/usb/gadget/function/f_hid.c
-index e2966f8..b9b04fc 100644
---- a/drivers/usb/gadget/function/f_hid.c
-+++ b/drivers/usb/gadget/function/f_hid.c
-@@ -840,7 +840,7 @@ static void hidg_free_inst(struct usb_function_instance *f)
- 	mutex_lock(&hidg_ida_lock);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index c8ef657..e063ca2 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -22,6 +22,8 @@
+  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  */
  
- 	hidg_put_minor(opts->minor);
--	if (idr_is_empty(&hidg_ida.idr))
-+	if (ida_is_empty(&hidg_ida))
- 		ghid_cleanup();
++#include <linux/bitmap.h>
++#include <linux/bitops.h>
+ #include <linux/errno.h>
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+@@ -33,7 +35,6 @@
+ #include <linux/notifier.h>
+ #include <linux/cpu.h>
+ #include <linux/string.h>
+-#include <linux/bitops.h>
+ #include <linux/rcupdate.h>
+ #include <linux/preempt.h>		/* in_interrupt() */
  
- 	mutex_unlock(&hidg_ida_lock);
-@@ -866,7 +866,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
- 
- 	mutex_lock(&hidg_ida_lock);
- 
--	if (idr_is_empty(&hidg_ida.idr)) {
-+	if (ida_is_empty(&hidg_ida)) {
- 		status = ghid_setup(NULL, HIDG_MINORS);
- 		if (status)  {
- 			ret = ERR_PTR(status);
-@@ -879,7 +879,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
- 	if (opts->minor < 0) {
- 		ret = ERR_PTR(opts->minor);
- 		kfree(opts);
--		if (idr_is_empty(&hidg_ida.idr))
-+		if (ida_is_empty(&hidg_ida))
- 			ghid_cleanup();
- 		goto unlock;
- 	}
-diff --git a/drivers/usb/gadget/function/f_printer.c b/drivers/usb/gadget/function/f_printer.c
-index 0de36cd..8054da9 100644
---- a/drivers/usb/gadget/function/f_printer.c
-+++ b/drivers/usb/gadget/function/f_printer.c
-@@ -1265,7 +1265,7 @@ static void gprinter_free_inst(struct usb_function_instance *f)
- 	mutex_lock(&printer_ida_lock);
- 
- 	gprinter_put_minor(opts->minor);
--	if (idr_is_empty(&printer_ida.idr))
-+	if (ida_is_empty(&printer_ida))
- 		gprinter_cleanup();
- 
- 	mutex_unlock(&printer_ida_lock);
-@@ -1289,7 +1289,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
- 
- 	mutex_lock(&printer_ida_lock);
- 
--	if (idr_is_empty(&printer_ida.idr)) {
-+	if (ida_is_empty(&printer_ida)) {
- 		status = gprinter_setup(PRINTER_MINORS);
- 		if (status) {
- 			ret = ERR_PTR(status);
-@@ -1302,7 +1302,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
- 	if (opts->minor < 0) {
- 		ret = ERR_PTR(opts->minor);
- 		kfree(opts);
--		if (idr_is_empty(&printer_ida.idr))
-+		if (ida_is_empty(&printer_ida))
- 			gprinter_cleanup();
- 		goto unlock;
- 	}
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 083d61e..3639a28 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -195,6 +195,11 @@ static inline int ida_get_new(struct ida *ida, int *p_id)
- 	return ida_get_new_above(ida, 0, p_id);
+@@ -184,6 +185,11 @@ static inline int any_tag_set(struct radix_tree_node *node, unsigned int tag)
+ 	return 0;
  }
  
-+static inline bool ida_is_empty(struct ida *ida)
++static inline void all_tag_set(struct radix_tree_node *node, unsigned int tag)
 +{
-+	return idr_is_empty(&ida->idr);
++	bitmap_fill(node->tags[tag], RADIX_TREE_MAP_SIZE);
 +}
 +
- void __init idr_init_cache(void);
- 
- #endif /* __IDR_H__ */
+ /**
+  * radix_tree_find_next_bit - find the next set bit in a memory region
+  *
 -- 
 2.10.2
 
