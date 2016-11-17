@@ -1,73 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 502956B031E
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 04:51:27 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id i88so106829052pfk.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 01:51:27 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id p75si2554527pfa.165.2016.11.17.01.51.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 456CD6B0321
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 05:13:41 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y68so108764214pfb.6
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 02:13:41 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p70si2628867pfd.221.2016.11.17.02.13.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 01:51:26 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: [PATCH v2] slab: Add POISON_POINTER_DELTA to ZERO_SIZE_PTR
-Date: Thu, 17 Nov 2016 20:51:07 +1100
-Message-Id: <1479376267-18486-1-git-send-email-mpe@ellerman.id.au>
+        Thu, 17 Nov 2016 02:13:40 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAHADbU6056349
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 05:13:39 -0500
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26saj387ds-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 05:13:39 -0500
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Thu, 17 Nov 2016 20:13:29 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BA2F13578053
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:13:27 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAHADRgi6357410
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:13:27 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAHADRCU028866
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:13:27 +1100
+Received: from d50lp01.ny.us.ibm.com (d50lp01.pok.ibm.com [146.89.104.207])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVin) with ESMTP id uAHADOq7028715
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:13:26 +1100
+Received: from localhost
+	by d50lp01.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Thu, 17 Nov 2016 05:13:24 -0500
+Received: from localhost
+	by smtp.notes.na.collabserv.com with smtp.notes.na.collabserv.com ESMTP
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Thu, 17 Nov 2016 10:13:22 -0000
+In-Reply-To: <20161104152103.GC8825@cmpxchg.org>
+Subject: Re: memory.force_empty is deprecated
+From: "Zhao Hui Ding" <dingzhh@cn.ibm.com>
+Date: Thu, 17 Nov 2016 18:13:18 +0800
+References: <OF57AEC2D2.FA566D70-ON48258061.002C144F-48258061.002E2E50@notes.na.collabserv.com>
+ <20161104152103.GC8825@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="=_alternative 003826A54825806E_="
+Message-Id: <OF1D622B5E.2C033199-ON4825806E.0032B4F0-4825806E.00382767@notes.na.collabserv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, keescook@chromium.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Xue Bin
+ Min <minxb@cn.ibm.com>
 
-POISON_POINTER_DELTA is defined in poison.h, and is intended to be used
-to shift poison values so that they don't alias userspace.
 
-We should add it to ZERO_SIZE_PTR so that attackers can't use
-ZERO_SIZE_PTR as a way to get a non-NULL pointer to userspace.
+--=_alternative 003826A54825806E_=
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="GB2312"
 
-Currently ZERO_OR_NULL_PTR() uses a trick of doing a single check that
-x <= ZERO_SIZE_PTR, and ignoring the fact that it also matches 1-15.
-That no longer really works once we add the poison delta, so split it
-into two checks. Assign x to a temporary to avoid evaluating it
-twice (suggested by Kees Cook).
+VGhhbmtzIGZvciB0aGUgcmVwbHkuDQoNCldoZW4gdGhlIGpvYiBpcyBmaW5pc2hlZCwgInRhc2tz
+IiBpcyBlbXB0eSwgYnV0ICJtZW1vcnkuc3RhdCIgc3RpbGwgDQpjb250YWlucyBjYWNoZSwgYWN0
+aXZlX2ZpbGUuLi4NCiMgY2F0IHRhc2tzDQojIGNhdCBtZW1vcnkuc3RhdCANCmNhY2hlIDgxOTIw
+DQpyc3MgMA0KbWFwcGVkX2ZpbGUgMA0KcGdwZ2luIDk0NDANCnBncGdvdXQgOTQyMA0Kc3dhcCAw
+DQppbmFjdGl2ZV9hbm9uIDANCmFjdGl2ZV9hbm9uIDANCmluYWN0aXZlX2ZpbGUgNzc4MjQNCmFj
+dGl2ZV9maWxlIDQwOTYNCnVuZXZpY3RhYmxlIDANCmhpZXJhcmNoaWNhbF9tZW1vcnlfbGltaXQg
+OTIyMzM3MjAzNjg1NDc3NTgwNw0KaGllcmFyY2hpY2FsX21lbXN3X2xpbWl0IDkyMjMzNzIwMzY4
+NTQ3NzU4MDcNCnRvdGFsX2NhY2hlIDgxOTIwDQp0b3RhbF9yc3MgMA0KdG90YWxfbWFwcGVkX2Zp
+bGUgMA0KdG90YWxfcGdwZ2luIDk0NDANCnRvdGFsX3BncGdvdXQgOTQyMA0KdG90YWxfc3dhcCAw
+DQp0b3RhbF9pbmFjdGl2ZV9hbm9uIDANCnRvdGFsX2FjdGl2ZV9hbm9uIDANCnRvdGFsX2luYWN0
+aXZlX2ZpbGUgNzc4MjQNCnRvdGFsX2FjdGl2ZV9maWxlIDQwOTYNCnRvdGFsX3VuZXZpY3RhYmxl
+IDANCg0KQWZ0ZXIgZWNobyAwIHRvIG1lbW9yeS5mb3JjZV9lbXB0eSwgY2FjaGUgaXMgY2xlYW5l
+ZC4NCiMgZWNobyAwID4gbWVtb3J5LmZvcmNlX2VtcHR5IA0KIyBjYXQgbWVtb3J5LnN0YXQgDQpj
+YWNoZSAwDQpyc3MgMA0KbWFwcGVkX2ZpbGUgMA0KcGdwZ2luIDk0NDANCnBncGdvdXQgOTQ0MA0K
+c3dhcCAwDQppbmFjdGl2ZV9hbm9uIDANCmFjdGl2ZV9hbm9uIDANCmluYWN0aXZlX2ZpbGUgMA0K
+YWN0aXZlX2ZpbGUgMA0KdW5ldmljdGFibGUgMA0KaGllcmFyY2hpY2FsX21lbW9yeV9saW1pdCA5
+MjIzMzcyMDM2ODU0Nzc1ODA3DQpoaWVyYXJjaGljYWxfbWVtc3dfbGltaXQgOTIyMzM3MjAzNjg1
+NDc3NTgwNw0KdG90YWxfY2FjaGUgMA0KdG90YWxfcnNzIDANCnRvdGFsX21hcHBlZF9maWxlIDAN
+CnRvdGFsX3BncGdpbiA5NDQwDQp0b3RhbF9wZ3Bnb3V0IDk0NDANCnRvdGFsX3N3YXAgMA0KdG90
+YWxfaW5hY3RpdmVfYW5vbiAwDQp0b3RhbF9hY3RpdmVfYW5vbiAwDQp0b3RhbF9pbmFjdGl2ZV9m
+aWxlIDANCnRvdGFsX2FjdGl2ZV9maWxlIDANCnRvdGFsX3VuZXZpY3RhYmxlIDANCg0KV2UgY2Fu
+bm90IGxlYXZlIGl0IGxhemlseSBiZWNhdXNlIHdoZW4gbmV3IGpvYiByZXVzZSB0aGUgY2dyb3Vw
+LCAiY2FjaGUiIA0KZG9lc24ndCBiZSBjbGVhbmVkIGF1dG9tYXRpY2FsbHkuDQpXZSBuZWVkIGEg
+bWVjaGFuaXNtIHRoYXQgY2xlYW4gbWVtb3J5LnN0YXQuDQoNClRoYW5rcyAmIFJlZ2FyZHMsDQot
+LVpoYW9odWkNCg0KDQoNCkZyb206ICAgSm9oYW5uZXMgV2VpbmVyIDxoYW5uZXNAY21weGNoZy5v
+cmc+DQpUbzogICAgIFpoYW8gSHVpIERpbmcvQ2hpbmEvSUJNQElCTUNODQpDYzogICAgIFRlanVu
+IEhlbyA8dGpAa2VybmVsLm9yZz4sIGNncm91cHNAdmdlci5rZXJuZWwub3JnLCANCmxpbnV4LW1t
+QGt2YWNrLm9yZw0KRGF0ZTogICAyMDE2LTExLTA0IM/CzucgMTE6MjENClN1YmplY3Q6ICAgICAg
+ICBSZTogbWVtb3J5LmZvcmNlX2VtcHR5IGlzIGRlcHJlY2F0ZWQNCg0KDQoNCkhpLA0KDQpPbiBG
+cmksIE5vdiAwNCwgMjAxNiBhdCAwNDoyNDoyNVBNICswODAwLCBaaGFvIEh1aSBEaW5nIHdyb3Rl
+Og0KPiBIZWxsbywNCj4gDQo+IEknbSBaaGFvaHVpIGZyb20gSUJNIFNwZWN0cnVtIExTRiBkZXZl
+bG9wbWVudCB0ZWFtLiBJIGdvdCBiZWxvdyBtZXNzYWdlIA0KPiB3aGVuIHJ1bm5pbmcgTFNGIG9u
+IFNVU0UxMS40LCBzbyBJIHdvdWxkIGxpa2UgdG8gc2hhcmUgb3VyIHVzZSBzY2VuYXJpbyANCj4g
+YW5kIGFzayBmb3IgdGhlIHN1Z2dlc3Rpb25zIHdpdGhvdXQgdXNpbmcgbWVtb3J5LmZvcmNlX2Vt
+cHR5Lg0KPiANCj4gbWVtb3J5LmZvcmNlX2VtcHR5IGlzIGRlcHJlY2F0ZWQgYW5kIHdpbGwgYmUg
+cmVtb3ZlZC4gTGV0IHVzIGtub3cgaWYgaXQgDQppcyANCj4gbmVlZGVkIGluIHlvdXIgdXNlY2Fz
+ZSBhdCBsaW51eC1tbUBrdmFjay5vcmcNCj4gDQo+IExTRiBpcyBhIGJhdGNoIHdvcmtsb2FkIHNj
+aGVkdWxlciwgaXQgdXNlcyBjZ3JvdXAgdG8gZG8gYmF0Y2ggam9icyANCj4gcmVzb3VyY2UgZW5m
+b3JjZW1lbnQgYW5kIGFjY291bnRpbmcuIEZvciBlYWNoIGpvYiwgTFNGIGNyZWF0ZXMgYSBjZ3Jv
+dXAgDQo+IGRpcmVjdG9yeSBhbmQgcHV0IGpvYidzIFBJRHMgdG8gdGhlIGNncm91cC4NCj4gDQo+
+IFdoZW4gd2UgaW1wbGVtZW50IExTRiBjZ3JvdXAgaW50ZWdyYXRpb24sIHdlIGZvdW5kIGNyZWF0
+aW5nIGEgbmV3IGNncm91cCANCg0KPiBpcyBtdWNoIHNsb3dlciB0aGFuIHJlbmFtaW5nIGFuIGV4
+aXN0aW5nIGNncm91cCwgaXQncyBhYm91dCBodW5kcmVkcyBvZiANCj4gbWlsbGlzZWNvbmRzIHZz
+IGxlc3MgdGhhbiAxMCBtaWxsaXNlY29uZHMuDQoNCkNncm91cCBjcmVhdGlvbi9kZWxldGlvbiBp
+cyBub3QgZXhwZWN0ZWQgdG8gYmUgYW4gdWx0cmEtaG90IHBhdGgsIGJ1dA0KSSdtIHN1cnByaXNl
+ZCBpdCB0YWtlcyBsb25nZXIgdGhhbiBhY3R1YWxseSByZWNsYWltaW5nIGxlZnRvdmVyIHBhZ2Vz
+Lg0KDQpCeSB0aGUgdGltZSB0aGUgam9icyBjb25jbHVkZSwgaG93IG11Y2ggaXMgdXN1YWxseSBs
+ZWZ0IGluIHRoZSBncm91cD8NCg0KVGhhdCBzYWlkLCBpcyBpdCBldmVuIG5lY2Vzc2FyeSB0byBw
+cm8tYWN0aXZlbHkgcmVtb3ZlIHRoZSBsZWZ0b3Zlcg0KY2FjaGUgZnJvbSB0aGUgZ3JvdXAgYmVm
+b3JlIHN0YXJ0aW5nIHRoZSBuZXh0IGpvYj8gV2h5IG5vdCBsZWF2ZSBpdA0KZm9yIHRoZSBuZXh0
+IGpvYiB0byByZWNsYWltIGl0IGxhemlseSBzaG91bGQgbWVtb3J5IHByZXNzdXJlIGFyaXNlPw0K
+SXQncyBlYXN5IHRvIHJlY2xhaW0gcGFnZSBjYWNoZSwgYW5kIHRoZSBmaXJzdCB0byBnbyBhcyBp
+dCdzIGJlaGluZA0KdGhlIG5leHQgam9iJ3MgbWVtb3J5IG9uIHRoZSBMUlUgbGlzdC4NCg0KDQoN
+Cg0KDQo=
 
-Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
----
- include/linux/slab.h | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+--=_alternative 003826A54825806E_=
+Content-Transfer-Encoding: base64
+Content-Type: text/html; charset="GB2312"
 
-v2: Rework ZERO_OR_NULL_PTR() to do the two checks separately.
-
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 084b12bad198..404419d9860f 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -12,6 +12,7 @@
- #define	_LINUX_SLAB_H
- 
- #include <linux/gfp.h>
-+#include <linux/poison.h>
- #include <linux/types.h>
- #include <linux/workqueue.h>
- 
-@@ -109,10 +110,13 @@
-  * ZERO_SIZE_PTR can be passed to kfree though in the same way that NULL can.
-  * Both make kfree a no-op.
-  */
--#define ZERO_SIZE_PTR ((void *)16)
-+#define ZERO_SIZE_PTR ((void *)(16 + POISON_POINTER_DELTA))
- 
--#define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
--				(unsigned long)ZERO_SIZE_PTR)
-+#define ZERO_OR_NULL_PTR(x)				\
-+	({						\
-+		void *p = (void *)(x);			\
-+		(p == NULL || p == ZERO_SIZE_PTR);	\
-+	})
- 
- #include <linux/kmemleak.h>
- #include <linux/kasan.h>
--- 
-2.7.4
+PGZvbnQgc2l6ZT0yIGZhY2U9InNhbnMtc2VyaWYiPlRoYW5rcyBmb3IgdGhlIHJlcGx5LjwvZm9u
+dD48YnI+PGJyPjxmb250IHNpemU9MiBmYWNlPSJzYW5zLXNlcmlmIj5XaGVuIHRoZSBqb2IgaXMg
+ZmluaXNoZWQsICZxdW90O3Rhc2tzJnF1b3Q7DQppcyBlbXB0eSwgYnV0ICZxdW90O21lbW9yeS5z
+dGF0JnF1b3Q7IHN0aWxsIGNvbnRhaW5zIGNhY2hlLCBhY3RpdmVfZmlsZS4uLjwvZm9udD48YnI+
+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPiMgY2F0IHRhc2tzPC9mb250Pjxicj48
+Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxhciI+IyBjYXQgbWVtb3J5LnN0YXQgPC9mb250
+Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxhciI+Y2FjaGUgODE5MjA8L2ZvbnQ+
+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5yc3MgMDwvZm9udD48YnI+PGZv
+bnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPm1hcHBlZF9maWxlIDA8L2ZvbnQ+PGJyPjxm
+b250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5wZ3BnaW4gOTQ0MDwvZm9udD48YnI+PGZv
+bnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnBncGdvdXQgOTQyMDwvZm9udD48YnI+PGZv
+bnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnN3YXAgMDwvZm9udD48YnI+PGZvbnQgc2l6
+ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPmluYWN0aXZlX2Fub24gMDwvZm9udD48YnI+PGZvbnQg
+c2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPmFjdGl2ZV9hbm9uIDA8L2ZvbnQ+PGJyPjxmb250
+IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5pbmFjdGl2ZV9maWxlIDc3ODI0PC9mb250Pjxi
+cj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxhciI+YWN0aXZlX2ZpbGUgNDA5NjwvZm9u
+dD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnVuZXZpY3RhYmxlIDA8L2Zv
+bnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5oaWVyYXJjaGljYWxfbWVt
+b3J5X2xpbWl0IDkyMjMzNzIwMzY4NTQ3NzU4MDc8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNl
+PSJNZW5sby1SZWd1bGFyIj5oaWVyYXJjaGljYWxfbWVtc3dfbGltaXQgOTIyMzM3MjAzNjg1NDc3
+NTgwNzwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX2Nh
+Y2hlIDgxOTIwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxhciI+dG90
+YWxfcnNzIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj50b3Rh
+bF9tYXBwZWRfZmlsZSAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxh
+ciI+dG90YWxfcGdwZ2luIDk0NDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1S
+ZWd1bGFyIj50b3RhbF9wZ3Bnb3V0IDk0MjA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJN
+ZW5sby1SZWd1bGFyIj50b3RhbF9zd2FwIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJN
+ZW5sby1SZWd1bGFyIj50b3RhbF9pbmFjdGl2ZV9hbm9uIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9
+MiBmYWNlPSJNZW5sby1SZWd1bGFyIj50b3RhbF9hY3RpdmVfYW5vbiAwPC9mb250Pjxicj48Zm9u
+dCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxhciI+dG90YWxfaW5hY3RpdmVfZmlsZSA3NzgyNDwv
+Zm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX2FjdGl2ZV9m
+aWxlIDQwOTY8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj50b3Rh
+bF91bmV2aWN0YWJsZSAwPC9mb250Pjxicj48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9InNhbnMtc2Vy
+aWYiPkFmdGVyIGVjaG8gMCB0byBtZW1vcnkuZm9yY2VfZW1wdHksDQpjYWNoZSBpcyBjbGVhbmVk
+LjwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPiMgZWNobyAwICZn
+dDsgbWVtb3J5LmZvcmNlX2VtcHR5DQo8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5s
+by1SZWd1bGFyIj4jIGNhdCBtZW1vcnkuc3RhdCA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNl
+PSJNZW5sby1SZWd1bGFyIj5jYWNoZSAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVu
+bG8tUmVndWxhciI+cnNzIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1
+bGFyIj5tYXBwZWRfZmlsZSAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVn
+dWxhciI+cGdwZ2luIDk0NDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1
+bGFyIj5wZ3Bnb3V0IDk0NDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1
+bGFyIj5zd2FwIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5p
+bmFjdGl2ZV9hbm9uIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFy
+Ij5hY3RpdmVfYW5vbiAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVndWxh
+ciI+aW5hY3RpdmVfZmlsZSAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8tUmVn
+dWxhciI+YWN0aXZlX2ZpbGUgMDwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJl
+Z3VsYXIiPnVuZXZpY3RhYmxlIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1S
+ZWd1bGFyIj5oaWVyYXJjaGljYWxfbWVtb3J5X2xpbWl0IDkyMjMzNzIwMzY4NTQ3NzU4MDc8L2Zv
+bnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj5oaWVyYXJjaGljYWxfbWVt
+c3dfbGltaXQgOTIyMzM3MjAzNjg1NDc3NTgwNzwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9
+Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX2NhY2hlIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNl
+PSJNZW5sby1SZWd1bGFyIj50b3RhbF9yc3MgMDwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9
+Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX21hcHBlZF9maWxlIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9
+MiBmYWNlPSJNZW5sby1SZWd1bGFyIj50b3RhbF9wZ3BnaW4gOTQ0MDwvZm9udD48YnI+PGZvbnQg
+c2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX3BncGdvdXQgOTQ0MDwvZm9udD48YnI+
+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX3N3YXAgMDwvZm9udD48YnI+
+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX2luYWN0aXZlX2Fub24gMDwv
+Zm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9Ik1lbmxvLVJlZ3VsYXIiPnRvdGFsX2FjdGl2ZV9h
+bm9uIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFyIj50b3RhbF9p
+bmFjdGl2ZV9maWxlIDA8L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJNZW5sby1SZWd1bGFy
+Ij50b3RhbF9hY3RpdmVfZmlsZSAwPC9mb250Pjxicj48Zm9udCBzaXplPTIgZmFjZT0iTWVubG8t
+UmVndWxhciI+dG90YWxfdW5ldmljdGFibGUgMDwvZm9udD48YnI+PGJyPjxmb250IHNpemU9MiBm
+YWNlPSJzYW5zLXNlcmlmIj5XZSBjYW5ub3QgbGVhdmUgaXQgbGF6aWx5IGJlY2F1c2Ugd2hlbg0K
+bmV3IGpvYiByZXVzZSB0aGUgY2dyb3VwLCAmcXVvdDtjYWNoZSZxdW90OyBkb2Vzbid0IGJlIGNs
+ZWFuZWQgYXV0b21hdGljYWxseS48L2ZvbnQ+PGJyPjxmb250IHNpemU9MiBmYWNlPSJzYW5zLXNl
+cmlmIj5XZSBuZWVkIGEgbWVjaGFuaXNtIHRoYXQgY2xlYW4gbWVtb3J5LnN0YXQuPC9mb250Pjxi
+cj48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9InNhbnMtc2VyaWYiPlRoYW5rcyAmYW1wOyBSZWdhcmRz
+LDwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZhY2U9InNhbnMtc2VyaWYiPi0tWmhhb2h1aTwvZm9u
+dD48YnI+PGJyPjxicj48YnI+PGZvbnQgc2l6ZT0xIGNvbG9yPSM1ZjVmNWYgZmFjZT0ic2Fucy1z
+ZXJpZiI+RnJvbTogJm5ic3A7ICZuYnNwOyAmbmJzcDsNCiZuYnNwOzwvZm9udD48Zm9udCBzaXpl
+PTEgZmFjZT0ic2Fucy1zZXJpZiI+Sm9oYW5uZXMgV2VpbmVyICZsdDtoYW5uZXNAY21weGNoZy5v
+cmcmZ3Q7PC9mb250Pjxicj48Zm9udCBzaXplPTEgY29sb3I9IzVmNWY1ZiBmYWNlPSJzYW5zLXNl
+cmlmIj5UbzogJm5ic3A7ICZuYnNwOyAmbmJzcDsNCiZuYnNwOzwvZm9udD48Zm9udCBzaXplPTEg
+ZmFjZT0ic2Fucy1zZXJpZiI+WmhhbyBIdWkgRGluZy9DaGluYS9JQk1ASUJNQ048L2ZvbnQ+PGJy
+Pjxmb250IHNpemU9MSBjb2xvcj0jNWY1ZjVmIGZhY2U9InNhbnMtc2VyaWYiPkNjOiAmbmJzcDsg
+Jm5ic3A7ICZuYnNwOw0KJm5ic3A7PC9mb250Pjxmb250IHNpemU9MSBmYWNlPSJzYW5zLXNlcmlm
+Ij5UZWp1biBIZW8gJmx0O3RqQGtlcm5lbC5vcmcmZ3Q7LA0KY2dyb3Vwc0B2Z2VyLmtlcm5lbC5v
+cmcsIGxpbnV4LW1tQGt2YWNrLm9yZzwvZm9udD48YnI+PGZvbnQgc2l6ZT0xIGNvbG9yPSM1ZjVm
+NWYgZmFjZT0ic2Fucy1zZXJpZiI+RGF0ZTogJm5ic3A7ICZuYnNwOyAmbmJzcDsNCiZuYnNwOzwv
+Zm9udD48Zm9udCBzaXplPTEgZmFjZT0ic2Fucy1zZXJpZiI+MjAxNi0xMS0wNCDPws7nIDExOjIx
+PC9mb250Pjxicj48Zm9udCBzaXplPTEgY29sb3I9IzVmNWY1ZiBmYWNlPSJzYW5zLXNlcmlmIj5T
+dWJqZWN0OiAmbmJzcDsgJm5ic3A7DQombmJzcDsgJm5ic3A7PC9mb250Pjxmb250IHNpemU9MSBm
+YWNlPSJzYW5zLXNlcmlmIj5SZTogbWVtb3J5LmZvcmNlX2VtcHR5DQppcyBkZXByZWNhdGVkPC9m
+b250Pjxicj48aHIgbm9zaGFkZT48YnI+PGJyPjxicj48dHQ+PGZvbnQgc2l6ZT0yPkhpLDxicj48
+YnI+T24gRnJpLCBOb3YgMDQsIDIwMTYgYXQgMDQ6MjQ6MjVQTSArMDgwMCwgWmhhbyBIdWkgRGlu
+ZyB3cm90ZTo8YnI+Jmd0OyBIZWxsbyw8YnI+Jmd0OyA8YnI+Jmd0OyBJJ20gWmhhb2h1aSBmcm9t
+IElCTSBTcGVjdHJ1bSBMU0YgZGV2ZWxvcG1lbnQgdGVhbS4gSSBnb3QgYmVsb3cgbWVzc2FnZQ0K
+PGJyPiZndDsgd2hlbiBydW5uaW5nIExTRiBvbiBTVVNFMTEuNCwgc28gSSB3b3VsZCBsaWtlIHRv
+IHNoYXJlIG91ciB1c2Ugc2NlbmFyaW8NCjxicj4mZ3Q7IGFuZCBhc2sgZm9yIHRoZSBzdWdnZXN0
+aW9ucyB3aXRob3V0IHVzaW5nIG1lbW9yeS5mb3JjZV9lbXB0eS48YnI+Jmd0OyA8YnI+Jmd0OyBt
+ZW1vcnkuZm9yY2VfZW1wdHkgaXMgZGVwcmVjYXRlZCBhbmQgd2lsbCBiZSByZW1vdmVkLiBMZXQg
+dXMga25vdw0KaWYgaXQgaXMgPGJyPiZndDsgbmVlZGVkIGluIHlvdXIgdXNlY2FzZSBhdCBsaW51
+eC1tbUBrdmFjay5vcmc8YnI+Jmd0OyA8YnI+Jmd0OyBMU0YgaXMgYSBiYXRjaCB3b3JrbG9hZCBz
+Y2hlZHVsZXIsIGl0IHVzZXMgY2dyb3VwIHRvIGRvIGJhdGNoIGpvYnMNCjxicj4mZ3Q7IHJlc291
+cmNlIGVuZm9yY2VtZW50IGFuZCBhY2NvdW50aW5nLiBGb3IgZWFjaCBqb2IsIExTRiBjcmVhdGVz
+IGEgY2dyb3VwDQo8YnI+Jmd0OyBkaXJlY3RvcnkgYW5kIHB1dCBqb2IncyBQSURzIHRvIHRoZSBj
+Z3JvdXAuPGJyPiZndDsgPGJyPiZndDsgV2hlbiB3ZSBpbXBsZW1lbnQgTFNGIGNncm91cCBpbnRl
+Z3JhdGlvbiwgd2UgZm91bmQgY3JlYXRpbmcgYSBuZXcNCmNncm91cCA8YnI+Jmd0OyBpcyBtdWNo
+IHNsb3dlciB0aGFuIHJlbmFtaW5nIGFuIGV4aXN0aW5nIGNncm91cCwgaXQncyBhYm91dCBodW5k
+cmVkcw0Kb2YgPGJyPiZndDsgbWlsbGlzZWNvbmRzIHZzIGxlc3MgdGhhbiAxMCBtaWxsaXNlY29u
+ZHMuPGJyPjxicj5DZ3JvdXAgY3JlYXRpb24vZGVsZXRpb24gaXMgbm90IGV4cGVjdGVkIHRvIGJl
+IGFuIHVsdHJhLWhvdCBwYXRoLCBidXQ8YnI+SSdtIHN1cnByaXNlZCBpdCB0YWtlcyBsb25nZXIg
+dGhhbiBhY3R1YWxseSByZWNsYWltaW5nIGxlZnRvdmVyIHBhZ2VzLjxicj48YnI+QnkgdGhlIHRp
+bWUgdGhlIGpvYnMgY29uY2x1ZGUsIGhvdyBtdWNoIGlzIHVzdWFsbHkgbGVmdCBpbiB0aGUgZ3Jv
+dXA/PGJyPjxicj5UaGF0IHNhaWQsIGlzIGl0IGV2ZW4gbmVjZXNzYXJ5IHRvIHByby1hY3RpdmVs
+eSByZW1vdmUgdGhlIGxlZnRvdmVyPGJyPmNhY2hlIGZyb20gdGhlIGdyb3VwIGJlZm9yZSBzdGFy
+dGluZyB0aGUgbmV4dCBqb2I/IFdoeSBub3QgbGVhdmUgaXQ8YnI+Zm9yIHRoZSBuZXh0IGpvYiB0
+byByZWNsYWltIGl0IGxhemlseSBzaG91bGQgbWVtb3J5IHByZXNzdXJlIGFyaXNlPzxicj5JdCdz
+IGVhc3kgdG8gcmVjbGFpbSBwYWdlIGNhY2hlLCBhbmQgdGhlIGZpcnN0IHRvIGdvIGFzIGl0J3Mg
+YmVoaW5kPGJyPnRoZSBuZXh0IGpvYidzIG1lbW9yeSBvbiB0aGUgTFJVIGxpc3QuPGJyPjxicj48
+L2ZvbnQ+PC90dD48YnI+PGJyPjxCUj4NCg==
+--=_alternative 003826A54825806E_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
