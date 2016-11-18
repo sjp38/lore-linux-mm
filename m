@@ -1,200 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78AC26B0474
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:41:26 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id d128so328914200ybh.6
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:41:26 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id z189si2013742ywg.363.2016.11.18.11.41.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A59DA6B0476
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:57:40 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id p66so270550059pga.4
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:57:40 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b141si9550710pfb.177.2016.11.18.11.57.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 11:41:25 -0800 (PST)
-From: Jens Axboe <axboe@fb.com>
-Subject: [PATCH] mm: don't cap request size based on read-ahead setting
-Date: Fri, 18 Nov 2016 12:41:13 -0700
-Message-ID: <1479498073-8657-1-git-send-email-axboe@fb.com>
+        Fri, 18 Nov 2016 11:57:39 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAIJsMbt041148
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:57:39 -0500
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26t2tuyeaj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:57:39 -0500
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 18 Nov 2016 14:57:37 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [HMM v13 16/18] mm/hmm/migrate: new memory migration helper for use with device memory
+In-Reply-To: <1479493107-982-17-git-send-email-jglisse@redhat.com>
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com> <1479493107-982-17-git-send-email-jglisse@redhat.com>
+Date: Sat, 19 Nov 2016 01:27:28 +0530
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <87k2c0muhj.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, Jens Axboe <axboe@fb.com>
+To: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-We ran into a funky issue, where someone doing 256K buffered reads saw
-128K requests at the device level. Turns out it is read-ahead capping
-the request size, since we use 128K as the default setting. This doesn't
-make a lot of sense - if someone is issuing 256K reads, they should see
-256K reads, regardless of the read-ahead setting, if the underlying
-device can support a 256K read in a single command.
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> writes:
 
-This patch introduces a bdi hint, io_pages. This is the soft max IO size
-for the lower level, I've hooked it up to the bdev settings here.
-Read-ahead is modified to issue the maximum of the user request size,
-and the read-ahead max size, but capped to the max request size on the
-device side. The latter is done to avoid reading ahead too much, if the
-application asks for a huge read. With this patch, the kernel behaves
-like the application expects.
+> This patch add a new memory migration helpers, which migrate memory
+> backing a range of virtual address of a process to different memory
+> (which can be allocated through special allocator). It differs from
+> numa migration by working on a range of virtual address and thus by
+> doing migration in chunk that can be large enough to use DMA engine
+> or special copy offloading engine.
+>
+> Expected users are any one with heterogeneous memory where different
+> memory have different characteristics (latency, bandwidth, ...). As
+> an example IBM platform with CAPI bus can make use of this feature
+> to migrate between regular memory and CAPI device memory. New CPU
+> architecture with a pool of high performance memory not manage as
+> cache but presented as regular memory (while being faster and with
+> lower latency than DDR) will also be prime user of this patch.
+>
+> Migration to private device memory will be usefull for device that
+> have large pool of such like GPU, NVidia plans to use HMM for that.
+>
 
-Signed-off-by: Jens Axboe <axboe@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
----
- block/blk-settings.c             |  1 +
- block/blk-sysfs.c                |  1 +
- include/linux/backing-dev-defs.h |  1 +
- mm/readahead.c                   | 39 ++++++++++++++++++++++++++++-----------
- 4 files changed, 31 insertions(+), 11 deletions(-)
 
-diff --git a/block/blk-settings.c b/block/blk-settings.c
-index f679ae122843..65f16cf4f850 100644
---- a/block/blk-settings.c
-+++ b/block/blk-settings.c
-@@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
- 	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
- 	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
- 	limits->max_sectors = max_sectors;
-+	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
- }
- EXPORT_SYMBOL(blk_queue_max_hw_sectors);
- 
-diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-index 9cc8d7c5439a..ea374e820775 100644
---- a/block/blk-sysfs.c
-+++ b/block/blk-sysfs.c
-@@ -212,6 +212,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
- 
- 	spin_lock_irq(q->queue_lock);
- 	q->limits.max_sectors = max_sectors_kb << 1;
-+	q->backing_dev_info.io_pages = max_sectors_kb >> (PAGE_SHIFT - 10);
- 	spin_unlock_irq(q->queue_lock);
- 
- 	return ret;
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index c357f27d5483..b8144b2d59ce 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -136,6 +136,7 @@ struct bdi_writeback {
- struct backing_dev_info {
- 	struct list_head bdi_list;
- 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
-+	unsigned long io_pages;	/* max allowed IO size */
- 	unsigned int capabilities; /* Device capabilities */
- 	congested_fn *congested_fn; /* Function pointer if device is md/dm */
- 	void *congested_data;	/* Pointer to aux data for congested func */
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c8a955b1297e..fb4c99f85618 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -207,12 +207,21 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-  * memory at once.
-  */
- int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
--		pgoff_t offset, unsigned long nr_to_read)
-+		               pgoff_t offset, unsigned long nr_to_read)
- {
-+	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
-+	struct file_ra_state *ra = &filp->f_ra;
-+	unsigned long max_pages;
-+
- 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
- 		return -EINVAL;
- 
--	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-+	/*
-+	 * If the request exceeds the readahead window, allow the read to
-+	 * be up to the optimal hardware IO size
-+	 */
-+	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
-+	nr_to_read = min(nr_to_read, max_pages);
- 	while (nr_to_read) {
- 		int err;
- 
-@@ -369,10 +378,18 @@ ondemand_readahead(struct address_space *mapping,
- 		   bool hit_readahead_marker, pgoff_t offset,
- 		   unsigned long req_size)
- {
--	unsigned long max = ra->ra_pages;
-+	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
-+	unsigned long max_pages = ra->ra_pages;
- 	pgoff_t prev_offset;
- 
- 	/*
-+	 * If the request exceeds the readahead window, allow the read to
-+	 * be up to the optimal hardware IO size
-+	 */
-+	if (req_size > max_pages && bdi->io_pages > max_pages)
-+		max_pages = min(req_size, bdi->io_pages);
-+
-+	/*
- 	 * start of file
- 	 */
- 	if (!offset)
-@@ -385,7 +402,7 @@ ondemand_readahead(struct address_space *mapping,
- 	if ((offset == (ra->start + ra->size - ra->async_size) ||
- 	     offset == (ra->start + ra->size))) {
- 		ra->start += ra->size;
--		ra->size = get_next_ra_size(ra, max);
-+		ra->size = get_next_ra_size(ra, max_pages);
- 		ra->async_size = ra->size;
- 		goto readit;
- 	}
-@@ -400,16 +417,16 @@ ondemand_readahead(struct address_space *mapping,
- 		pgoff_t start;
- 
- 		rcu_read_lock();
--		start = page_cache_next_hole(mapping, offset + 1, max);
-+		start = page_cache_next_hole(mapping, offset + 1, max_pages);
- 		rcu_read_unlock();
- 
--		if (!start || start - offset > max)
-+		if (!start || start - offset > max_pages)
- 			return 0;
- 
- 		ra->start = start;
- 		ra->size = start - offset;	/* old async_size */
- 		ra->size += req_size;
--		ra->size = get_next_ra_size(ra, max);
-+		ra->size = get_next_ra_size(ra, max_pages);
- 		ra->async_size = ra->size;
- 		goto readit;
- 	}
-@@ -417,7 +434,7 @@ ondemand_readahead(struct address_space *mapping,
- 	/*
- 	 * oversize read
- 	 */
--	if (req_size > max)
-+	if (req_size > max_pages)
- 		goto initial_readahead;
- 
- 	/*
-@@ -433,7 +450,7 @@ ondemand_readahead(struct address_space *mapping,
- 	 * Query the page cache and look for the traces(cached history pages)
- 	 * that a sequential stream would leave behind.
- 	 */
--	if (try_context_readahead(mapping, ra, offset, req_size, max))
-+	if (try_context_readahead(mapping, ra, offset, req_size, max_pages))
- 		goto readit;
- 
- 	/*
-@@ -444,7 +461,7 @@ ondemand_readahead(struct address_space *mapping,
- 
- initial_readahead:
- 	ra->start = offset;
--	ra->size = get_init_ra_size(req_size, max);
-+	ra->size = get_init_ra_size(req_size, max_pages);
- 	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
- 
- readit:
-@@ -454,7 +471,7 @@ ondemand_readahead(struct address_space *mapping,
- 	 * the resulted next readahead window into the current one.
- 	 */
- 	if (offset == ra->start && ra->size == ra->async_size) {
--		ra->async_size = get_next_ra_size(ra, max);
-+		ra->async_size = get_next_ra_size(ra, max_pages);
- 		ra->size += ra->async_size;
- 	}
- 
--- 
-2.7.4
+
+..............
+
+
+>+
+> +static int hmm_collect_walk_pmd(pmd_t *pmdp,
+> +				unsigned long start,
+> +				unsigned long end,
+> +				struct mm_walk *walk)
+> +{
+> +	struct hmm_migrate *migrate =3D walk->private;
+> +	struct mm_struct *mm =3D walk->vma->vm_mm;
+> +	unsigned long addr =3D start;
+> +	spinlock_t *ptl;
+> +	hmm_pfn_t *pfns;
+> +	int pages =3D 0;
+> +	pte_t *ptep;
+> +
+> +again:
+> +	if (pmd_none(*pmdp))
+> +		return 0;
+> +
+> +	split_huge_pmd(walk->vma, pmdp, addr);
+> +	if (pmd_trans_unstable(pmdp))
+> +		goto again;
+> +
+> +	pfns =3D &migrate->pfns[(addr - migrate->start) >> PAGE_SHIFT];
+> +	ptep =3D pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +	arch_enter_lazy_mmu_mode();
+> +
+> +	for (; addr < end; addr +=3D PAGE_SIZE, pfns++, ptep++) {
+> +		unsigned long pfn;
+> +		swp_entry_t entry;
+> +		struct page *page;
+> +		hmm_pfn_t flags;
+> +		bool write;
+> +		pte_t pte;
+> +
+> +		pte =3D ptep_get_and_clear(mm, addr, ptep);
+> +		if (!pte_present(pte)) {
+> +			if (pte_none(pte))
+> +				continue;
+> +
+> +			entry =3D pte_to_swp_entry(pte);
+> +			if (!is_device_entry(entry)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+> +				continue;
+> +			}
+> +
+> +			flags =3D HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
+> +			page =3D device_entry_to_page(entry);
+> +			write =3D is_write_device_entry(entry);
+> +			pfn =3D page_to_pfn(page);
+> +
+> +			if (!(page->pgmap->flags & MEMORY_MOVABLE)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+> +				continue;
+> +			}
+> +
+> +		} else {
+> +			pfn =3D pte_pfn(pte);
+> +			page =3D pfn_to_page(pfn);
+> +			write =3D pte_write(pte);
+> +			flags =3D is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
+> +		}
+> +
+> +		/* FIXME support THP see hmm_migrate_page_check() */
+> +		if (PageTransCompound(page))
+> +			continue;
+> +
+> +		*pfns =3D hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
+> +		*pfns |=3D write ? HMM_PFN_WRITE : 0;
+> +		migrate->npages++;
+> +		get_page(page);
+> +
+> +		if (!trylock_page(page)) {
+> +			set_pte_at(mm, addr, ptep, pte);
+> +		} else {
+> +			pte_t swp_pte;
+> +
+> +			*pfns |=3D HMM_PFN_LOCKED;
+> +
+> +			entry =3D make_migration_entry(page, write);
+> +			swp_pte =3D swp_entry_to_pte(entry);
+> +			if (pte_soft_dirty(pte))
+> +				swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
+> +			set_pte_at(mm, addr, ptep, swp_pte);
+> +
+> +			page_remove_rmap(page, false);
+> +			put_page(page);
+> +			pages++;
+> +		}
+
+Can you explain this. What does a failure to lock means here. Also why
+convert the pte to migration entries here ? We do that in try_to_unmap righ=
+t ?
+
+
+> +	}
+> +
+> +	arch_leave_lazy_mmu_mode();
+> +	pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +	/* Only flush the TLB if we actually modified any entries */
+> +	if (pages)
+> +		flush_tlb_range(walk->vma, start, end);
+> +
+> +	return 0;
+> +}
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
