@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DC916B03DE
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:19:05 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id m203so9637066wma.2
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:19:05 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4206B03E1
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:19:06 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so9675544wmw.0
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:19:06 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v4si6660058wjk.289.2016.11.18.01.17.30
+        by mx.google.com with ESMTPS id q185si1726250wmb.94.2016.11.18.01.17.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 18 Nov 2016 01:17:30 -0800 (PST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix tree entry lock
-Date: Fri, 18 Nov 2016 10:17:23 +0100
-Message-Id: <1479460644-25076-20-git-send-email-jack@suse.cz>
+Subject: [PATCH 18/20] dax: Make cache flushing protected by entry lock
+Date: Fri, 18 Nov 2016 10:17:22 +0100
+Message-Id: <1479460644-25076-19-git-send-email-jack@suse.cz>
 In-Reply-To: <1479460644-25076-1-git-send-email-jack@suse.cz>
 References: <1479460644-25076-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,71 +20,128 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>
 
-Currently PTE gets updated in wp_pfn_shared() after dax_pfn_mkwrite()
-has released corresponding radix tree entry lock. When we want to
-writeprotect PTE on cache flush, we need PTE modification to happen
-under radix tree entry lock to ensure consistent updates of PTE and radix
-tree (standard faults use page lock to ensure this consistency). So move
-update of PTE bit into dax_pfn_mkwrite().
+Currently, flushing of caches for DAX mappings was ignoring entry lock.
+So far this was ok (modulo a bug that a difference in entry lock could
+cause cache flushing to be mistakenly skipped) but in the following
+patches we will write-protect PTEs on cache flushing and clear dirty
+tags. For that we will need more exclusion. So do cache flushing under
+an entry lock. This allows us to remove one lock-unlock pair of
+mapping->tree_lock as a bonus.
 
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c    | 22 ++++++++++++++++------
- mm/memory.c |  2 +-
- 2 files changed, 17 insertions(+), 7 deletions(-)
+ fs/dax.c | 61 +++++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 39 insertions(+), 22 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 2d317328ae90..d64465584f4c 100644
+index 9be1464d1a7e..2d317328ae90 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -782,17 +782,27 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+@@ -617,32 +617,50 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		struct address_space *mapping, pgoff_t index, void *entry)
  {
- 	struct file *file = vma->vm_file;
- 	struct address_space *mapping = file->f_mapping;
--	void *entry;
-+	void *entry, **slot;
- 	pgoff_t index = vmf->pgoff;
+ 	struct radix_tree_root *page_tree = &mapping->page_tree;
+-	struct radix_tree_node *node;
+ 	struct blk_dax_ctl dax;
+-	void **slot;
++	void *entry2, **slot;
+ 	int ret = 0;
  
- 	spin_lock_irq(&mapping->tree_lock);
--	entry = get_unlocked_mapping_entry(mapping, index, NULL);
--	if (!entry || !radix_tree_exceptional_entry(entry))
--		goto out;
-+	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-+	if (!entry || !radix_tree_exceptional_entry(entry)) {
-+		if (entry)
-+			put_unlocked_mapping_entry(mapping, index, entry);
-+		spin_unlock_irq(&mapping->tree_lock);
-+		return VM_FAULT_NOPAGE;
-+	}
- 	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
--	put_unlocked_mapping_entry(mapping, index, entry);
--out:
-+	entry = lock_slot(mapping, slot);
- 	spin_unlock_irq(&mapping->tree_lock);
+-	spin_lock_irq(&mapping->tree_lock);
+ 	/*
+-	 * Regular page slots are stabilized by the page lock even
+-	 * without the tree itself locked.  These unlocked entries
+-	 * need verification under the tree lock.
++	 * A page got tagged dirty in DAX mapping? Something is seriously
++	 * wrong.
+ 	 */
+-	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
+-		goto unlock;
+-	if (*slot != entry)
+-		goto unlock;
+-
+-	/* another fsync thread may have already written back this entry */
+-	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+-		goto unlock;
++	if (WARN_ON(!radix_tree_exceptional_entry(entry)))
++		return -EIO;
+ 
++	spin_lock_irq(&mapping->tree_lock);
++	entry2 = get_unlocked_mapping_entry(mapping, index, &slot);
++	/* Entry got punched out / reallocated? */
++	if (!entry2 || !radix_tree_exceptional_entry(entry2))
++		goto put_unlocked;
 +	/*
-+	 * If we race with somebody updating the PTE and finish_mkwrite_fault()
-+	 * fails, we don't care. We need to return VM_FAULT_NOPAGE and retry
-+	 * the fault in either case.
++	 * Entry got reallocated elsewhere? No need to writeback. We have to
++	 * compare sectors as we must not bail out due to difference in lockbit
++	 * or entry type.
 +	 */
-+	finish_mkwrite_fault(vmf);
-+	put_locked_mapping_entry(mapping, index, entry);
- 	return VM_FAULT_NOPAGE;
- }
- EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
-diff --git a/mm/memory.c b/mm/memory.c
-index d4874d3733f4..e37250fc54c2 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2319,7 +2319,7 @@ static int wp_pfn_shared(struct vm_fault *vmf)
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
- 		vmf->flags |= FAULT_FLAG_MKWRITE;
- 		ret = vma->vm_ops->pfn_mkwrite(vma, vmf);
--		if (ret & VM_FAULT_ERROR)
-+		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
- 			return ret;
- 		return finish_mkwrite_fault(vmf);
++	if (dax_radix_sector(entry2) != dax_radix_sector(entry))
++		goto put_unlocked;
+ 	if (WARN_ON_ONCE(dax_is_empty_entry(entry) ||
+ 				dax_is_zero_entry(entry))) {
+ 		ret = -EIO;
+-		goto unlock;
++		goto put_unlocked;
  	}
+ 
++	/* Another fsync thread may have already written back this entry */
++	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
++		goto put_unlocked;
++	/* Lock the entry to serialize with page faults */
++	entry = lock_slot(mapping, slot);
++	/*
++	 * We can clear the tag now but we have to be careful so that concurrent
++	 * dax_writeback_one() calls for the same index cannot finish before we
++	 * actually flush the caches. This is achieved as the calls will look
++	 * at the entry only under tree_lock and once they do that they will
++	 * see the entry locked and wait for it to unlock.
++	 */
++	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
++	spin_unlock_irq(&mapping->tree_lock);
++
+ 	/*
+ 	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
+ 	 * in the middle of a PMD, the 'index' we are given will be aligned to
+@@ -652,15 +670,16 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	 */
+ 	dax.sector = dax_radix_sector(entry);
+ 	dax.size = PAGE_SIZE << dax_radix_order(entry);
+-	spin_unlock_irq(&mapping->tree_lock);
+ 
+ 	/*
+ 	 * We cannot hold tree_lock while calling dax_map_atomic() because it
+ 	 * eventually calls cond_resched().
+ 	 */
+ 	ret = dax_map_atomic(bdev, &dax);
+-	if (ret < 0)
++	if (ret < 0) {
++		put_locked_mapping_entry(mapping, index, entry);
+ 		return ret;
++	}
+ 
+ 	if (WARN_ON_ONCE(ret < dax.size)) {
+ 		ret = -EIO;
+@@ -668,15 +687,13 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	}
+ 
+ 	wb_cache_pmem(dax.addr, dax.size);
+-
+-	spin_lock_irq(&mapping->tree_lock);
+-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
+-	spin_unlock_irq(&mapping->tree_lock);
+  unmap:
+ 	dax_unmap_atomic(bdev, &dax);
++	put_locked_mapping_entry(mapping, index, entry);
+ 	return ret;
+ 
+- unlock:
++ put_unlocked:
++	put_unlocked_mapping_entry(mapping, index, entry2);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	return ret;
+ }
 -- 
 2.6.6
 
