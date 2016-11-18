@@ -1,121 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F35866B0386
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 19:38:37 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id g186so227479530pgc.2
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 16:38:37 -0800 (PST)
-Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
-        by mx.google.com with ESMTPS id 127si5286474pgg.233.2016.11.17.16.38.36
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 86D6F6B0388
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 20:04:25 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id j128so117340953pfg.4
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:04:25 -0800 (PST)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id o79si5393163pfa.97.2016.11.17.17.04.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 16:38:37 -0800 (PST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <87twcbq696.fsf@x220.int.ebiederm.org>
-	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
-	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
-	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
-	<87k2d5nytz.fsf_-_@xmission.com>
-	<CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
-	<87y41kjn6l.fsf@xmission.com> <20161019172917.GE1210@laptop.thejh.net>
-	<CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
-	<87pomwi5p2.fsf@xmission.com>
-	<CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
-	<87pomwghda.fsf@xmission.com>
-	<CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
-	<87twb6avk8.fsf_-_@xmission.com> <87inrmavax.fsf_-_@xmission.com>
-	<CALCETrUvKpRCXRE+K512E_q9-o8Gzgb+3XsAzSo+ZFdgqeX-eQ@mail.gmail.com>
-	<87mvgxwtjv.fsf@xmission.com>
-	<CALCETrX=61Sk9qim+Psjn83gohuizEsrpUC9gF-vwQTtR4GuJw@mail.gmail.com>
-Date: Thu, 17 Nov 2016 18:35:57 -0600
-In-Reply-To: <CALCETrX=61Sk9qim+Psjn83gohuizEsrpUC9gF-vwQTtR4GuJw@mail.gmail.com>
-	(Andy Lutomirski's message of "Thu, 17 Nov 2016 16:10:47 -0800")
-Message-ID: <87shqpvd3m.fsf@xmission.com>
+        Thu, 17 Nov 2016 17:04:24 -0800 (PST)
+Received: by mail-pf0-x22a.google.com with SMTP id i88so51368452pfk.2
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:04:24 -0800 (PST)
+Date: Fri, 18 Nov 2016 10:03:55 +0900
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
+Message-ID: <20161118010354.GB5704@linaro.org>
+References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
+ <20161102045153.12008-1-takahiro.akashi@linaro.org>
+ <20161110172720.GB17134@arm.com>
+ <20161111025049.GG381@linaro.org>
+ <20161111031903.GB15997@arm.com>
+ <20161114055515.GH381@linaro.org>
+ <20161116163015.GM7928@arm.com>
+ <20161117022023.GA5704@linaro.org>
+ <20161117111917.GA22855@arm.com>
+ <582DF05A.9050601@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [REVIEW][PATCH 2/3] exec: Don't allow ptracing an exec of an unreadable file
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <582DF05A.9050601@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Willy Tarreau <w@1wt.eu>, Kees Cook <keescook@chromium.org>
+To: James Morse <james.morse@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Dennis Chen <dennis.chen@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.orgnd@arm.com
 
-Andy Lutomirski <luto@amacapital.net> writes:
+James,
 
-> On Thu, Nov 17, 2016 at 3:55 PM, Eric W. Biederman
-> <ebiederm@xmission.com> wrote:
->> Andy Lutomirski <luto@amacapital.net> writes:
->>
->>> On Thu, Nov 17, 2016 at 9:08 AM, Eric W. Biederman
->>> <ebiederm@xmission.com> wrote:
->>>>
->>>> It is the reasonable expectation that if an executable file is not
->>>> readable there will be no way for a user without special privileges to
->>>> read the file.  This is enforced in ptrace_attach but if we are
->>>> already attached there is no enforcement if a readonly executable
->>>> is exec'd.
->>>>
->>>> Therefore do the simple thing and if there is a non-dumpable
->>>> executable that we are tracing without privilege fail to exec it.
->>>>
->>>> Fixes: v1.0
->>>> Cc: stable@vger.kernel.org
->>>> Reported-by: Andy Lutomirski <luto@amacapital.net>
->>>> Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
->>>> ---
->>>>  fs/exec.c | 8 +++++++-
->>>>  1 file changed, 7 insertions(+), 1 deletion(-)
->>>>
->>>> diff --git a/fs/exec.c b/fs/exec.c
->>>> index fdec760bfac3..de107f74e055 100644
->>>> --- a/fs/exec.c
->>>> +++ b/fs/exec.c
->>>> @@ -1230,6 +1230,11 @@ int flush_old_exec(struct linux_binprm * bprm)
->>>>  {
->>>>         int retval;
->>>>
->>>> +       /* Fail if the tracer can't read the executable */
->>>> +       if ((bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) &&
->>>> +           !ptracer_capable(current, bprm->mm->user_ns))
->>>> +               return -EPERM;
->>>> +
->>>
->>> At the very least, I think that BINPRM_FLAGS_ENFORCE_NONDUMP needs to
->>> check capable_wrt_inode_uidgid too.  Otherwise we risk breaking:
->>>
->>> $ gcc whatever.c
->>> $ chmod 400 a.out
->>> $ strace a.out
->>
->> It is an invariant that if you have caps in mm->user_ns you will
->> also be capable_write_inode_uidgid of all files that a process exec's.
->
-> I meant to check whether you *are* the owner, too.
+On Thu, Nov 17, 2016 at 06:00:58PM +0000, James Morse wrote:
+> Hi Will, Akashi,
+> 
+> On 17/11/16 11:19, Will Deacon wrote:
+> > It looks much better, thanks! Just one question below.
+> > 
+> 
+> > On Thu, Nov 17, 2016 at 02:34:24PM +0900, AKASHI Takahiro wrote:
+> >> diff --git a/mm/memblock.c b/mm/memblock.c
+> >> index 7608bc3..fea1688 100644
+> >> --- a/mm/memblock.c
+> >> +++ b/mm/memblock.c
+> >> @@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+> >>  			      (phys_addr_t)ULLONG_MAX);
+> >>  }
+> >>  
+> >> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> >> +{
+> >> +	int start_rgn, end_rgn;
+> >> +	int i, ret;
+> >> +
+> >> +	if (!size)
+> >> +		return;
+> >> +
+> >> +	ret = memblock_isolate_range(&memblock.memory, base, size,
+> >> +						&start_rgn, &end_rgn);
+> >> +	if (ret)
+> >> +		return;
+> >> +
+> >> +	/* remove all the MAP regions */
+> >> +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+> >> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> >> +			memblock_remove_region(&memblock.memory, i);
+> > 
+> > In the case that we have only one, giant memblock that covers base all
+> > of base + size, can't we end up with start_rgn = end_rgn = 0? In which
+> 
+> Can this happen? If we only have one memblock that exactly spans
+> base:(base+size), memblock_isolate_range() will hit the '@rgn is fully
+> contained, record it' code and set start_rgn=0,end_rgn=1. (rbase==base,
+> rend==end). We only go round the loop once.
+> 
+> If we only have one memblock that is bigger than base:(base+size) we end up with
+> three regions, start_rgn=1,end_rgn=2. The trickery here is the '@rgn intersects
+> from above' code decreases the loop counter so we process the same entry twice,
+> hitting '@rgn is fully contained, record it' the second time round... so we go
+> round the loop four times.
 
-I don't follow.  BINPRM_FLAGS_ENFORCE_NONDUMP is only set if
-the caller of exec does not have inode_permission(inode, MAY_READ).
+Thank you for your observation.
 
-Which in your example would have guaranteed that
-BINPRM_FLAGS_ENFORCE_NONDUMP would have be unset.
+> I can't see how we hit the:
+> > 	if (rbase >= end)
+> > 		break;
+> > 	if (rend <= base)
+> > 		continue;
+> 
+> code in either case...
 
-The ptracer_capable thing is only asking in this instance if we can
-ignore the nondumpable status because we have CAP_SYS_PTRACE over
-a user namespace that includes all of the files that would_dump
-was called on (mm->user_ns).
+Right. So 'end_rgn' will never be expected to be 0 as far as some
+intersection exists.
 
-ptrace_access_vm in the replacement patch has essentially the same
-permission check.  It is just at PTRACE_PEEKTEXT, PTRACE_PEEKDATA,
-PTRACE_POKETEXT, or PTRACE_POKEDATA time.
+-Takahiro AKASHI
 
-So I am curious if you are seeing something that is worth fixing.
-
->> My third patch winds up changing mm->user_ns to maintain this invariant.
->>
->> It is also true that Willy convinced me while this check is trivial it
->> will break historic uses so I have replaced this patch with:
->> "ptrace: Don't allow accessing an undumpable mm.
->
-> I think that's better.
-
-Eric
+> 
+> 
+> Thanks,
+> 
+> James
+> 
+> 
+> > case, we'd end up accidentally removing the map regions here.
+> > 
+> > The existing code:
+> > 
+> >> -	/* remove all the MAP regions above the limit */
+> >> -	for (i = end_rgn - 1; i >= start_rgn; i--) {
+> >> -		if (!memblock_is_nomap(&type->regions[i]))
+> >> -			memblock_remove_region(type, i);
+> >> -	}
+> > 
+> > seems to handle this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
