@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 637CC6B048B
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 18:27:18 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id x23so278703659pgx.6
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:27:18 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w188si10295616pgb.210.2016.11.18.15.27.17
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 385A66B048C
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 18:27:19 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id g186so276089763pgc.2
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:27:19 -0800 (PST)
+Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
+        by mx.google.com with ESMTPS id c68si10301933pfj.98.2016.11.18.15.27.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 15:27:17 -0800 (PST)
-Date: Fri, 18 Nov 2016 15:27:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mm PATCH v3 21/23] mm: Add support for releasing multiple
- instances of a page
-Message-Id: <20161118152716.3f7acf6e25f142846909b2f6@linux-foundation.org>
-In-Reply-To: <20161110113606.76501.70752.stgit@ahduyck-blue-test.jf.intel.com>
-References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
-	<20161110113606.76501.70752.stgit@ahduyck-blue-test.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 18 Nov 2016 15:27:18 -0800 (PST)
+Received: by mail-pg0-x230.google.com with SMTP id x23so104783192pgx.1
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:27:18 -0800 (PST)
+Date: Fri, 18 Nov 2016 15:27:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v3 (re-send)] xen/gntdev: Use mempolicy instead of VM_IO
+ flag to avoid NUMA balancing
+In-Reply-To: <05c24d23-0298-5b58-d0e8-095ba64cdf9b@oracle.com>
+Message-ID: <alpine.LSU.2.11.1611181456280.10597@eggly.anvils>
+References: <1479413404-27332-1-git-send-email-boris.ostrovsky@oracle.com> <alpine.LSU.2.11.1611181335560.9605@eggly.anvils> <2bf041f3-8918-3c6f-8afb-c9edcc03dcd9@oracle.com> <alpine.LSU.2.11.1611181421470.10145@eggly.anvils>
+ <05c24d23-0298-5b58-d0e8-095ba64cdf9b@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, david.vrabel@citrix.com, jgross@suse.com, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, olaf@aepfle.de
 
-On Thu, 10 Nov 2016 06:36:06 -0500 Alexander Duyck <alexander.h.duyck@intel.com> wrote:
-
-> This patch adds a function that allows us to batch free a page that has
-> multiple references outstanding.  Specifically this function can be used to
-> drop a page being used in the page frag alloc cache.  With this drivers can
-> make use of functionality similar to the page frag alloc cache without
-> having to do any workarounds for the fact that there is no function that
-> frees multiple references.
+On Fri, 18 Nov 2016, Boris Ostrovsky wrote:
+> On 11/18/2016 05:27 PM, Hugh Dickins wrote:
+> > On Fri, 18 Nov 2016, Boris Ostrovsky wrote:
+> >> On 11/18/2016 04:51 PM, Hugh Dickins wrote:
+> >>> Hmm, sorry, but this seems overcomplicated to me: ingenious, but an
+> >>> unusual use of the ->get_policy method, which is a little worrying,
+> >>> since it has only been used for shmem (+ shm and kernfs) until now.
+> >>>
+> >>> Maybe I'm wrong, but wouldn't substituting VM_MIXEDMAP for VM_IO
+> >>> solve the problem more simply?
+> >> It would indeed. I didn't want to use it because it has specific meaning
+> >> ("Can contain "struct page" and pure PFN pages") and that didn't seem
+> >> like the right flag to describe this vma.
+> > It is okay if it contains 0 pure PFN pages; and no worse than VM_IO was.
+> > A comment on why VM_MIXEDMAP is being used there would certainly be good.
+> > But I do find its use preferable to enlisting an unusual ->get_policy.
 > 
-> ...
->
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -506,6 +506,8 @@ extern void free_hot_cold_page(struct page *page, bool cold);
->  extern void free_hot_cold_page_list(struct list_head *list, bool cold);
->  
->  struct page_frag_cache;
-> +extern void __page_frag_drain(struct page *page, unsigned int order,
-> +			      unsigned int count);
->  extern void *__alloc_page_frag(struct page_frag_cache *nc,
->  			       unsigned int fragsz, gfp_t gfp_mask);
->  extern void __free_page_frag(void *addr);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0fbfead..54fea40 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3912,6 +3912,20 @@ static struct page *__page_frag_refill(struct page_frag_cache *nc,
->  	return page;
->  }
->  
-> +void __page_frag_drain(struct page *page, unsigned int order,
-> +		       unsigned int count)
-> +{
-> +	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
-> +
-> +	if (page_ref_sub_and_test(page, count)) {
-> +		if (order == 0)
-> +			free_hot_cold_page(page, false);
-> +		else
-> +			__free_pages_ok(page, order);
-> +	}
-> +}
-> +EXPORT_SYMBOL(__page_frag_drain);
+> OK, I'll set VM_MIXEDMAP then.
 
-It's an exported-to-modules library function.  It should be documented,
-please?  The page-frag API is only partially documented, but that's no
-excuse.
+Thanks, if it accomplishes what you need, then please do use it.
 
-And perhaps documentation will help explain the naming choice.  Why
-"drain"?  I'd have expected "put"?
+> 
+> I am still curious though why you feel get_policy is not appropriate
+> here (beside the fact that so far it had limited use). It is essentially
+> trying to say that the only policy to be consulted (in vma_policy_mof())
+> is of the vma itself and not of the task.
 
-And why the leading underscores.  The page-frag API is pretty weird :(
+I agree that get_policy is explicitly about NUMA, and so relevant to the
+matter of (discouraging) NUMA balancing, without any apology needed.
 
-And inconsistent.  __alloc_page_frag -> page_frag_alloc,
-__free_page_frag -> page_frag_free(), etc.  I must have been asleep
-when I let that lot through.
+But there are no other examples of its use that way, it's been something
+private to shmem (hence shm and kernfs) up until now: the complement of
+set_policy, which implements the mbind() syscall on shmem objects.
+
+Introduce an exceptional new usage, and we're likely to introduce bugs
+(not to mention the long history of bugs in mpol_dup() that you also use).
+Perhaps I'd find one already if I took the time to study your patch.
+
+Full disclosure: I'm also contemplating a change to its interface,
+to handle a possible NUMA interleave issue, so I do need to keep
+an eye on all its callers.
+
+If we have to choose between two less-than-ideal solutions,
+please let's choose the simplest.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
