@@ -1,98 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A10B6B0471
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:17:36 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id y205so5134010qkb.4
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:17:36 -0800 (PST)
-Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com. [209.85.220.176])
-        by mx.google.com with ESMTPS id m38si2769257qtf.200.2016.11.18.11.17.35
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C02A6B0473
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 14:34:22 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g186so267200278pgc.2
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:34:22 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id d4si9460575pfb.185.2016.11.18.11.34.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 11:17:35 -0800 (PST)
-Received: by mail-qk0-f176.google.com with SMTP id n204so276240710qke.2
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:17:35 -0800 (PST)
-Subject: Re: [PATCHv3 6/6] arm64: Add support for CONFIG_DEBUG_VIRTUAL
-References: <1479431816-5028-1-git-send-email-labbott@redhat.com>
- <1479431816-5028-7-git-send-email-labbott@redhat.com>
- <20161118175327.GE1197@leverpostej>
- <16e4b3da-c552-252d-108a-0681b71b12ef@redhat.com>
- <20161118190531.GJ1197@leverpostej>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <61391b21-933b-1983-b170-68e7fbc9fee6@redhat.com>
-Date: Fri, 18 Nov 2016 11:17:29 -0800
+        Fri, 18 Nov 2016 11:34:21 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id 189so56032037pfz.3
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:34:21 -0800 (PST)
+Subject: Re: [PATCH v4] mm: don't cap request size based on read-ahead setting
+References: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
+ <20161118180218.GA6411@cmpxchg.org>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <2f00c6b4-cef7-3cbc-842f-be8aa614dd21@kernel.dk>
+Date: Fri, 18 Nov 2016 12:34:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20161118190531.GJ1197@leverpostej>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20161118180218.GA6411@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 11/18/2016 11:05 AM, Mark Rutland wrote:
-> On Fri, Nov 18, 2016 at 10:42:56AM -0800, Laura Abbott wrote:
->> On 11/18/2016 09:53 AM, Mark Rutland wrote:
->>> On Thu, Nov 17, 2016 at 05:16:56PM -0800, Laura Abbott wrote:
-> 
->>>> +#define __virt_to_phys_nodebug(x) ({					\
->>>>  	phys_addr_t __x = (phys_addr_t)(x);				\
->>>> -	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
->>>> -				 (__x - kimage_voffset); })
->>>> +	((__x & ~PAGE_OFFSET) + PHYS_OFFSET);				\
->>>> +})
->>>
->>> Given the KASAN failure, and the strong possibility that there's even
->>> more stuff lurking in common code, I think we should retain the logic to
->>> handle kernel image addresses for the timebeing (as x86 does). Once
->>> we've merged DEBUG_VIRTUAL, it will be easier to track those down.
+On 11/18/2016 11:02 AM, Johannes Weiner wrote:
+> On Thu, Nov 17, 2016 at 02:23:10PM -0700, Jens Axboe wrote:
+>> We ran into a funky issue, where someone doing 256K buffered reads saw
+>> 128K requests at the device level. Turns out it is read-ahead capping
+>> the request size, since we use 128K as the default setting. This doesn't
+>> make a lot of sense - if someone is issuing 256K reads, they should see
+>> 256K reads, regardless of the read-ahead setting, if the underlying
+>> device can support a 256K read in a single command.
 >>
->> Agreed. I might see about adding another option DEBUG_STRICT_VIRTUAL
->> for catching bad __pa vs __pa_symbol usage and keep DEBUG_VIRTUAL for
->> catching addresses that will work in neither case.
-> 
-> I think it makes sense for DEBUG_VIRTUAL to do both, so long as the
-> default behaviour (and fallback after a WARN for virt_to_phys()) matches
-> what we currently do. We'll get useful diagnostics, but a graceful
-> fallback.
-> 
+>> To make matters more confusing, there's an odd interaction with the
+>> fadvise hint setting. If we tell the kernel we're doing sequential IO on
+>> this file descriptor, we can get twice the read-ahead size. But if we
+>> tell the kernel that we are doing random IO, hence disabling read-ahead,
+>> we do get nice 256K requests at the lower level. This is because
+>> ondemand and forced read-ahead behave differently, with the latter doing
+>> the right thing. An application developer will be, rightfully,
+>> scratching his head at this point, wondering wtf is going on. A good one
+>> will dive into the kernel source, and silently weep.
+>
+> With the FADV_RANDOM part of the changelog updated, this looks good to
+> me. Just a few nitpicks below.
+>
+>> This patch introduces a bdi hint, io_pages. This is the soft max IO size
+>> for the lower level, I've hooked it up to the bdev settings here.
+>> Read-ahead is modified to issue the maximum of the user request size,
+>> and the read-ahead max size, but capped to the max request size on the
+>> device side. The latter is done to avoid reading ahead too much, if the
+>> application asks for a huge read. With this patch, the kernel behaves
+>> like the application expects.
+>>
+>> Signed-off-by: Jens Axboe <axboe@fb.com>
+>
+>> @@ -207,12 +207,17 @@ int __do_page_cache_readahead(struct address_space
+>> *mapping, struct file *filp,
+>>   * memory at once.
+>>   */
+>>  int force_page_cache_readahead(struct address_space *mapping, struct file
+>> *filp,
+>
+> Linewrap (but you already knew that ;))
 
-I was suggesting making the WARN optional for having this be more useful
-before all the __pa_symbol stuff gets cleaned up. Maybe the WARN won't
-actually be a hindrance.
+Yeah, dunno wtf happened there...
 
-Thanks,
-Laura
+>> -		pgoff_t offset, unsigned long nr_to_read)
+>> +		               pgoff_t offset, unsigned long nr_to_read)
+>>  {
+>> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+>> +	struct file_ra_state *ra = &filp->f_ra;
+>> +	unsigned long max_pages;
+>> +
+>>  	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+>>  		return -EINVAL;
+>>
+>> -	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
+>> +	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
+>> +	nr_to_read = min(nr_to_read, max_pages);
+>
+> It would be useful to have the comment on not capping below optimal IO
+> size from ondemand_readahead() here as well.
 
-> I think the helpers I suggested below do that?  Or have I misunderstood,
-> and you mean something stricter (e.g. checking whether a lm address is
-> is backed by something)?
-> 
->>> phys_addr_t __virt_to_phys(unsigned long x)
->>> {
->>> 	WARN(!__is_lm_address(x),
->>> 	     "virt_to_phys() used for non-linear address: %pK\n",
->>> 	     (void*)x);
->>> 	
->>> 	return __virt_to_phys_nodebug(x);
->>> }
->>> EXPORT_SYMBOL(__virt_to_phys);
-> 
->>> phys_addr_t __phys_addr_symbol(unsigned long x)
->>> {
->>> 	/*
->>> 	 * This is bounds checking against the kernel image only.
->>> 	 * __pa_symbol should only be used on kernel symbol addresses.
->>> 	 */
->>> 	VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
->>> 		       x > (unsigned long) KERNEL_END);
->>>
->>> 	return __pa_symbol_nodebug(x);
->>> }
->>> EXPORT_SYMBOL(__phys_addr_symbol);
-> 
-> Thanks,
-> Mark.
-> 
+Good idea, I'll copy/paste the comment from the ondemand part.
+
+>> @@ -369,10 +374,18 @@ ondemand_readahead(struct address_space *mapping,
+>>  		   bool hit_readahead_marker, pgoff_t offset,
+>>  		   unsigned long req_size)
+>>  {
+>> -	unsigned long max = ra->ra_pages;
+>> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+>> +	unsigned long max_pages = ra->ra_pages;
+>>  	pgoff_t prev_offset;
+>>
+>>  	/*
+>> +	 * If the request exceeds the readahead window, allow the read to
+>> +	 * be up to the optimal hardware IO size
+>> +	 */
+>> +	if (req_size > max_pages && bdi->io_pages > max_pages)
+>> +		max_pages = min(req_size, bdi->io_pages);
+>> +
+>> +	/*
+>>  	 * start of file
+>>  	 */
+>>  	if (!offset)
+>
+> Please feel free to add:
+>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks!
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
