@@ -1,167 +1,465 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 615246B0434
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:42 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id l8so34821291iti.6
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:42 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7757F6B0436
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:45 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id o1so33216417ito.7
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:45 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w192si2711991ith.117.2016.11.18.09.17.41
+        by mx.google.com with ESMTPS id e133si2736222itc.34.2016.11.18.09.17.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 09:17:41 -0800 (PST)
+        Fri, 18 Nov 2016 09:17:44 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v13 00/18] HMM (Heterogeneous Memory Management) v13
-Date: Fri, 18 Nov 2016 13:18:09 -0500
-Message-Id: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+Subject: [HMM v13 01/18] mm/memory/hotplug: convert device parameter bool to set of flags
+Date: Fri, 18 Nov 2016 13:18:10 -0500
+Message-Id: <1479493107-982-2-git-send-email-jglisse@redhat.com>
+In-Reply-To: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-Cliff note: HMM offers 2 things (each standing on its own). First
-it allows to use device memory transparently inside any process
-without any modifications to process program code. Second it allows
-to mirror process address space on a device.
+Only usefull for arch where we support ZONE_DEVICE and where we want to
+also support un-addressable device memory. We need struct page for such
+un-addressable memory. But we should avoid populating the kernel linear
+mapping for the physical address range because there is no real memory
+or anything behind those physical address.
 
-Change since v12 is the use of struct page for device memory even if
-the device memory is not accessible by the CPU (because of limitation
-impose by the bus between the CPU and the device).
+Hence we need more flags than just knowing if it is device memory or not.
 
-Using struct page means that their are minimal changes to core mm
-code. HMM build on top of ZONE_DEVICE to provide struct page, it
-adds new features to ZONE_DEVICE. The first 7 patches implement
-those changes.
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Russell King <linux@armlinux.org.uk>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Rich Felker <dalias@libc.org>
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+---
+ arch/ia64/mm/init.c            | 19 ++++++++++++++++---
+ arch/powerpc/mm/mem.c          | 18 +++++++++++++++---
+ arch/s390/mm/init.c            | 10 ++++++++--
+ arch/sh/mm/init.c              | 18 +++++++++++++++---
+ arch/tile/mm/init.c            | 10 ++++++++--
+ arch/x86/mm/init_32.c          | 19 ++++++++++++++++---
+ arch/x86/mm/init_64.c          | 19 ++++++++++++++++---
+ include/linux/memory_hotplug.h | 17 +++++++++++++++--
+ kernel/memremap.c              |  4 ++--
+ mm/memory_hotplug.c            |  4 ++--
+ 10 files changed, 113 insertions(+), 25 deletions(-)
 
-Rest of patchset is divided into 3 features that can each be use
-independently from one another. First is the process address space
-mirroring (patch 9 to 13), this allow to snapshot CPU page table
-and to keep the device page table synchronize with the CPU one.
-
-Second is a new memory migration helper which allow migration of
-a range of virtual address of a process. This memory migration
-also allow device to use their own DMA engine to perform the copy
-between the source memory and destination memory. This can be
-usefull even outside HMM context in many usecase.
-
-Third part of the patchset (patch 17-18) is a set of helper to
-register a ZONE_DEVICE node and manage it. It is meant as a
-convenient helper so that device drivers do not each have to
-reimplement over and over the same boiler plate code.
-
-
-I am hoping that this can now be consider for inclusion upstream.
-Bottom line is that without HMM we can not support some of the new
-hardware features on x86 PCIE. I do believe we need some solution
-to support those features or we won't be able to use such hardware
-in standard like C++17, OpenCL 3.0 and others.
-
-I have been working with NVidia to bring up this feature on their
-Pascal GPU. There are real hardware that you can buy today that
-could benefit from HMM. We also intend to leverage this inside the
-open source nouveau driver.
-
-
-In this patchset i restricted myself to set of core features what
-is missing:
-  - force read only on CPU for memory duplication and GPU atomic
-  - changes to mmu_notifier for optimization purposes
-  - migration of file back page to device memory
-
-I plan to submit a couple more patchset to implement those feature
-once core HMM is upstream.
-
-
-Is there anything blocking HMM inclusion ? Something fundamental ?
-
-
-Previous patchset posting :
-    v1 http://lwn.net/Articles/597289/
-    v2 https://lkml.org/lkml/2014/6/12/559
-    v3 https://lkml.org/lkml/2014/6/13/633
-    v4 https://lkml.org/lkml/2014/8/29/423
-    v5 https://lkml.org/lkml/2014/11/3/759
-    v6 http://lwn.net/Articles/619737/
-    v7 http://lwn.net/Articles/627316/
-    v8 https://lwn.net/Articles/645515/
-    v9 https://lwn.net/Articles/651553/
-    v10 https://lwn.net/Articles/654430/
-    v11 http://www.gossamer-threads.com/lists/linux/kernel/2286424
-    v12 http://www.kernelhub.org/?msg=972982&p=2
-
-Cheers,
-JA(C)rA'me
-
-JA(C)rA'me Glisse (18):
-  mm/memory/hotplug: convert device parameter bool to set of flags
-  mm/ZONE_DEVICE/unaddressable: add support for un-addressable device
-    memory
-  mm/ZONE_DEVICE/free_hot_cold_page: catch ZONE_DEVICE pages
-  mm/ZONE_DEVICE/free-page: callback when page is freed
-  mm/ZONE_DEVICE/devmem_pages_remove: allow early removal of device
-    memory
-  mm/ZONE_DEVICE/unaddressable: add special swap for unaddressable
-  mm/ZONE_DEVICE/x86: add support for un-addressable device memory
-  mm/hmm: heterogeneous memory management (HMM for short)
-  mm/hmm/mirror: mirror process address space on device with HMM helpers
-  mm/hmm/mirror: add range lock helper, prevent CPU page table update
-    for the range
-  mm/hmm/mirror: add range monitor helper, to monitor CPU page table
-    update
-  mm/hmm/mirror: helper to snapshot CPU page table
-  mm/hmm/mirror: device page fault handler
-  mm/hmm/migrate: support un-addressable ZONE_DEVICE page in migration
-  mm/hmm/migrate: add new boolean copy flag to migratepage() callback
-  mm/hmm/migrate: new memory migration helper for use with device memory
-  mm/hmm/devmem: device driver helper to hotplug ZONE_DEVICE memory
-  mm/hmm/devmem: dummy HMM device as an helper for ZONE_DEVICE memory
-
- MAINTAINERS                                |    7 +
- arch/ia64/mm/init.c                        |   19 +-
- arch/powerpc/mm/mem.c                      |   18 +-
- arch/s390/mm/init.c                        |   10 +-
- arch/sh/mm/init.c                          |   18 +-
- arch/tile/mm/init.c                        |   10 +-
- arch/x86/mm/init_32.c                      |   19 +-
- arch/x86/mm/init_64.c                      |   23 +-
- drivers/dax/pmem.c                         |    3 +-
- drivers/nvdimm/pmem.c                      |    5 +-
- drivers/staging/lustre/lustre/llite/rw26.c |    8 +-
- fs/aio.c                                   |    7 +-
- fs/btrfs/disk-io.c                         |   11 +-
- fs/hugetlbfs/inode.c                       |    9 +-
- fs/nfs/internal.h                          |    5 +-
- fs/nfs/write.c                             |    9 +-
- fs/proc/task_mmu.c                         |   10 +-
- fs/ubifs/file.c                            |    8 +-
- include/linux/balloon_compaction.h         |    3 +-
- include/linux/fs.h                         |   13 +-
- include/linux/hmm.h                        |  516 ++++++++++++
- include/linux/memory_hotplug.h             |   17 +-
- include/linux/memremap.h                   |   39 +-
- include/linux/migrate.h                    |    7 +-
- include/linux/mm_types.h                   |    5 +
- include/linux/swap.h                       |   18 +-
- include/linux/swapops.h                    |   67 ++
- kernel/fork.c                              |    2 +
- kernel/memremap.c                          |   48 +-
- mm/Kconfig                                 |   23 +
- mm/Makefile                                |    1 +
- mm/balloon_compaction.c                    |    2 +-
- mm/hmm.c                                   | 1175 ++++++++++++++++++++++++++++
- mm/memory.c                                |   33 +
- mm/memory_hotplug.c                        |    4 +-
- mm/migrate.c                               |  651 ++++++++++++++-
- mm/mprotect.c                              |   12 +
- mm/page_alloc.c                            |   10 +
- mm/rmap.c                                  |   47 ++
- tools/testing/nvdimm/test/iomap.c          |    2 +-
- 40 files changed, 2811 insertions(+), 83 deletions(-)
- create mode 100644 include/linux/hmm.h
- create mode 100644 mm/hmm.c
-
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index 1841ef6..95a2fa5 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -645,7 +645,7 @@ mem_init (void)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	pg_data_t *pgdat;
+ 	struct zone *zone;
+@@ -653,10 +653,17 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	pgdat = NODE_DATA(nid);
+ 
+ 	zone = pgdat->node_zones +
+-		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
++		zone_for_memory(nid, start, size, ZONE_NORMAL,
++				flags & MEMORY_DEVICE);
+ 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+ 
+ 	if (ret)
+@@ -667,13 +674,19 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	struct zone *zone;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	ret = __remove_pages(zone, start_pfn, nr_pages);
+ 	if (ret)
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 5f84433..e3c0532 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -126,7 +126,7 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
+ 	return -ENODEV;
+ }
+ 
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	struct pglist_data *pgdata;
+ 	struct zone *zone;
+@@ -134,6 +134,12 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int rc;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	pgdata = NODE_DATA(nid);
+ 
+ 	start = (unsigned long)__va(start);
+@@ -147,18 +153,24 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+ 
+ 	/* this should work for most non-highmem platforms */
+ 	zone = pgdata->node_zones +
+-		zone_for_memory(nid, start, size, 0, for_device);
++		zone_for_memory(nid, start, size, 0, flags & MEMORY_DEVICE);
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	struct zone *zone;
+ 	int ret;
++	
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
+ 
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	ret = __remove_pages(zone, start_pfn, nr_pages);
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index f56a39b..4147b87 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -149,7 +149,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
+ 	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);
+@@ -158,6 +158,12 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+ 	unsigned long nr_pages;
+ 	int rc, zone_enum;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	rc = vmem_add_mapping(start, size);
+ 	if (rc)
+ 		return rc;
+@@ -197,7 +203,7 @@ unsigned long memory_block_size_bytes(void)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	/*
+ 	 * There is no hardware or firmware interface which could trigger a
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 7549186..f72a402 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -485,19 +485,25 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	pg_data_t *pgdat;
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	pgdat = NODE_DATA(nid);
+ 
+ 	/* We only have ZONE_NORMAL, so this is easy.. */
+ 	ret = __add_pages(nid, pgdat->node_zones +
+ 			zone_for_memory(nid, start, size, ZONE_NORMAL,
+-			for_device),
++					flags & MEMORY_DEVICE),
+ 			start_pfn, nr_pages);
+ 	if (unlikely(ret))
+ 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
+@@ -516,13 +522,19 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	struct zone *zone;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	ret = __remove_pages(zone, start_pfn, nr_pages);
+ 	if (unlikely(ret))
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index adce254..5fd972c 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -863,13 +863,19 @@ void __init mem_init(void)
+  * memory to the highmem for now.
+  */
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+-int arch_add_memory(u64 start, u64 size, bool for_device)
++int arch_add_memory(u64 start, u64 size, int flags)
+ {
+ 	struct pglist_data *pgdata = &contig_page_data;
+ 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	return __add_pages(zone, start_pfn, nr_pages);
+ }
+ 
+@@ -879,7 +885,7 @@ int remove_memory(u64 start, u64 size)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	/* TODO */
+ 	return -EBUSY;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index cf80590..16a9095 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -816,24 +816,37 @@ void __init mem_init(void)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	struct pglist_data *pgdata = NODE_DATA(nid);
+ 	struct zone *zone = pgdata->node_zones +
+-		zone_for_memory(nid, start, size, ZONE_HIGHMEM, for_device);
++		zone_for_memory(nid, start, size, ZONE_HIGHMEM,
++				flags & MEMORY_DEVICE);
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-int arch_remove_memory(u64 start, u64 size)
++int arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	struct zone *zone;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	return __remove_pages(zone, start_pfn, nr_pages);
+ }
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 14b9dd7..8c4abb0 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -651,15 +651,22 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
+  * Memory is added always to NORMAL zone. This means you will never get
+  * additional DMA/DMA32 memory.
+  */
+-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
++int arch_add_memory(int nid, u64 start, u64 size, int flags)
+ {
+ 	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct zone *zone = pgdat->node_zones +
+-		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
++		zone_for_memory(nid, start, size, ZONE_NORMAL,
++				flags & MEMORY_DEVICE);
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	init_memory_mapping(start, start + size);
+ 
+ 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+@@ -956,7 +963,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ 	remove_pagetable(start, end, true);
+ }
+ 
+-int __ref arch_remove_memory(u64 start, u64 size)
++int __ref arch_remove_memory(u64 start, u64 size, int flags)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
+@@ -965,6 +972,12 @@ int __ref arch_remove_memory(u64 start, u64 size)
+ 	struct zone *zone;
+ 	int ret;
+ 
++	/* Need to add support for device and unaddressable memory if needed */
++	if (flags & MEMORY_UNADDRESSABLE) {
++		BUG();
++		return -EINVAL;
++	}
++
+ 	/* With altmap the first mapped page is offset from @start */
+ 	altmap = to_vmem_altmap((unsigned long) page);
+ 	if (altmap)
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 01033fa..ba9b12e 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -103,7 +103,7 @@ extern bool memhp_auto_online;
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
+-extern int arch_remove_memory(u64 start, u64 size);
++extern int arch_remove_memory(u64 start, u64 size, int flags);
+ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+ 	unsigned long nr_pages);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+@@ -275,7 +275,20 @@ extern int add_memory(int nid, u64 start, u64 size);
+ extern int add_memory_resource(int nid, struct resource *resource, bool online);
+ extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+ 		bool for_device);
+-extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
++
++/*
++ * For device memory we want more informations than just knowing it is device
++ * memory. We want to know if we can migrate it (ie it is not storage memory
++ * use by DAX). Is it addressable by the CPU ? Some device memory like GPU
++ * memory can not be access by CPU but we still want struct page so that we
++ * can use it like regular memory.
++ */
++#define MEMORY_FLAGS_NONE 0
++#define MEMORY_DEVICE (1 << 0)
++#define MEMORY_MOVABLE (1 << 1)
++#define MEMORY_UNADDRESSABLE (1 << 2)
++
++extern int arch_add_memory(int nid, u64 start, u64 size, int flags);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern void remove_memory(int nid, u64 start, u64 size);
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b501e39..07665eb 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -246,7 +246,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+-	arch_remove_memory(align_start, align_size);
++	arch_remove_memory(align_start, align_size, MEMORY_DEVICE);
+ 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+ 	pgmap_radix_release(res);
+ 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+@@ -358,7 +358,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	if (error)
+ 		goto err_pfn_remap;
+ 
+-	error = arch_add_memory(nid, align_start, align_size, true);
++	error = arch_add_memory(nid, align_start, align_size, MEMORY_DEVICE);
+ 	if (error)
+ 		goto err_add_memory;
+ 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9629273..b2942d7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1386,7 +1386,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ 	}
+ 
+ 	/* call arch's memory hotadd */
+-	ret = arch_add_memory(nid, start, size, false);
++	ret = arch_add_memory(nid, start, size, MEMORY_FLAGS_NONE);
+ 
+ 	if (ret < 0)
+ 		goto error;
+@@ -2205,7 +2205,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+ 	memblock_free(start, size);
+ 	memblock_remove(start, size);
+ 
+-	arch_remove_memory(start, size);
++	arch_remove_memory(start, size, MEMORY_FLAGS_NONE);
+ 
+ 	try_offline_node(nid);
+ 
 -- 
 2.4.3
 
