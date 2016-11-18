@@ -1,67 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 585E56B03A1
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 00:58:05 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so6187152wmf.3
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:58:05 -0800 (PST)
-Received: from vps202351.ovh.net (blatinox.fr. [51.254.120.209])
-        by mx.google.com with ESMTP id x62si1164065wmb.132.2016.11.17.21.58.04
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 07E9B6B03A2
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 00:59:01 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id e9so237693407pgc.5
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:59:00 -0800 (PST)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id b62si6556371pfg.0.2016.11.17.21.58.58
         for <linux-mm@kvack.org>;
-        Thu, 17 Nov 2016 21:58:04 -0800 (PST)
-From: =?UTF-8?q?J=C3=A9r=C3=A9my=20Lefaure?= <jeremy.lefaure@lse.epita.fr>
-Subject: [PATCH] shmem: fix compilation warnings on unused functions
-Date: Fri, 18 Nov 2016 00:57:49 -0500
-Message-Id: <20161118055749.11313-1-jeremy.lefaure@lse.epita.fr>
+        Thu, 17 Nov 2016 21:58:59 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
+In-Reply-To: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
+Subject: Re: [PATCH v4] mm: don't cap request size based on read-ahead setting
+Date: Fri, 18 Nov 2016 13:58:33 +0800
+Message-ID: <007401d24160$cc2442c0$646cc840$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, =?UTF-8?q?J=C3=A9r=C3=A9my=20Lefaure?= <jeremy.lefaure@lse.epita.fr>
+To: 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>
 
-Compiling shmem.c with CONFIG_SHMEM and
-CONFIG_TRANSAPRENT_HUGE_PAGECACHE enabled raises warnings on two unused
-functions when CONFIG_TMPFS and CONFIG_SYSFS are both disabled:
+On Friday, November 18, 2016 5:23 AM Jens Axboe wrote: 
+> 
+> We ran into a funky issue, where someone doing 256K buffered reads saw
+> 128K requests at the device level. Turns out it is read-ahead capping
+> the request size, since we use 128K as the default setting. This doesn't
+> make a lot of sense - if someone is issuing 256K reads, they should see
+> 256K reads, regardless of the read-ahead setting, if the underlying
+> device can support a 256K read in a single command.
+> 
+> To make matters more confusing, there's an odd interaction with the
+> fadvise hint setting. If we tell the kernel we're doing sequential IO on
+> this file descriptor, we can get twice the read-ahead size. But if we
+> tell the kernel that we are doing random IO, hence disabling read-ahead,
+> we do get nice 256K requests at the lower level. This is because
+> ondemand and forced read-ahead behave differently, with the latter doing
+> the right thing. 
 
-mm/shmem.c:390:20: warning: a??shmem_format_hugea?? defined but not used
-[-Wunused-function]
- static const char *shmem_format_huge(int huge)
-                    ^~~~~~~~~~~~~~~~~
-mm/shmem.c:373:12: warning: a??shmem_parse_hugea?? defined but not used
-[-Wunused-function]
- static int shmem_parse_huge(const char *str)
-             ^~~~~~~~~~~~~~~~
+As far as I read, forced RA is innocent but it is corrected below. 
+And with RA disabled, we should drop care of ondemand.
 
-A conditional compilation on tmpfs or sysfs removes the warnings.
+I'm scratching.
 
-Signed-off-by: JA(C)rA(C)my Lefaure <jeremy.lefaure@lse.epita.fr>
----
- mm/shmem.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2c74186..99595d8 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -370,6 +370,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
- 
- int shmem_huge __read_mostly;
- 
-+#if defined(CONFIG_SYSFS) || defined(CONFIG_TMPFS)
- static int shmem_parse_huge(const char *str)
- {
- 	if (!strcmp(str, "never"))
-@@ -407,6 +408,7 @@ static const char *shmem_format_huge(int huge)
- 		return "bad_val";
- 	}
- }
-+#endif
- 
- static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
- 		struct shrink_control *sc, unsigned long nr_to_split)
--- 
-2.10.2
+> An application developer will be, rightfully,
+> scratching his head at this point, wondering wtf is going on. A good one
+> will dive into the kernel source, and silently weep.
+> 
+> This patch introduces a bdi hint, io_pages. This is the soft max IO size
+> for the lower level, I've hooked it up to the bdev settings here.
+> Read-ahead is modified to issue the maximum of the user request size,
+> and the read-ahead max size, but capped to the max request size on the
+> device side. The latter is done to avoid reading ahead too much, if the
+> application asks for a huge read. With this patch, the kernel behaves
+> like the application expects.
+> 
+> Signed-off-by: Jens Axboe <axboe@fb.com>
+> 
+> ---
+> 
+> Changes since v3:
+> 
+> - Went over it with Johannes, cleaned up the the logic as a result
+> 
+> Changes since v2:
+> 
+> - Fix up the last minute typo on io_pages (Johannes/Hillf)
+> - Apply the same limit to force_page_cache_readahead().
+> 
+> 
+> diff --git a/block/blk-settings.c b/block/blk-settings.c
+> index f679ae1..65f16cf 100644
+> --- a/block/blk-settings.c
+> +++ b/block/blk-settings.c
+> @@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue
+> *q, unsigned int max_hw_secto
+>   	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
+>   	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
+>   	limits->max_sectors = max_sectors;
+> +	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
+>   }
+>   EXPORT_SYMBOL(blk_queue_max_hw_sectors);
+> 
+> diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
+> index 9cc8d7c..ea374e8 100644
+> --- a/block/blk-sysfs.c
+> +++ b/block/blk-sysfs.c
+> @@ -212,6 +212,7 @@ queue_max_sectors_store(struct request_queue *q,
+> const char *page, size_t count)
+> 
+>   	spin_lock_irq(q->queue_lock);
+>   	q->limits.max_sectors = max_sectors_kb << 1;
+> +	q->backing_dev_info.io_pages = max_sectors_kb >> (PAGE_SHIFT - 10);
+>   	spin_unlock_irq(q->queue_lock);
+> 
+>   	return ret;
+> diff --git a/include/linux/backing-dev-defs.h
+> b/include/linux/backing-dev-defs.h
+> index c357f27..b8144b2 100644
+> --- a/include/linux/backing-dev-defs.h
+> +++ b/include/linux/backing-dev-defs.h
+> @@ -136,6 +136,7 @@ struct bdi_writeback {
+>   struct backing_dev_info {
+>   	struct list_head bdi_list;
+>   	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
+> +	unsigned long io_pages;	/* max allowed IO size */
+>   	unsigned int capabilities; /* Device capabilities */
+>   	congested_fn *congested_fn; /* Function pointer if device is md/dm */
+>   	void *congested_data;	/* Pointer to aux data for congested func */
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index c8a955b..344c1da 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -207,12 +207,17 @@ int __do_page_cache_readahead(struct address_space
+> *mapping, struct file *filp,
+>    * memory at once.
+>    */
+>   int force_page_cache_readahead(struct address_space *mapping, struct
+> file *filp,
+> -		pgoff_t offset, unsigned long nr_to_read)
+> +		               pgoff_t offset, unsigned long nr_to_read)
+>   {
+> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+> +	struct file_ra_state *ra = &filp->f_ra;
+> +	unsigned long max_pages;
+> +
+>   	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+>   		return -EINVAL;
+> 
+> -	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
+> +	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
+> +	nr_to_read = min(nr_to_read, max_pages);
+>   	while (nr_to_read) {
+>   		int err;
+> 
+> @@ -369,10 +374,18 @@ ondemand_readahead(struct address_space *mapping,
+>   		   bool hit_readahead_marker, pgoff_t offset,
+>   		   unsigned long req_size)
+>   {
+> -	unsigned long max = ra->ra_pages;
+> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+> +	unsigned long max_pages = ra->ra_pages;
+>   	pgoff_t prev_offset;
+> 
+>   	/*
+> +	 * If the request exceeds the readahead window, allow the read to
+> +	 * be up to the optimal hardware IO size
+> +	 */
+> +	if (req_size > max_pages && bdi->io_pages > max_pages)
+> +		max_pages = min(req_size, bdi->io_pages);
+> +
+> +	/*
+>   	 * start of file
+>   	 */
+>   	if (!offset)
+> @@ -385,7 +398,7 @@ ondemand_readahead(struct address_space *mapping,
+>   	if ((offset == (ra->start + ra->size - ra->async_size) ||
+>   	     offset == (ra->start + ra->size))) {
+>   		ra->start += ra->size;
+> -		ra->size = get_next_ra_size(ra, max);
+> +		ra->size = get_next_ra_size(ra, max_pages);
+>   		ra->async_size = ra->size;
+>   		goto readit;
+>   	}
+> @@ -400,16 +413,16 @@ ondemand_readahead(struct address_space *mapping,
+>   		pgoff_t start;
+> 
+>   		rcu_read_lock();
+> -		start = page_cache_next_hole(mapping, offset + 1, max);
+> +		start = page_cache_next_hole(mapping, offset + 1, max_pages);
+>   		rcu_read_unlock();
+> 
+> -		if (!start || start - offset > max)
+> +		if (!start || start - offset > max_pages)
+>   			return 0;
+> 
+>   		ra->start = start;
+>   		ra->size = start - offset;	/* old async_size */
+>   		ra->size += req_size;
+> -		ra->size = get_next_ra_size(ra, max);
+> +		ra->size = get_next_ra_size(ra, max_pages);
+>   		ra->async_size = ra->size;
+>   		goto readit;
+>   	}
+> @@ -417,7 +430,7 @@ ondemand_readahead(struct address_space *mapping,
+>   	/*
+>   	 * oversize read
+>   	 */
+> -	if (req_size > max)
+> +	if (req_size > max_pages)
+>   		goto initial_readahead;
+> 
+>   	/*
+> @@ -433,7 +446,7 @@ ondemand_readahead(struct address_space *mapping,
+>   	 * Query the page cache and look for the traces(cached history pages)
+>   	 * that a sequential stream would leave behind.
+>   	 */
+> -	if (try_context_readahead(mapping, ra, offset, req_size, max))
+> +	if (try_context_readahead(mapping, ra, offset, req_size, max_pages))
+>   		goto readit;
+> 
+>   	/*
+> @@ -444,7 +457,7 @@ ondemand_readahead(struct address_space *mapping,
+> 
+>   initial_readahead:
+>   	ra->start = offset;
+> -	ra->size = get_init_ra_size(req_size, max);
+> +	ra->size = get_init_ra_size(req_size, max_pages);
+>   	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
+> 
+>   readit:
+> @@ -454,7 +467,7 @@ ondemand_readahead(struct address_space *mapping,
+>   	 * the resulted next readahead window into the current one.
+>   	 */
+>   	if (offset == ra->start && ra->size == ra->async_size) {
+> -		ra->async_size = get_next_ra_size(ra, max);
+> +		ra->async_size = get_next_ra_size(ra, max_pages);
+>   		ra->size += ra->async_size;
+>   	}
+> 
+> 
+> 
+> --
+> Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
