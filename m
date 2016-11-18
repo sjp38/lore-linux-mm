@@ -1,232 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E9B6B03A2
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 00:59:01 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id e9so237693407pgc.5
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 21:59:00 -0800 (PST)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id b62si6556371pfg.0.2016.11.17.21.58.58
-        for <linux-mm@kvack.org>;
-        Thu, 17 Nov 2016 21:58:59 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
-In-Reply-To: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
-Subject: Re: [PATCH v4] mm: don't cap request size based on read-ahead setting
-Date: Fri, 18 Nov 2016 13:58:33 +0800
-Message-ID: <007401d24160$cc2442c0$646cc840$@alibaba-inc.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3176B03A4
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:28:42 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y68so134343733pfb.6
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 22:28:42 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m1si6643186pfa.104.2016.11.17.22.28.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Nov 2016 22:28:41 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAI6SVCj103454
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:28:40 -0500
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26ssdnf7w4-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:28:40 -0500
+Received: from localhost
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Fri, 18 Nov 2016 16:28:38 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BC3DF3578056
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 17:28:34 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAI6SYxK35061888
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 17:28:34 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAI6SYEd017834
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 17:28:34 +1100
+Received: from d50lp31.co.us.ibm.com (d50lp31.boulder.ibm.com [9.17.249.32])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVin) with ESMTP id uAI6SW35017735
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 17:28:33 +1100
+Received: from localhost
+	by d50lp31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Thu, 17 Nov 2016 23:28:32 -0700
+Received: from localhost
+	by smtp.notes.na.collabserv.com with smtp.notes.na.collabserv.com ESMTP
+	for <linux-mm@kvack.org> from <dingzhh@cn.ibm.com>;
+	Fri, 18 Nov 2016 06:28:30 -0000
+In-Reply-To: <5b03def0-2dc4-842f-0d0e-53cc2d94936f@gmail.com>
+Subject: Re: memory.force_empty is deprecated
+From: "Zhao Hui Ding" <dingzhh@cn.ibm.com>
+Date: Fri, 18 Nov 2016 14:28:21 +0800
+References: <OF57AEC2D2.FA566D70-ON48258061.002C144F-48258061.002E2E50@notes.na.collabserv.com>
+ <20161104152103.GC8825@cmpxchg.org>
+ <5b03def0-2dc4-842f-0d0e-53cc2d94936f@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: multipart/alternative; boundary="=_alternative 00238EA34825806F_="
+Message-Id: <OF4C17DCE5.3A69F6D5-ON4825806F.00234EAD-4825806F.00238F1A@notes.na.collabserv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Jens Axboe' <axboe@kernel.dk>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
 
-On Friday, November 18, 2016 5:23 AM Jens Axboe wrote: 
-> 
-> We ran into a funky issue, where someone doing 256K buffered reads saw
-> 128K requests at the device level. Turns out it is read-ahead capping
-> the request size, since we use 128K as the default setting. This doesn't
-> make a lot of sense - if someone is issuing 256K reads, they should see
-> 256K reads, regardless of the read-ahead setting, if the underlying
-> device can support a 256K read in a single command.
-> 
-> To make matters more confusing, there's an odd interaction with the
-> fadvise hint setting. If we tell the kernel we're doing sequential IO on
-> this file descriptor, we can get twice the read-ahead size. But if we
-> tell the kernel that we are doing random IO, hence disabling read-ahead,
-> we do get nice 256K requests at the lower level. This is because
-> ondemand and forced read-ahead behave differently, with the latter doing
-> the right thing. 
 
-As far as I read, forced RA is innocent but it is corrected below. 
-And with RA disabled, we should drop care of ondemand.
+--=_alternative 00238EA34825806F_=
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="GB2312"
 
-I'm scratching.
+VGhhbmsgeW91LiANCkRvIHlvdSBtZWFuIG1lbW9yeS5mb3JjZV9lbXB0eSB3b24ndCBiZSBkZXBy
+ZWNhdGVkIGFuZCByZW1vdmVkPw0KDQpSZWdhcmRzLA0KLS1aaGFvaHVpDQoNCg0KDQpGcm9tOiAg
+IEJhbGJpciBTaW5naCA8YnNpbmdoYXJvcmFAZ21haWwuY29tPg0KVG86ICAgICBKb2hhbm5lcyBX
+ZWluZXIgPGhhbm5lc0BjbXB4Y2hnLm9yZz4sIFpoYW8gSHVpIA0KRGluZy9DaGluYS9JQk1ASUJN
+Q04NCkNjOiAgICAgVGVqdW4gSGVvIDx0akBrZXJuZWwub3JnPiwgY2dyb3Vwc0B2Z2VyLmtlcm5l
+bC5vcmcsIA0KbGludXgtbW1Aa3ZhY2sub3JnDQpEYXRlOiAgIDIwMTYtMTEtMTcgz8LO5yAwNjoz
+OQ0KU3ViamVjdDogICAgICAgIFJlOiBtZW1vcnkuZm9yY2VfZW1wdHkgaXMgZGVwcmVjYXRlZA0K
+DQoNCg0KDQoNCk9uIDA1LzExLzE2IDAyOjIxLCBKb2hhbm5lcyBXZWluZXIgd3JvdGU6DQo+IEhp
+LA0KPiANCj4gT24gRnJpLCBOb3YgMDQsIDIwMTYgYXQgMDQ6MjQ6MjVQTSArMDgwMCwgWmhhbyBI
+dWkgRGluZyB3cm90ZToNCj4+IEhlbGxvLA0KPj4NCj4+IEknbSBaaGFvaHVpIGZyb20gSUJNIFNw
+ZWN0cnVtIExTRiBkZXZlbG9wbWVudCB0ZWFtLiBJIGdvdCBiZWxvdyBtZXNzYWdlIA0KDQo+PiB3
+aGVuIHJ1bm5pbmcgTFNGIG9uIFNVU0UxMS40LCBzbyBJIHdvdWxkIGxpa2UgdG8gc2hhcmUgb3Vy
+IHVzZSBzY2VuYXJpbyANCg0KPj4gYW5kIGFzayBmb3IgdGhlIHN1Z2dlc3Rpb25zIHdpdGhvdXQg
+dXNpbmcgbWVtb3J5LmZvcmNlX2VtcHR5Lg0KPj4NCj4+IG1lbW9yeS5mb3JjZV9lbXB0eSBpcyBk
+ZXByZWNhdGVkIGFuZCB3aWxsIGJlIHJlbW92ZWQuIExldCB1cyBrbm93IGlmIGl0IA0KaXMgDQo+
+PiBuZWVkZWQgaW4geW91ciB1c2VjYXNlIGF0IGxpbnV4LW1tQGt2YWNrLm9yZw0KPj4NCj4+IExT
+RiBpcyBhIGJhdGNoIHdvcmtsb2FkIHNjaGVkdWxlciwgaXQgdXNlcyBjZ3JvdXAgdG8gZG8gYmF0
+Y2ggam9icyANCj4+IHJlc291cmNlIGVuZm9yY2VtZW50IGFuZCBhY2NvdW50aW5nLiBGb3IgZWFj
+aCBqb2IsIExTRiBjcmVhdGVzIGEgY2dyb3VwIA0KDQo+PiBkaXJlY3RvcnkgYW5kIHB1dCBqb2In
+cyBQSURzIHRvIHRoZSBjZ3JvdXAuDQo+Pg0KPj4gV2hlbiB3ZSBpbXBsZW1lbnQgTFNGIGNncm91
+cCBpbnRlZ3JhdGlvbiwgd2UgZm91bmQgY3JlYXRpbmcgYSBuZXcgDQpjZ3JvdXAgDQo+PiBpcyBt
+dWNoIHNsb3dlciB0aGFuIHJlbmFtaW5nIGFuIGV4aXN0aW5nIGNncm91cCwgaXQncyBhYm91dCBo
+dW5kcmVkcyBvZiANCg0KPj4gbWlsbGlzZWNvbmRzIHZzIGxlc3MgdGhhbiAxMCBtaWxsaXNlY29u
+ZHMuDQo+IA0KDQpXZSBhZGRlZCBmb3JjZV9lbXB0eSBhIGxvbmcgdGltZSBiYWNrIHNvIHRoYXQg
+d2UgY291bGQgZm9yY2UgZGVsZXRlDQpjZ3JvdXBzLiBUaGVyZSB3YXMgbm8gZGVmaW5pdGl2ZSB3
+YXkgb2YgcmVtb3ZpbmcgcmVmZXJlbmNlcyB0byB0aGUgY2dyb3VwDQpmcm9tIHBhZ2VfY2dyb3Vw
+IG90aGVyd2lzZS4NCg0KPiBDZ3JvdXAgY3JlYXRpb24vZGVsZXRpb24gaXMgbm90IGV4cGVjdGVk
+IHRvIGJlIGFuIHVsdHJhLWhvdCBwYXRoLCBidXQNCj4gSSdtIHN1cnByaXNlZCBpdCB0YWtlcyBs
+b25nZXIgdGhhbiBhY3R1YWxseSByZWNsYWltaW5nIGxlZnRvdmVyIHBhZ2VzLg0KPiANCj4gQnkg
+dGhlIHRpbWUgdGhlIGpvYnMgY29uY2x1ZGUsIGhvdyBtdWNoIGlzIHVzdWFsbHkgbGVmdCBpbiB0
+aGUgZ3JvdXA/DQo+IA0KPiBUaGF0IHNhaWQsIGlzIGl0IGV2ZW4gbmVjZXNzYXJ5IHRvIHByby1h
+Y3RpdmVseSByZW1vdmUgdGhlIGxlZnRvdmVyDQo+IGNhY2hlIGZyb20gdGhlIGdyb3VwIGJlZm9y
+ZSBzdGFydGluZyB0aGUgbmV4dCBqb2I/IFdoeSBub3QgbGVhdmUgaXQNCj4gZm9yIHRoZSBuZXh0
+IGpvYiB0byByZWNsYWltIGl0IGxhemlseSBzaG91bGQgbWVtb3J5IHByZXNzdXJlIGFyaXNlPw0K
+PiBJdCdzIGVhc3kgdG8gcmVjbGFpbSBwYWdlIGNhY2hlLCBhbmQgdGhlIGZpcnN0IHRvIGdvIGFz
+IGl0J3MgYmVoaW5kDQo+IHRoZSBuZXh0IGpvYidzIG1lbW9yeSBvbiB0aGUgTFJVIGxpc3QuDQoN
+Ckl0IG1pZ2h0IGFjdHVhbGx5IG1ha2Ugc2Vuc2UgdG8gbWlncmF0ZSBhbGwgdGFza3Mgb3V0IGFu
+ZCBjaGVjayB3aGF0DQp0aGUgbGVmdCBvdmVycyBsb29rIGxpa2UgLS0gc2hvdWxkIGJlIGVhc3kg
+dG8gcmVjbGFpbS4gQWxzbyBiZSBtaW5kZnVsDQppZiB5b3UgYXJlIHVzaW5nIHYxIGFuZCBoYXZl
+IHVzZV9oaWVyYXJjaHkgc2V0Lg0KDQpCYWxiaXIgU2luZ2guDQoNCg0KDQoNCg0K
 
-> An application developer will be, rightfully,
-> scratching his head at this point, wondering wtf is going on. A good one
-> will dive into the kernel source, and silently weep.
-> 
-> This patch introduces a bdi hint, io_pages. This is the soft max IO size
-> for the lower level, I've hooked it up to the bdev settings here.
-> Read-ahead is modified to issue the maximum of the user request size,
-> and the read-ahead max size, but capped to the max request size on the
-> device side. The latter is done to avoid reading ahead too much, if the
-> application asks for a huge read. With this patch, the kernel behaves
-> like the application expects.
-> 
-> Signed-off-by: Jens Axboe <axboe@fb.com>
-> 
-> ---
-> 
-> Changes since v3:
-> 
-> - Went over it with Johannes, cleaned up the the logic as a result
-> 
-> Changes since v2:
-> 
-> - Fix up the last minute typo on io_pages (Johannes/Hillf)
-> - Apply the same limit to force_page_cache_readahead().
-> 
-> 
-> diff --git a/block/blk-settings.c b/block/blk-settings.c
-> index f679ae1..65f16cf 100644
-> --- a/block/blk-settings.c
-> +++ b/block/blk-settings.c
-> @@ -249,6 +249,7 @@ void blk_queue_max_hw_sectors(struct request_queue
-> *q, unsigned int max_hw_secto
->   	max_sectors = min_not_zero(max_hw_sectors, limits->max_dev_sectors);
->   	max_sectors = min_t(unsigned int, max_sectors, BLK_DEF_MAX_SECTORS);
->   	limits->max_sectors = max_sectors;
-> +	q->backing_dev_info.io_pages = max_sectors >> (PAGE_SHIFT - 9);
->   }
->   EXPORT_SYMBOL(blk_queue_max_hw_sectors);
-> 
-> diff --git a/block/blk-sysfs.c b/block/blk-sysfs.c
-> index 9cc8d7c..ea374e8 100644
-> --- a/block/blk-sysfs.c
-> +++ b/block/blk-sysfs.c
-> @@ -212,6 +212,7 @@ queue_max_sectors_store(struct request_queue *q,
-> const char *page, size_t count)
-> 
->   	spin_lock_irq(q->queue_lock);
->   	q->limits.max_sectors = max_sectors_kb << 1;
-> +	q->backing_dev_info.io_pages = max_sectors_kb >> (PAGE_SHIFT - 10);
->   	spin_unlock_irq(q->queue_lock);
-> 
->   	return ret;
-> diff --git a/include/linux/backing-dev-defs.h
-> b/include/linux/backing-dev-defs.h
-> index c357f27..b8144b2 100644
-> --- a/include/linux/backing-dev-defs.h
-> +++ b/include/linux/backing-dev-defs.h
-> @@ -136,6 +136,7 @@ struct bdi_writeback {
->   struct backing_dev_info {
->   	struct list_head bdi_list;
->   	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
-> +	unsigned long io_pages;	/* max allowed IO size */
->   	unsigned int capabilities; /* Device capabilities */
->   	congested_fn *congested_fn; /* Function pointer if device is md/dm */
->   	void *congested_data;	/* Pointer to aux data for congested func */
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index c8a955b..344c1da 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -207,12 +207,17 @@ int __do_page_cache_readahead(struct address_space
-> *mapping, struct file *filp,
->    * memory at once.
->    */
->   int force_page_cache_readahead(struct address_space *mapping, struct
-> file *filp,
-> -		pgoff_t offset, unsigned long nr_to_read)
-> +		               pgoff_t offset, unsigned long nr_to_read)
->   {
-> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
-> +	struct file_ra_state *ra = &filp->f_ra;
-> +	unsigned long max_pages;
-> +
->   	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
->   		return -EINVAL;
-> 
-> -	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-> +	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
-> +	nr_to_read = min(nr_to_read, max_pages);
->   	while (nr_to_read) {
->   		int err;
-> 
-> @@ -369,10 +374,18 @@ ondemand_readahead(struct address_space *mapping,
->   		   bool hit_readahead_marker, pgoff_t offset,
->   		   unsigned long req_size)
->   {
-> -	unsigned long max = ra->ra_pages;
-> +	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
-> +	unsigned long max_pages = ra->ra_pages;
->   	pgoff_t prev_offset;
-> 
->   	/*
-> +	 * If the request exceeds the readahead window, allow the read to
-> +	 * be up to the optimal hardware IO size
-> +	 */
-> +	if (req_size > max_pages && bdi->io_pages > max_pages)
-> +		max_pages = min(req_size, bdi->io_pages);
-> +
-> +	/*
->   	 * start of file
->   	 */
->   	if (!offset)
-> @@ -385,7 +398,7 @@ ondemand_readahead(struct address_space *mapping,
->   	if ((offset == (ra->start + ra->size - ra->async_size) ||
->   	     offset == (ra->start + ra->size))) {
->   		ra->start += ra->size;
-> -		ra->size = get_next_ra_size(ra, max);
-> +		ra->size = get_next_ra_size(ra, max_pages);
->   		ra->async_size = ra->size;
->   		goto readit;
->   	}
-> @@ -400,16 +413,16 @@ ondemand_readahead(struct address_space *mapping,
->   		pgoff_t start;
-> 
->   		rcu_read_lock();
-> -		start = page_cache_next_hole(mapping, offset + 1, max);
-> +		start = page_cache_next_hole(mapping, offset + 1, max_pages);
->   		rcu_read_unlock();
-> 
-> -		if (!start || start - offset > max)
-> +		if (!start || start - offset > max_pages)
->   			return 0;
-> 
->   		ra->start = start;
->   		ra->size = start - offset;	/* old async_size */
->   		ra->size += req_size;
-> -		ra->size = get_next_ra_size(ra, max);
-> +		ra->size = get_next_ra_size(ra, max_pages);
->   		ra->async_size = ra->size;
->   		goto readit;
->   	}
-> @@ -417,7 +430,7 @@ ondemand_readahead(struct address_space *mapping,
->   	/*
->   	 * oversize read
->   	 */
-> -	if (req_size > max)
-> +	if (req_size > max_pages)
->   		goto initial_readahead;
-> 
->   	/*
-> @@ -433,7 +446,7 @@ ondemand_readahead(struct address_space *mapping,
->   	 * Query the page cache and look for the traces(cached history pages)
->   	 * that a sequential stream would leave behind.
->   	 */
-> -	if (try_context_readahead(mapping, ra, offset, req_size, max))
-> +	if (try_context_readahead(mapping, ra, offset, req_size, max_pages))
->   		goto readit;
-> 
->   	/*
-> @@ -444,7 +457,7 @@ ondemand_readahead(struct address_space *mapping,
-> 
->   initial_readahead:
->   	ra->start = offset;
-> -	ra->size = get_init_ra_size(req_size, max);
-> +	ra->size = get_init_ra_size(req_size, max_pages);
->   	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
-> 
->   readit:
-> @@ -454,7 +467,7 @@ ondemand_readahead(struct address_space *mapping,
->   	 * the resulted next readahead window into the current one.
->   	 */
->   	if (offset == ra->start && ra->size == ra->async_size) {
-> -		ra->async_size = get_next_ra_size(ra, max);
-> +		ra->async_size = get_next_ra_size(ra, max_pages);
->   		ra->size += ra->async_size;
->   	}
-> 
-> 
-> 
-> --
-> Jens Axboe
+--=_alternative 00238EA34825806F_=
+Content-Transfer-Encoding: base64
+Content-Type: text/html; charset="GB2312"
+
+PGZvbnQgc2l6ZT0yIGZhY2U9InNhbnMtc2VyaWYiPlRoYW5rIHlvdS4gPC9mb250Pjxicj48Zm9u
+dCBzaXplPTIgZmFjZT0ic2Fucy1zZXJpZiI+RG8geW91IG1lYW4gbWVtb3J5LmZvcmNlX2VtcHR5
+IHdvbid0DQpiZSBkZXByZWNhdGVkIGFuZCByZW1vdmVkPzwvZm9udD48YnI+PGJyPjxmb250IHNp
+emU9MiBmYWNlPSJzYW5zLXNlcmlmIj5SZWdhcmRzLDwvZm9udD48YnI+PGZvbnQgc2l6ZT0yIGZh
+Y2U9InNhbnMtc2VyaWYiPi0tWmhhb2h1aTwvZm9udD48YnI+PGJyPjxicj48YnI+PGZvbnQgc2l6
+ZT0xIGNvbG9yPSM1ZjVmNWYgZmFjZT0ic2Fucy1zZXJpZiI+RnJvbTogJm5ic3A7ICZuYnNwOyAm
+bmJzcDsNCiZuYnNwOzwvZm9udD48Zm9udCBzaXplPTEgZmFjZT0ic2Fucy1zZXJpZiI+QmFsYmly
+IFNpbmdoICZsdDtic2luZ2hhcm9yYUBnbWFpbC5jb20mZ3Q7PC9mb250Pjxicj48Zm9udCBzaXpl
+PTEgY29sb3I9IzVmNWY1ZiBmYWNlPSJzYW5zLXNlcmlmIj5UbzogJm5ic3A7ICZuYnNwOyAmbmJz
+cDsNCiZuYnNwOzwvZm9udD48Zm9udCBzaXplPTEgZmFjZT0ic2Fucy1zZXJpZiI+Sm9oYW5uZXMg
+V2VpbmVyICZsdDtoYW5uZXNAY21weGNoZy5vcmcmZ3Q7LA0KWmhhbyBIdWkgRGluZy9DaGluYS9J
+Qk1ASUJNQ048L2ZvbnQ+PGJyPjxmb250IHNpemU9MSBjb2xvcj0jNWY1ZjVmIGZhY2U9InNhbnMt
+c2VyaWYiPkNjOiAmbmJzcDsgJm5ic3A7ICZuYnNwOw0KJm5ic3A7PC9mb250Pjxmb250IHNpemU9
+MSBmYWNlPSJzYW5zLXNlcmlmIj5UZWp1biBIZW8gJmx0O3RqQGtlcm5lbC5vcmcmZ3Q7LA0KY2dy
+b3Vwc0B2Z2VyLmtlcm5lbC5vcmcsIGxpbnV4LW1tQGt2YWNrLm9yZzwvZm9udD48YnI+PGZvbnQg
+c2l6ZT0xIGNvbG9yPSM1ZjVmNWYgZmFjZT0ic2Fucy1zZXJpZiI+RGF0ZTogJm5ic3A7ICZuYnNw
+OyAmbmJzcDsNCiZuYnNwOzwvZm9udD48Zm9udCBzaXplPTEgZmFjZT0ic2Fucy1zZXJpZiI+MjAx
+Ni0xMS0xNyDPws7nIDA2OjM5PC9mb250Pjxicj48Zm9udCBzaXplPTEgY29sb3I9IzVmNWY1ZiBm
+YWNlPSJzYW5zLXNlcmlmIj5TdWJqZWN0OiAmbmJzcDsgJm5ic3A7DQombmJzcDsgJm5ic3A7PC9m
+b250Pjxmb250IHNpemU9MSBmYWNlPSJzYW5zLXNlcmlmIj5SZTogbWVtb3J5LmZvcmNlX2VtcHR5
+DQppcyBkZXByZWNhdGVkPC9mb250Pjxicj48aHIgbm9zaGFkZT48YnI+PGJyPjxicj48dHQ+PGZv
+bnQgc2l6ZT0yPjxicj48YnI+T24gMDUvMTEvMTYgMDI6MjEsIEpvaGFubmVzIFdlaW5lciB3cm90
+ZTo8YnI+Jmd0OyBIaSw8YnI+Jmd0OyA8YnI+Jmd0OyBPbiBGcmksIE5vdiAwNCwgMjAxNiBhdCAw
+NDoyNDoyNVBNICswODAwLCBaaGFvIEh1aSBEaW5nIHdyb3RlOjxicj4mZ3Q7Jmd0OyBIZWxsbyw8
+YnI+Jmd0OyZndDs8YnI+Jmd0OyZndDsgSSdtIFpoYW9odWkgZnJvbSBJQk0gU3BlY3RydW0gTFNG
+IGRldmVsb3BtZW50IHRlYW0uIEkgZ290IGJlbG93DQptZXNzYWdlIDxicj4mZ3Q7Jmd0OyB3aGVu
+IHJ1bm5pbmcgTFNGIG9uIFNVU0UxMS40LCBzbyBJIHdvdWxkIGxpa2UgdG8gc2hhcmUgb3VyIHVz
+ZQ0Kc2NlbmFyaW8gPGJyPiZndDsmZ3Q7IGFuZCBhc2sgZm9yIHRoZSBzdWdnZXN0aW9ucyB3aXRo
+b3V0IHVzaW5nIG1lbW9yeS5mb3JjZV9lbXB0eS48YnI+Jmd0OyZndDs8YnI+Jmd0OyZndDsgbWVt
+b3J5LmZvcmNlX2VtcHR5IGlzIGRlcHJlY2F0ZWQgYW5kIHdpbGwgYmUgcmVtb3ZlZC4gTGV0IHVz
+IGtub3cNCmlmIGl0IGlzIDxicj4mZ3Q7Jmd0OyBuZWVkZWQgaW4geW91ciB1c2VjYXNlIGF0IGxp
+bnV4LW1tQGt2YWNrLm9yZzxicj4mZ3Q7Jmd0Ozxicj4mZ3Q7Jmd0OyBMU0YgaXMgYSBiYXRjaCB3
+b3JrbG9hZCBzY2hlZHVsZXIsIGl0IHVzZXMgY2dyb3VwIHRvIGRvIGJhdGNoDQpqb2JzIDxicj4m
+Z3Q7Jmd0OyByZXNvdXJjZSBlbmZvcmNlbWVudCBhbmQgYWNjb3VudGluZy4gRm9yIGVhY2ggam9i
+LCBMU0YgY3JlYXRlcw0KYSBjZ3JvdXAgPGJyPiZndDsmZ3Q7IGRpcmVjdG9yeSBhbmQgcHV0IGpv
+YidzIFBJRHMgdG8gdGhlIGNncm91cC48YnI+Jmd0OyZndDs8YnI+Jmd0OyZndDsgV2hlbiB3ZSBp
+bXBsZW1lbnQgTFNGIGNncm91cCBpbnRlZ3JhdGlvbiwgd2UgZm91bmQgY3JlYXRpbmcgYQ0KbmV3
+IGNncm91cCA8YnI+Jmd0OyZndDsgaXMgbXVjaCBzbG93ZXIgdGhhbiByZW5hbWluZyBhbiBleGlz
+dGluZyBjZ3JvdXAsIGl0J3MgYWJvdXQgaHVuZHJlZHMNCm9mIDxicj4mZ3Q7Jmd0OyBtaWxsaXNl
+Y29uZHMgdnMgbGVzcyB0aGFuIDEwIG1pbGxpc2Vjb25kcy48YnI+Jmd0OyA8YnI+PGJyPldlIGFk
+ZGVkIGZvcmNlX2VtcHR5IGEgbG9uZyB0aW1lIGJhY2sgc28gdGhhdCB3ZSBjb3VsZCBmb3JjZSBk
+ZWxldGU8YnI+Y2dyb3Vwcy4gVGhlcmUgd2FzIG5vIGRlZmluaXRpdmUgd2F5IG9mIHJlbW92aW5n
+IHJlZmVyZW5jZXMgdG8gdGhlIGNncm91cDxicj5mcm9tIHBhZ2VfY2dyb3VwIG90aGVyd2lzZS48
+YnI+PGJyPiZndDsgQ2dyb3VwIGNyZWF0aW9uL2RlbGV0aW9uIGlzIG5vdCBleHBlY3RlZCB0byBi
+ZSBhbiB1bHRyYS1ob3QgcGF0aCwNCmJ1dDxicj4mZ3Q7IEknbSBzdXJwcmlzZWQgaXQgdGFrZXMg
+bG9uZ2VyIHRoYW4gYWN0dWFsbHkgcmVjbGFpbWluZyBsZWZ0b3ZlciBwYWdlcy48YnI+Jmd0OyA8
+YnI+Jmd0OyBCeSB0aGUgdGltZSB0aGUgam9icyBjb25jbHVkZSwgaG93IG11Y2ggaXMgdXN1YWxs
+eSBsZWZ0IGluIHRoZSBncm91cD88YnI+Jmd0OyA8YnI+Jmd0OyBUaGF0IHNhaWQsIGlzIGl0IGV2
+ZW4gbmVjZXNzYXJ5IHRvIHByby1hY3RpdmVseSByZW1vdmUgdGhlIGxlZnRvdmVyPGJyPiZndDsg
+Y2FjaGUgZnJvbSB0aGUgZ3JvdXAgYmVmb3JlIHN0YXJ0aW5nIHRoZSBuZXh0IGpvYj8gV2h5IG5v
+dCBsZWF2ZSBpdDxicj4mZ3Q7IGZvciB0aGUgbmV4dCBqb2IgdG8gcmVjbGFpbSBpdCBsYXppbHkg
+c2hvdWxkIG1lbW9yeSBwcmVzc3VyZSBhcmlzZT88YnI+Jmd0OyBJdCdzIGVhc3kgdG8gcmVjbGFp
+bSBwYWdlIGNhY2hlLCBhbmQgdGhlIGZpcnN0IHRvIGdvIGFzIGl0J3MgYmVoaW5kPGJyPiZndDsg
+dGhlIG5leHQgam9iJ3MgbWVtb3J5IG9uIHRoZSBMUlUgbGlzdC48YnI+PGJyPkl0IG1pZ2h0IGFj
+dHVhbGx5IG1ha2Ugc2Vuc2UgdG8gbWlncmF0ZSBhbGwgdGFza3Mgb3V0IGFuZCBjaGVjayB3aGF0
+PGJyPnRoZSBsZWZ0IG92ZXJzIGxvb2sgbGlrZSAtLSBzaG91bGQgYmUgZWFzeSB0byByZWNsYWlt
+LiBBbHNvIGJlIG1pbmRmdWw8YnI+aWYgeW91IGFyZSB1c2luZyB2MSBhbmQgaGF2ZSB1c2VfaGll
+cmFyY2h5IHNldC48YnI+PGJyPkJhbGJpciBTaW5naC48YnI+PGJyPjwvZm9udD48L3R0Pjxicj48
+YnI+PEJSPg0K
+--=_alternative 00238EA34825806F_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
