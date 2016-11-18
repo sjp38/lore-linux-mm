@@ -1,33 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5710E6B0467
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:19:40 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id o1so35456152ito.7
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 10:19:40 -0800 (PST)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id 188si2883411iti.48.2016.11.18.10.19.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 10:19:39 -0800 (PST)
-Date: Fri, 18 Nov 2016 12:19:42 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] slab: Add POISON_POINTER_DELTA to ZERO_SIZE_PTR
-In-Reply-To: <CAGXu5jKC8XTP=gjCGQYEEwSQEAWM66E8HedaEqZR3F=QSm+aTg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1611181219250.27160@east.gentwo.org>
-References: <1479376267-18486-1-git-send-email-mpe@ellerman.id.au> <alpine.DEB.2.20.1611181146330.26818@east.gentwo.org> <CAGXu5jKC8XTP=gjCGQYEEwSQEAWM66E8HedaEqZR3F=QSm+aTg@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A56FD6B0468
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:26:06 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p66so266755259pga.4
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 10:26:06 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b10si9261718pga.13.2016.11.18.10.26.05
+        for <linux-mm@kvack.org>;
+        Fri, 18 Nov 2016 10:26:05 -0800 (PST)
+Date: Fri, 18 Nov 2016 18:25:24 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCHv3 6/6] arm64: Add support for CONFIG_DEBUG_VIRTUAL
+Message-ID: <20161118182523.GG1197@leverpostej>
+References: <1479431816-5028-1-git-send-email-labbott@redhat.com>
+ <1479431816-5028-7-git-send-email-labbott@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1479431816-5028-7-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
+On Thu, Nov 17, 2016 at 05:16:56PM -0800, Laura Abbott wrote:
+> diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+> index 54bb209..0d37c19 100644
+> --- a/arch/arm64/mm/Makefile
+> +++ b/arch/arm64/mm/Makefile
+> @@ -5,6 +5,7 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
+>  obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
+>  obj-$(CONFIG_ARM64_PTDUMP)	+= dump.o
+>  obj-$(CONFIG_NUMA)		+= numa.o
+> +obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
 
-On Fri, 18 Nov 2016, Kees Cook wrote:
-> In this case, what about the original < ZERO_SIZE_PTR check Michael
-> suggested? At least the one use in usercopy.c needs to be fixed, but
-> otherwise, it should be fine?
+We'll also need:
 
-Looks like it.
+KASAN_SANITIZE_physaddr.o	:= n
+
+... or code prior to KASAN init will cause the kernel to die if
+__virt_to_phys() or __phys_addr_symbol() are called.
+
+>  obj-$(CONFIG_KASAN)		+= kasan_init.o
+>  KASAN_SANITIZE_kasan_init.o	:= n
+
+Thanks,
+Mark,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
