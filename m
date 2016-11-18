@@ -1,140 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 798C06B0477
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:15:10 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id b132so41079142iti.5
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:15:10 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a22si3157262itd.26.2016.11.18.12.15.09
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB7BD6B047A
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:23:13 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e9so269297617pgc.5
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:23:13 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0102.outbound.protection.outlook.com. [104.47.32.102])
+        by mx.google.com with ESMTPS id 79si9650251pfz.134.2016.11.18.12.23.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 12:15:09 -0800 (PST)
-Date: Fri, 18 Nov 2016 15:15:05 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v13 16/18] mm/hmm/migrate: new memory migration helper for
- use with device memory
-Message-ID: <20161118201505.GB3222@redhat.com>
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-17-git-send-email-jglisse@redhat.com>
- <87k2c0muhj.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 18 Nov 2016 12:23:12 -0800 (PST)
+From: Matthew Wilcox <mawilcox@microsoft.com>
+Subject: RE: [PATCH 20/29] radix tree: Improve multiorder iterators
+Date: Fri, 18 Nov 2016 20:23:10 +0000
+Message-ID: <SN1PR21MB0077D7FE61A476EBD6529726CBB00@SN1PR21MB0077.namprd21.prod.outlook.com>
+References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1479341856-30320-59-git-send-email-mawilcox@linuxonhyperv.com>
+ <CALYGNiN++jFZZwvShjD4PDV=cZczVOs+K-ib-ZL=M+v2XU_aYQ@mail.gmail.com>
+ <SN1PR21MB00770A0E46912C21844645F0CBB00@SN1PR21MB0077.namprd21.prod.outlook.com>
+ <CALYGNiMCJ+r37xPAht7tJM0s9_kX5J6SD2X0F65mqC4Mr6z0Tw@mail.gmail.com>
+In-Reply-To: <CALYGNiMCJ+r37xPAht7tJM0s9_kX5J6SD2X0F65mqC4Mr6z0Tw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87k2c0muhj.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Matthew Wilcox <mawilcox@linuxonhyperv.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>
 
-On Sat, Nov 19, 2016 at 01:27:28AM +0530, Aneesh Kumar K.V wrote:
-> Jerome Glisse <jglisse@redhat.com> writes:
->  
->
-> [...]
->
-> >+
-> > +static int hmm_collect_walk_pmd(pmd_t *pmdp,
-> > +				unsigned long start,
-> > +				unsigned long end,
-> > +				struct mm_walk *walk)
-> > +{
-> > +	struct hmm_migrate *migrate = walk->private;
-> > +	struct mm_struct *mm = walk->vma->vm_mm;
-> > +	unsigned long addr = start;
-> > +	spinlock_t *ptl;
-> > +	hmm_pfn_t *pfns;
-> > +	int pages = 0;
-> > +	pte_t *ptep;
-> > +
-> > +again:
-> > +	if (pmd_none(*pmdp))
-> > +		return 0;
-> > +
-> > +	split_huge_pmd(walk->vma, pmdp, addr);
-> > +	if (pmd_trans_unstable(pmdp))
-> > +		goto again;
-> > +
-> > +	pfns = &migrate->pfns[(addr - migrate->start) >> PAGE_SHIFT];
-> > +	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-> > +	arch_enter_lazy_mmu_mode();
-> > +
-> > +	for (; addr < end; addr += PAGE_SIZE, pfns++, ptep++) {
-> > +		unsigned long pfn;
-> > +		swp_entry_t entry;
-> > +		struct page *page;
-> > +		hmm_pfn_t flags;
-> > +		bool write;
-> > +		pte_t pte;
-> > +
-> > +		pte = ptep_get_and_clear(mm, addr, ptep);
-> > +		if (!pte_present(pte)) {
-> > +			if (pte_none(pte))
-> > +				continue;
-> > +
-> > +			entry = pte_to_swp_entry(pte);
-> > +			if (!is_device_entry(entry)) {
-> > +				set_pte_at(mm, addr, ptep, pte);
-> > +				continue;
-> > +			}
-> > +
-> > +			flags = HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
-> > +			page = device_entry_to_page(entry);
-> > +			write = is_write_device_entry(entry);
-> > +			pfn = page_to_pfn(page);
-> > +
-> > +			if (!(page->pgmap->flags & MEMORY_MOVABLE)) {
-> > +				set_pte_at(mm, addr, ptep, pte);
-> > +				continue;
-> > +			}
-> > +
-> > +		} else {
-> > +			pfn = pte_pfn(pte);
-> > +			page = pfn_to_page(pfn);
-> > +			write = pte_write(pte);
-> > +			flags = is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
-> > +		}
-> > +
-> > +		/* FIXME support THP see hmm_migrate_page_check() */
-> > +		if (PageTransCompound(page))
-> > +			continue;
-> > +
-> > +		*pfns = hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
-> > +		*pfns |= write ? HMM_PFN_WRITE : 0;
-> > +		migrate->npages++;
-> > +		get_page(page);
-> > +
-> > +		if (!trylock_page(page)) {
-> > +			set_pte_at(mm, addr, ptep, pte);
-> > +		} else {
-> > +			pte_t swp_pte;
-> > +
-> > +			*pfns |= HMM_PFN_LOCKED;
-> > +
-> > +			entry = make_migration_entry(page, write);
-> > +			swp_pte = swp_entry_to_pte(entry);
-> > +			if (pte_soft_dirty(pte))
-> > +				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-> > +			set_pte_at(mm, addr, ptep, swp_pte);
-> > +
-> > +			page_remove_rmap(page, false);
-> > +			put_page(page);
-> > +			pages++;
-> > +		}
-> 
-> Can you explain this. What does a failure to lock means here. Also why
-> convert the pte to migration entries here ? We do that in try_to_unmap right ?
-
-This an optimization for the usual case where the memory is only use in one
-process and that no concurrent migration/memory event is happening. Basicly
-if we can lock the page without waiting then we unmap it and the later call
-to try_to_unmap() is a no op.
-
-This is purely to optimize this common case. In short it is doing try_to_unmap()
-work ahead of time.
-
-Cheers,
-Jerome
+RnJvbTogS29uc3RhbnRpbiBLaGxlYm5pa292IFttYWlsdG86a29jdDlpQGdtYWlsLmNvbV0NCj4g
+T24gRnJpLCBOb3YgMTgsIDIwMTYgYXQgNzozMSBQTSwgTWF0dGhldyBXaWxjb3ggPG1hd2lsY294
+QG1pY3Jvc29mdC5jb20+DQo+IHdyb3RlOg0KPiA+IEkgdGhpbmsgd2hhdCB5b3UncmUgc3VnZ2Vz
+dGluZyBpcyB0aGF0IHdlIGludHJvZHVjZSBhIG5ldyBBUEk6DQo+ID4NCj4gPiAgc2xvdCA9IHJh
+ZGl4X3RyZWVfaXRlcl9zYXZlKCZpdGVyLCBvcmRlcik7DQo+ID4NCj4gPiB3aGVyZSB0aGUgY2Fs
+bGVyIHRlbGxzIHVzIHRoZSBvcmRlciBvZiB0aGUgZW50cnkgaXQganVzdCBjb25zdW1lZC4gIE9y
+IG1heWJlDQo+IHlvdSdyZSBzdWdnZXN0aW5nDQo+ID4NCj4gPiAgc2xvdCA9IHJhZGl4X3RyZWVf
+aXRlcl9hZHZhbmNlKCZpdGVyLCBuZXdpbmRleCkNCj4gDQo+IFllcywgc29tZXRpbmcgbGlrZSB0
+aGF0Lg0KPiANCj4gPg0KPiA+IHdoaWNoIHdvdWxkIGFsbG93IHVzIHRvIHNraXAgdG8gYW55IGlu
+ZGV4LiAgQWx0aG91Z2ggLi4uIGlzbid0IHRoYXQganVzdA0KPiByYWRpeF90cmVlX2l0ZXJfaW5p
+dCgpPw0KPiANCj4gSXRlcmF0b3IgY291bGQga2VlcCBwb2ludGVyIHRvIGN1cnJlbnQgbm9kZSBh
+bmQgcmV1c2UgaXQgZm9yIG5leHQNCj4gaXRlcmF0aW9uIGlmIHBvc3NpYmxlLg0KDQpUaGUgcG9p
+bnQgb2YgdGhpcyBBUEkgaXMgdGhhdCBpdCdzIG5ldmVyIHBvc3NpYmxlLCBiZWNhdXNlIHdlJ3Jl
+IGFib3V0IHRvIGRyb3AgdGhlIGxvY2sgYW5kIGFsbG93IG90aGVyIHVzZXJzIHRvIG1vZGlmeSB0
+aGUgdHJlZS4gIEFjdHVhbGx5LCBpdCBpcyBkaWZmZXJlbnQgZnJvbSByYWRpeF90cmVlX2l0ZXJf
+aW5pdCgpIGJlY2F1c2UgaXQgaGFzIHRvIHNldCAtPnRhZ3MgdG8gMCBhbmQgLT5pbmRleCA9PSAt
+Pm5leHRfaW5kZXggaW4gb3JkZXIgdG8gZ2V0IHRocm91Z2ggYSBjYWxsIHRvIHJhZGl4X3RyZWVf
+bmV4dF9zbG90KCkuDQoNCj4gPiBJdCBkb2VzIHB1c2ggYSBiaXQgb2YgY29tcGxleGl0eSBvbnRv
+IHRoZSBjYWxsZXJzLiAgV2UgaGF2ZSA3IGNhbGxlcnMgb2YNCj4gPiByYWRpeF90cmVlX2l0ZXJf
+bmV4dCgpIGluIG15IGN1cnJlbnQgdHJlZSAoYWZ0ZXIgYXBwbHlpbmcgdGhpcyBwYXRjaCBzZXQs
+IHNvDQo+ID4gcmFuZ2VfdGFnX2lmX3RhZ2dlZCBhbmQgbG9jYXRlX2l0ZW0gaGF2ZSBiZWVuIHB1
+c2hlZCBpbnRvIHRoZWlyIGNhbGxlcnMpOg0KPiA+IGJ0cmZzLCBrdWdlcGFnZWQsIHBhZ2Utd3Jp
+dGViYWNrIGFuZCBzaG1lbS4gIGJ0cmZzIGtub3dzIGl0cyBvYmplY3RzIG9jY3VweQ0KPiA+IG9u
+ZSBzbG90LiAga2h1Z2VwYWdlZCBrbm93cyB0aGF0IGl0cyBwYWdlIGlzIG9yZGVyIDAgYXQgdGhl
+IHRpbWUgaXQgY2FsbHMNCj4gPiByYWRpeF90cmVlX2l0ZXJfbmV4dCgpLiAgUGFnZS13cml0ZWJh
+Y2sgaGFzIGEgc3RydWN0IHBhZ2UgYW5kIGNhbiBzaW1wbHkgdXNlDQo+ID4gY29tcG91bmRfb3Jk
+ZXIoKS4gIEl0J3Mgc2htZW0gd2hlcmUgdGhpbmdzIGdldCBzdGlja3ksIGFsdGhvdWdoIGl0J3Mg
+YWxsDQo+ID4gc29sdmFibGUgd2l0aCBzb21lIHRlbXBvcmFyeSB2YXJpYWJsZXMuDQo+IA0KPiBV
+c2VycyB3aG8gd29yayBvbmx5IHdpdGggc2luZ2xlIHNsb3QgZW50aWVzIGRvbid0IGdldCBhbnkg
+Y29tcGxpY2F0aW9ucywNCj4gYWxsIG90aGVyIGFscmVhZHkgbWFuYWdlIHRoZXNlIG11bHRpb3Jk
+ZXIgZW50cmllcyBzb21laG93Lg0KDQpJZiB5b3UgcmVhZCB0aGUgcGF0Y2ggYmVsb3csIHlvdSds
+bCBzZWUgdGhhdCBtb3N0IGNhbGxlcnMgZG9uJ3QgbmVlZCB0byBiZSBjb25jZXJuZWQgd2l0aCB0
+aGUgc2l6ZSBvZiB0aGUgZW50cnkgdGhleSdyZSBsb29raW5nIGF0LiAgSSdsbCB0cmltIGF3YXkg
+dGhlIHRyaXZpYWwgb25lcyBzbyBpdCdzIGVhc2llciB0byBzZWUgbXkgcG9pbnQuDQoNCkl0J3Mg
+bm90IGEgaHVnZSBhbW91bnQgb2YgY29kZSBpbiBlYWNoIGNhbGxlciwgYnV0IGlzIHRoaXMgYSBi
+dXJkZW4gd2UgcmVhbGx5IHdhbnQgdG8gcHVzaCBvbnRvIHRoZSBjYWxsZXJzIHdoZW4gd2UgY291
+bGQgaGFuZGxlIGl0IGJlaGluZCB0aGUgaW50ZXJmYWNlPw0KDQpkaWZmIC0tZ2l0IGEvbW0vc2ht
+ZW0uYyBiL21tL3NobWVtLmMNCmluZGV4IDhmOWM5YWEuLjkwZGQxOGQ5IDEwMDY0NA0KLS0tIGEv
+bW0vc2htZW0uYw0KKysrIGIvbW0vc2htZW0uYw0KQEAgLTY1OCw3ICs2NTgsMTAgQEAgdW5zaWdu
+ZWQgbG9uZyBzaG1lbV9wYXJ0aWFsX3N3YXBfdXNhZ2Uoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1h
+cHBpbmcsDQogCQkJc3dhcHBlZCsrOw0KIA0KIAkJaWYgKG5lZWRfcmVzY2hlZCgpKSB7DQotCQkJ
+c2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9uZXh0KHNsb3QsICZpdGVyKTsNCisJCQl1bnNpZ25lZCBp
+bnQgb3JkZXIgPSAwOw0KKwkJCWlmICghcmFkaXhfdHJlZV9leGNlcHRpb25hbF9lbnRyeShwYWdl
+KSkNCisJCQkJb3JkZXIgPSBjb21wb3VuZF9vcmRlcihwYWdlKTsNCisJCQlzbG90ID0gcmFkaXhf
+dHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCiAJCQljb25kX3Jlc2NoZWRfcmN1KCk7DQog
+CQl9DQogCX0NCkBAIC0yNDUwLDYgKzI0NTMsNyBAQCBzdGF0aWMgdm9pZCBzaG1lbV90YWdfcGlu
+cyhzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZykNCiAJCQkJc2xvdCA9IHJhZGl4X3RyZWVf
+aXRlcl9yZXRyeSgmaXRlcik7DQogCQkJCWNvbnRpbnVlOw0KIAkJCX0NCisJCQlwYWdlID0gTlVM
+TDsNCiAJCX0gZWxzZSBpZiAocGFnZV9jb3VudChwYWdlKSAtIHBhZ2VfbWFwY291bnQocGFnZSkg
+PiAxKSB7DQogCQkJc3Bpbl9sb2NrX2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCiAJCQlyYWRp
+eF90cmVlX3RhZ19zZXQoJm1hcHBpbmctPnBhZ2VfdHJlZSwgaXRlci5pbmRleCwNCkBAIC0yNDU4
+LDcgKzI0NjIsOCBAQCBzdGF0aWMgdm9pZCBzaG1lbV90YWdfcGlucyhzdHJ1Y3QgYWRkcmVzc19z
+cGFjZSAqbWFwcGluZykNCiAJCX0NCiANCiAJCWlmIChuZWVkX3Jlc2NoZWQoKSkgew0KLQkJCXNs
+b3QgPSByYWRpeF90cmVlX2l0ZXJfbmV4dChzbG90LCAmaXRlcik7DQorCQkJdW5zaWduZWQgaW50
+IG9yZGVyID0gcGFnZSA/IGNvbXBvdW5kX29yZGVyKHBhZ2UpIDogMDsNCisJCQlzbG90ID0gcmFk
+aXhfdHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCiAJCQljb25kX3Jlc2NoZWRfcmN1KCk7
+DQogCQl9DQogCX0NCkBAIC0yNTI4LDcgKzI1MzMsMTAgQEAgc3RhdGljIGludCBzaG1lbV93YWl0
+X2Zvcl9waW5zKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nKQ0KIAkJCXNwaW5fdW5sb2Nr
+X2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCiBjb250aW51ZV9yZXNjaGVkOg0KIAkJCWlmIChu
+ZWVkX3Jlc2NoZWQoKSkgew0KLQkJCQlzbG90ID0gcmFkaXhfdHJlZV9pdGVyX25leHQoc2xvdCwg
+Jml0ZXIpOw0KKwkJCQl1bnNpZ25lZCBpbnQgb3JkZXIgPSAwOw0KKwkJCQlpZiAocGFnZSkNCisJ
+CQkJCW9yZGVyID0gY29tcG91bmRfb3JkZXIocGFnZSk7DQorCQkJCXNsb3QgPSByYWRpeF90cmVl
+X2l0ZXJfc2F2ZSgmaXRlciwgb3JkZXIpOw0KIAkJCQljb25kX3Jlc2NoZWRfcmN1KCk7DQogCQkJ
+fQ0KIAkJfQ0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
