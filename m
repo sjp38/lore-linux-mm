@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FC5B6B03C5
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C587F6B03C8
 	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:17:31 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a20so9560639wme.5
+Received: by mail-wm0-f69.google.com with SMTP id u144so9608776wmu.1
         for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:17:31 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id xt6si5054185wjc.78.2016.11.18.01.17.30
+        by mx.google.com with ESMTPS id q141si1742271wmd.43.2016.11.18.01.17.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 18 Nov 2016 01:17:30 -0800 (PST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 09/20] mm: Factor out functionality to finish page faults
-Date: Fri, 18 Nov 2016 10:17:13 +0100
-Message-Id: <1479460644-25076-10-git-send-email-jack@suse.cz>
+Subject: [PATCH 04/20] mm: Use passed vm_fault structure in __do_fault()
+Date: Fri, 18 Nov 2016 10:17:08 +0100
+Message-Id: <1479460644-25076-5-git-send-email-jack@suse.cz>
 In-Reply-To: <1479460644-25076-1-git-send-email-jack@suse.cz>
 References: <1479460644-25076-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,107 +20,75 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>
 
-Introduce function finish_fault() as a helper function for finishing
-page faults. It is rather thin wrapper around alloc_set_pte() but since
-we'd want to call this from DAX code or filesystems, it is still useful
-to avoid some boilerplate code.
+Instead of creating another vm_fault structure, use the one passed to
+__do_fault() for passing arguments into fault handler.
 
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 44 +++++++++++++++++++++++++++++++++++---------
- 2 files changed, 36 insertions(+), 9 deletions(-)
+ mm/memory.c | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 34d2891e9195..482455952f03 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -620,6 +620,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
- 
- int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 		struct page *page);
-+int finish_fault(struct vm_fault *vmf);
- #endif
- 
- /*
 diff --git a/mm/memory.c b/mm/memory.c
-index 21a4a193a6c2..ba49e5bacf17 100644
+index 79b321dfdaf2..2d7cdefc0690 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3033,6 +3033,38 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 	return 0;
- }
+@@ -2852,37 +2852,31 @@ static int __do_fault(struct vm_fault *vmf, struct page *cow_page,
+ 		      struct page **page, void **entry)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct vm_fault vmf2;
+ 	int ret;
  
-+
-+/**
-+ * finish_fault - finish page fault once we have prepared the page to fault
-+ *
-+ * @vmf: structure describing the fault
-+ *
-+ * This function handles all that is needed to finish a page fault once the
-+ * page to fault in is prepared. It handles locking of PTEs, inserts PTE for
-+ * given page, adds reverse page mapping, handles memcg charges and LRU
-+ * addition. The function returns 0 on success, VM_FAULT_ code in case of
-+ * error.
-+ *
-+ * The function expects the page to be locked and on success it consumes a
-+ * reference of a page being mapped (for the PTE which maps it).
-+ */
-+int finish_fault(struct vm_fault *vmf)
-+{
-+	struct page *page;
-+	int ret;
-+
-+	/* Did we COW the page? */
-+	if ((vmf->flags & FAULT_FLAG_WRITE) &&
-+	    !(vmf->vma->vm_flags & VM_SHARED))
-+		page = vmf->cow_page;
-+	else
-+		page = vmf->page;
-+	ret = alloc_set_pte(vmf, vmf->memcg, page);
-+	if (vmf->pte)
-+		pte_unmap_unlock(vmf->pte, vmf->ptl);
-+	return ret;
-+}
-+
- static unsigned long fault_around_bytes __read_mostly =
- 	rounddown_pow_of_two(65536);
+-	vmf2.address = vmf->address;
+-	vmf2.pgoff = vmf->pgoff;
+-	vmf2.flags = vmf->flags;
+-	vmf2.page = NULL;
+-	vmf2.gfp_mask = __get_fault_gfp_mask(vma);
+-	vmf2.cow_page = cow_page;
++	vmf->cow_page = cow_page;
  
-@@ -3178,9 +3210,7 @@ static int do_read_fault(struct vm_fault *vmf)
+-	ret = vma->vm_ops->fault(vma, &vmf2);
++	ret = vma->vm_ops->fault(vma, vmf);
  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
  		return ret;
- 
--	ret |= alloc_set_pte(vmf, NULL, vmf->page);
--	if (vmf->pte)
--		pte_unmap_unlock(vmf->pte, vmf->ptl);
-+	ret |= finish_fault(vmf);
- 	unlock_page(vmf->page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		put_page(vmf->page);
-@@ -3215,9 +3245,7 @@ static int do_cow_fault(struct vm_fault *vmf)
- 		copy_user_highpage(vmf->cow_page, vmf->page, vmf->address, vma);
- 	__SetPageUptodate(vmf->cow_page);
- 
--	ret |= alloc_set_pte(vmf, vmf->memcg, vmf->cow_page);
--	if (vmf->pte)
--		pte_unmap_unlock(vmf->pte, vmf->ptl);
-+	ret |= finish_fault(vmf);
- 	if (!(ret & VM_FAULT_DAX_LOCKED)) {
- 		unlock_page(vmf->page);
- 		put_page(vmf->page);
-@@ -3258,9 +3286,7 @@ static int do_shared_fault(struct vm_fault *vmf)
- 		}
+ 	if (ret & VM_FAULT_DAX_LOCKED) {
+-		*entry = vmf2.entry;
++		*entry = vmf->entry;
+ 		return ret;
  	}
  
--	ret |= alloc_set_pte(vmf, NULL, vmf->page);
--	if (vmf->pte)
--		pte_unmap_unlock(vmf->pte, vmf->ptl);
-+	ret |= finish_fault(vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
- 					VM_FAULT_RETRY))) {
- 		unlock_page(vmf->page);
+-	if (unlikely(PageHWPoison(vmf2.page))) {
++	if (unlikely(PageHWPoison(vmf->page))) {
+ 		if (ret & VM_FAULT_LOCKED)
+-			unlock_page(vmf2.page);
+-		put_page(vmf2.page);
++			unlock_page(vmf->page);
++		put_page(vmf->page);
+ 		return VM_FAULT_HWPOISON;
+ 	}
+ 
+ 	if (unlikely(!(ret & VM_FAULT_LOCKED)))
+-		lock_page(vmf2.page);
++		lock_page(vmf->page);
+ 	else
+-		VM_BUG_ON_PAGE(!PageLocked(vmf2.page), vmf2.page);
++		VM_BUG_ON_PAGE(!PageLocked(vmf->page), vmf->page);
+ 
+-	*page = vmf2.page;
++	*page = vmf->page;
+ 	return ret;
+ }
+ 
+@@ -3579,6 +3573,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 		.address = address & PAGE_MASK,
+ 		.flags = flags,
+ 		.pgoff = linear_page_index(vma, address),
++		.gfp_mask = __get_fault_gfp_mask(vma),
+ 	};
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pgd_t *pgd;
 -- 
 2.6.6
 
