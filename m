@@ -1,150 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D966B047E
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 16:27:19 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id p66so274164789pga.4
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:27:19 -0800 (PST)
-Received: from mail-pg0-x22b.google.com (mail-pg0-x22b.google.com. [2607:f8b0:400e:c05::22b])
-        by mx.google.com with ESMTPS id r4si9866398pgr.239.2016.11.18.13.27.18
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F27956B0481
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 16:51:14 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 3so274607085pgd.3
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:51:14 -0800 (PST)
+Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
+        by mx.google.com with ESMTPS id b88si9963528pfl.136.2016.11.18.13.51.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 13:27:18 -0800 (PST)
-Received: by mail-pg0-x22b.google.com with SMTP id p66so106690082pga.2
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:27:18 -0800 (PST)
-Date: Fri, 18 Nov 2016 13:26:59 -0800 (PST)
+        Fri, 18 Nov 2016 13:51:13 -0800 (PST)
+Received: by mail-pg0-x22e.google.com with SMTP id p66so106853059pga.2
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 13:51:13 -0800 (PST)
+Date: Fri, 18 Nov 2016 13:51:06 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: support anonymous stable page
-In-Reply-To: <20161118065820.GA7277@bbox>
-Message-ID: <alpine.LSU.2.11.1611181258530.9347@eggly.anvils>
-References: <1478842202-24009-1-git-send-email-minchan@kernel.org> <20161111060644.GA24342@bbox> <alpine.LSU.2.11.1611171950250.7304@eggly.anvils> <20161118065820.GA7277@bbox>
+Subject: Re: [PATCH v3 (re-send)] xen/gntdev: Use mempolicy instead of VM_IO
+ flag to avoid NUMA balancing
+In-Reply-To: <1479413404-27332-1-git-send-email-boris.ostrovsky@oracle.com>
+Message-ID: <alpine.LSU.2.11.1611181335560.9605@eggly.anvils>
+References: <1479413404-27332-1-git-send-email-boris.ostrovsky@oracle.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, david.vrabel@citrix.com, jgross@suse.com, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, olaf@aepfle.de
 
-On Fri, 18 Nov 2016, Minchan Kim wrote:
-> On Thu, Nov 17, 2016 at 08:35:10PM -0800, Hugh Dickins wrote:
-> > 
-> > Maybe add SWP_STABLE_WRITES in include/linux/swap.h, and set that
-> > in swap_info->flags according to bdi_cap_stable_pages_required(),
-> > leaving mapping->host itself NULL as before?
+On Thu, 17 Nov 2016, Boris Ostrovsky wrote:
+
+> Commit 9c17d96500f7 ("xen/gntdev: Grant maps should not be subject to
+> NUMA balancing") set VM_IO flag to prevent grant maps from being
+> subjected to NUMA balancing.
 > 
-> The problem with the approach is that we need to get swap_info_struct
-> in reuse_swap_page so maybe, every caller should pass swp_entry_t
-> into reuse_swap_page. It would be no problem if swap slot is really
-> referenced the page(IOW, pte is real swp_entry_t) but some cases
-> where swap slot is already empty but the page remains in only
-> swap cache, we cannot pass swp_entry_t which means that we cannot
-> get swap_info_struct.
-
-I don't see the problem: if the page is PageSwapCache (and page
-lock is held), then the swp_entry_t is there in page->private:
-see page_swapcount(), which reuse_swap_page() just called.
-
+> It was discovered recently that this flag causes get_user_pages() to
+> always fail with -EFAULT.
 > 
-> So, if I didn't miss, another option I can imagine is to move
-> SWP_STABLE_WRITES to address_space->flags as AS_STABLE_WRITES.
-> With that, we can always get the information without passing
-> swp_entry_t. Is there any better idea?
+> check_vma_flags
+> __get_user_pages
+> __get_user_pages_locked
+> __get_user_pages_unlocked
+> get_user_pages_fast
+> iov_iter_get_pages
+> dio_refill_pages
+> do_direct_IO
+> do_blockdev_direct_IO
+> do_blockdev_direct_IO
+> ext4_direct_IO_read
+> generic_file_read_iter
+> aio_run_iocb
+> 
+> (which can happen if guest's vdisk has direct-io-safe option).
+> 
+> To avoid this don't use vm_flags. Instead, use mempolicy that prohibits
+> page migration (i.e. clear MPOL_F_MOF|MPOL_F_MORON) and make sure we
+> don't consult task's policy (which may include those flags) if vma
+> doesn't have one.
+> 
+> Reported-by: Olaf Hering <olaf@aepfle.de>
+> Signed-off-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Cc: stable@vger.kernel.org
 
-I think what you suggest below would work fine (and be quicker
-than looking up the swap_info again): but is horribly misleading
-for anyone else interested in stable writes, for whom the info is
-kept in the bdi, and not in this new mapping flag.
+Hmm, sorry, but this seems overcomplicated to me: ingenious, but an
+unusual use of the ->get_policy method, which is a little worrying,
+since it has only been used for shmem (+ shm and kernfs) until now.
 
-So I'd much prefer that you keep the swap special case inside the
-world of swap, with a SWP_STABLE_WRITES flag.  Maybe unfold
-page_swapcount() inside reuse_swap_page(), so that it only
-needs a single lookup (or perhaps I'm optimizing prematurely).
+Maybe I'm wrong, but wouldn't substituting VM_MIXEDMAP for VM_IO
+solve the problem more simply?
 
 Hugh
 
+> ---
+> 
+> Mis-spelled David's address.
+> 
+> Changes in v3:
+> * Don't use __mpol_dup() and get_task_policy() which are not exported
+>   for use by drivers. Add vm_operations_struct.get_policy().
+> * Copy to stable
 > 
 > 
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index dd15d39e1985..5397e82bfd57 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -26,6 +26,8 @@ enum mapping_flags {
->  	AS_EXITING	= 4, 	/* final truncate in progress */
->  	/* writeback related tags are not used */
->  	AS_NO_WRITEBACK_TAGS = 5,
-> +	/* need stable write for swap */
-> +	AS_STABLE_WRITES = 6,
+>  drivers/xen/gntdev.c |   27 ++++++++++++++++++++++++++-
+>  1 files changed, 26 insertions(+), 1 deletions(-)
+> 
+> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> index bb95212..632edd4 100644
+> --- a/drivers/xen/gntdev.c
+> +++ b/drivers/xen/gntdev.c
+> @@ -35,6 +35,7 @@
+>  #include <linux/spinlock.h>
+>  #include <linux/slab.h>
+>  #include <linux/highmem.h>
+> +#include <linux/mempolicy.h>
+>  
+>  #include <xen/xen.h>
+>  #include <xen/grant_table.h>
+> @@ -433,10 +434,28 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
+>  	return map->pages[(addr - map->pages_vm_start) >> PAGE_SHIFT];
+>  }
+>  
+> +#ifdef CONFIG_NUMA
+> +/*
+> + * We have this op to make sure callers (such as vma_policy_mof()) don't
+> + * check current task's policy which may include migrate flags (MPOL_F_MOF
+> + * or MPOL_F_MORON)
+> + */
+> +static struct mempolicy *gntdev_vma_get_policy(struct vm_area_struct *vma,
+> +					       unsigned long addr)
+> +{
+> +	if (mpol_needs_cond_ref(vma->vm_policy))
+> +		mpol_get(vma->vm_policy);
+> +	return vma->vm_policy;
+> +}
+> +#endif
+> +
+>  static const struct vm_operations_struct gntdev_vmops = {
+>  	.open = gntdev_vma_open,
+>  	.close = gntdev_vma_close,
+>  	.find_special_page = gntdev_vma_find_special_page,
+> +#ifdef CONFIG_NUMA
+> +	.get_policy = gntdev_vma_get_policy,
+> +#endif
 >  };
 >  
->  static inline void mapping_set_error(struct address_space *mapping, int error)
-> @@ -55,6 +57,21 @@ static inline int mapping_unevictable(struct address_space *mapping)
->  	return !!mapping;
->  }
+>  /* ------------------------------------------------------------------ */
+> @@ -1007,7 +1026,13 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 >  
-> +static inline void mapping_set_stable(struct address_space *mapping)
-> +{
-> +	set_bit(AS_STABLE_WRITES, &mapping->flags);
-> +}
-> +
-> +static inline void mapping_clear_stable(struct address_space *mapping)
-> +{
-> +	clear_bit(AS_STABLE_WRITES, &mapping->flags);
-> +}
-> +
-> +static inline int mapping_stable(struct address_space *mapping)
-> +{
-> +	return test_bit(AS_STABLE_WRITES, &mapping->flags);
-> +}
-> +
->  static inline void mapping_set_exiting(struct address_space *mapping)
->  {
->  	set_bit(AS_EXITING, &mapping->flags);
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 2210de290b54..0c31fd814933 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -943,11 +943,20 @@ bool reuse_swap_page(struct page *page, int *total_mapcount)
->  	count = page_trans_huge_mapcount(page, total_mapcount);
->  	if (count <= 1 && PageSwapCache(page)) {
->  		count += page_swapcount(page);
-> -		if (count == 1 && !PageWriteback(page)) {
-> +		if (count != 1)
-> +			goto out;
-> +		if (!PageWriteback(page)) {
->  			delete_from_swap_cache(page);
->  			SetPageDirty(page);
-> +		} else {
-> +			struct address_space *mapping;
-> +
-> +			mapping = page_mapping(page);
-> +			if (mapping_stable(mapping))
-> +				return false;
->  		}
->  	}
-> +out:
->  	return count <= 1;
->  }
+>  	vma->vm_ops = &gntdev_vmops;
 >  
-> @@ -2386,6 +2395,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	unsigned long *frontswap_map = NULL;
->  	struct page *page = NULL;
->  	struct inode *inode = NULL;
-> +	struct address_space *swapper_space;
+> -	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
+> +	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+> +
+> +#ifdef CONFIG_NUMA
+> +	/* Prevent NUMA balancing */
+> +	if (vma->vm_policy)
+> +		vma->vm_policy->flags &= ~(MPOL_F_MOF | MPOL_F_MORON);
+> +#endif
 >  
->  	if (swap_flags & ~SWAP_FLAGS_VALID)
->  		return -EINVAL;
-> @@ -2447,6 +2457,13 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  		error = -ENOMEM;
->  		goto bad_swap;
->  	}
-> +
-> +	swapper_space = &swapper_spaces[p->type];
-> +	if (bdi_cap_stable_pages_required(inode_to_bdi(inode)))
-> +		mapping_set_stable(swapper_space);
-> +	else
-> +		mapping_clear_stable(swapper_space);
-> +
->  	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
->  		int cpu;
+>  	if (use_ptemod)
+>  		vma->vm_flags |= VM_DONTCOPY;
+> -- 
+> 1.7.1
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
