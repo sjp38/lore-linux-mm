@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 930656B043E
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:52 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id q186so34031952itb.0
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:52 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 83F016B043F
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:53 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id b132so34861659iti.5
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:53 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h190si2722059ite.62.2016.11.18.09.17.51
+        by mx.google.com with ESMTPS id 139si2739572itv.64.2016.11.18.09.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 09:17:51 -0800 (PST)
+        Fri, 18 Nov 2016 09:17:52 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v13 09/18] mm/hmm/mirror: mirror process address space on device with HMM helpers
-Date: Fri, 18 Nov 2016 13:18:18 -0500
-Message-Id: <1479493107-982-10-git-send-email-jglisse@redhat.com>
+Subject: [HMM v13 10/18] mm/hmm/mirror: add range lock helper, prevent CPU page table update for the range
+Date: Fri, 18 Nov 2016 13:18:19 -0500
+Message-Id: <1479493107-982-11-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,18 +23,30 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-This is a heterogeneous memory management (HMM) process address space
-mirroring. In a nutshell this provide an API to mirror process address
-space on a device. This boils down to keeping CPU and device page table
-synchronize (we assume that both device and CPU are cache coherent like
-PCIe device can be).
+There is two possible strategy when it comes to snapshoting the CPU page table
+inside the device page table. First one snapshot the CPU page table and keep
+track of active mmu_notifier callback. Once snapshot is done and before updating
+the device page table (in an atomic fashion) it check the mmu_notifier sequence.
+If sequence is same as the time the CPU page table was snapshot then it means
+that no mmu_notifier run in the meantime and hence the snapshot is accurate. If
+the sequence is different then one mmu_notifier callback did run and snapshot
+might no longer be valid and the whole procedure must be restarted.
 
-This patch provide a simple API for device driver to achieve address
-space mirroring thus avoiding each device driver to grow its own CPU
-page table walker and its own CPU page table synchronization mechanism.
+Issue with this approach is that it does not garanty forward progress for the
+device driver trying to mirror a range of the address space.
 
-This is usefull for NVidia GPU >= Pascal, Mellanox IB >= mlx5 and more
-hardware in the future.
+The second solution, implemented by this patch, is to serialize CPU snapshot
+with mmu_notifier callback and have each waiting on each other according to the
+order they happen. This garanty forward progress for driver. The drawback is
+that it can stall process waiting on the mmu_notifier callback to finish. So
+thing like direct page reclaim (or even indirect one) might stall and this might
+increase overall kernel latency.
+
+For now just accept this potential issue and wait to have real world workload to
+be affected by it before trying to fix it. Fix is probably to introduce a new
+mmu_notifier_try_to_invalidate() that could return failure if it has to wait or
+sleep and use it inside reclaim code to decide to skip to next candidate for
+reclaimation.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
@@ -43,315 +55,247 @@ Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
 Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
 Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h |  97 +++++++++++++++++++++++++++++++
- mm/hmm.c            | 160 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 257 insertions(+)
+ include/linux/hmm.h |  30 ++++++++++++
+ mm/hmm.c            | 131 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 154 insertions(+), 7 deletions(-)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 54dd529..f44e270 100644
+index f44e270..c0b1c07 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -88,6 +88,7 @@
- 
- #if IS_ENABLED(CONFIG_HMM)
- 
-+struct hmm;
- 
- /*
-  * hmm_pfn_t - HMM use its own pfn type to keep several flags per page
-@@ -127,6 +128,102 @@ static inline hmm_pfn_t hmm_pfn_from_pfn(unsigned long pfn)
- }
+@@ -224,6 +224,36 @@ int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
+ void hmm_mirror_unregister(struct hmm_mirror *mirror);
  
  
 +/*
-+ * Mirroring: how to use synchronize device page table with CPU page table ?
++ * struct hmm_range - track invalidation lock on virtual address range
 + *
-+ * Device driver must always synchronize with CPU page table update, for this
-+ * they can either directly use mmu_notifier API or they can use the hmm_mirror
-+ * API. Device driver can decide to register one mirror per device per process
-+ * or just one mirror per process for a group of device. Pattern is :
-+ *
-+ *      int device_bind_address_space(..., struct mm_struct *mm, ...)
-+ *      {
-+ *          struct device_address_space *das;
-+ *          int ret;
-+ *          // Device driver specific initialization, and allocation of das
-+ *          // which contain an hmm_mirror struct as one of its field.
-+ *          ret = hmm_mirror_register(&das->mirror, mm, &device_mirror_ops);
-+ *          if (ret) {
-+ *              // Cleanup on error
-+ *              return ret;
-+ *          }
-+ *          // Other device driver specific initialization
-+ *      }
-+ *
-+ * Device driver must not free the struct containing hmm_mirror struct before
-+ * calling hmm_mirror_unregister() expected usage is to do that when device
-+ * driver is unbinding from an address space.
-+ *
-+ *      void device_unbind_address_space(struct device_address_space *das)
-+ *      {
-+ *          // Device driver specific cleanup
-+ *          hmm_mirror_unregister(&das->mirror);
-+ *          // Other device driver specific cleanup and now das can be free
-+ *      }
-+ *
-+ * Once an hmm_mirror is register for an address space, device driver will get
-+ * callback through the update() operation (see hmm_mirror_ops struct).
++ * @hmm: core hmm struct this range is active against
++ * @list: all range lock are on a list
++ * @start: range virtual start address (inclusive)
++ * @end: range virtual end address (exclusive)
++ * @waiting: pointer to range waiting on this one
++ * @wakeup: use to wakeup the range when it was waiting
 + */
-+
-+struct hmm_mirror;
-+
-+/*
-+ * enum hmm_update - type of update
-+ * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
-+ */
-+enum hmm_update {
-+	HMM_UPDATE_INVALIDATE,
++struct hmm_range {
++	struct hmm		*hmm;
++	struct list_head	list;
++	unsigned long		start;
++	unsigned long		end;
++	struct hmm_range	*waiting;
++	bool			wakeup;
 +};
 +
 +/*
-+ * struct hmm_mirror_ops - HMM mirror device operations callback
-+ *
-+ * @update: callback to update range on a device
++ * Range locking allow to garanty forward progress by blocking CPU page table
++ * invalidation. See functions description in mm/hmm.c for documentation.
 + */
-+struct hmm_mirror_ops {
-+	/* update() - update virtual address range of memory
-+	 *
-+	 * @mirror: pointer to struct hmm_mirror
-+	 * @update: update's type (turn read only, unmap, ...)
-+	 * @start: virtual start address of the range to update
-+	 * @end: virtual end address of the range to update
-+	 *
-+	 * This callback is call when the CPU page table is updated, the device
-+	 * driver must update device page table accordingly to update's action.
-+	 *
-+	 * Device driver callback must wait until device have fully updated its
-+	 * view for the range. Note we plan to make this asynchronous in later
-+	 * patches. So that multiple devices can schedule update to their page
-+	 * table and once all device have schedule the update then we wait for
-+	 * them to propagate.
-+	 */
-+	void (*update)(struct hmm_mirror *mirror,
-+		       enum hmm_update action,
++int hmm_vma_range_lock(struct hmm_range *range,
++		       struct vm_area_struct *vma,
 +		       unsigned long start,
 +		       unsigned long end);
-+};
-+
-+/*
-+ * struct hmm_mirror - mirror struct for a device driver
-+ *
-+ * @hmm: pointer to struct hmm (which is unique per mm_struct)
-+ * @ops: device driver callback for HMM mirror operations
-+ * @list: for list of mirrors of a given mm
-+ *
-+ * Each address space (mm_struct) being mirrored by a device must register one
-+ * of hmm_mirror struct with HMM. HMM will track list of all mirrors for each
-+ * mm_struct (or each process).
-+ */
-+struct hmm_mirror {
-+	struct hmm			*hmm;
-+	const struct hmm_mirror_ops	*ops;
-+	struct list_head		list;
-+};
-+
-+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
-+void hmm_mirror_unregister(struct hmm_mirror *mirror);
++void hmm_vma_range_unlock(struct hmm_range *range);
 +
 +
  /* Below are for HMM internal use only ! Not to be use by device driver ! */
  void hmm_mm_destroy(struct mm_struct *mm);
  
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 342b596..3594785 100644
+index 3594785..ee05419 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -21,14 +21,27 @@
- #include <linux/hmm.h>
- #include <linux/slab.h>
- #include <linux/sched.h>
-+#include <linux/mmu_notifier.h>
- 
- /*
+@@ -27,7 +27,8 @@
   * struct hmm - HMM per mm struct
   *
   * @mm: mm struct this HMM struct is bound to
-+ * @lock: lock protecting mirrors list
-+ * @mirrors: list of mirrors for this mm
-+ * @wait_queue: wait queue
-+ * @sequence: we track update to CPU page table with a sequence number
-+ * @mmu_notifier: mmu notifier to track update to CPU page table
-+ * @notifier_count: number of currently active notifier count
-  */
+- * @lock: lock protecting mirrors list
++ * @lock: lock protecting mirrors and ranges list
++ * @ranges: list of range lock (for snapshot and invalidation serialization)
+  * @mirrors: list of mirrors for this mm
+  * @wait_queue: wait queue
+  * @sequence: we track update to CPU page table with a sequence number
+@@ -37,6 +38,7 @@
  struct hmm {
  	struct mm_struct	*mm;
-+	spinlock_t		lock;
-+	struct list_head	mirrors;
-+	atomic_t		sequence;
-+	wait_queue_head_t	wait_queue;
-+	struct mmu_notifier	mmu_notifier;
-+	atomic_t		notifier_count;
- };
- 
- /*
-@@ -48,6 +61,12 @@ static struct hmm *hmm_register(struct mm_struct *mm)
- 		hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
- 		if (!hmm)
- 			return NULL;
-+		init_waitqueue_head(&hmm->wait_queue);
-+		atomic_set(&hmm->notifier_count, 0);
-+		INIT_LIST_HEAD(&hmm->mirrors);
-+		atomic_set(&hmm->sequence, 0);
-+		hmm->mmu_notifier.ops = NULL;
-+		spin_lock_init(&hmm->lock);
+ 	spinlock_t		lock;
++	struct list_head	ranges;
+ 	struct list_head	mirrors;
+ 	atomic_t		sequence;
+ 	wait_queue_head_t	wait_queue;
+@@ -66,6 +68,7 @@ static struct hmm *hmm_register(struct mm_struct *mm)
+ 		INIT_LIST_HEAD(&hmm->mirrors);
+ 		atomic_set(&hmm->sequence, 0);
+ 		hmm->mmu_notifier.ops = NULL;
++		INIT_LIST_HEAD(&hmm->ranges);
+ 		spin_lock_init(&hmm->lock);
  		hmm->mm = mm;
  	}
- 
-@@ -84,3 +103,144 @@ void hmm_mm_destroy(struct mm_struct *mm)
- 
+@@ -104,16 +107,48 @@ void hmm_mm_destroy(struct mm_struct *mm)
  	kfree(hmm);
  }
-+
-+
-+
-+static void hmm_invalidate_range(struct hmm *hmm,
-+				 enum hmm_update action,
-+				 unsigned long start,
-+				 unsigned long end)
-+{
-+	struct hmm_mirror *mirror;
-+
-+	/*
-+	 * Mirror being added or remove is a rare event so list traversal isn't
-+	 * protected by a lock, we rely on simple rules. All list modification
-+	 * are done using list_add_rcu() and list_del_rcu() under a spinlock to
-+	 * protect from concurrent addition or removal but not traversal.
-+	 *
-+	 * Because hmm_mirror_unregister() wait for all running invalidation to
-+	 * complete (and thus all list traversal to finish). None of the mirror
-+	 * struct can be freed from under us while traversing the list and thus
-+	 * it is safe to dereference their list pointer even if they were just
-+	 * remove.
+ 
+-
+-
+ static void hmm_invalidate_range(struct hmm *hmm,
+ 				 enum hmm_update action,
+ 				 unsigned long start,
+ 				 unsigned long end)
+ {
++	struct hmm_range range, *tmp;
+ 	struct hmm_mirror *mirror;
+ 
+ 	/*
++	 * Serialize invalidation with CPU snapshot (see hmm_vma_range_lock()).
++	 * Need to make change to mmu_notifier so that we can get a struct that
++	 * stay alive accross call to mmu_notifier_invalidate_range_start() and
++	 * mmu_notifier_invalidate_range_end(). FIXME !
 +	 */
-+	list_for_each_entry (mirror, &hmm->mirrors, list)
-+		mirror->ops->update(mirror, action, start, end);
-+}
-+
-+static void hmm_invalidate_page(struct mmu_notifier *mn,
-+				struct mm_struct *mm,
-+				unsigned long addr)
-+{
-+	unsigned long start = addr & PAGE_MASK;
-+	unsigned long end = start + PAGE_SIZE;
-+	struct hmm *hmm = mm->hmm;
-+
-+	VM_BUG_ON(!hmm);
-+
-+	atomic_inc(&hmm->notifier_count);
-+	atomic_inc(&hmm->sequence);
-+	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-+	atomic_dec(&hmm->notifier_count);
-+	wake_up(&hmm->wait_queue);
-+}
-+
-+static void hmm_invalidate_range_start(struct mmu_notifier *mn,
-+				       struct mm_struct *mm,
-+				       unsigned long start,
-+				       unsigned long end)
-+{
-+	struct hmm *hmm = mm->hmm;
-+
-+	VM_BUG_ON(!hmm);
-+
-+	atomic_inc(&hmm->notifier_count);
-+	atomic_inc(&hmm->sequence);
-+	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-+}
-+
-+static void hmm_invalidate_range_end(struct mmu_notifier *mn,
-+				     struct mm_struct *mm,
-+				     unsigned long start,
-+				     unsigned long end)
-+{
-+	struct hmm *hmm = mm->hmm;
-+
-+	VM_BUG_ON(!hmm);
-+
-+	/* Reverse order here because we are getting out of invalidation */
-+	atomic_dec(&hmm->notifier_count);
-+	wake_up(&hmm->wait_queue);
-+}
-+
-+static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-+	.invalidate_page	= hmm_invalidate_page,
-+	.invalidate_range_start	= hmm_invalidate_range_start,
-+	.invalidate_range_end	= hmm_invalidate_range_end,
-+};
-+
-+/*
-+ * hmm_mirror_register() - register a mirror against an mm
-+ *
-+ * @mirror: new mirror struct to register
-+ * @mm: mm to register against
-+ *
-+ * To start mirroring a process address space device driver must register an
-+ * HMM mirror struct.
-+ */
-+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
-+{
-+	/* Sanity check */
-+	if (!mm || !mirror || !mirror->ops)
-+		return -EINVAL;
-+
-+	mirror->hmm = hmm_register(mm);
-+	if (!mirror->hmm)
-+		return -ENOMEM;
-+
-+	/* Register mmu_notifier if not already, use mmap_sem for locking */
-+	if (!mirror->hmm->mmu_notifier.ops) {
-+		struct hmm *hmm = mirror->hmm;
-+		down_write(&mm->mmap_sem);
-+		if (!hmm->mmu_notifier.ops) {
-+			hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
-+			if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
-+				hmm->mmu_notifier.ops = NULL;
-+				up_write(&mm->mmap_sem);
-+				return -ENOMEM;
-+			}
-+		}
-+		up_write(&mm->mmap_sem);
-+	}
-+
-+	spin_lock(&mirror->hmm->lock);
-+	list_add_rcu(&mirror->list, &mirror->hmm->mirrors);
-+	spin_unlock(&mirror->hmm->lock);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(hmm_mirror_register);
-+
-+/*
-+ * hmm_mirror_unregister() - unregister a mirror
-+ *
-+ * @mirror: new mirror struct to register
-+ *
-+ * Stop mirroring a process address space and cleanup.
-+ */
-+void hmm_mirror_unregister(struct hmm_mirror *mirror)
-+{
-+	struct hmm *hmm = mirror->hmm;
++	range.waiting = NULL;
++	range.start = start;
++	range.end = end;
++	range.hmm = hmm;
 +
 +	spin_lock(&hmm->lock);
-+	list_del_rcu(&mirror->list);
++	list_for_each_entry (tmp, &hmm->ranges, list) {
++		if (range.start >= tmp->end || range.end <= tmp->start)
++			continue;
++
++		while (tmp->waiting)
++			tmp = tmp->waiting;
++
++		list_add(&range.list, &hmm->ranges);
++		tmp->waiting = &range;
++		range.wakeup = false;
++		spin_unlock(&hmm->lock);
++
++		wait_event(hmm->wait_queue, range.wakeup);
++		return;
++	}
++	list_add(&range.list, &hmm->ranges);
++	spin_unlock(&hmm->lock);
++
++	atomic_inc(&hmm->notifier_count);
++	atomic_inc(&hmm->sequence);
++
++	/*
+ 	 * Mirror being added or remove is a rare event so list traversal isn't
+ 	 * protected by a lock, we rely on simple rules. All list modification
+ 	 * are done using list_add_rcu() and list_del_rcu() under a spinlock to
+@@ -127,6 +162,9 @@ static void hmm_invalidate_range(struct hmm *hmm,
+ 	 */
+ 	list_for_each_entry (mirror, &hmm->mirrors, list)
+ 		mirror->ops->update(mirror, action, start, end);
++
++	/* See above FIXME */
++	hmm_vma_range_unlock(&range);
+ }
+ 
+ static void hmm_invalidate_page(struct mmu_notifier *mn,
+@@ -139,8 +177,6 @@ static void hmm_invalidate_page(struct mmu_notifier *mn,
+ 
+ 	VM_BUG_ON(!hmm);
+ 
+-	atomic_inc(&hmm->notifier_count);
+-	atomic_inc(&hmm->sequence);
+ 	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
+ 	atomic_dec(&hmm->notifier_count);
+ 	wake_up(&hmm->wait_queue);
+@@ -155,8 +191,6 @@ static void hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 
+ 	VM_BUG_ON(!hmm);
+ 
+-	atomic_inc(&hmm->notifier_count);
+-	atomic_inc(&hmm->sequence);
+ 	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
+ }
+ 
+@@ -244,3 +278,86 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
+ 	wait_event(hmm->wait_queue, !atomic_read(&hmm->notifier_count));
+ }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
++
++
++/*
++ * hmm_vma_range_lock() - lock invalidation of a virtual address range
++ * @range: range lock struct provided by caller to track lock while valid
++ * @vma: virtual memory area containing the virtual address range
++ * @start: range virtual start address (inclusive)
++ * @end: range virtual end address (exclusive)
++ * Returns: -EINVAL or -ENOMEM on error, 0 otherwise
++ *
++ * This will block any invalidation to CPU page table for the range of virtual
++ * address provided as argument. Design pattern is :
++ *      hmm_vma_range_lock(vma, start, end, lock);
++ *      hmm_vma_range_get_pfns(vma, start, end, pfns);
++ *      // Device driver goes over each pfn in the pfns array, snapshot of CPU
++ *      // page table and take appropriate actions (use it to populate GPU page
++ *      // table, identify address that need faulting, prepare migration, ...)
++ *      hmm_vma_range_unlock(&lock);
++ *
++ * DO NOT HOLD THE RANGE LOCK FOR LONGER THAN NECESSARY ! THIS DOES BLOCK CPU
++ * PAGE TABLE INVALIDATION !
++ */
++int hmm_vma_range_lock(struct hmm_range *range,
++		       struct vm_area_struct *vma,
++		       unsigned long start,
++		       unsigned long end)
++{
++	struct hmm *hmm;
++
++	VM_BUG_ON(!vma);
++	VM_BUG_ON(!rwsem_is_locked(&vma->vm_mm->mmap_sem));
++
++	range->hmm = hmm = hmm_register(vma->vm_mm);
++	if (!hmm)
++		return -ENOMEM;
++
++	if (start < vma->vm_start || start >= vma->vm_end)
++		return -EINVAL;
++	if (end < vma->vm_start || end > vma->vm_end)
++		return -EINVAL;
++
++	range->waiting = NULL;
++	range->start = start;
++	range->end = end;
++
++	spin_lock(&hmm->lock);
++	list_add(&range->list, &hmm->ranges);
 +	spin_unlock(&hmm->lock);
 +
 +	/*
-+	 * Wait for all active notifier so that it is safe to traverse mirror
-+	 * list without any lock.
++	 * Wait for all active mmu_notifier this is because we can not keep an
++	 * hmm_range struct around while mmu_notifier is between a start and
++	 * end section. This need change to mmu_notifier FIXME !
 +	 */
 +	wait_event(hmm->wait_queue, !atomic_read(&hmm->notifier_count));
++
++	return 0;
 +}
-+EXPORT_SYMBOL(hmm_mirror_unregister);
++EXPORT_SYMBOL(hmm_vma_range_lock);
++
++/*
++ * hmm_vma_range_unlock() - unlock invalidation of a virtual address range
++ * @lock: lock struct tracking the range lock
++ *
++ * See hmm_vma_range_lock() for usage.
++ */
++void hmm_vma_range_unlock(struct hmm_range *range)
++{
++	struct hmm *hmm = range->hmm;
++	bool wakeup = false;
++
++	spin_lock(&hmm->lock);
++	list_del(&range->list);
++	if (range->waiting) {
++		range->waiting->wakeup = true;
++		wakeup = true;
++	}
++	spin_unlock(&hmm->lock);
++
++	if (wakeup)
++		wake_up(&hmm->wait_queue);
++}
++EXPORT_SYMBOL(hmm_vma_range_unlock);
 -- 
 2.4.3
 
