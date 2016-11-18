@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D536B0445
+	by kanga.kvack.org (Postfix) with ESMTP id E9CEF6B0446
 	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:59 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id l8so34835341iti.6
+Received: by mail-it0-f70.google.com with SMTP id o1so33228124ito.7
         for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:59 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a68si2704021itd.119.2016.11.18.09.17.58
+        by mx.google.com with ESMTPS id i67si2710355itg.117.2016.11.18.09.17.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 09:17:58 -0800 (PST)
+        Fri, 18 Nov 2016 09:17:59 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v13 16/18] mm/hmm/migrate: new memory migration helper for use with device memory
-Date: Fri, 18 Nov 2016 13:18:25 -0500
-Message-Id: <1479493107-982-17-git-send-email-jglisse@redhat.com>
+Subject: [HMM v13 17/18] mm/hmm/devmem: device driver helper to hotplug ZONE_DEVICE memory
+Date: Fri, 18 Nov 2016 13:18:26 -0500
+Message-Id: <1479493107-982-18-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,23 +23,10 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-This patch add a new memory migration helpers, which migrate memory
-backing a range of virtual address of a process to different memory
-(which can be allocated through special allocator). It differs from
-numa migration by working on a range of virtual address and thus by
-doing migration in chunk that can be large enough to use DMA engine
-or special copy offloading engine.
-
-Expected users are any one with heterogeneous memory where different
-memory have different characteristics (latency, bandwidth, ...). As
-an example IBM platform with CAPI bus can make use of this feature
-to migrate between regular memory and CAPI device memory. New CPU
-architecture with a pool of high performance memory not manage as
-cache but presented as regular memory (while being faster and with
-lower latency than DDR) will also be prime user of this patch.
-
-Migration to private device memory will be usefull for device that
-have large pool of such like GPU, NVidia plans to use HMM for that.
+This introduce a simple struct and associated helpers for device driver
+to use when hotpluging un-addressable device memory as ZONE_DEVICE. It
+will find a unuse physical address range and trigger memory hotplug for
+it which allocates and initialize struct page for the device memory.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
@@ -48,699 +35,414 @@ Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
 Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
 Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h |  54 ++++-
- mm/migrate.c        | 584 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 635 insertions(+), 3 deletions(-)
+ include/linux/hmm.h | 113 ++++++++++++++++++++++++
+ mm/hmm.c            | 247 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 360 insertions(+)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index c79abfc..9777309 100644
+index 9777309..ac0b69a 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -101,10 +101,13 @@ struct hmm;
-  * HMM_PFN_EMPTY: corresponding CPU page table entry is none (pte_none() true)
-  * HMM_PFN_FAULT: use by hmm_vma_fault() to signify which address need faulting
-  * HMM_PFN_DEVICE: this is device memory (ie a ZONE_DEVICE page)
-+ * HMM_PFN_LOCKED: underlying struct page is lock
-  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special ie result of
-  *      vm_insert_pfn() or vm_insert_page() and thus should not be mirror by a
-  *      device (the entry will never have HMM_PFN_VALID set and the pfn value
-  *      is undefine)
-+ * HMM_PFN_MIGRATE: use by hmm_vma_migrate() to signify which address can be
-+ *      migrated
-  * HMM_PFN_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
-  */
- typedef unsigned long hmm_pfn_t;
-@@ -116,9 +119,11 @@ typedef unsigned long hmm_pfn_t;
- #define HMM_PFN_EMPTY (1 << 4)
- #define HMM_PFN_FAULT (1 << 5)
- #define HMM_PFN_DEVICE (1 << 6)
--#define HMM_PFN_SPECIAL (1 << 7)
--#define HMM_PFN_UNADDRESSABLE (1 << 8)
--#define HMM_PFN_SHIFT 9
-+#define HMM_PFN_LOCKED (1 << 7)
-+#define HMM_PFN_SPECIAL (1 << 8)
-+#define HMM_PFN_MIGRATE (1 << 9)
-+#define HMM_PFN_UNADDRESSABLE (1 << 10)
-+#define HMM_PFN_SHIFT 11
+@@ -88,6 +88,10 @@
  
- static inline struct page *hmm_pfn_to_page(hmm_pfn_t pfn)
- {
-@@ -323,6 +328,49 @@ bool hmm_vma_fault(struct vm_area_struct *vma,
+ #if IS_ENABLED(CONFIG_HMM)
+ 
++#include <linux/memremap.h>
++#include <linux/completion.h>
++
++
+ struct hmm;
+ 
+ /*
+@@ -327,6 +331,9 @@ bool hmm_vma_fault(struct vm_area_struct *vma,
+ 		   unsigned long end,
  		   hmm_pfn_t *pfns);
  
++struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
++				       unsigned long addr);
++
  
+ /*
+  * struct hmm_migrate_ops - migrate operation callback
+@@ -371,6 +378,112 @@ int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
+ 		    void *private);
+ 
+ 
++struct hmm_devmem;
++
 +/*
-+ * struct hmm_migrate_ops - migrate operation callback
++ * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
 + *
-+ * @alloc_and_copy: alloc destination memoiry and copy source to it
-+ * @finalize_and_map: allow caller to inspect successfull migrated page
-+ *
-+ * The new HMM migrate helper hmm_vma_migrate() allow memory migration to use
-+ * device DMA engine to perform copy from source to destination memory it also
-+ * allow caller to use its own memory allocator for destination memory.
-+ *
-+ * Note that in alloc_and_copy device driver can decide not to migrate some of
-+ * the entry, for those it must clear the HMM_PFN_MIGRATE flag. The destination
-+ * page must lock and the corresponding hmm_pfn_t value in the array updated
-+ * with the HMM_PFN_MIGRATE and HMM_PFN_LOCKED flag set (and of course be a
-+ * valid entry). It is expected that the page allocated will have an elevated
-+ * refcount and that a put_page() will free the page. Device driver might want
-+ * to allocate with an extra-refcount if they want to control deallocation of
-+ * failed migration inside the finalize_and_map() callback.
-+ *
-+ * Inside finalize_and_map() device driver must use the HMM_PFN_MIGRATE flag to
-+ * determine which page have been successfully migrated.
++ * @free: call when refcount on page reach 1 and thus is no longer use
++ * @fault: call when there is a page fault to unaddressable memory
 + */
-+struct hmm_migrate_ops {
-+	void (*alloc_and_copy)(struct vm_area_struct *vma,
-+			       unsigned long start,
-+			       unsigned long end,
-+			       hmm_pfn_t *pfns,
-+			       void *private);
-+	void (*finalize_and_map)(struct vm_area_struct *vma,
-+				 unsigned long start,
-+				 unsigned long end,
-+				 hmm_pfn_t *pfns,
-+				 void *private);
++struct hmm_devmem_ops {
++	void (*free)(struct hmm_devmem *devmem, struct page *page);
++	int (*fault)(struct hmm_devmem *devmem,
++		     struct vm_area_struct *vma,
++		     unsigned long addr,
++		     struct page *page,
++		     unsigned flags,
++		     pmd_t *pmdp);
 +};
 +
-+int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
-+		    struct vm_area_struct *vma,
-+		    unsigned long start,
-+		    unsigned long end,
-+		    hmm_pfn_t *pfns,
-+		    void *private);
++/*
++ * struct hmm_devmem - track device memory
++ *
++ * @completion: completion object for device memory
++ * @pfn_first: first pfn for this resource (set by hmm_devmem_add())
++ * @pfn_last: last pfn for this resource (set by hmm_devmem_add())
++ * @resource: IO resource reserved for this chunk of memory
++ * @pagemap: device page map for that chunk
++ * @device: device to bind resource to
++ * @ops: memory operations callback
++ * @ref: per CPU refcount
++ * @inuse: is struct in use
++ *
++ * This an helper structure for device driver that do not wish to implement
++ * to gory details related to hotpluging new memoy and in allocating struct
++ * pages.
++ *
++ * Device driver can directly use ZONE_DEVICE memory on their own if they
++ * wish to do so.
++ */
++struct hmm_devmem {
++	struct completion		completion;
++	unsigned long			pfn_first;
++	unsigned long			pfn_last;
++	struct resource			*resource;
++	struct dev_pagemap		*pagemap;
++	struct device			*device;
++	const struct hmm_devmem_ops	*ops;
++	struct percpu_ref		ref;
++	bool				inuse;
++};
++
++/*
++ * To add (hotplug) device memory, it assumes that there is no real resource
++ * that reserve a range in the physical address space (this is intended to be
++ * use by un-addressable device memory). It will reserve a physical range big
++ * enough and allocate struct page for it.
++ *
++ * Device driver can wrap the hmm_devmem struct inside a private device driver
++ * struct. Device driver must call hmm_devmem_remove() before device goes away
++ * and before freeing the hmm_devmem struct memory.
++ */
++int hmm_devmem_add(struct hmm_devmem *devmem,
++		   const struct hmm_devmem_ops *ops,
++		   struct device *device,
++		   unsigned long size);
++bool hmm_devmem_remove(struct hmm_devmem *devmem);
++
++int hmm_devmem_fault_range(struct hmm_devmem *devmem,
++			   struct vm_area_struct *vma,
++			   const struct hmm_migrate_ops *ops,
++			   unsigned long start,
++			   unsigned long addr,
++			   unsigned long end,
++			   hmm_pfn_t *pfns,
++			   void *private);
++
++/*
++ * hmm_devmem_page_set_drvdata - set per page driver data field
++ *
++ * @page: pointer to struct page
++ * @data: driver data value to set
++ *
++ * Because page can not be on lru we have an unsigned long that driver can use
++ * to store a per page field. This just a simple helper to do that.
++ */
++static inline void hmm_devmem_page_set_drvdata(struct page *page,
++					       unsigned long data)
++{
++	unsigned long *drvdata = (unsigned long *)&page->pgmap;
++
++	drvdata[1] = data;
++}
++
++/*
++ * hmm_devmem_page_get_drvdata - get per page driver data field
++ *
++ * @page: pointer to struct page
++ * Return: driver data value
++ */
++static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
++{
++	unsigned long *drvdata = (unsigned long *)&page->pgmap;
++
++	return drvdata[1];
++}
 +
 +
  /* Below are for HMM internal use only ! Not to be use by device driver ! */
  void hmm_mm_destroy(struct mm_struct *mm);
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d9ce8db..393d592 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -41,6 +41,7 @@
- #include <linux/page_idle.h>
- #include <linux/page_owner.h>
- #include <linux/memremap.h>
-+#include <linux/hmm.h>
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 521adfd..f2ca895 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -23,10 +23,15 @@
+ #include <linux/swap.h>
+ #include <linux/slab.h>
+ #include <linux/sched.h>
++#include <linux/mmzone.h>
++#include <linux/pagemap.h>
+ #include <linux/swapops.h>
+ #include <linux/hugetlb.h>
++#include <linux/memremap.h>
+ #include <linux/mmu_notifier.h>
  
- #include <asm/tlbflush.h>
++#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
++
  
-@@ -421,6 +422,14 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	int expected_count = 1 + extra_count;
- 	void **pslot;
- 
-+	/*
-+	 * ZONE_DEVICE pages have 1 refcount always held by their device
-+	 *
-+	 * Note that DAX memory will never reach that point as it does not have
-+	 * the MEMORY_MOVABLE flag set (see include/linux/memory_hotplug.h).
-+	 */
-+	expected_count += is_zone_device_page(page);
+ /*
+  * struct hmm - HMM per mm struct
+@@ -831,3 +836,245 @@ bool hmm_vma_fault(struct vm_area_struct *vma,
+ 	return hmm_vma_walk(vma, start, end, pfns, true);
+ }
+ EXPORT_SYMBOL(hmm_vma_fault);
 +
- 	if (!mapping) {
- 		/* Anonymous page without mapping */
- 		if (page_count(page) != expected_count)
-@@ -2087,3 +2096,578 @@ out_unlock:
- #endif /* CONFIG_NUMA_BALANCING */
- 
- #endif /* CONFIG_NUMA */
-+
-+
-+#if defined(CONFIG_HMM)
-+struct hmm_migrate {
-+	struct vm_area_struct	*vma;
-+	unsigned long		start;
-+	unsigned long		end;
-+	unsigned long		npages;
-+	hmm_pfn_t		*pfns;
-+};
-+
-+static int hmm_collect_walk_pmd(pmd_t *pmdp,
-+				unsigned long start,
-+				unsigned long end,
-+				struct mm_walk *walk)
++struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
++				       unsigned long addr)
 +{
-+	struct hmm_migrate *migrate = walk->private;
-+	struct mm_struct *mm = walk->vma->vm_mm;
-+	unsigned long addr = start;
-+	spinlock_t *ptl;
-+	hmm_pfn_t *pfns;
-+	int pages = 0;
-+	pte_t *ptep;
++	struct page *page;
 +
-+again:
-+	if (pmd_none(*pmdp))
-+		return 0;
++	page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
++	if (!page)
++		return NULL;
++	lock_page(page);
++	return page;
++}
++EXPORT_SYMBOL(hmm_vma_alloc_locked_page);
 +
-+	split_huge_pmd(walk->vma, pmdp, addr);
-+	if (pmd_trans_unstable(pmdp))
-+		goto again;
 +
-+	pfns = &migrate->pfns[(addr - migrate->start) >> PAGE_SHIFT];
-+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+	arch_enter_lazy_mmu_mode();
++static void hmm_devmem_release(struct percpu_ref *ref)
++{
++	struct hmm_devmem *devmem;
 +
-+	for (; addr < end; addr += PAGE_SIZE, pfns++, ptep++) {
-+		unsigned long pfn;
-+		swp_entry_t entry;
-+		struct page *page;
-+		hmm_pfn_t flags;
-+		bool write;
-+		pte_t pte;
-+
-+		pte = ptep_get_and_clear(mm, addr, ptep);
-+		if (!pte_present(pte)) {
-+			if (pte_none(pte))
-+				continue;
-+
-+			entry = pte_to_swp_entry(pte);
-+			if (!is_device_entry(entry)) {
-+				set_pte_at(mm, addr, ptep, pte);
-+				continue;
-+			}
-+
-+			flags = HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
-+			page = device_entry_to_page(entry);
-+			write = is_write_device_entry(entry);
-+			pfn = page_to_pfn(page);
-+
-+			if (!(page->pgmap->flags & MEMORY_MOVABLE)) {
-+				set_pte_at(mm, addr, ptep, pte);
-+				continue;
-+			}
-+
-+		} else {
-+			pfn = pte_pfn(pte);
-+			page = pfn_to_page(pfn);
-+			write = pte_write(pte);
-+			flags = is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
-+		}
-+
-+		/* FIXME support THP see hmm_migrate_page_check() */
-+		if (PageTransCompound(page))
-+			continue;
-+
-+		*pfns = hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
-+		*pfns |= write ? HMM_PFN_WRITE : 0;
-+		migrate->npages++;
-+		get_page(page);
-+
-+		if (!trylock_page(page)) {
-+			set_pte_at(mm, addr, ptep, pte);
-+		} else {
-+			pte_t swp_pte;
-+
-+			*pfns |= HMM_PFN_LOCKED;
-+
-+			entry = make_migration_entry(page, write);
-+			swp_pte = swp_entry_to_pte(entry);
-+			if (pte_soft_dirty(pte))
-+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-+			set_pte_at(mm, addr, ptep, swp_pte);
-+
-+			page_remove_rmap(page, false);
-+			put_page(page);
-+			pages++;
-+		}
-+	}
-+
-+	arch_leave_lazy_mmu_mode();
-+	pte_unmap_unlock(ptep - 1, ptl);
-+
-+	/* Only flush the TLB if we actually modified any entries */
-+	if (pages)
-+		flush_tlb_range(walk->vma, start, end);
-+
-+	return 0;
++	devmem = container_of(ref, struct hmm_devmem, ref);
++	complete(&devmem->completion);
++	devmem->inuse = false;
 +}
 +
-+static void hmm_migrate_collect(struct hmm_migrate *migrate)
++static void hmm_devmem_exit(void *data)
 +{
-+	struct mm_walk mm_walk;
++	struct percpu_ref *ref = data;
++	struct hmm_devmem *devmem;
 +
-+	mm_walk.pmd_entry = hmm_collect_walk_pmd;
-+	mm_walk.pte_entry = NULL;
-+	mm_walk.pte_hole = NULL;
-+	mm_walk.hugetlb_entry = NULL;
-+	mm_walk.test_walk = NULL;
-+	mm_walk.vma = migrate->vma;
-+	mm_walk.mm = migrate->vma->vm_mm;
-+	mm_walk.private = migrate;
-+
-+	mmu_notifier_invalidate_range_start(mm_walk.mm,
-+					    migrate->start,
-+					    migrate->end);
-+	walk_page_range(migrate->start, migrate->end, &mm_walk);
-+	mmu_notifier_invalidate_range_end(mm_walk.mm,
-+					  migrate->start,
-+					  migrate->end);
++	devmem = container_of(ref, struct hmm_devmem, ref);
++	percpu_ref_exit(ref);
++	wait_for_completion(&devmem->completion);
++	devm_remove_action(devmem->device, hmm_devmem_exit, data);
 +}
 +
-+static inline bool hmm_migrate_page_check(struct page *page, int extra)
++static void hmm_devmem_kill(void *data)
 +{
-+	/*
-+	 * FIXME support THP (transparent huge page), it is bit more complex to
-+	 * check them then regular page because they can be map with a pmd or
-+	 * with a pte (split pte mapping).
-+	 */
-+	if (PageCompound(page))
-+		return false;
++	struct percpu_ref *ref = data;
++	struct hmm_devmem *devmem;
 +
-+	if (is_zone_device_page(page))
-+		extra++;
-+
-+	if ((page_count(page) - extra) > page_mapcount(page))
-+		return false;
-+
-+	return true;
++	devmem = container_of(ref, struct hmm_devmem, ref);
++	devmem->inuse = false;
++	percpu_ref_kill(ref);
++	devm_remove_action(devmem->device, hmm_devmem_kill, data);
 +}
 +
-+static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)
++static int hmm_devmem_fault(struct vm_area_struct *vma,
++			    unsigned long addr,
++			    struct page *page,
++			    unsigned flags,
++			    pmd_t *pmdp)
 +{
-+	unsigned long addr = migrate->start, i = 0;
-+	struct mm_struct *mm = migrate->vma->vm_mm;
-+	struct vm_area_struct *vma = migrate->vma;
-+	unsigned long restore = 0;
-+	bool allow_drain = true;
++	struct hmm_devmem *devmem = page->pgmap->data;
 +
-+	lru_add_drain();
-+
-+again:
-+	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
-+		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
-+
-+		if (!page)
-+			continue;
-+
-+		if (!(migrate->pfns[i] & HMM_PFN_LOCKED)) {
-+			lock_page(page);
-+			migrate->pfns[i] |= HMM_PFN_LOCKED;
-+		}
-+
-+		/* ZONE_DEVICE page are not on LRU */
-+		if (is_zone_device_page(page))
-+			goto check;
-+
-+		if (!PageLRU(page) && allow_drain) {
-+			/* Drain CPU's pagevec so page can be isolated */
-+			lru_add_drain_all();
-+			allow_drain = false;
-+			goto again;
-+		}
-+
-+		if (isolate_lru_page(page)) {
-+			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
-+			migrate->npages--;
-+			put_page(page);
-+			restore++;
-+		} else
-+			/* Drop the reference we took in collect */
-+			put_page(page);
-+
-+check:
-+		if (!hmm_migrate_page_check(page, 1)) {
-+			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
-+			migrate->npages--;
-+			restore++;
-+		}
-+	}
-+
-+	if (!restore)
-+		return;
-+
-+	for (addr = migrate->start, i = 0; addr < migrate->end;) {
-+		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
-+		unsigned long next, restart;
-+		spinlock_t *ptl;
-+		pgd_t *pgdp;
-+		pud_t *pudp;
-+		pmd_t *pmdp;
-+		pte_t *ptep;
-+
-+		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE)) {
-+			addr += PAGE_SIZE;
-+			i++;
-+			continue;
-+		}
-+
-+		restart = addr;
-+		pgdp = pgd_offset(mm, addr);
-+		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
-+			addr = pgd_addr_end(addr, migrate->end);
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+		pudp = pud_offset(pgdp, addr);
-+		if (!pudp || pud_none(*pudp)) {
-+			addr = pgd_addr_end(addr, migrate->end);
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+		pmdp = pmd_offset(pudp, addr);
-+		next = pmd_addr_end(addr, migrate->end);
-+		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
-+			addr = next;
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
-+			swp_entry_t entry;
-+			bool write;
-+			pte_t pte;
-+
-+			page = hmm_pfn_to_page(migrate->pfns[i]);
-+			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
-+				continue;
-+
-+			write = migrate->pfns[i] & HMM_PFN_WRITE;
-+			write &= (vma->vm_flags & VM_WRITE);
-+
-+			/* Here it means pte must be a valid migration entry */
-+			pte = ptep_get_and_clear(mm, addr, ptep);
-+			if (pte_none(pte) || pte_present(pte))
-+				/* SOMETHING BAD IS GOING ON ! */
-+				continue;
-+			entry = pte_to_swp_entry(pte);
-+			if (!is_migration_entry(entry))
-+				/* SOMETHING BAD IS GOING ON ! */
-+				continue;
-+
-+			if (is_zone_device_page(page) &&
-+			    !is_addressable_page(page)) {
-+				entry = make_device_entry(page, write);
-+				pte = swp_entry_to_pte(entry);
-+			} else {
-+				pte = mk_pte(page, vma->vm_page_prot);
-+				pte = pte_mkold(pte);
-+				if (write)
-+					pte = pte_mkwrite(pte);
-+			}
-+			if (pte_swp_soft_dirty(*ptep))
-+				pte = pte_mksoft_dirty(pte);
-+
-+			get_page(page);
-+			set_pte_at(mm, addr, ptep, pte);
-+			if (PageAnon(page))
-+				page_add_anon_rmap(page, vma, addr, false);
-+			else
-+				page_add_file_rmap(page, false);
-+		}
-+		pte_unmap_unlock(ptep - 1, ptl);
-+
-+		addr = restart;
-+		i = (addr - migrate->start) >> PAGE_SHIFT;
-+		for (; addr < next && restore; addr += PAGE_SHIFT, i++) {
-+			page = hmm_pfn_to_page(migrate->pfns[i]);
-+			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
-+				continue;
-+
-+			migrate->pfns[i] = 0;
-+			unlock_page(page);
-+			restore--;
-+
-+			if (is_zone_device_page(page)) {
-+				put_page(page);
-+				continue;
-+			}
-+
-+			putback_lru_page(page);
-+		}
-+
-+		if (!restore)
-+			break;
-+	}
++	return devmem->ops->fault(devmem, vma, addr, page, flags, pmdp);
 +}
 +
-+static void hmm_migrate_unmap(struct hmm_migrate *migrate)
++static void hmm_devmem_free(struct page *page, void *data)
 +{
-+	int flags = TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
-+	unsigned long addr = migrate->start, i = 0, restore = 0;
++	struct hmm_devmem *devmem = data;
 +
-+	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
-+		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
-+
-+		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
-+			continue;
-+
-+		try_to_unmap(page, flags);
-+		if (page_mapped(page) || !hmm_migrate_page_check(page, 1)) {
-+			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
-+			migrate->npages--;
-+			restore++;
-+		}
-+	}
-+
-+	for (; (addr < migrate->end) && restore; addr += PAGE_SIZE, i++) {
-+		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
-+
-+		if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
-+			continue;
-+
-+		remove_migration_ptes(page, page, false);
-+
-+		migrate->pfns[i] = 0;
-+		unlock_page(page);
-+		restore--;
-+
-+		if (is_zone_device_page(page)) {
-+			put_page(page);
-+			continue;
-+		}
-+
-+		putback_lru_page(page);
-+	}
-+}
-+
-+static void hmm_migrate_struct_page(struct hmm_migrate *migrate)
-+{
-+	unsigned long addr = migrate->start, i = 0;
-+	struct mm_struct *mm = migrate->vma->vm_mm;
-+
-+	for (; addr < migrate->end;) {
-+		unsigned long next;
-+		pgd_t *pgdp;
-+		pud_t *pudp;
-+		pmd_t *pmdp;
-+		pte_t *ptep;
-+
-+		pgdp = pgd_offset(mm, addr);
-+		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
-+			addr = pgd_addr_end(addr, migrate->end);
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+		pudp = pud_offset(pgdp, addr);
-+		if (!pudp || pud_none(*pudp)) {
-+			addr = pgd_addr_end(addr, migrate->end);
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+		pmdp = pmd_offset(pudp, addr);
-+		next = pmd_addr_end(addr, migrate->end);
-+		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
-+			addr = next;
-+			i = (addr - migrate->start) >> PAGE_SHIFT;
-+			continue;
-+		}
-+
-+		/* No need to lock nothing can change from under us */
-+		ptep = pte_offset_map(pmdp, addr);
-+		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
-+			struct address_space *mapping;
-+			struct page *newpage, *page;
-+			swp_entry_t entry;
-+			int r;
-+
-+			newpage = hmm_pfn_to_page(migrate->pfns[i]);
-+			if (!newpage || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
-+				continue;
-+			if (pte_none(*ptep) || pte_present(*ptep)) {
-+				/* This should not happen but be nice */
-+				migrate->pfns[i] = 0;
-+				put_page(newpage);
-+				continue;
-+			}
-+			entry = pte_to_swp_entry(*ptep);
-+			if (!is_migration_entry(entry)) {
-+				/* This should not happen but be nice */
-+				migrate->pfns[i] = 0;
-+				put_page(newpage);
-+				continue;
-+			}
-+
-+			page = migration_entry_to_page(entry);
-+			mapping = page_mapping(page);
-+
-+			/*
-+			 * For now only support private anonymous when migrating
-+			 * to un-addressable device memory.
-+			 */
-+			if (mapping && is_zone_device_page(newpage) &&
-+			    !is_addressable_page(newpage)) {
-+				migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
-+				continue;
-+			}
-+
-+			r = migrate_page(mapping, newpage, page,
-+					 MIGRATE_SYNC, false);
-+			if (r != MIGRATEPAGE_SUCCESS)
-+				migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
-+		}
-+		pte_unmap(ptep - 1);
-+	}
-+}
-+
-+static void hmm_migrate_remove_migration_pte(struct hmm_migrate *migrate)
-+{
-+	unsigned long addr = migrate->start, i = 0;
-+	struct mm_struct *mm = migrate->vma->vm_mm;
-+
-+	for (; addr < migrate->end;) {
-+		unsigned long next;
-+		pgd_t *pgdp;
-+		pud_t *pudp;
-+		pmd_t *pmdp;
-+		pte_t *ptep;
-+
-+		pgdp = pgd_offset(mm, addr);
-+		pudp = pud_offset(pgdp, addr);
-+		pmdp = pmd_offset(pudp, addr);
-+		next = pmd_addr_end(addr, migrate->end);
-+
-+		/* No need to lock nothing can change from under us */
-+		ptep = pte_offset_map(pmdp, addr);
-+		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
-+			struct page *page, *newpage;
-+			swp_entry_t entry;
-+
-+			if (pte_none(*ptep) || pte_present(*ptep))
-+				continue;
-+			entry = pte_to_swp_entry(*ptep);
-+			if (!is_migration_entry(entry))
-+				continue;
-+
-+			page = migration_entry_to_page(entry);
-+			newpage = hmm_pfn_to_page(migrate->pfns[i]);
-+			if (!newpage)
-+				newpage = page;
-+			remove_migration_ptes(page, newpage, false);
-+
-+			migrate->pfns[i] = 0;
-+			unlock_page(page);
-+			migrate->npages--;
-+
-+			if (is_zone_device_page(page))
-+				put_page(page);
-+			else
-+				putback_lru_page(page);
-+
-+			if (newpage != page) {
-+				unlock_page(newpage);
-+				if (is_zone_device_page(newpage))
-+					put_page(newpage);
-+				else
-+					putback_lru_page(newpage);
-+			}
-+		}
-+		pte_unmap(ptep - 1);
-+	}
++	devmem->ops->free(devmem, page);
 +}
 +
 +/*
-+ * hmm_vma_migrate() - migrate a range of memory inside vma using accel copy
++ * hmm_devmem_add() - hotplug fake ZONE_DEVICE memory for device memory
 + *
-+ * @ops: migration callback for allocating destination memory and copying
++ * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
++ * @ops: memory event device driver callback (see struct hmm_devmem_ops)
++ * @device: device struct to bind the resource too
++ * @size: size in bytes of the device memory to add
++ * Returns: 0 on success, error code otherwise
++ *
++ * This first find an empty range of physical address big enough to for the new
++ * resource and then hotplug it as ZONE_DEVICE memory allocating struct page.
++ * It does not do anything beside that, all events affecting the memory will go
++ * through the various callback provided by hmm_devmem_ops struct.
++ */
++int hmm_devmem_add(struct hmm_devmem *devmem,
++		   const struct hmm_devmem_ops *ops,
++		   struct device *device,
++		   unsigned long size)
++{
++	const struct resource *res;
++	resource_size_t addr;
++	void *ptr;
++	int ret;
++
++	init_completion(&devmem->completion);
++	devmem->pfn_first = -1UL;
++	devmem->pfn_last = -1UL;
++	devmem->resource = NULL;
++	devmem->device = device;
++	devmem->pagemap = NULL;
++	devmem->inuse = false;
++	devmem->ops = ops;
++
++	ret = percpu_ref_init(&devmem->ref,&hmm_devmem_release,0,GFP_KERNEL);
++	if (ret)
++		return ret;
++
++	ret = devm_add_action(device, hmm_devmem_exit, &devmem->ref);
++	if (ret)
++		goto error;
++
++	size = ALIGN(size, SECTION_SIZE);
++	addr = (1UL << MAX_PHYSMEM_BITS) - size;
++
++	/*
++	 * FIXME add a new helper to quickly walk resource tree and find free
++	 * range
++	 *
++	 * FIXME what about ioport_resource resource ?
++	 */
++	for (; addr > size; addr -= size) {
++		ret = region_intersects(addr, size, 0, IORES_DESC_NONE);
++		if (ret != REGION_DISJOINT)
++			continue;
++
++		devmem->resource = devm_request_mem_region(device, addr, size,
++							   dev_name(device));
++		if (!devmem->resource) {
++			ret = -ENOMEM;
++			goto error;
++		}
++		break;
++	}
++	if (!devmem->resource) {
++		ret = -ERANGE;
++		goto error;
++	}
++
++	ptr = devm_memremap_pages(device, devmem->resource, &devmem->ref,
++				  NULL, &devmem->pagemap,
++				  MEMORY_DEVICE | MEMORY_MOVABLE |
++				  MEMORY_UNADDRESSABLE);
++	if (IS_ERR(ptr)) {
++		ret = PTR_ERR(ptr);
++		goto error;
++	}
++
++	ret = devm_add_action(device, hmm_devmem_kill, &devmem->ref);
++	if (ret) {
++		hmm_devmem_kill(&devmem->ref);
++		goto error;
++	}
++
++	res = devmem->pagemap->res;
++	devmem->pfn_first = res->start >> PAGE_SHIFT;
++	devmem->pfn_last = (resource_size(res)>>PAGE_SHIFT)+devmem->pfn_first;
++	devmem->pagemap->free_devpage = hmm_devmem_free;
++	devmem->pagemap->fault = hmm_devmem_fault;
++	devmem->pagemap->data = devmem;
++	devmem->inuse = true;
++
++	return 0;
++
++error:
++	hmm_devmem_exit(&devmem->ref);
++	return ret;
++}
++EXPORT_SYMBOL(hmm_devmem_add);
++
++/*
++ * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
++ *
++ * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
++ * Returns: true if device memory is no longer in use, false if still in use
++ *
++ * This will hot remove memory that was hotplug by hmm_devmem_add on behalf of
++ * device driver. It will free struct page and remove the resource that reserve
++ * the physical address range for this device memory.
++ *
++ * Device driver can not free the struct while this function return false, it
++ * must call over and over this function until it returns true. Note that if
++ * there is a refcount bug this might never happen !
++ */
++bool hmm_devmem_remove(struct hmm_devmem *devmem)
++{
++	struct device *device = devmem->device;
++
++	hmm_devmem_kill(&devmem->ref);
++
++	if (devmem->pagemap) {
++		devm_memremap_pages_remove(device, devmem->pagemap);
++		devmem->pagemap = NULL;
++	}
++
++	hmm_devmem_exit(&devmem->ref);
++
++	/* FIXME maybe wait a bit ? */
++	if (devmem->inuse)
++		return false;
++
++	if (devmem->resource) {
++		resource_size_t size = resource_size(devmem->resource);
++
++		devm_release_mem_region(device, devmem->resource->start, size);
++		devmem->resource = NULL;
++	}
++
++	return true;
++}
++EXPORT_SYMBOL(hmm_devmem_remove);
++
++/*
++ * hmm_devmem_fault_range() - migrate back a virtual range of memory
++ *
++ * @devmem: hmm_devmem struct use to track and manage the ZONE_DEVICE memory
 + * @vma: virtual memory area containing the range to be migrated
++ * @ops: migration callback for allocating destination memory and copying
 + * @start: start address of the range to migrate (inclusive)
++ * @addr: fault address (must be inside the range)
 + * @end: end address of the range to migrate (exclusive)
 + * @pfns: array of hmm_pfn_t first containing source pfns then destination
 + * @private: pointer passed back to each of the callback
-+ * Returns: 0 on success, error code otherwise
++ * Returns: 0 on success, VM_FAULT_SIGBUS on error
 + *
-+ * This will try to migrate a range of memory using callback to allocate and
-+ * copy memory from source to destination. This function will first collect,
-+ * lock and unmap pages in the range and then call alloc_and_copy() callback
-+ * for device driver to allocate destination memory and copy from source.
++ * This is a wrapper around hmm_vma_migrate() which check the migration status
++ * for a given fault address and return corresponding page fault handler status
++ * ie 0 on success or VM_FAULT_SIGBUS if migration failed for fault address.
 + *
-+ * Then it will proceed and try to effectively migrate the page (struct page
-+ * metadata) a step that can fail for various reasons. Before updating CPU page
-+ * table it will call finalize_and_map() callback so that device driver can
-+ * inspect what have been successfully migrated and update its own page table
-+ * (this latter aspect is not mandatory and only make sense for some user of
-+ * this API).
-+ *
-+ * Finaly the function update CPU page table and unlock the pages before
-+ * returning 0.
-+ *
-+ * It will return an error code only if one of the argument is invalid.
++ * This is an helper intendend to be use by ZONE_DEVICE fault handler.
 + */
-+int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
-+		    struct vm_area_struct *vma,
-+		    unsigned long start,
-+		    unsigned long end,
-+		    hmm_pfn_t *pfns,
-+		    void *private)
++int hmm_devmem_fault_range(struct hmm_devmem *devmem,
++			   struct vm_area_struct *vma,
++			   const struct hmm_migrate_ops *ops,
++			   unsigned long start,
++			   unsigned long addr,
++			   unsigned long end,
++			   hmm_pfn_t *pfns,
++			   void *private)
 +{
-+	struct hmm_migrate migrate;
++	if (hmm_vma_migrate(ops, vma, start, end, pfns, private))
++		return VM_FAULT_SIGBUS;
 +
-+	/* Sanity check the arguments */
-+	start &= PAGE_MASK;
-+	end &= PAGE_MASK;
-+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
-+		return -EINVAL;
-+	if (!vma || !ops || !pfns || start >= end)
-+		return -EINVAL;
-+	if (start < vma->vm_start || start >= vma->vm_end)
-+		return -EINVAL;
-+	if (end <= vma->vm_start || end > vma->vm_end)
-+		return -EINVAL;
-+
-+	migrate.start = start;
-+	migrate.pfns = pfns;
-+	migrate.npages = 0;
-+	migrate.end = end;
-+	migrate.vma = vma;
-+
-+	/* Collect, and try to unmap source pages */
-+	hmm_migrate_collect(&migrate);
-+	if (!migrate.npages)
-+		return 0;
-+
-+	/* Lock and isolate page */
-+	hmm_migrate_lock_and_isolate(&migrate);
-+	if (!migrate.npages)
-+		return 0;
-+
-+	/* Unmap pages */
-+	hmm_migrate_unmap(&migrate);
-+	if (!migrate.npages)
-+		return 0;
-+
-+	/*
-+	 * At this point pages are lock and unmap and thus they have stable
-+	 * content and can safely be copied to destination memory that is
-+	 * allocated by the callback.
-+	 *
-+	 * Note that migration can fail in hmm_migrate_struct_page() for each
-+	 * individual page.
-+	 */
-+	ops->alloc_and_copy(vma, start, end, pfns, private);
-+
-+	/* This does the real migration of struct page */
-+	hmm_migrate_struct_page(&migrate);
-+
-+	ops->finalize_and_map(vma, start, end, pfns, private);
-+
-+	/* Unlock and remap pages */
-+	hmm_migrate_remove_migration_pte(&migrate);
++	if (pfns[(addr - start) >> PAGE_SHIFT] & HMM_PFN_ERROR)
++		return VM_FAULT_SIGBUS;
 +
 +	return 0;
 +}
-+EXPORT_SYMBOL(hmm_vma_migrate);
-+#endif /* CONFIG_HMM */
++EXPORT_SYMBOL(hmm_devmem_fault_range);
 -- 
 2.4.3
 
