@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E63666B03DC
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:19:03 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a20so9590985wme.5
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:19:03 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC916B03DE
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:19:05 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so9637066wma.2
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:19:05 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw10si1844334wjc.41.2016.11.18.01.17.30
+        by mx.google.com with ESMTPS id v4si6660058wjk.289.2016.11.18.01.17.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 18 Nov 2016 01:17:30 -0800 (PST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 20/20] dax: Clear dirty entry tags on cache flush
-Date: Fri, 18 Nov 2016 10:17:24 +0100
-Message-Id: <1479460644-25076-21-git-send-email-jack@suse.cz>
+Subject: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix tree entry lock
+Date: Fri, 18 Nov 2016 10:17:23 +0100
+Message-Id: <1479460644-25076-20-git-send-email-jack@suse.cz>
 In-Reply-To: <1479460644-25076-1-git-send-email-jack@suse.cz>
 References: <1479460644-25076-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,110 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>
 
-Currently we never clear dirty tags in DAX mappings and thus address
-ranges to flush accumulate. Now that we have locking of radix tree
-entries, we have all the locking necessary to reliably clear the radix
-tree dirty tag when flushing caches for corresponding address range.
-Similarly to page_mkclean() we also have to write-protect pages to get a
-page fault when the page is next written to so that we can mark the
-entry dirty again.
+Currently PTE gets updated in wp_pfn_shared() after dax_pfn_mkwrite()
+has released corresponding radix tree entry lock. When we want to
+writeprotect PTE on cache flush, we need PTE modification to happen
+under radix tree entry lock to ensure consistent updates of PTE and radix
+tree (standard faults use page lock to ensure this consistency). So move
+update of PTE bit into dax_pfn_mkwrite().
 
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 64 insertions(+)
+ fs/dax.c    | 22 ++++++++++++++++------
+ mm/memory.c |  2 +-
+ 2 files changed, 17 insertions(+), 7 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index d64465584f4c..cafd5597434b 100644
+index 2d317328ae90..d64465584f4c 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -31,6 +31,7 @@
- #include <linux/vmstat.h>
- #include <linux/pfn_t.h>
- #include <linux/sizes.h>
-+#include <linux/mmu_notifier.h>
- #include <linux/iomap.h>
- #include "internal.h"
- 
-@@ -613,6 +614,59 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 	return new_entry;
- }
- 
-+static inline unsigned long
-+pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
-+{
-+	unsigned long address;
-+
-+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-+	return address;
-+}
-+
-+/* Walk all mappings of a given index of a file and writeprotect them */
-+static void dax_mapping_entry_mkclean(struct address_space *mapping,
-+				      pgoff_t index, unsigned long pfn)
-+{
-+	struct vm_area_struct *vma;
-+	pte_t *ptep;
-+	pte_t pte;
-+	spinlock_t *ptl;
-+	bool changed;
-+
-+	i_mmap_lock_read(mapping);
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
-+		unsigned long address;
-+
-+		cond_resched();
-+
-+		if (!(vma->vm_flags & VM_SHARED))
-+			continue;
-+
-+		address = pgoff_address(index, vma);
-+		changed = false;
-+		if (follow_pte(vma->vm_mm, address, &ptep, &ptl))
-+			continue;
-+		if (pfn != pte_pfn(*ptep))
-+			goto unlock;
-+		if (!pte_dirty(*ptep) && !pte_write(*ptep))
-+			goto unlock;
-+
-+		flush_cache_page(vma, address, pfn);
-+		pte = ptep_clear_flush(vma, address, ptep);
-+		pte = pte_wrprotect(pte);
-+		pte = pte_mkclean(pte);
-+		set_pte_at(vma->vm_mm, address, ptep, pte);
-+		changed = true;
-+unlock:
-+		pte_unmap_unlock(ptep, ptl);
-+
-+		if (changed)
-+			mmu_notifier_invalidate_page(vma->vm_mm, address);
-+	}
-+	i_mmap_unlock_read(mapping);
-+}
-+
- static int dax_writeback_one(struct block_device *bdev,
- 		struct address_space *mapping, pgoff_t index, void *entry)
+@@ -782,17 +782,27 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
-@@ -686,7 +740,17 @@ static int dax_writeback_one(struct block_device *bdev,
- 		goto unmap;
- 	}
+ 	struct file *file = vma->vm_file;
+ 	struct address_space *mapping = file->f_mapping;
+-	void *entry;
++	void *entry, **slot;
+ 	pgoff_t index = vmf->pgoff;
  
-+	dax_mapping_entry_mkclean(mapping, index, pfn_t_to_pfn(dax.pfn));
- 	wb_cache_pmem(dax.addr, dax.size);
+ 	spin_lock_irq(&mapping->tree_lock);
+-	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+-	if (!entry || !radix_tree_exceptional_entry(entry))
+-		goto out;
++	entry = get_unlocked_mapping_entry(mapping, index, &slot);
++	if (!entry || !radix_tree_exceptional_entry(entry)) {
++		if (entry)
++			put_unlocked_mapping_entry(mapping, index, entry);
++		spin_unlock_irq(&mapping->tree_lock);
++		return VM_FAULT_NOPAGE;
++	}
+ 	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+-	put_unlocked_mapping_entry(mapping, index, entry);
+-out:
++	entry = lock_slot(mapping, slot);
+ 	spin_unlock_irq(&mapping->tree_lock);
 +	/*
-+	 * After we have flushed the cache, we can clear the dirty tag. There
-+	 * cannot be new dirty data in the pfn after the flush has completed as
-+	 * the pfn mappings are writeprotected and fault waits for mapping
-+	 * entry lock.
++	 * If we race with somebody updating the PTE and finish_mkwrite_fault()
++	 * fails, we don't care. We need to return VM_FAULT_NOPAGE and retry
++	 * the fault in either case.
 +	 */
-+	spin_lock_irq(&mapping->tree_lock);
-+	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_DIRTY);
-+	spin_unlock_irq(&mapping->tree_lock);
-  unmap:
- 	dax_unmap_atomic(bdev, &dax);
- 	put_locked_mapping_entry(mapping, index, entry);
++	finish_mkwrite_fault(vmf);
++	put_locked_mapping_entry(mapping, index, entry);
+ 	return VM_FAULT_NOPAGE;
+ }
+ EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
+diff --git a/mm/memory.c b/mm/memory.c
+index d4874d3733f4..e37250fc54c2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2319,7 +2319,7 @@ static int wp_pfn_shared(struct vm_fault *vmf)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 		vmf->flags |= FAULT_FLAG_MKWRITE;
+ 		ret = vma->vm_ops->pfn_mkwrite(vma, vmf);
+-		if (ret & VM_FAULT_ERROR)
++		if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
+ 			return ret;
+ 		return finish_mkwrite_fault(vmf);
+ 	}
 -- 
 2.6.6
 
