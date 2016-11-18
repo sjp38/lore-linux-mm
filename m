@@ -1,129 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 751E66B0365
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:10:29 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id w63so234409363oiw.4
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 08:10:29 -0800 (PST)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id n4si3446176oib.141.2016.11.18.08.10.27
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 209C76B042F
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:32:10 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id k201so229208412qke.6
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 08:32:10 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0121.outbound.protection.outlook.com. [104.47.38.121])
+        by mx.google.com with ESMTPS id k133si3463608oia.253.2016.11.18.08.32.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 08:10:27 -0800 (PST)
-Received: by mail-oi0-x243.google.com with SMTP id 128so11587819oih.3
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 08:10:27 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 18 Nov 2016 08:32:01 -0800 (PST)
+From: Matthew Wilcox <mawilcox@microsoft.com>
+Subject: RE: [PATCH 20/29] radix tree: Improve multiorder iterators
+Date: Fri, 18 Nov 2016 16:31:58 +0000
+Message-ID: <SN1PR21MB00770A0E46912C21844645F0CBB00@SN1PR21MB0077.namprd21.prod.outlook.com>
+References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1479341856-30320-59-git-send-email-mawilcox@linuxonhyperv.com>
+ <CALYGNiN++jFZZwvShjD4PDV=cZczVOs+K-ib-ZL=M+v2XU_aYQ@mail.gmail.com>
+In-Reply-To: <CALYGNiN++jFZZwvShjD4PDV=cZczVOs+K-ib-ZL=M+v2XU_aYQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
-References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 18 Nov 2016 08:10:26 -0800
-Message-ID: <CAKgT0UfyeTOvhiFD93-fuXo-3W5NvZTPSQRj2QC6+RntdABvfQ@mail.gmail.com>
-Subject: Re: [mm PATCH v3 00/23] Add support for DMA writable pages being
- writable by the network stack
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Alexander Duyck <alexander.h.duyck@intel.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <mawilcox@linuxonhyperv.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>
 
-On Thu, Nov 10, 2016 at 3:34 AM, Alexander Duyck
-<alexander.h.duyck@intel.com> wrote:
-> The first 19 patches in the set add support for the DMA attribute
-> DMA_ATTR_SKIP_CPU_SYNC on multiple platforms/architectures.  This is needed
-> so that we can flag the calls to dma_map/unmap_page so that we do not
-> invalidate cache lines that do not currently belong to the device.  Instead
-> we have to take care of this in the driver via a call to
-> sync_single_range_for_cpu prior to freeing the Rx page.
->
-> Patch 20 adds support for dma_map_page_attrs and dma_unmap_page_attrs so
-> that we can unmap and map a page using the DMA_ATTR_SKIP_CPU_SYNC
-> attribute.
->
-> Patch 21 adds support for freeing a page that has multiple references being
-> held by a single caller.  This way we can free page fragments that were
-> allocated by a given driver.
->
-> The last 2 patches use these updates in the igb driver, and lay the
-> groundwork to allow for us to reimplement the use of build_skb.
->
-> v1: Minor fixes based on issues found by kernel build bot
->     Few minor changes for issues found on code review
->     Added Acked-by for patches that were acked and not changed
->
-> v2: Added a few more Acked-by
->     Submitting patches to mm instead of net-next
->
-> v3: Added Acked-by for PowerPC architecture
->     Dropped first 3 patches which were accepted into swiotlb tree
->     Dropped comments describing swiotlb changes.
->
-> ---
->
-> Alexander Duyck (23):
->       arch/arc: Add option to skip sync on DMA mapping
->       arch/arm: Add option to skip sync on DMA map and unmap
->       arch/avr32: Add option to skip sync on DMA map
->       arch/blackfin: Add option to skip sync on DMA map
->       arch/c6x: Add option to skip sync on DMA map and unmap
->       arch/frv: Add option to skip sync on DMA map
->       arch/hexagon: Add option to skip DMA sync as a part of mapping
->       arch/m68k: Add option to skip DMA sync as a part of mapping
->       arch/metag: Add option to skip DMA sync as a part of map and unmap
->       arch/microblaze: Add option to skip DMA sync as a part of map and unmap
->       arch/mips: Add option to skip DMA sync as a part of map and unmap
->       arch/nios2: Add option to skip DMA sync as a part of map and unmap
->       arch/openrisc: Add option to skip DMA sync as a part of mapping
->       arch/parisc: Add option to skip DMA sync as a part of map and unmap
->       arch/powerpc: Add option to skip DMA sync as a part of mapping
->       arch/sh: Add option to skip DMA sync as a part of mapping
->       arch/sparc: Add option to skip DMA sync as a part of map and unmap
->       arch/tile: Add option to skip DMA sync as a part of map and unmap
->       arch/xtensa: Add option to skip DMA sync as a part of mapping
->       dma: Add calls for dma_map_page_attrs and dma_unmap_page_attrs
->       mm: Add support for releasing multiple instances of a page
->       igb: Update driver to make use of DMA_ATTR_SKIP_CPU_SYNC
->       igb: Update code to better handle incrementing page count
->
->
->  arch/arc/mm/dma.c                         |    5 ++
->  arch/arm/common/dmabounce.c               |   16 ++++--
->  arch/avr32/mm/dma-coherent.c              |    7 ++-
->  arch/blackfin/kernel/dma-mapping.c        |    8 +++
->  arch/c6x/kernel/dma.c                     |   14 ++++-
->  arch/frv/mb93090-mb00/pci-dma-nommu.c     |   14 ++++-
->  arch/frv/mb93090-mb00/pci-dma.c           |    9 +++
->  arch/hexagon/kernel/dma.c                 |    6 ++
->  arch/m68k/kernel/dma.c                    |    8 +++
->  arch/metag/kernel/dma.c                   |   16 +++++-
->  arch/microblaze/kernel/dma.c              |   10 +++-
->  arch/mips/loongson64/common/dma-swiotlb.c |    2 -
->  arch/mips/mm/dma-default.c                |    8 ++-
->  arch/nios2/mm/dma-mapping.c               |   26 +++++++---
->  arch/openrisc/kernel/dma.c                |    3 +
->  arch/parisc/kernel/pci-dma.c              |   20 ++++++--
->  arch/powerpc/kernel/dma.c                 |    9 +++
->  arch/sh/kernel/dma-nommu.c                |    7 ++-
->  arch/sparc/kernel/iommu.c                 |    4 +-
->  arch/sparc/kernel/ioport.c                |    4 +-
->  arch/tile/kernel/pci-dma.c                |   12 ++++-
->  arch/xtensa/kernel/pci-dma.c              |    7 ++-
->  drivers/net/ethernet/intel/igb/igb.h      |    7 ++-
->  drivers/net/ethernet/intel/igb/igb_main.c |   77 +++++++++++++++++++----------
->  include/linux/dma-mapping.h               |   20 +++++---
->  include/linux/gfp.h                       |    2 +
->  mm/page_alloc.c                           |   14 +++++
->  27 files changed, 246 insertions(+), 89 deletions(-)
->
-
-So I am just wondering if I need to resubmit this to pick up the new
-"Acked-by"s or if I should just wait?
-
-As I said in the description my hope is to get this into the -mm tree
-and I am not familiar with what the process is for being accepted
-there.
-
-Thanks.
-
-- Alex
+RnJvbTogS29uc3RhbnRpbiBLaGxlYm5pa292IFttYWlsdG86a29jdDlpQGdtYWlsLmNvbV0NCj4g
+T24gVGh1LCBOb3YgMTcsIDIwMTYgYXQgMzoxNyBBTSwgTWF0dGhldyBXaWxjb3gNCj4gPG1hd2ls
+Y294QGxpbnV4b25oeXBlcnYuY29tPiB3cm90ZToNCj4gPiBUaGlzIGZpeGVzIHNldmVyYWwgaW50
+ZXJsaW5rZWQgcHJvYmxlbXMgd2l0aCB0aGUgaXRlcmF0b3JzIGluIHRoZQ0KPiA+IHByZXNlbmNl
+IG9mIG11bHRpb3JkZXIgZW50cmllcy4NCj4gPg0KPiA+IDEuIHJhZGl4X3RyZWVfaXRlcl9uZXh0
+KCkgd291bGQgb25seSBhZHZhbmNlIGJ5IG9uZSBzbG90LCB3aGljaCB3b3VsZA0KPiA+IHJlc3Vs
+dCBpbiB0aGUgaXRlcmF0b3JzIHJldHVybmluZyB0aGUgc2FtZSBlbnRyeSBtb3JlIHRoYW4gb25j
+ZSBpZiB0aGVyZQ0KPiA+IHdlcmUgc2libGluZyBlbnRyaWVzLg0KPiANCj4gSXMgdGhpcyBhIHBy
+b2JsZW0/IERvIHdlIGhhdmUgdXNlcnMgd2hvIGNhbm5vdCBldmFsYXRlIGxlbmd0aCBvZiBlbnRy
+eQ0KPiBieSBsb29raW5nIGludG8gaXQgaGVhZD8NCg0KQXQgdGhlIG1vbWVudCB3ZSBoYXZlIG5v
+IHVzZXJzIGluIHRyZWUgOi0pICBUaGUgdHdvIHVzZXJzIEkga25vdyBvZiBhcmUgdGhlIHBhZ2Ug
+Y2FjaGUgYW5kIERBWC4gIFRoZSBwYWdlIGNhY2hlIHN0b3JlcyBhIHBvaW50ZXIgdG8gYSBzdHJ1
+Y3QgcGFnZSwgd2hpY2ggaGFzIGNvbXBvdW5kX29yZGVyKCkgdG8gdGVsbCB5b3UgdGhlIHNpemUu
+ICBEQVggdXNlcyBhIGNvdXBsZSBvZiBiaXRzIGluIHRoZSByYWRpeCB0cmVlIGVudHJ5IHRvIGRl
+c2NyaWJlIHdoZXRoZXIgdGhpcyBpcyBhIFBURS9QTUQvUFVEIGFuZCBzbyBhbHNvIGtub3dzIHRo
+ZSBzaXplIG9mIHRoZSBlbnRyeSB0aGF0IGl0IGZvdW5kLiAgV2UgYWxzbyBzdG9yZSBzd2FwIGNh
+Y2hlIGVudHJpZXMgaW4gdGhlIHNhbWUgcmFkaXggdHJlZSAodGFnZ2VkIGV4Y2VwdGlvbmFsKS4g
+IFRoZXNlIGN1cnJlbnRseSBoYXZlIG5vIGluZm9ybWF0aW9uIGluIHRoZW0gdG8gZGVzY3JpYmUg
+dGhlaXIgc2l6ZSBiZWNhdXNlIGVhY2ggb25lIHJlcHJlc2VudHMgb25seSBvbmUgcGFnZS4gIFRo
+ZSBsYXRlc3QgcGF0Y2hzZXQgdG8gc3VwcG9ydCBzd2FwcGluZyBodWdlIHBhZ2VzIGluc2VydHMg
+NTEyIGVudHJpZXMgaW50byB0aGUgcmFkaXggdHJlZSBpbnN0ZWFkIG9mIHRha2luZyBhZHZhbnRh
+Z2Ugb2YgdGhlIG11bHRpb3JkZXIgZW50cnkgaW5mcmFzdHJ1Y3R1cmUuICBIb3BlZnVsbHkgdGhh
+dCBnZXRzIGZpeGVkIHNvb24sIGJ1dCBpdCB3aWxsIHJlcXVpcmUgc3RlYWxpbmcgYSBiaXQgZnJv
+bSBlaXRoZXIgdGhlIG51bWJlciBvZiBzd2FwIGZpbGVzIGFsbG93ZWQgb3IgZnJvbSB0aGUgbWF4
+aW11bSBzaXplIG9mIGVhY2ggc3dhcCBmaWxlIChjdXJyZW50bHkgMzIvMTI4R0IpDQoNCkkgdGhp
+bmsgd2hhdCB5b3UncmUgc3VnZ2VzdGluZyBpcyB0aGF0IHdlIGludHJvZHVjZSBhIG5ldyBBUEk6
+DQoNCiBzbG90ID0gcmFkaXhfdHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCg0Kd2hlcmUg
+dGhlIGNhbGxlciB0ZWxscyB1cyB0aGUgb3JkZXIgb2YgdGhlIGVudHJ5IGl0IGp1c3QgY29uc3Vt
+ZWQuICBPciBtYXliZSB5b3UncmUgc3VnZ2VzdGluZw0KDQogc2xvdCA9IHJhZGl4X3RyZWVfaXRl
+cl9hZHZhbmNlKCZpdGVyLCBuZXdpbmRleCkNCg0Kd2hpY2ggd291bGQgYWxsb3cgdXMgdG8gc2tp
+cCB0byBhbnkgaW5kZXguICBBbHRob3VnaCAuLi4gaXNuJ3QgdGhhdCBqdXN0IHJhZGl4X3RyZWVf
+aXRlcl9pbml0KCk/DQoNCkl0IGRvZXMgcHVzaCBhIGJpdCBvZiBjb21wbGV4aXR5IG9udG8gdGhl
+IGNhbGxlcnMuICBXZSBoYXZlIDcgY2FsbGVycyBvZiByYWRpeF90cmVlX2l0ZXJfbmV4dCgpIGlu
+IG15IGN1cnJlbnQgdHJlZSAoYWZ0ZXIgYXBwbHlpbmcgdGhpcyBwYXRjaCBzZXQsIHNvIHJhbmdl
+X3RhZ19pZl90YWdnZWQgYW5kIGxvY2F0ZV9pdGVtIGhhdmUgYmVlbiBwdXNoZWQgaW50byB0aGVp
+ciBjYWxsZXJzKTogYnRyZnMsIGt1Z2VwYWdlZCwgcGFnZS13cml0ZWJhY2sgYW5kIHNobWVtLiAg
+YnRyZnMga25vd3MgaXRzIG9iamVjdHMgb2NjdXB5IG9uZSBzbG90LiAga2h1Z2VwYWdlZCBrbm93
+cyB0aGF0IGl0cyBwYWdlIGlzIG9yZGVyIDAgYXQgdGhlIHRpbWUgaXQgY2FsbHMgcmFkaXhfdHJl
+ZV9pdGVyX25leHQoKS4gIFBhZ2Utd3JpdGViYWNrIGhhcyBhIHN0cnVjdCBwYWdlIGFuZCBjYW4g
+c2ltcGx5IHVzZSBjb21wb3VuZF9vcmRlcigpLiAgSXQncyBzaG1lbSB3aGVyZSB0aGluZ3MgZ2V0
+IHN0aWNreSwgYWx0aG91Z2ggaXQncyBhbGwgc29sdmFibGUgd2l0aCBzb21lIHRlbXBvcmFyeSB2
+YXJpYWJsZXMuDQoNCk1NIHBlb3BsZSwgd2hhdCBkbyB5b3UgdGhpbmsgb2YgdGhpcyBwYXRjaD8g
+IEl0J3Mgb24gdG9wIG9mIG15IGN1cnJlbnQgSURSIHRyZWUsIGFsdGhvdWdoIEknZCBmb2xkIGl0
+IGludG8gcGF0Y2ggMjAgb2YgdGhlIHNlcmllcyBpZiBpdCdzIGFjY2VwdGFibGUuDQoNCmRpZmYg
+LS1naXQgYS9mcy9idHJmcy90ZXN0cy9idHJmcy10ZXN0cy5jIGIvZnMvYnRyZnMvdGVzdHMvYnRy
+ZnMtdGVzdHMuYw0KaW5kZXggNmQzNDU3YS4uN2Y4NjRlYyAxMDA2NDQNCi0tLSBhL2ZzL2J0cmZz
+L3Rlc3RzL2J0cmZzLXRlc3RzLmMNCisrKyBiL2ZzL2J0cmZzL3Rlc3RzL2J0cmZzLXRlc3RzLmMN
+CkBAIC0xNjIsNyArMTYyLDcgQEAgdm9pZCBidHJmc19mcmVlX2R1bW15X2ZzX2luZm8oc3RydWN0
+IGJ0cmZzX2ZzX2luZm8gKmZzX2luZm8pDQogCQkJCXNsb3QgPSByYWRpeF90cmVlX2l0ZXJfcmV0
+cnkoJml0ZXIpOw0KIAkJCWNvbnRpbnVlOw0KIAkJfQ0KLQkJc2xvdCA9IHJhZGl4X3RyZWVfaXRl
+cl9uZXh0KHNsb3QsICZpdGVyKTsNCisJCXNsb3QgPSByYWRpeF90cmVlX2l0ZXJfc2F2ZSgmaXRl
+ciwgMCk7DQogCQlzcGluX3VubG9jaygmZnNfaW5mby0+YnVmZmVyX2xvY2spOw0KIAkJZnJlZV9l
+eHRlbnRfYnVmZmVyX3N0YWxlKGViKTsNCiAJCXNwaW5fbG9jaygmZnNfaW5mby0+YnVmZmVyX2xv
+Y2spOw0KZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvcmFkaXgtdHJlZS5oIGIvaW5jbHVkZS9s
+aW51eC9yYWRpeC10cmVlLmgNCmluZGV4IDRlNDJkNGQuLjQ0MTkzMjUgMTAwNjQ0DQotLS0gYS9p
+bmNsdWRlL2xpbnV4L3JhZGl4LXRyZWUuaA0KKysrIGIvaW5jbHVkZS9saW51eC9yYWRpeC10cmVl
+LmgNCkBAIC00MjEsMTUgKzQyMSwyMiBAQCBfX3JhZGl4X3RyZWVfaXRlcl9hZGQoc3RydWN0IHJh
+ZGl4X3RyZWVfaXRlciAqaXRlciwgdW5zaWduZWQgbG9uZyBzbG90cykNCiB9DQogDQogLyoqDQot
+ICogcmFkaXhfdHJlZV9pdGVyX25leHQgLSByZXN1bWUgaXRlcmF0aW5nIHdoZW4gdGhlIGNodW5r
+IG1heSBiZSBpbnZhbGlkDQotICogQGl0ZXI6CWl0ZXJhdG9yIHN0YXRlDQorICogcmFkaXhfdHJl
+ZV9pdGVyX3NhdmUgLSByZXN1bWUgaXRlcmF0aW5nIHdoZW4gdGhlIGNodW5rIG1heSBiZSBpbnZh
+bGlkDQorICogQGl0ZXI6IGl0ZXJhdG9yIHN0YXRlDQorICogQG9yZGVyOiBvcmRlciBvZiB0aGUg
+ZW50cnkgdGhhdCB3YXMganVzdCBwcm9jZXNzZWQNCiAgKg0KLSAqIElmIHRoZSBpdGVyYXRvciBu
+ZWVkcyB0byByZWxlYXNlIHRoZW4gcmVhY3F1aXJlIGEgbG9jaywgdGhlIGNodW5rIG1heQ0KLSAq
+IGhhdmUgYmVlbiBpbnZhbGlkYXRlZCBieSBhbiBpbnNlcnRpb24gb3IgZGVsZXRpb24uICBDYWxs
+IHRoaXMgZnVuY3Rpb24NCisgKiBJZiB0aGUgaXRlcmF0aW9uIG5lZWRzIHRvIHJlbGVhc2UgdGhl
+biByZWFjcXVpcmUgYSBsb2NrLCB0aGUgY2h1bmsgbWF5DQorICogYmUgaW52YWxpZGF0ZWQgYnkg
+YW4gaW5zZXJ0aW9uIG9yIGRlbGV0aW9uLiAgQ2FsbCB0aGlzIGZ1bmN0aW9uDQogICogYmVmb3Jl
+IHJlbGVhc2luZyB0aGUgbG9jayB0byBjb250aW51ZSB0aGUgaXRlcmF0aW9uIGZyb20gdGhlIG5l
+eHQgaW5kZXguDQogICovDQotdm9pZCAqKl9fbXVzdF9jaGVjayByYWRpeF90cmVlX2l0ZXJfbmV4
+dCh2b2lkICoqc2xvdCwNCi0JCQkJCXN0cnVjdCByYWRpeF90cmVlX2l0ZXIgKml0ZXIpOw0KK3N0
+YXRpYyBpbmxpbmUgdm9pZCAqKl9fbXVzdF9jaGVjaw0KK3JhZGl4X3RyZWVfaXRlcl9zYXZlKHN0
+cnVjdCByYWRpeF90cmVlX2l0ZXIgKml0ZXIsIHVuc2lnbmVkIG9yZGVyKQ0KK3sNCisJaXRlci0+
+bmV4dF9pbmRleCA9IHJvdW5kX3VwKGl0ZXItPmluZGV4LCAxIDw8IG9yZGVyKTsNCisJaXRlci0+
+aW5kZXggPSAwOw0KKwlpdGVyLT50YWdzID0gMDsNCisJcmV0dXJuIE5VTEw7DQorfQ0KIA0KIC8q
+Kg0KICAqIHJhZGl4X3RyZWVfY2h1bmtfc2l6ZSAtIGdldCBjdXJyZW50IGNodW5rIHNpemUNCkBA
+IC00NjcsNyArNDc0LDcgQEAgc3RhdGljIGlubGluZSB2b2lkICoqIF9fcmFkaXhfdHJlZV9uZXh0
+X3Nsb3Qodm9pZCAqKnNsb3QsDQogICogRm9yIHRhZ2dlZCBsb29rdXAgaXQgYWxzbyBlYXRzIEBp
+dGVyLT50YWdzLg0KICAqDQogICogVGhlcmUgYXJlIHNldmVyYWwgY2FzZXMgd2hlcmUgJ3Nsb3Qn
+IGNhbiBiZSBwYXNzZWQgaW4gYXMgTlVMTCB0byB0aGlzDQotICogZnVuY3Rpb24uICBUaGVzZSBj
+YXNlcyByZXN1bHQgZnJvbSB0aGUgdXNlIG9mIHJhZGl4X3RyZWVfaXRlcl9uZXh0KCkgb3INCisg
+KiBmdW5jdGlvbi4gIFRoZXNlIGNhc2VzIHJlc3VsdCBmcm9tIHRoZSB1c2Ugb2YgcmFkaXhfdHJl
+ZV9pdGVyX3NhdmUoKSBvcg0KICAqIHJhZGl4X3RyZWVfaXRlcl9yZXRyeSgpLiAgSW4gdGhlc2Ug
+Y2FzZXMgd2UgZG9uJ3QgZW5kIHVwIGRlcmVmZXJlbmNpbmcNCiAgKiAnc2xvdCcgYmVjYXVzZSBl
+aXRoZXI6DQogICogYSkgd2UgYXJlIGRvaW5nIHRhZ2dlZCBpdGVyYXRpb24gYW5kIGl0ZXItPnRh
+Z3MgaGFzIGJlZW4gc2V0IHRvIDAsIG9yDQpkaWZmIC0tZ2l0IGEvbGliL3JhZGl4LXRyZWUuYyBi
+L2xpYi9yYWRpeC10cmVlLmMNCmluZGV4IDdlMjQ2OWIuLmZjYmFkYWQgMTAwNjQ0DQotLS0gYS9s
+aWIvcmFkaXgtdHJlZS5jDQorKysgYi9saWIvcmFkaXgtdHJlZS5jDQpAQCAtMTI0NSw2ICsxMjQ1
+LDcgQEAgc3RhdGljIGlubGluZSB2b2lkIF9fc2V0X2l0ZXJfc2hpZnQoc3RydWN0IHJhZGl4X3Ry
+ZWVfaXRlciAqaXRlciwNCiAjZW5kaWYNCiB9DQogDQorI2lmZGVmIENPTkZJR19SQURJWF9UUkVF
+X01VTFRJT1JERVINCiBzdGF0aWMgdm9pZCAqKiBfX3JhZGl4X3RyZWVfaXRlcl9uZXh0KHN0cnVj
+dCByYWRpeF90cmVlX25vZGUgKipub2RlcCwNCiAJCQl2b2lkICoqc2xvdCwgc3RydWN0IHJhZGl4
+X3RyZWVfaXRlciAqaXRlcikNCiB7DQpAQCAtMTI2Myw3ICsxMjY0LDYgQEAgc3RhdGljIHZvaWQg
+KiogX19yYWRpeF90cmVlX2l0ZXJfbmV4dChzdHJ1Y3QgcmFkaXhfdHJlZV9ub2RlICoqbm9kZXAs
+DQogCXJldHVybiBOVUxMOw0KIH0NCiANCi0jaWZkZWYgQ09ORklHX1JBRElYX1RSRUVfTVVMVElP
+UkRFUg0KIHZvaWQgKiogX19yYWRpeF90cmVlX25leHRfc2xvdCh2b2lkICoqc2xvdCwgc3RydWN0
+IHJhZGl4X3RyZWVfaXRlciAqaXRlciwNCiAJCQkJCXVuc2lnbmVkIGZsYWdzKQ0KIHsNCkBAIC0x
+MzIxLDIwICsxMzIxLDYgQEAgdm9pZCAqKiBfX3JhZGl4X3RyZWVfbmV4dF9zbG90KHZvaWQgKipz
+bG90LCBzdHJ1Y3QgcmFkaXhfdHJlZV9pdGVyICppdGVyLA0KIEVYUE9SVF9TWU1CT0woX19yYWRp
+eF90cmVlX25leHRfc2xvdCk7DQogI2VuZGlmDQogDQotdm9pZCAqKnJhZGl4X3RyZWVfaXRlcl9u
+ZXh0KHZvaWQgKipzbG90LCBzdHJ1Y3QgcmFkaXhfdHJlZV9pdGVyICppdGVyKQ0KLXsNCi0Jc3Ry
+dWN0IHJhZGl4X3RyZWVfbm9kZSAqbm9kZTsNCi0NCi0Jc2xvdCsrOw0KLQlpdGVyLT5pbmRleCA9
+IF9fcmFkaXhfdHJlZV9pdGVyX2FkZChpdGVyLCAxKTsNCi0Jbm9kZSA9IHJjdV9kZXJlZmVyZW5j
+ZV9yYXcoKnNsb3QpOw0KLQlfX3JhZGl4X3RyZWVfaXRlcl9uZXh0KCZub2RlLCBzbG90LCBpdGVy
+KTsNCi0JaXRlci0+bmV4dF9pbmRleCA9IGl0ZXItPmluZGV4Ow0KLQlpdGVyLT50YWdzID0gMDsN
+Ci0JcmV0dXJuIE5VTEw7DQotfQ0KLUVYUE9SVF9TWU1CT0wocmFkaXhfdHJlZV9pdGVyX25leHQp
+Ow0KLQ0KIC8qKg0KICAqIHJhZGl4X3RyZWVfbmV4dF9jaHVuayAtIGZpbmQgbmV4dCBjaHVuayBv
+ZiBzbG90cyBmb3IgaXRlcmF0aW9uDQogICoNCmRpZmYgLS1naXQgYS9tbS9raHVnZXBhZ2VkLmMg
+Yi9tbS9raHVnZXBhZ2VkLmMNCmluZGV4IDQ2MTU1ZDEuLjU0NDQ2ZTYgMTAwNjQ0DQotLS0gYS9t
+bS9raHVnZXBhZ2VkLmMNCisrKyBiL21tL2todWdlcGFnZWQuYw0KQEAgLTE2MTQsNyArMTYxNCw3
+IEBAIHN0YXRpYyB2b2lkIGtodWdlcGFnZWRfc2Nhbl9zaG1lbShzdHJ1Y3QgbW1fc3RydWN0ICpt
+bSwNCiAJCXByZXNlbnQrKzsNCiANCiAJCWlmIChuZWVkX3Jlc2NoZWQoKSkgew0KLQkJCXNsb3Qg
+PSByYWRpeF90cmVlX2l0ZXJfbmV4dChzbG90LCAmaXRlcik7DQorCQkJc2xvdCA9IHJhZGl4X3Ry
+ZWVfaXRlcl9zYXZlKCZpdGVyLCAwKTsNCiAJCQljb25kX3Jlc2NoZWRfcmN1KCk7DQogCQl9DQog
+CX0NCmRpZmYgLS1naXQgYS9tbS9wYWdlLXdyaXRlYmFjay5jIGIvbW0vcGFnZS13cml0ZWJhY2su
+Yw0KaW5kZXggYzU5MzcxNS4uN2Q2Yjg3MCAxMDA2NDQNCi0tLSBhL21tL3BhZ2Utd3JpdGViYWNr
+LmMNCisrKyBiL21tL3BhZ2Utd3JpdGViYWNrLmMNCkBAIC0yMTE5LDcgKzIxMTksNyBAQCB2b2lk
+IHRhZ19wYWdlc19mb3Jfd3JpdGViYWNrKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nLA0K
+IAkJdGFnZ2VkKys7DQogCQlpZiAoKHRhZ2dlZCAlIFdSSVRFQkFDS19UQUdfQkFUQ0gpICE9IDAp
+DQogCQkJY29udGludWU7DQotCQlzbG90ID0gcmFkaXhfdHJlZV9pdGVyX25leHQoc2xvdCwgJml0
+ZXIpOw0KKwkJc2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9zYXZlKCZpdGVyLCBjb21wb3VuZF9vcmRl
+cigqc2xvdCkpOw0KIAkJc3Bpbl91bmxvY2tfaXJxKCZtYXBwaW5nLT50cmVlX2xvY2spOw0KIAkJ
+Y29uZF9yZXNjaGVkKCk7DQogCQlzcGluX2xvY2tfaXJxKCZtYXBwaW5nLT50cmVlX2xvY2spOw0K
+ZGlmZiAtLWdpdCBhL21tL3NobWVtLmMgYi9tbS9zaG1lbS5jDQppbmRleCA4ZjljOWFhLi4zZjJk
+MDdhIDEwMDY0NA0KLS0tIGEvbW0vc2htZW0uYw0KKysrIGIvbW0vc2htZW0uYw0KQEAgLTY0NCw2
+ICs2NDQsNyBAQCB1bnNpZ25lZCBsb25nIHNobWVtX3BhcnRpYWxfc3dhcF91c2FnZShzdHJ1Y3Qg
+YWRkcmVzc19zcGFjZSAqbWFwcGluZywNCiAJcmN1X3JlYWRfbG9jaygpOw0KIA0KIAlyYWRpeF90
+cmVlX2Zvcl9lYWNoX3Nsb3Qoc2xvdCwgJm1hcHBpbmctPnBhZ2VfdHJlZSwgJml0ZXIsIHN0YXJ0
+KSB7DQorCQl1bnNpZ25lZCBpbnQgb3JkZXIgPSAwOw0KIAkJaWYgKGl0ZXIuaW5kZXggPj0gZW5k
+KQ0KIAkJCWJyZWFrOw0KIA0KQEAgLTY1Niw5ICs2NTcsMTEgQEAgdW5zaWduZWQgbG9uZyBzaG1l
+bV9wYXJ0aWFsX3N3YXBfdXNhZ2Uoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsDQogDQog
+CQlpZiAocmFkaXhfdHJlZV9leGNlcHRpb25hbF9lbnRyeShwYWdlKSkNCiAJCQlzd2FwcGVkKys7
+DQorCQllbHNlDQorCQkJb3JkZXIgPSBjb21wb3VuZF9vcmRlcihwYWdlKTsNCiANCiAJCWlmIChu
+ZWVkX3Jlc2NoZWQoKSkgew0KLQkJCXNsb3QgPSByYWRpeF90cmVlX2l0ZXJfbmV4dChzbG90LCAm
+aXRlcik7DQorCQkJc2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9zYXZlKCZpdGVyLCBvcmRlcik7DQog
+CQkJY29uZF9yZXNjaGVkX3JjdSgpOw0KIAkJfQ0KIAl9DQpAQCAtMTA2Miw3ICsxMDY1LDcgQEAg
+c3RhdGljIHVuc2lnbmVkIGxvbmcgZmluZF9zd2FwX2VudHJ5KHN0cnVjdCByYWRpeF90cmVlX3Jv
+b3QgKnJvb3QsIHZvaWQgKml0ZW0pDQogCQljaGVja2VkKys7DQogCQlpZiAoKGNoZWNrZWQgJSA0
+MDk2KSAhPSAwKQ0KIAkJCWNvbnRpbnVlOw0KLQkJc2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9uZXh0
+KHNsb3QsICZpdGVyKTsNCisJCXNsb3QgPSByYWRpeF90cmVlX2l0ZXJfc2F2ZSgmaXRlciwgMCk7
+DQogCQljb25kX3Jlc2NoZWRfcmN1KCk7DQogCX0NCiANCkBAIC0yNDQ0LDIxICsyNDQ3LDI1IEBA
+IHN0YXRpYyB2b2lkIHNobWVtX3RhZ19waW5zKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5n
+KQ0KIAlyY3VfcmVhZF9sb2NrKCk7DQogDQogCXJhZGl4X3RyZWVfZm9yX2VhY2hfc2xvdChzbG90
+LCAmbWFwcGluZy0+cGFnZV90cmVlLCAmaXRlciwgc3RhcnQpIHsNCisJCXVuc2lnbmVkIGludCBv
+cmRlciA9IDA7DQogCQlwYWdlID0gcmFkaXhfdHJlZV9kZXJlZl9zbG90KHNsb3QpOw0KIAkJaWYg
+KCFwYWdlIHx8IHJhZGl4X3RyZWVfZXhjZXB0aW9uKHBhZ2UpKSB7DQogCQkJaWYgKHJhZGl4X3Ry
+ZWVfZGVyZWZfcmV0cnkocGFnZSkpIHsNCiAJCQkJc2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9yZXRy
+eSgmaXRlcik7DQogCQkJCWNvbnRpbnVlOw0KIAkJCX0NCi0JCX0gZWxzZSBpZiAocGFnZV9jb3Vu
+dChwYWdlKSAtIHBhZ2VfbWFwY291bnQocGFnZSkgPiAxKSB7DQotCQkJc3Bpbl9sb2NrX2lycSgm
+bWFwcGluZy0+dHJlZV9sb2NrKTsNCi0JCQlyYWRpeF90cmVlX3RhZ19zZXQoJm1hcHBpbmctPnBh
+Z2VfdHJlZSwgaXRlci5pbmRleCwNCi0JCQkJCSAgIFNITUVNX1RBR19QSU5ORUQpOw0KLQkJCXNw
+aW5fdW5sb2NrX2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCisJCX0gZWxzZSB7DQorCQkJb3Jk
+ZXIgPSBjb21wb3VuZF9vcmRlcihwYWdlKTsNCisJCQlpZiAocGFnZV9jb3VudChwYWdlKSAtIHBh
+Z2VfbWFwY291bnQocGFnZSkgPiAxKSB7DQorCQkJCXNwaW5fbG9ja19pcnEoJm1hcHBpbmctPnRy
+ZWVfbG9jayk7DQorCQkJCXJhZGl4X3RyZWVfdGFnX3NldCgmbWFwcGluZy0+cGFnZV90cmVlLA0K
+KwkJCQkJCWl0ZXIuaW5kZXgsIFNITUVNX1RBR19QSU5ORUQpOw0KKwkJCQlzcGluX3VubG9ja19p
+cnEoJm1hcHBpbmctPnRyZWVfbG9jayk7DQorCQkJfQ0KIAkJfQ0KIA0KIAkJaWYgKG5lZWRfcmVz
+Y2hlZCgpKSB7DQotCQkJc2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9uZXh0KHNsb3QsICZpdGVyKTsN
+CisJCQlzbG90ID0gcmFkaXhfdHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCiAJCQljb25k
+X3Jlc2NoZWRfcmN1KCk7DQogCQl9DQogCX0NCkBAIC0yNTI4LDcgKzI1MzUsMTAgQEAgc3RhdGlj
+IGludCBzaG1lbV93YWl0X2Zvcl9waW5zKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nKQ0K
+IAkJCXNwaW5fdW5sb2NrX2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCiBjb250aW51ZV9yZXNj
+aGVkOg0KIAkJCWlmIChuZWVkX3Jlc2NoZWQoKSkgew0KLQkJCQlzbG90ID0gcmFkaXhfdHJlZV9p
+dGVyX25leHQoc2xvdCwgJml0ZXIpOw0KKwkJCQl1bnNpZ25lZCBpbnQgb3JkZXIgPSAwOw0KKwkJ
+CQlpZiAocGFnZSkNCisJCQkJCW9yZGVyID0gY29tcG91bmRfb3JkZXIocGFnZSk7DQorCQkJCXNs
+b3QgPSByYWRpeF90cmVlX2l0ZXJfc2F2ZSgmaXRlciwgb3JkZXIpOw0KIAkJCQljb25kX3Jlc2No
+ZWRfcmN1KCk7DQogCQkJfQ0KIAkJfQ0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
