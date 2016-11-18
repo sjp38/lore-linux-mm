@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E64D06B0437
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:45 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id n68so1886730itn.4
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:45 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 861386B0438
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:17:46 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id n68so1887292itn.4
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 09:17:46 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i63si6438625ioa.72.2016.11.18.09.17.45
+        by mx.google.com with ESMTPS id x63si6426459ioi.168.2016.11.18.09.17.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 09:17:45 -0800 (PST)
+        Fri, 18 Nov 2016 09:17:46 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v13 02/18] mm/ZONE_DEVICE/unaddressable: add support for un-addressable device memory
-Date: Fri, 18 Nov 2016 13:18:11 -0500
-Message-Id: <1479493107-982-3-git-send-email-jglisse@redhat.com>
+Subject: [HMM v13 03/18] mm/ZONE_DEVICE/free_hot_cold_page: catch ZONE_DEVICE pages
+Date: Fri, 18 Nov 2016 13:18:12 -0500
+Message-Id: <1479493107-982-4-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,217 +23,38 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This add support for un-addressable device memory. Such memory is hotpluged
-only so we can have struct page but should never be map. This patch add code
-to mm page fault code path to catch any such mapping and SIGBUS on such event.
+Catch page from ZONE_DEVICE in free_hot_cold_page(). This should never
+happen as ZONE_DEVICE page must always have an elevated refcount.
+
+This is to catch refcounting issues in a sane way for ZONE_DEVICE pages.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- drivers/dax/pmem.c                |  3 ++-
- drivers/nvdimm/pmem.c             |  5 +++--
- include/linux/memremap.h          | 23 ++++++++++++++++++++---
- kernel/memremap.c                 | 12 +++++++++---
- mm/memory.c                       |  9 +++++++++
- tools/testing/nvdimm/test/iomap.c |  2 +-
- 6 files changed, 44 insertions(+), 10 deletions(-)
+ mm/page_alloc.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-index 1f01e98..1b42aef 100644
---- a/drivers/dax/pmem.c
-+++ b/drivers/dax/pmem.c
-@@ -107,7 +107,8 @@ static int dax_pmem_probe(struct device *dev)
- 	if (rc)
- 		return rc;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0fbfead..09b2630 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2435,6 +2435,16 @@ void free_hot_cold_page(struct page *page, bool cold)
+ 	unsigned long pfn = page_to_pfn(page);
+ 	int migratetype;
  
--	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap);
-+	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref,
-+				   altmap, NULL, MEMORY_DEVICE);
- 	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
- 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 571a6c7..5ffd937 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -260,7 +260,7 @@ static int pmem_attach_disk(struct device *dev,
- 	pmem->pfn_flags = PFN_DEV;
- 	if (is_nd_pfn(dev)) {
- 		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
--				altmap);
-+					   altmap, NULL, MEMORY_DEVICE);
- 		pfn_sb = nd_pfn->pfn_sb;
- 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
- 		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
-@@ -269,7 +269,8 @@ static int pmem_attach_disk(struct device *dev,
- 		res->start += pmem->data_offset;
- 	} else if (pmem_should_map_pages(dev)) {
- 		addr = devm_memremap_pages(dev, &nsio->res,
--				&q->q_usage_counter, NULL);
-+					   &q->q_usage_counter,
-+					   NULL, NULL, MEMORY_DEVICE);
- 		pmem->pfn_flags |= PFN_MAP;
- 	} else
- 		addr = devm_memremap(dev, pmem->phys_addr,
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 9341619..fe61dca 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -41,22 +41,34 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-  * @res: physical address range covered by @ref
-  * @ref: reference count that pins the devm_memremap_pages() mapping
-  * @dev: host device of the mapping for debug
-+ * @flags: memory flags (look for MEMORY_FLAGS_NONE in memory_hotplug.h)
-  */
- struct dev_pagemap {
- 	struct vmem_altmap *altmap;
- 	const struct resource *res;
- 	struct percpu_ref *ref;
- 	struct device *dev;
-+	int flags;
- };
- 
- #ifdef CONFIG_ZONE_DEVICE
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct percpu_ref *ref, struct vmem_altmap *altmap);
-+			  struct percpu_ref *ref, struct vmem_altmap *altmap,
-+			  struct dev_pagemap **ppgmap, int flags);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
-+
-+static inline bool is_addressable_page(const struct page *page)
-+{
-+	return ((page_zonenum(page) != ZONE_DEVICE) ||
-+		!(page->pgmap->flags & MEMORY_UNADDRESSABLE));
-+}
- #else
- static inline void *devm_memremap_pages(struct device *dev,
--		struct resource *res, struct percpu_ref *ref,
--		struct vmem_altmap *altmap)
-+					struct resource *res,
-+					struct percpu_ref *ref,
-+					struct vmem_altmap *altmap,
-+					struct dev_pagemap **ppgmap,
-+					int flags)
- {
- 	/*
- 	 * Fail attempts to call devm_memremap_pages() without
-@@ -71,6 +83,11 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- {
- 	return NULL;
- }
-+
-+static inline bool is_addressable_page(const struct page *page)
-+{
-+	return true;
-+}
- #endif
- 
- /**
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 07665eb..438a73aa2 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -246,7 +246,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
--	arch_remove_memory(align_start, align_size, MEMORY_DEVICE);
-+	arch_remove_memory(align_start, align_size, pgmap->flags);
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
- 	pgmap_radix_release(res);
- 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
-@@ -270,6 +270,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-  * @res: "host memory" address range
-  * @ref: a live per-cpu reference count
-  * @altmap: optional descriptor for allocating the memmap from @res
-+ * @ppgmap: pointer set to new page dev_pagemap on success
-+ * @flags: flag for memory (look for MEMORY_FLAGS_NONE in memory_hotplug.h)
-  *
-  * Notes:
-  * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
-@@ -280,7 +282,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-  *    this is not enforced.
-  */
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct percpu_ref *ref, struct vmem_altmap *altmap)
-+			  struct percpu_ref *ref, struct vmem_altmap *altmap,
-+			  struct dev_pagemap **ppgmap, int flags)
- {
- 	resource_size_t key, align_start, align_size, align_end;
- 	pgprot_t pgprot = PAGE_KERNEL;
-@@ -322,6 +325,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	}
- 	pgmap->ref = ref;
- 	pgmap->res = &page_map->res;
-+	pgmap->flags = flags | MEMORY_DEVICE;
- 
- 	mutex_lock(&pgmap_lock);
- 	error = 0;
-@@ -358,7 +362,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	if (error)
- 		goto err_pfn_remap;
- 
--	error = arch_add_memory(nid, align_start, align_size, MEMORY_DEVICE);
-+	error = arch_add_memory(nid, align_start, align_size, pgmap->flags);
- 	if (error)
- 		goto err_add_memory;
- 
-@@ -375,6 +379,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		page->pgmap = pgmap;
- 	}
- 	devres_add(dev, page_map);
-+	if (ppgmap)
-+		*ppgmap = pgmap;
- 	return __va(res->start);
- 
-  err_add_memory:
-diff --git a/mm/memory.c b/mm/memory.c
-index 840adc6..15f2908 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -45,6 +45,7 @@
- #include <linux/swap.h>
- #include <linux/highmem.h>
- #include <linux/pagemap.h>
-+#include <linux/memremap.h>
- #include <linux/ksm.h>
- #include <linux/rmap.h>
- #include <linux/export.h>
-@@ -3482,6 +3483,7 @@ static inline bool vma_is_accessible(struct vm_area_struct *vma)
- static int handle_pte_fault(struct fault_env *fe)
- {
- 	pte_t entry;
-+	struct page *page;
- 
- 	if (unlikely(pmd_none(*fe->pmd))) {
- 		/*
-@@ -3533,6 +3535,13 @@ static int handle_pte_fault(struct fault_env *fe)
- 	if (pte_protnone(entry) && vma_is_accessible(fe->vma))
- 		return do_numa_page(fe, entry);
- 
-+	/* Catch mapping of un-addressable memory this should never happen */
-+	page = pfn_to_page(pte_pfn(entry));
-+	if (!is_addressable_page(page)) {
-+		print_bad_pte(fe->vma, fe->address, entry, page);
-+		return VM_FAULT_SIGBUS;
++	/*
++	 * This should never happen ! Page from ZONE_DEVICE always must have an
++	 * active refcount. Complain about it and try to restore the refcount.
++	 */
++	if (is_zone_device_page(page)) {
++		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
++		page_ref_inc(page);
++		return;
 +	}
 +
- 	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
- 	spin_lock(fe->ptl);
- 	if (unlikely(!pte_same(*fe->pte, entry)))
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index c29f8dc..899d6a8 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -108,7 +108,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
- 
- 	if (nfit_res)
- 		return nfit_res->buf + offset - nfit_res->res->start;
--	return devm_memremap_pages(dev, res, ref, altmap);
-+	return devm_memremap_pages(dev, res, ref, altmap, MEMORY_DEVICE);
- }
- EXPORT_SYMBOL(__wrap_devm_memremap_pages);
+ 	if (!free_pcp_prepare(page))
+ 		return;
  
 -- 
 2.4.3
