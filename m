@@ -1,97 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EB7BD6B047A
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:23:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e9so269297617pgc.5
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:23:13 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0102.outbound.protection.outlook.com. [104.47.32.102])
-        by mx.google.com with ESMTPS id 79si9650251pfz.134.2016.11.18.12.23.12
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 659D96B047D
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 15:58:58 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id s63so4191991wms.7
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 12:58:58 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id to13si4930668wjb.192.2016.11.18.12.58.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 18 Nov 2016 12:23:12 -0800 (PST)
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Subject: RE: [PATCH 20/29] radix tree: Improve multiorder iterators
-Date: Fri, 18 Nov 2016 20:23:10 +0000
-Message-ID: <SN1PR21MB0077D7FE61A476EBD6529726CBB00@SN1PR21MB0077.namprd21.prod.outlook.com>
-References: <1479341856-30320-1-git-send-email-mawilcox@linuxonhyperv.com>
- <1479341856-30320-59-git-send-email-mawilcox@linuxonhyperv.com>
- <CALYGNiN++jFZZwvShjD4PDV=cZczVOs+K-ib-ZL=M+v2XU_aYQ@mail.gmail.com>
- <SN1PR21MB00770A0E46912C21844645F0CBB00@SN1PR21MB0077.namprd21.prod.outlook.com>
- <CALYGNiMCJ+r37xPAht7tJM0s9_kX5J6SD2X0F65mqC4Mr6z0Tw@mail.gmail.com>
-In-Reply-To: <CALYGNiMCJ+r37xPAht7tJM0s9_kX5J6SD2X0F65mqC4Mr6z0Tw@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 18 Nov 2016 12:58:56 -0800 (PST)
+Subject: Re: [patch 1/2] mm, zone: track number of pages in free area by
+ migratetype
+References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
+ <49ed7412-eab7-4d8d-c6df-fdf76d98da4d@suse.cz>
+ <alpine.DEB.2.10.1611171405210.99747@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b938271e-e54c-a80b-d177-1f2c9b379532@suse.cz>
+Date: Fri, 18 Nov 2016 21:58:42 +0100
 MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1611171405210.99747@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Matthew Wilcox <mawilcox@linuxonhyperv.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-RnJvbTogS29uc3RhbnRpbiBLaGxlYm5pa292IFttYWlsdG86a29jdDlpQGdtYWlsLmNvbV0NCj4g
-T24gRnJpLCBOb3YgMTgsIDIwMTYgYXQgNzozMSBQTSwgTWF0dGhldyBXaWxjb3ggPG1hd2lsY294
-QG1pY3Jvc29mdC5jb20+DQo+IHdyb3RlOg0KPiA+IEkgdGhpbmsgd2hhdCB5b3UncmUgc3VnZ2Vz
-dGluZyBpcyB0aGF0IHdlIGludHJvZHVjZSBhIG5ldyBBUEk6DQo+ID4NCj4gPiAgc2xvdCA9IHJh
-ZGl4X3RyZWVfaXRlcl9zYXZlKCZpdGVyLCBvcmRlcik7DQo+ID4NCj4gPiB3aGVyZSB0aGUgY2Fs
-bGVyIHRlbGxzIHVzIHRoZSBvcmRlciBvZiB0aGUgZW50cnkgaXQganVzdCBjb25zdW1lZC4gIE9y
-IG1heWJlDQo+IHlvdSdyZSBzdWdnZXN0aW5nDQo+ID4NCj4gPiAgc2xvdCA9IHJhZGl4X3RyZWVf
-aXRlcl9hZHZhbmNlKCZpdGVyLCBuZXdpbmRleCkNCj4gDQo+IFllcywgc29tZXRpbmcgbGlrZSB0
-aGF0Lg0KPiANCj4gPg0KPiA+IHdoaWNoIHdvdWxkIGFsbG93IHVzIHRvIHNraXAgdG8gYW55IGlu
-ZGV4LiAgQWx0aG91Z2ggLi4uIGlzbid0IHRoYXQganVzdA0KPiByYWRpeF90cmVlX2l0ZXJfaW5p
-dCgpPw0KPiANCj4gSXRlcmF0b3IgY291bGQga2VlcCBwb2ludGVyIHRvIGN1cnJlbnQgbm9kZSBh
-bmQgcmV1c2UgaXQgZm9yIG5leHQNCj4gaXRlcmF0aW9uIGlmIHBvc3NpYmxlLg0KDQpUaGUgcG9p
-bnQgb2YgdGhpcyBBUEkgaXMgdGhhdCBpdCdzIG5ldmVyIHBvc3NpYmxlLCBiZWNhdXNlIHdlJ3Jl
-IGFib3V0IHRvIGRyb3AgdGhlIGxvY2sgYW5kIGFsbG93IG90aGVyIHVzZXJzIHRvIG1vZGlmeSB0
-aGUgdHJlZS4gIEFjdHVhbGx5LCBpdCBpcyBkaWZmZXJlbnQgZnJvbSByYWRpeF90cmVlX2l0ZXJf
-aW5pdCgpIGJlY2F1c2UgaXQgaGFzIHRvIHNldCAtPnRhZ3MgdG8gMCBhbmQgLT5pbmRleCA9PSAt
-Pm5leHRfaW5kZXggaW4gb3JkZXIgdG8gZ2V0IHRocm91Z2ggYSBjYWxsIHRvIHJhZGl4X3RyZWVf
-bmV4dF9zbG90KCkuDQoNCj4gPiBJdCBkb2VzIHB1c2ggYSBiaXQgb2YgY29tcGxleGl0eSBvbnRv
-IHRoZSBjYWxsZXJzLiAgV2UgaGF2ZSA3IGNhbGxlcnMgb2YNCj4gPiByYWRpeF90cmVlX2l0ZXJf
-bmV4dCgpIGluIG15IGN1cnJlbnQgdHJlZSAoYWZ0ZXIgYXBwbHlpbmcgdGhpcyBwYXRjaCBzZXQs
-IHNvDQo+ID4gcmFuZ2VfdGFnX2lmX3RhZ2dlZCBhbmQgbG9jYXRlX2l0ZW0gaGF2ZSBiZWVuIHB1
-c2hlZCBpbnRvIHRoZWlyIGNhbGxlcnMpOg0KPiA+IGJ0cmZzLCBrdWdlcGFnZWQsIHBhZ2Utd3Jp
-dGViYWNrIGFuZCBzaG1lbS4gIGJ0cmZzIGtub3dzIGl0cyBvYmplY3RzIG9jY3VweQ0KPiA+IG9u
-ZSBzbG90LiAga2h1Z2VwYWdlZCBrbm93cyB0aGF0IGl0cyBwYWdlIGlzIG9yZGVyIDAgYXQgdGhl
-IHRpbWUgaXQgY2FsbHMNCj4gPiByYWRpeF90cmVlX2l0ZXJfbmV4dCgpLiAgUGFnZS13cml0ZWJh
-Y2sgaGFzIGEgc3RydWN0IHBhZ2UgYW5kIGNhbiBzaW1wbHkgdXNlDQo+ID4gY29tcG91bmRfb3Jk
-ZXIoKS4gIEl0J3Mgc2htZW0gd2hlcmUgdGhpbmdzIGdldCBzdGlja3ksIGFsdGhvdWdoIGl0J3Mg
-YWxsDQo+ID4gc29sdmFibGUgd2l0aCBzb21lIHRlbXBvcmFyeSB2YXJpYWJsZXMuDQo+IA0KPiBV
-c2VycyB3aG8gd29yayBvbmx5IHdpdGggc2luZ2xlIHNsb3QgZW50aWVzIGRvbid0IGdldCBhbnkg
-Y29tcGxpY2F0aW9ucywNCj4gYWxsIG90aGVyIGFscmVhZHkgbWFuYWdlIHRoZXNlIG11bHRpb3Jk
-ZXIgZW50cmllcyBzb21laG93Lg0KDQpJZiB5b3UgcmVhZCB0aGUgcGF0Y2ggYmVsb3csIHlvdSds
-bCBzZWUgdGhhdCBtb3N0IGNhbGxlcnMgZG9uJ3QgbmVlZCB0byBiZSBjb25jZXJuZWQgd2l0aCB0
-aGUgc2l6ZSBvZiB0aGUgZW50cnkgdGhleSdyZSBsb29raW5nIGF0LiAgSSdsbCB0cmltIGF3YXkg
-dGhlIHRyaXZpYWwgb25lcyBzbyBpdCdzIGVhc2llciB0byBzZWUgbXkgcG9pbnQuDQoNCkl0J3Mg
-bm90IGEgaHVnZSBhbW91bnQgb2YgY29kZSBpbiBlYWNoIGNhbGxlciwgYnV0IGlzIHRoaXMgYSBi
-dXJkZW4gd2UgcmVhbGx5IHdhbnQgdG8gcHVzaCBvbnRvIHRoZSBjYWxsZXJzIHdoZW4gd2UgY291
-bGQgaGFuZGxlIGl0IGJlaGluZCB0aGUgaW50ZXJmYWNlPw0KDQpkaWZmIC0tZ2l0IGEvbW0vc2ht
-ZW0uYyBiL21tL3NobWVtLmMNCmluZGV4IDhmOWM5YWEuLjkwZGQxOGQ5IDEwMDY0NA0KLS0tIGEv
-bW0vc2htZW0uYw0KKysrIGIvbW0vc2htZW0uYw0KQEAgLTY1OCw3ICs2NTgsMTAgQEAgdW5zaWdu
-ZWQgbG9uZyBzaG1lbV9wYXJ0aWFsX3N3YXBfdXNhZ2Uoc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1h
-cHBpbmcsDQogCQkJc3dhcHBlZCsrOw0KIA0KIAkJaWYgKG5lZWRfcmVzY2hlZCgpKSB7DQotCQkJ
-c2xvdCA9IHJhZGl4X3RyZWVfaXRlcl9uZXh0KHNsb3QsICZpdGVyKTsNCisJCQl1bnNpZ25lZCBp
-bnQgb3JkZXIgPSAwOw0KKwkJCWlmICghcmFkaXhfdHJlZV9leGNlcHRpb25hbF9lbnRyeShwYWdl
-KSkNCisJCQkJb3JkZXIgPSBjb21wb3VuZF9vcmRlcihwYWdlKTsNCisJCQlzbG90ID0gcmFkaXhf
-dHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCiAJCQljb25kX3Jlc2NoZWRfcmN1KCk7DQog
-CQl9DQogCX0NCkBAIC0yNDUwLDYgKzI0NTMsNyBAQCBzdGF0aWMgdm9pZCBzaG1lbV90YWdfcGlu
-cyhzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZykNCiAJCQkJc2xvdCA9IHJhZGl4X3RyZWVf
-aXRlcl9yZXRyeSgmaXRlcik7DQogCQkJCWNvbnRpbnVlOw0KIAkJCX0NCisJCQlwYWdlID0gTlVM
-TDsNCiAJCX0gZWxzZSBpZiAocGFnZV9jb3VudChwYWdlKSAtIHBhZ2VfbWFwY291bnQocGFnZSkg
-PiAxKSB7DQogCQkJc3Bpbl9sb2NrX2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCiAJCQlyYWRp
-eF90cmVlX3RhZ19zZXQoJm1hcHBpbmctPnBhZ2VfdHJlZSwgaXRlci5pbmRleCwNCkBAIC0yNDU4
-LDcgKzI0NjIsOCBAQCBzdGF0aWMgdm9pZCBzaG1lbV90YWdfcGlucyhzdHJ1Y3QgYWRkcmVzc19z
-cGFjZSAqbWFwcGluZykNCiAJCX0NCiANCiAJCWlmIChuZWVkX3Jlc2NoZWQoKSkgew0KLQkJCXNs
-b3QgPSByYWRpeF90cmVlX2l0ZXJfbmV4dChzbG90LCAmaXRlcik7DQorCQkJdW5zaWduZWQgaW50
-IG9yZGVyID0gcGFnZSA/IGNvbXBvdW5kX29yZGVyKHBhZ2UpIDogMDsNCisJCQlzbG90ID0gcmFk
-aXhfdHJlZV9pdGVyX3NhdmUoJml0ZXIsIG9yZGVyKTsNCiAJCQljb25kX3Jlc2NoZWRfcmN1KCk7
-DQogCQl9DQogCX0NCkBAIC0yNTI4LDcgKzI1MzMsMTAgQEAgc3RhdGljIGludCBzaG1lbV93YWl0
-X2Zvcl9waW5zKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nKQ0KIAkJCXNwaW5fdW5sb2Nr
-X2lycSgmbWFwcGluZy0+dHJlZV9sb2NrKTsNCiBjb250aW51ZV9yZXNjaGVkOg0KIAkJCWlmIChu
-ZWVkX3Jlc2NoZWQoKSkgew0KLQkJCQlzbG90ID0gcmFkaXhfdHJlZV9pdGVyX25leHQoc2xvdCwg
-Jml0ZXIpOw0KKwkJCQl1bnNpZ25lZCBpbnQgb3JkZXIgPSAwOw0KKwkJCQlpZiAocGFnZSkNCisJ
-CQkJCW9yZGVyID0gY29tcG91bmRfb3JkZXIocGFnZSk7DQorCQkJCXNsb3QgPSByYWRpeF90cmVl
-X2l0ZXJfc2F2ZSgmaXRlciwgb3JkZXIpOw0KIAkJCQljb25kX3Jlc2NoZWRfcmN1KCk7DQogCQkJ
-fQ0KIAkJfQ0KDQo=
+On 11/17/2016 11:11 PM, David Rientjes wrote:
+> On Thu, 17 Nov 2016, Vlastimil Babka wrote:
+> 
+>>> The total number of free pages is still tracked, however, to not make
+>>> zone_watermark_ok() more expensive.  Reading /proc/pagetypeinfo, however,
+>>> is faster.
+>>
+>> Yeah I've already seen a case with /proc/pagetypeinfo causing soft
+>> lockups due to high number of iterations...
+>>
+> 
+> Thanks for taking a look at the patchset!
+> 
+> Wow, I haven't seen /proc/pagetypeinfo soft lockups yet, I thought this 
+> was a relatively minor point :)
+
+Well to be honest, it was a system misconfigured with numa=off which
+made the lists both longer and more numa-distant. But nevertheless, we
+might get there. It's not nice when userspace can so easily trigger long
+iterations under the zone/node lock...
+
+> But it looks like we need some 
+> improvement in this behavior independent of memory compaction anyway.
+
+Yeah.
+
+>>> This patch introduces no functional change and increases the amount of
+>>> per-zone metadata at worst by 48 bytes per memory zone (when CONFIG_CMA
+>>> and CONFIG_MEMORY_ISOLATION are enabled).
+>>
+>> Isn't it 48 bytes per zone and order?
+>>
+> 
+> Yes, sorry, I'll fix that in v2.  I think less than half a kilobyte for 
+> each memory zone is satisfactory for extra tracking, compaction 
+> improvements, and optimized /proc/pagetypeinfo, though.
+
+I'm not worried about memory usage, but perhaps cache usage.
+
+>>> Signed-off-by: David Rientjes <rientjes@google.com>
+>>
+>> I'd be for this if there are no performance regressions. It affects hot
+>> paths and increases cache footprint. I think at least some allocator
+>> intensive microbenchmark should be used.
+>>
+> 
+> I can easily implement a test to stress movable page allocations from 
+> fallback MIGRATE_UNMOVABLE pageblocks and freeing back to the same 
+> pageblocks.  I assume we're not interested in memory offline benchmarks.
+
+I meant just allocation benchmarks to see how much the extra operations
+and cache footprint matters.
+
+> What do you think about the logic presented in patch 2/2?  Are you 
+> comfortable with a hard-coded ratio such as 1/64th of free memory or would 
+> you prefer to look at the zone's watermark with the number of free pages 
+> from MIGRATE_MOVABLE pageblocks rather than NR_FREE_PAGES?  I was split 
+> between the two options.
+
+The second options makes more sense to me intuitively as it resembles
+what we've been doing until now. Maybe just don't require such a large
+gap as compaction_suitable does?
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
