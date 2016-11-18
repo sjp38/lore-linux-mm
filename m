@@ -1,122 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86D6F6B0388
-	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 20:04:25 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id j128so117340953pfg.4
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:04:25 -0800 (PST)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id o79si5393163pfa.97.2016.11.17.17.04.24
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB21E6B038A
+	for <linux-mm@kvack.org>; Thu, 17 Nov 2016 20:17:01 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id b123so7184317itb.3
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:17:01 -0800 (PST)
+Received: from mail-it0-f50.google.com (mail-it0-f50.google.com. [209.85.214.50])
+        by mx.google.com with ESMTPS id p3si4104734iof.179.2016.11.17.17.17.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Nov 2016 17:04:24 -0800 (PST)
-Received: by mail-pf0-x22a.google.com with SMTP id i88so51368452pfk.2
-        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:04:24 -0800 (PST)
-Date: Fri, 18 Nov 2016 10:03:55 +0900
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: Re: [PATCH v27 1/9] memblock: add memblock_cap_memory_range()
-Message-ID: <20161118010354.GB5704@linaro.org>
-References: <20161102044959.11954-1-takahiro.akashi@linaro.org>
- <20161102045153.12008-1-takahiro.akashi@linaro.org>
- <20161110172720.GB17134@arm.com>
- <20161111025049.GG381@linaro.org>
- <20161111031903.GB15997@arm.com>
- <20161114055515.GH381@linaro.org>
- <20161116163015.GM7928@arm.com>
- <20161117022023.GA5704@linaro.org>
- <20161117111917.GA22855@arm.com>
- <582DF05A.9050601@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <582DF05A.9050601@arm.com>
+        Thu, 17 Nov 2016 17:17:01 -0800 (PST)
+Received: by mail-it0-f50.google.com with SMTP id j191so7048994ita.1
+        for <linux-mm@kvack.org>; Thu, 17 Nov 2016 17:17:01 -0800 (PST)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv3 0/6] CONFIG_DEBUG_VIRTUAL for arm64
+Date: Thu, 17 Nov 2016 17:16:50 -0800
+Message-Id: <1479431816-5028-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Dennis Chen <dennis.chen@arm.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.orgnd@arm.com
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-James,
+Hi,
 
-On Thu, Nov 17, 2016 at 06:00:58PM +0000, James Morse wrote:
-> Hi Will, Akashi,
-> 
-> On 17/11/16 11:19, Will Deacon wrote:
-> > It looks much better, thanks! Just one question below.
-> > 
-> 
-> > On Thu, Nov 17, 2016 at 02:34:24PM +0900, AKASHI Takahiro wrote:
-> >> diff --git a/mm/memblock.c b/mm/memblock.c
-> >> index 7608bc3..fea1688 100644
-> >> --- a/mm/memblock.c
-> >> +++ b/mm/memblock.c
-> >> @@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
-> >>  			      (phys_addr_t)ULLONG_MAX);
-> >>  }
-> >>  
-> >> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> >> +{
-> >> +	int start_rgn, end_rgn;
-> >> +	int i, ret;
-> >> +
-> >> +	if (!size)
-> >> +		return;
-> >> +
-> >> +	ret = memblock_isolate_range(&memblock.memory, base, size,
-> >> +						&start_rgn, &end_rgn);
-> >> +	if (ret)
-> >> +		return;
-> >> +
-> >> +	/* remove all the MAP regions */
-> >> +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> >> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> >> +			memblock_remove_region(&memblock.memory, i);
-> > 
-> > In the case that we have only one, giant memblock that covers base all
-> > of base + size, can't we end up with start_rgn = end_rgn = 0? In which
-> 
-> Can this happen? If we only have one memblock that exactly spans
-> base:(base+size), memblock_isolate_range() will hit the '@rgn is fully
-> contained, record it' code and set start_rgn=0,end_rgn=1. (rbase==base,
-> rend==end). We only go round the loop once.
-> 
-> If we only have one memblock that is bigger than base:(base+size) we end up with
-> three regions, start_rgn=1,end_rgn=2. The trickery here is the '@rgn intersects
-> from above' code decreases the loop counter so we process the same entry twice,
-> hitting '@rgn is fully contained, record it' the second time round... so we go
-> round the loop four times.
+This is v3 of the series to add CONFIG_DEBUG_VIRTUAL for arm64.
+The biggest change from v2 is the conversion of more __pa sites
+to __pa_symbol for stricter checks.
 
-Thank you for your observation.
+With that expansion, having this go through the arm64 tree is going to be
+easiest so I'd like to start getting Acks from x86 and mm maintainers.
 
-> I can't see how we hit the:
-> > 	if (rbase >= end)
-> > 		break;
-> > 	if (rend <= base)
-> > 		continue;
-> 
-> code in either case...
+Thanks,
+Laura
 
-Right. So 'end_rgn' will never be expected to be 0 as far as some
-intersection exists.
+Laura Abbott (6):
+  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+  mm/cma: Cleanup highmem check
+  arm64: Move some macros under #ifndef __ASSEMBLY__
+  arm64: Add cast for virt_to_pfn
+  arm64: Use __pa_symbol for kernel symbols
+  arm64: Add support for CONFIG_DEBUG_VIRTUAL
 
--Takahiro AKASHI
+ arch/arm64/Kconfig                        |  1 +
+ arch/arm64/include/asm/kvm_mmu.h          |  4 +-
+ arch/arm64/include/asm/memory.h           | 70 ++++++++++++++++++++++---------
+ arch/arm64/include/asm/mmu_context.h      |  6 +--
+ arch/arm64/include/asm/pgtable.h          |  2 +-
+ arch/arm64/kernel/acpi_parking_protocol.c |  2 +-
+ arch/arm64/kernel/cpufeature.c            |  2 +-
+ arch/arm64/kernel/hibernate.c             |  9 ++--
+ arch/arm64/kernel/insn.c                  |  2 +-
+ arch/arm64/kernel/psci.c                  |  2 +-
+ arch/arm64/kernel/setup.c                 |  8 ++--
+ arch/arm64/kernel/smp_spin_table.c        |  2 +-
+ arch/arm64/kernel/vdso.c                  |  4 +-
+ arch/arm64/mm/Makefile                    |  1 +
+ arch/arm64/mm/init.c                      | 11 ++---
+ arch/arm64/mm/mmu.c                       | 24 +++++------
+ arch/arm64/mm/physaddr.c                  | 39 +++++++++++++++++
+ arch/x86/Kconfig                          |  1 +
+ drivers/firmware/psci.c                   |  2 +-
+ lib/Kconfig.debug                         |  5 ++-
+ mm/cma.c                                  | 15 +++----
+ 21 files changed, 140 insertions(+), 72 deletions(-)
+ create mode 100644 arch/arm64/mm/physaddr.c
 
-> 
-> 
-> Thanks,
-> 
-> James
-> 
-> 
-> > case, we'd end up accidentally removing the map regions here.
-> > 
-> > The existing code:
-> > 
-> >> -	/* remove all the MAP regions above the limit */
-> >> -	for (i = end_rgn - 1; i >= start_rgn; i--) {
-> >> -		if (!memblock_is_nomap(&type->regions[i]))
-> >> -			memblock_remove_region(type, i);
-> >> -	}
-> > 
-> > seems to handle this.
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
