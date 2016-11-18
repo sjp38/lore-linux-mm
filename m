@@ -1,81 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 556926B03BA
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 03:30:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so8478837wms.7
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 00:30:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v130si1578061wmf.126.2016.11.18.00.30.43
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE106B03BD
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 04:16:38 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id g23so9570391wme.4
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:16:38 -0800 (PST)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id fa9si6705306wjb.103.2016.11.18.01.16.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Nov 2016 00:30:43 -0800 (PST)
-Date: Fri, 18 Nov 2016 09:30:42 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 9/9] mm: workingset: restore refault tracking for
- single-page files
-Message-ID: <20161118083042.GI18676@quack2.suse.cz>
-References: <20161117191138.22769-1-hannes@cmpxchg.org>
- <20161117193244.GF23430@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Nov 2016 01:16:36 -0800 (PST)
+Received: by mail-wm0-x236.google.com with SMTP id a197so24798164wmd.0
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 01:16:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161117193244.GF23430@cmpxchg.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 18 Nov 2016 10:16:15 +0100
+Message-ID: <CACT4Y+ZPL9pgvpanXVtYKW8LukzwLp6ajfPSuteQj2oGGkfCJQ@mail.gmail.com>
+Subject: mm, floppy: unkillable task faulting on fd0
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Jiri Kosina <jikos@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: syzkaller <syzkaller@googlegroups.com>
 
-On Thu 17-11-16 14:32:44, Johannes Weiner wrote:
-> Shadow entries in the page cache used to be accounted behind the radix
-> tree implementation's back in the upper bits of node->count, and the
-> radix tree code extending a single-entry tree with a shadow entry in
-> root->rnode would corrupt that counter. As a result, we could not put
-> shadow entries at index 0 if the tree didn't have any other entries,
-> and that means no refault detection for any single-page file.
-> 
-> Now that the shadow entries are tracked natively in the radix tree's
-> exceptional counter, this is no longer necessary. Extending and
-> shrinking the tree from and to single entries in root->rnode now does
-> the right thing when the entry is exceptional, remove that limitation.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Hello,
 
-Looks good. You can add:
+The following program produces unkillable tasks blocked at the following stack:
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+[<ffffffff8184c44b>] wait_on_page_bit+0x1eb/0x2a0 mm/filemap.c:802
+[<     inline     >] wait_on_page_locked ./include/linux/pagemap.h:508
+[<ffffffff81862fa7>] filemap_fault+0x17c7/0x1e50 mm/filemap.c:2201
+[<ffffffff819423cc>] __do_fault+0x33c/0x8a0 mm/memory.c:2864
+[<     inline     >] do_read_fault mm/memory.c:3191
+[<ffffffff81953521>] do_fault+0xbb1/0x28d0 mm/memory.c:3326
+[<     inline     >] handle_pte_fault mm/memory.c:3527
+[<     inline     >] __handle_mm_fault mm/memory.c:3614
+[<ffffffff81956ddb>] handle_mm_fault+0x159b/0x2cd0 mm/memory.c:3651
+[<ffffffff812fc2eb>] __do_page_fault+0x4fb/0xb60 arch/x86/mm/fault.c:1397
+[<ffffffff812fcb19>] trace_do_page_fault+0x159/0x830 arch/x86/mm/fault.c:1490
+[<ffffffff812eb6fc>] do_async_page_fault+0x7c/0xd0 arch/x86/kernel/kvm.c:265
+[<ffffffff88148cd8>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:1015
+[<ffffffff81aadf93>] getname_flags+0x113/0x580 fs/namei.c:148
+[<ffffffff81aaf112>] user_path_at_empty+0x32/0x50 fs/namei.c:2556
+[<     inline     >] SYSC_readlinkat fs/stat.c:327
+[<     inline     >] SyS_readlinkat fs/stat.c:315
+[<     inline     >] SYSC_readlink fs/stat.c:352
+[<ffffffff81a8295c>] SyS_readlink+0x12c/0x3f0 fs/stat.c:349
+[<ffffffff88147885>] entry_SYSCALL_64_fastpath+0x23/0xc6
+arch/x86/entry/entry_64.S:209
 
-								Honza
 
-> ---
->  mm/filemap.c | 9 +--------
->  1 file changed, 1 insertion(+), 8 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 7d92032277ff..ae7b6992aded 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -164,14 +164,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
->  		__radix_tree_lookup(&mapping->page_tree, page->index + i,
->  				    &node, &slot);
->  
-> -		if (!node) {
-> -			VM_BUG_ON_PAGE(nr != 1, page);
-> -			/*
-> -			 * We need a node to properly account shadow
-> -			 * entries. Don't plant any without. XXX
-> -			 */
-> -			shadow = NULL;
-> -		}
-> +		VM_BUG_ON_PAGE(!node && nr != 1, page);
->  
->  		radix_tree_clear_tags(&mapping->page_tree, node, slot);
->  		__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
-> -- 
-> 2.10.2
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Before hang kernel prints:
+[  404.042351] floppy0: disk absent or changed during operation
+[  404.044187] floppy0: disk absent or changed during operation
+[  404.058637] floppy0: disk absent or changed during operation
+[  404.060152] floppy0: do_fd_request: timeout handler died.  old
+request running
+
+
+On commit a25f0944ba9b1d8a6813fd6f1a86f1bd59ac25a6 (Nov 13).
+
+Run this program in a loop:
+
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
+
+#include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int fd;
+
+void* thr(void* arg)
+{
+  if (rand() % 2)
+    usleep(rand() % 1000);
+  switch ((long)arg) {
+  case 0:
+    fd = syscall(__NR_open, "/dev/fd0", 0x900ul);
+    break;
+  case 1:
+    syscall(__NR_mmap, 0x20009000ul, 0x1000ul, 0x4ul, 0x12ul, fd, 0x0ul);
+    break;
+  case 2:
+    syscall(__NR_mmap, 0x20009000ul, 0x1000ul, 0x4ul, 0x12ul, fd, 0x0ul);
+    break;
+  case 3:
+    syscall(__NR_readlink, 0x20009000ul, 0x20009000ul, 0x100ul);
+    break;
+  case 4:
+    syscall(__NR_readlink, 0x20009000ul, 0x20009000ul, 0x100ul);
+    break;
+  }
+  return 0;
+}
+
+int main()
+{
+  long i;
+  pthread_t th[5];
+
+  fd = syscall(__NR_open, "/dev/fd0", 0x900ul);
+  syscall(__NR_mmap, 0x20009000ul, 0x1000ul, 0x4ul, 0x12ul, fd, 0x0ul);
+
+  srand(getpid());
+  for (i = 0; i < 5; i++)
+    pthread_create(&th[i], 0, thr, (void*)i);
+  for (i = 0; i < 5; i++)
+    pthread_join(th[i], 0);
+  return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
