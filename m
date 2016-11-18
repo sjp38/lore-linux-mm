@@ -1,61 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E9566B042A
-	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 10:09:58 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id l8so29724470iti.6
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 07:09:58 -0800 (PST)
-Received: from mail-it0-x22b.google.com (mail-it0-x22b.google.com. [2607:f8b0:4001:c0b::22b])
-        by mx.google.com with ESMTPS id p187si2322743itd.7.2016.11.18.07.09.57
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 751E66B0365
+	for <linux-mm@kvack.org>; Fri, 18 Nov 2016 11:10:29 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id w63so234409363oiw.4
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 08:10:29 -0800 (PST)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id n4si3446176oib.141.2016.11.18.08.10.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Nov 2016 07:09:57 -0800 (PST)
-Received: by mail-it0-x22b.google.com with SMTP id y23so35914770itc.0
-        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 07:09:57 -0800 (PST)
-Subject: Re: [PATCH v4] mm: don't cap request size based on read-ahead setting
-References: <e4271a04-35cf-b082-34ea-92649f5111be@kernel.dk>
- <007401d24160$cc2442c0$646cc840$@alibaba-inc.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <6010891c-e4a2-e19b-9042-128670fd8fff@kernel.dk>
-Date: Fri, 18 Nov 2016 08:09:55 -0700
+        Fri, 18 Nov 2016 08:10:27 -0800 (PST)
+Received: by mail-oi0-x243.google.com with SMTP id 128so11587819oih.3
+        for <linux-mm@kvack.org>; Fri, 18 Nov 2016 08:10:27 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <007401d24160$cc2442c0$646cc840$@alibaba-inc.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
+References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 18 Nov 2016 08:10:26 -0800
+Message-ID: <CAKgT0UfyeTOvhiFD93-fuXo-3W5NvZTPSQRj2QC6+RntdABvfQ@mail.gmail.com>
+Subject: Re: [mm PATCH v3 00/23] Add support for DMA writable pages being
+ writable by the network stack
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Alexander Duyck <alexander.h.duyck@intel.com>
 
-On 11/17/2016 10:58 PM, Hillf Danton wrote:
-> On Friday, November 18, 2016 5:23 AM Jens Axboe wrote:
->>
->> We ran into a funky issue, where someone doing 256K buffered reads saw
->> 128K requests at the device level. Turns out it is read-ahead capping
->> the request size, since we use 128K as the default setting. This doesn't
->> make a lot of sense - if someone is issuing 256K reads, they should see
->> 256K reads, regardless of the read-ahead setting, if the underlying
->> device can support a 256K read in a single command.
->>
->> To make matters more confusing, there's an odd interaction with the
->> fadvise hint setting. If we tell the kernel we're doing sequential IO on
->> this file descriptor, we can get twice the read-ahead size. But if we
->> tell the kernel that we are doing random IO, hence disabling read-ahead,
->> we do get nice 256K requests at the lower level. This is because
->> ondemand and forced read-ahead behave differently, with the latter doing
->> the right thing.
+On Thu, Nov 10, 2016 at 3:34 AM, Alexander Duyck
+<alexander.h.duyck@intel.com> wrote:
+> The first 19 patches in the set add support for the DMA attribute
+> DMA_ATTR_SKIP_CPU_SYNC on multiple platforms/architectures.  This is needed
+> so that we can flag the calls to dma_map/unmap_page so that we do not
+> invalidate cache lines that do not currently belong to the device.  Instead
+> we have to take care of this in the driver via a call to
+> sync_single_range_for_cpu prior to freeing the Rx page.
 >
-> As far as I read, forced RA is innocent but it is corrected below.
-> And with RA disabled, we should drop care of ondemand.
+> Patch 20 adds support for dma_map_page_attrs and dma_unmap_page_attrs so
+> that we can unmap and map a page using the DMA_ATTR_SKIP_CPU_SYNC
+> attribute.
 >
-> I'm scratching.
+> Patch 21 adds support for freeing a page that has multiple references being
+> held by a single caller.  This way we can free page fragments that were
+> allocated by a given driver.
+>
+> The last 2 patches use these updates in the igb driver, and lay the
+> groundwork to allow for us to reimplement the use of build_skb.
+>
+> v1: Minor fixes based on issues found by kernel build bot
+>     Few minor changes for issues found on code review
+>     Added Acked-by for patches that were acked and not changed
+>
+> v2: Added a few more Acked-by
+>     Submitting patches to mm instead of net-next
+>
+> v3: Added Acked-by for PowerPC architecture
+>     Dropped first 3 patches which were accepted into swiotlb tree
+>     Dropped comments describing swiotlb changes.
+>
+> ---
+>
+> Alexander Duyck (23):
+>       arch/arc: Add option to skip sync on DMA mapping
+>       arch/arm: Add option to skip sync on DMA map and unmap
+>       arch/avr32: Add option to skip sync on DMA map
+>       arch/blackfin: Add option to skip sync on DMA map
+>       arch/c6x: Add option to skip sync on DMA map and unmap
+>       arch/frv: Add option to skip sync on DMA map
+>       arch/hexagon: Add option to skip DMA sync as a part of mapping
+>       arch/m68k: Add option to skip DMA sync as a part of mapping
+>       arch/metag: Add option to skip DMA sync as a part of map and unmap
+>       arch/microblaze: Add option to skip DMA sync as a part of map and unmap
+>       arch/mips: Add option to skip DMA sync as a part of map and unmap
+>       arch/nios2: Add option to skip DMA sync as a part of map and unmap
+>       arch/openrisc: Add option to skip DMA sync as a part of mapping
+>       arch/parisc: Add option to skip DMA sync as a part of map and unmap
+>       arch/powerpc: Add option to skip DMA sync as a part of mapping
+>       arch/sh: Add option to skip DMA sync as a part of mapping
+>       arch/sparc: Add option to skip DMA sync as a part of map and unmap
+>       arch/tile: Add option to skip DMA sync as a part of map and unmap
+>       arch/xtensa: Add option to skip DMA sync as a part of mapping
+>       dma: Add calls for dma_map_page_attrs and dma_unmap_page_attrs
+>       mm: Add support for releasing multiple instances of a page
+>       igb: Update driver to make use of DMA_ATTR_SKIP_CPU_SYNC
+>       igb: Update code to better handle incrementing page count
+>
+>
+>  arch/arc/mm/dma.c                         |    5 ++
+>  arch/arm/common/dmabounce.c               |   16 ++++--
+>  arch/avr32/mm/dma-coherent.c              |    7 ++-
+>  arch/blackfin/kernel/dma-mapping.c        |    8 +++
+>  arch/c6x/kernel/dma.c                     |   14 ++++-
+>  arch/frv/mb93090-mb00/pci-dma-nommu.c     |   14 ++++-
+>  arch/frv/mb93090-mb00/pci-dma.c           |    9 +++
+>  arch/hexagon/kernel/dma.c                 |    6 ++
+>  arch/m68k/kernel/dma.c                    |    8 +++
+>  arch/metag/kernel/dma.c                   |   16 +++++-
+>  arch/microblaze/kernel/dma.c              |   10 +++-
+>  arch/mips/loongson64/common/dma-swiotlb.c |    2 -
+>  arch/mips/mm/dma-default.c                |    8 ++-
+>  arch/nios2/mm/dma-mapping.c               |   26 +++++++---
+>  arch/openrisc/kernel/dma.c                |    3 +
+>  arch/parisc/kernel/pci-dma.c              |   20 ++++++--
+>  arch/powerpc/kernel/dma.c                 |    9 +++
+>  arch/sh/kernel/dma-nommu.c                |    7 ++-
+>  arch/sparc/kernel/iommu.c                 |    4 +-
+>  arch/sparc/kernel/ioport.c                |    4 +-
+>  arch/tile/kernel/pci-dma.c                |   12 ++++-
+>  arch/xtensa/kernel/pci-dma.c              |    7 ++-
+>  drivers/net/ethernet/intel/igb/igb.h      |    7 ++-
+>  drivers/net/ethernet/intel/igb/igb_main.c |   77 +++++++++++++++++++----------
+>  include/linux/dma-mapping.h               |   20 +++++---
+>  include/linux/gfp.h                       |    2 +
+>  mm/page_alloc.c                           |   14 +++++
+>  27 files changed, 246 insertions(+), 89 deletions(-)
+>
 
-The changelog should have been updated. Forced read-ahead is also
-affected, the patch is correct. We want to use the min of 'nr_to_read'
-and the proper read-ahead request size, the latter being the max of
-ra->ra_pages and bdi->io_pages.
+So I am just wondering if I need to resubmit this to pick up the new
+"Acked-by"s or if I should just wait?
 
--- 
-Jens Axboe
+As I said in the description my hope is to get this into the -mm tree
+and I am not familiar with what the process is for being accepted
+there.
+
+Thanks.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
