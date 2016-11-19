@@ -1,133 +1,855 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 134746B0497
-	for <linux-mm@kvack.org>; Sat, 19 Nov 2016 04:33:37 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id g193so21925227qke.2
-        for <linux-mm@kvack.org>; Sat, 19 Nov 2016 01:33:37 -0800 (PST)
-Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
-        by mx.google.com with ESMTP id 65si5659311wmo.84.2016.11.19.01.33.35
-        for <linux-mm@kvack.org>;
-        Sat, 19 Nov 2016 01:33:36 -0800 (PST)
-Date: Sat, 19 Nov 2016 10:33:26 +0100
-From: Willy Tarreau <w@1wt.eu>
-Subject: Re: [REVIEW][PATCH 0/3] Fixing ptrace vs exec vs userns interactions
-Message-ID: <20161119093326.GA13593@1wt.eu>
-References: <87y41kjn6l.fsf@xmission.com>
- <20161019172917.GE1210@laptop.thejh.net>
- <CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
- <87pomwi5p2.fsf@xmission.com>
- <CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
- <87pomwghda.fsf@xmission.com>
- <CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
- <87twb6avk8.fsf_-_@xmission.com>
- <20161119071700.GA13347@1wt.eu>
- <20161119092804.GA13553@1wt.eu>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E07486B0499
+	for <linux-mm@kvack.org>; Sat, 19 Nov 2016 09:33:39 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so169351708pfx.1
+        for <linux-mm@kvack.org>; Sat, 19 Nov 2016 06:33:39 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b8si13285955pgn.179.2016.11.19.06.33.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 19 Nov 2016 06:33:38 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAJETWA2109404
+	for <linux-mm@kvack.org>; Sat, 19 Nov 2016 09:33:37 -0500
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26tjx0jthn-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 19 Nov 2016 09:33:37 -0500
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 19 Nov 2016 09:33:36 -0500
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [HMM v13 16/18] mm/hmm/migrate: new memory migration helper for use with device memory
+In-Reply-To: <1479493107-982-17-git-send-email-jglisse@redhat.com>
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com> <1479493107-982-17-git-send-email-jglisse@redhat.com>
+Date: Sat, 19 Nov 2016 20:02:26 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161119092804.GA13553@1wt.eu>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <87a8cvmtfp.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Jann Horn <jann@thejh.net>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>
+To: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Sat, Nov 19, 2016 at 10:28:04AM +0100, Willy Tarreau wrote:
-> On Sat, Nov 19, 2016 at 08:17:00AM +0100, Willy Tarreau wrote:
-> > Hi Eric,
-> > 
-> > On Thu, Nov 17, 2016 at 11:02:47AM -0600, Eric W. Biederman wrote:
-> > > 
-> > > With everyone heading to Kernel Summit and Plumbers I put this set of
-> > > patches down temporarily.   Now is the time to take it back up and to
-> > > make certain I am not missing something stupid in this set of patches.
-> > 
-> > I couldn't get your patch set to apply to any of the kernels I tried,
-> > I manually adjusted some parts but the second one has too many rejects.
-> > What kernel should I apply this to ? Or maybe some preliminary patches
-> > are needed ?
-> 
-> OK I finally managed to get it to work on top of 4.8.9 (required less changes
-> than master). I also had to drop the user_ns changes since there's no such
-> user_ns in mm_struct there.
-> 
-> I could run a test on it, that looks reasonable :
-> 
-> FS:
-> 
-> admin@vm:~$ strace -e trace=fstat,uname,ioctl,open uname
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7f3f9a1663e3, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open(0x7ffd01bbeeb0, O_RDONLY|O_CLOEXEC) = 3
-> fstat(3, {...})                         = 0
-> open(0x7ffd01bbee80, O_RDONLY|O_CLOEXEC) = 3
-> fstat(3, {...})                         = 0
-> uname({...})                            = 0
-> fstat(1, {...})                         = 0
-> ioctl(1, SNDCTL_TMR_TIMEBASE or TCGETS, 0x7ffd01bbf400) = 0
-> 
-> admin@vm:~$ sudo strace -e trace=fstat,uname,ioctl,open uname
-> open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open("/lib64/tls/x86_64/libpthread.so.0", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open("/lib64/tls/libpthread.so.0", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open("/lib64/x86_64/libpthread.so.0", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
-> open("/lib64/libpthread.so.0", O_RDONLY|O_CLOEXEC) = 3
-> fstat(3, {st_mode=S_IFREG|0555, st_size=101312, ...}) = 0
-> open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-> fstat(3, {st_mode=S_IFREG|0555, st_size=1479016, ...}) = 0
-> uname({sys="Linux", node="vm", ...})    = 0
-> fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(4, 64), ...}) = 0
-> ioctl(1, SNDCTL_TMR_TIMEBASE or TCGETS, {B9600 opost isig icanon echo ...}) = 0
-> 
-> Network:
-> 
-> admin@vm:~$ strace -e trace=socket,setsockopt,connect /tmp/nc 198.18.3 22
-> socket(PF_FILE, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
-> connect(3, {...}, 110)                  = -1 ENOENT (No such file or directory)
-> socket(PF_FILE, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
-> connect(3, {...}, 110)                  = -1 ENOENT (No such file or directory)
-> socket(PF_INET, SOCK_STREAM, IPPROTO_TCP) = 3
-> setsockopt(3, SOL_SOCKET, SO_REUSEADDR, 0x7ffd2c26bdbc, 4) = 0
-> connect(3, {...}, 16)                   = 0
-> 
-> admin@vm:~$ sudo strace -e trace=socket,setsockopt,connect /tmp/nc 198.18.3 22
-> socket(PF_FILE, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
-> connect(3, {sa_family=AF_FILE, path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
-> socket(PF_FILE, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0) = 3
-> connect(3, {sa_family=AF_FILE, path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
-> socket(PF_INET, SOCK_STREAM, IPPROTO_TCP) = 3
-> setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
-> connect(3, {sa_family=AF_INET, sin_port=htons(22), sin_addr=inet_addr("198.18.0.3")}, 16) = 0
-> 
-> So in short now we can at least see what syscall fails eventhough we can't
-> know why. I think it can be an acceptable trade-off.
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> writes:
 
-I also tested with gdb and it behaves as desired :
+> This patch add a new memory migration helpers, which migrate memory
+> backing a range of virtual address of a process to different memory
+> (which can be allocated through special allocator). It differs from
+> numa migration by working on a range of virtual address and thus by
+> doing migration in chunk that can be large enough to use DMA engine
+> or special copy offloading engine.
+>
+> Expected users are any one with heterogeneous memory where different
+> memory have different characteristics (latency, bandwidth, ...). As
+> an example IBM platform with CAPI bus can make use of this feature
+> to migrate between regular memory and CAPI device memory. New CPU
+> architecture with a pool of high performance memory not manage as
+> cache but presented as regular memory (while being faster and with
+> lower latency than DDR) will also be prime user of this patch.
+>
+> Migration to private device memory will be usefull for device that
+> have large pool of such like GPU, NVidia plans to use HMM for that.
+>
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+> ---
+>  include/linux/hmm.h |  54 ++++-
+>  mm/migrate.c        | 584 ++++++++++++++++++++++++++++++++++++++++++++++=
+++++++
+>  2 files changed, 635 insertions(+), 3 deletions(-)
+>
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index c79abfc..9777309 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -101,10 +101,13 @@ struct hmm;
+>   * HMM_PFN_EMPTY: corresponding CPU page table entry is none (pte_none()=
+ true)
+>   * HMM_PFN_FAULT: use by hmm_vma_fault() to signify which address need f=
+aulting
+>   * HMM_PFN_DEVICE: this is device memory (ie a ZONE_DEVICE page)
+> + * HMM_PFN_LOCKED: underlying struct page is lock
+>   * HMM_PFN_SPECIAL: corresponding CPU page table entry is special ie res=
+ult of
+>   *      vm_insert_pfn() or vm_insert_page() and thus should not be mirro=
+r by a
+>   *      device (the entry will never have HMM_PFN_VALID set and the pfn =
+value
+>   *      is undefine)
+> + * HMM_PFN_MIGRATE: use by hmm_vma_migrate() to signify which address ca=
+n be
+> + *      migrated
+>   * HMM_PFN_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
+>   */
+>  typedef unsigned long hmm_pfn_t;
+> @@ -116,9 +119,11 @@ typedef unsigned long hmm_pfn_t;
+>  #define HMM_PFN_EMPTY (1 << 4)
+>  #define HMM_PFN_FAULT (1 << 5)
+>  #define HMM_PFN_DEVICE (1 << 6)
+> -#define HMM_PFN_SPECIAL (1 << 7)
+> -#define HMM_PFN_UNADDRESSABLE (1 << 8)
+> -#define HMM_PFN_SHIFT 9
+> +#define HMM_PFN_LOCKED (1 << 7)
+> +#define HMM_PFN_SPECIAL (1 << 8)
+> +#define HMM_PFN_MIGRATE (1 << 9)
+> +#define HMM_PFN_UNADDRESSABLE (1 << 10)
+> +#define HMM_PFN_SHIFT 11
+>=20=20
+>  static inline struct page *hmm_pfn_to_page(hmm_pfn_t pfn)
+>  {
+> @@ -323,6 +328,49 @@ bool hmm_vma_fault(struct vm_area_struct *vma,
+>  		   hmm_pfn_t *pfns);
+>=20=20
+>=20=20
+> +/*
+> + * struct hmm_migrate_ops - migrate operation callback
+> + *
+> + * @alloc_and_copy: alloc destination memoiry and copy source to it
+> + * @finalize_and_map: allow caller to inspect successfull migrated page
+> + *
+> + * The new HMM migrate helper hmm_vma_migrate() allow memory migration t=
+o use
+> + * device DMA engine to perform copy from source to destination memory i=
+t also
+> + * allow caller to use its own memory allocator for destination memory.
+> + *
+> + * Note that in alloc_and_copy device driver can decide not to migrate s=
+ome of
+> + * the entry, for those it must clear the HMM_PFN_MIGRATE flag. The dest=
+ination
+> + * page must lock and the corresponding hmm_pfn_t value in the array upd=
+ated
+> + * with the HMM_PFN_MIGRATE and HMM_PFN_LOCKED flag set (and of course b=
+e a
+> + * valid entry). It is expected that the page allocated will have an ele=
+vated
+> + * refcount and that a put_page() will free the page. Device driver migh=
+t want
+> + * to allocate with an extra-refcount if they want to control deallocati=
+on of
+> + * failed migration inside the finalize_and_map() callback.
+> + *
+> + * Inside finalize_and_map() device driver must use the HMM_PFN_MIGRATE =
+flag to
+> + * determine which page have been successfully migrated.
+> + */
+> +struct hmm_migrate_ops {
+> +	void (*alloc_and_copy)(struct vm_area_struct *vma,
+> +			       unsigned long start,
+> +			       unsigned long end,
+> +			       hmm_pfn_t *pfns,
+> +			       void *private);
+> +	void (*finalize_and_map)(struct vm_area_struct *vma,
+> +				 unsigned long start,
+> +				 unsigned long end,
+> +				 hmm_pfn_t *pfns,
+> +				 void *private);
+> +};
+> +
+> +int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
+> +		    struct vm_area_struct *vma,
+> +		    unsigned long start,
+> +		    unsigned long end,
+> +		    hmm_pfn_t *pfns,
+> +		    void *private);
+> +
+> +
+>  /* Below are for HMM internal use only ! Not to be use by device driver =
+! */
+>  void hmm_mm_destroy(struct mm_struct *mm);
+>=20=20
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index d9ce8db..393d592 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -41,6 +41,7 @@
+>  #include <linux/page_idle.h>
+>  #include <linux/page_owner.h>
+>  #include <linux/memremap.h>
+> +#include <linux/hmm.h>
+>=20=20
+>  #include <asm/tlbflush.h>
+>=20=20
+> @@ -421,6 +422,14 @@ int migrate_page_move_mapping(struct address_space *=
+mapping,
+>  	int expected_count =3D 1 + extra_count;
+>  	void **pslot;
+>=20=20
+> +	/*
+> +	 * ZONE_DEVICE pages have 1 refcount always held by their device
+> +	 *
+> +	 * Note that DAX memory will never reach that point as it does not have
+> +	 * the MEMORY_MOVABLE flag set (see include/linux/memory_hotplug.h).
+> +	 */
+> +	expected_count +=3D is_zone_device_page(page);
+> +
+>  	if (!mapping) {
+>  		/* Anonymous page without mapping */
+>  		if (page_count(page) !=3D expected_count)
+> @@ -2087,3 +2096,578 @@ out_unlock:
+>  #endif /* CONFIG_NUMA_BALANCING */
+>=20=20
+>  #endif /* CONFIG_NUMA */
+> +
+> +
+> +#if defined(CONFIG_HMM)
+> +struct hmm_migrate {
+> +	struct vm_area_struct	*vma;
+> +	unsigned long		start;
+> +	unsigned long		end;
+> +	unsigned long		npages;
+> +	hmm_pfn_t		*pfns;
+> +};
+> +
+> +static int hmm_collect_walk_pmd(pmd_t *pmdp,
+> +				unsigned long start,
+> +				unsigned long end,
+> +				struct mm_walk *walk)
+> +{
+> +	struct hmm_migrate *migrate =3D walk->private;
+> +	struct mm_struct *mm =3D walk->vma->vm_mm;
+> +	unsigned long addr =3D start;
+> +	spinlock_t *ptl;
+> +	hmm_pfn_t *pfns;
+> +	int pages =3D 0;
+> +	pte_t *ptep;
+> +
+> +again:
+> +	if (pmd_none(*pmdp))
+> +		return 0;
+> +
+> +	split_huge_pmd(walk->vma, pmdp, addr);
+> +	if (pmd_trans_unstable(pmdp))
+> +		goto again;
+> +
+> +	pfns =3D &migrate->pfns[(addr - migrate->start) >> PAGE_SHIFT];
+> +	ptep =3D pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +	arch_enter_lazy_mmu_mode();
+> +
+> +	for (; addr < end; addr +=3D PAGE_SIZE, pfns++, ptep++) {
+> +		unsigned long pfn;
+> +		swp_entry_t entry;
+> +		struct page *page;
+> +		hmm_pfn_t flags;
+> +		bool write;
+> +		pte_t pte;
+> +
+> +		pte =3D ptep_get_and_clear(mm, addr, ptep);
+> +		if (!pte_present(pte)) {
+> +			if (pte_none(pte))
+> +				continue;
+> +
+> +			entry =3D pte_to_swp_entry(pte);
+> +			if (!is_device_entry(entry)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+> +				continue;
+> +			}
+> +
+> +			flags =3D HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
+> +			page =3D device_entry_to_page(entry);
+> +			write =3D is_write_device_entry(entry);
+> +			pfn =3D page_to_pfn(page);
+> +
+> +			if (!(page->pgmap->flags & MEMORY_MOVABLE)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+> +				continue;
+> +			}
+> +
+> +		} else {
+> +			pfn =3D pte_pfn(pte);
+> +			page =3D pfn_to_page(pfn);
+> +			write =3D pte_write(pte);
+> +			flags =3D is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
 
-admin@vm:~$ sleep 100000 &
-[1] 1615
-admin@vm:~$ /tmp/gdb-x86_64 -q -p 1615
-Attaching to process 1615
-ptrace: Operation not permitted.
-(gdb) quit
+Will that is_zone_device_page() be ever true ?, The pte is present in
+the else patch can the struct page backing that come from zone device ?
 
-admin@vm:~$ sudo cp /bin/sleep /var/tmp/
-admin@vm:~$ sudo chmod 755 /var/tmp/sleep 
-admin@vm:~$ /tmp/sleep 100000 &
-[1] 1620
-admin@vm:~$ /tmp/gdb-x86_64 -q -p 1620
-Attaching to process 1620
-Reading symbols from /var/tmp/sleep...(no debugging symbols found)...done.
-(...)
-0x00007f6723d561b0 in nanosleep () from /lib64/libpthread.so.0
-(gdb) quit
 
-Willy
+> +		}
+> +
+> +		/* FIXME support THP see hmm_migrate_page_check() */
+> +		if (PageTransCompound(page))
+> +			continue;
+
+What about page cache pages. Do we support that ? If not may be skip
+that here ?
+
+
+
+> +
+> +		*pfns =3D hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
+> +		*pfns |=3D write ? HMM_PFN_WRITE : 0;
+> +		migrate->npages++;
+> +		get_page(page);
+> +
+> +		if (!trylock_page(page)) {
+> +			set_pte_at(mm, addr, ptep, pte);
+> +		} else {
+> +			pte_t swp_pte;
+> +
+> +			*pfns |=3D HMM_PFN_LOCKED;
+> +
+> +			entry =3D make_migration_entry(page, write);
+> +			swp_pte =3D swp_entry_to_pte(entry);
+> +			if (pte_soft_dirty(pte))
+> +				swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
+> +			set_pte_at(mm, addr, ptep, swp_pte);
+> +
+> +			page_remove_rmap(page, false);
+> +			put_page(page);
+> +			pages++;
+> +		}
+
+If this is an optimization, can we get that as a seperate patch with
+addtional comments. ? How does take a successful page lock implies it is
+not a shared mapping ?
+
+
+> +	}
+> +
+> +	arch_leave_lazy_mmu_mode();
+> +	pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +	/* Only flush the TLB if we actually modified any entries */
+> +	if (pages)
+> +		flush_tlb_range(walk->vma, start, end);
+> +
+> +	return 0;
+> +}
+
+
+So without the optimization the above function is suppose to raise the
+refcount and collect all possible pfns tha we can migrate in the array ?
+
+
+> +
+> +static void hmm_migrate_collect(struct hmm_migrate *migrate)
+> +{
+> +	struct mm_walk mm_walk;
+> +
+> +	mm_walk.pmd_entry =3D hmm_collect_walk_pmd;
+> +	mm_walk.pte_entry =3D NULL;
+> +	mm_walk.pte_hole =3D NULL;
+> +	mm_walk.hugetlb_entry =3D NULL;
+> +	mm_walk.test_walk =3D NULL;
+> +	mm_walk.vma =3D migrate->vma;
+> +	mm_walk.mm =3D migrate->vma->vm_mm;
+> +	mm_walk.private =3D migrate;
+> +
+> +	mmu_notifier_invalidate_range_start(mm_walk.mm,
+> +					    migrate->start,
+> +					    migrate->end);
+> +	walk_page_range(migrate->start, migrate->end, &mm_walk);
+> +	mmu_notifier_invalidate_range_end(mm_walk.mm,
+> +					  migrate->start,
+> +					  migrate->end);
+> +}
+> +
+> +static inline bool hmm_migrate_page_check(struct page *page, int extra)
+> +{
+> +	/*
+> +	 * FIXME support THP (transparent huge page), it is bit more complex to
+> +	 * check them then regular page because they can be map with a pmd or
+> +	 * with a pte (split pte mapping).
+> +	 */
+> +	if (PageCompound(page))
+> +		return false;
+> +
+> +	if (is_zone_device_page(page))
+> +		extra++;
+> +
+> +	if ((page_count(page) - extra) > page_mapcount(page))
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr =3D migrate->start, i =3D 0;
+> +	struct mm_struct *mm =3D migrate->vma->vm_mm;
+> +	struct vm_area_struct *vma =3D migrate->vma;
+> +	unsigned long restore =3D 0;
+> +	bool allow_drain =3D true;
+> +
+> +	lru_add_drain();
+> +
+> +again:
+> +	for (; addr < migrate->end; addr +=3D PAGE_SIZE, i++) {
+> +		struct page *page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page)
+> +			continue;
+> +
+> +		if (!(migrate->pfns[i] & HMM_PFN_LOCKED)) {
+> +			lock_page(page);
+> +			migrate->pfns[i] |=3D HMM_PFN_LOCKED;
+> +		}
+
+What does taking a page_lock protect against ? Can we document that ?
+
+> +
+> +		/* ZONE_DEVICE page are not on LRU */
+> +		if (is_zone_device_page(page))
+> +			goto check;
+> +
+> +		if (!PageLRU(page) && allow_drain) {
+> +			/* Drain CPU's pagevec so page can be isolated */
+> +			lru_add_drain_all();
+> +			allow_drain =3D false;
+> +			goto again;
+> +		}
+> +
+> +		if (isolate_lru_page(page)) {
+> +			migrate->pfns[i] &=3D ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			put_page(page);
+> +			restore++;
+> +		} else
+> +			/* Drop the reference we took in collect */
+> +			put_page(page);
+> +
+> +check:
+> +		if (!hmm_migrate_page_check(page, 1)) {
+> +			migrate->pfns[i] &=3D ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			restore++;
+> +		}
+> +	}
+> +
+> +	if (!restore)
+> +		return;
+> +
+> +	for (addr =3D migrate->start, i =3D 0; addr < migrate->end;) {
+> +		struct page *page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +		unsigned long next, restart;
+> +		spinlock_t *ptl;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE)) {
+> +			addr +=3D PAGE_SIZE;
+> +			i++;
+> +			continue;
+> +		}
+> +
+> +		restart =3D addr;
+> +		pgdp =3D pgd_offset(mm, addr);
+> +		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
+> +			addr =3D pgd_addr_end(addr, migrate->end);
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pudp =3D pud_offset(pgdp, addr);
+> +		if (!pudp || pud_none(*pudp)) {
+> +			addr =3D pgd_addr_end(addr, migrate->end);
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pmdp =3D pmd_offset(pudp, addr);
+> +		next =3D pmd_addr_end(addr, migrate->end);
+> +		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
+> +			addr =3D next;
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		ptep =3D pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +		for (; addr < next; addr +=3D PAGE_SIZE, i++, ptep++) {
+> +			swp_entry_t entry;
+> +			bool write;
+> +			pte_t pte;
+> +
+> +			page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +
+> +			write =3D migrate->pfns[i] & HMM_PFN_WRITE;
+> +			write &=3D (vma->vm_flags & VM_WRITE);
+> +
+> +			/* Here it means pte must be a valid migration entry */
+> +			pte =3D ptep_get_and_clear(mm, addr, ptep);
+
+
+It is already a non present pte, so why use ptep_get_and_clear ? why not
+*ptep ? Some archs does lot of additional stuff in get_and_clear.=20
+
+> +			if (pte_none(pte) || pte_present(pte))
+> +				/* SOMETHING BAD IS GOING ON ! */
+> +				continue;
+> +			entry =3D pte_to_swp_entry(pte);
+> +			if (!is_migration_entry(entry))
+> +				/* SOMETHING BAD IS GOING ON ! */
+> +				continue;
+> +
+> +			if (is_zone_device_page(page) &&
+> +			    !is_addressable_page(page)) {
+> +				entry =3D make_device_entry(page, write);
+> +				pte =3D swp_entry_to_pte(entry);
+> +			} else {
+> +				pte =3D mk_pte(page, vma->vm_page_prot);
+> +				pte =3D pte_mkold(pte);
+> +				if (write)
+> +					pte =3D pte_mkwrite(pte);
+> +			}
+> +			if (pte_swp_soft_dirty(*ptep))
+> +				pte =3D pte_mksoft_dirty(pte);
+> +
+> +			get_page(page);
+> +			set_pte_at(mm, addr, ptep, pte);
+> +			if (PageAnon(page))
+> +				page_add_anon_rmap(page, vma, addr, false);
+> +			else
+> +				page_add_file_rmap(page, false);
+
+Do we support pagecache already ? Or is thise just a place holder ? if
+so may be we can drop it and add it later when we add page cache
+support. ?
+
+
+> +		}
+> +		pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +		addr =3D restart;
+> +		i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +		for (; addr < next && restore; addr +=3D PAGE_SHIFT, i++) {
+> +			page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +
+> +			migrate->pfns[i] =3D 0;
+> +			unlock_page(page);
+> +			restore--;
+> +
+> +			if (is_zone_device_page(page)) {
+> +				put_page(page);
+> +				continue;
+> +			}
+> +
+> +			putback_lru_page(page);
+> +		}
+> +
+> +		if (!restore)
+> +			break;
+> +	}
+
+
+All the above restore won't be needed if we didn't do that migration
+entry setup in the first function right ? We just need to drop the
+refcount for pages that we failed to isolated ? No need to walk the page
+table etc ?
+
+> +}
+> +
+> +static void hmm_migrate_unmap(struct hmm_migrate *migrate)
+> +{
+> +	int flags =3D TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+> +	unsigned long addr =3D migrate->start, i =3D 0, restore =3D 0;
+> +
+> +	for (; addr < migrate->end; addr +=3D PAGE_SIZE, i++) {
+> +		struct page *page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +			continue;
+> +
+> +		try_to_unmap(page, flags);
+> +		if (page_mapped(page) || !hmm_migrate_page_check(page, 1)) {
+> +			migrate->pfns[i] &=3D ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			restore++;
+> +		}
+> +	}
+> +
+> +	for (; (addr < migrate->end) && restore; addr +=3D PAGE_SIZE, i++) {
+> +		struct page *page =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +			continue;
+> +
+> +		remove_migration_ptes(page, page, false);
+> +
+> +		migrate->pfns[i] =3D 0;
+> +		unlock_page(page);
+> +		restore--;
+> +
+> +		if (is_zone_device_page(page)) {
+> +			put_page(page);
+> +			continue;
+> +		}
+> +
+> +		putback_lru_page(page);
+
+May be=20
+
+     } else=20
+	putback_lru_page(page);
+
+> +	}
+> +}
+> +
+> +static void hmm_migrate_struct_page(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr =3D migrate->start, i =3D 0;
+> +	struct mm_struct *mm =3D migrate->vma->vm_mm;
+> +
+> +	for (; addr < migrate->end;) {
+> +		unsigned long next;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		pgdp =3D pgd_offset(mm, addr);
+> +		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
+> +			addr =3D pgd_addr_end(addr, migrate->end);
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pudp =3D pud_offset(pgdp, addr);
+> +		if (!pudp || pud_none(*pudp)) {
+> +			addr =3D pgd_addr_end(addr, migrate->end);
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pmdp =3D pmd_offset(pudp, addr);
+> +		next =3D pmd_addr_end(addr, migrate->end);
+> +		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
+> +			addr =3D next;
+> +			i =3D (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +
+> +		/* No need to lock nothing can change from under us */
+> +		ptep =3D pte_offset_map(pmdp, addr);
+> +		for (; addr < next; addr +=3D PAGE_SIZE, i++, ptep++) {
+> +			struct address_space *mapping;
+> +			struct page *newpage, *page;
+> +			swp_entry_t entry;
+> +			int r;
+> +
+> +			newpage =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!newpage || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +			if (pte_none(*ptep) || pte_present(*ptep)) {
+> +				/* This should not happen but be nice */
+> +				migrate->pfns[i] =3D 0;
+> +				put_page(newpage);
+> +				continue;
+> +			}
+> +			entry =3D pte_to_swp_entry(*ptep);
+> +			if (!is_migration_entry(entry)) {
+> +				/* This should not happen but be nice */
+> +				migrate->pfns[i] =3D 0;
+> +				put_page(newpage);
+> +				continue;
+> +			}
+> +
+> +			page =3D migration_entry_to_page(entry);
+> +			mapping =3D page_mapping(page);
+> +
+> +			/*
+> +			 * For now only support private anonymous when migrating
+> +			 * to un-addressable device memory.
+> +			 */
+> +			if (mapping && is_zone_device_page(newpage) &&
+> +			    !is_addressable_page(newpage)) {
+> +				migrate->pfns[i] &=3D ~HMM_PFN_MIGRATE;
+> +				continue;
+> +			}
+> +
+> +			r =3D migrate_page(mapping, newpage, page,
+> +					 MIGRATE_SYNC, false);
+> +			if (r !=3D MIGRATEPAGE_SUCCESS)
+> +				migrate->pfns[i] &=3D ~HMM_PFN_MIGRATE;
+> +		}
+> +		pte_unmap(ptep - 1);
+> +	}
+> +}
+
+
+Why are we walking the page table multiple times ? Is it that after
+alloc_copy the content of migrate->pfns pfn array is now the new pfns ?
+It is confusing that each of these functions walk one page table
+multiple times (even when page can be shared). I was expecting us to
+walk the page table once to collect the pfns/pages and then use that
+in rest of the calls. Any specific reason you choose to implement it
+this way ?
+
+
+> +
+> +static void hmm_migrate_remove_migration_pte(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr =3D migrate->start, i =3D 0;
+> +	struct mm_struct *mm =3D migrate->vma->vm_mm;
+> +
+> +	for (; addr < migrate->end;) {
+> +		unsigned long next;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		pgdp =3D pgd_offset(mm, addr);
+> +		pudp =3D pud_offset(pgdp, addr);
+> +		pmdp =3D pmd_offset(pudp, addr);
+> +		next =3D pmd_addr_end(addr, migrate->end);
+> +
+> +		/* No need to lock nothing can change from under us */
+> +		ptep =3D pte_offset_map(pmdp, addr);
+> +		for (; addr < next; addr +=3D PAGE_SIZE, i++, ptep++) {
+> +			struct page *page, *newpage;
+> +			swp_entry_t entry;
+> +
+> +			if (pte_none(*ptep) || pte_present(*ptep))
+> +				continue;
+> +			entry =3D pte_to_swp_entry(*ptep);
+> +			if (!is_migration_entry(entry))
+> +				continue;
+> +
+> +			page =3D migration_entry_to_page(entry);
+> +			newpage =3D hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!newpage)
+> +				newpage =3D page;
+> +			remove_migration_ptes(page, newpage, false);
+> +
+> +			migrate->pfns[i] =3D 0;
+> +			unlock_page(page);
+> +			migrate->npages--;
+> +
+> +			if (is_zone_device_page(page))
+> +				put_page(page);
+> +			else
+> +				putback_lru_page(page);
+> +
+> +			if (newpage !=3D page) {
+> +				unlock_page(newpage);
+> +				if (is_zone_device_page(newpage))
+> +					put_page(newpage);
+> +				else
+> +					putback_lru_page(newpage);
+> +			}
+> +		}
+> +		pte_unmap(ptep - 1);
+> +	}
+> +}
+> +
+> +/*
+> + * hmm_vma_migrate() - migrate a range of memory inside vma using accel =
+copy
+> + *
+> + * @ops: migration callback for allocating destination memory and copying
+> + * @vma: virtual memory area containing the range to be migrated
+> + * @start: start address of the range to migrate (inclusive)
+> + * @end: end address of the range to migrate (exclusive)
+> + * @pfns: array of hmm_pfn_t first containing source pfns then destinati=
+on
+> + * @private: pointer passed back to each of the callback
+> + * Returns: 0 on success, error code otherwise
+> + *
+> + * This will try to migrate a range of memory using callback to allocate=
+ and
+> + * copy memory from source to destination. This function will first coll=
+ect,
+> + * lock and unmap pages in the range and then call alloc_and_copy() call=
+back
+> + * for device driver to allocate destination memory and copy from source.
+> + *
+> + * Then it will proceed and try to effectively migrate the page (struct =
+page
+> + * metadata) a step that can fail for various reasons. Before updating C=
+PU page
+> + * table it will call finalize_and_map() callback so that device driver =
+can
+> + * inspect what have been successfully migrated and update its own page =
+table
+> + * (this latter aspect is not mandatory and only make sense for some use=
+r of
+> + * this API).
+> + *
+> + * Finaly the function update CPU page table and unlock the pages before
+> + * returning 0.
+> + *
+> + * It will return an error code only if one of the argument is invalid.
+> + */
+> +int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
+> +		    struct vm_area_struct *vma,
+> +		    unsigned long start,
+> +		    unsigned long end,
+> +		    hmm_pfn_t *pfns,
+> +		    void *private)
+> +{
+> +	struct hmm_migrate migrate;
+> +
+> +	/* Sanity check the arguments */
+> +	start &=3D PAGE_MASK;
+> +	end &=3D PAGE_MASK;
+> +	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
+> +		return -EINVAL;
+> +	if (!vma || !ops || !pfns || start >=3D end)
+> +		return -EINVAL;
+> +	if (start < vma->vm_start || start >=3D vma->vm_end)
+> +		return -EINVAL;
+> +	if (end <=3D vma->vm_start || end > vma->vm_end)
+> +		return -EINVAL;
+> +
+> +	migrate.start =3D start;
+> +	migrate.pfns =3D pfns;
+> +	migrate.npages =3D 0;
+> +	migrate.end =3D end;
+> +	migrate.vma =3D vma;
+> +
+> +	/* Collect, and try to unmap source pages */
+> +	hmm_migrate_collect(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
+> +
+> +	/* Lock and isolate page */
+> +	hmm_migrate_lock_and_isolate(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
+> +
+> +	/* Unmap pages */
+> +	hmm_migrate_unmap(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
+> +
+> +	/*
+> +	 * At this point pages are lock and unmap and thus they have stable
+> +	 * content and can safely be copied to destination memory that is
+> +	 * allocated by the callback.
+> +	 *
+> +	 * Note that migration can fail in hmm_migrate_struct_page() for each
+> +	 * individual page.
+> +	 */
+> +	ops->alloc_and_copy(vma, start, end, pfns, private);
+> +
+> +	/* This does the real migration of struct page */
+> +	hmm_migrate_struct_page(&migrate);
+> +
+> +	ops->finalize_and_map(vma, start, end, pfns, private);
+> +
+> +	/* Unlock and remap pages */
+> +	hmm_migrate_remove_migration_pte(&migrate);
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(hmm_vma_migrate);
+> +#endif /* CONFIG_HMM */
+
+IMHO If we can get each of the above functions documented properly it will
+help with code review. Also if we can avoid that multiple page table
+walk, it will make it closer to the existing migration logic.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
