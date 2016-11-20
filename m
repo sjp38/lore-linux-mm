@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3260B280253
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2016 18:04:41 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xy5so2676599wjc.0
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 15:04:41 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id d10si7311126lfj.377.2016.11.20.15.04.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ED626B0450
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2016 18:30:19 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y71so363061045pgd.0
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 15:30:19 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u135si19447002pgc.153.2016.11.20.15.30.17
         for <linux-mm@kvack.org>;
-        Sun, 20 Nov 2016 15:04:39 -0800 (PST)
-Date: Mon, 21 Nov 2016 00:04:35 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v3 10/20] Add support to access boot related data in
- the clear
-Message-ID: <20161120230435.gqjp7gboshhqplbf@pd.tnic>
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
- <20161117155543.vg3domfqm3bhp4f7@pd.tnic>
- <f7bf8301-7d91-dd43-d5f0-05e977c0c5a2@amd.com>
+        Sun, 20 Nov 2016 15:30:18 -0800 (PST)
+Date: Mon, 21 Nov 2016 08:30:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v2] mm: support anonymous stable page
+Message-ID: <20161120233015.GA14113@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f7bf8301-7d91-dd43-d5f0-05e977c0c5a2@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Darrick J . Wong" <darrick.wong@oracle.com>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Nov 19, 2016 at 12:33:49PM -0600, Tom Lendacky wrote:
-> >> +{
-> >> +	/* SME is not active, just return true */
-> >> +	if (!sme_me_mask)
-> >> +		return true;
+On Fri, Nov 18, 2016 at 01:26:59PM -0800, Hugh Dickins wrote:
+> On Fri, 18 Nov 2016, Minchan Kim wrote:
+> > On Thu, Nov 17, 2016 at 08:35:10PM -0800, Hugh Dickins wrote:
+> > > 
+> > > Maybe add SWP_STABLE_WRITES in include/linux/swap.h, and set that
+> > > in swap_info->flags according to bdi_cap_stable_pages_required(),
+> > > leaving mapping->host itself NULL as before?
 > > 
-> > I don't understand the logic here: SME is not active -> apply encryption?!
+> > The problem with the approach is that we need to get swap_info_struct
+> > in reuse_swap_page so maybe, every caller should pass swp_entry_t
+> > into reuse_swap_page. It would be no problem if swap slot is really
+> > referenced the page(IOW, pte is real swp_entry_t) but some cases
+> > where swap slot is already empty but the page remains in only
+> > swap cache, we cannot pass swp_entry_t which means that we cannot
+> > get swap_info_struct.
 > 
-> It does seem counter-intuitive, but it is mainly because of the memremap
-> vs. early_memremap support. For the early_memremap support, if the
-> sme_me_mask is 0 it doesn't matter whether we return true or false since
-> the mask is zero even if you try to apply it. But for the memremap
-> support, it's used to determine whether to do the ram remap vs an
-> ioremap.
+> I don't see the problem: if the page is PageSwapCache (and page
+> lock is held), then the swp_entry_t is there in page->private:
+> see page_swapcount(), which reuse_swap_page() just called.
+
+Right you are!!
+
 > 
-> I'll pull the sme_me_mask check out of the function and put it in the
-> individual functions to remove the contradiction and make things
-> clearer.
+> > 
+> > So, if I didn't miss, another option I can imagine is to move
+> > SWP_STABLE_WRITES to address_space->flags as AS_STABLE_WRITES.
+> > With that, we can always get the information without passing
+> > swp_entry_t. Is there any better idea?
+> 
+> I think what you suggest below would work fine (and be quicker
+> than looking up the swap_info again): but is horribly misleading
+> for anyone else interested in stable writes, for whom the info is
+> kept in the bdi, and not in this new mapping flag.
+> 
+> So I'd much prefer that you keep the swap special case inside the
+> world of swap, with a SWP_STABLE_WRITES flag.  Maybe unfold
+> page_swapcount() inside reuse_swap_page(), so that it only
+> needs a single lookup (or perhaps I'm optimizing prematurely).
+> 
 
-But that would be more code, right?
-
-Instead, you could simply explain in a comment above it what do you
-mean exactly. Something along the lines of "if sme_me_mask is not
-set, we should map encrypted because if not set, we can simply remap
-RAM. Otherwise we have to ioremap because we need to access it in the
-clear..."
-
-I presume - I still don't grok that difference here completely.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I toally agree.
+Here is new one.
