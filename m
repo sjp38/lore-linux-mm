@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 54D906B04EA
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 06:16:50 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id v84so413973000oie.0
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 03:16:50 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y127si8064626oia.57.2016.11.21.03.16.48
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E8CAC6B04EC
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:15:01 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id xr1so4065259wjb.7
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:15:01 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id 6si13228790wmq.165.2016.11.21.04.14.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Nov 2016 03:16:49 -0800 (PST)
-Subject: Re: [PATCH] mm/page_alloc: Don't fail costly __GFP_NOFAIL allocations.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20161121060313.GB29816@dhcp22.suse.cz>
-In-Reply-To: <20161121060313.GB29816@dhcp22.suse.cz>
-Message-Id: <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
-Date: Mon, 21 Nov 2016 20:16:40 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Nov 2016 04:14:59 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id a20so17563wme.2
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:14:59 -0800 (PST)
+Date: Mon, 21 Nov 2016 15:14:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH -v5 0/9] THP swap: Delay splitting THP during swapping out
+Message-ID: <20161121121457.GA8425@node.shutemov.name>
+References: <20161116031057.12977-1-ying.huang@intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161116031057.12977-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-Michal Hocko wrote:
-> On Thu 17-11-16 21:50:04, Tetsuo Handa wrote:
-> > Filesystem code might request costly __GFP_NOFAIL !__GFP_REPEAT GFP_NOFS
-> > allocations. But commit 0a0337e0d1d13446 ("mm, oom: rework oom detection")
-> > overlooked that __GFP_NOFAIL allocation requests need to invoke the OOM
-> > killer and retry even if order > PAGE_ALLOC_COSTLY_ORDER && !__GFP_REPEAT.
-> > The caller will crash if such allocation request failed.
->
-> Could you point to such an allocation request please? Costly GFP_NOFAIL
-> requests are a really high requirement and I am even not sure we should
-> support them. buffered_rmqueue already warns about order > 1 NOFAIL
-> allocations.
+On Wed, Nov 16, 2016 at 11:10:48AM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> This patchset is to optimize the performance of Transparent Huge Page
+> (THP) swap.
+> 
+> Hi, Andrew, could you help me to check whether the overall design is
+> reasonable?
+> 
+> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+> swap part of the patchset?  Especially [1/9], [3/9], [4/9], [5/9],
+> [6/9], [9/9].
+> 
+> Hi, Andrea and Kirill, could you help me to review the THP part of the
+> patchset?  Especially [2/9], [7/9] and [8/9].
 
-That question is pointless. You are simply lucky that you see only order 0 or
-order 1. There are many __GFP_NOFAIL allocations where order is determined at
-runtime. There is no guarantee that order 2 and above never happens.
-http://lkml.kernel.org/r/56F8F5DA.6040206@kyup.com is a case where an XFS user
-had trouble due to order 4 and order 5 allocations because XFS uses opencoded
-endless loop around allocator than __GFP_NOFAIL.
+Feel free to use my Acked-by for 7/9 and 8/9.
 
-There is WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1)); in
-buffered_rmqueue(), but there is no guarantee that the caller hits this
-warning. It is theoretically possible that order > PAGE_ALLOC_COSTLY_ORDER &&
-__GFP_NOFAIL && !__GFP_REPEAT allocation requests fail to call buffered_rmqueue()
- from get_page_from_freelist() due to "continue;" statements around zone
-watermark checks. It is possible that an order == 2 && __GFP_NOFAIL allocation
-reuest hit this WARN_ON_ONCE() and subsequent order > PAGE_ALLOC_COSTLY_ORDER &&
-__GFP_NOFAIL && !__GFP_REPEAT allocation requests no longer hits this WARN_ON_ONCE().
+2/9 is more about swap/memcg. It would be better someone else would look
+on this.
 
-So, you want to mess up the definition of __GFP_NOFAIL like below?
-I think my patch is better than below change.
-
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -138,9 +138,16 @@
-  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
-  *   cannot handle allocation failures. New users should be evaluated carefully
-  *   (and the flag should be used only when there is no reasonable failure
-  *   policy) but it is definitely preferable to use the flag rather than
-- *   opencode endless loop around allocator.
-+ *   opencode endless loop around allocator. However, the VM implementation
-+ *   is allowed to fail if order > PAGE_ALLOC_COSTLY_ORDER but __GFP_REPEAT
-+ *   is not set. That is, all users which specify __GFP_NOFAIL with order
-+ *   determined at runtime (e.g. sizeof(struct) * num_elements) had better
-+ *   specify __GFP_REPEAT as well, for the VM implementation does not invoke
-+ *   the OOM killer unless __GFP_REPEAT is also specified and the caller has
-+ *   to be prepared for allocation failures using opencode endless loop
-+ *   around allocator.
-  *
-  * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
-  *   return NULL when direct reclaim and memory compaction have failed to allow
-  *   the allocation to succeed.  The OOM killer is not called with the current
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
