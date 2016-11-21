@@ -1,119 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B71546B04F7
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 11:21:41 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id b123so59266162itb.3
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 08:21:41 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id p191si11140887itg.2.2016.11.21.08.21.40
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D19556B04F8
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 11:31:04 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g186so395670340pgc.2
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 08:31:04 -0800 (PST)
+Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
+        by mx.google.com with ESMTPS id w5si23453653pgj.87.2016.11.21.08.31.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 08:21:40 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id c20so15752761itb.0
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 08:21:40 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 21 Nov 2016 08:31:03 -0800 (PST)
+Date: Mon, 21 Nov 2016 08:30:58 -0800
+From: Marc MERLIN <marc@merlins.org>
+Message-ID: <20161121163058.o2bob4kdyumv6txz@merlins.org>
+References: <20161121154336.GD19750@merlins.org>
 MIME-Version: 1.0
-In-Reply-To: <20161118152716.3f7acf6e25f142846909b2f6@linux-foundation.org>
-References: <20161110113027.76501.63030.stgit@ahduyck-blue-test.jf.intel.com>
- <20161110113606.76501.70752.stgit@ahduyck-blue-test.jf.intel.com> <20161118152716.3f7acf6e25f142846909b2f6@linux-foundation.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 21 Nov 2016 08:21:39 -0800
-Message-ID: <CAKgT0UfoS-JC66hHV14E-hgmrhGdz4oYpmHve=01A1X8o8O=rw@mail.gmail.com>
-Subject: Re: [mm PATCH v3 21/23] mm: Add support for releasing multiple
- instances of a page
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161121154336.GD19750@merlins.org>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Duyck <alexander.h.duyck@intel.com>, linux-mm <linux-mm@kvack.org>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: vbabka@suse.cz
 
-On Fri, Nov 18, 2016 at 3:27 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 10 Nov 2016 06:36:06 -0500 Alexander Duyck <alexander.h.duyck@intel.com> wrote:
->
->> This patch adds a function that allows us to batch free a page that has
->> multiple references outstanding.  Specifically this function can be used to
->> drop a page being used in the page frag alloc cache.  With this drivers can
->> make use of functionality similar to the page frag alloc cache without
->> having to do any workarounds for the fact that there is no function that
->> frees multiple references.
->>
->> ...
->>
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -506,6 +506,8 @@ extern void free_hot_cold_page(struct page *page, bool cold);
->>  extern void free_hot_cold_page_list(struct list_head *list, bool cold);
->>
->>  struct page_frag_cache;
->> +extern void __page_frag_drain(struct page *page, unsigned int order,
->> +                           unsigned int count);
->>  extern void *__alloc_page_frag(struct page_frag_cache *nc,
->>                              unsigned int fragsz, gfp_t gfp_mask);
->>  extern void __free_page_frag(void *addr);
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 0fbfead..54fea40 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3912,6 +3912,20 @@ static struct page *__page_frag_refill(struct page_frag_cache *nc,
->>       return page;
->>  }
->>
->> +void __page_frag_drain(struct page *page, unsigned int order,
->> +                    unsigned int count)
->> +{
->> +     VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
->> +
->> +     if (page_ref_sub_and_test(page, count)) {
->> +             if (order == 0)
->> +                     free_hot_cold_page(page, false);
->> +             else
->> +                     __free_pages_ok(page, order);
->> +     }
->> +}
->> +EXPORT_SYMBOL(__page_frag_drain);
->
-> It's an exported-to-modules library function.  It should be documented,
-> please?  The page-frag API is only partially documented, but that's no
-> excuse.
+On Mon, Nov 21, 2016 at 07:43:36AM -0800, Marc MERLIN wrote:
+> Howdy,
+> 
+> As a followup to https://plus.google.com/u/0/+MarcMERLIN/posts/A3FrLVo3kc6
+> 
+> http://pastebin.com/yJybSHNq and http://pastebin.com/B6xEH4Dw
+> show a system with plenty of RAM (24GB) falling over and killing inoccent
+> user space apps, a few hours after I start a 9TB copy between 2 raid5 arrays 
+> both hosting bcache, dmcrypt and btrfs (yes, that's 3 layers under btrfs)
+> 
+> This kind of stuff worked until 4.6 if I'm not mistaken and started failing
+> with 4.8 (I didn't try 4.7)
+> 
+> I tried applying
+> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=9f7e3387939b036faacf4e7f32de7bb92a6635d6
+> to 4.8.8 and it didn't help
+> http://pastebin.com/2LUicF3k
 
-Okay.  I assume you want the documentation as a follow-up patch since
-I received a notice that the patch was added to -mm?
+My apologies. I'm actually wrong on that one bit.
+That patch didn't actually apply on my kernel and I didn't end up
+testing it, due to the failure/revert, it was just another test of the
+same 4.8.8, so a worthless test.
 
-> And perhaps documentation will help explain the naming choice.  Why
-> "drain"?  I'd have expected "put"?
+That part of the patch is not compatible with 4.8.8:
+--- mm/compaction.c
++++ mm/compaction.c
+@@ -1660,7 +1664,8 @@
+ 		.classzone_idx = classzone_idx,
+ 		.direct_compaction = true,
+ 		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
+-		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY)
++		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
++		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
 
-The idea was that this is supposed to be a counterpart to
-__page_frag_refill.  Basically it is a function we can use if we need
-to tear down the page frag cache and free the backing page.  If you
-want I could update the names for these functions to make that
-clarification that this is meant to drain a frag cache versus just
-freeing a page frag.  I had originally thought about coming up with an
-mput or something like that since we are dropping multiple references,
-but then I figured since we already had __page_frag_refill I would go
-for __page_frag_drain.
+Anyway, for now I'm going to test 
+https://marc.info/?l=linux-mm&m=147423605024993
+for real now (on top of 4.8.8)
 
-> And why the leading underscores.  The page-frag API is pretty weird :(
->
-> And inconsistent.  __alloc_page_frag -> page_frag_alloc,
-> __free_page_frag -> page_frag_free(), etc.  I must have been asleep
-> when I let that lot through.
+If you'd like me to re-test the compaction patch with 4.8.8, please give
+me one that is compatible with 4.8.8 but in the meantime, I'll try that
+2nd patch on 4.8.8 and report back.
 
-The leading underscores are inherited.  Most of it has to do with the
-fact that this is a backing API for the netdev sk_buff allocator.
-When this stuff existed in net it was already named this way and I
-just moved it over.  I'm not sure if you approved it or not as I don't
-see an Ack-by or Signed-off-by from you on the patch.  The timing of
-it was such that I think Linus approved it and it was then pulled in
-through Dave's tree.
-
-If you would like I could look at doing a couple of renaming patches
-so that we make the API a bit more consistent.  I could move the
-__alloc and __free to what you have suggested, and then take a look at
-trying to rename the refill/drain to be a bit more consistent in terms
-of what they are supposed to work on and how they are supposed to be
-used.
-
-- Alex
+Marc
+-- 
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
