@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31E726B03A0
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:54:36 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a20so39063527wme.5
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:54:36 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id 18si13401314wmq.97.2016.11.21.04.54.33
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC7D76B03B0
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 08:13:16 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id 128so23230997ybt.4
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 05:13:16 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id d11si3455897ybb.28.2016.11.21.05.13.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 04:54:34 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id xy5so3758172wjc.1
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:54:33 -0800 (PST)
-Date: Mon, 21 Nov 2016 13:54:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: Don't fail costly __GFP_NOFAIL
- allocations.
-Message-ID: <20161121125431.GA18112@dhcp22.suse.cz>
-References: <1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20161121060313.GB29816@dhcp22.suse.cz>
- <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
+        Mon, 21 Nov 2016 05:13:15 -0800 (PST)
+Subject: Re: [PATCH] mm: don't cap request size based on read-ahead setting
+References: <1479498073-8657-1-git-send-email-axboe@fb.com>
+ <00f001d243b1$f489a720$dd9cf560$@alibaba-inc.com>
+From: Jens Axboe <axboe@fb.com>
+Message-ID: <2c4651e5-dcab-6cda-cc8c-ad0b9350a240@fb.com>
+Date: Mon, 21 Nov 2016 06:12:56 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <00f001d243b1$f489a720$dd9cf560$@alibaba-inc.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org
 
-On Mon 21-11-16 20:16:40, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 17-11-16 21:50:04, Tetsuo Handa wrote:
-> > > Filesystem code might request costly __GFP_NOFAIL !__GFP_REPEAT GFP_NOFS
-> > > allocations. But commit 0a0337e0d1d13446 ("mm, oom: rework oom detection")
-> > > overlooked that __GFP_NOFAIL allocation requests need to invoke the OOM
-> > > killer and retry even if order > PAGE_ALLOC_COSTLY_ORDER && !__GFP_REPEAT.
-> > > The caller will crash if such allocation request failed.
-> >
-> > Could you point to such an allocation request please? Costly GFP_NOFAIL
-> > requests are a really high requirement and I am even not sure we should
-> > support them. buffered_rmqueue already warns about order > 1 NOFAIL
-> > allocations.
-> 
-> That question is pointless. You are simply lucky that you see only order 0 or
-> order 1. There are many __GFP_NOFAIL allocations where order is determined at
-> runtime. There is no guarantee that order 2 and above never happens.
+On 11/20/2016 09:44 PM, Hillf Danton wrote:
+> On Saturday, November 19, 2016 3:41 AM Jens Axboe wrote:
+>> We ran into a funky issue, where someone doing 256K buffered reads saw
+>> 128K requests at the device level. Turns out it is read-ahead capping
+>> the request size, since we use 128K as the default setting. This doesn't
+>> make a lot of sense - if someone is issuing 256K reads, they should see
+>> 256K reads, regardless of the read-ahead setting, if the underlying
+>> device can support a 256K read in a single command.
+>>
+> Is it also making any sense to see 4M reads to meet 4M requests if
+> the underlying device can support 4M IO?
 
-You are pushing to the extreme again! Your changelog stated this might
-be an existing and the real life problem and that is the reason I've
-asked. Especially because you have marked the patch for stable. As I've
-said in my previous response. Your patch looks correct, I am just not
-entirely happy to clutter the code path even more for GFP_NOFAIL for
-something we maybe even do not support. All the checks we have there are
-head spinning already.
+Depends on the device, but yes. Big raid set? You definitely want larger
+requests. Which is why we have the distinction between max hardware and
+kernel IO size.
 
-So we have two options, either we have real users of GFP_NOFAIL for
-costly orders and handle that properly with all that information in the
-changelog or simply rely on the warning and fix callers who do that
-accidentally. But please stop this, theoretically something might do
-$THIS_RANDOM_GFP_FLAGS + order combination and we absolutely must handle
-that in the allocator.
+By default we limit the soft IO size to 1280k for a block device. See
+also:
 
-Thanks!
+commit d2be537c3ba3568acd79cd178327b842e60d035e
+Author: Jeff Moyer <jmoyer@redhat.com>
+Date:   Thu Aug 13 14:57:57 2015 -0400
+
+     block: bump BLK_DEF_MAX_SECTORS to 2560
+
 -- 
-Michal Hocko
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
