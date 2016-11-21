@@ -1,118 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC51280260
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 03:26:17 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id g186so377722413pgc.2
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 00:26:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h5si17745703pgg.22.2016.11.21.00.26.16
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E768B280260
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 03:36:24 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id s63so34180715wms.7
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 00:36:24 -0800 (PST)
+Received: from smtp50.i.mail.ru (smtp50.i.mail.ru. [94.100.177.110])
+        by mx.google.com with ESMTPS id m76si12514809wmh.131.2016.11.21.00.36.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 00:26:16 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAL8NPYx009186
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 03:26:15 -0500
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com [125.16.236.1])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26us0g1j66-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 03:26:14 -0500
-Received: from localhost
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 21 Nov 2016 13:56:11 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 22BBD394006D
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 13:56:09 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAL8Q7Qf35127458
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 13:56:07 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAL8Q72m029550
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 13:56:07 +0530
-Subject: Re: [HMM v13 04/18] mm/ZONE_DEVICE/free-page: callback when page is
- freed
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-5-git-send-email-jglisse@redhat.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 21 Nov 2016 13:56:02 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Nov 2016 00:36:23 -0800 (PST)
+Date: Mon, 21 Nov 2016 11:36:16 +0300
+From: Vladimir Davydov <vdavydov@tarantool.org>
+Subject: Re: [RESEND] [PATCH v1 1/3] Add basic infrastructure for memcg
+ hotplug support
+Message-ID: <20161121083616.GC18431@esperanza>
+References: <1479253501-26261-1-git-send-email-bsingharora@gmail.com>
+ <1479253501-26261-2-git-send-email-bsingharora@gmail.com>
+ <20161116090129.GA18225@esperanza>
+ <3accc533-8dda-a69c-fabc-23eb388cf11b@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1479493107-982-5-git-send-email-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <5832AF9A.8020808@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3accc533-8dda-a69c-fabc-23eb388cf11b@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: mpe@ellerman.id.au, hannes@cmpxchg.org, mhocko@kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 11/18/2016 11:48 PM, JA(C)rA'me Glisse wrote:
-> When a ZONE_DEVICE page refcount reach 1 it means it is free and nobody
-> is holding a reference on it (only device to which the memory belong do).
-> Add a callback and call it when that happen so device driver can implement
-> their own free page management.
+On Thu, Nov 17, 2016 at 11:28:12AM +1100, Balbir Singh wrote:
+> >> @@ -5773,6 +5771,59 @@ static int __init cgroup_memory(char *s)
+> >>  }
+> >>  __setup("cgroup.memory=", cgroup_memory);
+> >>  
+> >> +static void memcg_node_offline(int node)
+> >> +{
+> >> +	struct mem_cgroup *memcg;
+> >> +
+> >> +	if (node < 0)
+> >> +		return;
+> > 
+> > Is this possible?
 > 
-> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  include/linux/memremap.h | 4 ++++
->  kernel/memremap.c        | 8 ++++++++
->  2 files changed, 12 insertions(+)
-> 
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index fe61dca..469c88d 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -37,17 +37,21 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
->  
->  /**
->   * struct dev_pagemap - metadata for ZONE_DEVICE mappings
-> + * @free_devpage: free page callback when page refcount reach 1
->   * @altmap: pre-allocated/reserved memory for vmemmap allocations
->   * @res: physical address range covered by @ref
->   * @ref: reference count that pins the devm_memremap_pages() mapping
->   * @dev: host device of the mapping for debug
-> + * @data: privata data pointer for free_devpage
->   * @flags: memory flags (look for MEMORY_FLAGS_NONE in memory_hotplug.h)
->   */
->  struct dev_pagemap {
-> +	void (*free_devpage)(struct page *page, void *data);
->  	struct vmem_altmap *altmap;
->  	const struct resource *res;
->  	struct percpu_ref *ref;
->  	struct device *dev;
-> +	void *data;
->  	int flags;
->  };
->  
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 438a73aa2..3d28048 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -190,6 +190,12 @@ EXPORT_SYMBOL(get_zone_device_page);
->  
->  void put_zone_device_page(struct page *page)
->  {
-> +	/*
-> +	 * If refcount is 1 then page is freed and refcount is stable as nobody
-> +	 * holds a reference on the page.
-> +	 */
-> +	if (page->pgmap->free_devpage && page_count(page) == 1)
-> +		page->pgmap->free_devpage(page, page->pgmap->data);
->  	put_dev_pagemap(page->pgmap);
->  }
->  EXPORT_SYMBOL(put_zone_device_page);
-> @@ -326,6 +332,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
->  	pgmap->ref = ref;
->  	pgmap->res = &page_map->res;
->  	pgmap->flags = flags | MEMORY_DEVICE;
-> +	pgmap->free_devpage = NULL;
-> +	pgmap->data = NULL;
+> Yes, please see node_states_check_changes_online/offline
 
-When is the driver expected to load up pgmap->free_devpage ? I thought
-this function is one of the right places. Though as all the pages in
-the same hotplug operation point to the same dev_pagemap structure this
-loading can be done at later point of time as well.
+OK, I see.
+
+> 
+> > 
+> >> +
+> >> +	for_each_mem_cgroup(memcg) {
+> >> +		free_mem_cgroup_per_node_info(memcg, node);
+> >> +		mem_cgroup_may_update_nodemask(memcg);
+> > 
+> > If memcg->numainfo_events is 0, mem_cgroup_may_update_nodemask() won't
+> > update memcg->scan_nodes. Is it OK?
+> > 
+> >> +	}
+> > 
+> > What if a memory cgroup is created or destroyed while you're walking the
+> > tree? Should we probably use get_online_mems() in mem_cgroup_alloc() to
+> > avoid that?
+> > 
+> 
+> The iterator internally takes rcu_read_lock() to avoid any side-effects
+> of cgroups added/removed. I suspect you are also suggesting using get_online_mems()
+> around each call to for_each_online_node
+> 
+> My understanding so far is
+> 
+> 1. invalidate_reclaim_iterators should be safe (no bad side-effects)
+> 2. mem_cgroup_free - should be safe as well
+> 3. mem_cgroup_alloc - needs protection
+> 4. mem_cgroup_init - needs protection
+> 5. mem_cgroup_remove_from_tress - should be safe
+
+I'm not into the memory hotplug code, but my understanding is that if
+memcg offline happens to race with node unplug, it's possible that
+
+ - mem_cgroup_free() doesn't free the node's data, because it sees the
+   node as already offline
+ - memcg hotplug code doesn't free the node's data either, because it
+   sees the cgroup as offline
+
+May be, we should surround all the loops over online nodes with
+get/put_online_mems() to be sure that nothing wrong can happen.
+They are slow path, anyway.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
