@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 605E5280260
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:42:23 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id m203so36883137iom.6
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:42:23 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A9AF6B039E
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:50:34 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id w132so87456476ita.1
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:50:34 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a184si10094291itg.100.2016.11.21.04.42.22
+        by mx.google.com with ESMTPS id b85si13858257ioj.175.2016.11.21.04.50.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 04:42:22 -0800 (PST)
-Date: Mon, 21 Nov 2016 07:42:19 -0500
+        Mon, 21 Nov 2016 04:50:33 -0800 (PST)
+Date: Mon, 21 Nov 2016 07:50:29 -0500
 From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
- for unaddressable
-Message-ID: <20161121124218.GF2392@redhat.com>
+Subject: Re: [HMM v13 03/18] mm/ZONE_DEVICE/free_hot_cold_page: catch
+ ZONE_DEVICE pages
+Message-ID: <20161121125029.GG2392@redhat.com>
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-7-git-send-email-jglisse@redhat.com>
- <5832D33C.6030403@linux.vnet.ibm.com>
+ <1479493107-982-4-git-send-email-jglisse@redhat.com>
+ <5832ADD2.5000507@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <5832D33C.6030403@linux.vnet.ibm.com>
+In-Reply-To: <5832ADD2.5000507@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon, Nov 21, 2016 at 04:28:04PM +0530, Anshuman Khandual wrote:
+On Mon, Nov 21, 2016 at 01:48:26PM +0530, Anshuman Khandual wrote:
 > On 11/18/2016 11:48 PM, Jerome Glisse wrote:
-> > To allow use of device un-addressable memory inside a process add a
-> > special swap type. Also add a new callback to handle page fault on
-> > such entry.
+> > Catch page from ZONE_DEVICE in free_hot_cold_page(). This should never
+> > happen as ZONE_DEVICE page must always have an elevated refcount.
+> > 
+> > This is to catch refcounting issues in a sane way for ZONE_DEVICE pages.
+> > 
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > ---
+> >  mm/page_alloc.c | 10 ++++++++++
+> >  1 file changed, 10 insertions(+)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 0fbfead..09b2630 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2435,6 +2435,16 @@ void free_hot_cold_page(struct page *page, bool cold)
+> >  	unsigned long pfn = page_to_pfn(page);
+> >  	int migratetype;
+> >  
+> > +	/*
+> > +	 * This should never happen ! Page from ZONE_DEVICE always must have an
+> > +	 * active refcount. Complain about it and try to restore the refcount.
+> > +	 */
+> > +	if (is_zone_device_page(page)) {
+> > +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
+> > +		page_ref_inc(page);
+> > +		return;
+> > +	}
 > 
-> IIUC this swap type is required only for the mirror cases and its
-> not a requirement for migration. If it's required for mirroring
-> purpose where we intercept each page fault, the commit message
-> here should clearly elaborate on that more.
-
-It is only require for un-addressable memory. The mirroring has nothing to do
-with it. I will clarify commit message.
-
-[...]
-
-> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> > index b6f03e9..d584c74 100644
-> > --- a/include/linux/memremap.h
-> > +++ b/include/linux/memremap.h
-> > @@ -47,6 +47,11 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-> >   */
-> >  struct dev_pagemap {
-> >  	void (*free_devpage)(struct page *page, void *data);
-> > +	int (*fault)(struct vm_area_struct *vma,
-> > +		     unsigned long addr,
-> > +		     struct page *page,
-> > +		     unsigned flags,
-> > +		     pmd_t *pmdp);
-> 
-> We are extending the dev_pagemap once again to accommodate device driver
-> specific fault routines for these pages. Wondering if this extension and
-> the new swap type should be in the same patch.
-
-It make sense to have it in one single patch as i also change page fault code
-path to deal with the new special swap entry and those make use of this new
-callback.
-
-
-> > +int device_entry_fault(struct vm_area_struct *vma,
-> > +		       unsigned long addr,
-> > +		       swp_entry_t entry,
-> > +		       unsigned flags,
-> > +		       pmd_t *pmdp)
-> > +{
-> > +	struct page *page = device_entry_to_page(entry);
-> > +
-> 
-> A BUG_ON() if page->pgmap->fault has not been populated by the driver.
+> This fixes an issue in the existing ZONE_DEVICE code, should not this
+> patch be sent separately not in this series ?
 > 
 
-Ok
+Well this is more like a safetynet feature, i can send it separately from the
+series. It is not an issue per say as a trap to catch bugs. I had refcounting
+bugs while working on this patchset and having this safetynet was helpful to
+quickly pin-point issues.
 
 Cheers,
 Jerome
