@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A9AF6B039E
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:50:34 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id w132so87456476ita.1
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:50:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b85si13858257ioj.175.2016.11.21.04.50.33
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E726B03A0
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 07:54:36 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a20so39063527wme.5
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:54:36 -0800 (PST)
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id 18si13401314wmq.97.2016.11.21.04.54.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 04:50:33 -0800 (PST)
-Date: Mon, 21 Nov 2016 07:50:29 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v13 03/18] mm/ZONE_DEVICE/free_hot_cold_page: catch
- ZONE_DEVICE pages
-Message-ID: <20161121125029.GG2392@redhat.com>
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-4-git-send-email-jglisse@redhat.com>
- <5832ADD2.5000507@linux.vnet.ibm.com>
+        Mon, 21 Nov 2016 04:54:34 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id xy5so3758172wjc.1
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 04:54:33 -0800 (PST)
+Date: Mon, 21 Nov 2016 13:54:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: Don't fail costly __GFP_NOFAIL
+ allocations.
+Message-ID: <20161121125431.GA18112@dhcp22.suse.cz>
+References: <1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20161121060313.GB29816@dhcp22.suse.cz>
+ <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5832ADD2.5000507@linux.vnet.ibm.com>
+In-Reply-To: <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Mon, Nov 21, 2016 at 01:48:26PM +0530, Anshuman Khandual wrote:
-> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
-> > Catch page from ZONE_DEVICE in free_hot_cold_page(). This should never
-> > happen as ZONE_DEVICE page must always have an elevated refcount.
-> > 
-> > This is to catch refcounting issues in a sane way for ZONE_DEVICE pages.
-> > 
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  mm/page_alloc.c | 10 ++++++++++
-> >  1 file changed, 10 insertions(+)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 0fbfead..09b2630 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2435,6 +2435,16 @@ void free_hot_cold_page(struct page *page, bool cold)
-> >  	unsigned long pfn = page_to_pfn(page);
-> >  	int migratetype;
-> >  
-> > +	/*
-> > +	 * This should never happen ! Page from ZONE_DEVICE always must have an
-> > +	 * active refcount. Complain about it and try to restore the refcount.
-> > +	 */
-> > +	if (is_zone_device_page(page)) {
-> > +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
-> > +		page_ref_inc(page);
-> > +		return;
-> > +	}
+On Mon 21-11-16 20:16:40, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 17-11-16 21:50:04, Tetsuo Handa wrote:
+> > > Filesystem code might request costly __GFP_NOFAIL !__GFP_REPEAT GFP_NOFS
+> > > allocations. But commit 0a0337e0d1d13446 ("mm, oom: rework oom detection")
+> > > overlooked that __GFP_NOFAIL allocation requests need to invoke the OOM
+> > > killer and retry even if order > PAGE_ALLOC_COSTLY_ORDER && !__GFP_REPEAT.
+> > > The caller will crash if such allocation request failed.
+> >
+> > Could you point to such an allocation request please? Costly GFP_NOFAIL
+> > requests are a really high requirement and I am even not sure we should
+> > support them. buffered_rmqueue already warns about order > 1 NOFAIL
+> > allocations.
 > 
-> This fixes an issue in the existing ZONE_DEVICE code, should not this
-> patch be sent separately not in this series ?
-> 
+> That question is pointless. You are simply lucky that you see only order 0 or
+> order 1. There are many __GFP_NOFAIL allocations where order is determined at
+> runtime. There is no guarantee that order 2 and above never happens.
 
-Well this is more like a safetynet feature, i can send it separately from the
-series. It is not an issue per say as a trap to catch bugs. I had refcounting
-bugs while working on this patchset and having this safetynet was helpful to
-quickly pin-point issues.
+You are pushing to the extreme again! Your changelog stated this might
+be an existing and the real life problem and that is the reason I've
+asked. Especially because you have marked the patch for stable. As I've
+said in my previous response. Your patch looks correct, I am just not
+entirely happy to clutter the code path even more for GFP_NOFAIL for
+something we maybe even do not support. All the checks we have there are
+head spinning already.
 
-Cheers,
-Jerome
+So we have two options, either we have real users of GFP_NOFAIL for
+costly orders and handle that properly with all that information in the
+changelog or simply rely on the warning and fix callers who do that
+accidentally. But please stop this, theoretically something might do
+$THIS_RANDOM_GFP_FLAGS + order combination and we absolutely must handle
+that in the allocator.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
