@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 562556B04C4
-	for <linux-mm@kvack.org>; Sun, 20 Nov 2016 21:42:51 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e9so367499884pgc.5
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 18:42:51 -0800 (PST)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id d1si20180278pga.74.2016.11.20.18.42.50
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC32E6B03BF
+	for <linux-mm@kvack.org>; Sun, 20 Nov 2016 22:30:57 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e9so368937584pgc.5
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 19:30:57 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id l5si20369042pgk.200.2016.11.20.19.30.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Nov 2016 18:42:50 -0800 (PST)
-Received: by mail-pf0-x244.google.com with SMTP id i88so17201288pfk.2
-        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 18:42:50 -0800 (PST)
-Subject: Re: [HMM v13 09/18] mm/hmm/mirror: mirror process address space on
- device with HMM helpers
+        Sun, 20 Nov 2016 19:30:56 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 3so27184815pgd.0
+        for <linux-mm@kvack.org>; Sun, 20 Nov 2016 19:30:56 -0800 (PST)
+Subject: Re: [HMM v13 16/18] mm/hmm/migrate: new memory migration helper for
+ use with device memory
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-10-git-send-email-jglisse@redhat.com>
+ <1479493107-982-17-git-send-email-jglisse@redhat.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <e6389bd7-de09-e765-58a5-b594d063e276@gmail.com>
-Date: Mon, 21 Nov 2016 13:42:43 +1100
+Message-ID: <fd02ccec-800f-e0ff-a51f-b42df13b4c9b@gmail.com>
+Date: Mon, 21 Nov 2016 14:30:46 +1100
 MIME-Version: 1.0
-In-Reply-To: <1479493107-982-10-git-send-email-jglisse@redhat.com>
+In-Reply-To: <1479493107-982-17-git-send-email-jglisse@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -30,19 +30,24 @@ Cc: John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark H
 
 
 On 19/11/16 05:18, JA(C)rA'me Glisse wrote:
-> This is a heterogeneous memory management (HMM) process address space
-> mirroring. In a nutshell this provide an API to mirror process address
-> space on a device. This boils down to keeping CPU and device page table
-> synchronize (we assume that both device and CPU are cache coherent like
-> PCIe device can be).
+> This patch add a new memory migration helpers, which migrate memory
+             adds                       helper         migrates
+> backing a range of virtual address of a process to different memory
+> (which can be allocated through special allocator). It differs from
+> numa migration by working on a range of virtual address and thus by
+> doing migration in chunk that can be large enough to use DMA engine
+> or special copy offloading engine.
 > 
-> This patch provide a simple API for device driver to achieve address
-> space mirroring thus avoiding each device driver to grow its own CPU
-> page table walker and its own CPU page table synchronization mechanism.
+> Expected users are any one with heterogeneous memory where different
+> memory have different characteristics (latency, bandwidth, ...). As
+> an example IBM platform with CAPI bus can make use of this feature
+> to migrate between regular memory and CAPI device memory. New CPU
+> architecture with a pool of high performance memory not manage as
+> cache but presented as regular memory (while being faster and with
+> lower latency than DDR) will also be prime user of this patch.
 > 
-> This is usefull for NVidia GPU >= Pascal, Mellanox IB >= mlx5 and more
-	   useful
-> hardware in the future.
+> Migration to private device memory will be usefull for device that
+> have large pool of such like GPU, NVidia plans to use HMM for that.
 > 
 > Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 > Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
@@ -51,320 +56,738 @@ On 19/11/16 05:18, JA(C)rA'me Glisse wrote:
 > Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
 > Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 > ---
->  include/linux/hmm.h |  97 +++++++++++++++++++++++++++++++
->  mm/hmm.c            | 160 ++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 257 insertions(+)
+>  include/linux/hmm.h |  54 ++++-
+>  mm/migrate.c        | 584 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 635 insertions(+), 3 deletions(-)
 > 
 > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 54dd529..f44e270 100644
+> index c79abfc..9777309 100644
 > --- a/include/linux/hmm.h
 > +++ b/include/linux/hmm.h
-> @@ -88,6 +88,7 @@
+> @@ -101,10 +101,13 @@ struct hmm;
+>   * HMM_PFN_EMPTY: corresponding CPU page table entry is none (pte_none() true)
+>   * HMM_PFN_FAULT: use by hmm_vma_fault() to signify which address need faulting
+>   * HMM_PFN_DEVICE: this is device memory (ie a ZONE_DEVICE page)
+> + * HMM_PFN_LOCKED: underlying struct page is lock
+>   * HMM_PFN_SPECIAL: corresponding CPU page table entry is special ie result of
+>   *      vm_insert_pfn() or vm_insert_page() and thus should not be mirror by a
+>   *      device (the entry will never have HMM_PFN_VALID set and the pfn value
+>   *      is undefine)
+> + * HMM_PFN_MIGRATE: use by hmm_vma_migrate() to signify which address can be
+> + *      migrated
+>   * HMM_PFN_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
+>   */
+>  typedef unsigned long hmm_pfn_t;
+> @@ -116,9 +119,11 @@ typedef unsigned long hmm_pfn_t;
+>  #define HMM_PFN_EMPTY (1 << 4)
+>  #define HMM_PFN_FAULT (1 << 5)
+>  #define HMM_PFN_DEVICE (1 << 6)
+> -#define HMM_PFN_SPECIAL (1 << 7)
+> -#define HMM_PFN_UNADDRESSABLE (1 << 8)
+> -#define HMM_PFN_SHIFT 9
+> +#define HMM_PFN_LOCKED (1 << 7)
+> +#define HMM_PFN_SPECIAL (1 << 8)
+> +#define HMM_PFN_MIGRATE (1 << 9)
+> +#define HMM_PFN_UNADDRESSABLE (1 << 10)
+> +#define HMM_PFN_SHIFT 11
 >  
->  #if IS_ENABLED(CONFIG_HMM)
->  
-> +struct hmm;
->  
->  /*
->   * hmm_pfn_t - HMM use its own pfn type to keep several flags per page
-> @@ -127,6 +128,102 @@ static inline hmm_pfn_t hmm_pfn_from_pfn(unsigned long pfn)
->  }
+>  static inline struct page *hmm_pfn_to_page(hmm_pfn_t pfn)
+>  {
+> @@ -323,6 +328,49 @@ bool hmm_vma_fault(struct vm_area_struct *vma,
+>  		   hmm_pfn_t *pfns);
 >  
 >  
 > +/*
-> + * Mirroring: how to use synchronize device page table with CPU page table ?
+> + * struct hmm_migrate_ops - migrate operation callback
 > + *
-> + * Device driver must always synchronize with CPU page table update, for this
-> + * they can either directly use mmu_notifier API or they can use the hmm_mirror
-> + * API. Device driver can decide to register one mirror per device per process
-> + * or just one mirror per process for a group of device. Pattern is :
+> + * @alloc_and_copy: alloc destination memoiry and copy source to it
+> + * @finalize_and_map: allow caller to inspect successfull migrated page
 > + *
-> + *      int device_bind_address_space(..., struct mm_struct *mm, ...)
-> + *      {
-> + *          struct device_address_space *das;
-> + *          int ret;
-> + *          // Device driver specific initialization, and allocation of das
-> + *          // which contain an hmm_mirror struct as one of its field.
-> + *          ret = hmm_mirror_register(&das->mirror, mm, &device_mirror_ops);
-> + *          if (ret) {
-> + *              // Cleanup on error
-> + *              return ret;
-> + *          }
-> + *          // Other device driver specific initialization
-> + *      }
+> + * The new HMM migrate helper hmm_vma_migrate() allow memory migration to use
+> + * device DMA engine to perform copy from source to destination memory it also
+> + * allow caller to use its own memory allocator for destination memory.
 > + *
-> + * Device driver must not free the struct containing hmm_mirror struct before
-> + * calling hmm_mirror_unregister() expected usage is to do that when device
-> + * driver is unbinding from an address space.
+> + * Note that in alloc_and_copy device driver can decide not to migrate some of
+> + * the entry, for those it must clear the HMM_PFN_MIGRATE flag. The destination
+> + * page must lock and the corresponding hmm_pfn_t value in the array updated
+> + * with the HMM_PFN_MIGRATE and HMM_PFN_LOCKED flag set (and of course be a
+> + * valid entry). It is expected that the page allocated will have an elevated
+> + * refcount and that a put_page() will free the page. Device driver might want
+> + * to allocate with an extra-refcount if they want to control deallocation of
+> + * failed migration inside the finalize_and_map() callback.
 > + *
-> + *      void device_unbind_address_space(struct device_address_space *das)
-> + *      {
-> + *          // Device driver specific cleanup
-> + *          hmm_mirror_unregister(&das->mirror);
-> + *          // Other device driver specific cleanup and now das can be free
-> + *      }
-> + *
-> + * Once an hmm_mirror is register for an address space, device driver will get
-> + * callback through the update() operation (see hmm_mirror_ops struct).
+> + * Inside finalize_and_map() device driver must use the HMM_PFN_MIGRATE flag to
+> + * determine which page have been successfully migrated.
 > + */
-> +
-> +struct hmm_mirror;
-> +
-> +/*
-> + * enum hmm_update - type of update
-> + * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
-> + */
-> +enum hmm_update {
-> +	HMM_UPDATE_INVALIDATE,
+> +struct hmm_migrate_ops {
+> +	void (*alloc_and_copy)(struct vm_area_struct *vma,
+> +			       unsigned long start,
+> +			       unsigned long end,
+> +			       hmm_pfn_t *pfns,
+> +			       void *private);
+> +	void (*finalize_and_map)(struct vm_area_struct *vma,
+> +				 unsigned long start,
+> +				 unsigned long end,
+> +				 hmm_pfn_t *pfns,
+> +				 void *private);
 > +};
 > +
-> +/*
-> + * struct hmm_mirror_ops - HMM mirror device operations callback
-> + *
-> + * @update: callback to update range on a device
-> + */
-> +struct hmm_mirror_ops {
-> +	/* update() - update virtual address range of memory
-> +	 *
-> +	 * @mirror: pointer to struct hmm_mirror
-> +	 * @update: update's type (turn read only, unmap, ...)
-> +	 * @start: virtual start address of the range to update
-> +	 * @end: virtual end address of the range to update
-> +	 *
-> +	 * This callback is call when the CPU page table is updated, the device
-> +	 * driver must update device page table accordingly to update's action.
-> +	 *
-> +	 * Device driver callback must wait until device have fully updated its
-> +	 * view for the range. Note we plan to make this asynchronous in later
-> +	 * patches. So that multiple devices can schedule update to their page
-> +	 * table and once all device have schedule the update then we wait for
-> +	 * them to propagate.
-> +	 */
-> +	void (*update)(struct hmm_mirror *mirror,
-> +		       enum hmm_update action,
-> +		       unsigned long start,
-> +		       unsigned long end);
-> +};
-> +
-> +/*
-> + * struct hmm_mirror - mirror struct for a device driver
-> + *
-> + * @hmm: pointer to struct hmm (which is unique per mm_struct)
-> + * @ops: device driver callback for HMM mirror operations
-> + * @list: for list of mirrors of a given mm
-> + *
-> + * Each address space (mm_struct) being mirrored by a device must register one
-> + * of hmm_mirror struct with HMM. HMM will track list of all mirrors for each
-> + * mm_struct (or each process).
-> + */
-> +struct hmm_mirror {
-> +	struct hmm			*hmm;
-> +	const struct hmm_mirror_ops	*ops;
-> +	struct list_head		list;
-> +};
-> +
-> +int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
-> +void hmm_mirror_unregister(struct hmm_mirror *mirror);
+> +int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
+> +		    struct vm_area_struct *vma,
+> +		    unsigned long start,
+> +		    unsigned long end,
+> +		    hmm_pfn_t *pfns,
+> +		    void *private);
 > +
 > +
 >  /* Below are for HMM internal use only ! Not to be use by device driver ! */
 >  void hmm_mm_destroy(struct mm_struct *mm);
 >  
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 342b596..3594785 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -21,14 +21,27 @@
->  #include <linux/hmm.h>
->  #include <linux/slab.h>
->  #include <linux/sched.h>
-> +#include <linux/mmu_notifier.h>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index d9ce8db..393d592 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -41,6 +41,7 @@
+>  #include <linux/page_idle.h>
+>  #include <linux/page_owner.h>
+>  #include <linux/memremap.h>
+> +#include <linux/hmm.h>
 >  
->  /*
->   * struct hmm - HMM per mm struct
->   *
->   * @mm: mm struct this HMM struct is bound to
-> + * @lock: lock protecting mirrors list
-> + * @mirrors: list of mirrors for this mm
-> + * @wait_queue: wait queue
-> + * @sequence: we track update to CPU page table with a sequence number
-> + * @mmu_notifier: mmu notifier to track update to CPU page table
-> + * @notifier_count: number of currently active notifier count
->   */
->  struct hmm {
->  	struct mm_struct	*mm;
-> +	spinlock_t		lock;
-> +	struct list_head	mirrors;
-> +	atomic_t		sequence;
-> +	wait_queue_head_t	wait_queue;
-> +	struct mmu_notifier	mmu_notifier;
-> +	atomic_t		notifier_count;
->  };
+>  #include <asm/tlbflush.h>
 >  
->  /*
-> @@ -48,6 +61,12 @@ static struct hmm *hmm_register(struct mm_struct *mm)
->  		hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
->  		if (!hmm)
->  			return NULL;
-> +		init_waitqueue_head(&hmm->wait_queue);
-> +		atomic_set(&hmm->notifier_count, 0);
-> +		INIT_LIST_HEAD(&hmm->mirrors);
-> +		atomic_set(&hmm->sequence, 0);
-> +		hmm->mmu_notifier.ops = NULL;
-> +		spin_lock_init(&hmm->lock);
->  		hmm->mm = mm;
->  	}
+> @@ -421,6 +422,14 @@ int migrate_page_move_mapping(struct address_space *mapping,
+>  	int expected_count = 1 + extra_count;
+>  	void **pslot;
 >  
-> @@ -84,3 +103,144 @@ void hmm_mm_destroy(struct mm_struct *mm)
->  
->  	kfree(hmm);
->  }
-> +
-> +
-> +
-> +static void hmm_invalidate_range(struct hmm *hmm,
-> +				 enum hmm_update action,
-> +				 unsigned long start,
-> +				 unsigned long end)
-> +{
-> +	struct hmm_mirror *mirror;
-> +
 > +	/*
-> +	 * Mirror being added or remove is a rare event so list traversal isn't
-> +	 * protected by a lock, we rely on simple rules. All list modification
-> +	 * are done using list_add_rcu() and list_del_rcu() under a spinlock to
-> +	 * protect from concurrent addition or removal but not traversal.
+> +	 * ZONE_DEVICE pages have 1 refcount always held by their device
 > +	 *
-> +	 * Because hmm_mirror_unregister() wait for all running invalidation to
-> +	 * complete (and thus all list traversal to finish). None of the mirror
-> +	 * struct can be freed from under us while traversing the list and thus
-> +	 * it is safe to dereference their list pointer even if they were just
-> +	 * remove.
+> +	 * Note that DAX memory will never reach that point as it does not have
+> +	 * the MEMORY_MOVABLE flag set (see include/linux/memory_hotplug.h).
 > +	 */
-> +	list_for_each_entry (mirror, &hmm->mirrors, list)
-> +		mirror->ops->update(mirror, action, start, end);
-> +}
+> +	expected_count += is_zone_device_page(page);
 > +
-> +static void hmm_invalidate_page(struct mmu_notifier *mn,
-> +				struct mm_struct *mm,
-> +				unsigned long addr)
-> +{
-> +	unsigned long start = addr & PAGE_MASK;
-> +	unsigned long end = start + PAGE_SIZE;
-> +	struct hmm *hmm = mm->hmm;
+>  	if (!mapping) {
+>  		/* Anonymous page without mapping */
+>  		if (page_count(page) != expected_count)
+> @@ -2087,3 +2096,578 @@ out_unlock:
+>  #endif /* CONFIG_NUMA_BALANCING */
+>  
+>  #endif /* CONFIG_NUMA */
 > +
-> +	VM_BUG_ON(!hmm);
 > +
-> +	atomic_inc(&hmm->notifier_count);
-> +	atomic_inc(&hmm->sequence);
-> +	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-> +	atomic_dec(&hmm->notifier_count);
-> +	wake_up(&hmm->wait_queue);
-> +}
-> +
-> +static void hmm_invalidate_range_start(struct mmu_notifier *mn,
-> +				       struct mm_struct *mm,
-> +				       unsigned long start,
-> +				       unsigned long end)
-> +{
-> +	struct hmm *hmm = mm->hmm;
-> +
-> +	VM_BUG_ON(!hmm);
-> +
-> +	atomic_inc(&hmm->notifier_count);
-> +	atomic_inc(&hmm->sequence);
-> +	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-> +}
-> +
-> +static void hmm_invalidate_range_end(struct mmu_notifier *mn,
-> +				     struct mm_struct *mm,
-> +				     unsigned long start,
-> +				     unsigned long end)
-> +{
-> +	struct hmm *hmm = mm->hmm;
-> +
-> +	VM_BUG_ON(!hmm);
-> +
-> +	/* Reverse order here because we are getting out of invalidation */
-> +	atomic_dec(&hmm->notifier_count);
-> +	wake_up(&hmm->wait_queue);
-> +}
-> +
-> +static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-> +	.invalidate_page	= hmm_invalidate_page,
-> +	.invalidate_range_start	= hmm_invalidate_range_start,
-> +	.invalidate_range_end	= hmm_invalidate_range_end,
+> +#if defined(CONFIG_HMM)
+> +struct hmm_migrate {
+> +	struct vm_area_struct	*vma;
+> +	unsigned long		start;
+> +	unsigned long		end;
+> +	unsigned long		npages;
+> +	hmm_pfn_t		*pfns;
+
+I presume the destination is pfns[] or is the source?
+
 > +};
 > +
-> +/*
-> + * hmm_mirror_register() - register a mirror against an mm
-> + *
-> + * @mirror: new mirror struct to register
-> + * @mm: mm to register against
-> + *
-> + * To start mirroring a process address space device driver must register an
-> + * HMM mirror struct.
-> + */
-> +int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+> +static int hmm_collect_walk_pmd(pmd_t *pmdp,
+> +				unsigned long start,
+> +				unsigned long end,
+> +				struct mm_walk *walk)
 > +{
-> +	/* Sanity check */
-> +	if (!mm || !mirror || !mirror->ops)
-> +		return -EINVAL;
+> +	struct hmm_migrate *migrate = walk->private;
+> +	struct mm_struct *mm = walk->vma->vm_mm;
+> +	unsigned long addr = start;
+> +	spinlock_t *ptl;
+> +	hmm_pfn_t *pfns;
+> +	int pages = 0;
+> +	pte_t *ptep;
 > +
-> +	mirror->hmm = hmm_register(mm);
-> +	if (!mirror->hmm)
-> +		return -ENOMEM;
+> +again:
+> +	if (pmd_none(*pmdp))
+> +		return 0;
 > +
-> +	/* Register mmu_notifier if not already, use mmap_sem for locking */
-> +	if (!mirror->hmm->mmu_notifier.ops) {
-> +		struct hmm *hmm = mirror->hmm;
-> +		down_write(&mm->mmap_sem);
-> +		if (!hmm->mmu_notifier.ops) {
-> +			hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
-> +			if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
-> +				hmm->mmu_notifier.ops = NULL;
-> +				up_write(&mm->mmap_sem);
-> +				return -ENOMEM;
+> +	split_huge_pmd(walk->vma, pmdp, addr);
+> +	if (pmd_trans_unstable(pmdp))
+> +		goto again;
+> +
+
+OK., so we always split THP before migration
+
+
+> +	pfns = &migrate->pfns[(addr - migrate->start) >> PAGE_SHIFT];
+> +	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +	arch_enter_lazy_mmu_mode();
+> +
+> +	for (; addr < end; addr += PAGE_SIZE, pfns++, ptep++) {
+> +		unsigned long pfn;
+> +		swp_entry_t entry;
+> +		struct page *page;
+> +		hmm_pfn_t flags;
+> +		bool write;
+> +		pte_t pte;
+> +
+> +		pte = ptep_get_and_clear(mm, addr, ptep);
+> +		if (!pte_present(pte)) {
+> +			if (pte_none(pte))
+> +				continue;
+> +
+> +			entry = pte_to_swp_entry(pte);
+> +			if (!is_device_entry(entry)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+
+Why hard code this, in general the ability to migrate a VMA
+start/end range seems like a useful API.
+
+> +				continue;
 > +			}
-> +		}
-> +		up_write(&mm->mmap_sem);
-> +	}
+> +
+> +			flags = HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
 
-Does everything get mirrored, every update to the PTE (clear dirty, clear
-accessed bit, etc) or does the driver decide?
+Currently UNADDRESSABLE?
+
+> +			page = device_entry_to_page(entry);
+> +			write = is_write_device_entry(entry);
+> +			pfn = page_to_pfn(page);
+> +
+> +			if (!(page->pgmap->flags & MEMORY_MOVABLE)) {
+> +				set_pte_at(mm, addr, ptep, pte);
+> +				continue;
+> +			}
+> +
+> +		} else {
+> +			pfn = pte_pfn(pte);
+> +			page = pfn_to_page(pfn);
+> +			write = pte_write(pte);
+> +			flags = is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
+> +		}
+> +
+> +		/* FIXME support THP see hmm_migrate_page_check() */
+> +		if (PageTransCompound(page))
+> +			continue;
+
+Didn't we split the THP above?
 
 > +
-> +	spin_lock(&mirror->hmm->lock);
-> +	list_add_rcu(&mirror->list, &mirror->hmm->mirrors);
-> +	spin_unlock(&mirror->hmm->lock);
+> +		*pfns = hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
+> +		*pfns |= write ? HMM_PFN_WRITE : 0;
+> +		migrate->npages++;
+> +		get_page(page);
+> +
+> +		if (!trylock_page(page)) {
+> +			set_pte_at(mm, addr, ptep, pte);
+
+put_page()?
+
+> +		} else {
+> +			pte_t swp_pte;
+> +
+> +			*pfns |= HMM_PFN_LOCKED;
+> +
+> +			entry = make_migration_entry(page, write);
+> +			swp_pte = swp_entry_to_pte(entry);
+> +			if (pte_soft_dirty(pte))
+> +				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+> +			set_pte_at(mm, addr, ptep, swp_pte);
+> +
+> +			page_remove_rmap(page, false);
+> +			put_page(page);
+> +			pages++;
+> +		}
+> +	}
+> +
+> +	arch_leave_lazy_mmu_mode();
+> +	pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +	/* Only flush the TLB if we actually modified any entries */
+> +	if (pages)
+> +		flush_tlb_range(walk->vma, start, end);
 > +
 > +	return 0;
 > +}
-> +EXPORT_SYMBOL(hmm_mirror_register);
+> +
+> +static void hmm_migrate_collect(struct hmm_migrate *migrate)
+> +{
+> +	struct mm_walk mm_walk;
+> +
+> +	mm_walk.pmd_entry = hmm_collect_walk_pmd;
+> +	mm_walk.pte_entry = NULL;
+> +	mm_walk.pte_hole = NULL;
+> +	mm_walk.hugetlb_entry = NULL;
+> +	mm_walk.test_walk = NULL;
+> +	mm_walk.vma = migrate->vma;
+> +	mm_walk.mm = migrate->vma->vm_mm;
+> +	mm_walk.private = migrate;
+> +
+> +	mmu_notifier_invalidate_range_start(mm_walk.mm,
+> +					    migrate->start,
+> +					    migrate->end);
+> +	walk_page_range(migrate->start, migrate->end, &mm_walk);
+> +	mmu_notifier_invalidate_range_end(mm_walk.mm,
+> +					  migrate->start,
+> +					  migrate->end);
+> +}
+> +
+> +static inline bool hmm_migrate_page_check(struct page *page, int extra)
+> +{
+> +	/*
+> +	 * FIXME support THP (transparent huge page), it is bit more complex to
+> +	 * check them then regular page because they can be map with a pmd or
+> +	 * with a pte (split pte mapping).
+> +	 */
+> +	if (PageCompound(page))
+> +		return false;
+
+PageTransCompound()?
+
+> +
+> +	if (is_zone_device_page(page))
+> +		extra++;
+> +
+> +	if ((page_count(page) - extra) > page_mapcount(page))
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr = migrate->start, i = 0;
+> +	struct mm_struct *mm = migrate->vma->vm_mm;
+> +	struct vm_area_struct *vma = migrate->vma;
+> +	unsigned long restore = 0;
+> +	bool allow_drain = true;
+> +
+> +	lru_add_drain();
+> +
+> +again:
+> +	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
+> +		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page)
+> +			continue;
+> +
+> +		if (!(migrate->pfns[i] & HMM_PFN_LOCKED)) {
+> +			lock_page(page);
+> +			migrate->pfns[i] |= HMM_PFN_LOCKED;
+> +		}
+> +
+> +		/* ZONE_DEVICE page are not on LRU */
+> +		if (is_zone_device_page(page))
+> +			goto check;
+> +
+> +		if (!PageLRU(page) && allow_drain) {
+> +			/* Drain CPU's pagevec so page can be isolated */
+> +			lru_add_drain_all();
+> +			allow_drain = false;
+> +			goto again;
+> +		}
+> +
+> +		if (isolate_lru_page(page)) {
+> +			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			put_page(page);
+> +			restore++;
+> +		} else
+> +			/* Drop the reference we took in collect */
+> +			put_page(page);
+> +
+> +check:
+> +		if (!hmm_migrate_page_check(page, 1)) {
+> +			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			restore++;
+> +		}
+> +	}
+> +
+> +	if (!restore)
+> +		return;
+> +
+> +	for (addr = migrate->start, i = 0; addr < migrate->end;) {
+> +		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
+> +		unsigned long next, restart;
+> +		spinlock_t *ptl;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE)) {
+> +			addr += PAGE_SIZE;
+> +			i++;
+> +			continue;
+> +		}
+> +
+> +		restart = addr;
+> +		pgdp = pgd_offset(mm, addr);
+> +		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
+> +			addr = pgd_addr_end(addr, migrate->end);
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pudp = pud_offset(pgdp, addr);
+> +		if (!pudp || pud_none(*pudp)) {
+> +			addr = pgd_addr_end(addr, migrate->end);
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pmdp = pmd_offset(pudp, addr);
+> +		next = pmd_addr_end(addr, migrate->end);
+> +		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
+> +			addr = next;
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
+> +			swp_entry_t entry;
+> +			bool write;
+> +			pte_t pte;
+> +
+> +			page = hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +
+> +			write = migrate->pfns[i] & HMM_PFN_WRITE;
+> +			write &= (vma->vm_flags & VM_WRITE);
+> +
+> +			/* Here it means pte must be a valid migration entry */
+> +			pte = ptep_get_and_clear(mm, addr, ptep);
+> +			if (pte_none(pte) || pte_present(pte))
+> +				/* SOMETHING BAD IS GOING ON ! */
+> +				continue;
+> +			entry = pte_to_swp_entry(pte);
+> +			if (!is_migration_entry(entry))
+> +				/* SOMETHING BAD IS GOING ON ! */
+> +				continue;
+> +
+> +			if (is_zone_device_page(page) &&
+> +			    !is_addressable_page(page)) {
+> +				entry = make_device_entry(page, write);
+> +				pte = swp_entry_to_pte(entry);
+> +			} else {
+> +				pte = mk_pte(page, vma->vm_page_prot);
+> +				pte = pte_mkold(pte);
+> +				if (write)
+> +					pte = pte_mkwrite(pte);
+> +			}
+> +			if (pte_swp_soft_dirty(*ptep))
+> +				pte = pte_mksoft_dirty(pte);
+> +
+> +			get_page(page);
+> +			set_pte_at(mm, addr, ptep, pte);
+> +			if (PageAnon(page))
+> +				page_add_anon_rmap(page, vma, addr, false);
+> +			else
+> +				page_add_file_rmap(page, false);
+
+Why do we do the rmap bits here?
+
+
+> +		}
+> +		pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +		addr = restart;
+> +		i = (addr - migrate->start) >> PAGE_SHIFT;
+> +		for (; addr < next && restore; addr += PAGE_SHIFT, i++) {
+> +			page = hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +
+> +			migrate->pfns[i] = 0;
+> +			unlock_page(page);
+> +			restore--;
+> +
+> +			if (is_zone_device_page(page)) {
+> +				put_page(page);
+> +				continue;
+> +			}
+> +
+> +			putback_lru_page(page);
+> +		}
+> +
+> +		if (!restore)
+> +			break;
+> +	}
+> +}
+> +
+> +static void hmm_migrate_unmap(struct hmm_migrate *migrate)
+> +{
+> +	int flags = TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+> +	unsigned long addr = migrate->start, i = 0, restore = 0;
+> +
+> +	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
+> +		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +			continue;
+> +
+> +		try_to_unmap(page, flags);
+> +		if (page_mapped(page) || !hmm_migrate_page_check(page, 1)) {
+> +			migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
+> +			migrate->npages--;
+> +			restore++;
+> +		}
+> +	}
+> +
+> +	for (; (addr < migrate->end) && restore; addr += PAGE_SIZE, i++) {
+> +		struct page *page = hmm_pfn_to_page(migrate->pfns[i]);
+> +
+> +		if (!page || (migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +			continue;
+> +
+> +		remove_migration_ptes(page, page, false);
+> +
+> +		migrate->pfns[i] = 0;
+> +		unlock_page(page);
+> +		restore--;
+> +
+> +		if (is_zone_device_page(page)) {
+> +			put_page(page);
+> +			continue;
+> +		}
+> +
+> +		putback_lru_page(page);
+> +	}
+> +}
+> +
+> +static void hmm_migrate_struct_page(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr = migrate->start, i = 0;
+> +	struct mm_struct *mm = migrate->vma->vm_mm;
+> +
+> +	for (; addr < migrate->end;) {
+> +		unsigned long next;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		pgdp = pgd_offset(mm, addr);
+> +		if (!pgdp || pgd_none_or_clear_bad(pgdp)) {
+> +			addr = pgd_addr_end(addr, migrate->end);
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pudp = pud_offset(pgdp, addr);
+> +		if (!pudp || pud_none(*pudp)) {
+> +			addr = pgd_addr_end(addr, migrate->end);
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +		pmdp = pmd_offset(pudp, addr);
+> +		next = pmd_addr_end(addr, migrate->end);
+> +		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp)) {
+> +			addr = next;
+> +			i = (addr - migrate->start) >> PAGE_SHIFT;
+> +			continue;
+> +		}
+> +
+> +		/* No need to lock nothing can change from under us */
+> +		ptep = pte_offset_map(pmdp, addr);
+> +		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
+> +			struct address_space *mapping;
+> +			struct page *newpage, *page;
+> +			swp_entry_t entry;
+> +			int r;
+> +
+> +			newpage = hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!newpage || !(migrate->pfns[i] & HMM_PFN_MIGRATE))
+> +				continue;
+> +			if (pte_none(*ptep) || pte_present(*ptep)) {
+> +				/* This should not happen but be nice */
+> +				migrate->pfns[i] = 0;
+> +				put_page(newpage);
+> +				continue;
+> +			}
+> +			entry = pte_to_swp_entry(*ptep);
+> +			if (!is_migration_entry(entry)) {
+> +				/* This should not happen but be nice */
+> +				migrate->pfns[i] = 0;
+> +				put_page(newpage);
+> +				continue;
+> +			}
+> +
+> +			page = migration_entry_to_page(entry);
+> +			mapping = page_mapping(page);
+> +
+> +			/*
+> +			 * For now only support private anonymous when migrating
+> +			 * to un-addressable device memory.
+
+I thought HMM supported page cache migration as well.
+
+> +			 */
+> +			if (mapping && is_zone_device_page(newpage) &&
+> +			    !is_addressable_page(newpage)) {
+> +				migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
+> +				continue;
+> +			}
+> +
+> +			r = migrate_page(mapping, newpage, page,
+> +					 MIGRATE_SYNC, false);
+> +			if (r != MIGRATEPAGE_SUCCESS)
+> +				migrate->pfns[i] &= ~HMM_PFN_MIGRATE;
+> +		}
+> +		pte_unmap(ptep - 1);
+> +	}
+> +}
+> +
+> +static void hmm_migrate_remove_migration_pte(struct hmm_migrate *migrate)
+> +{
+> +	unsigned long addr = migrate->start, i = 0;
+> +	struct mm_struct *mm = migrate->vma->vm_mm;
+> +
+> +	for (; addr < migrate->end;) {
+> +		unsigned long next;
+> +		pgd_t *pgdp;
+> +		pud_t *pudp;
+> +		pmd_t *pmdp;
+> +		pte_t *ptep;
+> +
+> +		pgdp = pgd_offset(mm, addr);
+> +		pudp = pud_offset(pgdp, addr);
+> +		pmdp = pmd_offset(pudp, addr);
+> +		next = pmd_addr_end(addr, migrate->end);
+> +
+> +		/* No need to lock nothing can change from under us */
+> +		ptep = pte_offset_map(pmdp, addr);
+> +		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
+> +			struct page *page, *newpage;
+> +			swp_entry_t entry;
+> +
+> +			if (pte_none(*ptep) || pte_present(*ptep))
+> +				continue;
+> +			entry = pte_to_swp_entry(*ptep);
+> +			if (!is_migration_entry(entry))
+> +				continue;
+> +
+> +			page = migration_entry_to_page(entry);
+> +			newpage = hmm_pfn_to_page(migrate->pfns[i]);
+> +			if (!newpage)
+> +				newpage = page;
+> +			remove_migration_ptes(page, newpage, false);
+> +
+> +			migrate->pfns[i] = 0;
+> +			unlock_page(page);
+> +			migrate->npages--;
+> +
+> +			if (is_zone_device_page(page))
+> +				put_page(page);
+> +			else
+> +				putback_lru_page(page);
+> +
+> +			if (newpage != page) {
+> +				unlock_page(newpage);
+> +				if (is_zone_device_page(newpage))
+> +					put_page(newpage);
+> +				else
+> +					putback_lru_page(newpage);
+> +			}
+> +		}
+> +		pte_unmap(ptep - 1);
+> +	}
+> +}
 > +
 > +/*
-> + * hmm_mirror_unregister() - unregister a mirror
+> + * hmm_vma_migrate() - migrate a range of memory inside vma using accel copy
 > + *
-> + * @mirror: new mirror struct to register
+> + * @ops: migration callback for allocating destination memory and copying
+> + * @vma: virtual memory area containing the range to be migrated
+> + * @start: start address of the range to migrate (inclusive)
+> + * @end: end address of the range to migrate (exclusive)
+> + * @pfns: array of hmm_pfn_t first containing source pfns then destination
+> + * @private: pointer passed back to each of the callback
+> + * Returns: 0 on success, error code otherwise
 > + *
-> + * Stop mirroring a process address space and cleanup.
+> + * This will try to migrate a range of memory using callback to allocate and
+> + * copy memory from source to destination. This function will first collect,
+> + * lock and unmap pages in the range and then call alloc_and_copy() callback
+> + * for device driver to allocate destination memory and copy from source.
+> + *
+> + * Then it will proceed and try to effectively migrate the page (struct page
+> + * metadata) a step that can fail for various reasons. Before updating CPU page
+> + * table it will call finalize_and_map() callback so that device driver can
+> + * inspect what have been successfully migrated and update its own page table
+> + * (this latter aspect is not mandatory and only make sense for some user of
+> + * this API).
+> + *
+> + * Finaly the function update CPU page table and unlock the pages before
+> + * returning 0.
+> + *
+> + * It will return an error code only if one of the argument is invalid.
 > + */
-> +void hmm_mirror_unregister(struct hmm_mirror *mirror)
+> +int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
+> +		    struct vm_area_struct *vma,
+> +		    unsigned long start,
+> +		    unsigned long end,
+> +		    hmm_pfn_t *pfns,
+> +		    void *private)
 > +{
-> +	struct hmm *hmm = mirror->hmm;
+> +	struct hmm_migrate migrate;
 > +
-> +	spin_lock(&hmm->lock);
-> +	list_del_rcu(&mirror->list);
-> +	spin_unlock(&hmm->lock);
+> +	/* Sanity check the arguments */
+> +	start &= PAGE_MASK;
+> +	end &= PAGE_MASK;
+> +	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
+> +		return -EINVAL;
+> +	if (!vma || !ops || !pfns || start >= end)
+> +		return -EINVAL;
+> +	if (start < vma->vm_start || start >= vma->vm_end)
+> +		return -EINVAL;
+> +	if (end <= vma->vm_start || end > vma->vm_end)
+> +		return -EINVAL;
+> +
+> +	migrate.start = start;
+> +	migrate.pfns = pfns;
+> +	migrate.npages = 0;
+> +	migrate.end = end;
+> +	migrate.vma = vma;
+> +
+> +	/* Collect, and try to unmap source pages */
+> +	hmm_migrate_collect(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
+> +
+> +	/* Lock and isolate page */
+> +	hmm_migrate_lock_and_isolate(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
+> +
+> +	/* Unmap pages */
+> +	hmm_migrate_unmap(&migrate);
+> +	if (!migrate.npages)
+> +		return 0;
 > +
 > +	/*
-> +	 * Wait for all active notifier so that it is safe to traverse mirror
-> +	 * list without any lock.
+> +	 * At this point pages are lock and unmap and thus they have stable
+> +	 * content and can safely be copied to destination memory that is
+> +	 * allocated by the callback.
+> +	 *
+> +	 * Note that migration can fail in hmm_migrate_struct_page() for each
+> +	 * individual page.
 > +	 */
-> +	wait_event(hmm->wait_queue, !atomic_read(&hmm->notifier_count));
+> +	ops->alloc_and_copy(vma, start, end, pfns, private);
+
+What is the expectation from alloc_and_copy()? Can it fail?
+
+> +
+> +	/* This does the real migration of struct page */
+> +	hmm_migrate_struct_page(&migrate);
+> +
+> +	ops->finalize_and_map(vma, start, end, pfns, private);
+
+Is this just notification to the driver or more?
+
+> +
+> +	/* Unlock and remap pages */
+> +	hmm_migrate_remove_migration_pte(&migrate);
+> +
+> +	return 0;
 > +}
-> +EXPORT_SYMBOL(hmm_mirror_unregister);
+> +EXPORT_SYMBOL(hmm_vma_migrate);
+> +#endif /* CONFIG_HMM */
 > 
+
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
