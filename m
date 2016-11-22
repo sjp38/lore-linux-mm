@@ -1,139 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 299E96B0274
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:20:33 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id j10so9325914wjb.3
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 06:20:33 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id qf11si25785362wjb.173.2016.11.22.06.20.31
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 958986B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:31:00 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id g23so10095178wme.4
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 06:31:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lp9si25858689wjb.252.2016.11.22.06.30.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 06:20:32 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAMEIt3I114288
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:20:29 -0500
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 26vksmcb8t-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:20:29 -0500
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 23 Nov 2016 00:20:27 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 3614A3578052
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:20:25 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAMEKOfA47120600
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:20:24 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAMEKOxT016840
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:20:25 +1100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [DEBUG 12/12] test: Add a script to perform random VMA migrations across nodes
-Date: Tue, 22 Nov 2016 19:49:48 +0530
-In-Reply-To: <1479824388-30446-1-git-send-email-khandual@linux.vnet.ibm.com>
-References: <1479824388-30446-1-git-send-email-khandual@linux.vnet.ibm.com>
-Message-Id: <1479824388-30446-13-git-send-email-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Nov 2016 06:30:59 -0800 (PST)
+Date: Tue, 22 Nov 2016 15:30:56 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Softlockup during memory allocation
+Message-ID: <20161122143056.GB6831@dhcp22.suse.cz>
+References: <e3177ea6-a921-dac9-f4f3-952c14e2c4df@kyup.com>
+ <a73f4917-48ac-bf1e-04d9-64fb937abfc6@kyup.com>
+ <CAJFSNy5_z_FA4DTPAtqBdOU+LmnfvdeVBtDhHuperv1MVU-9VA@mail.gmail.com>
+ <20161121053154.GA29816@dhcp22.suse.cz>
+ <ab42c7a5-49e2-4e46-be60-e0a56704a11d@kyup.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ab42c7a5-49e2-4e46-be60-e0a56704a11d@kyup.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com
+To: Nikolay Borisov <kernel@kyup.com>
+Cc: Linux MM <linux-mm@kvack.org>
 
-This is a test script which creates a workload (e.g ebizzy) and go through
-it's VMAs (/proc/pid/maps) and initiate migration to random nodes which can
-be either system memory node or coherent memory node.
+On Tue 22-11-16 10:56:51, Nikolay Borisov wrote:
+> 
+> 
+> On 11/21/2016 07:31 AM, Michal Hocko wrote:
+> > Hi,
+> > I am sorry for a late response, but I was offline until this weekend. I
+> > will try to get to this email ASAP but it might take some time.
+> 
+> No worries. I did some further digging up and here is what I got, which
+> I believe is rather strange:
+> 
+> struct scan_control {
+>   nr_to_reclaim = 32,
+>   gfp_mask = 37880010,
+>   order = 0,
+>   nodemask = 0x0,
+>   target_mem_cgroup = 0xffff8823990d1400,
+>   priority = 7,
+>   may_writepage = 1,
+>   may_unmap = 1,
+>   may_swap = 0,
+>   may_thrash = 1,
+>   hibernation_mode = 0,
+>   compaction_ready = 0,
+>   nr_scanned = 0,
+>   nr_reclaimed = 0
+> }
+> 
+> Parsing: 37880010
+> #define ___GFP_HIGHMEM		0x02
+> #define ___GFP_MOVABLE		0x08
+> #define ___GFP_IO		0x40
+> #define ___GFP_FS		0x80
+> #define ___GFP_HARDWALL		0x20000
+> #define ___GFP_DIRECT_RECLAIM	0x400000
+> #define ___GFP_KSWAPD_RECLAIM	0x2000000
+> 
+> And initial_priority is 12 (DEF_PRIORITY). Given that nr_scanned is 0
+> and priority is 7 this means we've gone 5 times through the do {} while
+> in do_try_to_free_pages. Also total_scanned seems to be 0.  Here is the
+> zone which was being reclaimed :
+> 
+> http://sprunge.us/hQBi
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- tools/testing/selftests/vm/cdm_migration.sh | 76 +++++++++++++++++++++++++++++
- 1 file changed, 76 insertions(+)
- create mode 100755 tools/testing/selftests/vm/cdm_migration.sh
+LRUs on that zones seem to be empty from a quick glance. kmem -z in the
+crash can give you per zone counters much more nicely.
 
-diff --git a/tools/testing/selftests/vm/cdm_migration.sh b/tools/testing/selftests/vm/cdm_migration.sh
-new file mode 100755
-index 0000000..fab11ed
---- /dev/null
-+++ b/tools/testing/selftests/vm/cdm_migration.sh
-@@ -0,0 +1,76 @@
-+#!/usr/bin/bash
-+#
-+# Should work with any workoad and workload commandline.
-+# But for now ebizzy should be installed. Please run it
-+# as root.
-+#
-+# Copyright (C) Anshuman Khandual 2016, IBM Corporation
-+#
-+# Licensed under GPL V2
-+
-+# Unload, build and reload modules
-+if [ "$1" = "reload" ]
-+then
-+	rmmod coherent_memory_demo
-+	rmmod coherent_hotplug_demo
-+	cd ../../../../
-+	make -s -j 64 modules
-+	insmod drivers/char/coherent_hotplug_demo.ko
-+	insmod drivers/char/coherent_memory_demo.ko
-+	cd -
-+fi
-+
-+# Workload
-+workload=ebizzy
-+work_cmd="ebizzy -T -z -m -t 128 -n 100000 -s 32768 -S 10000"
-+
-+pkill $workload
-+$work_cmd &
-+
-+# File
-+if [ -e input_file.txt ]
-+then
-+	rm input_file.txt
-+fi
-+
-+# Inputs
-+pid=`pidof ebizzy`
-+cp /proc/$pid/maps input_file.txt
-+if [ ! -e input_file.txt ]
-+then
-+	echo "Input file was not created"
-+	exit
-+fi
-+input=input_file.txt
-+
-+# Migrations
-+dmesg -C
-+while read line
-+do
-+	addr_start=$(echo $line | cut -d '-' -f1)
-+	addr_end=$(echo $line | cut -d '-' -f2 | cut -d ' ' -f1)
-+	node=`expr $RANDOM % 5`
-+
-+	echo $pid,0x$addr_start,0x$addr_end,$node > /sys/kernel/debug/coherent_debug
-+done < "$input"
-+
-+# Analyze dmesg output
-+passed=`dmesg | grep "migration_passed" | wc -l`
-+failed=`dmesg | grep "migration_failed" | wc -l`
-+queuef=`dmesg | grep "queue_pages_range_failed" | wc -l`
-+empty=`dmesg | grep "list_empty" | wc -l`
-+missing=`dmesg | grep "vma_missing" | wc -l`
-+
-+# Stats
-+echo passed	$passed
-+echo failed	$failed
-+echo queuef	$queuef
-+echo empty	$empty
-+echo missing	$missing
-+
-+# Cleanup
-+rm input_file.txt
-+if pgrep -x $workload > /dev/null
-+then
-+	pkill $workload
-+fi
+> So what's strange is that the softlockup occurred but then the code
+> proceeded (as evident from the subsequent stack traces), yet inspecting
+> the reclaim progress it seems rather sad (no progress at all)
+
+Unless I have misread the data above it seems something has either
+isolated all LRU pages for some time or there simply are none while the
+reclaim is desperately trying to make some progress. In any case this
+sounds less than a happy system...
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
