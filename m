@@ -1,132 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4564B6B0038
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 22:46:37 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id p66so9918003pga.4
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 19:46:37 -0800 (PST)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id i6si26112065pfa.90.2016.11.21.19.46.36
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A358C6B0038
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:31:09 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id p66so11273315pga.4
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 20:31:09 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m188si25601743pfc.211.2016.11.21.20.31.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 19:46:36 -0800 (PST)
-Received: by mail-pg0-x22c.google.com with SMTP id f188so2629805pgc.3
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 19:46:36 -0800 (PST)
-Date: Mon, 21 Nov 2016 19:46:28 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2] mm: support anonymous stable page
-In-Reply-To: <20161120233015.GA14113@bbox>
-Message-ID: <alpine.LSU.2.11.1611211932410.1085@eggly.anvils>
-References: <20161120233015.GA14113@bbox>
+        Mon, 21 Nov 2016 20:31:08 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAM4SwBQ102680
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:31:08 -0500
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26v7h1gkkb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:31:07 -0500
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 22 Nov 2016 14:31:04 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A682A2CE8059
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:31:02 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAM4V2Wg52494426
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:31:02 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAM4V2Hn007398
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:31:02 +1100
+Subject: Re: [HMM v13 03/18] mm/ZONE_DEVICE/free_hot_cold_page: catch
+ ZONE_DEVICE pages
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+ <1479493107-982-4-git-send-email-jglisse@redhat.com>
+ <5832ADD2.5000507@linux.vnet.ibm.com> <20161121125029.GG2392@redhat.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 22 Nov 2016 10:00:54 +0530
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20161121125029.GG2392@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
+Message-Id: <5833C9FE.4030506@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J . Wong" <darrick.wong@oracle.com>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon, 21 Nov 2016, Minchan Kim wrote:
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Fri, 11 Nov 2016 15:02:57 +0900
-> Subject: [PATCH v2] mm: support anonymous stable page
+On 11/21/2016 06:20 PM, Jerome Glisse wrote:
+> On Mon, Nov 21, 2016 at 01:48:26PM +0530, Anshuman Khandual wrote:
+>> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
+>>> Catch page from ZONE_DEVICE in free_hot_cold_page(). This should never
+>>> happen as ZONE_DEVICE page must always have an elevated refcount.
+>>>
+>>> This is to catch refcounting issues in a sane way for ZONE_DEVICE pages.
+>>>
+>>> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+>>> Cc: Dan Williams <dan.j.williams@intel.com>
+>>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>>> ---
+>>>  mm/page_alloc.c | 10 ++++++++++
+>>>  1 file changed, 10 insertions(+)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 0fbfead..09b2630 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -2435,6 +2435,16 @@ void free_hot_cold_page(struct page *page, bool cold)
+>>>  	unsigned long pfn = page_to_pfn(page);
+>>>  	int migratetype;
+>>>  
+>>> +	/*
+>>> +	 * This should never happen ! Page from ZONE_DEVICE always must have an
+>>> +	 * active refcount. Complain about it and try to restore the refcount.
+>>> +	 */
+>>> +	if (is_zone_device_page(page)) {
+>>> +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
+>>> +		page_ref_inc(page);
+>>> +		return;
+>>> +	}
+>>
+>> This fixes an issue in the existing ZONE_DEVICE code, should not this
+>> patch be sent separately not in this series ?
+>>
 > 
-> For developemnt for zram-swap asynchronous writeback, I found
-> strange corruption of compressed page. With investigation, it
-> reveals currently stable page doesn't support anonymous page.
-> IOW, reuse_swap_page can reuse the page without waiting
-> writeback completion so that it can corrupt data during
-> zram compression. It can affect every swap device which supports
-> asynchronous writeback and CRC checking as well as zRAM.
-> 
-> Unfortunately, reuse_swap_page should be atomic so that we
-> cannot wait on writeback in there so the approach in this patch
-> is simply return false if we found it needs stable page.
-> Although it increases memory footprint temporarily, it happens
-> rarely and it should be reclaimed easily althoug it happened.
-> Also, It would be better than waiting of IO completion, which
-> is critial path for application latency.
-> 
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Well this is more like a safetynet feature, i can send it separately from the
+> series. It is not an issue per say as a trap to catch bugs. I had refcounting
+> bugs while working on this patchset and having this safetynet was helpful to
+> quickly pin-point issues.
 
-Acked-by: Hugh Dickins <hughd@google.com>
-
-Looks good, thanks: we can always optimize away that little overhead
-in the PageWriteback case, if it ever shows up in someone's testing.
-
-Andrew might ask if we should Cc stable (haha): I think we agree
-that it's a defect we've been aware of ever since stable pages were
-first proposed, but nobody has actually been troubled by it before
-your async zram development: so, you're right to be fixing it ahead
-of your zram changes, but we don't see a call for backporting.
-
-> ---
-> * from v1
->  * use swap_info_struct instead of swapper_space->host inode - Hugh
-> 
->  include/linux/swap.h |  3 ++-
->  mm/swapfile.c        | 20 +++++++++++++++++++-
->  2 files changed, 21 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index a56523cefb9b..55ff5593c193 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -150,8 +150,9 @@ enum {
->  	SWP_FILE	= (1 << 7),	/* set after swap_activate success */
->  	SWP_AREA_DISCARD = (1 << 8),	/* single-time swap area discards */
->  	SWP_PAGE_DISCARD = (1 << 9),	/* freed swap page-cluster discards */
-> +	SWP_STABLE_WRITES = (1 << 10),	/* no overwrite PG_writeback pages */
->  					/* add others here before... */
-> -	SWP_SCANNING	= (1 << 10),	/* refcount in scan_swap_map */
-> +	SWP_SCANNING	= (1 << 11),	/* refcount in scan_swap_map */
->  };
->  
->  #define SWAP_CLUSTER_MAX 32UL
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 2210de290b54..66bc330c0b65 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -943,11 +943,25 @@ bool reuse_swap_page(struct page *page, int *total_mapcount)
->  	count = page_trans_huge_mapcount(page, total_mapcount);
->  	if (count <= 1 && PageSwapCache(page)) {
->  		count += page_swapcount(page);
-> -		if (count == 1 && !PageWriteback(page)) {
-> +		if (count != 1)
-> +			goto out;
-> +		if (!PageWriteback(page)) {
->  			delete_from_swap_cache(page);
->  			SetPageDirty(page);
-> +		} else {
-> +			swp_entry_t entry;
-> +			struct swap_info_struct *p;
-> +
-> +			entry.val = page_private(page);
-> +			p = swap_info_get(entry);
-> +			if (p->flags & SWP_STABLE_WRITES) {
-> +				spin_unlock(&p->lock);
-> +				return false;
-> +			}
-> +			spin_unlock(&p->lock);
->  		}
->  	}
-> +out:
->  	return count <= 1;
->  }
->  
-> @@ -2447,6 +2461,10 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  		error = -ENOMEM;
->  		goto bad_swap;
->  	}
-> +
-> +	if (bdi_cap_stable_pages_required(inode_to_bdi(inode)))
-> +		p->flags |= SWP_STABLE_WRITES;
-> +
->  	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
->  		int cpu;
->  
-> -- 
-> 2.7.4
+Sure at the least move them up in the series as ZONE_DEVICE preparatory
+fixes before expanding ZONE_DEVICE framework to accommodate the new
+un-addressable memory representation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
