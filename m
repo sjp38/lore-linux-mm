@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 44A6C6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:00:29 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id k19so62863008iod.4
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:00:29 -0800 (PST)
-Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
-        by mx.google.com with ESMTPS id e40si20046888ioi.250.2016.11.22.08.00.28
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B02F36B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:03:20 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id r101so58291415ioi.3
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:03:20 -0800 (PST)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id 134si3558014itw.6.2016.11.22.08.03.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 08:00:28 -0800 (PST)
-Received: by mail-it0-x231.google.com with SMTP id l8so12746370iti.1
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:00:28 -0800 (PST)
-Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort allocations
- in blkcg
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org> <20161121230332.GA3767@htj.duckdns.org>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <552f51ad-bf74-567d-63ee-afda4d121797@kernel.dk>
-Date: Tue, 22 Nov 2016 09:00:24 -0700
+        Tue, 22 Nov 2016 08:03:19 -0800 (PST)
+Received: by mail-it0-x242.google.com with SMTP id b123so2301632itb.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:03:19 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20161121230332.GA3767@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
+References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
+ <1478271776-1194-2-git-send-email-akash.goel@intel.com> <20161109112835.kivhola7ux3lw4s6@phenom.ffwll.local>
+ <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
+From: Matthew Auld <matthew.william.auld@gmail.com>
+Date: Tue, 22 Nov 2016 16:02:49 +0000
+Message-ID: <CAM0jSHPsD3+sAgK9bqDW3cm-C+PeAb-ojJq2JnEzC--HtyfMGg@mail.gmail.com>
+Subject: Re: [Intel-gfx] [PATCH 2/2] drm/i915: Make GPU pages movable
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Daniel Vetter <daniel@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Sourab Gupta <sourab.gupta@intel.com>, linux-mm@kvack.org, akash.goel@intel.com
 
-On 11/21/2016 04:03 PM, Tejun Heo wrote:
-> blkcg allocates some per-cgroup data structures with GFP_NOWAIT and
-> when that fails falls back to operations which aren't specific to the
-> cgroup.  Occassional failures are expected under pressure and falling
-> back to non-cgroup operation is the right thing to do.
+On 9 November 2016 at 18:36, Hugh Dickins <hughd@google.com> wrote:
+> On Wed, 9 Nov 2016, Daniel Vetter wrote:
+>>
+>> Hi all -mm folks!
+>>
+>> Any feedback on these two? It's kinda an intermediate step towards a
+>> full-blown gemfs, and I think useful for that. Or do we need to go
+>> directly to our own backing storage thing? Aside from ack/nack from -mm I
+>> think this is ready for merging.
 >
-> Unfortunately, I forgot to add __GFP_NOWARN to these allocations and
-> these expected failures end up creating a lot of noise.  Add
-> __GFP_NOWARN.
+> I'm currently considering them at last: will report back later.
+>
+> Full-blown gemfs does not come in here, of course; but let me
+> fire a warning shot since you mention it: if it's going to use swap,
+> then we shall probably have to nak it in favour of continuing to use
+> infrastructure from mm/shmem.c.  I very much understand why you would
+> love to avoid that dependence, but I doubt it can be safely bypassed.
+Could you please elaborate on what specifically you don't like about
+gemfs implementing swap, just to make sure I'm following?
 
-Thanks Tejun, added for 4.10.
-
--- 
-Jens Axboe
+Thanks,
+Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
