@@ -1,87 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 958986B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:31:00 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id g23so10095178wme.4
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 06:31:00 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5A76B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:32:32 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id f8so9385118wje.5
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 06:32:32 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lp9si25858689wjb.252.2016.11.22.06.30.59
+        by mx.google.com with ESMTPS id ee4si25845329wjd.283.2016.11.22.06.32.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Nov 2016 06:30:59 -0800 (PST)
-Date: Tue, 22 Nov 2016 15:30:56 +0100
+        Tue, 22 Nov 2016 06:32:31 -0800 (PST)
+Date: Tue, 22 Nov 2016 15:32:29 +0100
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: Softlockup during memory allocation
-Message-ID: <20161122143056.GB6831@dhcp22.suse.cz>
+Message-ID: <20161122143228.GC6831@dhcp22.suse.cz>
 References: <e3177ea6-a921-dac9-f4f3-952c14e2c4df@kyup.com>
  <a73f4917-48ac-bf1e-04d9-64fb937abfc6@kyup.com>
  <CAJFSNy5_z_FA4DTPAtqBdOU+LmnfvdeVBtDhHuperv1MVU-9VA@mail.gmail.com>
  <20161121053154.GA29816@dhcp22.suse.cz>
  <ab42c7a5-49e2-4e46-be60-e0a56704a11d@kyup.com>
+ <20161122143056.GB6831@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ab42c7a5-49e2-4e46-be60-e0a56704a11d@kyup.com>
+In-Reply-To: <20161122143056.GB6831@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nikolay Borisov <kernel@kyup.com>
 Cc: Linux MM <linux-mm@kvack.org>
 
-On Tue 22-11-16 10:56:51, Nikolay Borisov wrote:
+On Tue 22-11-16 15:30:56, Michal Hocko wrote:
+> On Tue 22-11-16 10:56:51, Nikolay Borisov wrote:
+> > 
+> > 
+> > On 11/21/2016 07:31 AM, Michal Hocko wrote:
+> > > Hi,
+> > > I am sorry for a late response, but I was offline until this weekend. I
+> > > will try to get to this email ASAP but it might take some time.
+> > 
+> > No worries. I did some further digging up and here is what I got, which
+> > I believe is rather strange:
+> > 
+> > struct scan_control {
+> >   nr_to_reclaim = 32,
+> >   gfp_mask = 37880010,
+> >   order = 0,
+> >   nodemask = 0x0,
+> >   target_mem_cgroup = 0xffff8823990d1400,
+> >   priority = 7,
+> >   may_writepage = 1,
+> >   may_unmap = 1,
+> >   may_swap = 0,
+> >   may_thrash = 1,
+> >   hibernation_mode = 0,
+> >   compaction_ready = 0,
+> >   nr_scanned = 0,
+> >   nr_reclaimed = 0
+> > }
+> > 
+> > Parsing: 37880010
+> > #define ___GFP_HIGHMEM		0x02
+> > #define ___GFP_MOVABLE		0x08
+> > #define ___GFP_IO		0x40
+> > #define ___GFP_FS		0x80
+> > #define ___GFP_HARDWALL		0x20000
+> > #define ___GFP_DIRECT_RECLAIM	0x400000
+> > #define ___GFP_KSWAPD_RECLAIM	0x2000000
+> > 
+> > And initial_priority is 12 (DEF_PRIORITY). Given that nr_scanned is 0
+> > and priority is 7 this means we've gone 5 times through the do {} while
+> > in do_try_to_free_pages. Also total_scanned seems to be 0.  Here is the
+> > zone which was being reclaimed :
+> > 
+> > http://sprunge.us/hQBi
 > 
+> LRUs on that zones seem to be empty from a quick glance. kmem -z in the
+> crash can give you per zone counters much more nicely.
 > 
-> On 11/21/2016 07:31 AM, Michal Hocko wrote:
-> > Hi,
-> > I am sorry for a late response, but I was offline until this weekend. I
-> > will try to get to this email ASAP but it might take some time.
+> > So what's strange is that the softlockup occurred but then the code
+> > proceeded (as evident from the subsequent stack traces), yet inspecting
+> > the reclaim progress it seems rather sad (no progress at all)
 > 
-> No worries. I did some further digging up and here is what I got, which
-> I believe is rather strange:
-> 
-> struct scan_control {
->   nr_to_reclaim = 32,
->   gfp_mask = 37880010,
->   order = 0,
->   nodemask = 0x0,
->   target_mem_cgroup = 0xffff8823990d1400,
->   priority = 7,
->   may_writepage = 1,
->   may_unmap = 1,
->   may_swap = 0,
->   may_thrash = 1,
->   hibernation_mode = 0,
->   compaction_ready = 0,
->   nr_scanned = 0,
->   nr_reclaimed = 0
-> }
-> 
-> Parsing: 37880010
-> #define ___GFP_HIGHMEM		0x02
-> #define ___GFP_MOVABLE		0x08
-> #define ___GFP_IO		0x40
-> #define ___GFP_FS		0x80
-> #define ___GFP_HARDWALL		0x20000
-> #define ___GFP_DIRECT_RECLAIM	0x400000
-> #define ___GFP_KSWAPD_RECLAIM	0x2000000
-> 
-> And initial_priority is 12 (DEF_PRIORITY). Given that nr_scanned is 0
-> and priority is 7 this means we've gone 5 times through the do {} while
-> in do_try_to_free_pages. Also total_scanned seems to be 0.  Here is the
-> zone which was being reclaimed :
-> 
-> http://sprunge.us/hQBi
+> Unless I have misread the data above it seems something has either
+> isolated all LRU pages for some time or there simply are none while the
+> reclaim is desperately trying to make some progress. In any case this
+> sounds less than a happy system...
 
-LRUs on that zones seem to be empty from a quick glance. kmem -z in the
-crash can give you per zone counters much more nicely.
-
-> So what's strange is that the softlockup occurred but then the code
-> proceeded (as evident from the subsequent stack traces), yet inspecting
-> the reclaim progress it seems rather sad (no progress at all)
-
-Unless I have misread the data above it seems something has either
-isolated all LRU pages for some time or there simply are none while the
-reclaim is desperately trying to make some progress. In any case this
-sounds less than a happy system...
+Btw. how do you configure memcgs that the FS workload runs in?
 -- 
 Michal Hocko
 SUSE Labs
