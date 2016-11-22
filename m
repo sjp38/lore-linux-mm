@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 482506B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 14:57:17 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q10so46368980pgq.7
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:57:17 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 91si1284045ply.118.2016.11.22.11.57.16
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CDAD76B0069
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:41:37 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id l20so16392020qta.3
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 12:41:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j123si17394373qkf.105.2016.11.22.12.41.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 11:57:16 -0800 (PST)
-Date: Wed, 23 Nov 2016 03:56:29 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 1/5] mm: migrate: Add mode parameter to support
- additional page copy routines.
-Message-ID: <201611230331.FuGRxmmN%fengguang.wu@intel.com>
+        Tue, 22 Nov 2016 12:41:37 -0800 (PST)
+Date: Tue, 22 Nov 2016 22:41:30 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC PATCH v3 13/20] x86: DMA support for memory encryption
+Message-ID: <20161122224005-mutt-send-email-mst@kernel.org>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003723.3280.62636.stgit@tlendack-t1.amdoffice.net>
+ <20161115171443-mutt-send-email-mst@kernel.org>
+ <4d97f998-5835-f4e0-9840-7f7979251275@amd.com>
+ <20161122113859.5dtlrfgizwpum6st@pd.tnic>
+ <20161122171455-mutt-send-email-mst@kernel.org>
+ <20161122154137.z5vp3xcl5cpesuiz@pd.tnic>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161122162530.2370-2-zi.yan@sent.com>
+In-Reply-To: <20161122154137.z5vp3xcl5cpesuiz@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Hi Zi,
+On Tue, Nov 22, 2016 at 04:41:37PM +0100, Borislav Petkov wrote:
+> On Tue, Nov 22, 2016 at 05:22:38PM +0200, Michael S. Tsirkin wrote:
+> > The issue is it's a (potential) security hole, not a slowdown.
+> 
+> How? Because the bounce buffers will be unencrypted and someone might
+> intercept them?
 
-[auto build test WARNING on linus/master]
-[also build test WARNING on v4.9-rc6 next-20161122]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+Or even modify them. Guests generally trust devices since they
+assume they are under their control.
 
-url:    https://github.com/0day-ci/linux/commits/Zi-Yan/Parallel-hugepage-migration-optimization/20161123-022913
-reproduce:
-        # apt-get install sparse
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
-
-
-sparse warnings: (new ones prefixed by >>)
-
-   include/linux/compiler.h:253:8: sparse: attribute 'no_sanitize_address': unknown attribute
->> fs/f2fs/data.c:1938:26: sparse: not enough arguments for function migrate_page_copy
-   fs/f2fs/data.c: In function 'f2fs_migrate_page':
-   fs/f2fs/data.c:1938:2: error: too few arguments to function 'migrate_page_copy'
-     migrate_page_copy(newpage, page);
-     ^~~~~~~~~~~~~~~~~
-   In file included from fs/f2fs/data.c:1893:0:
-   include/linux/migrate.h:45:13: note: declared here
-    extern void migrate_page_copy(struct page *newpage, struct page *page,
-                ^~~~~~~~~~~~~~~~~
-
-vim +1938 fs/f2fs/data.c
-
-5b7a487c Weichao Guo 2016-09-20  1922  	if (atomic_written) {
-5b7a487c Weichao Guo 2016-09-20  1923  		struct inmem_pages *cur;
-5b7a487c Weichao Guo 2016-09-20  1924  		list_for_each_entry(cur, &fi->inmem_pages, list)
-5b7a487c Weichao Guo 2016-09-20  1925  			if (cur->page == page) {
-5b7a487c Weichao Guo 2016-09-20  1926  				cur->page = newpage;
-5b7a487c Weichao Guo 2016-09-20  1927  				break;
-5b7a487c Weichao Guo 2016-09-20  1928  			}
-5b7a487c Weichao Guo 2016-09-20  1929  		mutex_unlock(&fi->inmem_lock);
-5b7a487c Weichao Guo 2016-09-20  1930  		put_page(page);
-5b7a487c Weichao Guo 2016-09-20  1931  		get_page(newpage);
-5b7a487c Weichao Guo 2016-09-20  1932  	}
-5b7a487c Weichao Guo 2016-09-20  1933  
-5b7a487c Weichao Guo 2016-09-20  1934  	if (PagePrivate(page))
-5b7a487c Weichao Guo 2016-09-20  1935  		SetPagePrivate(newpage);
-5b7a487c Weichao Guo 2016-09-20  1936  	set_page_private(newpage, page_private(page));
-5b7a487c Weichao Guo 2016-09-20  1937  
-5b7a487c Weichao Guo 2016-09-20 @1938  	migrate_page_copy(newpage, page);
-5b7a487c Weichao Guo 2016-09-20  1939  
-5b7a487c Weichao Guo 2016-09-20  1940  	return MIGRATEPAGE_SUCCESS;
-5b7a487c Weichao Guo 2016-09-20  1941  }
-5b7a487c Weichao Guo 2016-09-20  1942  #endif
-5b7a487c Weichao Guo 2016-09-20  1943  
-eb47b800 Jaegeuk Kim 2012-11-02  1944  const struct address_space_operations f2fs_dblock_aops = {
-eb47b800 Jaegeuk Kim 2012-11-02  1945  	.readpage	= f2fs_read_data_page,
-eb47b800 Jaegeuk Kim 2012-11-02  1946  	.readpages	= f2fs_read_data_pages,
-
-:::::: The code at line 1938 was first introduced by commit
-:::::: 5b7a487cf32d3a266fea83d590d3226b5ad817a7 f2fs: add customized migrate_page callback
-
-:::::: TO: Weichao Guo <guoweichao@huawei.com>
-:::::: CC: Jaegeuk Kim <jaegeuk@kernel.org>
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> > To disable unsecure things. If someone enables SEV one might have an
+> > expectation of security.  Might help push vendors to do the right thing
+> > as a side effect.
+> 
+> Ok, you're looking at the SEV-cloud-multiple-guests aspect. Right, that
+> makes sense.
+> 
+> I guess for SEV we should even flip the logic: disable such devices by
+> default and an opt-in option to enable them and issue a big fat warning.
+> I'd even want to let the guest users know that they're on a system which
+> cannot give them encrypted DMA to some devices...
+> 
+> -- 
+> Regards/Gruss,
+>     Boris.
+> 
+> Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
