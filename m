@@ -1,94 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1536B0268
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:26:26 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id h201so15312545qke.7
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:26:26 -0800 (PST)
-Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id s5si16816987qkd.293.2016.11.22.08.26.26
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C60E6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:35:16 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 144so20600733pfv.5
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:35:16 -0800 (PST)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0113.outbound.protection.outlook.com. [104.47.1.113])
+        by mx.google.com with ESMTPS id n3si571707plb.230.2016.11.22.08.35.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 08:26:26 -0800 (PST)
-From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH 5/5] mm: migrate: Add vm.accel_page_copy in sysfs to control whether to use multi-threaded to accelerate page copy.
-Date: Tue, 22 Nov 2016 11:25:30 -0500
-Message-Id: <20161122162530.2370-6-zi.yan@sent.com>
-In-Reply-To: <20161122162530.2370-1-zi.yan@sent.com>
-References: <20161122162530.2370-1-zi.yan@sent.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 22 Nov 2016 08:35:15 -0800 (PST)
+Subject: Re: [PATCH 07/10] mm: warn about vfree from atomic context
+References: <1479474236-4139-1-git-send-email-hch@lst.de>
+ <1479474236-4139-8-git-send-email-hch@lst.de>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <996e56cb-137f-cd3e-eb69-e9ef03ad75c4@virtuozzo.com>
+Date: Tue, 22 Nov 2016 19:35:34 +0300
+MIME-Version: 1.0
+In-Reply-To: <1479474236-4139-8-git-send-email-hch@lst.de>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Christoph Hellwig <hch@lst.de>, akpm@linux-foundation.org
+Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-From: Zi Yan <zi.yan@cs.rutgers.edu>
+On 11/18/2016 04:03 PM, Christoph Hellwig wrote:
+> We can't handle vfree itself from atomic context, but callers
+> can explicitly use vfree_atomic instead, which defers the actual
+> vfree to a workqueue.  Unfortunately in_atomic does not work
+> on non-preemptible kernels, so we can't just do the right thing
+> by default.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  mm/vmalloc.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 80f3fae..e2030b4 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1530,6 +1530,7 @@ void vfree_atomic(const void *addr)
+>  void vfree(const void *addr)
+>  {
+>  	BUG_ON(in_nmi());
+> +	WARN_ON_ONCE(in_atomic());
 
-From: Zi Yan <ziy@nvidia.com>
+This one is wrong. We still can call vfree() from interrupt context.
+So WARN_ON_ONCE(in_atomic() && !in_interrupt()) would be correct,
+but also redundant. DEBUG_ATOMIC_SLEEP=y should catch illegal vfree() calls.
+Let's just drop this patch, ok?
 
-Since base page migration did not gain any speedup from
-multi-threaded methods, we only accelerate the huge page case.
 
-Signed-off-by: Zi Yan <ziy@nvidia.com>
-Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
----
- kernel/sysctl.c | 11 +++++++++++
- mm/migrate.c    |  6 ++++++
- 2 files changed, 17 insertions(+)
 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index d54ce12..6c79444 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -98,6 +98,8 @@
- #if defined(CONFIG_SYSCTL)
- 
- 
-+extern int accel_page_copy;
-+
- /* External variables not in a header file. */
- extern int suid_dumpable;
- #ifdef CONFIG_COREDUMP
-@@ -1361,6 +1363,15 @@ static struct ctl_table vm_table[] = {
- 		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
- 	},
- #endif
-+	{
-+		.procname	= "accel_page_copy",
-+		.data		= &accel_page_copy,
-+		.maxlen		= sizeof(accel_page_copy),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
- 	 {
- 		.procname	= "hugetlb_shm_group",
- 		.data		= &sysctl_hugetlb_shm_group,
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 244ece6..e64b490 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -48,6 +48,8 @@
- 
- #include "internal.h"
- 
-+int accel_page_copy = 1;
-+
- /*
-  * migrate_prep() needs to be called before we start compiling a list of pages
-  * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
-@@ -651,6 +653,10 @@ static void copy_huge_page(struct page *dst, struct page *src,
- 		nr_pages = hpage_nr_pages(src);
- 	}
- 
-+	/* Try to accelerate page migration if it is not specified in mode  */
-+	if (accel_page_copy)
-+		mode |= MIGRATE_MT;
-+
- 	if (mode & MIGRATE_MT)
- 		rc = copy_page_mt(dst, src, nr_pages);
- 
--- 
-2.10.2
+>  	kmemleak_free(addr);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
