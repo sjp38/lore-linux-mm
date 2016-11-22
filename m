@@ -1,118 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3D36B025E
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 01:44:58 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id xy5so7251606wjc.0
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 22:44:57 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id z84si961794wmg.75.2016.11.21.22.44.55
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 402C96B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 03:56:55 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id m203so5131381wma.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 00:56:55 -0800 (PST)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id hc8si24431961wjc.214.2016.11.22.00.56.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 22:44:55 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id a20so1359836wme.2
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 22:44:55 -0800 (PST)
-Date: Tue, 22 Nov 2016 07:44:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/page_alloc: Don't fail costly __GFP_NOFAIL
- allocations.
-Message-ID: <20161122064454.GB4829@dhcp22.suse.cz>
-References: <1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20161121060313.GB29816@dhcp22.suse.cz>
- <201611212016.GGG52176.LSOVtOHJFMQFFO@I-love.SAKURA.ne.jp>
- <20161121125431.GA18112@dhcp22.suse.cz>
- <20161122062936.GA4829@dhcp22.suse.cz>
+        Tue, 22 Nov 2016 00:56:53 -0800 (PST)
+Received: by mail-wm0-f47.google.com with SMTP id t79so13052100wmt.0
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 00:56:53 -0800 (PST)
+Subject: Re: Softlockup during memory allocation
+References: <e3177ea6-a921-dac9-f4f3-952c14e2c4df@kyup.com>
+ <a73f4917-48ac-bf1e-04d9-64fb937abfc6@kyup.com>
+ <CAJFSNy5_z_FA4DTPAtqBdOU+LmnfvdeVBtDhHuperv1MVU-9VA@mail.gmail.com>
+ <20161121053154.GA29816@dhcp22.suse.cz>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <ab42c7a5-49e2-4e46-be60-e0a56704a11d@kyup.com>
+Date: Tue, 22 Nov 2016 10:56:51 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161122062936.GA4829@dhcp22.suse.cz>
+In-Reply-To: <20161121053154.GA29816@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Linux MM <linux-mm@kvack.org>
 
-On Tue 22-11-16 07:29:36, Michal Hocko wrote:
-> I would even go one step further and do the following because, honestly,
-> I never liked GFP_NOFAIL having OOM side effects.
+
+
+On 11/21/2016 07:31 AM, Michal Hocko wrote:
+> Hi,
+> I am sorry for a late response, but I was offline until this weekend. I
+> will try to get to this email ASAP but it might take some time.
+
+No worries. I did some further digging up and here is what I got, which
+I believe is rather strange:
+
+struct scan_control {
+  nr_to_reclaim = 32,
+  gfp_mask = 37880010,
+  order = 0,
+  nodemask = 0x0,
+  target_mem_cgroup = 0xffff8823990d1400,
+  priority = 7,
+  may_writepage = 1,
+  may_unmap = 1,
+  may_swap = 0,
+  may_thrash = 1,
+  hibernation_mode = 0,
+  compaction_ready = 0,
+  nr_scanned = 0,
+  nr_reclaimed = 0
+}
+
+Parsing: 37880010
+#define ___GFP_HIGHMEM		0x02
+#define ___GFP_MOVABLE		0x08
+#define ___GFP_IO		0x40
+#define ___GFP_FS		0x80
+#define ___GFP_HARDWALL		0x20000
+#define ___GFP_DIRECT_RECLAIM	0x400000
+#define ___GFP_KSWAPD_RECLAIM	0x2000000
+
+And initial_priority is 12 (DEF_PRIORITY). Given that nr_scanned is 0
+and priority is 7 this means we've gone 5 times through the do {} while
+in do_try_to_free_pages. Also total_scanned seems to be 0.  Here is the
+zone which was being reclaimed :
+
+http://sprunge.us/hQBi
+
+So what's strange is that the softlockup occurred but then the code
+proceeded (as evident from the subsequent stack traces), yet inspecting
+the reclaim progress it seems rather sad (no progress at all)
+
+
 > 
-> @@ -3078,32 +3078,31 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	if (page)
->  		goto out;
->  
-> -	if (!(gfp_mask & __GFP_NOFAIL)) {
-> -		/* Coredumps can quickly deplete all memory reserves */
-> -		if (current->flags & PF_DUMPCORE)
-> -			goto out;
-> -		/* The OOM killer will not help higher order allocs */
-> -		if (order > PAGE_ALLOC_COSTLY_ORDER)
-> -			goto out;
-> -		/* The OOM killer does not needlessly kill tasks for lowmem */
-> -		if (ac->high_zoneidx < ZONE_NORMAL)
-> -			goto out;
-> -		if (pm_suspended_storage())
-> -			goto out;
-> -		/*
-> -		 * XXX: GFP_NOFS allocations should rather fail than rely on
-> -		 * other request to make a forward progress.
-> -		 * We are in an unfortunate situation where out_of_memory cannot
-> -		 * do much for this context but let's try it to at least get
-> -		 * access to memory reserved if the current task is killed (see
-> -		 * out_of_memory). Once filesystems are ready to handle allocation
-> -		 * failures more gracefully we should just bail out here.
-> -		 */
-> +	/* Coredumps can quickly deplete all memory reserves */
-> +	if (current->flags & PF_DUMPCORE)
-> +		goto out;
-> +	/* The OOM killer will not help higher order allocs */
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +		goto out;
-> +	/* The OOM killer does not needlessly kill tasks for lowmem */
-> +	if (ac->high_zoneidx < ZONE_NORMAL)
-> +		goto out;
-> +	if (pm_suspended_storage())
-> +		goto out;
-> +	/*
-> +	 * XXX: GFP_NOFS allocations should rather fail than rely on
-> +	 * other request to make a forward progress.
-> +	 * We are in an unfortunate situation where out_of_memory cannot
-> +	 * do much for this context but let's try it to at least get
-> +	 * access to memory reserved if the current task is killed (see
-> +	 * out_of_memory). Once filesystems are ready to handle allocation
-> +	 * failures more gracefully we should just bail out here.
-> +	 */
-> +
-> +	/* The OOM killer may not free memory on a specific node */
-> +	if (gfp_mask & __GFP_THISNODE)
-> +		goto out;
->  
-> -		/* The OOM killer may not free memory on a specific node */
-> -		if (gfp_mask & __GFP_THISNODE)
-> -			goto out;
-> -	}
->  	/* Exhausted what can be done so it's blamo time */
->  	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
->  		*did_some_progress = 1;
-
-Forgot to include this part of course
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index ec9f11d4f094..12a6fce85f61 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
- 	 * make sure exclude 0 mask - all other users should have at least
- 	 * ___GFP_DIRECT_RECLAIM to get here.
- 	 */
--	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
-+	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
- 		return true;
- 
- 	/*
-
-Anyway I will think about this some more and prepapre patches with the
-full changelog for further discussion.
--- 
-Michal Hocko
-SUSE Labs
+> On Mon 14-11-16 00:02:57, Nikolay Borisov wrote:
+>> Ping on that Michal, in case you've missed it. This seems like a
+>> genuine miss of a cond_resched. Can you at least confirm my analysis
+>> or is it complete bollocks?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
