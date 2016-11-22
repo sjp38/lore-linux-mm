@@ -1,84 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 80ED36B0038
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:43:26 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id j92so52653740ioi.2
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 20:43:26 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id x127si17291093iof.192.2016.11.21.20.43.25
-        for <linux-mm@kvack.org>;
-        Mon, 21 Nov 2016 20:43:25 -0800 (PST)
-Date: Tue, 22 Nov 2016 13:43:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm: support anonymous stable page
-Message-ID: <20161122044322.GA2864@bbox>
-References: <20161120233015.GA14113@bbox>
- <alpine.LSU.2.11.1611211932410.1085@eggly.anvils>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B816B0038
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:48:38 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id s63so1915719wms.7
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 20:48:37 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id jp8si23723719wjc.10.2016.11.21.20.48.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Nov 2016 20:48:36 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAM4hoMC079796
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:48:35 -0500
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26vcp5nhjw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 23:48:35 -0500
+Received: from localhost
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 22 Nov 2016 14:48:32 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 0C0BE3578053
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:48:30 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAM4mUqH3604818
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:48:30 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAM4mTjg025071
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 15:48:29 +1100
+Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
+ for unaddressable
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+ <1479493107-982-7-git-send-email-jglisse@redhat.com>
+ <5832D33C.6030403@linux.vnet.ibm.com> <20161121124218.GF2392@redhat.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 22 Nov 2016 10:18:27 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1611211932410.1085@eggly.anvils>
+In-Reply-To: <20161121124218.GF2392@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
+Message-Id: <5833CE1B.6030104@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Darrick J . Wong" <darrick.wong@oracle.com>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Hi Hugh,
-
-On Mon, Nov 21, 2016 at 07:46:28PM -0800, Hugh Dickins wrote:
-> On Mon, 21 Nov 2016, Minchan Kim wrote:
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Fri, 11 Nov 2016 15:02:57 +0900
-> > Subject: [PATCH v2] mm: support anonymous stable page
-> > 
-> > For developemnt for zram-swap asynchronous writeback, I found
-> > strange corruption of compressed page. With investigation, it
-> > reveals currently stable page doesn't support anonymous page.
-> > IOW, reuse_swap_page can reuse the page without waiting
-> > writeback completion so that it can corrupt data during
-> > zram compression. It can affect every swap device which supports
-> > asynchronous writeback and CRC checking as well as zRAM.
-> > 
-> > Unfortunately, reuse_swap_page should be atomic so that we
-> > cannot wait on writeback in there so the approach in this patch
-> > is simply return false if we found it needs stable page.
-> > Although it increases memory footprint temporarily, it happens
-> > rarely and it should be reclaimed easily althoug it happened.
-> > Also, It would be better than waiting of IO completion, which
-> > is critial path for application latency.
-> > 
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Darrick J. Wong <darrick.wong@oracle.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+On 11/21/2016 06:12 PM, Jerome Glisse wrote:
+> On Mon, Nov 21, 2016 at 04:28:04PM +0530, Anshuman Khandual wrote:
+>> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
+>>> To allow use of device un-addressable memory inside a process add a
+>>> special swap type. Also add a new callback to handle page fault on
+>>> such entry.
+>>
+>> IIUC this swap type is required only for the mirror cases and its
+>> not a requirement for migration. If it's required for mirroring
+>> purpose where we intercept each page fault, the commit message
+>> here should clearly elaborate on that more.
 > 
-> Acked-by: Hugh Dickins <hughd@google.com>
+> It is only require for un-addressable memory. The mirroring has nothing to do
+> with it. I will clarify commit message.
 
-Thanks!
+One thing though. I dont recall how persistent memory ZONE_DEVICE
+pages are handled inside the page tables, point here is it should
+be part of the same code block. We should catch that its a device
+memory page and then figure out addressable or not and act
+accordingly. Because persistent memory are CPU addressable, there
+might not been special code block but dealing with device pages 
+should be handled in a more holistic manner.
 
 > 
-> Looks good, thanks: we can always optimize away that little overhead
-> in the PageWriteback case, if it ever shows up in someone's testing.
-
-Yeb.
-
+> [...]
 > 
-> Andrew might ask if we should Cc stable (haha): I think we agree
-> that it's a defect we've been aware of ever since stable pages were
-> first proposed, but nobody has actually been troubled by it before
-> your async zram development: so, you're right to be fixing it ahead
-> of your zram changes, but we don't see a call for backporting.
+>>> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+>>> index b6f03e9..d584c74 100644
+>>> --- a/include/linux/memremap.h
+>>> +++ b/include/linux/memremap.h
+>>> @@ -47,6 +47,11 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+>>>   */
+>>>  struct dev_pagemap {
+>>>  	void (*free_devpage)(struct page *page, void *data);
+>>> +	int (*fault)(struct vm_area_struct *vma,
+>>> +		     unsigned long addr,
+>>> +		     struct page *page,
+>>> +		     unsigned flags,
+>>> +		     pmd_t *pmdp);
+>>
+>> We are extending the dev_pagemap once again to accommodate device driver
+>> specific fault routines for these pages. Wondering if this extension and
+>> the new swap type should be in the same patch.
+> 
+> It make sense to have it in one single patch as i also change page fault code
+> path to deal with the new special swap entry and those make use of this new
+> callback.
+> 
 
-I thought so until I see your comment. However, I checked again
-and found it seems a ancient bug since zram birth.
-swap_writepage unlock the page right before submitting bio while
-it keeps the lock during rw_page operation during bdev_write_page.
-So, if zram_rw_page fails(e.g, -ENOMEM) and then fallback to
-submit_bio in __swap_writepage, the problem can occur.
-
-Hmm, I will resend patchset with zram fix part with marking
-the stable.
-
-Thanks, Hugh!
+Okay.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
