@@ -1,186 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0B56B025E
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:59:38 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id n6so10260742qtd.4
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 05:59:38 -0800 (PST)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3BB6B0261
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 09:08:24 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id l20so10426617qta.3
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 06:08:24 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q71si16449933qka.66.2016.11.22.05.59.37
+        by mx.google.com with ESMTPS id 19si16487312qkh.207.2016.11.22.06.08.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 05:59:37 -0800 (PST)
-Date: Tue, 22 Nov 2016 08:59:33 -0500
+        Tue, 22 Nov 2016 06:08:23 -0800 (PST)
+Date: Tue, 22 Nov 2016 09:08:14 -0500
 From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
- for unaddressable
-Message-ID: <20161122135933.GA5684@redhat.com>
+Subject: Re: [HMM v13 01/18] mm/memory/hotplug: convert device parameter bool
+ to set of flags
+Message-ID: <20161122140814.GB5684@redhat.com>
 References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-7-git-send-email-jglisse@redhat.com>
- <3f759fff-fe8d-89c4-5c86-c9f27403bf3b@gmail.com>
- <20161121050518.GC7872@redhat.com>
- <0c55d239-b2f6-c515-6268-94a97fde8c81@gmail.com>
+ <1479493107-982-2-git-send-email-jglisse@redhat.com>
+ <5832972E.1050405@linux.vnet.ibm.com>
+ <20161121122740.GB2392@redhat.com>
+ <5833D922.1070900@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <0c55d239-b2f6-c515-6268-94a97fde8c81@gmail.com>
+In-Reply-To: <5833D922.1070900@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Tue, Nov 22, 2016 at 01:19:42PM +1100, Balbir Singh wrote:
-> 
-> 
-> On 21/11/16 16:05, Jerome Glisse wrote:
-> > On Mon, Nov 21, 2016 at 01:06:45PM +1100, Balbir Singh wrote:
-> >>
-> >>
-> >> On 19/11/16 05:18, Jerome Glisse wrote:
-> >>> To allow use of device un-addressable memory inside a process add a
-> >>> special swap type. Also add a new callback to handle page fault on
-> >>> such entry.
-> >>>
-> >>> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> >>> Cc: Dan Williams <dan.j.williams@intel.com>
-> >>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> >>> ---
-> >>>  fs/proc/task_mmu.c       | 10 +++++++-
-> >>>  include/linux/memremap.h |  5 ++++
-> >>>  include/linux/swap.h     | 18 ++++++++++---
-> >>>  include/linux/swapops.h  | 67 ++++++++++++++++++++++++++++++++++++++++++++++++
-> >>>  kernel/memremap.c        | 14 ++++++++++
-> >>>  mm/Kconfig               | 12 +++++++++
-> >>>  mm/memory.c              | 24 +++++++++++++++++
-> >>>  mm/mprotect.c            | 12 +++++++++
-> >>>  8 files changed, 158 insertions(+), 4 deletions(-)
-> >>>
-> >>> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> >>> index 6909582..0726d39 100644
-> >>> --- a/fs/proc/task_mmu.c
-> >>> +++ b/fs/proc/task_mmu.c
-> >>> @@ -544,8 +544,11 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
-> >>>  			} else {
-> >>>  				mss->swap_pss += (u64)PAGE_SIZE << PSS_SHIFT;
-> >>>  			}
-> >>> -		} else if (is_migration_entry(swpent))
-> >>> +		} else if (is_migration_entry(swpent)) {
-> >>>  			page = migration_entry_to_page(swpent);
-> >>> +		} else if (is_device_entry(swpent)) {
-> >>> +			page = device_entry_to_page(swpent);
-> >>> +		}
-> >>
-> >>
-> >> So the reason there is a device swap entry for a page belonging to a user process is
-> >> that it is in the middle of migration or is it always that a swap entry represents
-> >> unaddressable memory belonging to a GPU device, but its tracked in the page table
-> >> entries of the process.
-> > 
-> > For page being migrated i use the existing special migration pte entry. This new device
-> > special swap entry is only for unaddressable memory belonging to a device (GPU or any
-> > else). We need to keep track of those inside the CPU page table. Using a new special
-> > swap entry is the easiest way with the minimum amount of change to core mm.
-> > 
-> 
-> Thanks, makes sense
-> 
-> > [...]
-> > 
-> >>> +#ifdef CONFIG_DEVICE_UNADDRESSABLE
-> >>> +static inline swp_entry_t make_device_entry(struct page *page, bool write)
-> >>> +{
-> >>> +	return swp_entry(write?SWP_DEVICE_WRITE:SWP_DEVICE, page_to_pfn(page));
-> >>
-> >> Code style checks
-> > 
-> > I was trying to balance against 79 columns break rule :)
+On Tue, Nov 22, 2016 at 11:05:30AM +0530, Anshuman Khandual wrote:
+> On 11/21/2016 05:57 PM, Jerome Glisse wrote:
+> > On Mon, Nov 21, 2016 at 12:11:50PM +0530, Anshuman Khandual wrote:
+> >> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
 > > 
 > > [...]
 > > 
-> >>> +		} else if (is_device_entry(entry)) {
-> >>> +			page = device_entry_to_page(entry);
-> >>> +
-> >>> +			get_page(page);
-> >>> +			rss[mm_counter(page)]++;
-> >>
-> >> Why does rss count go up?
-> > 
-> > I wanted the device page to be treated like any other page. There is an argument
-> > to be made against and for doing that. Do you have strong argument for not doing
-> > this ?
-> > 
-> 
-> Yes, It will end up confusing rss accounting IMHO. If a task is using a lot of
-> pages on the GPU, should be it a candidate for OOM based on it's RSS for example?
-> 
-> > [...]
-> > 
-> >>> @@ -2536,6 +2557,9 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
-> >>>  	if (unlikely(non_swap_entry(entry))) {
-> >>>  		if (is_migration_entry(entry)) {
-> >>>  			migration_entry_wait(vma->vm_mm, fe->pmd, fe->address);
-> >>> +		} else if (is_device_entry(entry)) {
-> >>> +			ret = device_entry_fault(vma, fe->address, entry,
-> >>> +						 fe->flags, fe->pmd);
-> >>
-> >> What does device_entry_fault() actually do here?
-> > 
-> > Well it is a special fault handler, it must migrate the memory back to some place
-> > where the CPU can access it. It only matter for unaddressable memory.
-> 
-> So effectively swap the page back in, chances are it can ping pong ...but I was wondering if we can
-> tell the GPU that the CPU is accessing these pages as well. I presume any operation that causes
-> memory access - core dump will swap back in things from the HMM side onto the CPU side.
-
-Well it is up to device driver to gather statistic on what can/should be inside device memory.
-My expectation is that they will detect ping pong and stop asking to migrate a given address/
-range to device memory.
-
-> 
-> > 
-> >>>  		} else if (is_hwpoison_entry(entry)) {
-> >>>  			ret = VM_FAULT_HWPOISON;
-> >>>  		} else {
-> >>> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> >>> index 1bc1eb3..70aff3a 100644
-> >>> --- a/mm/mprotect.c
-> >>> +++ b/mm/mprotect.c
-> >>> @@ -139,6 +139,18 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> >>> @@ -956,7 +963,7 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+> >>>  	remove_pagetable(start, end, true);
+> >>>  }
 > >>>  
-> >>>  				pages++;
-> >>>  			}
+> >>> -int __ref arch_remove_memory(u64 start, u64 size)
+> >>> +int __ref arch_remove_memory(u64 start, u64 size, int flags)
+> >>>  {
+> >>>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+> >>>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+> >>> @@ -965,6 +972,12 @@ int __ref arch_remove_memory(u64 start, u64 size)
+> >>>  	struct zone *zone;
+> >>>  	int ret;
+> >>>  
+> >>> +	/* Need to add support for device and unaddressable memory if needed */
+> >>> +	if (flags & MEMORY_UNADDRESSABLE) {
+> >>> +		BUG();
+> >>> +		return -EINVAL;
+> >>> +	}
 > >>> +
-> >>> +			if (is_write_device_entry(entry)) {
-> >>> +				pte_t newpte;
-> >>> +
-> >>> +				make_device_entry_read(&entry);
-> >>> +				newpte = swp_entry_to_pte(entry);
-> >>> +				if (pte_swp_soft_dirty(oldpte))
-> >>> +					newpte = pte_swp_mksoft_dirty(newpte);
-> >>> +				set_pte_at(mm, addr, pte, newpte);
-> >>> +
-> >>> +				pages++;
-> >>> +			}
+> >>>  	/* With altmap the first mapped page is offset from @start */
+> >>>  	altmap = to_vmem_altmap((unsigned long) page);
+> >>>  	if (altmap)
 > >>
-> >> Does it make sense to call mprotect() on device memory ranges?
+> >> So with this patch none of the architectures support un-addressable
+> >> memory but then support will be added through later patches ?
+> >> zone_for_memory function's flag now takes MEMORY_DEVICE parameter.
+> >> Then we need to change all the previous ZONE_DEVICE changes which
+> >> ever took "for_device" to accommodate this new flag ? just curious.
 > > 
-> > There is nothing special about vma that containt device memory. They can be
-> > private anonymous, share, file back ... So any existing memory syscall must
-> > behave as expected. This is really just like any other page except that CPU
-> > can not access it.
+> > Yes correct.
+> > 
+> > 
+> >>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> >>> index 01033fa..ba9b12e 100644
+> >>> --- a/include/linux/memory_hotplug.h
+> >>> +++ b/include/linux/memory_hotplug.h
+> >>> @@ -103,7 +103,7 @@ extern bool memhp_auto_online;
+> >>>  
+> >>>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> >>>  extern bool is_pageblock_removable_nolock(struct page *page);
+> >>> -extern int arch_remove_memory(u64 start, u64 size);
+> >>> +extern int arch_remove_memory(u64 start, u64 size, int flags);
+> >>>  extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+> >>>  	unsigned long nr_pages);
+> >>>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> >>> @@ -275,7 +275,20 @@ extern int add_memory(int nid, u64 start, u64 size);
+> >>>  extern int add_memory_resource(int nid, struct resource *resource, bool online);
+> >>>  extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
+> >>>  		bool for_device);
+> >>> -extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
+> >>> +
+> >>> +/*
+> >>> + * For device memory we want more informations than just knowing it is device
+> >>> + * memory. We want to know if we can migrate it (ie it is not storage memory
+> >>> + * use by DAX). Is it addressable by the CPU ? Some device memory like GPU
+> >>> + * memory can not be access by CPU but we still want struct page so that we
+> >>> + * can use it like regular memory.
+> >>
+> >> Some typos here. Needs to be cleaned up as well. But please have a
+> >> look at comment below over the classification itself.
+> >>
+> >>> + */
+> >>> +#define MEMORY_FLAGS_NONE 0
+> >>> +#define MEMORY_DEVICE (1 << 0)
+> >>> +#define MEMORY_MOVABLE (1 << 1)
+> >>> +#define MEMORY_UNADDRESSABLE (1 << 2)
+> >>
+> >> It should be DEVICE_MEMORY_* instead of MEMORY_* as we are trying to
+> >> classify device memory (though they are represented with struct page)
+> >> not regular system ram memory. This should attempt to classify device
+> >> memory which is backed by struct pages. arch_add_memory/arch_remove
+> >> _memory does not come into play if it's traditional device memory
+> >> which is just PFN and does not have struct page associated with it.
+> > 
+> > Good idea i will change that.
+> > 
+> > 
+> >> Broadly they are either CPU accessible or in-accessible. Storage
+> >> memory like persistent memory represented though ZONE_DEVICE fall
+> >> under the accessible (coherent) category. IIUC right now they are
+> >> not movable because page->pgmap replaces page->lru in struct page
+> >> hence its inability to be on standard LRU lists as one of the
+> >> reasons. As there was a need to have struct page to exploit more
+> >> core VM features on these memory going forward it will have to be
+> >> migratable one way or the other to accommodate features like
+> >> compaction, HW poison etc in these storage memory. Hence my point
+> >> here is lets not classify any of these memories as non-movable.
+> >> Just addressable or not should be the only classification.
+> > 
+> > Being on the lru or not is not and issue in respect to migration. Being
 > 
-> I understand that, but what would marking it as R/O when the GPU is in the middle
-> of write mean? I would also worry about passing "executable" pages over to the
-> other side.
+> Right, provided we we create separate migration interfaces for these non
+> LRU pages (preferably through HMM migration API layer). But where it
+> stands today, for NUMA migrate_pages() interface device non LRU memory
+> is a problem and we cannot use it for migration. Hence I brought up the
+> non LRU issue here.
+> 
+> > on the lru was use as an indication that the page is manage through the
+> > standard mm code and thus that many assumptions hold which in turn do
+> > allow migration. But if one use device memory following all rules of
+> > regular memory then migration can be done to no matter if page is on
+> > lru or not.
+> 
+> Right.
+> 
+> > 
+> > I still think that the MOVABLE is an important distinction as i am pretty
+> > sure that the persistent folks do not want to see their page migrated in
+> > anyway. I might rename it to DEVICE_MEMORY_ALLOW_MIGRATION.
+> 
+> We should not classify memory based on whether there is a *requirement*
+> for migration or not at this point of time, the classification should
+> be done if its inherently migratable or not. I dont see any reason why
+> persistent memory cannot be migrated. I am not very familiar with DAX
+> file system and its use of persistent memory but I would guess that
+> their requirement for compaction and error handling happens way above
+> in file system layers, hence they never needed these support at struct
+> page level. I am just guessing.
+> 
+> Added Dan J Williams in this thread list, he might be able to give us
+> some more details regarding persistent memory migration requirements
+> and it's current state.
 > 
 
-Any memory protection change will trigger an mmu_notifier calls which in turn will
-update the device page table accordingly. So R/O status will also happen on the GPU.
-
-We assume here that the device driver is not doing evil thing and that device driver
-obey memory protection for all range it mirrors. Upstream driver are easy to check.
-Close driver might be more problematic, in NVidia case this part if open source and
-is easily checkable.
+Well my patches change even the existing migrate code and thus i need to make
+sure i do not change behavior that DAX/persistent memory folks rely on. Hence
+i need a flag to allow device page migration or not. If that flag prove useless
+latter on it can be remove but for now to maintain existing behavior it is
+needed.
 
 Cheers,
 Jerome
