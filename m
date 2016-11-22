@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B02F36B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:03:20 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id r101so58291415ioi.3
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:03:20 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id 134si3558014itw.6.2016.11.22.08.03.19
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD576B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:06:37 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id j65so63285156iof.1
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:06:37 -0800 (PST)
+Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
+        by mx.google.com with ESMTPS id u63si20079461ioi.37.2016.11.22.08.06.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 08:03:19 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id b123so2301632itb.2
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:03:19 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 22 Nov 2016 08:06:35 -0800 (PST)
+Date: Tue, 22 Nov 2016 08:06:29 -0800
+From: Marc MERLIN <marc@merlins.org>
+Message-ID: <20161122160629.uzt2u6m75ash4ved@merlins.org>
+References: <20161121154336.GD19750@merlins.org>
+ <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
-References: <1478271776-1194-1-git-send-email-akash.goel@intel.com>
- <1478271776-1194-2-git-send-email-akash.goel@intel.com> <20161109112835.kivhola7ux3lw4s6@phenom.ffwll.local>
- <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
-From: Matthew Auld <matthew.william.auld@gmail.com>
-Date: Tue, 22 Nov 2016 16:02:49 +0000
-Message-ID: <CAM0jSHPsD3+sAgK9bqDW3cm-C+PeAb-ojJq2JnEzC--HtyfMGg@mail.gmail.com>
-Subject: Re: [Intel-gfx] [PATCH 2/2] drm/i915: Make GPU pages movable
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161121215639.GF13371@merlins.org>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Daniel Vetter <daniel@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Sourab Gupta <sourab.gupta@intel.com>, linux-mm@kvack.org, akash.goel@intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>
 
-On 9 November 2016 at 18:36, Hugh Dickins <hughd@google.com> wrote:
-> On Wed, 9 Nov 2016, Daniel Vetter wrote:
->>
->> Hi all -mm folks!
->>
->> Any feedback on these two? It's kinda an intermediate step towards a
->> full-blown gemfs, and I think useful for that. Or do we need to go
->> directly to our own backing storage thing? Aside from ack/nack from -mm I
->> think this is ready for merging.
->
-> I'm currently considering them at last: will report back later.
->
-> Full-blown gemfs does not come in here, of course; but let me
-> fire a warning shot since you mention it: if it's going to use swap,
-> then we shall probably have to nak it in favour of continuing to use
-> infrastructure from mm/shmem.c.  I very much understand why you would
-> love to avoid that dependence, but I doubt it can be safely bypassed.
-Could you please elaborate on what specifically you don't like about
-gemfs implementing swap, just to make sure I'm following?
+On Mon, Nov 21, 2016 at 01:56:39PM -0800, Marc MERLIN wrote:
+> On Mon, Nov 21, 2016 at 10:50:20PM +0100, Vlastimil Babka wrote:
+> > > 4.9rc5 however seems to be doing better, and is still running after 18
+> > > hours. However, I got a few page allocation failures as per below, but the
+> > > system seems to recover.
+> > > Vlastimil, do you want me to continue the copy on 4.9 (may take 3-5 days) 
+> > > or is that good enough, and i should go back to 4.8.8 with that patch applied?
+> > > https://marc.info/?l=linux-mm&m=147423605024993
+> > 
+> > Hi, I think it's enough for 4.9 for now and I would appreciate trying
+> > 4.8 with that patch, yeah.
+> 
+> So the good news is that it's been running for almost 5H and so far so good.
 
-Thanks,
-Matt
+And the better news is that the copy is still going strong, 4.4TB and
+going. So 4.8.8 is fixed with that one single patch as far as I'm
+concerned.
+
+So thanks for that, looks good to me to merge.
+
+Marc
+-- 
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
