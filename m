@@ -1,55 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EA4B6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 10:41:41 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u144so11153905wmu.1
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 07:41:41 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id xw2si11802069wjc.22.2016.11.22.07.41.39
-        for <linux-mm@kvack.org>;
-        Tue, 22 Nov 2016 07:41:39 -0800 (PST)
-Date: Tue, 22 Nov 2016 16:41:37 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v3 13/20] x86: DMA support for memory encryption
-Message-ID: <20161122154137.z5vp3xcl5cpesuiz@pd.tnic>
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003723.3280.62636.stgit@tlendack-t1.amdoffice.net>
- <20161115171443-mutt-send-email-mst@kernel.org>
- <4d97f998-5835-f4e0-9840-7f7979251275@amd.com>
- <20161122113859.5dtlrfgizwpum6st@pd.tnic>
- <20161122171455-mutt-send-email-mst@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 0BECB6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 10:48:09 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a20so11220613wme.5
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 07:48:08 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 9si3173000wmp.69.2016.11.22.07.48.07
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Nov 2016 07:48:07 -0800 (PST)
+Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort allocations
+ in blkcg
+References: <20161121154336.GD19750@merlins.org>
+ <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org> <20161121230332.GA3767@htj.duckdns.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
+Date: Tue, 22 Nov 2016 16:47:49 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20161122171455-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20161121230332.GA3767@htj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
 
-On Tue, Nov 22, 2016 at 05:22:38PM +0200, Michael S. Tsirkin wrote:
-> The issue is it's a (potential) security hole, not a slowdown.
+On 11/22/2016 12:03 AM, Tejun Heo wrote:
+> blkcg allocates some per-cgroup data structures with GFP_NOWAIT and
+> when that fails falls back to operations which aren't specific to the
+> cgroup.  Occassional failures are expected under pressure and falling
+> back to non-cgroup operation is the right thing to do.
+> 
+> Unfortunately, I forgot to add __GFP_NOWARN to these allocations and
+> these expected failures end up creating a lot of noise.  Add
+> __GFP_NOWARN.
 
-How? Because the bounce buffers will be unencrypted and someone might
-intercept them?
+Thanks. Makes me wonder whether we should e.g. add __GFP_NOWARN to
+GFP_NOWAIT globally at some point.
 
-> To disable unsecure things. If someone enables SEV one might have an
-> expectation of security.  Might help push vendors to do the right thing
-> as a side effect.
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reported-by: Marc MERLIN <marc@merlins.org>
+> Reported-by: Vlastimil Babka <vbabka@suse.cz>
 
-Ok, you're looking at the SEV-cloud-multiple-guests aspect. Right, that
-makes sense.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-I guess for SEV we should even flip the logic: disable such devices by
-default and an opt-in option to enable them and issue a big fat warning.
-I'd even want to let the guest users know that they're on a system which
-cannot give them encrypted DMA to some devices...
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+> ---
+>  block/blk-cgroup.c  |    9 +++++----
+>  block/cfq-iosched.c |    3 ++-
+>  2 files changed, 7 insertions(+), 5 deletions(-)
+> 
+> diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
+> index b08ccbb..8ba0af7 100644
+> --- a/block/blk-cgroup.c
+> +++ b/block/blk-cgroup.c
+> @@ -185,7 +185,8 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
+>  	}
+>  
+>  	wb_congested = wb_congested_get_create(&q->backing_dev_info,
+> -					       blkcg->css.id, GFP_NOWAIT);
+> +					       blkcg->css.id,
+> +					       GFP_NOWAIT | __GFP_NOWARN);
+>  	if (!wb_congested) {
+>  		ret = -ENOMEM;
+>  		goto err_put_css;
+> @@ -193,7 +194,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
+>  
+>  	/* allocate */
+>  	if (!new_blkg) {
+> -		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT);
+> +		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT | __GFP_NOWARN);
+>  		if (unlikely(!new_blkg)) {
+>  			ret = -ENOMEM;
+>  			goto err_put_congested;
+> @@ -1022,7 +1023,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
+>  	}
+>  
+>  	spin_lock_init(&blkcg->lock);
+> -	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT);
+> +	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT | __GFP_NOWARN);
+>  	INIT_HLIST_HEAD(&blkcg->blkg_list);
+>  #ifdef CONFIG_CGROUP_WRITEBACK
+>  	INIT_LIST_HEAD(&blkcg->cgwb_list);
+> @@ -1240,7 +1241,7 @@ int blkcg_activate_policy(struct request_queue *q,
+>  		if (blkg->pd[pol->plid])
+>  			continue;
+>  
+> -		pd = pol->pd_alloc_fn(GFP_NOWAIT, q->node);
+> +		pd = pol->pd_alloc_fn(GFP_NOWAIT | __GFP_NOWARN, q->node);
+>  		if (!pd)
+>  			swap(pd, pd_prealloc);
+>  		if (!pd) {
+> diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
+> index 5e24d88..b4c3b6c 100644
+> --- a/block/cfq-iosched.c
+> +++ b/block/cfq-iosched.c
+> @@ -3854,7 +3854,8 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
+>  			goto out;
+>  	}
+>  
+> -	cfqq = kmem_cache_alloc_node(cfq_pool, GFP_NOWAIT | __GFP_ZERO,
+> +	cfqq = kmem_cache_alloc_node(cfq_pool,
+> +				     GFP_NOWAIT | __GFP_ZERO | __GFP_NOWARN,
+>  				     cfqd->queue->node);
+>  	if (!cfqq) {
+>  		cfqq = &cfqd->oom_cfqq;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
