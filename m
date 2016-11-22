@@ -1,64 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 700216B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:47:17 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id j65so64239446iof.1
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:47:17 -0800 (PST)
-Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
-        by mx.google.com with ESMTPS id a127si20238457iog.65.2016.11.22.08.47.16
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FEF66B0253
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:48:24 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id d187so29379904ywe.1
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:48:24 -0800 (PST)
+Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
+        by mx.google.com with ESMTPS id m123si6493311yba.274.2016.11.22.08.48.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 22 Nov 2016 08:47:16 -0800 (PST)
-Date: Tue, 22 Nov 2016 08:47:11 -0800
-From: Marc MERLIN <marc@merlins.org>
-Message-ID: <20161122164711.5cpdl4ukr7rry4nf@merlins.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Nov 2016 08:48:23 -0800 (PST)
+Received: by mail-yw0-x243.google.com with SMTP id r204so2639790ywb.3
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 08:48:23 -0800 (PST)
+Date: Tue, 22 Nov 2016 11:48:22 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort
+ allocations in blkcg
+Message-ID: <20161122164822.GA5459@htj.duckdns.org>
 References: <20161121154336.GD19750@merlins.org>
  <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
  <20161121215639.GF13371@merlins.org>
- <20161122160629.uzt2u6m75ash4ved@merlins.org>
- <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <20161122162544.GG6831@dhcp22.suse.cz>
+ <20161121230332.GA3767@htj.duckdns.org>
+ <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161122162544.GG6831@dhcp22.suse.cz>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
+In-Reply-To: <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
 
-On Tue, Nov 22, 2016 at 05:25:44PM +0100, Michal Hocko wrote:
-> currently AFAIR. I hate that Marc is not falling into that category but
-> is it really problem for you to run with 4.9? If we have more users
+Hello,
 
-Don't do anything just on my account. I had a problem, it's been fixed
-in 2 different ways: 4.8+patch, or 4.9rc5
+On Tue, Nov 22, 2016 at 04:47:49PM +0100, Vlastimil Babka wrote:
+> Thanks. Makes me wonder whether we should e.g. add __GFP_NOWARN to
+> GFP_NOWAIT globally at some point.
 
-For me this was a 100% regression from 4.6, there was just no way I
-could copy my data at all with 4.8, it not only failed, but killed all
-the services on my machine until it randomly killed the shell that was
-doing the copy.
-Personally, I'll stick with 4.8 + this patch, and switch to 4.9 when
-it's out (I'm a bit wary of RC kernels on a production server,
-especially when I'm in the middle of trying to get my only good backup
-to work again)
+Yeah, that makes sense.  The caller is explicitly saying that it's
+okay to fail the allocation.
 
-But at the same time, what I'm doing is probably not common (btrfs on
-top of dmcrypt, on top of bcache, on top of swraid5, for both source and
-destination), so I can't comment on whether the fix I just put on my 4.8
-kernel does not cause other regressions or problems for other people.
+Thanks.
 
-Either way, I'm personally ok again now, so I thank you all for your
-help, and will leave the hard decisions to you :)
-
-Marc
 -- 
-"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
-Microsoft is to operating systems ....
-                                      .... what McDonalds is to gourmet cooking
-Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
