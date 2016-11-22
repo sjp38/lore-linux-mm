@@ -1,60 +1,126 @@
-From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
-Subject: Re: [RFC PATCH v3 11/20] x86: Add support for changing memory
-	encryption attribute
-Date: Mon, 21 Nov 2016 09:27:54 +0100
-Message-ID: <20161121082754.at6lhjhekbzjgyhc@pd.tnic>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v3 15/20] x86: Check for memory encryption on the APs
+Date: Tue, 22 Nov 2016 20:25:26 +0100
+Message-ID: <20161122192526.vg63jjhwsbjwex7i@pd.tnic>
 References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
-	<20161110003655.3280.57333.stgit@tlendack-t1.amdoffice.net>
-	<20161117173945.gnar3arpyeeh5xm2@pd.tnic>
-	<6f1a16e4-5a84-20c0-4bd3-3be5ed933800@amd.com>
+ <20161110003740.3280.57300.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-doc-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <6f1a16e4-5a84-20c0-4bd3-3be5ed933800-5C7GfCeVMHo@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-Cc: linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, Larry Woodman <lwoodman-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Rik van Riel <riel-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Paolo Bonzini <pbonzini-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>
+In-Reply-To: <20161110003740.3280.57300.stgit@tlendack-t1.amdoffice.net>
+Sender: linux-doc-owner@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>
 List-Id: linux-mm.kvack.org
 
-On Sat, Nov 19, 2016 at 12:48:27PM -0600, Tom Lendacky wrote:
-> Should I move this functionality into the sme_set_mem_* functions or
-> remove the sme_set_mem_* functions and use the set_memory_* functions
-> directly.  The latter means calculating the number of pages, but makes
-> it clear that this works on a page level while the former keeps
-> everything the mem_encrypt.c file (and I can change that to take in a
-> page count so that it is clear about the page boundary usage).
+On Wed, Nov 09, 2016 at 06:37:40PM -0600, Tom Lendacky wrote:
+> Add support to check if memory encryption is active in the kernel and that
+> it has been enabled on the AP. If memory encryption is active in the kernel
+> but has not been enabled on the AP then do not allow the AP to continue
+> start up.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/realmode.h      |   12 ++++++++++++
+>  arch/x86/realmode/init.c             |    4 ++++
+>  arch/x86/realmode/rm/trampoline_64.S |   19 +++++++++++++++++++
+>  3 files changed, 35 insertions(+)
+> 
+> diff --git a/arch/x86/include/asm/realmode.h b/arch/x86/include/asm/realmode.h
+> index 230e190..850dbe0 100644
+> --- a/arch/x86/include/asm/realmode.h
+> +++ b/arch/x86/include/asm/realmode.h
+> @@ -1,6 +1,15 @@
+>  #ifndef _ARCH_X86_REALMODE_H
+>  #define _ARCH_X86_REALMODE_H
+>  
+> +/*
+> + * Flag bit definitions for use with the flags field of the trampoline header
+> + * when configured for X86_64
 
-A user of that interface doesn't care, right?
+Let's use kernel nomenclature: "... of the trampoline header in the
+CONFIG_X86_64 variant."
 
-All she wants to do is pass in an address and size and the code will
-figure out everything. And I think address and size is the simplest two
-args you can pass. numpages can be calculated from it. As you do in
-sme_set_mem_*.
+> + */
+> +#define TH_FLAGS_SME_ENABLE_BIT		0
+> +#define TH_FLAGS_SME_ENABLE		BIT_ULL(TH_FLAGS_SME_ENABLE_BIT)
 
-And you need to do it all in pageattr.c because it uses the cpa wankery
-in there so you probably want to define
+BIT() is the proper one for u32 flags variable.
 
-int set_memory_dec(unsigned long addr, size_t size)
-int set_memory_enc(unsigned long addr, size_t size)
+> +
+> +#ifndef __ASSEMBLY__
+> +
+>  #include <linux/types.h>
+>  #include <asm/io.h>
+>  
+> @@ -38,6 +47,7 @@ struct trampoline_header {
+>  	u64 start;
+>  	u64 efer;
+>  	u32 cr4;
+> +	u32 flags;
+>  #endif
+>  };
+>  
+> @@ -69,4 +79,6 @@ static inline size_t real_mode_size_needed(void)
+>  void set_real_mode_mem(phys_addr_t mem, size_t size);
+>  void reserve_real_mode(void);
+>  
+> +#endif /* __ASSEMBLY__ */
+> +
+>  #endif /* _ARCH_X86_REALMODE_H */
+> diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
+> index 44ed32a..a8e7ebe 100644
+> --- a/arch/x86/realmode/init.c
+> +++ b/arch/x86/realmode/init.c
+> @@ -101,6 +101,10 @@ static void __init setup_real_mode(void)
+>  	trampoline_cr4_features = &trampoline_header->cr4;
+>  	*trampoline_cr4_features = mmu_cr4_features;
+>  
+> +	trampoline_header->flags = 0;
+> +	if (sme_me_mask)
+> +		trampoline_header->flags |= TH_FLAGS_SME_ENABLE;
+> +
+>  	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+>  	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
+>  	trampoline_pgd[511] = init_level4_pgt[511].pgd;
+> diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
+> index dac7b20..94e29f4 100644
+> --- a/arch/x86/realmode/rm/trampoline_64.S
+> +++ b/arch/x86/realmode/rm/trampoline_64.S
+> @@ -30,6 +30,7 @@
+>  #include <asm/msr.h>
+>  #include <asm/segment.h>
+>  #include <asm/processor-flags.h>
+> +#include <asm/realmode.h>
+>  #include "realmode.h"
+>  
+>  	.text
+> @@ -92,6 +93,23 @@ ENTRY(startup_32)
+>  	movl	%edx, %fs
+>  	movl	%edx, %gs
+>  
+> +	/* Check for memory encryption support */
+> +	bt	$TH_FLAGS_SME_ENABLE_BIT, pa_tr_flags
+> +	jnc	.Ldone
+> +	movl	$MSR_K8_SYSCFG, %ecx
+> +	rdmsr
+> +	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
+> +	jc	.Ldone
+> +
+> +	/*
+> +	 * Memory encryption is enabled but the MSR has not been set on this
+> +	 * CPU so we can't continue
 
-there which both simply call
+Can this ever happen?
 
-__set_memory_enc_dec(unsigned long addr, size_t size, bool enc)
+I mean, we set TH_FLAGS_SME_ENABLE when sme_me_mask is set and this
+would have happened only if the BSP has MSR_K8_SYSCFG[23] set.
 
-and it goes and figures out everything, builds the cpa_data and does the
-mapping.
+How is it possible that that bit won't be set on some of the APs but set
+on the BSP?
 
-That looks very simple and clean to me.
+I'd assume the BIOS is doing a consistent setting everywhere...
 
 -- 
 Regards/Gruss,
