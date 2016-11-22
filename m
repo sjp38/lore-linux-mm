@@ -1,368 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1388B6B0038
-	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 20:17:17 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id b132so5443854iti.5
-        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 17:17:17 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id q68si11067970iof.22.2016.11.21.17.17.15
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D8106B0038
+	for <linux-mm@kvack.org>; Mon, 21 Nov 2016 21:19:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id x23so7137605pgx.6
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 18:19:49 -0800 (PST)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id g6si25696252pgp.201.2016.11.21.18.19.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Nov 2016 17:17:16 -0800 (PST)
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb
- for huge page UFFDIO_COPY
-References: <1478115245-32090-16-git-send-email-aarcange@redhat.com>
- <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com>
- <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com>
- <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com>
- <20161104193626.GU4611@redhat.com>
- <1805f956-1777-471c-1401-46c984189c88@oracle.com>
- <20161116182809.GC26185@redhat.com>
- <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com>
- <20161117154031.GA10229@redhat.com>
- <718434af-d279-445d-e210-201bf02f434f@oracle.com>
- <20161118000527.GB10229@redhat.com>
- <c9350efa-ca79-c514-0305-22c90fdbb0df@oracle.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <1b60f0b3-835f-92d6-33e2-e7aaab3209cc@oracle.com>
-Date: Mon, 21 Nov 2016 17:16:34 -0800
+        Mon, 21 Nov 2016 18:19:48 -0800 (PST)
+Received: by mail-pf0-x243.google.com with SMTP id i88so292834pfk.2
+        for <linux-mm@kvack.org>; Mon, 21 Nov 2016 18:19:48 -0800 (PST)
+Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
+ for unaddressable
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+ <1479493107-982-7-git-send-email-jglisse@redhat.com>
+ <3f759fff-fe8d-89c4-5c86-c9f27403bf3b@gmail.com>
+ <20161121050518.GC7872@redhat.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <0c55d239-b2f6-c515-6268-94a97fde8c81@gmail.com>
+Date: Tue, 22 Nov 2016 13:19:42 +1100
 MIME-Version: 1.0
-In-Reply-To: <c9350efa-ca79-c514-0305-22c90fdbb0df@oracle.com>
+In-Reply-To: <20161121050518.GC7872@redhat.com>
 Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 11/17/2016 09:52 PM, Mike Kravetz wrote:
-> On 11/17/2016 04:05 PM, Andrea Arcangeli wrote:
->> On Thu, Nov 17, 2016 at 11:26:17AM -0800, Mike Kravetz wrote:
->>> On 11/17/2016 07:40 AM, Andrea Arcangeli wrote:
->>>> On Wed, Nov 16, 2016 at 10:53:39AM -0800, Mike Kravetz wrote:
->>>>> I was running some tests with error injection to exercise the error
->>>>> path and noticed the reservation leaks as the system eventually ran
->>>>> out of huge pages.  I need to think about it some more, but we may
->>>>> want to at least do something like the following before put_page (with
->>>>> a BIG comment):
->>>>>
->>>>> 	if (unlikely(PagePrivate(page)))
->>>>> 		ClearPagePrivate(page);
->>>>>
->>>>> That would at least keep the global reservation count from increasing.
->>>>> Let me look into that.
->>>>
->>>> However what happens if the old vma got munmapped
->>>
->>> When the huge page was allocated, the reservation map associated with
->>> the vma was marked to indicate the reservation was consumed.  In addition
->>> the global reservation count and subpool count were adjusted to account
->>> for the page allocation.  So, when the vma gets unmapped the reservation
->>> map will be examined.  Since the map indicates the reservation was consumed,
->>> no adjustment will be made to the global or subpool reservation count.
->>
->> ClearPagePrivate before put_page, will simply avoid to run
->> h->resv_huge_pages++?
-> 
-> Correct
-> 
->> Not increasing resv_huge_pages means more non reserved allocations
->> will pass. That is a global value though, how is it ok to leave it
->> permanently lower?
-> 
-> Recall that h->resv_huge_pages is incremented when a mapping/vma is
-> created to indicate that reservations exist. It is decremented when
-> a huge page is allocated.  In addition, the reservation map is
-> initially set up to indicate that reservations exist for the
-> pages in the mapping. When a page is allocated the map is modified
-> to indicate a reservation was consumed.
-> 
-> So path, resv_huge_pages was decremented as the page was allocated
-> and the reserve map indicates the reservation was consumed.  At this
-> time, resv_huge_pages and the reserve map accurately reflect the
-> state of reservations in the vma and globally.
-> 
-> In this path, we were unable instantiate the page in the mapping/vma
-> so we must free the page.  The "ideal" solution would be to adjust the
-> reserve mat to indicate the reservation was not consumed, and increment
-> resv_huge_pages.  However, since we dropped mmap_sema we can not adjust
-> the reserve map.  So, the questions is what should be done with
-> resv_huge_pages?   There are only two options.
-> 1) Leave it "as is" when the page is free'ed.
->    In this case, the reserve map will indicate the reservation was consumed
->    but there will not be an associated page in the mapping.  Therefore,
->    it is possible that a susbequent fault can happen on the page.  At that
->    time, it will appear as though the reservation for the page was already
->    consumed.  Therefore, is there are not any available pages the fault will
->    fail (ENOMEM).  Note that this only impacts subsequent faults of this
->    specific mapping/page.
-> 2) Increment it when the page is free'ed
->    As above, the reserve map will still indicate the reservation was
-> consumed
->    and subsequent faults can only be satisfied if there are available pages.
->    However, there is now a global reservation as indicated by
-> resv_huge_pages
->    that is not associated with any mapping.  What this means is that there
->    is a reserved page and nobody can use.  The reservation is being held for
->    a mapping that has already consumed the reservation.
-> 
->> If PagePrivate was set, it means alloc_huge_page already run this:
->>
->> 			SetPagePrivate(page);
->> 			h->resv_huge_pages--;
->>
->> But it would also have set a reserve map on the vma for that range
->> before that.
->>
->> When the vma is destroyed the reserve is flushed back to global, minus
->> the consumed pages (reserve = (end - start) - region_count(resv,
->> start, end)).
-> 
-> Consider a very simply 1 page vma.  Obviously, (end - start) = 1 and
-> as mentioned above the reserve map was adjusted to indicate the reservation
-> was consumed.  So, region_count(resv, start, end) is also going to = 1
-> and reserve will = 0.  Therefore, no adjustment of resv_huge_pages will
-> be made when the the vma is destroyed.
-> 
-> The same happens for the the single page within a larger vma.
-> 
->> Why should then we skip h->resv_huge_pages++ for the consumed pages by
->> running ClearPagePrivate?
->>
->> It's not clear was wrong in the first place considering
->> put_page->free_huge_page() acts on the global stuff only?
-> 
-> See the description of 2) above.
-> 
->> void restore_reserve_on_error(struct hstate *h, struct vm_area_struct *vma,
->> 				unsigned long address, struct page *page)
->> {
->> 	if (unlikely(PagePrivate(page))) {
->> 		long rc = vma_needs_reservation(h, vma, address);
->>
->> 		if (unlikely(rc < 0)) {
->> 			/*
->> 			 * Rare out of memory condition in reserve map
->> 			 * manipulation.  Clear PagePrivate so that
->> 			 * global reserve count will not be incremented
->> 			 * by free_huge_page.  This will make it appear
->> 			 * as though the reservation for this page was
->> 			 * consumed.  This may prevent the task from
->> 			 * faulting in the page at a later time.  This
->> 			 * is better than inconsistent global huge page
->> 			 * accounting of reserve counts.
->> 			 */
->> 			ClearPagePrivate(page);
->>
->> The ClearPagePrivate was run above because vma_needs_reservation run
->> out of memory and couldn't be added?
-> 
-> restore_reserve_on_error tries to do the "ideal" cleanup by adjusting
-> the reserve map to indicate the reservation was not consumed.  If it
-> can do this, then it does not ClearPagePrivate(page) as the global
-> reservation count SHOULD be incremented as the reserve map now indicates
-> the reservation as not consumed.
-> 
-> The only time it can not adjust the reserve map is if the reserve map
-> map manipulation routines fail.  They would only fail if they can not
-> allocate a 32 byte structure used to track reservations.  As noted in
-> the comments this is rare, and if we can't allocate 32 bytes I suspect
-> there are other issues.  But, in this case ClearPagePrivate is run so
-> that when the page is free'ed the global count will be consistent with
-> the reserve map.  This is essentially why I think we should do the same
-> in __mcopy_atomic_hugetlb.
-> 
->> So I suppose the vma reservation wasn't possible in the above case, in
->> our allocation case alloc_huge_page succeeded at those reserve maps
->> allocations:
->>
->> 	map_chg = gbl_chg = vma_needs_reservation(h, vma, addr);
->> 	if (map_chg < 0)
->> 		return ERR_PTR(-ENOMEM);
->> 	[..]
->> 		if (!avoid_reserve && vma_has_reserves(vma, gbl_chg)) {
->> 			SetPagePrivate(page);
->> 			h->resv_huge_pages--;
->> 		}
->>
-> 
-> It is slightly different.  In alloc_huge_page we are adjusting the reserve
-> map to indicate the reservation was consumed.  In restore_reserve_on_error
-> we are adjusting the map to indicate the reservation was not consumed.
-> 
->>>>                                                   and a new compatible
->>>> vma was instantiated and passes revalidation fine? The reserved page
->>>> of the old vma goes to a different vma then?
->>>
->>> No, the new vma should get a new reservation.  It can not use the old
->>> reservation as it was associated with the old vma.  This is at least
->>> the case for private mappings where the reservation maps are associated
->>> with the vma.
->>
->> You're not suggesting to call ClearPagePrivate in the second pass of
->> the "retry" loop if all goes fine and second pass succeeds, but only if
->> we end up in a error of revalidation at the second pass?
-> 
-> That is correct.  Only on the error path.  We will only call put_page
-> on the error path and we only call ClearPagePrivate before put_page.
-> 
->>
->> So the page with PagePrivate set could go to a different vma despite
->> the vma reserve map was accounted for in the original vma? Is that ok?
-> 
-> Yes, see the potential issue with subsequent faults.  It is not the
-> "ideal" case that would be sone in restore_reserve_on_error, but I
-> think it is the beast alternative.  And, I'm guessing this error
-> path is not something we will hit frequently?  Or, do you think it
-> will be exercised often?
-> 
->>>> This reservation code is complex and has lots of special cases anyway,
->>>> but the main concern at this point is the
->>>> set_page_private(subpool_vma(vma)) released by
->>>> hugetlb_vm_op_close->unlock_or_release_subpool.
->>>
->>> Do note that set_page_private(subpool_vma(vma)) just indicates which
->>> subpool was used when the huge page was allocated.  I do not believe
->>> there is any connection made to the vma.  The vma is only used to get
->>> to the inode and superblock which contains subpool information.  With
->>> the subpool stored in page_private, the subpool count can be adjusted
->>> at free_huge_page time.  Also note that the subpool can not be free'ed
->>> in unlock_or_release_subpool until put_page is complete for the page.
->>> This is because the page is accounted for in spool->used_hpages.
->>
->> Yes I figured myself shortly later used_hpages. So there's no risk of
->> use after free on the subpool pointed by the page at least.
->>
->> I also considered shutting down this accounting entirely by calling
->> alloc_huge_page(allow_reserve = 0) in hugetlbfs mcopy atomic... Can't
->> we start that way so we don't have to worry about the reservation
->> accounting at all?
-> 
-> Does "allow_reserve = 0" indicate alloc_huge_page(... avoid_reserve = 1)?
-> I think, that is what you are asking.
-> 
-> Well we could do that.  But, it could cause failures.  Again consider
-> an overly simple case of a 1 page vma.  Also, suppose there is only one
-> huge page in the system.  When the vma is created/mapped the one huge
-> page is reserved.  However, we call alloc_huge_page(...avoid_reserve = 1)
-> the allocation will fail as we indicated that reservations should not
-> be used.  If there was another page in the system, or we were configured
-> to allocate surplus pages then it may succeed.
-> 
->>>> Aside the accounting, what about the page_private(page) subpool? It's
->>>> used by huge_page_free which would get out of sync with vma/inode
->>>> destruction if we release the mmap_sem.
->>>
->>> I do not think that is the case.  Reservation and subpool adjustments
->>> made at vma/inode destruction time are based on entries in the reservation
->>> map.  Those entries are created/destroyed when holding mmap_sem.
->>>
->>>> 	struct hugepage_subpool *spool =
->>>> 		(struct hugepage_subpool *)page_private(page);
->>>>
->>>> I think in the revalidation code we need to check if
->>>> page_private(page) still matches the subpool_vma(vma), if it doesn't
->>>> and it's a stale pointer, we can't even call put_page before fixing up
->>>> the page_private first.
->>>
->>> I do not think that is correct.  page_private(page) points to the subpool
->>> used when the page was allocated.  Therefore, adjustments were made to that
->>> subpool when the page was allocated.  We need to adjust the same subpool
->>> when calling put_page.  I don't think there is any need to look at the
->>> vma/subpool_vma(vma).  If it doesn't match, we certainly do not want to
->>> adjust counts in a potentially different subpool when calling page_put.
->>
->> Isn't the subpool different for every mountpoint of hugetlbfs?
-> 
-> yes.
-> 
->>
->> The old vma subpool can't be a stale pointer, because of the
->> used_hpages but if there are two different hugetlbfs mounts the
->> subpool seems to come from the superblock so it may change after we
->> release the mmap_sem.
->>
->> Don't we have to add a check for the new vma subpool change against
->> the page->private?
->>
->> Otherwise we'd be putting the page in some other subpool than the one
->> it was allocated from, as long as they pass the vma_hpagesize !=
->> vma_kernel_pagesize(dst_vma) check.
-> 
-> I don't think there is an issue.  page->private will be set to point to
-> the subpool where the page was originally charged.  That will not change
-> until the page_put, and the same subpool will be used to adjust the
-> count.  The page can't go to another vma, without first passing through
-> free_huge_page and doing proper subpool accounting.  If it does go to
-> another vma, then alloc_huge_page will set it to the proper subpool.
-> 
->>> As you said, this reservation code is complex.  It might be good if
->>> Hillf could comment as he understands this code.
->>>
->>> I still believe a simple call to ClearPagePrivate(page) may be all we
->>> need to do in the error path.  If this is the case, the only downside
->>> is that it would appear the reservation was consumed for that page.
->>> So, subsequent faults 'might' not get a huge page.
->>
->> I thought running out of hugepages is what you experienced already
->> with the current code if using error injection.
-> 
-> Yes, what I experienced is described in 2) of my first comment in this
-> e-mail.  I would eventually end up with all huge pages being "reserved"
-> and unable to use/allocate them.  So, none of the huge pages in the system
-> (or memory associated with them) could be used until reboot. :(
 
-I am not sure if you are convinced ClearPagePrivate is an acceptable
-solution to this issue.  If you do, here is the simple patch to add
-it and an appropriate comment.
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Date: Mon, 21 Nov 2016 14:16:33 -0800
-Subject: [PATCH] userfaultfd: hugetlbfs: reserve count on error in
- __mcopy_atomic_hugetlb
+On 21/11/16 16:05, Jerome Glisse wrote:
+> On Mon, Nov 21, 2016 at 01:06:45PM +1100, Balbir Singh wrote:
+>>
+>>
+>> On 19/11/16 05:18, Jerome Glisse wrote:
+>>> To allow use of device un-addressable memory inside a process add a
+>>> special swap type. Also add a new callback to handle page fault on
+>>> such entry.
+>>>
+>>> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+>>> Cc: Dan Williams <dan.j.williams@intel.com>
+>>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>>> ---
+>>>  fs/proc/task_mmu.c       | 10 +++++++-
+>>>  include/linux/memremap.h |  5 ++++
+>>>  include/linux/swap.h     | 18 ++++++++++---
+>>>  include/linux/swapops.h  | 67 ++++++++++++++++++++++++++++++++++++++++++++++++
+>>>  kernel/memremap.c        | 14 ++++++++++
+>>>  mm/Kconfig               | 12 +++++++++
+>>>  mm/memory.c              | 24 +++++++++++++++++
+>>>  mm/mprotect.c            | 12 +++++++++
+>>>  8 files changed, 158 insertions(+), 4 deletions(-)
+>>>
+>>> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+>>> index 6909582..0726d39 100644
+>>> --- a/fs/proc/task_mmu.c
+>>> +++ b/fs/proc/task_mmu.c
+>>> @@ -544,8 +544,11 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+>>>  			} else {
+>>>  				mss->swap_pss += (u64)PAGE_SIZE << PSS_SHIFT;
+>>>  			}
+>>> -		} else if (is_migration_entry(swpent))
+>>> +		} else if (is_migration_entry(swpent)) {
+>>>  			page = migration_entry_to_page(swpent);
+>>> +		} else if (is_device_entry(swpent)) {
+>>> +			page = device_entry_to_page(swpent);
+>>> +		}
+>>
+>>
+>> So the reason there is a device swap entry for a page belonging to a user process is
+>> that it is in the middle of migration or is it always that a swap entry represents
+>> unaddressable memory belonging to a GPU device, but its tracked in the page table
+>> entries of the process.
+> 
+> For page being migrated i use the existing special migration pte entry. This new device
+> special swap entry is only for unaddressable memory belonging to a device (GPU or any
+> else). We need to keep track of those inside the CPU page table. Using a new special
+> swap entry is the easiest way with the minimum amount of change to core mm.
+> 
 
-If __mcopy_atomic_hugetlb exits with an error, put_page will be called
-if a huge page was allocated and needs to be freed.  If a reservation
-was associated with the huge page, the PagePrivate flag will be set.
-Clear PagePrivate before calling put_page/free_huge_page so that the
-global reservation count is not incremented.
+Thanks, makes sense
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/userfaultfd.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+> [...]
+> 
+>>> +#ifdef CONFIG_DEVICE_UNADDRESSABLE
+>>> +static inline swp_entry_t make_device_entry(struct page *page, bool write)
+>>> +{
+>>> +	return swp_entry(write?SWP_DEVICE_WRITE:SWP_DEVICE, page_to_pfn(page));
+>>
+>> Code style checks
+> 
+> I was trying to balance against 79 columns break rule :)
+> 
+> [...]
+> 
+>>> +		} else if (is_device_entry(entry)) {
+>>> +			page = device_entry_to_page(entry);
+>>> +
+>>> +			get_page(page);
+>>> +			rss[mm_counter(page)]++;
+>>
+>> Why does rss count go up?
+> 
+> I wanted the device page to be treated like any other page. There is an argument
+> to be made against and for doing that. Do you have strong argument for not doing
+> this ?
+> 
 
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index b565481..d56ba83 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -303,8 +303,23 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- out_unlock:
- 	up_read(&dst_mm->mmap_sem);
- out:
--	if (page)
-+	if (page) {
-+		/*
-+		 * We encountered an error and are about to free a newly
-+		 * allocated huge page.  It is possible that there was a
-+		 * reservation associated with the page that has been
-+		 * consumed.  See the routine restore_reserve_on_error
-+		 * for details.  Unfortunately, we can not call
-+		 * restore_reserve_on_error now as it would require holding
-+		 * mmap_sem.  Clear the PagePrivate flag so that the global
-+		 * reserve count will not be incremented in free_huge_page.
-+		 * The reservation map will still indicate the reservation
-+		 * was consumed and possibly prevent later page allocation.
-+		 * This is better than leaking a global reservation.
-+		 */
-+		ClearPagePrivate(page);
- 		put_page(page);
-+	}
- 	BUG_ON(copied < 0);
- 	BUG_ON(err > 0);
- 	BUG_ON(!copied && !err);
--- 
-2.7.4
+Yes, It will end up confusing rss accounting IMHO. If a task is using a lot of
+pages on the GPU, should be it a candidate for OOM based on it's RSS for example?
+
+> [...]
+> 
+>>> @@ -2536,6 +2557,9 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
+>>>  	if (unlikely(non_swap_entry(entry))) {
+>>>  		if (is_migration_entry(entry)) {
+>>>  			migration_entry_wait(vma->vm_mm, fe->pmd, fe->address);
+>>> +		} else if (is_device_entry(entry)) {
+>>> +			ret = device_entry_fault(vma, fe->address, entry,
+>>> +						 fe->flags, fe->pmd);
+>>
+>> What does device_entry_fault() actually do here?
+> 
+> Well it is a special fault handler, it must migrate the memory back to some place
+> where the CPU can access it. It only matter for unaddressable memory.
+
+So effectively swap the page back in, chances are it can ping pong ...but I was wondering if we can
+tell the GPU that the CPU is accessing these pages as well. I presume any operation that causes
+memory access - core dump will swap back in things from the HMM side onto the CPU side.
+
+> 
+>>>  		} else if (is_hwpoison_entry(entry)) {
+>>>  			ret = VM_FAULT_HWPOISON;
+>>>  		} else {
+>>> diff --git a/mm/mprotect.c b/mm/mprotect.c
+>>> index 1bc1eb3..70aff3a 100644
+>>> --- a/mm/mprotect.c
+>>> +++ b/mm/mprotect.c
+>>> @@ -139,6 +139,18 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>>>  
+>>>  				pages++;
+>>>  			}
+>>> +
+>>> +			if (is_write_device_entry(entry)) {
+>>> +				pte_t newpte;
+>>> +
+>>> +				make_device_entry_read(&entry);
+>>> +				newpte = swp_entry_to_pte(entry);
+>>> +				if (pte_swp_soft_dirty(oldpte))
+>>> +					newpte = pte_swp_mksoft_dirty(newpte);
+>>> +				set_pte_at(mm, addr, pte, newpte);
+>>> +
+>>> +				pages++;
+>>> +			}
+>>
+>> Does it make sense to call mprotect() on device memory ranges?
+> 
+> There is nothing special about vma that containt device memory. They can be
+> private anonymous, share, file back ... So any existing memory syscall must
+> behave as expected. This is really just like any other page except that CPU
+> can not access it.
+
+I understand that, but what would marking it as R/O when the GPU is in the middle
+of write mean? I would also worry about passing "executable" pages over to the
+other side.
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
