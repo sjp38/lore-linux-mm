@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FC286B0038
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 13:58:22 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a20so13788555wme.5
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 10:58:22 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id o9si3964762wmo.54.2016.11.22.10.58.20
-        for <linux-mm@kvack.org>;
-        Tue, 22 Nov 2016 10:58:20 -0800 (PST)
-Date: Tue, 22 Nov 2016 19:58:18 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v3 20/20] x86: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20161122185818.k2znytnjjkh2ygpy@pd.tnic>
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003838.3280.23327.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD636B0253
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 14:38:48 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id r94so11953221ioe.7
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:38:48 -0800 (PST)
+Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
+        by mx.google.com with ESMTPS id u125si3218814itd.17.2016.11.22.11.38.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Nov 2016 11:38:48 -0800 (PST)
+Received: by mail-io0-x241.google.com with SMTP id h133so11552086ioe.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 11:38:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20161110003838.3280.23327.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+References: <20161121154336.GD19750@merlins.org> <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org> <20161122160629.uzt2u6m75ash4ved@merlins.org>
+ <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 22 Nov 2016 11:38:47 -0800
+Message-ID: <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Marc MERLIN <marc@merlins.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Wed, Nov 09, 2016 at 06:38:38PM -0600, Tom Lendacky wrote:
-> This patch adds the support to check if SME has been enabled and if the
-> mem_encrypt=on command line option is set. If both of these conditions
-> are true, then the encryption mask is set and the kernel is encrypted
-> "in place."
+On Tue, Nov 22, 2016 at 8:14 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> Thanks a lot for the testing. So what do we do now about 4.8? (4.7 is
+> already EOL AFAICS).
+>
+> - send the patch [1] as 4.8-only stable.
 
-Something went wrong here - 19/20 and 20/20 have the same Subject and
-commit message.
+I think that's the right thing to do. It's pretty small, and the
+argument that it changes the oom logic too much is pretty bogus, I
+think. The oom logic in 4.8 is simply broken. Let's get it fixed.
+Changing it is the point.
 
-Care to resend only 19 and 20 with the above fixed?
-
-Thanks.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
