@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 812656B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 23:44:03 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so5026013pgq.7
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:44:03 -0800 (PST)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id t61si3264732plb.276.2016.11.22.20.44.02
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D720E6B0069
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 00:26:20 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so6997629pgc.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 21:26:20 -0800 (PST)
+Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
+        by mx.google.com with ESMTPS id u189si28121493pfu.124.2016.11.22.21.26.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 20:44:02 -0800 (PST)
-Received: by mail-pg0-x229.google.com with SMTP id 3so1353792pgd.0
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:44:02 -0800 (PST)
-Date: Tue, 22 Nov 2016 20:43:54 -0800 (PST)
+        Tue, 22 Nov 2016 21:26:20 -0800 (PST)
+Received: by mail-pg0-x22d.google.com with SMTP id p66so1755570pga.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 21:26:20 -0800 (PST)
+Date: Tue, 22 Nov 2016 21:26:11 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2] mm: support anonymous stable page
-In-Reply-To: <20161122044322.GA2864@bbox>
-Message-ID: <alpine.LSU.2.11.1611222031480.1871@eggly.anvils>
-References: <20161120233015.GA14113@bbox> <alpine.LSU.2.11.1611211932410.1085@eggly.anvils> <20161122044322.GA2864@bbox>
+Subject: Re: [Intel-gfx] [PATCH 2/2] drm/i915: Make GPU pages movable
+In-Reply-To: <CAM0jSHPsD3+sAgK9bqDW3cm-C+PeAb-ojJq2JnEzC--HtyfMGg@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1611222046510.1902@eggly.anvils>
+References: <1478271776-1194-1-git-send-email-akash.goel@intel.com> <1478271776-1194-2-git-send-email-akash.goel@intel.com> <20161109112835.kivhola7ux3lw4s6@phenom.ffwll.local> <alpine.LSU.2.11.1611091034470.1547@eggly.anvils>
+ <CAM0jSHPsD3+sAgK9bqDW3cm-C+PeAb-ojJq2JnEzC--HtyfMGg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J . Wong" <darrick.wong@oracle.com>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Auld <matthew.william.auld@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Daniel Vetter <daniel@ffwll.ch>, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Sourab Gupta <sourab.gupta@intel.com>, linux-mm@kvack.org, akash.goel@intel.com
 
-On Tue, 22 Nov 2016, Minchan Kim wrote:
-> On Mon, Nov 21, 2016 at 07:46:28PM -0800, Hugh Dickins wrote:
-> > 
-> > Andrew might ask if we should Cc stable (haha): I think we agree
-> > that it's a defect we've been aware of ever since stable pages were
-> > first proposed, but nobody has actually been troubled by it before
-> > your async zram development: so, you're right to be fixing it ahead
-> > of your zram changes, but we don't see a call for backporting.
-> 
-> I thought so until I see your comment. However, I checked again
-> and found it seems a ancient bug since zram birth.
-> swap_writepage unlock the page right before submitting bio while
-> it keeps the lock during rw_page operation during bdev_write_page.
-> So, if zram_rw_page fails(e.g, -ENOMEM) and then fallback to
-> submit_bio in __swap_writepage, the problem can occur.
+On Tue, 22 Nov 2016, Matthew Auld wrote:
+> On 9 November 2016 at 18:36, Hugh Dickins <hughd@google.com> wrote:
+> > On Wed, 9 Nov 2016, Daniel Vetter wrote:
+> >>
+> >> Hi all -mm folks!
+> >>
+> >> Any feedback on these two? It's kinda an intermediate step towards a
+> >> full-blown gemfs, and I think useful for that. Or do we need to go
+> >> directly to our own backing storage thing? Aside from ack/nack from -mm I
+> >> think this is ready for merging.
+> >
+> > I'm currently considering them at last: will report back later.
+> >
+> > Full-blown gemfs does not come in here, of course; but let me
+> > fire a warning shot since you mention it: if it's going to use swap,
+> > then we shall probably have to nak it in favour of continuing to use
+> > infrastructure from mm/shmem.c.  I very much understand why you would
+> > love to avoid that dependence, but I doubt it can be safely bypassed.
+>
+> Could you please elaborate on what specifically you don't like about
+> gemfs implementing swap, just to make sure I'm following?
 
-It's not clear to me why that matters.  If it drives zram mad
-to the point of crashing the kernel, yes, that would matter.  But
-if it just places incomprehensible or mis-CRCed data on the device,
-who cares?  The reused swap page is marked dirty, and nobody should
-be reading the stale data back off swap.  If you do resend with a
-stable tag, please make clear why it matters.
+If we're talking about swap as implemented in mm/swapfile.c, and
+managed for tmpfs mainly through shmem_getpage_gfp(): that's slippery
+stuff, private to mm, and I would not want such trickiness duplicated
+somewhere down in drivers/gpu/drm, where mm developers and drm developers
+will keep on forgetting to keep it working correctly.
+
+But you write of gemfs "implementing" swap (and I see Daniel wrote of
+"our own backing storage"): perhaps you intend a disk or slow-mem file
+of your own, dedicated to paging gemfs objects according to your own
+rules, poked from memory reclaim via a shrinker.  I certainly don't
+have the same quick objection to that: it may be a good way forward,
+though I'm not at all sure (and would prefer a name distinct from
+swap, so we wouldn't get confused - maybe gemswap).
 
 Hugh
-
-> 
-> Hmm, I will resend patchset with zram fix part with marking
-> the stable.
-> 
-> Thanks, Hugh!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
