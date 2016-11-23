@@ -1,109 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E4AB76B0069
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:34:13 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a20so2343849wme.5
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 22:34:13 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id x5si959246wmx.163.2016.11.22.22.34.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 22:34:12 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id u144so705472wmu.0
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 22:34:12 -0800 (PST)
-Date: Wed, 23 Nov 2016 07:34:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
-Message-ID: <20161123063410.GB2864@dhcp22.suse.cz>
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org>
- <20161122160629.uzt2u6m75ash4ved@merlins.org>
- <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F12AE6B025E
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:39:01 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 17so5451649pfy.2
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 22:39:01 -0800 (PST)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTP id f1si3766079plb.119.2016.11.22.22.38.59
+        for <linux-mm@kvack.org>;
+        Tue, 22 Nov 2016 22:39:01 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1478115245-32090-16-git-send-email-aarcange@redhat.com> <074501d235bb$3766dbd0$a6349370$@alibaba-inc.com> <c9c59023-35ee-1012-1da7-13c3aa89ba61@oracle.com> <31d06dc7-ea2d-4ca3-821a-f14ea69de3e9@oracle.com> <20161104193626.GU4611@redhat.com> <1805f956-1777-471c-1401-46c984189c88@oracle.com> <20161116182809.GC26185@redhat.com> <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com> <20161117154031.GA10229@redhat.com> <718434af-d279-445d-e210-201bf02f434f@oracle.com> <20161118000527.GB10229@redhat.com> <c9350efa-ca79-c514-0305-22c90fdbb0df@oracle.com> <1b60f0b3-835f-92d6-33e2-e7aaab3209cc@oracle.com>
+In-Reply-To: <1b60f0b3-835f-92d6-33e2-e7aaab3209cc@oracle.com>
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb for huge page UFFDIO_COPY
+Date: Wed, 23 Nov 2016 14:38:37 +0800
+Message-ID: <019d01d24554$38e7f220$aab7d660$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Marc MERLIN <marc@merlins.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Andrea Arcangeli' <aarcange@redhat.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-On Tue 22-11-16 11:38:47, Linus Torvalds wrote:
-> On Tue, Nov 22, 2016 at 8:14 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> >
-> > Thanks a lot for the testing. So what do we do now about 4.8? (4.7 is
-> > already EOL AFAICS).
-> >
-> > - send the patch [1] as 4.8-only stable.
+On Tuesday, November 22, 2016 9:17 AM Mike Kravetz wrote:
+> I am not sure if you are convinced ClearPagePrivate is an acceptable
+> solution to this issue.  If you do, here is the simple patch to add
+> it and an appropriate comment.
 > 
-> I think that's the right thing to do. It's pretty small, and the
-> argument that it changes the oom logic too much is pretty bogus, I
-> think. The oom logic in 4.8 is simply broken. Let's get it fixed.
-> Changing it is the point.
+Hi Mike and Andrea
 
-The point I've tried to make is that it is not should_reclaim_retry
-which is broken. It's an overly optimistic reliance on the compaction
-to do it's work which led to all those issues. My previous fix
-31e49bfda184 ("mm, oom: protect !costly allocations some more for
-!CONFIG_COMPACTION") tried to cope with that by checking the order-0
-watermark which has proven to help most users. Now it didn't cover
-everybody obviously. Rather than fiddling with fine tuning of these
-heuristics I think it would be safer to simply admit that high order
-OOM detection doesn't work in 4.8 kernel and so do not declare the OOM
-killer for those requests at all. The risk of such a change is not big
-because there usually are order-0 requests happening all the time so if
-we are really OOM we would trigger the OOM eventually.
+Sorry for my jumping in.
 
-So I am proposing this for 4.8 stable tree instead
----
-commit b2ccdcb731b666aa28f86483656c39c5e53828c7
-Author: Michal Hocko <mhocko@suse.com>
-Date:   Wed Nov 23 07:26:30 2016 +0100
+In commit 07443a85ad
+("mm, hugetlb: return a reserved page to a reserved pool if failed")
+newly allocated huge page gets cleared for a successful COW.
 
-    mm, oom: stop pre-mature high-order OOM killer invocations
-    
-    31e49bfda184 ("mm, oom: protect !costly allocations some more for
-    !CONFIG_COMPACTION") was an attempt to reduce chances of pre-mature OOM
-    killer invocation for high order requests. It seemed to work for most
-    users just fine but it is far from bullet proof and obviously not
-    sufficient for Marc who has reported pre-mature OOM killer invocations
-    with 4.8 based kernels. 4.9 will all the compaction improvements seems
-    to be behaving much better but that would be too intrusive to backport
-    to 4.8 stable kernels. Instead this patch simply never declares OOM for
-    !costly high order requests. We rely on order-0 requests to do that in
-    case we are really out of memory. Order-0 requests are much more common
-    and so a risk of a livelock without any way forward is highly unlikely.
-    
-    Reported-by: Marc MERLIN <marc@merlins.org>
-    Signed-off-by: Michal Hocko <mhocko@suse.com>
+I'm wondering if we can handle our error path along that way?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a2214c64ed3c..7401e996009a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3161,6 +3161,16 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
- 	if (!order || order > PAGE_ALLOC_COSTLY_ORDER)
- 		return false;
- 
-+#ifdef CONFIG_COMPACTION
-+	/*
-+	 * This is a gross workaround to compensate a lack of reliable compaction
-+	 * operation. We cannot simply go OOM with the current state of the compaction
-+	 * code because this can lead to pre mature OOM declaration.
-+	 */
-+	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-+		return true;
-+#endif
-+
- 	/*
- 	 * There are setups with compaction disabled which would prefer to loop
- 	 * inside the allocator rather than hit the oom killer prematurely.
--- 
-Michal Hocko
-SUSE Labs
+Obvious I could miss the points you are concerning.
+
+thanks
+Hillf
+> 
+> If __mcopy_atomic_hugetlb exits with an error, put_page will be called
+> if a huge page was allocated and needs to be freed.  If a reservation
+> was associated with the huge page, the PagePrivate flag will be set.
+> Clear PagePrivate before calling put_page/free_huge_page so that the
+> global reservation count is not incremented.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  mm/userfaultfd.c | 17 ++++++++++++++++-
+>  1 file changed, 16 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index b565481..d56ba83 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -303,8 +303,23 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+>  out_unlock:
+>  	up_read(&dst_mm->mmap_sem);
+>  out:
+> -	if (page)
+> +	if (page) {
+> +		/*
+> +		 * We encountered an error and are about to free a newly
+> +		 * allocated huge page.  It is possible that there was a
+> +		 * reservation associated with the page that has been
+> +		 * consumed.  See the routine restore_reserve_on_error
+> +		 * for details.  Unfortunately, we can not call
+> +		 * restore_reserve_on_error now as it would require holding
+> +		 * mmap_sem.  Clear the PagePrivate flag so that the global
+> +		 * reserve count will not be incremented in free_huge_page.
+> +		 * The reservation map will still indicate the reservation
+> +		 * was consumed and possibly prevent later page allocation.
+> +		 * This is better than leaking a global reservation.
+> +		 */
+> +		ClearPagePrivate(page);
+>  		put_page(page);
+> +	}
+>  	BUG_ON(copied < 0);
+>  	BUG_ON(err > 0);
+>  	BUG_ON(!copied && !err);
+> --
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
