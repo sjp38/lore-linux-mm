@@ -1,72 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FC6D6B0269
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 03:50:18 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id hb5so1411063wjc.2
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 00:50:18 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e124si1418592wme.48.2016.11.23.00.50.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 645946B026B
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:16:38 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so9471046pfx.1
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:16:38 -0800 (PST)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10048.outbound.protection.outlook.com. [40.107.1.48])
+        by mx.google.com with ESMTPS id 19si32795431pfr.164.2016.11.23.01.16.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Nov 2016 00:50:17 -0800 (PST)
-Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort allocations
- in blkcg
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org> <20161121230332.GA3767@htj.duckdns.org>
- <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
- <20161122164822.GA5459@htj.duckdns.org>
- <CA+55aFwEik1Q-D0d4pRTNq672RS2eHpT2ULzGfttaSWW69Tajw@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3e8eeadb-8dde-2313-f6e3-ef7763832104@suse.cz>
-Date: Wed, 23 Nov 2016 09:50:12 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 Nov 2016 01:16:37 -0800 (PST)
+Subject: Re: [HMM v13 00/18] HMM (Heterogeneous Memory Management) v13
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+From: Haggai Eran <haggaie@mellanox.com>
+Message-ID: <5ba45b16-8edf-d835-ac04-eca5f71212c9@mellanox.com>
+Date: Wed, 23 Nov 2016 11:16:04 +0200
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwEik1Q-D0d4pRTNq672RS2eHpT2ULzGfttaSWW69Tajw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Feras Daoud <ferasda@mellanox.com>, Ilya Lesokhin <ilyal@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-On 11/22/2016 11:13 PM, Linus Torvalds wrote:
-> On Tue, Nov 22, 2016 at 8:48 AM, Tejun Heo <tj@kernel.org> wrote:
->>
->> Hello,
->>
->> On Tue, Nov 22, 2016 at 04:47:49PM +0100, Vlastimil Babka wrote:
->>> Thanks. Makes me wonder whether we should e.g. add __GFP_NOWARN to
->>> GFP_NOWAIT globally at some point.
->>
->> Yeah, that makes sense.  The caller is explicitly saying that it's
->> okay to fail the allocation.
->
-> I'm not so convinced about the "atomic automatically means you shouldn't warn".
+On 11/18/2016 8:18 PM, JA(C)rA'me Glisse wrote:
+> Cliff note: HMM offers 2 things (each standing on its own). First
+> it allows to use device memory transparently inside any process
+> without any modifications to process program code. Second it allows
+> to mirror process address space on a device.
+> 
+> Change since v12 is the use of struct page for device memory even if
+> the device memory is not accessible by the CPU (because of limitation
+> impose by the bus between the CPU and the device).
+> 
+> Using struct page means that their are minimal changes to core mm
+> code. HMM build on top of ZONE_DEVICE to provide struct page, it
+> adds new features to ZONE_DEVICE. The first 7 patches implement
+> those changes.
+> 
+> Rest of patchset is divided into 3 features that can each be use
+> independently from one another. First is the process address space
+> mirroring (patch 9 to 13), this allow to snapshot CPU page table
+> and to keep the device page table synchronize with the CPU one.
+> 
+> Second is a new memory migration helper which allow migration of
+> a range of virtual address of a process. This memory migration
+> also allow device to use their own DMA engine to perform the copy
+> between the source memory and destination memory. This can be
+> usefull even outside HMM context in many usecase.
+> 
+> Third part of the patchset (patch 17-18) is a set of helper to
+> register a ZONE_DEVICE node and manage it. It is meant as a
+> convenient helper so that device drivers do not each have to
+> reimplement over and over the same boiler plate code.
+> 
+> 
+> I am hoping that this can now be consider for inclusion upstream.
+> Bottom line is that without HMM we can not support some of the new
+> hardware features on x86 PCIE. I do believe we need some solution
+> to support those features or we won't be able to use such hardware
+> in standard like C++17, OpenCL 3.0 and others.
+> 
+> I have been working with NVidia to bring up this feature on their
+> Pascal GPU. There are real hardware that you can buy today that
+> could benefit from HMM. We also intend to leverage this inside the
+> open source nouveau driver.
 
-Right, but atomic allocations should be using GFP_ATOMIC, which allows 
-to use the atomic reserves. I meant here just GFP_NOWAIT which does not 
-allow reserves, for allocations that are not in atomic context, but 
-still don't want to reclaim for performance or whatever reasons, and 
-have a suitable fallback. It's their choice to not spend any effort on 
-the allocation and thus they shouldn't spew warnings IMHO.
 
-> You'd certainly _hope_ that atomic allocations either have fallbacks
-> or are harmless if they fail, but I'd still rather see that
-> __GFP_NOWARN just to make that very much explicit.
+Hi,
 
-A global change to GFP_NOWAIT would of course mean that we should audit 
-its users (there don't seem to be many), whether they are using it 
-consciously and should not rather be using GFP_ATOMIC.
+I think the way this new version of the patchset uses ZONE_DEVICE looks
+promising and makes the patchset a little simpler than the previous
+versions.
 
-Vlastimil
+The mirroring code seems like it could be used to simplify the on-demand
+paging code in the mlx5 driver and the RDMA subsystem. It currently uses
+mmu notifiers directly.
 
-> Because as it is, atomic allocations certainly get to dig deeper into
-> our memory reserves, but they most definitely can fail, and I
-> definitely see how some code has no fallback because it thinks that
-> the deeper reserves mean that it will succeed.
->
->              Linus
->
+I'm also curious whether it can be used to allow peer to peer access
+between devices. For instance, if one device calls hmm_vma_get_pfns on a
+process that has unaddressable memory mapped in, with some additional
+help from DMA-API, its driver can convert these pfns to bus addresses
+directed to another device's MMIO region and thus enable peer to peer
+access. Then by handling invalidations through HMM's mirroring callbacks
+it can safely handle cases where the peer migrates the page back to the
+CPU or frees it.
+
+Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
