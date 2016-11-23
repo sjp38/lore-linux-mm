@@ -1,57 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 38DED6B0069
-	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 23:37:13 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q10so4788129pgq.7
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:37:13 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id o61si3227886plb.168.2016.11.22.20.37.12
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7371E6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Nov 2016 23:37:15 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p66so4998255pga.4
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:37:15 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id 88si3228349plc.27.2016.11.22.20.37.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Nov 2016 20:37:12 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id 144so131969pfv.0
-        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:37:12 -0800 (PST)
+        Tue, 22 Nov 2016 20:37:14 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id x23so190859pgx.3
+        for <linux-mm@kvack.org>; Tue, 22 Nov 2016 20:37:14 -0800 (PST)
 From: Balbir Singh <bsingharora@gmail.com>
-Subject: [mm v2 0/3] Support memory cgroup hotplug
-Date: Wed, 23 Nov 2016 15:36:51 +1100
-Message-Id: <1479875814-11938-1-git-send-email-bsingharora@gmail.com>
+Subject: [mm v2 1/3] mm: Add basic infrastructure for memcg hotplug support
+Date: Wed, 23 Nov 2016 15:36:52 +1100
+Message-Id: <1479875814-11938-2-git-send-email-bsingharora@gmail.com>
+In-Reply-To: <1479875814-11938-1-git-send-email-bsingharora@gmail.com>
+References: <1479875814-11938-1-git-send-email-bsingharora@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
-Cc: Balbir Singh <bsingharora@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
 
-In the absence of hotplug we use extra memory proportional to
-(possible_nodes - online_nodes) * number_of_cgroups. PPC64 has a patch
-to disable large consumption with large number of cgroups. This patch
-adds hotplug support to memory cgroups and reverts the commit that
-limited possible nodes to online nodes.
+The lack of hotplug support makes us allocate all memory
+upfront for per node data structures. With large number
+of cgroups this can be an overhead. PPC64 actually limits
+n_possible nodes to n_online to avoid some of this overhead.
 
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org> 
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+This patch adds the basic notifiers to listen to hotplug
+events and does the allocation and free of those structures
+per cgroup. We walk every cgroup per event, its a trade-off
+of allocating upfront vs allocating on demand and freeing
+on offline.
 
-I've tested this patches under a VM with two nodes and movable
-nodes enabled. I've offlined nodes and checked that the system
-and cgroups with tasks deep in the hierarchy continue to work
-fine.
+Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+---
+ mm/memcontrol.c | 46 ++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 8 deletions(-)
 
-These patches are on top of linux-next (20161117)
-
-Changelog v2:
-	Add get/put_online_mems() around node iteration
-	Use MEM_OFFLINE/MEM_ONLINE instead of MEM_GOING_OFFLINE/ONLINE
-
-Balbir Singh (3):
-  mm: Add basic infrastructure for memcg hotplug support
-  mm: Move operations to hotplug callbacks
-  powerpc/mm: fix node_possible_map limitations
-
- arch/powerpc/mm/numa.c |   7 ----
- mm/memcontrol.c        | 107 +++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 94 insertions(+), 20 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 175ec51..5482c7d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -63,6 +63,7 @@
+ #include <linux/lockdep.h>
+ #include <linux/file.h>
+ #include <linux/tracehook.h>
++#include <linux/memory.h>
+ #include "internal.h"
+ #include <net/sock.h>
+ #include <net/ip.h>
+@@ -4106,14 +4107,7 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	int tmp = node;
+-	/*
+-	 * This routine is called against possible nodes.
+-	 * But it's BUG to call kmalloc() against offline node.
+-	 *
+-	 * TODO: this routine can waste much memory for nodes which will
+-	 *       never be onlined. It's better to use memory hotplug callback
+-	 *       function.
+-	 */
++
+ 	if (!node_state(node, N_NORMAL_MEMORY))
+ 		tmp = -1;
+ 	pn = kzalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+@@ -5764,6 +5758,41 @@ static int __init cgroup_memory(char *s)
+ }
+ __setup("cgroup.memory=", cgroup_memory);
+ 
++static void memcg_node_offline(int node)
++{
++}
++
++static void memcg_node_online(int node)
++{
++}
++
++static int memcg_memory_hotplug_callback(struct notifier_block *self,
++					unsigned long action, void *arg)
++{
++	struct memory_notify *marg = arg;
++	int node = marg->status_change_nid;
++
++	switch (action) {
++	case MEM_GOING_OFFLINE:
++	case MEM_CANCEL_OFFLINE:
++	case MEM_ONLINE:
++		break;
++	case MEM_GOING_ONLINE:
++		memcg_node_online(node);
++		break;
++	case MEM_CANCEL_ONLINE:
++	case MEM_OFFLINE:
++		memcg_node_offline(node);
++		break;
++	}
++	return NOTIFY_OK;
++}
++
++static struct notifier_block memcg_memory_hotplug_nb __meminitdata = {
++	.notifier_call = memcg_memory_hotplug_callback,
++	.priority = IPC_CALLBACK_PRI,
++};
++
+ /*
+  * subsys_initcall() for memory controller.
+  *
+@@ -5789,6 +5818,7 @@ static int __init mem_cgroup_init(void)
+ 
+ 	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,
+ 				  memcg_hotplug_cpu_dead);
++	register_hotmemory_notifier(&memcg_memory_hotplug_nb);
+ 
+ 	for_each_possible_cpu(cpu)
+ 		INIT_WORK(&per_cpu_ptr(&memcg_stock, cpu)->work,
 -- 
 2.5.5
 
