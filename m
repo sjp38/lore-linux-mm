@@ -1,110 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7235B6B026D
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:18:32 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i131so4384341wmf.3
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:18:32 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m7si27223975wjg.231.2016.11.23.01.18.31
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F0FA6B026F
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:23:36 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id 19so2232926vko.0
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:23:36 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id m30si4234484pli.231.2016.11.23.01.23.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Nov 2016 01:18:31 -0800 (PST)
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org>
- <20161122160629.uzt2u6m75ash4ved@merlins.org>
- <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
- <20161123063410.GB2864@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5d506912-d2a1-379b-d384-0a48ec5ab707@suse.cz>
-Date: Wed, 23 Nov 2016 10:18:26 +0100
-MIME-Version: 1.0
-In-Reply-To: <20161123063410.GB2864@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Nov 2016 01:23:35 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: fix false-positive WARN_ON() in truncate/invalidate for hugetlb
+Date: Wed, 23 Nov 2016 12:23:26 +0300
+Message-Id: <20161123092326.169822-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Marc MERLIN <marc@merlins.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Doug Nelson <doug.nelson@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "[4.8+]" <stable@vger.kernel.org>
 
-On 11/23/2016 07:34 AM, Michal Hocko wrote:
-> On Tue 22-11-16 11:38:47, Linus Torvalds wrote:
->> On Tue, Nov 22, 2016 at 8:14 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>
->>> Thanks a lot for the testing. So what do we do now about 4.8? (4.7 is
->>> already EOL AFAICS).
->>>
->>> - send the patch [1] as 4.8-only stable.
->>
->> I think that's the right thing to do. It's pretty small, and the
->> argument that it changes the oom logic too much is pretty bogus, I
->> think. The oom logic in 4.8 is simply broken. Let's get it fixed.
->> Changing it is the point.
->
-> The point I've tried to make is that it is not should_reclaim_retry
-> which is broken. It's an overly optimistic reliance on the compaction
-> to do it's work which led to all those issues. My previous fix
-> 31e49bfda184 ("mm, oom: protect !costly allocations some more for
-> !CONFIG_COMPACTION") tried to cope with that by checking the order-0
-> watermark which has proven to help most users. Now it didn't cover
-> everybody obviously. Rather than fiddling with fine tuning of these
-> heuristics I think it would be safer to simply admit that high order
-> OOM detection doesn't work in 4.8 kernel and so do not declare the OOM
-> killer for those requests at all. The risk of such a change is not big
-> because there usually are order-0 requests happening all the time so if
-> we are really OOM we would trigger the OOM eventually.
->
-> So I am proposing this for 4.8 stable tree instead
-> ---
-> commit b2ccdcb731b666aa28f86483656c39c5e53828c7
-> Author: Michal Hocko <mhocko@suse.com>
-> Date:   Wed Nov 23 07:26:30 2016 +0100
->
->     mm, oom: stop pre-mature high-order OOM killer invocations
->
->     31e49bfda184 ("mm, oom: protect !costly allocations some more for
->     !CONFIG_COMPACTION") was an attempt to reduce chances of pre-mature OOM
->     killer invocation for high order requests. It seemed to work for most
->     users just fine but it is far from bullet proof and obviously not
->     sufficient for Marc who has reported pre-mature OOM killer invocations
->     with 4.8 based kernels. 4.9 will all the compaction improvements seems
->     to be behaving much better but that would be too intrusive to backport
->     to 4.8 stable kernels. Instead this patch simply never declares OOM for
->     !costly high order requests. We rely on order-0 requests to do that in
->     case we are really out of memory. Order-0 requests are much more common
->     and so a risk of a livelock without any way forward is highly unlikely.
->
->     Reported-by: Marc MERLIN <marc@merlins.org>
->     Signed-off-by: Michal Hocko <mhocko@suse.com>
+Hugetlb pages have ->index in size of the huge pages (PMD_SIZE or
+PUD_SIZE), not in PAGE_SIZE as other types of pages. This means we
+cannot user page_to_pgoff() to check whether we've got the right page
+for the radix-tree index.
 
-This should effectively restore the 4.6 logic, so I'm fine with it for 
-stable, if it passes testing.
+Let's introduce page_to_index() which would return radix-tree index for
+given page.
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a2214c64ed3c..7401e996009a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3161,6 +3161,16 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
->  	if (!order || order > PAGE_ALLOC_COSTLY_ORDER)
->  		return false;
->
-> +#ifdef CONFIG_COMPACTION
-> +	/*
-> +	 * This is a gross workaround to compensate a lack of reliable compaction
-> +	 * operation. We cannot simply go OOM with the current state of the compaction
-> +	 * code because this can lead to pre mature OOM declaration.
-> +	 */
-> +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> +		return true;
-> +#endif
-> +
->  	/*
->  	 * There are setups with compaction disabled which would prefer to loop
->  	 * inside the allocator rather than hit the oom killer prematurely.
->
+We will be able to get rid of this once hugetlb will be switched to
+multi-order entries.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-and-tested-by: Doug Nelson <doug.nelson@intel.com>
+Fixes: fc127da085c2 ("truncate: handle file thp")
+Cc: <stable@vger.kernel.org> [4.8+]
+---
+ include/linux/pagemap.h | 23 +++++++++++++++++------
+ mm/truncate.c           |  8 ++++----
+ 2 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index dd15d39e1985..7e68545d58d8 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -374,16 +374,13 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
+ }
+ 
+ /*
+- * Get the offset in PAGE_SIZE.
+- * (TODO: hugepage should have ->index in PAGE_SIZE)
++ * Index of the page with in radix-tree
++ * (TODO: remove once hugetlb pages will have ->index in PAGE_SIZE)
+  */
+-static inline pgoff_t page_to_pgoff(struct page *page)
++static inline pgoff_t page_to_index(struct page *page)
+ {
+ 	pgoff_t pgoff;
+ 
+-	if (unlikely(PageHeadHuge(page)))
+-		return page->index << compound_order(page);
+-
+ 	if (likely(!PageTransTail(page)))
+ 		return page->index;
+ 
+@@ -397,6 +394,20 @@ static inline pgoff_t page_to_pgoff(struct page *page)
+ }
+ 
+ /*
++ * Get the offset in PAGE_SIZE.
++ * (TODO: hugepage should have ->index in PAGE_SIZE)
++ */
++static inline pgoff_t page_to_pgoff(struct page *page)
++{
++	pgoff_t pgoff;
++
++	if (unlikely(PageHeadHuge(page)))
++		return page->index << compound_order(page);
++
++	return page_to_index(page);
++}
++
++/*
+  * Return byte-offset into filesystem object for page.
+  */
+ static inline loff_t page_offset(struct page *page)
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a01cce450a26..8d8c62d89e6d 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -283,7 +283,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 
+ 			if (!trylock_page(page))
+ 				continue;
+-			WARN_ON(page_to_pgoff(page) != index);
++			WARN_ON(page_to_index(page) != index);
+ 			if (PageWriteback(page)) {
+ 				unlock_page(page);
+ 				continue;
+@@ -371,7 +371,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			}
+ 
+ 			lock_page(page);
+-			WARN_ON(page_to_pgoff(page) != index);
++			WARN_ON(page_to_index(page) != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+@@ -492,7 +492,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			if (!trylock_page(page))
+ 				continue;
+ 
+-			WARN_ON(page_to_pgoff(page) != index);
++			WARN_ON(page_to_index(page) != index);
+ 
+ 			/* Middle of THP: skip */
+ 			if (PageTransTail(page)) {
+@@ -612,7 +612,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 			}
+ 
+ 			lock_page(page);
+-			WARN_ON(page_to_pgoff(page) != index);
++			WARN_ON(page_to_index(page) != index);
+ 			if (page->mapping != mapping) {
+ 				unlock_page(page);
+ 				continue;
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
