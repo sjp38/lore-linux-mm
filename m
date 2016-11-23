@@ -1,131 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D3DEB6B027F
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 07:35:36 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id o3so2278991wjo.1
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:35:36 -0800 (PST)
-Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
-        by mx.google.com with ESMTPS id b6si30891542wjb.270.2016.11.23.04.35.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D451D6B0281
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 08:05:08 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 144so16194364pfv.5
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 05:05:08 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id d78si33690518pfk.190.2016.11.23.05.05.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Nov 2016 04:35:35 -0800 (PST)
-Received: by mail-wj0-f196.google.com with SMTP id f8so953617wje.2
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:35:35 -0800 (PST)
-Date: Wed, 23 Nov 2016 13:35:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-Message-ID: <20161123123532.GJ2864@dhcp22.suse.cz>
-References: <20161123064925.9716-1-mhocko@kernel.org>
- <20161123064925.9716-3-mhocko@kernel.org>
- <87b89181-a141-611d-c772-c5e483aa4f49@suse.cz>
+        Wed, 23 Nov 2016 05:05:07 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id x23so1089894pgx.3
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 05:05:07 -0800 (PST)
+Subject: Re: [mm v2 0/3] Support memory cgroup hotplug
+References: <1479875814-11938-1-git-send-email-bsingharora@gmail.com>
+ <20161123072543.GD2864@dhcp22.suse.cz>
+ <342ebcca-b54c-4bc6-906b-653042caae06@gmail.com>
+ <20161123080744.GG2864@dhcp22.suse.cz>
+ <61dc32fd-2802-6deb-24cf-fa11b5b31532@gmail.com>
+ <20161123092830.GH2864@dhcp22.suse.cz>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <962ac541-55c4-de09-59a3-4947c394eee6@gmail.com>
+Date: Thu, 24 Nov 2016 00:05:12 +1100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87b89181-a141-611d-c772-c5e483aa4f49@suse.cz>
+In-Reply-To: <20161123092830.GH2864@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Wed 23-11-16 13:19:20, Vlastimil Babka wrote:
-> On 11/23/2016 07:49 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > __alloc_pages_may_oom makes sure to skip the OOM killer depending on
-> > the allocation request. This includes lowmem requests, costly high
-> > order requests and others. For a long time __GFP_NOFAIL acted as an
-> > override for all those rules. This is not documented and it can be quite
-> > surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
-> > killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
-> > the existing open coded loops around allocator to nofail request (and we
-> > have done that in the past) then such a change would have a non trivial
-> > side effect which is not obvious. Note that the primary motivation for
-> > skipping the OOM killer is to prevent from pre-mature invocation.
-> > 
-> > The exception has been added by 82553a937f12 ("oom: invoke oom killer
-> > for __GFP_NOFAIL"). The changelog points out that the oom killer has to
-> > be invoked otherwise the request would be looping for ever. But this
-> > argument is rather weak because the OOM killer doesn't really guarantee
-> > any forward progress for those exceptional cases - e.g. it will hardly
-> > help to form costly order - I believe we certainly do not want to kill
-> > all processes and eventually panic the system just because there is a
-> > nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
-> > the consequences - it is much better this request would loop for ever
-> > than the massive system disruption, lowmem is also highly unlikely to be
-> > freed during OOM killer and GFP_NOFS request could trigger while there
-> > is still a lot of memory pinned by filesystems.
-> > 
-> > This patch simply removes the __GFP_NOFAIL special case in order to have
-> > a more clear semantic without surprising side effects. Instead we do
-> > allow nofail requests to access memory reserves to move forward in both
-> > cases when the OOM killer is invoked and when it should be supressed.
-> > __alloc_pages_nowmark helper has been introduced for that purpose.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+
+On 23/11/16 20:28, Michal Hocko wrote:
+> On Wed 23-11-16 19:37:16, Balbir Singh wrote:
+>>
+>>
+>> On 23/11/16 19:07, Michal Hocko wrote:
+>>> On Wed 23-11-16 18:50:42, Balbir Singh wrote:
+>>>>
+>>>>
+>>>> On 23/11/16 18:25, Michal Hocko wrote:
+>>>>> On Wed 23-11-16 15:36:51, Balbir Singh wrote:
+>>>>>> In the absence of hotplug we use extra memory proportional to
+>>>>>> (possible_nodes - online_nodes) * number_of_cgroups. PPC64 has a patch
+>>>>>> to disable large consumption with large number of cgroups. This patch
+>>>>>> adds hotplug support to memory cgroups and reverts the commit that
+>>>>>> limited possible nodes to online nodes.
+>>>>>
+>>>>> Balbir,
+>>>>> I have asked this in the previous version but there still seems to be a
+>>>>> lack of information of _why_ do we want this, _how_ much do we save on
+>>>>> the memory overhead on most systems and _why_ the additional complexity
+>>>>> is really worth it. Please make sure to add all this in the cover
+>>>>> letter.
+>>>>>
+>>>>
+>>>> The data is in the patch referred to in patch 3. The order of waste was
+>>>> 200MB for 400 cgroup directories enough for us to restrict possible_map
+>>>> to online_map. These patches allow us to have a larger possible map and
+>>>> allow onlining nodes not in the online_map, which is currently a restriction
+>>>> on ppc64.
+>>>
+>>> How common is to have possible_map >> online_map? If this is ppc64 then
+>>> what is the downside of keeping the current restriction instead?
+>>>
+>>
+>> On my system CONFIG_NODE_SHIFT is 8, 256 nodes and possible_nodes are 2
+>> The downside is the ability to hotplug and online an offline node.
+>> Please see http://www.spinics.net/lists/linux-mm/msg116724.html
 > 
-> This makes some sense to me, but there might be unpleasant consequences,
-> e.g. due to allowing costly allocations without reserves.
-
-I am not sure I understand. Did you mean with reserves? Anyway, my code
-inspection shown that we are not really doing GFP_NOFAIL for costly
-orders. This might change in the future but even if we do that then this
-shouldn't add a risk of the reserves depletion, right?
-
-> I guess only testing will show...
+> OK, so we are slowly getting to what I've asked originally ;) So who
+> cares? Depending on CONFIG_NODE_SHIFT (which tends to be quite large in
+> distribution or other general purpose kernels) the overhead is 424B (as
+> per pahole on the current kernel) for one numa node. Most machines are
+> to be expected 1-4 numa nodes so the overhead might be somewhere around
+> 100K per memcg (with 256 possible nodes). Not trivial amount for sure
+> but I would rather encourage people to lower the possible node count for
+> their hardware if it is artificially large.
 > 
-> Also some comments below.
-[...]
-> >  static inline struct page *
-> > +__alloc_pages_nowmark(gfp_t gfp_mask, unsigned int order,
-> > +						const struct alloc_context *ac)
-> > +{
-> > +	struct page *page;
-> > +
-> > +	page = get_page_from_freelist(gfp_mask, order,
-> > +			ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
-> > +	/*
-> > +	 * fallback to ignore cpuset restriction if our nodes
-> > +	 * are depleted
-> > +	 */
-> > +	if (!page)
-> > +		page = get_page_from_freelist(gfp_mask, order,
-> > +				ALLOC_NO_WATERMARKS, ac);
-> 
-> Is this enough? Look at what __alloc_pages_slowpath() does since
-> e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
-> context can ignore memory policies").
 
-this is a one time attempt to do the nowmark allocation. If we need to
-do the recalculation then this should happen in the next round. Or am I
-missing your question?
+On my desktop NODES_SHIFT is 6, many distro kernels have it a 9. I've known
+of solutions that use fake NUMA for partitioning and need as many nodes as
+possible.
 
+>>>> A typical system that I use has about 100-150 directories, depending on the
+>>>> number of users/docker instances/configuration/virtual machines. These numbers
+>>>> will only grow as we pack more of these instances on them.
+>>>>
+>>>> From a complexity view point, the patches are quite straight forward.
+>>>
+>>> Well, I would like to hear more about that. {get,put}_online_memory
+>>> at random places doesn't sound all that straightforward to me.
+>>>
+>>
+>> I thought those places were not random :) I tried to think them out as
+>> discussed with Vladimir. I don't claim the code is bug free, we can fix
+>> any bugs as we test this more.
 > 
-> ...
-> 
-> > -	}
-> >  	/* Exhausted what can be done so it's blamo time */
-> > -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-> > +	if (out_of_memory(&oc)) {
-> 
-> This removes the warning, but also the check for __GFP_NOFAIL itself. Was it
-> what you wanted?
+> I am more worried about synchronization with the hotplug which tends to
+> be a PITA in places were we were simply safe by definition until now. We
+> do not have all that many users of memcg->nodeinfo[nid] from what I can see
+> but are all of them safe to never race with the hotplug. A lack of
+> highlevel design description is less than encouraging.
 
-The point of the check was to keep looping for __GFP_NOFAIL requests
-even when the OOM killer is disabled (out_of_memory returns false). We
-are accomplishing that by 
+As in explanation? The design is dictated by the notifier and the actions
+to take when the node comes online/offline.
+
+ So please try to
+> spend some time describing how do we use nodeinfo currently and how is
+> the synchronization with the hotplug supposed to work and what
+> guarantees that no stale nodinfos can be ever used. This is just too
+> easy to get wrong...
 > 
-> >  		*did_some_progress = 1;
-		^^^^ this
 
-it is true we will not have the warning but I am not really sure we care
-all that much. In any case it wouldn't be all that hard to check for oom
-killer disabled and warn on in the allocator slow path.
+OK.. I'll add that in the next cover letter
 
-thanks for having a look!
--- 
-Michal Hocko
-SUSE Labs
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
