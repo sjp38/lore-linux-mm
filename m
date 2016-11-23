@@ -1,121 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 428F16B028B
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 11:33:56 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id j10so3012344wjb.3
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 08:33:56 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id g2si32001916wjt.33.2016.11.23.08.33.54
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4416B028D
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 13:16:38 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id b202so33088681oii.3
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 10:16:38 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0092.outbound.protection.outlook.com. [104.47.2.92])
+        by mx.google.com with ESMTPS id m92si15438128otm.2.2016.11.23.10.16.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Nov 2016 08:33:54 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 8B40B98A84
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 16:33:52 +0000 (UTC)
-Date: Wed, 23 Nov 2016 16:33:51 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC PATCH] mm: page_alloc: High-order per-cpu page allocator
-Message-ID: <20161123163351.6s76ijwnqoakgcud@techsingularity.net>
-References: <20161121155540.5327-1-mgorman@techsingularity.net>
- <4a9cdec4-b514-e414-de86-fc99681889d8@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 Nov 2016 10:16:37 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCH] x86/coredump: always use user_regs_struct for compat_elf_gregset_t
+Date: Wed, 23 Nov 2016 21:13:30 +0300
+Message-ID: <20161123181330.10705-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4a9cdec4-b514-e414-de86-fc99681889d8@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, linux-mm@kvack.org, x86@kernel.org
 
-On Wed, Nov 23, 2016 at 04:37:06PM +0100, Vlastimil Babka wrote:
-> On 11/21/2016 04:55 PM, Mel Gorman wrote:
-> 
-> ...
-> 
-> > hackbench was also tested with both socket and pipes and both processes
-> > and threads and the results are interesting in terms of how variability
-> > is imapcted
-> > 
-> > 1-socket machine -- pipes and processes
-> >                         4.9.0-rc5             4.9.0-rc5
-> >                           vanilla        highmark-v1r12
-> > Amean    1      12.9637 (  0.00%)     12.9570 (  0.05%)
-> > Amean    3      13.4770 (  0.00%)     13.4447 (  0.24%)
-> > Amean    5      18.5333 (  0.00%)     19.0917 ( -3.01%)
-> > Amean    7      24.5690 (  0.00%)     26.1010 ( -6.24%)
-> > Amean    12     39.7990 (  0.00%)     40.6763 ( -2.20%)
-> > Amean    16     56.0520 (  0.00%)     58.2530 ( -3.93%)
-> 
-> Here, higher values are better or worse?
-> 
+>From commit 90954e7b9407 ("x86/coredump: Use pr_reg size, rather that
+TIF_IA32 flag") elf coredump file is constructed according to register
+set size - and that's good: if binary crashes with 32-bit code selector,
+generate 32-bit ELF core, otherwise - 64-bit core.
+That was made for restoring 32-bit applications on x86_64: we want
+32-bit application after restore to generate 32-bit ELF dump on crash.
+All was quite good and recently I started reworking 32-bit applications
+dumping part of CRIU: now it has two parasites (32 and 64) for seizing
+compat/native tasks, after rework it'll have one parasite, working in
+64-bit mode, to which 32-bit prologue long-jumps during infection.
 
-Higher values are worse.
+And while it has worked for my work machine, in VM with
+!CONFIG_X86_X32_ABI during reworking I faced that segfault in 32-bit
+binary, that has long-jumped to 64-bit mode results in dereference
+of garbage:
 
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 0f088f3a2fed..02eb24d90d70 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -255,6 +255,24 @@ enum zone_watermarks {
-> >  	NR_WMARK
-> >  };
-> > 
-> > +/*
-> > + * One per migratetype for order-0 pages and one per high-order up to
-> > + * and including PAGE_ALLOC_COSTLY_ORDER. This may allow unmovable
-> > + * allocations to contaminate reclaimable pageblocks if high-order
-> > + * pages are heavily used.
-> > + */
-> > +#define NR_PCP_LISTS (MIGRATE_PCPTYPES + PAGE_ALLOC_COSTLY_ORDER + 1)
-> 
-> Should it be "- 1" instead of "+ 1"?
-> 
+ 32-victim[19266]: segfault at f775ef65 ip 00000000f775ef65 sp 00000000f776aa50 error 14
+ BUG: unable to handle kernel paging request at ffffffffffffffff
+ IP: [<ffffffff81332ce0>] strlen+0x0/0x20
+ PGD 1e09067 PUD 1e0b067 PMD 0
+ Oops: 0000 [#1] SMP
+ Modules linked in:
+ CPU: 3 PID: 19266 Comm: 32-victim Not tainted 4.9.0-rc6 #18
+ task: ffff88013a183500 task.stack: ffffc90009ca4000
+ RIP: 0010:[<ffffffff81332ce0>]  [<ffffffff81332ce0>] strlen+0x0/0x20
+ RSP: 0000:ffffc90009ca7a40  EFLAGS: 00010286
+ RAX: 0000000000000030 RBX: ffff88013789add0 RCX: 0000000000000804
+ RDX: 0000000000000002 RSI: ffffc90009ca7cf8 RDI: ffffffffffffffff
+ RBP: ffffc90009ca7a68 R08: 0000000000000000 R09: 0000000000000000
+ R10: ffff88013fd9b058 R11: 0000000000000000 R12: ffffc90009ca7cf8
+ R13: ffffc90009ca7b18 R14: 0000000000000000 R15: ffff88013a77df60
+ FS:  0000000000000000(0000) GS:ffff88013fd80000(0063) knlGS:00000000f75a06c0
+ CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
+ CR2: ffffffffffffffff CR3: 0000000137be5000 CR4: 00000000001406e0
+ DR0: 00000000f775f420 DR1: 0000000000000000 DR2: 0000000000000000
+ DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+ Stack:
+  ffffffff811d6929 00000005378deda8 0000000200000200 ffff88013789ad00
+  ffffc90009ca7cf8 ffffc90009ca7c18 ffffffff811d9479 ffff88013a183500
+  00000000000000bc 0000000200000010 ffffc90009ca7b48 ffffc90009ca7b30
+ Call Trace:
+  [<ffffffff811d6929>] ? writenote+0x19/0xa0
+  [<ffffffff811d9479>] elf_core_dump+0x11a9/0x1480
+  [<ffffffff811dc70b>] do_coredump+0xa6b/0xe60
+  [<ffffffff81065820>] ? signal_wake_up_state+0x20/0x30
+  [<ffffffff81065941>] ? complete_signal+0xf1/0x1f0
+  [<ffffffff810679e8>] get_signal+0x1a8/0x5c0
+  [<ffffffff8101b1a3>] do_signal+0x23/0x660
+  [<ffffffff811268d3>] ? printk+0x48/0x4a
+  [<ffffffff810a37ba>] ? vprintk_default+0x1a/0x20
+  [<ffffffff81055375>] ? bad_area+0x41/0x48
+  [<ffffffff8104b4b3>] ? __do_page_fault+0x3e3/0x490
+  [<ffffffff81054296>] exit_to_usermode_loop+0x34/0x65
+  [<ffffffff8100178f>] prepare_exit_to_usermode+0x2f/0x40
+  [<ffffffff818f861b>] retint_user+0x8/0x10
 
-Yes.
+That's because we have 64-bit registers set (with according total size)
+and we're writing it to elf_thread_core_info which has smaller size
+on !CONFIG_X86_X32_ABI. That lead to overwriting ELF notes part.
 
-> > +
-> > +static inline unsigned int pindex_to_order(unsigned int pindex)
-> > +{
-> > +	return pindex < MIGRATE_PCPTYPES ? 0 : pindex - MIGRATE_PCPTYPES + 1;
-> > +}
-> > +
-> > +static inline unsigned int order_to_pindex(int migratetype, unsigned int order)
-> > +{
-> > +	return (order == 0) ? migratetype : MIGRATE_PCPTYPES - 1 + order;
-> 
-> Here I think that "MIGRATE_PCPTYPES + order - 1" would be easier to
-> understand as the array is for all migratetypes, but the order is shifted?
-> 
+Tested on 32-, 64-bit ELF crashes and on 32-bit binaries that have
+jumped with 64-bit code selector - all is readable with gdb.
 
-As in migratetypes * costly_order ? That would be excessively large.
+Fixes: commit 90954e7b9407 ("x86/coredump: Use pr_reg size, rather that
+TIF_IA32 flag")
 
-> > @@ -1083,10 +1083,12 @@ static bool bulkfree_pcp_prepare(struct page *page)
-> >   * pinned" detection logic.
-> >   */
-> >  static void free_pcppages_bulk(struct zone *zone, int count,
-> > -					struct per_cpu_pages *pcp)
-> > +					struct per_cpu_pages *pcp,
-> > +					int migratetype)
-> >  {
-> > -	int migratetype = 0;
-> > -	int batch_free = 0;
-> > +	unsigned int pindex = 0;
-> 
-> Should pindex be initialized to migratetype to match the list below?
-> 
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org
+Cc: x86@kernel.org
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ arch/x86/include/asm/compat.h | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-Functionally it doesn't matter. It affects which list is tried first if
-the preferred list is empty. Arguably it would make more sense to init
-it to NR_PCP_LISTS - 1 so all order-0 lists are always drained before the
-high-order pages but there is not much justification for that.
-
-I'll take your suggestion until there is data supporting that high-order
-caches should be preserved.
-
-Thanks.
-
+diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
+index 03d269bed941..24118c0b4640 100644
+--- a/arch/x86/include/asm/compat.h
++++ b/arch/x86/include/asm/compat.h
+@@ -272,7 +272,6 @@ struct compat_shmid64_ds {
+ /*
+  * The type of struct elf_prstatus.pr_reg in compatible core dumps.
+  */
+-#ifdef CONFIG_X86_X32_ABI
+ typedef struct user_regs_struct compat_elf_gregset_t;
+ 
+ /* Full regset -- prstatus on x32, otherwise on ia32 */
+@@ -281,10 +280,9 @@ typedef struct user_regs_struct compat_elf_gregset_t;
+   do { *(int *) (((void *) &((S)->pr_reg)) + R) = (V); } \
+   while (0)
+ 
++#ifdef CONFIG_X86_X32_ABI
+ #define COMPAT_USE_64BIT_TIME \
+ 	(!!(task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT))
+-#else
+-typedef struct user_regs_struct32 compat_elf_gregset_t;
+ #endif
+ 
+ /*
 -- 
-Mel Gorman
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
