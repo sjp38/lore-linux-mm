@@ -1,50 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E01E26B026A
-	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 04:49:32 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so17519593pgq.7
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 01:49:32 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m1si32895565pfa.104.2016.11.23.01.49.31
-        for <linux-mm@kvack.org>;
-        Wed, 23 Nov 2016 01:49:32 -0800 (PST)
-Date: Wed, 23 Nov 2016 09:48:47 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCHv3 5/6] arm64: Use __pa_symbol for kernel symbols
-Message-ID: <20161123094847.GC24624@leverpostej>
-References: <1479431816-5028-1-git-send-email-labbott@redhat.com>
- <1479431816-5028-6-git-send-email-labbott@redhat.com>
- <20161118143543.GC1197@leverpostej>
- <92635df6-9a58-02cf-3230-1a84c28370d1@redhat.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CCDDD6B0277
+	for <linux-mm@kvack.org>; Wed, 23 Nov 2016 05:44:01 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id u144so5522624wmu.1
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 02:44:01 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v4si30433055wjr.104.2016.11.23.02.44.00
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Nov 2016 02:44:00 -0800 (PST)
+Subject: Re: [RFC 1/2] mm: consolidate GFP_NOFAIL checks in the allocator
+ slowpath
+References: <20161123064925.9716-1-mhocko@kernel.org>
+ <20161123064925.9716-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1716580d-83aa-7a0e-75b6-3377669d5208@suse.cz>
+Date: Wed, 23 Nov 2016 11:43:57 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <92635df6-9a58-02cf-3230-1a84c28370d1@redhat.com>
+In-Reply-To: <20161123064925.9716-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: lorenzo.pieralisi@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Nov 21, 2016 at 09:40:06AM -0800, Laura Abbott wrote:
-> On 11/18/2016 06:35 AM, Mark Rutland wrote:
-> > On Thu, Nov 17, 2016 at 05:16:55PM -0800, Laura Abbott wrote:
-> >>  	/* Grab the vDSO code pages. */
-> >>  	for (i = 0; i < vdso_pages; i++)
-> >> -		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa(&vdso_start)) + i);
-> >> +		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa_symbol(&vdso_start)) + i);
-> > 
-> > Nit: phys_to_page() again.
-> 
-> I think it makes sense to keep this one as is. It's offsetting
-> by pfn number and trying force phys_to_page would make it more
-> difficult to read.
+On 11/23/2016 07:49 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> Tetsuo Handa has pointed out that 0a0337e0d1d1 ("mm, oom: rework oom
+> detection") has subtly changed semantic for costly high order requests
+> with __GFP_NOFAIL and withtout __GFP_REPEAT and those can fail right now.
+> My code inspection didn't reveal any such users in the tree but it is
+> true that this might lead to unexpected allocation failures and
+> subsequent OOPs.
+>
+> __alloc_pages_slowpath wrt. GFP_NOFAIL is hard to follow currently.
+> There are few special cases but we are lacking a catch all place to be
+> sure we will not miss any case where the non failing allocation might
+> fail. This patch reorganizes the code a bit and puts all those special
+> cases under nopage label which is the generic go-to-fail path. Non
+> failing allocations are retried or those that cannot retry like
+> non-sleeping allocation go to the failure point directly. This should
+> make the code flow much easier to follow and make it less error prone
+> for future changes.
+>
+> While we are there we have to move the stall check up to catch
+> potentially looping non-failing allocations.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-My bad; I failed to spot the + i.
+Yeah, that's much better than the current state.
 
-That sounds good to me; sorry for the noise there.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Thanks,
-Mark.
+> ---
+>  mm/page_alloc.c | 68 ++++++++++++++++++++++++++++++++++-----------------------
+>  1 file changed, 41 insertions(+), 27 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0fbfead6aa7d..76c0b6bb0baf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3627,32 +3627,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto got_pg;
+>
+>  	/* Caller is not willing to reclaim, we can't balance anything */
+> -	if (!can_direct_reclaim) {
+> -		/*
+> -		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+> -		 * of any new users that actually allow this type of allocation
+> -		 * to fail.
+> -		 */
+> -		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
+> +	if (!can_direct_reclaim)
+>  		goto nopage;
+> +
+> +	/* Make sure we know about allocations which stall for too long */
+> +	if (time_after(jiffies, alloc_start + stall_timeout)) {
+> +		warn_alloc(gfp_mask,
+> +			"page alloction stalls for %ums, order:%u",
+> +			jiffies_to_msecs(jiffies-alloc_start), order);
+> +		stall_timeout += 10 * HZ;
+>  	}
+>
+>  	/* Avoid recursion of direct reclaim */
+> -	if (current->flags & PF_MEMALLOC) {
+> -		/*
+> -		 * __GFP_NOFAIL request from this context is rather bizarre
+> -		 * because we cannot reclaim anything and only can loop waiting
+> -		 * for somebody to do a work for us.
+> -		 */
+> -		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+> -			cond_resched();
+> -			goto retry;
+> -		}
+> +	if (current->flags & PF_MEMALLOC)
+>  		goto nopage;
+> -	}
+>
+>  	/* Avoid allocations with no watermarks from looping endlessly */
+> -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> +	if (test_thread_flag(TIF_MEMDIE))
+>  		goto nopage;
+>
+>
+> @@ -3679,14 +3670,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+>  		goto nopage;
+>
+> -	/* Make sure we know about allocations which stall for too long */
+> -	if (time_after(jiffies, alloc_start + stall_timeout)) {
+> -		warn_alloc(gfp_mask,
+> -			"page alloction stalls for %ums, order:%u",
+> -			jiffies_to_msecs(jiffies-alloc_start), order);
+> -		stall_timeout += 10 * HZ;
+> -	}
+> -
+>  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+>  				 did_some_progress > 0, &no_progress_loops))
+>  		goto retry;
+> @@ -3715,6 +3698,37 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	}
+>
+>  nopage:
+> +	/*
+> +	 * Make sure that __GFP_NOFAIL request doesn't leak out and make sure
+> +	 * we always retry
+> +	 */
+> +	if (gfp_mask & __GFP_NOFAIL) {
+> +		/*
+> +		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+> +		 * of any new users that actually require GFP_NOWAIT
+> +		 */
+> +		if (WARN_ON_ONCE(!can_direct_reclaim))
+> +			goto fail;
+> +
+> +		/*
+> +		 * PF_MEMALLOC request from this context is rather bizarre
+> +		 * because we cannot reclaim anything and only can loop waiting
+> +		 * for somebody to do a work for us
+> +		 */
+> +		WARN_ON_ONCE(current->flags & PF_MEMALLOC);
+> +
+> +		/*
+> +		 * non failing costly orders are a hard requirement which we
+> +		 * are not prepared for much so let's warn about these users
+> +		 * so that we can identify them and convert them to something
+> +		 * else.
+> +		 */
+> +		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
+> +
+> +		cond_resched();
+> +		goto retry;
+> +	}
+> +fail:
+>  	warn_alloc(gfp_mask,
+>  			"page allocation failure: order:%u", order);
+>  got_pg:
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
