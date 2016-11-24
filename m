@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B30476B0069
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB80E6B0260
 	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:47:02 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id u144so13209590wmu.1
+Received: by mail-wj0-f198.google.com with SMTP id xr1so5296213wjb.7
         for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:47:02 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ip3si35950429wjb.97.2016.11.24.01.47.01
+        by mx.google.com with ESMTPS id pp3si35855441wjb.160.2016.11.24.01.47.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 24 Nov 2016 01:47:01 -0800 (PST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 4/6] dax: Finish fault completely when loading holes
-Date: Thu, 24 Nov 2016 10:46:34 +0100
-Message-Id: <1479980796-26161-5-git-send-email-jack@suse.cz>
+Subject: [PATCH 3/6] dax: Avoid page invalidation races and unnecessary radix tree traversals
+Date: Thu, 24 Nov 2016 10:46:33 +0100
+Message-Id: <1479980796-26161-4-git-send-email-jack@suse.cz>
 In-Reply-To: <1479980796-26161-1-git-send-email-jack@suse.cz>
 References: <1479980796-26161-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,81 +20,70 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>
 
-The only case when we do not finish the page fault completely is when we
-are loading hole pages into a radix tree. Avoid this special case and
-finish the fault in that case as well inside the DAX fault handler. It
-will allow us for easier iomap handling.
+Currently each filesystem (possibly through generic_file_direct_write()
+or iomap_dax_rw()) takes care of invalidating page tables and evicting
+hole pages from the radix tree when write(2) to the file happens. This
+invalidation is only necessary when there is some block allocation
+resulting from write(2). Furthermore in current place the invalidation
+is racy wrt page fault instantiating a hole page just after we have
+invalidated it.
 
+So perform the page invalidation inside dax_do_io() where we can do it
+only when really necessary and after blocks have been allocated so
+nobody will be instantiating new hole pages anymore.
+
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
+ fs/dax.c | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index ddf77ef2ca18..38f996976ebf 100644
+index 4534f0e232e9..ddf77ef2ca18 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -540,15 +540,16 @@ int dax_invalidate_clean_mapping_entry(struct address_space *mapping,
-  * otherwise it will simply fall out of the page cache under memory
-  * pressure without ever having been dirtied.
-  */
--static int dax_load_hole(struct address_space *mapping, void *entry,
-+static int dax_load_hole(struct address_space *mapping, void **entry,
- 			 struct vm_fault *vmf)
- {
- 	struct page *page;
-+	int ret;
+@@ -984,6 +984,17 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 	if (WARN_ON_ONCE(iomap->type != IOMAP_MAPPED))
+ 		return -EIO;
  
- 	/* Hole page already exists? Return it...  */
--	if (!radix_tree_exceptional_entry(entry)) {
--		vmf->page = entry;
--		return VM_FAULT_LOCKED;
-+	if (!radix_tree_exceptional_entry(*entry)) {
-+		page = *entry;
-+		goto out;
- 	}
- 
- 	/* This will replace locked radix tree entry with a hole page */
-@@ -556,8 +557,17 @@ static int dax_load_hole(struct address_space *mapping, void *entry,
- 				   vmf->gfp_mask | __GFP_ZERO);
- 	if (!page)
- 		return VM_FAULT_OOM;
-+ out:
- 	vmf->page = page;
--	return VM_FAULT_LOCKED;
-+	ret = finish_fault(vmf);
-+	vmf->page = NULL;
-+	*entry = page;
-+	if (!ret) {
-+		/* Grab reference for PTE that is now referencing the page */
-+		get_page(page);
-+		return VM_FAULT_NOPAGE;
++	/*
++	 * Write can allocate block for an area which has a hole page mapped
++	 * into page tables. We have to tear down these mappings so that data
++	 * written by write(2) is visible in mmap.
++	 */
++	if ((iomap->flags & IOMAP_F_NEW) && inode->i_mapping->nrpages) {
++		invalidate_inode_pages2_range(inode->i_mapping,
++					      pos >> PAGE_SHIFT,
++					      (end - 1) >> PAGE_SHIFT);
 +	}
-+	return ret;
- }
++
+ 	while (pos < end) {
+ 		unsigned offset = pos & (PAGE_SIZE - 1);
+ 		struct blk_dax_ctl dax = { 0 };
+@@ -1042,23 +1053,6 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+ 	if (iov_iter_rw(iter) == WRITE)
+ 		flags |= IOMAP_WRITE;
  
- static int copy_user_dax(struct block_device *bdev, sector_t sector, size_t size,
-@@ -1162,8 +1172,8 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	case IOMAP_UNWRITTEN:
- 	case IOMAP_HOLE:
- 		if (!(vmf->flags & FAULT_FLAG_WRITE)) {
--			vmf_ret = dax_load_hole(mapping, entry, vmf);
--			break;
-+			vmf_ret = dax_load_hole(mapping, &entry, vmf);
-+			goto finish_iomap;
- 		}
- 		/*FALLTHRU*/
- 	default:
-@@ -1184,8 +1194,7 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		}
- 	}
-  unlock_entry:
--	if (vmf_ret != VM_FAULT_LOCKED || error)
--		put_locked_mapping_entry(mapping, vmf->pgoff, entry);
-+	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
-  out:
- 	if (error == -ENOMEM)
- 		return VM_FAULT_OOM | major;
+-	/*
+-	 * Yes, even DAX files can have page cache attached to them:  A zeroed
+-	 * page is inserted into the pagecache when we have to serve a write
+-	 * fault on a hole.  It should never be dirtied and can simply be
+-	 * dropped from the pagecache once we get real data for the page.
+-	 *
+-	 * XXX: This is racy against mmap, and there's nothing we can do about
+-	 * it. We'll eventually need to shift this down even further so that
+-	 * we can check if we allocated blocks over a hole first.
+-	 */
+-	if (mapping->nrpages) {
+-		ret = invalidate_inode_pages2_range(mapping,
+-				pos >> PAGE_SHIFT,
+-				(pos + iov_iter_count(iter) - 1) >> PAGE_SHIFT);
+-		WARN_ON_ONCE(ret);
+-	}
+-
+ 	while (iov_iter_count(iter)) {
+ 		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
+ 				iter, dax_iomap_actor);
 -- 
 2.6.6
 
