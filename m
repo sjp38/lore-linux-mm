@@ -1,86 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6196B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:11:55 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id t11so40243454ywe.3
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:11:55 -0800 (PST)
-Received: from mail-yw0-x22f.google.com (mail-yw0-x22f.google.com. [2607:f8b0:4002:c05::22f])
-        by mx.google.com with ESMTPS id r9si9621627ybd.41.2016.11.24.05.11.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C0B506B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:29:21 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so14882005wmw.0
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:29:21 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id 137si8260323wmr.70.2016.11.24.05.29.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 05:11:54 -0800 (PST)
-Received: by mail-yw0-x22f.google.com with SMTP id i145so38934356ywg.2
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:11:54 -0800 (PST)
+        Thu, 24 Nov 2016 05:29:20 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id f8so3274351wje.2
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:29:20 -0800 (PST)
+Date: Thu, 24 Nov 2016 14:29:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle
+ PF_LESS_THROTTLE tasks
+Message-ID: <20161124132916.GF20668@dhcp22.suse.cz>
+References: <20160727182411.GE21859@dhcp22.suse.cz>
+ <87eg6e4vhc.fsf@notabene.neil.brown.name>
+ <20160728071711.GB31860@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608030844470.15274@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160803143419.GC1490@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160812123242.GH3639@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608131323550.3291@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160814103409.GC9248@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1611231558420.31481@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-From: =?UTF-8?B?0JDQtNGL0LPQttGLINCe0L3QtNCw0YA=?= <ondar07@gmail.com>
-Date: Thu, 24 Nov 2016 16:11:53 +0300
-Message-ID: <CAPhj7_CW_X5UuLPUfUFEA0mfPB_6OSO195ZQokckGOZzJevyyw@mail.gmail.com>
-Subject: [PATCH] mm/oom_kill.c: fix initial value of victim_points variable
-Content-Type: multipart/alternative; boundary=001a114fcfc2d28d4405420bbf2b
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1611231558420.31481@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "dm-devel@redhat.com David Rientjes" <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Douglas Anderson <dianders@chromium.org>, shli@kernel.org, Dmitry Torokhov <dmitry.torokhov@gmail.com>
 
---001a114fcfc2d28d4405420bbf2b
-Content-Type: text/plain; charset=UTF-8
+On Wed 23-11-16 16:11:59, Mikulas Patocka wrote:
+[...]
+> Hi Michal
+> 
+> So, here Google developers hit a stacktrace where a block device driver is 
+> being throttled in the memory management:
+> 
+> https://www.redhat.com/archives/dm-devel/2016-November/msg00158.html
+> 
+> dm-bufio layer is something like a buffer cache, used by block device 
+> drivers. Unlike the real buffer cache, dm-bufio guarantees forward 
+> progress even if there is no memory free.
+> 
+> dm-bufio does something similar like a mempool allocation, it tries an 
+> allocation with GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN 
+> (just like a mempool) and if it fails, it will reuse some existing buffer.
+> 
+> Here, they caught it being throttled in the memory management:
+> 
+>    Workqueue: kverityd verity_prefetch_io
+>    __switch_to+0x9c/0xa8
+>    __schedule+0x440/0x6d8
+>    schedule+0x94/0xb4
+>    schedule_timeout+0x204/0x27c
+>    schedule_timeout_uninterruptible+0x44/0x50
+>    wait_iff_congested+0x9c/0x1f0
+>    shrink_inactive_list+0x3a0/0x4cc
+>    shrink_lruvec+0x418/0x5cc
+>    shrink_zone+0x88/0x198
+>    try_to_free_pages+0x51c/0x588
+>    __alloc_pages_nodemask+0x648/0xa88
+>    __get_free_pages+0x34/0x7c
+>    alloc_buffer+0xa4/0x144
+>    __bufio_new+0x84/0x278
+>    dm_bufio_prefetch+0x9c/0x154
+>    verity_prefetch_io+0xe8/0x10c
+>    process_one_work+0x240/0x424
+>    worker_thread+0x2fc/0x424
+>    kthread+0x10c/0x114
+> 
+> Will you consider removing vm throttling for __GFP_NORETRY allocations?
 
-If the initial value of victim_points variable is equal to 0,
-oom killer may choose a victim incorrectly.
-For example, parent points > 0, 0 < child_points < parent points
-(chosen_points).
-In this example, current oom killer chooses this child, not parent.
+As I've already said before I do not think that tweaking __GFP_NORETRY
+is the right approach is the right approach. The whole point of the flag
+is to not loop in the _allocator_ and it has nothing to do with the reclaim
+and the way how it is doing throttling.
 
-To apply the patch, in the root of a kernel tree use:
-patch -p1 <this_fix.patch
+On the other hand I perfectly understand your point and a lack of
+anything between GFP_NOWAIT and ___GFP_DIRECT_RECLAIM can be a bit
+frustrating. It would be nice to have sime middle ground - only a
+light reclaim involved and a quick back off if the memory is harder to
+reclaim. That is a hard thing to do, though because all the reclaimers
+(including slab shrinkers) would have to be aware of this concept to
+work properly.
 
-Signed-off-by: Adygzhy Ondar <ondar07@gmail.com>
+I have read the report from the link above and I am really wondering why
+s@GFP_NOIO@GFP_NOWAIT@ is not the right way to go there. You have argued
+about a clean page cache would force buffer reuse. That might be true
+to some extent but is it a real problem? Please note that even
+GFP_NOWAIT allocations will wake up kspwad which should clean up that
+clean page cache in the background. I would even expect kswapd being
+active at the time when NOWAIT requests hit the min watermark. If that
+is not the case then we should probably think about why kspwad is not
+proactive enough rather than tweaking __GFP_NORETRY semantic.
 
-------------------------------------------------------------------------------------
---- linux/mm/oom_kill.c.orig 2016-11-24 15:03:43.711235386 +0300
-+++ linux/mm/oom_kill.c 2016-11-24 15:04:00.851942474 +0300
-@@ -812,7 +812,7 @@ static void oom_kill_process(struct oom_
-  struct task_struct *child;
-  struct task_struct *t;
-  struct mm_struct *mm;
-- unsigned int victim_points = 0;
-+ unsigned int victim_points = points;
-  static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-       DEFAULT_RATELIMIT_BURST);
-  bool can_oom_reap = true;
-
---001a114fcfc2d28d4405420bbf2b
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>If the initial value of victim_points variable is equ=
-al to 0,<br>oom killer may choose a victim incorrectly.<br>For example, par=
-ent points &gt; 0, 0 &lt; child_points &lt; parent points (chosen_points).<=
-br>In this example, current oom killer chooses this child, not parent.</div=
-><br><div>To apply the patch, in the root of a kernel tree use:</div><div>p=
-atch -p1 &lt;this_fix.patch</div><div><br></div><div>Signed-off-by: Adygzhy=
- Ondar &lt;<a href=3D"mailto:ondar07@gmail.com">ondar07@gmail.com</a>&gt;</=
-div><div><br></div><div>---------------------------------------------------=
----------------------------------</div><div><div>--- linux/mm/oom_kill.c.or=
-ig<span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>20=
-16-11-24 15:03:43.711235386 +0300</div><div>+++ linux/mm/oom_kill.c<span cl=
-ass=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>2016-11-24 1=
-5:04:00.851942474 +0300</div><div>@@ -812,7 +812,7 @@ static void oom_kill_=
-process(struct oom_</div><div>=C2=A0<span class=3D"gmail-Apple-tab-span" st=
-yle=3D"white-space:pre">	</span>struct task_struct *child;</div><div>=C2=A0=
-<span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>stru=
-ct task_struct *t;</div><div>=C2=A0<span class=3D"gmail-Apple-tab-span" sty=
-le=3D"white-space:pre">	</span>struct mm_struct *mm;</div><div>-<span class=
-=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>unsigned int vi=
-ctim_points =3D 0;</div><div>+<span class=3D"gmail-Apple-tab-span" style=3D=
-"white-space:pre">	</span>unsigned int victim_points =3D points;</div><div>=
-=C2=A0<span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</spa=
-n>static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,</div><d=
-iv>=C2=A0<span class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">			=
-		</span> =C2=A0 =C2=A0 =C2=A0DEFAULT_RATELIMIT_BURST);</div><div>=C2=A0<sp=
-an class=3D"gmail-Apple-tab-span" style=3D"white-space:pre">	</span>bool ca=
-n_oom_reap =3D true;</div></div></div>
-
---001a114fcfc2d28d4405420bbf2b--
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
