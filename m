@@ -1,107 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D77246B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:49:42 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id xy5so6190453wjc.0
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:49:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id go16si36986901wjc.76.2016.11.24.05.49.41
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 28BDB6B025E
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:56:32 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id y205so33909763qkb.4
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:56:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v200si22501116qkb.187.2016.11.24.05.56.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Nov 2016 05:49:41 -0800 (PST)
-Subject: Re: mm: BUG in pgtable_pmd_page_dtor
-References: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f8963cc3-69a8-a1ca-9b56-205d919eac41@suse.cz>
-Date: Thu, 24 Nov 2016 14:49:35 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Nov 2016 05:56:31 -0800 (PST)
+Date: Thu, 24 Nov 2016 08:56:23 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
+ for unaddressable
+Message-ID: <20161124135623.GA12887@redhat.com>
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+ <1479493107-982-7-git-send-email-jglisse@redhat.com>
+ <5832D33C.6030403@linux.vnet.ibm.com>
+ <20161121124218.GF2392@redhat.com>
+ <5833CE1B.6030104@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <5833CE1B.6030104@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: syzkaller <syzkaller@googlegroups.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 11/18/2016 11:19 AM, Dmitry Vyukov wrote:
-> Hello,
->
-> I've got the following BUG while running syzkaller on
-> a25f0944ba9b1d8a6813fd6f1a86f1bd59ac25a6 (4.9-rc5). Unfortunately it's
-> not reproducible.
->
-> kernel BUG at ./include/linux/mm.h:1743!
-> invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+On Tue, Nov 22, 2016 at 10:18:27AM +0530, Anshuman Khandual wrote:
+> On 11/21/2016 06:12 PM, Jerome Glisse wrote:
+> > On Mon, Nov 21, 2016 at 04:28:04PM +0530, Anshuman Khandual wrote:
+> >> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
+> >>> To allow use of device un-addressable memory inside a process add a
+> >>> special swap type. Also add a new callback to handle page fault on
+> >>> such entry.
+> >>
+> >> IIUC this swap type is required only for the mirror cases and its
+> >> not a requirement for migration. If it's required for mirroring
+> >> purpose where we intercept each page fault, the commit message
+> >> here should clearly elaborate on that more.
+> > 
+> > It is only require for un-addressable memory. The mirroring has nothing to do
+> > with it. I will clarify commit message.
+> 
+> One thing though. I dont recall how persistent memory ZONE_DEVICE
+> pages are handled inside the page tables, point here is it should
+> be part of the same code block. We should catch that its a device
+> memory page and then figure out addressable or not and act
+> accordingly. Because persistent memory are CPU addressable, there
+> might not been special code block but dealing with device pages 
+> should be handled in a more holistic manner.
 
-Shouldn't there be also dump_page() output? Since you've hit this:
-VM_BUG_ON_PAGE(page->pmd_huge_pte, page);
+Before i repost updated patchset i should stress that dealing with un-addressable
+device page and addressable one in same block is not do-able without re-doing once
+again the whole mm page fault code path. Because i use special swap entry the 
+logical place for me to handle it is with where swap entry are handled.
 
-Anyway the output wouldn't contain the value of pmd_huge_pte or stuff 
-that's in union with it. I'd suggest adding a local patch that prints 
-this in the error case, in case the fuzzer hits it again.
+Regular device page are handle bit simpler that other page because they can't be
+evicted/swaped so they are always present once faulted. I think right now they
+are always populated through fs page fault callback (well dax one).
 
-Heck, it might even make sense to print raw contents of struct page in 
-dump_page() as a catch-all solution? Should I send a patch?
+So not much reasons to consolidate all device page handling in one place. We are
+looking at different use case in the end.
 
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 3 PID: 4049 Comm: syz-fuzzer Not tainted 4.9.0-rc5+ #43
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff88006ad028c0 task.stack: ffff8800667e0000
-> RIP: 0010:[<ffffffff8130e2ab>]  [<     inline     >]
-> pgtable_pmd_page_dtor include/linux/mm.h:1743
-> RIP: 0010:[<ffffffff8130e2ab>]  [<ffffffff8130e2ab>]
-> ___pmd_free_tlb+0x3db/0x5a0 arch/x86/mm/pgtable.c:74
-> RSP: 0018:ffff8800667e6908  EFLAGS: 00010292
-> RAX: 0000000000000000 RBX: 1ffff1000ccfcd25 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffed000ccfcd10
-> RBP: ffff8800667e6a70 R08: 0000000000000001 R09: 0000000000000000
-> R10: dffffc0000000000 R11: 0000000000000001 R12: ffff8800667e6ef8
-> R13: ffff8800667e6a48 R14: ffffea0000e196c0 R15: 000000000003865b
-> FS:  00007f152a530700(0000) GS:ffff88006d100000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007f1514bff9d0 CR3: 0000000009821000 CR4: 00000000000006e0
-> DR0: 0000000000000400 DR1: 0000000000000400 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> Stack:
->  0000000000000000 ffff88006ad030e0 ffff88006ad030b8 dffffc0000000000
->  0000000041b58ab3 ffffffff894db568 ffffffff8130ded0 ffffffff8156b2a0
->  0000000000000082 ffff88006ad030e0 1ffff1000ccfcd30 1ffff1000ccfcd38
-> Call Trace:
->  [<     inline     >] __pmd_free_tlb arch/x86/include/asm/pgalloc.h:110
->  [<     inline     >] free_pmd_range mm/memory.c:443
->  [<     inline     >] free_pud_range mm/memory.c:461
->  [<ffffffff81946458>] free_pgd_range+0xb98/0x1270 mm/memory.c:537
->  [<ffffffff81946da5>] free_pgtables+0x275/0x340 mm/memory.c:569
->  [<ffffffff81972761>] exit_mmap+0x281/0x4e0 mm/mmap.c:2942
->  [<     inline     >] __mmput kernel/fork.c:866
->  [<ffffffff813f24ce>] mmput+0x20e/0x4c0 kernel/fork.c:888
->  [<     inline     >] exit_mm kernel/exit.c:512
->  [<ffffffff814119a0>] do_exit+0x960/0x2640 kernel/exit.c:815
->  [<ffffffff8141383e>] do_group_exit+0x14e/0x420 kernel/exit.c:931
->  [<ffffffff814429d3>] get_signal+0x663/0x1880 kernel/signal.c:2307
->  [<ffffffff81239b45>] do_signal+0xc5/0x2190 arch/x86/kernel/signal.c:807
->  [<ffffffff8100666a>] exit_to_usermode_loop+0x1ea/0x2d0
-> arch/x86/entry/common.c:156
->  [<     inline     >] prepare_exit_to_usermode arch/x86/entry/common.c:190
->  [<ffffffff81009693>] syscall_return_slowpath+0x4d3/0x570
-> arch/x86/entry/common.c:259
->  [<ffffffff881479a6>] entry_SYSCALL_64_fastpath+0xc4/0xc6
-> Code: 10 00 00 4c 89 e7 e8 25 6c 63 00 e9 9b fd ff ff e8 0b 9e 3d 00
-> 0f 0b e8 04 9e 3d 00 48 c7 c6 00 ac 27 88 4c 89 f7 e8 85 9e 62 00 <0f>
-> 0b e8 9e 2d 6e 00 e9 1a fe ff ff 48 89 cf 48 89 8d b0 fe ff
-> RIP  [<     inline     >] pgtable_pmd_page_dtor include/linux/mm.h:1743
-> RIP  [<ffffffff8130e2ab>] ___pmd_free_tlb+0x3db/0x5a0 arch/x86/mm/pgtable.c:74
->  RSP <ffff8800667e6908>
-> ---[ end trace 4ef4b70d88f62f8a ]---
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
