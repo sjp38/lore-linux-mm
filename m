@@ -1,110 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B63626B025E
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 02:41:34 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id hb5so4900640wjc.2
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 23:41:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qi6si35464393wjb.175.2016.11.23.23.41.33
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AD8106B025E
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 02:43:20 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a20so12329020wme.5
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 23:43:20 -0800 (PST)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id fj9si35490594wjb.13.2016.11.23.23.43.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Nov 2016 23:41:33 -0800 (PST)
-Subject: Re: [RFC 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-References: <20161123064925.9716-1-mhocko@kernel.org>
- <20161123064925.9716-3-mhocko@kernel.org>
- <87b89181-a141-611d-c772-c5e483aa4f49@suse.cz>
- <20161123123532.GJ2864@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <75ad0d8e-3dff-8893-eb2d-5f3817d91d83@suse.cz>
-Date: Thu, 24 Nov 2016 08:41:30 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Nov 2016 23:43:19 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 1B0D11C16EB
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 07:43:19 +0000 (GMT)
+Date: Thu, 24 Nov 2016 07:43:18 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC PATCH] mm: page_alloc: High-order per-cpu page allocator
+Message-ID: <20161124074318.a72wbn6lx5skxuxf@techsingularity.net>
+References: <20161121155540.5327-1-mgorman@techsingularity.net>
+ <4a9cdec4-b514-e414-de86-fc99681889d8@suse.cz>
+ <20161123163351.6s76ijwnqoakgcud@techsingularity.net>
+ <a1f8d311-1f69-b672-1dad-9867c212147f@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161123123532.GJ2864@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <a1f8d311-1f69-b672-1dad-9867c212147f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On 11/23/2016 01:35 PM, Michal Hocko wrote:
-> On Wed 23-11-16 13:19:20, Vlastimil Babka wrote:
->> This makes some sense to me, but there might be unpleasant consequences,
->> e.g. due to allowing costly allocations without reserves.
->
-> I am not sure I understand. Did you mean with reserves? Anyway, my code
+On Thu, Nov 24, 2016 at 08:26:39AM +0100, Vlastimil Babka wrote:
+> On 11/23/2016 05:33 PM, Mel Gorman wrote:
+> > > > +
+> > > > +static inline unsigned int pindex_to_order(unsigned int pindex)
+> > > > +{
+> > > > +	return pindex < MIGRATE_PCPTYPES ? 0 : pindex - MIGRATE_PCPTYPES + 1;
+> > > > +}
+> > > > +
+> > > > +static inline unsigned int order_to_pindex(int migratetype, unsigned int order)
+> > > > +{
+> > > > +	return (order == 0) ? migratetype : MIGRATE_PCPTYPES - 1 + order;
+> > > 
+> > > Here I think that "MIGRATE_PCPTYPES + order - 1" would be easier to
+> > > understand as the array is for all migratetypes, but the order is shifted?
+> > > 
+> > 
+> > As in migratetypes * costly_order ? That would be excessively large.
+> 
+> No, I just meant that instead of "MIGRATE_PCPTYPES - 1 + order" it could be
+> "MIGRATE_PCPTYPES + order - 1" as we are subtracting from order, not
+> migratetypes. Just made me confused a bit when seeing the code for the first
+> time.
+> 
 
-Yeah, with reserves/without watermarks checks. Sorry.
+Oh ok. At the time I was thinking in terms of the starting offset for
+the high-order and this seemed more natural but I'm ok with it either
+way.
 
-> inspection shown that we are not really doing GFP_NOFAIL for costly
-> orders. This might change in the future but even if we do that then this
-> shouldn't add a risk of the reserves depletion, right?
+As an aside, the sizing of the array was still wrong but I corrected
+it yesterday shortly after sending the mail. I also realised that the
+free_pcppages_bulk was not interleaving properly and it should be fixed
+now. More tests are in progress.
 
-Well it's true that it will be unlikely that high-order pages will exist 
-at min watermark, but if they do, high-order page depletes more than 
-order-0. Anyway we have the WARN_ON_ONCE on cosly nofail allocations, so 
-at least this won't happen silently...
+Thanks.
 
->> I guess only testing will show...
->>
->> Also some comments below.
-> [...]
->>>  static inline struct page *
->>> +__alloc_pages_nowmark(gfp_t gfp_mask, unsigned int order,
->>> +						const struct alloc_context *ac)
->>> +{
->>> +	struct page *page;
->>> +
->>> +	page = get_page_from_freelist(gfp_mask, order,
->>> +			ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
->>> +	/*
->>> +	 * fallback to ignore cpuset restriction if our nodes
->>> +	 * are depleted
->>> +	 */
->>> +	if (!page)
->>> +		page = get_page_from_freelist(gfp_mask, order,
->>> +				ALLOC_NO_WATERMARKS, ac);
->>
->> Is this enough? Look at what __alloc_pages_slowpath() does since
->> e46e7b77c909 ("mm, page_alloc: recalculate the preferred zoneref if the
->> context can ignore memory policies").
->
-> this is a one time attempt to do the nowmark allocation. If we need to
-> do the recalculation then this should happen in the next round. Or am I
-> missing your question?
-
-The next round no-watermarks allocation attempt in 
-__alloc_pages_slowpath() uses different criteria than the new 
-__alloc_pages_nowmark() callers. And it would be nicer to unify this as 
-well, if possible.
-
->
->>
->> ...
->>
->>> -	}
->>>  	/* Exhausted what can be done so it's blamo time */
->>> -	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
->>> +	if (out_of_memory(&oc)) {
->>
->> This removes the warning, but also the check for __GFP_NOFAIL itself. Was it
->> what you wanted?
->
-> The point of the check was to keep looping for __GFP_NOFAIL requests
-> even when the OOM killer is disabled (out_of_memory returns false). We
-> are accomplishing that by
->>
->>>  		*did_some_progress = 1;
-> 		^^^^ this
-
-But oom disabled means that this line is not reached?
-
-> it is true we will not have the warning but I am not really sure we care
-> all that much. In any case it wouldn't be all that hard to check for oom
-> killer disabled and warn on in the allocator slow path.
->
-> thanks for having a look!
->
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
