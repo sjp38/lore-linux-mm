@@ -1,261 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 52AF56B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 03:15:46 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a20so12532379wme.5
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 00:15:46 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id fq2si35633141wjb.119.2016.11.24.00.15.44
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 355076B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:02:46 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id m203so12878004wma.2
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:02:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sc5si35759532wjb.155.2016.11.24.01.02.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 00:15:44 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAO8E2Lj068163
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 03:15:43 -0500
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 26wt6u93es-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 03:15:43 -0500
-Received: from localhost
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 24 Nov 2016 18:15:40 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 020923578057
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:15:37 +1100 (EST)
-Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAO8Fa5849676412
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:15:36 +1100
-Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
-	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAO8FaHs001458
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:15:36 +1100
-Subject: Re: [PATCH 2/5] mm: migrate: Change migrate_mode to support
- combination migration modes.
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-3-zi.yan@sent.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 24 Nov 2016 13:45:33 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 Nov 2016 01:02:44 -0800 (PST)
+Date: Thu, 24 Nov 2016 10:02:39 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/6] dax: fix build breakage with ext4, dax and !iomap
+Message-ID: <20161124090239.GA24138@quack2.suse.cz>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20161122162530.2370-3-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <5836A1A5.8050102@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On 11/22/2016 09:55 PM, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
+On Wed 23-11-16 11:44:17, Ross Zwisler wrote:
+> With the current Kconfig setup it is possible to have the following:
 > 
-> From: Zi Yan <ziy@nvidia.com>
+> CONFIG_EXT4_FS=y
+> CONFIG_FS_DAX=y
+> CONFIG_FS_IOMAP=n	# this is in fs/Kconfig & isn't user accessible
 > 
-> No functionality is changed.
-
-The commit message need to contains more details like it changes
-the enum declaration from numbers to bit positions, where all it
-changes existing code like compaction and migration.
-
+> With this config we get build failures in ext4_dax_fault() because the
+> iomap functions in fs/dax.c are missing:
 > 
-> Signed-off-by: Zi Yan <ziy@nvidia.com>
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> fs/built-in.o: In function `ext4_dax_fault':
+> file.c:(.text+0x7f3ac): undefined reference to `dax_iomap_fault'
+> file.c:(.text+0x7f404): undefined reference to `dax_iomap_fault'
+> fs/built-in.o: In function `ext4_file_read_iter':
+> file.c:(.text+0x7fc54): undefined reference to `dax_iomap_rw'
+> fs/built-in.o: In function `ext4_file_write_iter':
+> file.c:(.text+0x7fe9a): undefined reference to `dax_iomap_rw'
+> file.c:(.text+0x7feed): undefined reference to `dax_iomap_rw'
+> fs/built-in.o: In function `ext4_block_zero_page_range':
+> inode.c:(.text+0x85c0d): undefined reference to `iomap_zero_range'
+> 
+> Now that the struct buffer_head based DAX fault paths and I/O path have
+> been removed we really depend on iomap support being present for DAX.  Make
+> this explicit by selecting FS_IOMAP if we compile in DAX support.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Like last patch please fix the author details and signed offs.
+I've sent the same patch to Ted yesterday and he will probably queue it on
+top of ext4 iomap patches. If it doesn't happen for some reason, feel free
+to add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
 
 > ---
->  include/linux/migrate_mode.h |  6 +++---
->  mm/compaction.c              | 20 ++++++++++----------
->  mm/migrate.c                 | 14 +++++++-------
->  3 files changed, 20 insertions(+), 20 deletions(-)
+>  fs/Kconfig      | 1 +
+>  fs/dax.c        | 2 --
+>  fs/ext2/Kconfig | 1 -
+>  3 files changed, 1 insertion(+), 3 deletions(-)
 > 
-> diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
-> index ebf3d89..0e2deb8 100644
-> --- a/include/linux/migrate_mode.h
-> +++ b/include/linux/migrate_mode.h
-> @@ -8,9 +8,9 @@
->   * MIGRATE_SYNC will block when migrating pages
->   */
->  enum migrate_mode {
-> -	MIGRATE_ASYNC,
-> -	MIGRATE_SYNC_LIGHT,
-> -	MIGRATE_SYNC,
-> +	MIGRATE_ASYNC		= 1<<0,
-> +	MIGRATE_SYNC_LIGHT	= 1<<1,
-> +	MIGRATE_SYNC		= 1<<2,
-
-Right, so that they can be ORed with each other.
-
->  };
-> 
->  #endif		/* MIGRATE_MODE_H_INCLUDED */
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 0409a4a..6606ded 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -296,7 +296,7 @@ static void update_pageblock_skip(struct compact_control *cc,
->  	if (migrate_scanner) {
->  		if (pfn > zone->compact_cached_migrate_pfn[0])
->  			zone->compact_cached_migrate_pfn[0] = pfn;
-> -		if (cc->mode != MIGRATE_ASYNC &&
-> +		if (!(cc->mode & MIGRATE_ASYNC) &&
->  		    pfn > zone->compact_cached_migrate_pfn[1])
->  			zone->compact_cached_migrate_pfn[1] = pfn;
->  	} else {
-> @@ -329,7 +329,7 @@ static void update_pageblock_skip(struct compact_control *cc,
->  static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
->  						struct compact_control *cc)
+> diff --git a/fs/Kconfig b/fs/Kconfig
+> index 8e9e5f41..18024bf 100644
+> --- a/fs/Kconfig
+> +++ b/fs/Kconfig
+> @@ -38,6 +38,7 @@ config FS_DAX
+>  	bool "Direct Access (DAX) support"
+>  	depends on MMU
+>  	depends on !(ARM || MIPS || SPARC)
+> +	select FS_IOMAP
+>  	help
+>  	  Direct Access (DAX) can be used on memory-backed block devices.
+>  	  If the block device supports DAX and the filesystem supports DAX,
+> diff --git a/fs/dax.c b/fs/dax.c
+> index be39633..d8fe3eb 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -968,7 +968,6 @@ int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
+>  }
+>  EXPORT_SYMBOL_GPL(__dax_zero_page_range);
+>  
+> -#ifdef CONFIG_FS_IOMAP
+>  static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
 >  {
-> -	if (cc->mode == MIGRATE_ASYNC) {
-> +	if (cc->mode & MIGRATE_ASYNC) {
->  		if (!spin_trylock_irqsave(lock, *flags)) {
->  			cc->contended = true;
->  			return false;
-> @@ -370,7 +370,7 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
->  	}
+>  	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
+> @@ -1405,4 +1404,3 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+>  }
+>  EXPORT_SYMBOL_GPL(dax_iomap_pmd_fault);
+>  #endif /* CONFIG_FS_DAX_PMD */
+> -#endif /* CONFIG_FS_IOMAP */
+> diff --git a/fs/ext2/Kconfig b/fs/ext2/Kconfig
+> index 36bea5a..c634874e 100644
+> --- a/fs/ext2/Kconfig
+> +++ b/fs/ext2/Kconfig
+> @@ -1,6 +1,5 @@
+>  config EXT2_FS
+>  	tristate "Second extended fs support"
+> -	select FS_IOMAP if FS_DAX
+>  	help
+>  	  Ext2 is a standard Linux file system for hard disks.
+>  
+> -- 
+> 2.7.4
 > 
->  	if (need_resched()) {
-> -		if (cc->mode == MIGRATE_ASYNC) {
-> +		if (cc->mode & MIGRATE_ASYNC) {
->  			cc->contended = true;
->  			return true;
->  		}
-> @@ -393,7 +393,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
->  {
->  	/* async compaction aborts if contended */
->  	if (need_resched()) {
-> -		if (cc->mode == MIGRATE_ASYNC) {
-> +		if (cc->mode & MIGRATE_ASYNC) {
->  			cc->contended = true;
->  			return true;
->  		}
-> @@ -704,7 +704,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  	 */
->  	while (unlikely(too_many_isolated(zone))) {
->  		/* async migration should just abort */
-> -		if (cc->mode == MIGRATE_ASYNC)
-> +		if (cc->mode & MIGRATE_ASYNC)
->  			return 0;
-> 
->  		congestion_wait(BLK_RW_ASYNC, HZ/10);
-> @@ -716,7 +716,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  	if (compact_should_abort(cc))
->  		return 0;
-> 
-> -	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC)) {
-> +	if (cc->direct_compaction && (cc->mode & MIGRATE_ASYNC)) {
->  		skip_on_failure = true;
->  		next_skip_pfn = block_end_pfn(low_pfn, cc->order);
->  	}
-> @@ -1204,7 +1204,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	struct page *page;
->  	const isolate_mode_t isolate_mode =
->  		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
-> -		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-> +		(!(cc->mode & MIGRATE_SYNC) ? ISOLATE_ASYNC_MIGRATE : 0);
-> 
->  	/*
->  	 * Start at where we last stopped, or beginning of the zone as
-> @@ -1250,7 +1250,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  		 * Async compaction is optimistic to see if the minimum amount
->  		 * of work satisfies the allocation.
->  		 */
-> -		if (cc->mode == MIGRATE_ASYNC &&
-> +		if ((cc->mode & MIGRATE_ASYNC) &&
->  		    !migrate_async_suitable(get_pageblock_migratetype(page)))
->  			continue;
-> 
-> @@ -1493,7 +1493,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
->  	unsigned long start_pfn = zone->zone_start_pfn;
->  	unsigned long end_pfn = zone_end_pfn(zone);
->  	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
-> -	const bool sync = cc->mode != MIGRATE_ASYNC;
-> +	const bool sync = !(cc->mode & MIGRATE_ASYNC);
-> 
->  	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
->  							cc->classzone_idx);
-> @@ -1589,7 +1589,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
->  			 * order-aligned block, so skip the rest of it.
->  			 */
->  			if (cc->direct_compaction &&
-> -						(cc->mode == MIGRATE_ASYNC)) {
-> +						(cc->mode & MIGRATE_ASYNC)) {
->  				cc->migrate_pfn = block_end_pfn(
->  						cc->migrate_pfn - 1, cc->order);
->  				/* Draining pcplists is useless in this case */
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index bc6c1c4..4a4cf48 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -394,7 +394,7 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
->  	struct buffer_head *bh = head;
-> 
->  	/* Simple case, sync compaction */
-> -	if (mode != MIGRATE_ASYNC) {
-> +	if (!(mode & MIGRATE_ASYNC)) {
->  		do {
->  			get_bh(bh);
->  			lock_buffer(bh);
-> @@ -495,7 +495,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  	 * the mapping back due to an elevated page count, we would have to
->  	 * block waiting on other references to be dropped.
->  	 */
-> -	if (mode == MIGRATE_ASYNC && head &&
-> +	if ((mode & MIGRATE_ASYNC) && head &&
->  			!buffer_migrate_lock_buffers(head, mode)) {
->  		page_ref_unfreeze(page, expected_count);
->  		spin_unlock_irq(&mapping->tree_lock);
-> @@ -779,7 +779,7 @@ int buffer_migrate_page(struct address_space *mapping,
->  	 * with an IRQ-safe spinlock held. In the sync case, the buffers
->  	 * need to be locked now
->  	 */
-> -	if (mode != MIGRATE_ASYNC)
-> +	if (!(mode & MIGRATE_ASYNC))
->  		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
-> 
->  	ClearPagePrivate(page);
-> @@ -861,7 +861,7 @@ static int fallback_migrate_page(struct address_space *mapping,
->  {
->  	if (PageDirty(page)) {
->  		/* Only writeback pages in full synchronous migration */
-> -		if (mode != MIGRATE_SYNC)
-> +		if (!(mode & MIGRATE_SYNC))
->  			return -EBUSY;
->  		return writeout(mapping, page);
->  	}
-> @@ -970,7 +970,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
->  	bool is_lru = !__PageMovable(page);
-> 
->  	if (!trylock_page(page)) {
-> -		if (!force || mode == MIGRATE_ASYNC)
-> +		if (!force || (mode & MIGRATE_ASYNC))
->  			goto out;
-> 
->  		/*
-> @@ -999,7 +999,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
->  		 * the retry loop is too short and in the sync-light case,
->  		 * the overhead of stalling is too much
->  		 */
-> -		if (mode != MIGRATE_SYNC) {
-> +		if (!(mode & MIGRATE_SYNC)) {
->  			rc = -EBUSY;
->  			goto out_unlock;
->  		}
-> @@ -1262,7 +1262,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  		return -ENOMEM;
-> 
->  	if (!trylock_page(hpage)) {
-> -		if (!force || mode != MIGRATE_SYNC)
-> +		if (!force || !(mode & MIGRATE_SYNC))
->  			goto out;
->  		lock_page(hpage);
->  	}
-
-So here are the conversions
-
-(mode == MIGRATE_SYNC) ---> (mode & MIGRATE_SYNC)
-(mode != MIGRATE_SYNC) ---> !(mode & MIGRATE_SYNC)
-
-It should be okay.
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
