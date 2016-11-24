@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BCDE6B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 09:36:20 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y16so15244780wmd.6
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:36:19 -0800 (PST)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id l79si8535133wmi.155.2016.11.24.06.36.18
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C27B56B025E
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 09:36:43 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id y16so15247319wmd.6
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:36:43 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id rv12si37189024wjb.256.2016.11.24.06.36.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 06:36:19 -0800 (PST)
-Received: by mail-wm0-x232.google.com with SMTP id a197so116404353wmd.0
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:36:18 -0800 (PST)
+        Thu, 24 Nov 2016 06:36:42 -0800 (PST)
+Received: by mail-wm0-x22e.google.com with SMTP id t79so63370220wmt.0
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:36:42 -0800 (PST)
 From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] kasan: update kasan_global for gcc 7
-Date: Thu, 24 Nov 2016 15:36:16 +0100
-Message-Id: <1479998176-144318-1-git-send-email-dvyukov@google.com>
+Subject: [PATCH v2] kasan: update kasan_global for gcc 7
+Date: Thu, 24 Nov 2016 15:36:38 +0100
+Message-Id: <1479998198-144377-1-git-send-email-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: aryabinin@virtuozzo.com, glider@google.com, akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, arnd@arndb.de, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, #@google.com, 4.0+@google.com
+Cc: stable@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, arnd@arndb.de, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, #@google.com, 4.0+@google.com
 
 kasan_global struct is part of compiler/runtime ABI.
 gcc revision 241983 has added a new field to kasan_global struct.
