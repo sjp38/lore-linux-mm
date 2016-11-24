@@ -1,173 +1,269 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CBB6B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:22:22 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id xy5so5238000wjc.0
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:22:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i21si7162122wmf.35.2016.11.24.01.22.20
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2746B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:27:10 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so90409065pgc.2
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:27:10 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g28si38445915pfk.140.2016.11.24.01.27.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Nov 2016 01:22:21 -0800 (PST)
-Date: Thu, 24 Nov 2016 10:22:18 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 6/6] dax: add tracepoints to dax_pmd_insert_mapping()
-Message-ID: <20161124092218.GE24138@quack2.suse.cz>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-7-git-send-email-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Nov 2016 01:27:09 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAO9OOtN023705
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:27:08 -0500
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26wuabe4ft-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 04:27:08 -0500
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 24 Nov 2016 19:27:05 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id E03AD2BB005C
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 20:27:02 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAO9R2fe54591518
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 20:27:02 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAO9R2O9006311
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 20:27:02 +1100
+Subject: Re: [PATCH 3/5] migrate: Add copy_page_mt to use multi-threaded page
+ migration.
+References: <20161122162530.2370-1-zi.yan@sent.com>
+ <20161122162530.2370-4-zi.yan@sent.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 24 Nov 2016 14:56:54 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1479926662-21718-7-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20161122162530.2370-4-zi.yan@sent.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <5836B25E.7040100@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
 
-On Wed 23-11-16 11:44:22, Ross Zwisler wrote:
-> Add tracepoints to dax_pmd_insert_mapping(), following the same logging
-> conventions as the tracepoints in dax_iomap_pmd_fault().
+On 11/22/2016 09:55 PM, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
 > 
-> Here is an example PMD fault showing the new tracepoints:
-> 
-> big-1544  [006] ....    48.153479: dax_pmd_fault: shared mapping write
-> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
-> max_pgoff 0x1400
-> 
-> big-1544  [006] ....    48.155230: dax_pmd_insert_mapping: shared mapping
-> write address 0x10505000 length 0x200000 pfn 0x100600 DEV|MAP radix_entry
-> 0xc000e
-> 
-> big-1544  [006] ....    48.155266: dax_pmd_fault_done: shared mapping write
-> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
-> max_pgoff 0x1400 NOPAGE
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> From: Zi Yan <ziy@nvidia.com>
 
-Looks good. You can add:
+Please fix these.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> 
+> Internally, copy_page_mt splits a page into multiple threads
+> and send them as jobs to system_highpri_wq.
 
-								Honza
+The function should be renamed as copy_page_multithread() or at
+the least copy_page_mthread() to make more sense. The commit
+message needs to more comprehensive and detailed.
 
+> 
+> Signed-off-by: Zi Yan <ziy@nvidia.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 > ---
->  fs/dax.c                      | 10 +++++++---
->  include/linux/pfn_t.h         |  6 ++++++
->  include/trace/events/fs_dax.h | 42 ++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 55 insertions(+), 3 deletions(-)
+>  include/linux/highmem.h |  2 ++
+>  kernel/sysctl.c         |  1 +
+>  mm/Makefile             |  2 ++
+>  mm/copy_page.c          | 96 +++++++++++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 101 insertions(+)
+>  create mode 100644 mm/copy_page.c
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 2824414..d6ba4a3 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1236,10 +1236,10 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
->  		.size = PMD_SIZE,
->  	};
->  	long length = dax_map_atomic(bdev, &dax);
-> -	void *ret;
-> +	void *ret = NULL;
->  
->  	if (length < 0) /* dax_map_atomic() failed */
-> -		return VM_FAULT_FALLBACK;
-> +		goto fallback;
->  	if (length < PMD_SIZE)
->  		goto unmap_fallback;
->  	if (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)
-> @@ -1252,13 +1252,17 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
->  	ret = dax_insert_mapping_entry(mapping, vmf, *entryp, dax.sector,
->  			RADIX_DAX_PMD);
->  	if (IS_ERR(ret))
-> -		return VM_FAULT_FALLBACK;
-> +		goto fallback;
->  	*entryp = ret;
->  
-> +	trace_dax_pmd_insert_mapping(vma, address, write, length, dax.pfn, ret);
->  	return vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
->  
->  unmap_fallback:
->  	dax_unmap_atomic(bdev, &dax);
-> +fallback:
-> +	trace_dax_pmd_insert_mapping_fallback(vma, address, write, length,
-> +			dax.pfn, ret);
->  	return VM_FAULT_FALLBACK;
->  }
->  
-> diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-> index a3d90b9..033fc7b 100644
-> --- a/include/linux/pfn_t.h
-> +++ b/include/linux/pfn_t.h
-> @@ -15,6 +15,12 @@
->  #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
->  #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
->  
-> +#define PFN_FLAGS_TRACE \
-> +	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
-> +	{ PFN_SG_LAST,	"SG_LAST" }, \
-> +	{ PFN_DEV,	"DEV" }, \
-> +	{ PFN_MAP,	"MAP" }
+> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+> index bb3f329..519e575 100644
+> --- a/include/linux/highmem.h
+> +++ b/include/linux/highmem.h
+> @@ -236,6 +236,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
+> 
+>  #endif
+> 
+> +int copy_page_mt(struct page *to, struct page *from, int nr_pages);
 > +
->  static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
+>  static inline void copy_highpage(struct page *to, struct page *from)
 >  {
->  	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
-> diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
-> index 8814b1a..a03f820 100644
-> --- a/include/trace/events/fs_dax.h
-> +++ b/include/trace/events/fs_dax.h
-> @@ -87,6 +87,48 @@ DEFINE_EVENT(dax_pmd_load_hole_class, name, \
->  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
->  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
->  
-> +DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
-> +	TP_PROTO(struct vm_area_struct *vma, unsigned long address, int write,
-> +		long length, pfn_t pfn, void *radix_entry),
-> +	TP_ARGS(vma, address, write, length, pfn, radix_entry),
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, vm_flags)
-> +		__field(unsigned long, address)
-> +		__field(int, write)
-> +		__field(long, length)
-> +		__field(u64, pfn_val)
-> +		__field(void *, radix_entry)
-> +	),
-> +	TP_fast_assign(
-> +		__entry->vm_flags = vma->vm_flags;
-> +		__entry->address = address;
-> +		__entry->write = write;
-> +		__entry->length = length;
-> +		__entry->pfn_val = pfn.val;
-> +		__entry->radix_entry = radix_entry;
-> +	),
-> +	TP_printk("%s mapping %s address %#lx length %#lx pfn %#llx %s"
-> +		" radix_entry %#lx",
-> +		__entry->vm_flags & VM_SHARED ? "shared" : "private",
-> +		__entry->write ? "write" : "read",
-> +		__entry->address,
-> +		__entry->length,
-> +		__entry->pfn_val & ~PFN_FLAGS_MASK,
-> +		__print_flags(__entry->pfn_val & PFN_FLAGS_MASK, "|",
-> +			PFN_FLAGS_TRACE),
-> +		(unsigned long)__entry->radix_entry
-> +	)
-> +)
-> +
-> +#define DEFINE_PMD_INSERT_MAPPING_EVENT(name) \
-> +DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
-> +	TP_PROTO(struct vm_area_struct *vma, unsigned long address, \
-> +		int write, long length, pfn_t pfn, void *radix_entry), \
-> +	TP_ARGS(vma, address, write, length, pfn, radix_entry))
-> +
-> +DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
-> +DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
-> +
->  #endif /* _TRACE_FS_DAX_H */
->  
->  /* This part must be outside protection */
-> -- 
-> 2.7.4
+>  	char *vfrom, *vto;
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 706309f..d54ce12 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -97,6 +97,7 @@
 > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>  #if defined(CONFIG_SYSCTL)
+> 
+> +
+
+I guess this is a stray code change.
+
+>  /* External variables not in a header file. */
+>  extern int suid_dumpable;
+>  #ifdef CONFIG_COREDUMP
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 295bd7a..467305b 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -41,6 +41,8 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
+> 
+>  obj-y += init-mm.o
+> 
+> +obj-y += copy_page.o
+
+Its getting compiled all the time. Dont you want to make it part of
+of a new config option which will cover for all these code for multi
+thread copy ?
+
+> +
+>  ifdef CONFIG_NO_BOOTMEM
+>  	obj-y		+= nobootmem.o
+>  else
+> diff --git a/mm/copy_page.c b/mm/copy_page.c
+> new file mode 100644
+> index 0000000..ca7ce6c
+> --- /dev/null
+> +++ b/mm/copy_page.c
+> @@ -0,0 +1,96 @@
+> +/*
+> + * Parallel page copy routine.
+> + *
+> + * Zi Yan <ziy@nvidia.com>
+> + *
+> + */
+
+No, this is too less. Please see other files inside mm directory as
+example. 
+
+> +
+> +#include <linux/highmem.h>
+> +#include <linux/workqueue.h>
+> +#include <linux/slab.h>
+> +#include <linux/freezer.h>
+> +
+> +
+> +const unsigned int limit_mt_num = 4;
+
+>From where this number 4 came from ? At the very least it should be
+configured from either a sysctl variable or from a sysfs file, so
+that user will have control on number of threads used for copy. But
+going forward this should be derived out a arch specific call back
+which then analyzes NUMA topology and scheduler loads to figure out
+on how many threads should be used for optimum performance of page
+copy.
+
+> +
+> +/* ======================== multi-threaded copy page ======================== */
+> +
+
+Please use standard exported function description semantics while
+describing this new function. I think its a good function to be
+exported as a symbol as well.
+
+> +struct copy_page_info {
+
+s/copy_page_info/mthread_copy_struct/
+
+> +	struct work_struct copy_page_work;
+> +	char *to;
+> +	char *from;
+
+Swap the order of 'to' and 'from'.
+
+> +	unsigned long chunk_size;
+
+Just 'size' should be fine.
+
+> +};
+> +
+> +static void copy_page_routine(char *vto, char *vfrom,
+
+s/copy_page_routine/mthread_copy_fn/
+
+> +	unsigned long chunk_size)
+> +{
+> +	memcpy(vto, vfrom, chunk_size);
+> +}
+
+s/chunk_size/size/
+
+
+> +
+> +static void copy_page_work_queue_thread(struct work_struct *work)
+> +{
+> +	struct copy_page_info *my_work = (struct copy_page_info *)work;
+> +
+> +	copy_page_routine(my_work->to,
+> +					  my_work->from,
+> +					  my_work->chunk_size);
+> +}
+> +
+> +int copy_page_mt(struct page *to, struct page *from, int nr_pages)
+> +{
+> +	unsigned int total_mt_num = limit_mt_num;
+> +	int to_node = page_to_nid(to);
+
+Should we make sure that the entire page range [to, to + nr_pages] is
+part of to_node.
+
+> +	int i;
+> +	struct copy_page_info *work_items;
+> +	char *vto, *vfrom;
+> +	unsigned long chunk_size;
+> +	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
+
+So all the threads used for copy has to be part of cpumask of the
+destination node ? Why ? The copy accesses both the source pages as
+well as destination pages. Source node threads might also perform
+good for the memory accesses. Which and how many threads should be
+used for copy should be decided wisely from an architecture call
+back. On a NUMA system this will have impact on performance of the
+multi threaded copy.
+
+
+> +	int cpu_id_list[32] = {0};
+> +	int cpu;
+> +
+> +	total_mt_num = min_t(unsigned int, total_mt_num,
+> +						 cpumask_weight(per_node_cpumask));
+> +	total_mt_num = (total_mt_num / 2) * 2;
+> +
+> +	work_items = kcalloc(total_mt_num, sizeof(struct copy_page_info),
+> +						 GFP_KERNEL);
+> +	if (!work_items)
+> +		return -ENOMEM;
+> +
+> +	i = 0;
+> +	for_each_cpu(cpu, per_node_cpumask) {
+> +		if (i >= total_mt_num)
+> +			break;
+> +		cpu_id_list[i] = cpu;
+> +		++i;
+> +	}
+> +
+> +	vfrom = kmap(from);
+> +	vto = kmap(to);
+> +	chunk_size = PAGE_SIZE*nr_pages / total_mt_num;
+
+Coding style ? Please run all these patches though scripts/
+checkpatch.pl script to catch coding style problems.
+
+> +
+> +	for (i = 0; i < total_mt_num; ++i) {
+> +		INIT_WORK((struct work_struct *)&work_items[i],
+> +				  copy_page_work_queue_thread);
+> +
+> +		work_items[i].to = vto + i * chunk_size;
+> +		work_items[i].from = vfrom + i * chunk_size;
+> +		work_items[i].chunk_size = chunk_size;
+> +
+> +		queue_work_on(cpu_id_list[i],
+> +					  system_highpri_wq,
+> +					  (struct work_struct *)&work_items[i]);
+
+I am not very familiar with the system work queues but is
+system_highpri_wq has the highest priority ? Because if
+the time spend waiting on these work queue functions to
+execute increases it can offset out all the benefits we
+get by this multi threaded copy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
