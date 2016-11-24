@@ -1,73 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 547CB6B025E
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:50:40 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id jb2so4731249wjb.6
-        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 22:50:40 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n10si6675196wma.60.2016.11.23.22.50.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A6556B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 02:26:42 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id w13so12274661wmw.0
+        for <linux-mm@kvack.org>; Wed, 23 Nov 2016 23:26:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sd16si35378780wjb.290.2016.11.23.23.26.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Nov 2016 22:50:39 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAO6mUGn097145
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:50:37 -0500
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 26wshuh8nm-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 01:50:37 -0500
-Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 24 Nov 2016 16:50:34 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id C7F7F3578053
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 17:50:32 +1100 (EST)
-Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAO6oW8G32636976
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 17:50:32 +1100
-Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
-	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAO6oW5Z025187
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 17:50:32 +1100
-Subject: Re: [PATCH 1/5] mm: migrate: Add mode parameter to support additional
- page copy routines.
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-2-zi.yan@sent.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 24 Nov 2016 12:20:28 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Nov 2016 23:26:40 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: page_alloc: High-order per-cpu page allocator
+References: <20161121155540.5327-1-mgorman@techsingularity.net>
+ <4a9cdec4-b514-e414-de86-fc99681889d8@suse.cz>
+ <20161123163351.6s76ijwnqoakgcud@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a1f8d311-1f69-b672-1dad-9867c212147f@suse.cz>
+Date: Thu, 24 Nov 2016 08:26:39 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161122162530.2370-2-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20161123163351.6s76ijwnqoakgcud@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <58368DB4.40809@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On 11/22/2016 09:55 PM, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
-> 
-> From: Zi Yan <ziy@nvidia.com>
+On 11/23/2016 05:33 PM, Mel Gorman wrote:
+>>> +
+>>> +static inline unsigned int pindex_to_order(unsigned int pindex)
+>>> +{
+>>> +	return pindex < MIGRATE_PCPTYPES ? 0 : pindex - MIGRATE_PCPTYPES + 1;
+>>> +}
+>>> +
+>>> +static inline unsigned int order_to_pindex(int migratetype, unsigned int order)
+>>> +{
+>>> +	return (order == 0) ? migratetype : MIGRATE_PCPTYPES - 1 + order;
+>>
+>> Here I think that "MIGRATE_PCPTYPES + order - 1" would be easier to
+>> understand as the array is for all migratetypes, but the order is shifted?
+>>
+>
+> As in migratetypes * costly_order ? That would be excessively large.
 
-There are multiple "from" for this patch, should be fixed to reflect
-just one of them.
+No, I just meant that instead of "MIGRATE_PCPTYPES - 1 + order" it could 
+be "MIGRATE_PCPTYPES + order - 1" as we are subtracting from order, not 
+migratetypes. Just made me confused a bit when seeing the code for the 
+first time.
 
-> 
-> migrate_page_copy() and copy_huge_page() are affected.
+>>> @@ -1083,10 +1083,12 @@ static bool bulkfree_pcp_prepare(struct page *page)
+>>>   * pinned" detection logic.
+>>>   */
+>>>  static void free_pcppages_bulk(struct zone *zone, int count,
+>>> -					struct per_cpu_pages *pcp)
+>>> +					struct per_cpu_pages *pcp,
+>>> +					int migratetype)
+>>>  {
+>>> -	int migratetype = 0;
+>>> -	int batch_free = 0;
+>>> +	unsigned int pindex = 0;
+>>
+>> Should pindex be initialized to migratetype to match the list below?
+>>
+>
+> Functionally it doesn't matter. It affects which list is tried first if
+> the preferred list is empty. Arguably it would make more sense to init
+> it to NR_PCP_LISTS - 1 so all order-0 lists are always drained before the
+> high-order pages but there is not much justification for that.
 
-In this patch you are just expanding the arguments of both of these
-functions to include "migration mode" which will then be implemented
-later by subsequent patches or should these patches me merged ? I
-guess its okay.
+OK
 
-Please reword the commit message to include details.
-
-> 
-> Signed-off-by: Zi Yan <ziy@nvidia.com>
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-
-Just a singled Signed-off-by.
+> I'll take your suggestion until there is data supporting that high-order
+> caches should be preserved.
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
