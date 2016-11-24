@@ -1,97 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A9806B0069
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 18:56:25 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f188so135600193pgc.1
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 15:56:25 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C4C6B0069
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 18:59:27 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so136171486pgc.2
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 15:59:26 -0800 (PST)
 Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id l7si12864330plg.100.2016.11.24.15.56.24
+        by mx.google.com with ESMTPS id a3si12878495plc.322.2016.11.24.15.59.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 15:56:24 -0800 (PST)
-Received: by mail-pg0-x241.google.com with SMTP id p66so4278898pga.2
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 15:56:24 -0800 (PST)
-Subject: Re: [PATCH 1/5] mm: migrate: Add mode parameter to support additional
- page copy routines.
+        Thu, 24 Nov 2016 15:59:26 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 3so4291645pgd.0
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 15:59:26 -0800 (PST)
+Subject: Re: [PATCH 0/5] Parallel hugepage migration optimization
 References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-2-zi.yan@sent.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <dbb93172-4dd1-e88e-f65d-321ac7882999@gmail.com>
-Date: Fri, 25 Nov 2016 10:56:16 +1100
+Message-ID: <9cf7f4c6-6dde-9dbb-cf93-7874437a442d@gmail.com>
+Date: Fri, 25 Nov 2016 10:59:20 +1100
 MIME-Version: 1.0
-In-Reply-To: <20161122162530.2370-2-zi.yan@sent.com>
+In-Reply-To: <20161122162530.2370-1-zi.yan@sent.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <zi.yan@cs.rutgers.edu>
 
 
 
 On 23/11/16 03:25, Zi Yan wrote:
 > From: Zi Yan <zi.yan@cs.rutgers.edu>
 > 
-> From: Zi Yan <ziy@nvidia.com>
+> Hi all,
 > 
-> migrate_page_copy() and copy_huge_page() are affected.
+> This patchset boosts the hugepage migration throughput and helps THP migration
+> which is added by Naoya's patches: https://lwn.net/Articles/705879/.
 > 
-> Signed-off-by: Zi Yan <ziy@nvidia.com>
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> ---
->  fs/aio.c                |  2 +-
->  fs/hugetlbfs/inode.c    |  2 +-
->  fs/ubifs/file.c         |  2 +-
->  include/linux/migrate.h |  6 ++++--
->  mm/migrate.c            | 14 ++++++++------
->  5 files changed, 15 insertions(+), 11 deletions(-)
+> Motivation
+> ===============================
 > 
-> diff --git a/fs/aio.c b/fs/aio.c
-> index 428484f..a67c764 100644
-> --- a/fs/aio.c
-> +++ b/fs/aio.c
-> @@ -418,7 +418,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
->  	 * events from being lost.
->  	 */
->  	spin_lock_irqsave(&ctx->completion_lock, flags);
-> -	migrate_page_copy(new, old);
-> +	migrate_page_copy(new, old, 0);
+> In x86, 4KB page migrations are underutilizing the memory bandwidth compared
+> to 2MB THP migrations. I did some page migration benchmarking on a two-socket
+> Intel Xeon E5-2640v3 box, which has 23.4GB/s bandwidth, and discover
+> there are big throughput gap, ~3x, between 4KB and 2MB page migrations.
+> 
+> Here are the throughput numbers for different page sizes and page numbers:
+>         | 512 4KB pages | 1 2MB THP  |  1 4KB page
+> x86_64  |  0.98GB/s     |  2.97GB/s  |   0.06GB/s
+> 
+> As Linux currently use single-threaded page migration, the throughput is still
+> much lower than the hardware bandwidth, 2.97GB/s vs 23.4GB/s. So I parallelize
+> the copy_page() part of THP migration with workqueue and achieve 2.8x throughput.
+> 
+> Here are the throughput numbers of 2MB page migration:
+>            |  single-threaded   | 8-thread
+> x86_64 2MB |    2.97GB/s        | 8.58GB/s
+> 
 
-Can we have a useful enum instead of 0, its harder to read and understand
-0
-
->  	BUG_ON(ctx->ring_pages[idx] != old);
->  	ctx->ring_pages[idx] = new;
->  	spin_unlock_irqrestore(&ctx->completion_lock, flags);
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 4fb7b10..a17bfef 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -850,7 +850,7 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
->  	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
->  	if (rc != MIGRATEPAGE_SUCCESS)
->  		return rc;
-> -	migrate_page_copy(newpage, page);
-> +	migrate_page_copy(newpage, page, 0);
-
-Ditto
-
->  
->  	return MIGRATEPAGE_SUCCESS;
->  }
-> diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-> index b4fbeef..bf54e32 100644
-> --- a/fs/ubifs/file.c
-> +++ b/fs/ubifs/file.c
-> @@ -1468,7 +1468,7 @@ static int ubifs_migrate_page(struct address_space *mapping,
->  		SetPagePrivate(newpage);
->  	}
->  
-> -	migrate_page_copy(newpage, page);
-> +	migrate_page_copy(newpage, page, 0);
-
-Here as well
-
+Whats the impact on CPU utilization? Is there a huge impact?
 
 Balbir Singh.
 
