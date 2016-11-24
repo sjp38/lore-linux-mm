@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 28BDB6B025E
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:56:32 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id y205so33909763qkb.4
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:56:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v200si22501116qkb.187.2016.11.24.05.56.31
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9706B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 09:21:03 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id f8so6270227wje.5
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:21:03 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id e8si37175118wjh.217.2016.11.24.06.21.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 05:56:31 -0800 (PST)
-Date: Thu, 24 Nov 2016 08:56:23 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v13 06/18] mm/ZONE_DEVICE/unaddressable: add special swap
- for unaddressable
-Message-ID: <20161124135623.GA12887@redhat.com>
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <1479493107-982-7-git-send-email-jglisse@redhat.com>
- <5832D33C.6030403@linux.vnet.ibm.com>
- <20161121124218.GF2392@redhat.com>
- <5833CE1B.6030104@linux.vnet.ibm.com>
+        Thu, 24 Nov 2016 06:21:01 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id m203so5089109wma.3
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 06:21:01 -0800 (PST)
+Date: Thu, 24 Nov 2016 15:21:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/oom_kill.c: fix initial value of victim_points
+ variable
+Message-ID: <20161124142100.GA20717@dhcp22.suse.cz>
+References: <CAPhj7_CW_X5UuLPUfUFEA0mfPB_6OSO195ZQokckGOZzJevyyw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <5833CE1B.6030104@linux.vnet.ibm.com>
+In-Reply-To: <CAPhj7_CW_X5UuLPUfUFEA0mfPB_6OSO195ZQokckGOZzJevyyw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: =?utf-8?B?0JDQtNGL0LPQttGLINCe0L3QtNCw0YA=?= <ondar07@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Tue, Nov 22, 2016 at 10:18:27AM +0530, Anshuman Khandual wrote:
-> On 11/21/2016 06:12 PM, Jerome Glisse wrote:
-> > On Mon, Nov 21, 2016 at 04:28:04PM +0530, Anshuman Khandual wrote:
-> >> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
-> >>> To allow use of device un-addressable memory inside a process add a
-> >>> special swap type. Also add a new callback to handle page fault on
-> >>> such entry.
-> >>
-> >> IIUC this swap type is required only for the mirror cases and its
-> >> not a requirement for migration. If it's required for mirroring
-> >> purpose where we intercept each page fault, the commit message
-> >> here should clearly elaborate on that more.
-> > 
-> > It is only require for un-addressable memory. The mirroring has nothing to do
-> > with it. I will clarify commit message.
+On Thu 24-11-16 16:11:53, D?D'N?D3D?N? D?D 1/2 D'D?N? wrote:
+> If the initial value of victim_points variable is equal to 0,
+> oom killer may choose a victim incorrectly.
+> For example, parent points > 0, 0 < child_points < parent points
+> (chosen_points).
+> In this example, current oom killer chooses this child, not parent.
+
+Which is how the code is supposed to work. We do sacrifice child to save
+work done by the parent. So the main point here is to choose the largest
+child (if any) of the selected victim. If you think about that any
+"child" with points > selected_victim shouldn't be possible because it
+would have been child to be selected.
+
+So NAK to this.
+
+> To apply the patch, in the root of a kernel tree use:
+> patch -p1 <this_fix.patch
 > 
-> One thing though. I dont recall how persistent memory ZONE_DEVICE
-> pages are handled inside the page tables, point here is it should
-> be part of the same code block. We should catch that its a device
-> memory page and then figure out addressable or not and act
-> accordingly. Because persistent memory are CPU addressable, there
-> might not been special code block but dealing with device pages 
-> should be handled in a more holistic manner.
+> Signed-off-by: Adygzhy Ondar <ondar07@gmail.com>
+> 
+> ------------------------------------------------------------------------------------
+> --- linux/mm/oom_kill.c.orig 2016-11-24 15:03:43.711235386 +0300
+> +++ linux/mm/oom_kill.c 2016-11-24 15:04:00.851942474 +0300
+> @@ -812,7 +812,7 @@ static void oom_kill_process(struct oom_
+>   struct task_struct *child;
+>   struct task_struct *t;
+>   struct mm_struct *mm;
+> - unsigned int victim_points = 0;
+> + unsigned int victim_points = points;
+>   static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+>        DEFAULT_RATELIMIT_BURST);
+>   bool can_oom_reap = true;
 
-Before i repost updated patchset i should stress that dealing with un-addressable
-device page and addressable one in same block is not do-able without re-doing once
-again the whole mm page fault code path. Because i use special swap entry the 
-logical place for me to handle it is with where swap entry are handled.
-
-Regular device page are handle bit simpler that other page because they can't be
-evicted/swaped so they are always present once faulted. I think right now they
-are always populated through fs page fault callback (well dax one).
-
-So not much reasons to consolidate all device page handling in one place. We are
-looking at different use case in the end.
-
-Cheers,
-Jerome
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
