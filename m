@@ -1,109 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C0B506B0038
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:29:21 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w13so14882005wmw.0
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:29:21 -0800 (PST)
-Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
-        by mx.google.com with ESMTPS id 137si8260323wmr.70.2016.11.24.05.29.20
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D77246B0038
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 08:49:42 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id xy5so6190453wjc.0
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:49:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id go16si36986901wjc.76.2016.11.24.05.49.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 05:29:20 -0800 (PST)
-Received: by mail-wj0-f196.google.com with SMTP id f8so3274351wje.2
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 05:29:20 -0800 (PST)
-Date: Thu, 24 Nov 2016 14:29:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle
- PF_LESS_THROTTLE tasks
-Message-ID: <20161124132916.GF20668@dhcp22.suse.cz>
-References: <20160727182411.GE21859@dhcp22.suse.cz>
- <87eg6e4vhc.fsf@notabene.neil.brown.name>
- <20160728071711.GB31860@dhcp22.suse.cz>
- <alpine.LRH.2.02.1608030844470.15274@file01.intranet.prod.int.rdu2.redhat.com>
- <20160803143419.GC1490@dhcp22.suse.cz>
- <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com>
- <20160812123242.GH3639@dhcp22.suse.cz>
- <alpine.LRH.2.02.1608131323550.3291@file01.intranet.prod.int.rdu2.redhat.com>
- <20160814103409.GC9248@dhcp22.suse.cz>
- <alpine.LRH.2.02.1611231558420.31481@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 Nov 2016 05:49:41 -0800 (PST)
+Subject: Re: mm: BUG in pgtable_pmd_page_dtor
+References: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f8963cc3-69a8-a1ca-9b56-205d919eac41@suse.cz>
+Date: Thu, 24 Nov 2016 14:49:35 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1611231558420.31481@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "dm-devel@redhat.com David Rientjes" <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Douglas Anderson <dianders@chromium.org>, shli@kernel.org, Dmitry Torokhov <dmitry.torokhov@gmail.com>
+To: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: syzkaller <syzkaller@googlegroups.com>
 
-On Wed 23-11-16 16:11:59, Mikulas Patocka wrote:
-[...]
-> Hi Michal
-> 
-> So, here Google developers hit a stacktrace where a block device driver is 
-> being throttled in the memory management:
-> 
-> https://www.redhat.com/archives/dm-devel/2016-November/msg00158.html
-> 
-> dm-bufio layer is something like a buffer cache, used by block device 
-> drivers. Unlike the real buffer cache, dm-bufio guarantees forward 
-> progress even if there is no memory free.
-> 
-> dm-bufio does something similar like a mempool allocation, it tries an 
-> allocation with GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN 
-> (just like a mempool) and if it fails, it will reuse some existing buffer.
-> 
-> Here, they caught it being throttled in the memory management:
-> 
->    Workqueue: kverityd verity_prefetch_io
->    __switch_to+0x9c/0xa8
->    __schedule+0x440/0x6d8
->    schedule+0x94/0xb4
->    schedule_timeout+0x204/0x27c
->    schedule_timeout_uninterruptible+0x44/0x50
->    wait_iff_congested+0x9c/0x1f0
->    shrink_inactive_list+0x3a0/0x4cc
->    shrink_lruvec+0x418/0x5cc
->    shrink_zone+0x88/0x198
->    try_to_free_pages+0x51c/0x588
->    __alloc_pages_nodemask+0x648/0xa88
->    __get_free_pages+0x34/0x7c
->    alloc_buffer+0xa4/0x144
->    __bufio_new+0x84/0x278
->    dm_bufio_prefetch+0x9c/0x154
->    verity_prefetch_io+0xe8/0x10c
->    process_one_work+0x240/0x424
->    worker_thread+0x2fc/0x424
->    kthread+0x10c/0x114
-> 
-> Will you consider removing vm throttling for __GFP_NORETRY allocations?
+On 11/18/2016 11:19 AM, Dmitry Vyukov wrote:
+> Hello,
+>
+> I've got the following BUG while running syzkaller on
+> a25f0944ba9b1d8a6813fd6f1a86f1bd59ac25a6 (4.9-rc5). Unfortunately it's
+> not reproducible.
+>
+> kernel BUG at ./include/linux/mm.h:1743!
+> invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
 
-As I've already said before I do not think that tweaking __GFP_NORETRY
-is the right approach is the right approach. The whole point of the flag
-is to not loop in the _allocator_ and it has nothing to do with the reclaim
-and the way how it is doing throttling.
+Shouldn't there be also dump_page() output? Since you've hit this:
+VM_BUG_ON_PAGE(page->pmd_huge_pte, page);
 
-On the other hand I perfectly understand your point and a lack of
-anything between GFP_NOWAIT and ___GFP_DIRECT_RECLAIM can be a bit
-frustrating. It would be nice to have sime middle ground - only a
-light reclaim involved and a quick back off if the memory is harder to
-reclaim. That is a hard thing to do, though because all the reclaimers
-(including slab shrinkers) would have to be aware of this concept to
-work properly.
+Anyway the output wouldn't contain the value of pmd_huge_pte or stuff 
+that's in union with it. I'd suggest adding a local patch that prints 
+this in the error case, in case the fuzzer hits it again.
 
-I have read the report from the link above and I am really wondering why
-s@GFP_NOIO@GFP_NOWAIT@ is not the right way to go there. You have argued
-about a clean page cache would force buffer reuse. That might be true
-to some extent but is it a real problem? Please note that even
-GFP_NOWAIT allocations will wake up kspwad which should clean up that
-clean page cache in the background. I would even expect kswapd being
-active at the time when NOWAIT requests hit the min watermark. If that
-is not the case then we should probably think about why kspwad is not
-proactive enough rather than tweaking __GFP_NORETRY semantic.
+Heck, it might even make sense to print raw contents of struct page in 
+dump_page() as a catch-all solution? Should I send a patch?
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 3 PID: 4049 Comm: syz-fuzzer Not tainted 4.9.0-rc5+ #43
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff88006ad028c0 task.stack: ffff8800667e0000
+> RIP: 0010:[<ffffffff8130e2ab>]  [<     inline     >]
+> pgtable_pmd_page_dtor include/linux/mm.h:1743
+> RIP: 0010:[<ffffffff8130e2ab>]  [<ffffffff8130e2ab>]
+> ___pmd_free_tlb+0x3db/0x5a0 arch/x86/mm/pgtable.c:74
+> RSP: 0018:ffff8800667e6908  EFLAGS: 00010292
+> RAX: 0000000000000000 RBX: 1ffff1000ccfcd25 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffed000ccfcd10
+> RBP: ffff8800667e6a70 R08: 0000000000000001 R09: 0000000000000000
+> R10: dffffc0000000000 R11: 0000000000000001 R12: ffff8800667e6ef8
+> R13: ffff8800667e6a48 R14: ffffea0000e196c0 R15: 000000000003865b
+> FS:  00007f152a530700(0000) GS:ffff88006d100000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f1514bff9d0 CR3: 0000000009821000 CR4: 00000000000006e0
+> DR0: 0000000000000400 DR1: 0000000000000400 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+> Stack:
+>  0000000000000000 ffff88006ad030e0 ffff88006ad030b8 dffffc0000000000
+>  0000000041b58ab3 ffffffff894db568 ffffffff8130ded0 ffffffff8156b2a0
+>  0000000000000082 ffff88006ad030e0 1ffff1000ccfcd30 1ffff1000ccfcd38
+> Call Trace:
+>  [<     inline     >] __pmd_free_tlb arch/x86/include/asm/pgalloc.h:110
+>  [<     inline     >] free_pmd_range mm/memory.c:443
+>  [<     inline     >] free_pud_range mm/memory.c:461
+>  [<ffffffff81946458>] free_pgd_range+0xb98/0x1270 mm/memory.c:537
+>  [<ffffffff81946da5>] free_pgtables+0x275/0x340 mm/memory.c:569
+>  [<ffffffff81972761>] exit_mmap+0x281/0x4e0 mm/mmap.c:2942
+>  [<     inline     >] __mmput kernel/fork.c:866
+>  [<ffffffff813f24ce>] mmput+0x20e/0x4c0 kernel/fork.c:888
+>  [<     inline     >] exit_mm kernel/exit.c:512
+>  [<ffffffff814119a0>] do_exit+0x960/0x2640 kernel/exit.c:815
+>  [<ffffffff8141383e>] do_group_exit+0x14e/0x420 kernel/exit.c:931
+>  [<ffffffff814429d3>] get_signal+0x663/0x1880 kernel/signal.c:2307
+>  [<ffffffff81239b45>] do_signal+0xc5/0x2190 arch/x86/kernel/signal.c:807
+>  [<ffffffff8100666a>] exit_to_usermode_loop+0x1ea/0x2d0
+> arch/x86/entry/common.c:156
+>  [<     inline     >] prepare_exit_to_usermode arch/x86/entry/common.c:190
+>  [<ffffffff81009693>] syscall_return_slowpath+0x4d3/0x570
+> arch/x86/entry/common.c:259
+>  [<ffffffff881479a6>] entry_SYSCALL_64_fastpath+0xc4/0xc6
+> Code: 10 00 00 4c 89 e7 e8 25 6c 63 00 e9 9b fd ff ff e8 0b 9e 3d 00
+> 0f 0b e8 04 9e 3d 00 48 c7 c6 00 ac 27 88 4c 89 f7 e8 85 9e 62 00 <0f>
+> 0b e8 9e 2d 6e 00 e9 1a fe ff ff 48 89 cf 48 89 8d b0 fe ff
+> RIP  [<     inline     >] pgtable_pmd_page_dtor include/linux/mm.h:1743
+> RIP  [<ffffffff8130e2ab>] ___pmd_free_tlb+0x3db/0x5a0 arch/x86/mm/pgtable.c:74
+>  RSP <ffff8800667e6908>
+> ---[ end trace 4ef4b70d88f62f8a ]---
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
