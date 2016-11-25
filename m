@@ -1,78 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8D36B025E
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 22:01:11 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so143828545pgq.7
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:01:11 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id l3si13534282pld.312.2016.11.24.19.01.09
-        for <linux-mm@kvack.org>;
-        Thu, 24 Nov 2016 19:01:10 -0800 (PST)
-Date: Fri, 25 Nov 2016 14:00:59 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
-Message-ID: <20161125030059.GY31101@dastard>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C85BB6B0069
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:01:05 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y68so90541139pfb.6
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 20:01:05 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u90si42440775pfd.87.2016.11.24.20.01.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Nov 2016 20:01:04 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAP3x3GR052660
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:01:04 -0500
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26x461ytp6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:01:04 -0500
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 25 Nov 2016 14:01:01 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6E4232BB005A
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 15:01:00 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAP410FM55967910
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 15:01:00 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAP410Ca001432
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 15:01:00 +1100
+Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v2)
+References: <20161117002851.C7BACB98@viggo.jf.intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 25 Nov 2016 09:30:52 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20161117002851.C7BACB98@viggo.jf.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <5837B774.6060604@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, linux-mm@kvack.org
 
-On Wed, Nov 23, 2016 at 11:44:19AM -0700, Ross Zwisler wrote:
-> Tracepoints are the standard way to capture debugging and tracing
-> information in many parts of the kernel, including the XFS and ext4
-> filesystems.  Create a tracepoint header for FS DAX and add the first DAX
-> tracepoints to the PMD fault handler.  This allows the tracing for DAX to
-> be done in the same way as the filesystem tracing so that developers can
-> look at them together and get a coherent idea of what the system is doing.
+On 11/17/2016 05:58 AM, Dave Hansen wrote:
+> Changes from v1:
+>  * Do one 'Pte' line per pte size instead of mashing on one line
+>  * Use PMD_SIZE for pmds instead of PAGE_SIZE, whoops
+>  * Wrote some Documentation/
 > 
-> I added both an entry and exit tracepoint because future patches will add
-> tracepoints to child functions of dax_iomap_pmd_fault() like
-> dax_pmd_load_hole() and dax_pmd_insert_mapping(). We want those messages to
-> be wrapped by the parent function tracepoints so the code flow is more
-> easily understood.  Having entry and exit tracepoints for faults also
-> allows us to easily see what filesystems functions were called during the
-> fault.  These filesystem functions get executed via iomap_begin() and
-> iomap_end() calls, for example, and will have their own tracepoints.
+> --
 > 
-> For PMD faults we primarily want to understand the faulting address and
-> whether it fell back to 4k faults.  If it fell back to 4k faults the
-> tracepoints should let us understand why.
+> /proc/$pid/smaps has a number of fields that are intended to imply the
+> kinds of PTEs used to map memory.  "AnonHugePages" obviously tells you
+> how many PMDs are being used.  "MMUPageSize" along with the "Hugetlb"
+> fields tells you how many PTEs you have for a huge page.
 > 
-> I named the new tracepoint header file "fs_dax.h" to allow for device DAX
-> to have its own separate tracing header in the same directory at some
-> point.
-> 
-> Here is an example output for these events from a successful PMD fault:
-> 
-> big-2057  [000] ....   136.396855: dax_pmd_fault: shared mapping write
-> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
-> max_pgoff 0x1400
-> 
-> big-2057  [000] ....   136.397943: dax_pmd_fault_done: shared mapping write
-> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
-> max_pgoff 0x1400 NOPAGE
+> The current mechanisms work fine when we have one or two page sizes.
+> But, they start to get a bit muddled when we mix page sizes inside
+> one VMA.  For instance, the DAX folks were proposing adding a set of
+> fields like:
 
-Can we make the output use the same format as most of the filesystem
-code? i.e. the output starts with backing device + inode number like
-so:
+So DAX is only case which creates this scenario of multi page sizes in
+the same VMA ? Is there any cases other than DAX mapping ?
 
-	xfs_ilock:            dev 8:96 ino 0x493 flags ILOCK_EXCL....
+> 
+> 	DevicePages:
+> 	DeviceHugePages:
+> 	DeviceGiganticPages:
+> 	DeviceGinormousPages:
 
-This way we can filter the output easily across both dax and
-filesystem tracepoints with 'grep "ino 0x493"'...
+I guess these are the page sizes supported at PTE, PMD, PUD, PGD level.
+Are all these page sizes supported right now or we are just creating
+place holder for future.
 
-Cheers,
+> 
+> to unmuddle things when page sizes get mixed.  That's fine, but
+> it does require userspace know the mapping from our various
+> arbitrary names to hardware page sizes on each architecture and
+> kernel configuration.  That seems rather suboptimal.
+> 
+> What folks really want is to know how much memory is mapped with
+> each page size.  How about we just do *that*?
+> 
+> Patch attached.  Seems harmless enough.  Seems to compile on a
+> bunch of random architectures.  Makes smaps look like this:
+> 
+> Private_Hugetlb:       0 kB
+> Swap:                  0 kB
+> SwapPss:               0 kB
+> KernelPageSize:        4 kB
+> MMUPageSize:           4 kB
+> Locked:                0 kB
+> Ptes@4kB:	      32 kB
+> Ptes@2MB:	    2048 kB
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+So in the left column we are explicitly indicating the size of the PTE
+and expect the user to figure out where it can really be either at PTE,
+PMD, PUD etc. Thats little bit different that 'AnonHugePages' or the
+Shared_HugeTLB/Private_HugeTLB pages which we know are the the PMD/PUD
+level.
+
+> 
+> The format I used here should be unlikely to break smaps parsers
+> unless they're looking for "kB" and now match the 'Ptes@4kB' instead
+> of the one at the end of the line.
+
+Right. So you are dropping the idea to introduce these fields as you
+mentioned before for DAX mappings.
+
+ 	DevicePages:
+ 	DeviceHugePages:
+ 	DeviceGiganticPages:
+ 	DeviceGinormousPages:
+
+
+> 
+> 1. I'd like to thank Dan Williams for showing me a mirror as I
+>    complained about the bozo that introduced 'AnonHugePages'.
+> 
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Cc: linux-mm@kvack.org
+> 
+> ---
+> 
+>  b/Documentation/filesystems/proc.txt |    6 ++
+>  b/fs/proc/task_mmu.c                 |   81 ++++++++++++++++++++++++++++++++++-
+>  2 files changed, 85 insertions(+), 2 deletions(-)
+> 
+> diff -puN fs/proc/task_mmu.c~smaps-pte-sizes fs/proc/task_mmu.c
+> --- a/fs/proc/task_mmu.c~smaps-pte-sizes	2016-11-16 15:43:56.756991084 -0800
+> +++ b/fs/proc/task_mmu.c	2016-11-16 16:19:47.354789912 -0800
+> @@ -445,6 +445,9 @@ struct mem_size_stats {
+>  	unsigned long swap;
+>  	unsigned long shared_hugetlb;
+>  	unsigned long private_hugetlb;
+> +	unsigned long rss_pte;
+> +	unsigned long rss_pmd;
+> +	unsigned long rss_pud;
+>  	u64 pss;
+>  	u64 swap_pss;
+>  	bool check_shmem_swap;
+> @@ -519,6 +522,7 @@ static void smaps_pte_entry(pte_t *pte,
+> 
+>  	if (pte_present(*pte)) {
+>  		page = vm_normal_page(vma, addr, *pte);
+> +		mss->rss_pte += PAGE_SIZE;
+>  	} else if (is_swap_pte(*pte)) {
+>  		swp_entry_t swpent = pte_to_swp_entry(*pte);
+> 
+> @@ -578,6 +582,7 @@ static void smaps_pmd_entry(pmd_t *pmd,
+>  		/* pass */;
+>  	else
+>  		VM_BUG_ON_PAGE(1, page);
+> +	mss->rss_pmd += PMD_SIZE;
+>  	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
+>  }
+>  #else
+> @@ -702,11 +707,13 @@ static int smaps_hugetlb_range(pte_t *pt
+>  	}
+>  	if (page) {
+>  		int mapcount = page_mapcount(page);
+> +		unsigned long hpage_size = huge_page_size(hstate_vma(vma));
+> 
+> +		mss->rss_pud += hpage_size;
+>  		if (mapcount >= 2)
+> -			mss->shared_hugetlb += huge_page_size(hstate_vma(vma));
+> +			mss->shared_hugetlb += hpage_size;
+>  		else
+> -			mss->private_hugetlb += huge_page_size(hstate_vma(vma));
+> +			mss->private_hugetlb += hpage_size;
+>  	}
+>  	return 0;
+
+Hmm, is this related to these new changes ? The replacement of 'hpage_size'
+instead of huge_page_size(hstate_vma(vma)) can be done in a separate patch.
+
+>  }
+> @@ -716,6 +723,75 @@ void __weak arch_show_smap(struct seq_fi
+>  {
+>  }
+> 
+> +/*
+> + * What units should we use for a given number?  We want
+> + * 2048 to be 2k, so we return 'k'.  1048576 should be
+> + * 1M, so we return 'M'.
+> + */
+> +static char size_unit(unsigned long long nr)
+> +{
+> +	/*
+> +	 * This ' ' might look a bit goofy in the output.  But, why
+> +	 * bother doing anything.  Do we even have a <1k page size?
+> +	 */
+> +	if (nr < (1ULL<<10))
+> +		return ' ';
+> +	if (nr < (1ULL<<20))
+> +		return 'k';
+> +	if (nr < (1ULL<<30))
+> +		return 'M';
+> +	if (nr < (1ULL<<40))
+> +		return 'G';
+> +	if (nr < (1ULL<<50))
+> +		return 'T';
+> +	if (nr < (1ULL<<60))
+> +		return 'P';
+> +	return 'E';
+> +}
+> +
+> +/*
+> + * How should we shift down a a given number to scale it
+> + * with the units we are printing it as? 2048 to be 2k,
+> + * so we want it shifted down by 10.  1048576 should be
+> + * 1M, so we want it shifted down by 20.
+> + */
+> +static int size_shift(unsigned long long nr)
+> +{
+> +	if (nr < (1ULL<<10))
+> +		return 0;
+> +	if (nr < (1ULL<<20))
+> +		return 10;
+> +	if (nr < (1ULL<<30))
+> +		return 20;
+> +	if (nr < (1ULL<<40))
+> +		return 30;
+> +	if (nr < (1ULL<<50))
+> +		return 40;
+> +	if (nr < (1ULL<<60))
+> +		return 50;
+> +	return 60;
+> +}
+> +
+> +static void show_one_smap_pte(struct seq_file *m, unsigned long bytes_rss,
+> +		unsigned long pte_size)
+> +{
+> +	seq_printf(m, "Ptes@%ld%cB:	%8lu kB\n",
+> +			pte_size >> size_shift(pte_size),
+> +			size_unit(pte_size),
+> +			bytes_rss >> 10);
+> +}
+> +
+> +static void show_smap_ptes(struct seq_file *m, struct mem_size_stats *mss)
+> +{
+> +	/* Only print the entries for page sizes present in the VMA */
+> +	if (mss->rss_pte)
+> +		show_one_smap_pte(m, mss->rss_pte, PAGE_SIZE);
+> +	if (mss->rss_pmd)
+> +		show_one_smap_pte(m, mss->rss_pmd, PMD_SIZE);
+> +	if (mss->rss_pud)
+> +		show_one_smap_pte(m, mss->rss_pud, PUD_SIZE);
+> +}
+> +
+>  static int show_smap(struct seq_file *m, void *v, int is_pid)
+>  {
+>  	struct vm_area_struct *vma = v;
+> @@ -799,6 +875,7 @@ static int show_smap(struct seq_file *m,
+>  		   (vma->vm_flags & VM_LOCKED) ?
+>  			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+> 
+> +	show_smap_ptes(m, &mss);
+>  	arch_show_smap(m, vma);
+>  	show_smap_vma_flags(m, vma);
+>  	m_cache_vma(m, vma);
+> diff -puN Documentation/filesystems/proc.txt~smaps-pte-sizes Documentation/filesystems/proc.txt
+> --- a/Documentation/filesystems/proc.txt~smaps-pte-sizes	2016-11-16 16:10:48.707307044 -0800
+> +++ b/Documentation/filesystems/proc.txt	2016-11-16 16:10:52.172464547 -0800
+> @@ -418,6 +418,9 @@ SwapPss:               0 kB
+>  KernelPageSize:        4 kB
+>  MMUPageSize:           4 kB
+>  Locked:                0 kB
+> +Ptes@4kB:	       4 kB
+> +Ptes@2MB:	    8192 kB
+> +
+>  VmFlags: rd ex mr mw me dw
+> 
+>  the first of these lines shows the same information as is displayed for the
+> @@ -450,6 +453,9 @@ replaced by copy-on-write) part of the u
+>  "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
+>  does not take into account swapped out page of underlying shmem objects.
+>  "Locked" indicates whether the mapping is locked in memory or not.
+> +"Ptes@..." lines show how many page table entries are currently in place and
+> +pointing to memory.  There is an entry for each size present in the hardware
+> +page tables for this mapping.
+> 
+>  "VmFlags" field deserves a separate description. This member represents the kernel
+>  flags associated with the particular virtual memory area in two letter encoded
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
