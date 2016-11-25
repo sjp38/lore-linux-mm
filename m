@@ -1,85 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4292D6B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 09:16:00 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id w13so22735984wmw.0
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:16:00 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id pv10si42683131wjb.124.2016.11.25.06.15.58
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ABBAF6B0069
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 09:34:29 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id 98so26827378lfs.0
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:34:29 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id q19si20536640lff.406.2016.11.25.06.34.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 06:15:58 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id u144so7891623wmu.0
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:15:58 -0800 (PST)
-Date: Fri, 25 Nov 2016 17:15:56 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: BUG in pgtable_pmd_page_dtor
-Message-ID: <20161125141556.GA12872@node.shutemov.name>
-References: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
- <f8963cc3-69a8-a1ca-9b56-205d919eac41@suse.cz>
- <CACT4Y+Z0f51iJjwTLxqwY2PZObLQpF+GujKQ34enBA3fBp8QiQ@mail.gmail.com>
- <296bdd6b-5c9e-0fbc-8aa1-4e95d0aff031@suse.cz>
- <ab7996b4-baf6-cf8f-6dba-006735e0587c@virtuozzo.com>
- <2ff6eee6-8828-821a-7dde-c2f68da697a5@suse.cz>
- <20161125130757.GC3439@node.shutemov.name>
- <2ff83214-70fe-741e-bf05-fe4a4073ec3e@suse.cz>
+        Fri, 25 Nov 2016 06:34:28 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id 98so3453261lfs.0
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:34:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2ff83214-70fe-741e-bf05-fe4a4073ec3e@suse.cz>
+In-Reply-To: <CAMJBoFMK_WH7q_y_=JgCJJ70YSSUhza1nQ0qVdurO6ZUT_kRLw@mail.gmail.com>
+References: <20161103220058.3017148c790b352c0ec521d4@gmail.com>
+ <20161103141404.2bb6b59435e560f0b82c0a18@linux-foundation.org>
+ <CAMJBoFOJqSk+KE8y_jtvGe5TBHevei7ZRjg93tvb1MuqaO9BZg@mail.gmail.com>
+ <20161103151700.73a98155238acff3f3f98e8b@linux-foundation.org> <CAMJBoFMK_WH7q_y_=JgCJJ70YSSUhza1nQ0qVdurO6ZUT_kRLw@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 25 Nov 2016 09:33:47 -0500
+Message-ID: <CALZtONDBviZ7HWyeERqG8-=5FLJCx8uMKKTj+5OHmKZ3-QX55w@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: make pages_nr atomic
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 25, 2016 at 03:08:10PM +0100, Vlastimil Babka wrote:
-> On 11/25/2016 02:07 PM, Kirill A. Shutemov wrote:
-> >> --- a/mm/debug.c
-> >> +++ b/mm/debug.c
-> >> @@ -59,6 +59,10 @@ void __dump_page(struct page *page, const char *reason)
-> >>  
-> >>  	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
-> >>  
-> >> +	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE,
-> >> +			32, (sizeof(unsigned long) == 8) ? 8 : 4,
-> > 
-> > That's a very fancy way to write sizeof(unsigned long) ;)
->  
-> Ah, damnit, thanks.
-> 
-> ----8<----
-> From 08d2ee803567c13e3de7ce7e19338fe5286cc6b8 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Fri, 25 Nov 2016 09:08:05 +0100
-> Subject: [PATCH v3] mm, debug: print raw struct page data in __dump_page()
-> 
-> The __dump_page() function is used when a page metadata inconsistency is
-> detected, either by standard runtime checks, or extra checks in CONFIG_DEBUG_VM
-> builds. It prints some of the relevant metadata, but not the whole struct page,
-> which is based on unions and interpretation is dependent on the context.
-> 
-> This means that sometimes e.g. a VM_BUG_ON_PAGE() checks certain field, which
-> is however not printed by __dump_page() and the resulting bug report may then
-> lack clues that could help in determining the root cause. This patch solves
-> the problem by simply printing the whole struct page word by word, so no part
-> is missing, but the interpretation of the data is left to developers. This is
-> similar to e.g. x86_64 raw stack dumps.
-> 
-> Example output:
-> 
->  page:ffffea00000475c0 count:1 mapcount:0 mapping:          (null) index:0x0
->  flags: 0x100000000000400(reserved)
->  raw: 0100000000000400 0000000000000000 0000000000000000 00000001ffffffff
->  raw: ffffea00000475e0 ffffea00000475e0 0000000000000000 0000000000000000
->  page dumped because: VM_BUG_ON_PAGE(1)
-> 
-> [aryabinin@virtuozzo.com: suggested print_hex_dump()]
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+On Fri, Nov 4, 2016 at 3:27 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> On Thu, Nov 3, 2016 at 11:17 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Thu, 3 Nov 2016 22:24:07 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
+>>
+>>> On Thu, Nov 3, 2016 at 10:14 PM, Andrew Morton
+>>> <akpm@linux-foundation.org> wrote:
+>>> > On Thu, 3 Nov 2016 22:00:58 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
+>>> >
+>>> >> This patch converts pages_nr per-pool counter to atomic64_t.
+>>> >
+>>> > Which is slower.
+>>> >
+>>> > Presumably there is a reason for making this change.  This reason
+>>> > should be described in the changelog.
+>>>
+>>> The reason [which I thought was somewhat obvious :) ] is that there
+>>> won't be a need to take a per-pool lock to read or modify that
+>>> counter.
+>>
+>> But the patch didn't change the locking.  And as far as I can tell,
+>> neither does "z3fold: extend compaction function".
+>
+> Right. I'll come up with the locking rework shortly, but it will be a
+> RFC so I wanted to send it separately.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+this is still in mmotm, and it seems the later patches rely on it, so
+while i agree that the changelog should be clearer about why it's
+needed, the change itself looks ok.
 
--- 
- Kirill A. Shutemov
+Acked-by: Dan Streetman <ddstreet@ieee.org>
+
+>
+> ~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
