@@ -1,66 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ABBAF6B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 09:34:29 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id 98so26827378lfs.0
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:34:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id C16ED6B025E
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 09:44:19 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id t196so27294608lff.3
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:44:19 -0800 (PST)
 Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id q19si20536640lff.406.2016.11.25.06.34.28
+        by mx.google.com with ESMTPS id 93si20606161lja.53.2016.11.25.06.44.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 06:34:28 -0800 (PST)
-Received: by mail-lf0-x243.google.com with SMTP id 98so3453261lfs.0
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:34:28 -0800 (PST)
+        Fri, 25 Nov 2016 06:44:18 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id p100so3488550lfg.2
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:44:18 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFMK_WH7q_y_=JgCJJ70YSSUhza1nQ0qVdurO6ZUT_kRLw@mail.gmail.com>
-References: <20161103220058.3017148c790b352c0ec521d4@gmail.com>
- <20161103141404.2bb6b59435e560f0b82c0a18@linux-foundation.org>
- <CAMJBoFOJqSk+KE8y_jtvGe5TBHevei7ZRjg93tvb1MuqaO9BZg@mail.gmail.com>
- <20161103151700.73a98155238acff3f3f98e8b@linux-foundation.org> <CAMJBoFMK_WH7q_y_=JgCJJ70YSSUhza1nQ0qVdurO6ZUT_kRLw@mail.gmail.com>
+In-Reply-To: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
+References: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 25 Nov 2016 09:33:47 -0500
-Message-ID: <CALZtONDBviZ7HWyeERqG8-=5FLJCx8uMKKTj+5OHmKZ3-QX55w@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: make pages_nr atomic
+Date: Fri, 25 Nov 2016 09:43:37 -0500
+Message-ID: <CALZtONBA5sSJ_tzF1D=seDdryCn8zu=UWwF=k5RxnJQMr1vfSA@mail.gmail.com>
+Subject: Re: [PATH] z3fold: extend compaction function
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Nov 4, 2016 at 3:27 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> On Thu, Nov 3, 2016 at 11:17 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Thu, 3 Nov 2016 22:24:07 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
->>
->>> On Thu, Nov 3, 2016 at 10:14 PM, Andrew Morton
->>> <akpm@linux-foundation.org> wrote:
->>> > On Thu, 3 Nov 2016 22:00:58 +0100 Vitaly Wool <vitalywool@gmail.com> wrote:
->>> >
->>> >> This patch converts pages_nr per-pool counter to atomic64_t.
->>> >
->>> > Which is slower.
->>> >
->>> > Presumably there is a reason for making this change.  This reason
->>> > should be described in the changelog.
->>>
->>> The reason [which I thought was somewhat obvious :) ] is that there
->>> won't be a need to take a per-pool lock to read or modify that
->>> counter.
->>
->> But the patch didn't change the locking.  And as far as I can tell,
->> neither does "z3fold: extend compaction function".
+On Thu, Nov 3, 2016 at 5:04 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> z3fold_compact_page() currently only handles the situation when
+> there's a single middle chunk within the z3fold page. However it
+> may be worth it to move middle chunk closer to either first or
+> last chunk, whichever is there, if the gap between them is big
+> enough.
 >
-> Right. I'll come up with the locking rework shortly, but it will be a
-> RFC so I wanted to send it separately.
+> This patch adds the relevant code, using BIG_CHUNK_GAP define as
+> a threshold for middle chunk to be worth moving.
+>
+> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 
-this is still in mmotm, and it seems the later patches rely on it, so
-while i agree that the changelog should be clearer about why it's
-needed, the change itself looks ok.
+with the bikeshedding comments below, looks good.
 
 Acked-by: Dan Streetman <ddstreet@ieee.org>
 
+> ---
+>  mm/z3fold.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+>  1 file changed, 47 insertions(+), 13 deletions(-)
 >
-> ~vitaly
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 4d02280..fea6791 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -250,26 +250,60 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+>         kfree(pool);
+>  }
+>
+> +static inline void *mchunk_memmove(struct z3fold_header *zhdr,
+> +                               unsigned short dst_chunk)
+> +{
+> +       void *beg = zhdr;
+> +       return memmove(beg + (dst_chunk << CHUNK_SHIFT),
+> +                      beg + (zhdr->start_middle << CHUNK_SHIFT),
+> +                      zhdr->middle_chunks << CHUNK_SHIFT);
+> +}
+> +
+> +#define BIG_CHUNK_GAP  3
+>  /* Has to be called with lock held */
+>  static int z3fold_compact_page(struct z3fold_header *zhdr)
+>  {
+>         struct page *page = virt_to_page(zhdr);
+> -       void *beg = zhdr;
+> +       int ret = 0;
+> +
+> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
+> +               goto out;
+>
+> +       if (zhdr->middle_chunks != 0) {
+
+bikeshed: this check could be moved up also, as if there's no middle
+chunk there is no compacting to do and we can just return 0.  saves a
+tab in all the code below.
+
+> +               if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> +                       mchunk_memmove(zhdr, 1); /* move to the beginning */
+> +                       zhdr->first_chunks = zhdr->middle_chunks;
+> +                       zhdr->middle_chunks = 0;
+> +                       zhdr->start_middle = 0;
+> +                       zhdr->first_num++;
+> +                       ret = 1;
+> +                       goto out;
+> +               }
+>
+> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
+> -           zhdr->middle_chunks != 0 &&
+> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+> -               memmove(beg + ZHDR_SIZE_ALIGNED,
+> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
+> -                       zhdr->middle_chunks << CHUNK_SHIFT);
+> -               zhdr->first_chunks = zhdr->middle_chunks;
+> -               zhdr->middle_chunks = 0;
+> -               zhdr->start_middle = 0;
+> -               zhdr->first_num++;
+> -               return 1;
+> +               /*
+> +                * moving data is expensive, so let's only do that if
+> +                * there's substantial gain (at least BIG_CHUNK_GAP chunks)
+> +                */
+> +               if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
+> +                   zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
+> +                       mchunk_memmove(zhdr, zhdr->first_chunks + 1);
+> +                       zhdr->start_middle = zhdr->first_chunks + 1;
+> +                       ret = 1;
+> +                       goto out;
+> +               }
+> +               if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
+> +                   zhdr->middle_chunks + zhdr->last_chunks <=
+> +                   NCHUNKS - zhdr->start_middle - BIG_CHUNK_GAP) {
+> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
+> +                               zhdr->middle_chunks;
+> +                       mchunk_memmove(zhdr, new_start);
+> +                       zhdr->start_middle = new_start;
+> +                       ret = 1;
+> +                       goto out;
+> +               }
+>         }
+> -       return 0;
+> +out:
+> +       return ret;
+
+bikeshed: do we need all the goto out?  why not just return 0/1
+appropriately above?
+
+>  }
+>
+>  /**
+> --
+> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
