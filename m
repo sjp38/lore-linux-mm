@@ -1,91 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DCC36B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:02:09 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id r94so117248956ioe.7
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 04:02:09 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v9si10657811ith.91.2016.11.25.04.02.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EFE56B0069
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:27:31 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 144so102538159pfv.5
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 04:27:31 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e11si15890134plj.306.2016.11.25.04.27.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 25 Nov 2016 04:02:07 -0800 (PST)
-Subject: Re: [RFC 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20161123064925.9716-1-mhocko@kernel.org>
-	<20161123064925.9716-3-mhocko@kernel.org>
-	<201611232335.JFC30797.VOOtOMFJFHLQSF@I-love.SAKURA.ne.jp>
-	<20161123153544.GN2864@dhcp22.suse.cz>
-In-Reply-To: <20161123153544.GN2864@dhcp22.suse.cz>
-Message-Id: <201611252100.ADG04225.MFOSOVtHJFFLQO@I-love.SAKURA.ne.jp>
-Date: Fri, 25 Nov 2016 21:00:52 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Nov 2016 04:27:30 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAPCP2B1017551
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:27:29 -0500
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26xn9ar4dq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:27:29 -0500
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 25 Nov 2016 22:27:27 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0E3452BB005A
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 23:27:25 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAPCRPBo50593962
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 23:27:25 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAPCRO3L018736
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 23:27:24 +1100
+Subject: Re: [PATCH v2 10/12] mm: mempolicy: mbind and migrate_pages support
+ thp migration
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-11-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 25 Nov 2016 17:57:20 +0530
+MIME-Version: 1.0
+In-Reply-To: <1478561517-4317-11-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <58382E28.9060706@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com, hannes@cmpxchg.org, mgorman@suse.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Michal Hocko wrote:
-> On Wed 23-11-16 23:35:10, Tetsuo Handa wrote:
-> > If __alloc_pages_nowmark() called by __GFP_NOFAIL could not find pages
-> > with requested order due to fragmentation, __GFP_NOFAIL should invoke
-> > the OOM killer. I believe that risking kill all processes and panic the
-> > system eventually is better than __GFP_NOFAIL livelock.
->
-> I violently disagree. Just imagine a driver which asks for an order-9
-> page and cannot really continue without it so it uses GFP_NOFAIL. There
-> is absolutely no reason to disrupt or even put the whole system down
-> just because of this particular request. It might take for ever to
-> continue but that is to be expected when asking for such a hard
-> requirement.
+On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> This patch enables thp migration for mbind(2) and migrate_pages(2).
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> ChangeLog v1 -> v2:
+> - support pte-mapped and doubly-mapped thp
+> ---
+>  mm/mempolicy.c | 108 +++++++++++++++++++++++++++++++++++++++++----------------
+>  1 file changed, 79 insertions(+), 29 deletions(-)
+> 
+> diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
+> index 77d0668..96507ee 100644
+> --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mempolicy.c
+> +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mempolicy.c
+> @@ -94,6 +94,7 @@
+>  #include <linux/mm_inline.h>
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/printk.h>
+> +#include <linux/swapops.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/uaccess.h>
+> @@ -486,6 +487,49 @@ static inline bool queue_pages_node_check(struct page *page,
+>  	return node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT);
+>  }
+>  
+> +static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
+> +{
+> +	int ret = 0;
+> +	struct page *page;
+> +	struct queue_pages *qp = walk->private;
+> +	unsigned long flags;
+> +
+> +	if (unlikely(is_pmd_migration_entry(*pmd))) {
+> +		ret = 1;
+> +		goto unlock;
+> +	}
+> +	page = pmd_page(*pmd);
+> +	if (is_huge_zero_page(page)) {
+> +		spin_unlock(ptl);
+> +		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
+> +		goto out;
+> +	}
+> +	if (!thp_migration_supported()) {
+> +		get_page(page);
+> +		spin_unlock(ptl);
+> +		lock_page(page);
+> +		ret = split_huge_page(page);
+> +		unlock_page(page);
+> +		put_page(page);
+> +		goto out;
+> +	}
+> +	if (queue_pages_node_check(page, qp)) {
+> +		ret = 1;
+> +		goto unlock;
+> +	}
+> +
+> +	ret = 1;
+> +	flags = qp->flags;
+> +	/* go to thp migration */
+> +	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +		migrate_page_add(page, qp->pagelist, flags);
+> +unlock:
+> +	spin_unlock(ptl);
+> +out:
+> +	return ret;
+> +}
+> +
+>  /*
+>   * Scan through pages checking if pages follow certain conditions,
+>   * and move them to the pagelist if they do.
+> @@ -497,30 +541,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>  	struct page *page;
+>  	struct queue_pages *qp = walk->private;
+>  	unsigned long flags = qp->flags;
+> -	int nid, ret;
+> +	int ret;
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+>  
+> -	if (pmd_trans_huge(*pmd)) {
+> -		ptl = pmd_lock(walk->mm, pmd);
+> -		if (pmd_trans_huge(*pmd)) {
+> -			page = pmd_page(*pmd);
+> -			if (is_huge_zero_page(page)) {
+> -				spin_unlock(ptl);
+> -				__split_huge_pmd(vma, pmd, addr, false, NULL);
+> -			} else {
+> -				get_page(page);
+> -				spin_unlock(ptl);
+> -				lock_page(page);
+> -				ret = split_huge_page(page);
+> -				unlock_page(page);
+> -				put_page(page);
+> -				if (ret)
+> -					return 0;
+> -			}
+> -		} else {
+> -			spin_unlock(ptl);
+> -		}
+> +	ptl = pmd_trans_huge_lock(pmd, vma);
+> +	if (ptl) {
+> +		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
+> +		if (ret)
+> +			return 0;
+>  	}
 
-Did we find such in-tree drivers? If any, we likely already know it via
-WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1)); in buffered_rmqueue().
-Even if there were such out-of-tree drivers, we don't need to take care of
-out-of-tree drivers.
-
-> > Unfortunately, there seems to be cases where the
-> > caller needs to use GFP_NOFS rather than GFP_KERNEL due to unclear dependency
-> > between memory allocation by system calls and memory reclaim by filesystems.
->
-> I do not understand your point here. Syscall is an entry point to the
-> kernel where we cannot recurse to the FS code so GFP_NOFS seems wrong
-> thing to ask.
-
-Will you look at http://marc.info/?t=120716967100004&r=1&w=2 which lead to
-commit a02fe13297af26c1 ("selinux: prevent rentry into the FS") and commit
-869ab5147e1eead8 ("SELinux: more GFP_NOFS fixups to prevent selinux from
-re-entering the fs code") ? My understanding is that mkdir() system call
-caused memory allocation for inode creation and that memory allocation
-caused memory reclaim which had to be !__GFP_FS.
-
-And whether we need to use GFP_NOFS at specific point is very very unclear.
-For example, security_inode_init_security() calls call_int_hook() macro
-which calls smack_inode_init_security() if Smack is active.
-smack_inode_init_security() uses GFP_NOFS for memory allocation.
-security_inode_init_security() also calls evm_inode_init_security(), and
-evm_inode_init_security() uses GFP_NOFS for memory allocation.
-Looks consistent? Yes.
-
-But evm_inode_init_security() also calls evm_init_hmac() which in turn calls
-init_desc() which uses GFP_KERNEL for memory allocation. This is not consistent.
-
-And security_inode_init_security() also calls initxattrs() callback which is
-provided by filesystem code. For example, btrfs_initxattrs() is called if
-security_inode_init_security() is called by btrfs. And btrfs_initxattrs() is
-using GFP_KERNEL for memory allocation. This is not consistent too.
-
-Either we are needlessly using GFP_NOFS with risk of retry-forever loop or
-we are wrongly using GFP_KERNEL with risk of memory reclaim deadlock.
-Apart from we need to make these GFP_NOFS/GFP_KERNEL usages consistent
-(although whether we need to use GFP_NOFS is very very unclear),
-I do want to allow memory allocations from functions which are called by
-system calls to invoke the OOM-killer (e.g. __GFP_MAY_OOMKILL) rather than
-risk retry-forever loop (or fail that request) even if we need to use GFP_NOFS.
-Also, I'm willing to give up memory allocations from functions which are
-called by system calls if SIGKILL is pending (i.e. __GFP_KILLABLE).
-
-Did you understand my point?
+I wonder if we should introduce pte_entry function along with pmd_entry
+function as we are first looking for trans huge PMDs either for direct
+addition into the migration list or splitting it before looking for PTEs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
