@@ -1,136 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF2496B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 02:06:48 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f188so152231711pgc.1
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:06:48 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id 37si14695537plq.20.2016.11.24.23.06.46
-        for <linux-mm@kvack.org>;
-        Thu, 24 Nov 2016 23:06:47 -0800 (PST)
-Date: Fri, 25 Nov 2016 18:06:42 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
-Message-ID: <20161125070642.GZ31101@dastard>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
- <20161124173220.GR1555@ZenIV.linux.org.uk>
- <20161125024918.GX31101@dastard>
- <20161125041419.GT1555@ZenIV.linux.org.uk>
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EBE96B025E
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 02:34:59 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id 19so27912019vko.0
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:34:59 -0800 (PST)
+Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
+        by mx.google.com with ESMTPS id 103si9787742ual.22.2016.11.24.23.34.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Nov 2016 23:34:58 -0800 (PST)
+Received: by mail-ua0-x241.google.com with SMTP id 12so3090130uas.3
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:34:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161125041419.GT1555@ZenIV.linux.org.uk>
+In-Reply-To: <20161124223613.GA20370@mwanda>
+References: <20161124223613.GA20370@mwanda>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Fri, 25 Nov 2016 08:34:57 +0100
+Message-ID: <CAMJBoFNZ+YcX0Yh2XUfBp2kT6WHyptFEXjKWrz2teWYsm-KTrA@mail.gmail.com>
+Subject: Re: [bug report] z3fold: use per-page spinlock
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Linux-MM <linux-mm@kvack.org>
 
-On Fri, Nov 25, 2016 at 04:14:19AM +0000, Al Viro wrote:
-> [Linus Cc'd]
-> 
-> On Fri, Nov 25, 2016 at 01:49:18PM +1100, Dave Chinner wrote:
-> > > they have become parts of stable userland ABI and are to be maintained
-> > > indefinitely.  Don't expect "tracepoints are special case" to prevent that.
-> > 
-> > I call bullshit just like I always do when someone spouts this
-> > "tracepoints are stable ABI" garbage.
-> 
-> > Quite frankly, anyone that wants to stop us from
-> > adding/removing/changing tracepoints or the code that they are
-> > reporting information about "because ABI" can go take a long walk
-> > off a short cliff.  Diagnostic tracepoints are not part of the
-> > stable ABI. End of story.
-> 
-> Tell that to Linus.  You had been in the room, IIRC, when that had been
-> brought up this year in Santa Fe.
+Hi Dan,
 
-No, I wasn't at KS or plumbers, so this is all news to me. Beleive
-me, if I was in the room when this discussion was in progress, you'd
-remember it /very clearly/.
+On Thu, Nov 24, 2016 at 11:36 PM, Dan Carpenter
+<dan.carpenter@oracle.com> wrote:
+> Hello Vitaly Wool,
+>
+> The patch 570931c8c567: "z3fold: use per-page spinlock" from Nov 24,
+> 2016, leads to the following Smatch warning:
+>
+>         mm/z3fold.c:699 z3fold_reclaim_page()
+>         error: double unlock 'spin_lock:&pool->lock'
+>
+> mm/z3fold.c
+>    597  static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>    598  {
+>    599          int i, ret = 0, freechunks;
+>    600          struct z3fold_header *zhdr;
+>    601          struct page *page;
+>    602          unsigned long first_handle = 0, middle_handle = 0, last_handle = 0;
+>    603
+>    604          spin_lock(&pool->lock);
+>    605          if (!pool->ops || !pool->ops->evict || list_empty(&pool->lru) ||
+>    606                          retries == 0) {
+>    607                  spin_unlock(&pool->lock);
+>    608                  return -EINVAL;
+>    609          }
+>    610          for (i = 0; i < retries; i++) {
+>    611                  page = list_last_entry(&pool->lru, struct page, lru);
+>    612                  list_del(&page->lru);
+>    613
+>    614                  /* Protect z3fold page against free */
+>    615                  set_bit(UNDER_RECLAIM, &page->private);
+>    616                  zhdr = page_address(page);
+>    617                  if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>    618                          list_del(&zhdr->buddy);
+>    619                          spin_unlock(&pool->lock);
+>    620                          z3fold_page_lock(zhdr);
+>    621                          /*
+>    622                           * We need encode the handles before unlocking, since
+>    623                           * we can race with free that will set
+>    624                           * (first|last)_chunks to 0
+>    625                           */
+>    626                          first_handle = 0;
+>    627                          last_handle = 0;
+>    628                          middle_handle = 0;
+>    629                          if (zhdr->first_chunks)
+>    630                                  first_handle = encode_handle(zhdr, FIRST);
+>    631                          if (zhdr->middle_chunks)
+>    632                                  middle_handle = encode_handle(zhdr, MIDDLE);
+>    633                          if (zhdr->last_chunks)
+>    634                                  last_handle = encode_handle(zhdr, LAST);
+>    635                          z3fold_page_unlock(zhdr);
+>    636                  } else {
+>    637                          first_handle = encode_handle(zhdr, HEADLESS);
+>    638                          last_handle = middle_handle = 0;
+>    639                          spin_unlock(&pool->lock);
+>    640                  }
+>    641
+>    642                  /* Issue the eviction callback(s) */
+>    643                  if (middle_handle) {
+>    644                          ret = pool->ops->evict(pool, middle_handle);
+>    645                          if (ret)
+>    646                                  goto next;
+>    647                  }
+>    648                  if (first_handle) {
+>    649                          ret = pool->ops->evict(pool, first_handle);
+>    650                          if (ret)
+>    651                                  goto next;
+>    652                  }
+>    653                  if (last_handle) {
+>    654                          ret = pool->ops->evict(pool, last_handle);
+>    655                          if (ret)
+>    656                                  goto next;
+>
+> "ret" is non-zero so we do a little bunny hop to the next line.  Small
+> jump deserves a small pun.
+>
+>    657                  }
+>    658  next:
+>
+> Originally we took the lock here, but now we've moved it into the if
+> statement branches.
+>
+>    659                  if (!test_bit(PAGE_HEADLESS, &page->private))
+>    660                          z3fold_page_lock(zhdr);
+>    661                  clear_bit(UNDER_RECLAIM, &page->private);
+>    662                  if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
+>    663                      (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
+>    664                       zhdr->middle_chunks == 0)) {
+>    665                          /*
+>    666                           * All buddies are now free, free the z3fold page and
+>    667                           * return success.
+>    668                           */
+>    669                          clear_bit(PAGE_HEADLESS, &page->private);
+>    670                          if (!test_bit(PAGE_HEADLESS, &page->private))
+>    671                                  z3fold_page_unlock(zhdr);
+>    672                          free_z3fold_page(zhdr);
+>    673                          atomic64_dec(&pool->pages_nr);
+>    674                          return 0;
+>    675                  }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>    676                          if (zhdr->first_chunks != 0 &&
+>    677                              zhdr->last_chunks != 0 &&
+>    678                              zhdr->middle_chunks != 0) {
+>    679                                  /* Full, add to buddied list */
+>    680                                  spin_lock(&pool->lock);
+>    681                                  list_add(&zhdr->buddy, &pool->buddied);
+>    682                          } else {
+>    683                                  int compacted = z3fold_compact_page(zhdr);
+>    684                                  /* add to unbuddied list */
+>    685                                  spin_lock(&pool->lock);
+>    686                                  freechunks = num_free_chunks(zhdr);
+>    687                                  if (compacted)
+>    688                                          list_add(&zhdr->buddy,
+>    689                                                  &pool->unbuddied[freechunks]);
+>    690                                  else
+>    691                                          list_add_tail(&zhdr->buddy,
+>    692                                                  &pool->unbuddied[freechunks]);
+>    693                          }
+>    694                  }
+>
+> We don't take the lock if PAGE_HEADLESS is set but ret is non-zero.
+>
+>    695
+>    696                  /* add to beginning of LRU */
+>    697                  list_add(&page->lru, &pool->lru);
+>    698          }
+>    699          spin_unlock(&pool->lock);
+>
+> Leading to a double unlock.
 
-> "End of story" is not going to be
-> yours (or mine, for that matter) to declare - Linus is the only one who
-> can do that.  If he says "if userland code relies upon it, so that
-> userland code needs to be fixed" - I'm very happy (and everyone involved
-> can count upon quite a few free drinks from me at the next summit).  If
-> it's "that userland code really shouldn't have relied upon it, and it's
-> real unfortunate that it does, but we still get to keep it working" -
-> too bad, "because ABI" is the reality and we will be the ones to take
-> that long walk.
+thanks for the report, will upload the fix shortly.
 
-When the tracepoint infrastructure was added it was considered a
-debugging tool and not stable - it was even exposed through
-/sys/kernel/debug! We connected up the ~280 /debug/ tracepoints we
-had in XFS at the time with the understanding it was a /diagnostic
-tool/. We exposed all sorts of internal details we'd previously been
-exposing with tracing through lcrash and kdb (and Irix before that)
-so we could diagnose problems quickly on a running kernel.
-
-The scope of tracepoints may have grown since then, but it does not
-change the fact that many of the tracepoints that were added years
-ago were done under the understanding that it was a mutable
-interface and nobody could rely on any specific tracepoint detail
-remaining unchanged.
-
-We're still treating then as mutable diagnostic and debugging aids
-across the kernel. In XFS, We've now got over *500* unique trace
-events and *650* tracepoints; ignoring comments, *4%* of the entire
-XFS kernel code base is tracing code.  We expose structure contents,
-transaction states, locking algorithms, object life cycles, journal
-operations, etc. All the new reverse mapping and shared data extent
-code that has been merged in 4.8 and 4.9 has been extensively
-exposed by tracepoints - these changes also modified a significant
-number of existing tracepoints.
-
-Put simply: every major and most minor pieces of functionality in
-XFS are exposed via tracepoints.
-
-Hence if the stable ABI tracepoint rules you've just described are
-going to enforced, it will mean we will not be able to change
-anything signficant in XFS because almost everything significant we
-do involves changing tracepoints in some way. This leaves us with
-three unacceptable choices:
-
-	1. stop developing XFS so we can maintain the stable
-	tracepoint ABI;
-
-	2. ignore the ABI rules and hope that Linus keeps pulling
-	code that obviously ignores the ABI rules; or
-
-	3. screw over our upstream/vanilla kernel users by removing
-	the tracepoints from Linus' tree and suck up the pain of
-	maintaining an out of tree patch for XFS developers and
-	distros so kernel tracepoint ABI rules can be ignored.
-
-Nobody wins if these are the only choices we are being given.
-
-I understand why there is a desire for stable tracepoints, and
-that's why I suggested that there should be an in-kernel API to
-declare stable tracepoints. That way we can have the best of both
-worlds - tracepoints that applications need to be stable can be
-declared, reviewed and explicitly marked as stable in full knowledge
-of what that implies. The rest of the vast body of tracepoints can
-be left as mutable with no stability or existence guarantees so that
-developers can continue to treat them in a way that best suits
-problem diagnosis without compromising the future development of the
-code being traced. If userspace finds some of those tracepoints
-useful, then they can be taken through the process of making them
-into a maintainable stable form and being marked as such.
-
-We already have distros mounting the tracing subsystem on
-/sys/kernel/tracing. Expose all the stable tracepoints there, and
-leave all the other tracepoints under /sys/kernel/debug/tracing.
-Simple, clear separation between stable and mutable diagnostic
-tracepoints for users, combined with a simple, clear in-kernel API
-and process for making tracepoints stable....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
