@@ -1,42 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B737F6B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 14:36:07 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id m203so135314784iom.6
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 11:36:07 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0094.hostedemail.com. [216.40.44.94])
-        by mx.google.com with ESMTPS id w200si12356655ita.30.2016.11.25.11.36.07
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B00666B0038
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 14:51:27 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id t93so135959486ioi.0
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 11:51:27 -0800 (PST)
+Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
+        by mx.google.com with ESMTPS id z201si12352662itc.24.2016.11.25.11.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 11:36:07 -0800 (PST)
-Message-ID: <1480102557.19726.33.camel@perches.com>
-Subject: Re: [PATCH 1/2] stacktrace: fix print_stack_trace printing
- timestamp twice
-From: Joe Perches <joe@perches.com>
-Date: Fri, 25 Nov 2016 11:35:57 -0800
-In-Reply-To: <CACT4Y+YB1QBzzdBbPWrq6u2M3B7WuavHZn6KswJi0Qi2DhqDLA@mail.gmail.com>
-References: <cover.1478632698.git.andreyknvl@google.com>
-	 <9df5bd889e1b980d84aa41e7010e622005fd0665.1478632698.git.andreyknvl@google.com>
-	 <2a6c133d-a42e-34ca-108c-b1399b939d65@virtuozzo.com>
-	 <CACT4Y+YB1QBzzdBbPWrq6u2M3B7WuavHZn6KswJi0Qi2DhqDLA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 25 Nov 2016 11:51:27 -0800 (PST)
+Received: by mail-io0-x242.google.com with SMTP id j92so11313567ioi.0
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 11:51:27 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20161125073747.GU1555@ZenIV.linux.org.uk>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+ <20161124173220.GR1555@ZenIV.linux.org.uk> <20161125024918.GX31101@dastard>
+ <20161125041419.GT1555@ZenIV.linux.org.uk> <20161125070642.GZ31101@dastard> <20161125073747.GU1555@ZenIV.linux.org.uk>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 25 Nov 2016 11:51:26 -0800
+Message-ID: <CA+55aFy5=74ad4tByQJYnkyX079z59yn02koJ_G8kfxamjvPDw@mail.gmail.com>
+Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Kostya Serebryany <kcc@google.com>, Peter Zijlstra <peterz@infradead.org>
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Fri, 2016-11-25 at 18:40 +0100, Dmitry Vyukov wrote:
-> But should we add KERN_CONT to print_ip_sym instead of duplicating it
-> everywhere? Or add print_ip_sym_cont?
+On Thu, Nov 24, 2016 at 11:37 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+>
+> My impression is that nobody (at least kernel-side) wants them to be
+> a stable ABI, so long as nobody in userland screams about their code
+> being broken, everything is fine.  As usual, if nobody notices an ABI
+> change, it hasn't happened.  The question is what happens when somebody
+> does.
 
-There are only a couple dozen uses of print_ip_sym.
+Right. There is basically _no_ "stable API" for the kernel anywhere,
+it's just an issue of "you can't break workflow for normal people".
 
-It might be better to use "[<%p>] %pS" directly
-everywhere and remove print_ip_sym instead to
-avoid the KERN_CONT and avoid all possible
-interleaved output.
+And if somebody writes his own trace scripts, and some random trace
+point goes away (or changes semantics), that's easy: he can just fix
+his script. Tracepoints aren't ever going to be stable in that sense.
+
+But when then somebody writes a trace script that is so useful that
+distros pick it up, and people start using it and depending on it,
+then _that_ trace point may well have become effectively locked in
+stone.
+
+That's happened once already with the whole powertop thing. It didn't
+get all that widely spread, and the fix was largely to improve on
+powertop to the point where it wasn't a problem any more, but we've
+clearly had one case of this happening.
+
+But I suspect that something like powertop is fairly unusual. There is
+certainly room for similar things in the VFS layer (think "better
+vmstat that uses tracepoints"), but I suspect the bulk of tracepoints
+are going to be for random debugging (so that developers can say
+"please run this script") rather than for an actual user application
+kind of situation.
+
+So I don't think we should be _too_ afraid of tracepoints either. When
+being too anti-tracepoint is a bigger practical problem than the
+possible problems down the line, the balance is wrong.
+
+As long as tracepoints make sense from a higher standpoint (ie not
+just random implementation detail of the day), and they aren't
+everywhere, they are unlikely to cause much problem.
+
+We do have filesystem code that is just disgusting. As an example:
+fs/afs/ tends to have these crazy "_enter()/_exit()" macros in every
+single function. If you want that, use the function tracer. That seems
+to be just debugging code that has been left around for others to
+stumble over. I do *not* believe that we should encourage that kind of
+"machine gun spray" use of tracepoints.
+
+But tracing actual high-level things like IO and faults? I think that
+makes perfect sense, as long as the data that is collected is also the
+actual event data, and not so much a random implementation issue of
+the day.
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
