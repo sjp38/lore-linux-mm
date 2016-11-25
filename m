@@ -1,138 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C16ED6B025E
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 09:44:19 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id t196so27294608lff.3
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:44:19 -0800 (PST)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id 93si20606161lja.53.2016.11.25.06.44.18
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E83956B0261
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:02:41 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id bk3so10585876wjc.4
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:02:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l66si14204926wma.114.2016.11.25.07.02.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 06:44:18 -0800 (PST)
-Received: by mail-lf0-x243.google.com with SMTP id p100so3488550lfg.2
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 06:44:18 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Nov 2016 07:02:40 -0800 (PST)
+Subject: Re: The scan_unevictable_pages sysctl/node-interface has been
+ disabled for lack of a legitimate use case!
+References: <A3F4FE4A-B6E3-4B04-83B3-E328808B7951@fb.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c82c3221-f121-9691-fdf3-1f44e502d6a6@suse.cz>
+Date: Fri, 25 Nov 2016 16:02:39 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
-References: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 25 Nov 2016 09:43:37 -0500
-Message-ID: <CALZtONBA5sSJ_tzF1D=seDdryCn8zu=UWwF=k5RxnJQMr1vfSA@mail.gmail.com>
-Subject: Re: [PATH] z3fold: extend compaction function
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <A3F4FE4A-B6E3-4B04-83B3-E328808B7951@fb.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Ramesh Shihora <rameshshihora@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Nov 3, 2016 at 5:04 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> z3fold_compact_page() currently only handles the situation when
-> there's a single middle chunk within the z3fold page. However it
-> may be worth it to move middle chunk closer to either first or
-> last chunk, whichever is there, if the gap between them is big
-> enough.
+On 10/28/2016 05:58 PM, Ramesh Shihora wrote:
+> Seeing on one of our server:
 >
-> This patch adds the relevant code, using BIG_CHUNK_GAP define as
-> a threshold for middle chunk to be worth moving.
 >
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-
-with the bikeshedding comments below, looks good.
-
-Acked-by: Dan Streetman <ddstreet@ieee.org>
-
-> ---
->  mm/z3fold.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++-------------
->  1 file changed, 47 insertions(+), 13 deletions(-)
 >
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 4d02280..fea6791 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -250,26 +250,60 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
->         kfree(pool);
->  }
->
-> +static inline void *mchunk_memmove(struct z3fold_header *zhdr,
-> +                               unsigned short dst_chunk)
-> +{
-> +       void *beg = zhdr;
-> +       return memmove(beg + (dst_chunk << CHUNK_SHIFT),
-> +                      beg + (zhdr->start_middle << CHUNK_SHIFT),
-> +                      zhdr->middle_chunks << CHUNK_SHIFT);
-> +}
-> +
-> +#define BIG_CHUNK_GAP  3
->  /* Has to be called with lock held */
->  static int z3fold_compact_page(struct z3fold_header *zhdr)
->  {
->         struct page *page = virt_to_page(zhdr);
-> -       void *beg = zhdr;
-> +       int ret = 0;
-> +
-> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
-> +               goto out;
->
-> +       if (zhdr->middle_chunks != 0) {
+> sysctl: The scan_unevictable_pages sysctl/node-interface has been
+> disabled for lack of a legitimate use case.  If you have one, please
+> send an email to linux-mm@kvack.org <mailto:linux-mm@kvack.org>.
 
-bikeshed: this check could be moved up also, as if there's no middle
-chunk there is no compacting to do and we can just return 0.  saves a
-tab in all the code below.
+Note that "If you have one" refers to "a legitimate use case". But looks 
+like you're not the first one to be confused by thinking it refers just 
+to seeing the log line?
 
-> +               if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> +                       mchunk_memmove(zhdr, 1); /* move to the beginning */
-> +                       zhdr->first_chunks = zhdr->middle_chunks;
-> +                       zhdr->middle_chunks = 0;
-> +                       zhdr->start_middle = 0;
-> +                       zhdr->first_num++;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
 >
-> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
-> -           zhdr->middle_chunks != 0 &&
-> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> -               memmove(beg + ZHDR_SIZE_ALIGNED,
-> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
-> -                       zhdr->middle_chunks << CHUNK_SHIFT);
-> -               zhdr->first_chunks = zhdr->middle_chunks;
-> -               zhdr->middle_chunks = 0;
-> -               zhdr->start_middle = 0;
-> -               zhdr->first_num++;
-> -               return 1;
-> +               /*
-> +                * moving data is expensive, so let's only do that if
-> +                * there's substantial gain (at least BIG_CHUNK_GAP chunks)
-> +                */
-> +               if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-> +                   zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
-> +                       mchunk_memmove(zhdr, zhdr->first_chunks + 1);
-> +                       zhdr->start_middle = zhdr->first_chunks + 1;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
-> +               if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-> +                   zhdr->middle_chunks + zhdr->last_chunks <=
-> +                   NCHUNKS - zhdr->start_middle - BIG_CHUNK_GAP) {
-> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
-> +                               zhdr->middle_chunks;
-> +                       mchunk_memmove(zhdr, new_start);
-> +                       zhdr->start_middle = new_start;
-> +                       ret = 1;
-> +                       goto out;
-> +               }
->         }
-> -       return 0;
-> +out:
-> +       return ret;
-
-bikeshed: do we need all the goto out?  why not just return 0/1
-appropriately above?
-
->  }
+> Thanks,
 >
->  /**
-> --
-> 2.4.2
+> Ramesh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
