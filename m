@@ -1,46 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 49EB46B0069
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:06:51 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q10so136589439pgq.7
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 16:06:51 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id n190si41470824pgn.27.2016.11.24.16.06.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 16:06:50 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id e9so4290765pgc.1
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 16:06:50 -0800 (PST)
-Subject: Re: [PATCH 2/5] mm: migrate: Change migrate_mode to support
- combination migration modes.
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-3-zi.yan@sent.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <6246a5ee-a1e1-3819-3ad0-3adc25db76f0@gmail.com>
-Date: Fri, 25 Nov 2016 11:06:43 +1100
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD246B0069
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 21:49:23 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id j128so89092282pfg.4
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 18:49:23 -0800 (PST)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id q187si30060945pfb.256.2016.11.24.18.49.21
+        for <linux-mm@kvack.org>;
+        Thu, 24 Nov 2016 18:49:22 -0800 (PST)
+Date: Fri, 25 Nov 2016 13:49:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
+Message-ID: <20161125024918.GX31101@dastard>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+ <20161124173220.GR1555@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <20161122162530.2370-3-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161124173220.GR1555@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com, Zi Yan <zi.yan@cs.rutgers.edu>, Zi Yan <ziy@nvidia.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-
-
-On 23/11/16 03:25, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
+On Thu, Nov 24, 2016 at 05:32:20PM +0000, Al Viro wrote:
+> On Wed, Nov 23, 2016 at 11:44:19AM -0700, Ross Zwisler wrote:
+> > Tracepoints are the standard way to capture debugging and tracing
+> > information in many parts of the kernel, including the XFS and ext4
+> > filesystems.  Create a tracepoint header for FS DAX and add the first DAX
+> > tracepoints to the PMD fault handler.  This allows the tracing for DAX to
+> > be done in the same way as the filesystem tracing so that developers can
+> > look at them together and get a coherent idea of what the system is doing.
 > 
-> From: Zi Yan <ziy@nvidia.com>
-> 
-> No functionality is changed.
+> 	It also has one hell of potential for becoming a massive nuisance.
+> Keep in mind that if any userland code becomes dependent on those - that's it,
+> they have become parts of stable userland ABI and are to be maintained
+> indefinitely.  Don't expect "tracepoints are special case" to prevent that.
 
+I call bullshit just like I always do when someone spouts this
+"tracepoints are stable ABI" garbage.
 
-I think you'd want to say that the modes are no longer
-exclusive. We can use them as flags in combination?
+If we want to provide stable tracepoints, then we need to /create a
+stable tracepoint API/ and convert all the tracepoints that /need
+to be stable/ to use it. Then developers only need to be careful
+about modifying code around the /explicitly stable/ tracepoints and
+we avoid retrospectively locking the kernel implementation into a
+KABI so tight we can't do anything anymore....
 
-Balbir Singh.
+Quite frankly, anyone that wants to stop us from
+adding/removing/changing tracepoints or the code that they are
+reporting information about "because ABI" can go take a long walk
+off a short cliff.  Diagnostic tracepoints are not part of the
+stable ABI. End of story.
+
+> 	So treat anything you add in that manner as potential stable ABI
+> you might have to keep around forever.  It's *not* a glorified debugging
+> printk.
+
+trace_printk() is the glorified debugging printk for tracing, not
+trace events.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
