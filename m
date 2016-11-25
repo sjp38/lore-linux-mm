@@ -1,74 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FC56B0261
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 02:38:26 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id 34so65663793uac.6
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:38:26 -0800 (PST)
-Received: from mail-ua0-x243.google.com (mail-ua0-x243.google.com. [2607:f8b0:400c:c08::243])
-        by mx.google.com with ESMTPS id k189si9797459vkb.176.2016.11.24.23.38.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A3DE6B0069
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 03:26:07 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id e9so155394647pgc.5
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 00:26:07 -0800 (PST)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
+        by mx.google.com with ESMTPS id e92si15048253pld.136.2016.11.25.00.26.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Nov 2016 23:38:26 -0800 (PST)
-Received: by mail-ua0-x243.google.com with SMTP id b35so3109823uaa.1
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 23:38:26 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 25 Nov 2016 00:26:06 -0800 (PST)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [RFC 0/2] Add interface let ZRAM close swap cache
+Date: Fri, 25 Nov 2016 16:25:11 +0800
+Message-ID: <1480062313-7361-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-In-Reply-To: <1480007330.19726.11.camel@perches.com>
-References: <20161124163158.3939337-1-arnd@arndb.de> <1480007330.19726.11.camel@perches.com>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Fri, 25 Nov 2016 08:38:25 +0100
-Message-ID: <CAMJBoFN=32B3aaU2XyJO7dNmZ3gMxmOYboVoWH3z7ALosSdmUQ@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: use %z modifier for format string
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, zhong jiang <zhongjiang@huawei.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, dan.j.williams@intel.com, jthumshirn@suse.de, akpm@linux-foundation.org, zhuhui@xiaomi.com, re.emese@gmail.com, andriy.shevchenko@linux.intel.com, vishal.l.verma@intel.com, hannes@cmpxchg.org, mhocko@suse.com, mgorman@techsingularity.net, vbabka@suse.cz, vdavydov.dev@gmail.com, kirill.shutemov@linux.intel.com, ying.huang@intel.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, willy@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, jmarchan@redhat.com, lstoakes@gmail.com, geliangtang@163.com, viro@zeniv.linux.org.uk, hughd@google.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: teawater@gmail.com
 
-Hi Joe,
+SWAP will keep before swap cache before swap space get full.  It will
+make swap space cannot be freed.  It is harmful to the system that use
+ZRAM because its space use memory too.
 
-On Thu, Nov 24, 2016 at 6:08 PM, Joe Perches <joe@perches.com> wrote:
-> On Thu, 2016-11-24 at 17:31 +0100, Arnd Bergmann wrote:
->> Printing a size_t requires the %zd format rather than %d:
->>
->> mm/z3fold.c: In function =E2=80=98init_z3fold=E2=80=99:
->> include/linux/kern_levels.h:4:18: error: format =E2=80=98%d=E2=80=99 exp=
-ects argument of type =E2=80=98int=E2=80=99, but argument 2 has type =E2=80=
-=98long unsigned int=E2=80=99 [-Werror=3Dformat=3D]
->>
->> Fixes: 50a50d2676c4 ("z3fold: don't fail kernel build if z3fold_header i=
-s too big")
->> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
->> ---
->>  mm/z3fold.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/z3fold.c b/mm/z3fold.c
->> index e282ba073e77..66ac7a7dc934 100644
->> --- a/mm/z3fold.c
->> +++ b/mm/z3fold.c
->> @@ -884,7 +884,7 @@ static int __init init_z3fold(void)
->>  {
->>       /* Fail the initialization if z3fold header won't fit in one chunk=
- */
->>       if (sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED) {
->> -             pr_err("z3fold: z3fold_header size (%d) is bigger than "
->> +             pr_err("z3fold: z3fold_header size (%zd) is bigger than "
->>                       "the chunk size (%d), can't proceed\n",
->>                       sizeof(struct z3fold_header) , ZHDR_SIZE_ALIGNED);
->>               return -E2BIG;
->
-> The embedded "z3fold: " prefix here should be removed
-> as there's a pr_fmt that also adds it.
->
-> The test looks like it should be a BUILD_BUG_ON rather
-> than any runtime test too.
+This two patches will add a sysfs switch to ZRAM that open or close swap
+cache without check the swap space.
+I got good result in real environment with them.  And following part is
+the record with vm-scalability case-swap-w-rand and case-swap-w-seq in
+a Intel(R) Core(TM)2 Duo CPU, 2G memory and 1G ZRAM swap machine:
+4.9.0-rc5 without the patches:
+case-swap-w-rand
+1129809600 bytes / 2149155959 usecs = 513 KB/s
+1129809600 bytes / 2150796138 usecs = 512 KB/s
+case-swap-w-rand
+1124808768 bytes / 1973130450 usecs = 556 KB/s
+1124808768 bytes / 1975142661 usecs = 556 KB/s
+case-swap-w-rand
+1130677056 bytes / 2154714972 usecs = 512 KB/s
+1130677056 bytes / 2157542507 usecs = 511 KB/s
+case-swap-w-seq
+1117922688 bytes / 6596049 usecs = 165511 KB/s
+1117922688 bytes / 6715711 usecs = 162562 KB/s
+case-swap-w-seq
+1115869824 bytes / 6909262 usecs = 157718 KB/s
+1115869824 bytes / 7099283 usecs = 153496 KB/s
+case-swap-w-seq
+1116472896 bytes / 6451638 usecs = 168996 KB/s
+1116472896 bytes / 6647963 usecs = 164005 KB/s
+4.9.0-rc5 with the patches:
+case-swap-w-rand
+1127272896 bytes / 2060906184 usecs = 534 KB/s
+1127272896 bytes / 2063671365 usecs = 533 KB/s
+case-swap-w-rand
+1131846912 bytes / 2097038264 usecs = 527 KB/s
+1131846912 bytes / 2100148465 usecs = 526 KB/s
+case-swap-w-rand
+1129139136 bytes / 2038769367 usecs = 540 KB/s
+1129139136 bytes / 2041411431 usecs = 540 KB/s
+case-swap-w-seq
+1129622976 bytes / 5910625 usecs = 186638 KB/s
+1129622976 bytes / 6313311 usecs = 174733 KB/s
+case-swap-w-seq
+1130053248 bytes / 6771182 usecs = 162980 KB/s
+1130053248 bytes / 6666061 usecs = 165550 KB/s
+case-swap-w-seq
+1126484928 bytes / 6555923 usecs = 167799 KB/s
+1126484928 bytes / 6642291 usecs = 165617 KB/s
 
-It used to be BUILD_BUG_ON but we deliberately changed that because
-sizeof(spinlock_t) gets bloated in debug builds, so it just won't
-build with default CHUNK_SIZE.
-
-~vitaly
+Hui Zhu (2):
+SWAP: add interface to let disk close swap cache
+ZRAM: add sysfs switch swap_cache_not_keep
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
