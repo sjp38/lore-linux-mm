@@ -1,78 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D726B0038
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:51:05 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id q13so32464830vkd.3
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:51:05 -0800 (PST)
-Received: from mail-ua0-x244.google.com (mail-ua0-x244.google.com. [2607:f8b0:400c:c08::244])
-        by mx.google.com with ESMTPS id i64si10232852vkh.2.2016.11.25.07.51.04
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E866B0038
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 11:00:39 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id o20so27461034lfg.2
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 08:00:39 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id h74si20856891lfh.146.2016.11.25.08.00.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 07:51:04 -0800 (PST)
-Received: by mail-ua0-x244.google.com with SMTP id b35so3701034uaa.1
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 07:51:04 -0800 (PST)
+        Fri, 25 Nov 2016 08:00:38 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id p100so3665067lfg.2
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 08:00:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <3177176.drX8hSSUx4@wuerfel>
-References: <20161124163158.3939337-1-arnd@arndb.de> <1480007330.19726.11.camel@perches.com>
- <CAMJBoFN=32B3aaU2XyJO7dNmZ3gMxmOYboVoWH3z7ALosSdmUQ@mail.gmail.com> <3177176.drX8hSSUx4@wuerfel>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Fri, 25 Nov 2016 16:51:03 +0100
-Message-ID: <CAMJBoFOo5e9N-2KqtjU=oRm24YO3gSG-zdT-z8XKw3USOwVvpw@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: use %z modifier for format string
+In-Reply-To: <20161115170030.f0396011fa00423ff711a3b4@gmail.com>
+References: <20161115165538.878698352bd45e212751b57a@gmail.com> <20161115170030.f0396011fa00423ff711a3b4@gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 25 Nov 2016 10:59:56 -0500
+Message-ID: <CALZtONDVC+9s7G0MsXTYB8ZRjO1jJrT64F+O4i5t_dpV-6UCbQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] z3fold: don't fail kernel build if z3fold_header is
+ too big
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, zhong jiang <zhongjiang@huawei.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Nov 25, 2016 at 9:41 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Friday, November 25, 2016 8:38:25 AM CET Vitaly Wool wrote:
->> >> diff --git a/mm/z3fold.c b/mm/z3fold.c
->> >> index e282ba073e77..66ac7a7dc934 100644
->> >> --- a/mm/z3fold.c
->> >> +++ b/mm/z3fold.c
->> >> @@ -884,7 +884,7 @@ static int __init init_z3fold(void)
->> >>  {
->> >>       /* Fail the initialization if z3fold header won't fit in one chunk */
->> >>       if (sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED) {
->> >> -             pr_err("z3fold: z3fold_header size (%d) is bigger than "
->> >> +             pr_err("z3fold: z3fold_header size (%zd) is bigger than "
->> >>                       "the chunk size (%d), can't proceed\n",
->> >>                       sizeof(struct z3fold_header) , ZHDR_SIZE_ALIGNED);
->> >>               return -E2BIG;
->> >
->> > The embedded "z3fold: " prefix here should be removed
->> > as there's a pr_fmt that also adds it.
->> >
->> > The test looks like it should be a BUILD_BUG_ON rather
->> > than any runtime test too.
->>
->> It used to be BUILD_BUG_ON but we deliberately changed that because
->> sizeof(spinlock_t) gets bloated in debug builds, so it just won't
->> build with default CHUNK_SIZE.
+On Tue, Nov 15, 2016 at 11:00 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> Currently the whole kernel build will be stopped if the size of
+> struct z3fold_header is greater than the size of one chunk, which
+> is 64 bytes by default. This may stand in the way of automated
+> test/debug builds so let's remove that and just fail the z3fold
+> initialization in such case instead.
 >
-> Could this be improved by making the CHUNK_SIZE bigger depending on
-> the debug options?
+> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+> ---
+>  mm/z3fold.c | 11 ++++++++---
+>  1 file changed, 8 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 7ad70fa..ffd9353 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -870,10 +870,15 @@ MODULE_ALIAS("zpool-z3fold");
+>
+>  static int __init init_z3fold(void)
+>  {
+> -       /* Make sure the z3fold header will fit in one chunk */
+> -       BUILD_BUG_ON(sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED);
 
-I don't see how silently enforcing a suboptimal configuration is
-better than failing the initialization (so that you can adjust
-CHUNK_SIZE yourself). I can add something descriptive to
-Documentation/vm/z3fold.txt for that matter.
+Nak.  this is the wrong way to handle this.  The build bug is there to
+indicate to you that your patch makes the header too large, not as a
+runtime check to disable everything.
 
-> Alternatively, how about using a bit_spin_lock instead of raw_spin_lock?
-> That would guarantee a fixed size for the lock and make z3fold_header
-> always 24 bytes (on 32-bit architectures) or 40 bytes
-> (on 64-bit architectures). You could even play some tricks with the
-> first_num field to make it fit in the same word as the lock and make the
-> structure fit into 32 bytes if you care about that.
+The right way to handle it is to change the hardcoded assumption that
+the header fits into a single chunk; e.g.:
 
-That is interesting. Actually I can have that bit in page->private and
-then I don't need to handle headless pages in a special way, that
-sounds appealing. However, there is a warning about bit_spin_lock
-performance penalty. Do you know how big it is?
+#define ZHDR_SIZE_ALIGNED round_up(sizeof(struct z3fold_header), CHUNK_SIZE)
+#define ZHDR_CHUNKS (ZHDR_SIZE_ALIGNED >> CHUNK_SHIFT)
 
-Best regards,
-   Vitaly
+then use ZHDR_CHUNKS in all places where it's currently assumed the
+header is 1 chunk, e.g. in num_free_chunks:
+
+  if (zhdr->middle_chunks != 0) {
+    int nfree_before = zhdr->first_chunks ?
+-      0 : zhdr->start_middle - 1;
++      0 : zhdr->start_middle - ZHDR_CHUNKS;
+
+after changing all needed places like that, the build bug isn't needed
+anymore (unless we want to make sure the header isn't larger than some
+arbitrary number N chunks)
+
+> -       zpool_register_driver(&z3fold_zpool_driver);
+> +       /* Fail the initialization if z3fold header won't fit in one chunk */
+> +       if (sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED) {
+> +               pr_err("z3fold: z3fold_header size (%d) is bigger than "
+> +                       "the chunk size (%d), can't proceed\n",
+> +                       sizeof(struct z3fold_header) , ZHDR_SIZE_ALIGNED);
+> +               return -E2BIG;
+> +       }
+>
+> +       zpool_register_driver(&z3fold_zpool_driver);
+>         return 0;
+>  }
+>
+> --
+> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
