@@ -1,65 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD246B0069
-	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 21:49:23 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id j128so89092282pfg.4
-        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 18:49:23 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8D36B025E
+	for <linux-mm@kvack.org>; Thu, 24 Nov 2016 22:01:11 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q10so143828545pgq.7
+        for <linux-mm@kvack.org>; Thu, 24 Nov 2016 19:01:11 -0800 (PST)
 Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id q187si30060945pfb.256.2016.11.24.18.49.21
+        by mx.google.com with ESMTP id l3si13534282pld.312.2016.11.24.19.01.09
         for <linux-mm@kvack.org>;
-        Thu, 24 Nov 2016 18:49:22 -0800 (PST)
-Date: Fri, 25 Nov 2016 13:49:18 +1100
+        Thu, 24 Nov 2016 19:01:10 -0800 (PST)
+Date: Fri, 25 Nov 2016 14:00:59 +1100
 From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
-Message-ID: <20161125024918.GX31101@dastard>
+Message-ID: <20161125030059.GY31101@dastard>
 References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
  <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
- <20161124173220.GR1555@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161124173220.GR1555@ZenIV.linux.org.uk>
+In-Reply-To: <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Thu, Nov 24, 2016 at 05:32:20PM +0000, Al Viro wrote:
-> On Wed, Nov 23, 2016 at 11:44:19AM -0700, Ross Zwisler wrote:
-> > Tracepoints are the standard way to capture debugging and tracing
-> > information in many parts of the kernel, including the XFS and ext4
-> > filesystems.  Create a tracepoint header for FS DAX and add the first DAX
-> > tracepoints to the PMD fault handler.  This allows the tracing for DAX to
-> > be done in the same way as the filesystem tracing so that developers can
-> > look at them together and get a coherent idea of what the system is doing.
+On Wed, Nov 23, 2016 at 11:44:19AM -0700, Ross Zwisler wrote:
+> Tracepoints are the standard way to capture debugging and tracing
+> information in many parts of the kernel, including the XFS and ext4
+> filesystems.  Create a tracepoint header for FS DAX and add the first DAX
+> tracepoints to the PMD fault handler.  This allows the tracing for DAX to
+> be done in the same way as the filesystem tracing so that developers can
+> look at them together and get a coherent idea of what the system is doing.
 > 
-> 	It also has one hell of potential for becoming a massive nuisance.
-> Keep in mind that if any userland code becomes dependent on those - that's it,
-> they have become parts of stable userland ABI and are to be maintained
-> indefinitely.  Don't expect "tracepoints are special case" to prevent that.
+> I added both an entry and exit tracepoint because future patches will add
+> tracepoints to child functions of dax_iomap_pmd_fault() like
+> dax_pmd_load_hole() and dax_pmd_insert_mapping(). We want those messages to
+> be wrapped by the parent function tracepoints so the code flow is more
+> easily understood.  Having entry and exit tracepoints for faults also
+> allows us to easily see what filesystems functions were called during the
+> fault.  These filesystem functions get executed via iomap_begin() and
+> iomap_end() calls, for example, and will have their own tracepoints.
+> 
+> For PMD faults we primarily want to understand the faulting address and
+> whether it fell back to 4k faults.  If it fell back to 4k faults the
+> tracepoints should let us understand why.
+> 
+> I named the new tracepoint header file "fs_dax.h" to allow for device DAX
+> to have its own separate tracing header in the same directory at some
+> point.
+> 
+> Here is an example output for these events from a successful PMD fault:
+> 
+> big-2057  [000] ....   136.396855: dax_pmd_fault: shared mapping write
+> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
+> max_pgoff 0x1400
+> 
+> big-2057  [000] ....   136.397943: dax_pmd_fault_done: shared mapping write
+> address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
+> max_pgoff 0x1400 NOPAGE
 
-I call bullshit just like I always do when someone spouts this
-"tracepoints are stable ABI" garbage.
+Can we make the output use the same format as most of the filesystem
+code? i.e. the output starts with backing device + inode number like
+so:
 
-If we want to provide stable tracepoints, then we need to /create a
-stable tracepoint API/ and convert all the tracepoints that /need
-to be stable/ to use it. Then developers only need to be careful
-about modifying code around the /explicitly stable/ tracepoints and
-we avoid retrospectively locking the kernel implementation into a
-KABI so tight we can't do anything anymore....
+	xfs_ilock:            dev 8:96 ino 0x493 flags ILOCK_EXCL....
 
-Quite frankly, anyone that wants to stop us from
-adding/removing/changing tracepoints or the code that they are
-reporting information about "because ABI" can go take a long walk
-off a short cliff.  Diagnostic tracepoints are not part of the
-stable ABI. End of story.
-
-> 	So treat anything you add in that manner as potential stable ABI
-> you might have to keep around forever.  It's *not* a glorified debugging
-> printk.
-
-trace_printk() is the glorified debugging printk for tracing, not
-trace events.
+This way we can filter the output easily across both dax and
+filesystem tracepoints with 'grep "ino 0x493"'...
 
 Cheers,
 
