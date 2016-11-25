@@ -1,107 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 37FA86B0038
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 13:26:38 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id h201so29099168lfg.5
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:26:38 -0800 (PST)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id b138si21298478lfg.347.2016.11.25.10.26.36
+	by kanga.kvack.org (Postfix) with ESMTP id E085A6B0038
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 13:34:26 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id t196so29235125lff.3
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:34:26 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id 80si21273044lfy.236.2016.11.25.10.34.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 10:26:36 -0800 (PST)
-Received: by mail-lf0-x242.google.com with SMTP id o141so3978841lff.1
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:26:36 -0800 (PST)
+        Fri, 25 Nov 2016 10:34:25 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id p100so3989488lfg.2
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 10:34:25 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20161115170038.75e127739b66f850e50d7fc1@gmail.com>
-References: <20161115165538.878698352bd45e212751b57a@gmail.com> <20161115170038.75e127739b66f850e50d7fc1@gmail.com>
+In-Reply-To: <CAMJBoFPBsWvBXjTtrNzCysC+UwYQi+Ld31pdJCHw0SR+geCVdg@mail.gmail.com>
+References: <20161115165538.878698352bd45e212751b57a@gmail.com>
+ <20161115170030.f0396011fa00423ff711a3b4@gmail.com> <CALZtONDVC+9s7G0MsXTYB8ZRjO1jJrT64F+O4i5t_dpV-6UCbQ@mail.gmail.com>
+ <CAMJBoFPBsWvBXjTtrNzCysC+UwYQi+Ld31pdJCHw0SR+geCVdg@mail.gmail.com>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 25 Nov 2016 13:25:55 -0500
-Message-ID: <CALZtONChB1HA7rSAhJA9FuOznRa7sXJYqRach+=Y7Pu8RzpJfQ@mail.gmail.com>
-Subject: Re: [PATCH 3/3] z3fold: discourage use of pages that weren't compacted
+Date: Fri, 25 Nov 2016 13:33:44 -0500
+Message-ID: <CALZtONDxQHOT6fZE7L-C+JhHZYOr=Ff3RSd_+5H5JufKijhEig@mail.gmail.com>
+Subject: Re: [PATCH 2/3] z3fold: don't fail kernel build if z3fold_header is
+ too big
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Tue, Nov 15, 2016 at 11:00 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> If a z3fold page couldn't be compacted, we don't want it to be
-> used for next object allocation in the first place.
-
-why?  !compacted can only mean 1) already compact or 2) middle chunks
-is mapped.  #1 is as good compaction-wise as the page can get, so do
-you mean that if a page couldn't be compacted because of #2, we
-shouldn't use it for next allocation?  if so, that isn't quite what
-this patch does.
-
-> It makes more
-> sense to add it to the end of the relevant unbuddied list. If that
-> page gets compacted later, it will be added to the beginning of
-> the list then.
+On Fri, Nov 25, 2016 at 11:25 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> On Fri, Nov 25, 2016 at 4:59 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> On Tue, Nov 15, 2016 at 11:00 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>>> Currently the whole kernel build will be stopped if the size of
+>>> struct z3fold_header is greater than the size of one chunk, which
+>>> is 64 bytes by default. This may stand in the way of automated
+>>> test/debug builds so let's remove that and just fail the z3fold
+>>> initialization in such case instead.
+>>>
+>>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>>> ---
+>>>  mm/z3fold.c | 11 ++++++++---
+>>>  1 file changed, 8 insertions(+), 3 deletions(-)
+>>>
+>>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>>> index 7ad70fa..ffd9353 100644
+>>> --- a/mm/z3fold.c
+>>> +++ b/mm/z3fold.c
+>>> @@ -870,10 +870,15 @@ MODULE_ALIAS("zpool-z3fold");
+>>>
+>>>  static int __init init_z3fold(void)
+>>>  {
+>>> -       /* Make sure the z3fold header will fit in one chunk */
+>>> -       BUILD_BUG_ON(sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED);
+>>
+>> Nak.  this is the wrong way to handle this.  The build bug is there to
+>> indicate to you that your patch makes the header too large, not as a
+>> runtime check to disable everything.
 >
-> This simple idea gives 5-7% improvement in randrw fio tests and
-> about 10% improvement in fio sequential read/write.
+> Okay, let's agree to drop it.
+>
+>> The right way to handle it is to change the hardcoded assumption that
+>> the header fits into a single chunk; e.g.:
+>>
+>> #define ZHDR_SIZE_ALIGNED round_up(sizeof(struct z3fold_header), CHUNK_SIZE)
+>> #define ZHDR_CHUNKS (ZHDR_SIZE_ALIGNED >> CHUNK_SHIFT)
+>>
+>> then use ZHDR_CHUNKS in all places where it's currently assumed the
+>> header is 1 chunk, e.g. in num_free_chunks:
+>>
+>>   if (zhdr->middle_chunks != 0) {
+>>     int nfree_before = zhdr->first_chunks ?
+>> -      0 : zhdr->start_middle - 1;
+>> +      0 : zhdr->start_middle - ZHDR_CHUNKS;
+>>
+>> after changing all needed places like that, the build bug isn't needed
+>> anymore (unless we want to make sure the header isn't larger than some
+>> arbitrary number N chunks)
+>
+> That sounds overly complicated to me. I would rather use bit_spin_lock
+> as Arnd suggested. What would you say?
 
-i don't understand why there is any improvement - the unbuddied lists
-are grouped by the amount of free chunks, so all pages in a specific
-unbuddied list should have exactly that number of free chunks
-available, and it shouldn't matter if a page gets put into the front
-or back...where is the performance improvement coming from?
+using the correctly-calculated header size instead of a hardcoded
+value is overly complicated?  i don't agree with that...i'd say it
+should have been done in the first place ;-)
+
+bit spin locks are hard to debug and slower and should only be used
+where space really is absolutely required to be minimal, which
+definitely isn't the case here.  this should use regular spin locks
+and change the hardcoded assumption of zhdr size < chunk size (which
+always was a bad assumption) to calculate it correctly.  it's really
+not that hard; there are only a few places where the offset position
+of the chunks is calculated.
+
 
 >
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/z3fold.c | 22 +++++++++++++++++-----
->  1 file changed, 17 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index ffd9353..e282ba0 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -539,11 +539,19 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
->                 free_z3fold_page(zhdr);
->                 atomic64_dec(&pool->pages_nr);
->         } else {
-> -               z3fold_compact_page(zhdr);
-> +               int compacted = z3fold_compact_page(zhdr);
->                 /* Add to the unbuddied list */
->                 spin_lock(&pool->lock);
->                 freechunks = num_free_chunks(zhdr);
-> -               list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-> +               /*
-> +                * If the page has been compacted, we want to use it
-> +                * in the first place.
-> +                */
-> +               if (compacted)
-> +                       list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-> +               else
-> +                       list_add_tail(&zhdr->buddy,
-> +                                     &pool->unbuddied[freechunks]);
->                 spin_unlock(&pool->lock);
->                 z3fold_page_unlock(zhdr);
->         }
-> @@ -672,12 +680,16 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
->                                 spin_lock(&pool->lock);
->                                 list_add(&zhdr->buddy, &pool->buddied);
->                         } else {
-> -                               z3fold_compact_page(zhdr);
-> +                               int compacted = z3fold_compact_page(zhdr);
->                                 /* add to unbuddied list */
->                                 spin_lock(&pool->lock);
->                                 freechunks = num_free_chunks(zhdr);
-> -                               list_add(&zhdr->buddy,
-> -                                        &pool->unbuddied[freechunks]);
-> +                               if (compacted)
-> +                                       list_add(&zhdr->buddy,
-> +                                               &pool->unbuddied[freechunks]);
-> +                               else
-> +                                       list_add_tail(&zhdr->buddy,
-> +                                               &pool->unbuddied[freechunks]);
->                         }
->                 }
->
-> --
-> 2.4.2
+> ~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
