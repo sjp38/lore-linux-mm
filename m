@@ -1,103 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 883736B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 15:36:36 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id o141so29920584lff.7
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 12:36:36 -0800 (PST)
-Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
-        by mx.google.com with ESMTPS id 68si21719854ljf.14.2016.11.25.12.36.34
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E18DA6B0069
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 16:18:08 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id o141so30179087lff.7
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 13:18:08 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id n189si21779611lfb.226.2016.11.25.13.18.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 12:36:35 -0800 (PST)
-Received: by mail-lf0-x232.google.com with SMTP id b14so57653627lfg.2
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 12:36:34 -0800 (PST)
+        Fri, 25 Nov 2016 13:18:07 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id o141so4264654lff.1
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 13:18:07 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFy5=74ad4tByQJYnkyX079z59yn02koJ_G8kfxamjvPDw@mail.gmail.com>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
- <20161124173220.GR1555@ZenIV.linux.org.uk> <20161125024918.GX31101@dastard>
- <20161125041419.GT1555@ZenIV.linux.org.uk> <20161125070642.GZ31101@dastard>
- <20161125073747.GU1555@ZenIV.linux.org.uk> <CA+55aFy5=74ad4tByQJYnkyX079z59yn02koJ_G8kfxamjvPDw@mail.gmail.com>
-From: Mike Marshall <hubcap@omnibond.com>
-Date: Fri, 25 Nov 2016 15:36:25 -0500
-Message-ID: <CAOg9mSS=Kt8mrnuBfvRaoR5j+jh7YQ1R8HKBJgGX8zYwSAizrQ@mail.gmail.com>
-Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
+In-Reply-To: <CALZtONBA5sSJ_tzF1D=seDdryCn8zu=UWwF=k5RxnJQMr1vfSA@mail.gmail.com>
+References: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com> <CALZtONBA5sSJ_tzF1D=seDdryCn8zu=UWwF=k5RxnJQMr1vfSA@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 25 Nov 2016 16:17:26 -0500
+Message-ID: <CALZtONAJLTJikY1Nr0GUa9MPkfWcnaygXKzvy-RwJ_7dp2-sWw@mail.gmail.com>
+Subject: Re: [PATH] z3fold: extend compaction function
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-> We do have filesystem code that is just disgusting. As an example:
-> fs/afs/ tends to have these crazy "_enter()/_exit()" macros in every
-> single function.
-
-Hmmm... we have "gossip" statements in Orangefs which can be triggered with
-a debugfs knob... lots of functions have a gossip statement at the
-top... is that
-disgusting?
-
--Mike
-
-On Fri, Nov 25, 2016 at 2:51 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Thu, Nov 24, 2016 at 11:37 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+On Fri, Nov 25, 2016 at 9:43 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Thu, Nov 3, 2016 at 5:04 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>> z3fold_compact_page() currently only handles the situation when
+>> there's a single middle chunk within the z3fold page. However it
+>> may be worth it to move middle chunk closer to either first or
+>> last chunk, whichever is there, if the gap between them is big
+>> enough.
 >>
->> My impression is that nobody (at least kernel-side) wants them to be
->> a stable ABI, so long as nobody in userland screams about their code
->> being broken, everything is fine.  As usual, if nobody notices an ABI
->> change, it hasn't happened.  The question is what happens when somebody
->> does.
+>> This patch adds the relevant code, using BIG_CHUNK_GAP define as
+>> a threshold for middle chunk to be worth moving.
+>>
+>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 >
-> Right. There is basically _no_ "stable API" for the kernel anywhere,
-> it's just an issue of "you can't break workflow for normal people".
+> with the bikeshedding comments below, looks good.
 >
-> And if somebody writes his own trace scripts, and some random trace
-> point goes away (or changes semantics), that's easy: he can just fix
-> his script. Tracepoints aren't ever going to be stable in that sense.
+> Acked-by: Dan Streetman <ddstreet@ieee.org>
 >
-> But when then somebody writes a trace script that is so useful that
-> distros pick it up, and people start using it and depending on it,
-> then _that_ trace point may well have become effectively locked in
-> stone.
+>> ---
+>>  mm/z3fold.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+>>  1 file changed, 47 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>> index 4d02280..fea6791 100644
+>> --- a/mm/z3fold.c
+>> +++ b/mm/z3fold.c
+>> @@ -250,26 +250,60 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+>>         kfree(pool);
+>>  }
+>>
+>> +static inline void *mchunk_memmove(struct z3fold_header *zhdr,
+>> +                               unsigned short dst_chunk)
+>> +{
+>> +       void *beg = zhdr;
+>> +       return memmove(beg + (dst_chunk << CHUNK_SHIFT),
+>> +                      beg + (zhdr->start_middle << CHUNK_SHIFT),
+>> +                      zhdr->middle_chunks << CHUNK_SHIFT);
+>> +}
+>> +
+>> +#define BIG_CHUNK_GAP  3
+>>  /* Has to be called with lock held */
+>>  static int z3fold_compact_page(struct z3fold_header *zhdr)
+>>  {
+>>         struct page *page = virt_to_page(zhdr);
+>> -       void *beg = zhdr;
+>> +       int ret = 0;
+>> +
+>> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
+>> +               goto out;
+>>
+>> +       if (zhdr->middle_chunks != 0) {
 >
-> That's happened once already with the whole powertop thing. It didn't
-> get all that widely spread, and the fix was largely to improve on
-> powertop to the point where it wasn't a problem any more, but we've
-> clearly had one case of this happening.
+> bikeshed: this check could be moved up also, as if there's no middle
+> chunk there is no compacting to do and we can just return 0.  saves a
+> tab in all the code below.
 >
-> But I suspect that something like powertop is fairly unusual. There is
-> certainly room for similar things in the VFS layer (think "better
-> vmstat that uses tracepoints"), but I suspect the bulk of tracepoints
-> are going to be for random debugging (so that developers can say
-> "please run this script") rather than for an actual user application
-> kind of situation.
+>> +               if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+>> +                       mchunk_memmove(zhdr, 1); /* move to the beginning */
+>> +                       zhdr->first_chunks = zhdr->middle_chunks;
+>> +                       zhdr->middle_chunks = 0;
+>> +                       zhdr->start_middle = 0;
+>> +                       zhdr->first_num++;
+>> +                       ret = 1;
+>> +                       goto out;
+>> +               }
+>>
+>> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
+>> -           zhdr->middle_chunks != 0 &&
+>> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
+>> -               memmove(beg + ZHDR_SIZE_ALIGNED,
+>> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
+>> -                       zhdr->middle_chunks << CHUNK_SHIFT);
+>> -               zhdr->first_chunks = zhdr->middle_chunks;
+>> -               zhdr->middle_chunks = 0;
+>> -               zhdr->start_middle = 0;
+>> -               zhdr->first_num++;
+>> -               return 1;
+>> +               /*
+>> +                * moving data is expensive, so let's only do that if
+>> +                * there's substantial gain (at least BIG_CHUNK_GAP chunks)
+>> +                */
+>> +               if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
+>> +                   zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
+>> +                       mchunk_memmove(zhdr, zhdr->first_chunks + 1);
+>> +                       zhdr->start_middle = zhdr->first_chunks + 1;
+>> +                       ret = 1;
+>> +                       goto out;
+>> +               }
+>> +               if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
+>> +                   zhdr->middle_chunks + zhdr->last_chunks <=
+>> +                   NCHUNKS - zhdr->start_middle - BIG_CHUNK_GAP) {
+>> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
+>> +                               zhdr->middle_chunks;
+
+after closer review, I see that this is wrong.  NCHUNKS isn't the
+total number of page chunks, it's the total number of chunks minus the
+header chunk(s).  so that calculation of where the new start is, is
+wrong.  it should use the total page chunks, not the NCHUNKS, because
+start_middle already accounts for the header chunk(s).  Probably a new
+macro would help.
+
+Also, the num_free_chunks() function makes the same mistake:
+
+int nfree_after = zhdr->last_chunks ?
+  0 : NCHUNKS - zhdr->start_middle - zhdr->middle_chunks;
+
+that's wrong, it should be something like:
+
+#define TOTAL_CHUNKS (PAGE_SIZE >> CHUNK_SHIFT)
+...
+int nfree_after = zhdr->last_chunks ?
+  0 : TOTAL_CHUNKS - zhdr->start_middle - zhdr->middle_chunks;
+
+
+>> +                       mchunk_memmove(zhdr, new_start);
+>> +                       zhdr->start_middle = new_start;
+>> +                       ret = 1;
+>> +                       goto out;
+>> +               }
+>>         }
+>> -       return 0;
+>> +out:
+>> +       return ret;
 >
-> So I don't think we should be _too_ afraid of tracepoints either. When
-> being too anti-tracepoint is a bigger practical problem than the
-> possible problems down the line, the balance is wrong.
+> bikeshed: do we need all the goto out?  why not just return 0/1
+> appropriately above?
 >
-> As long as tracepoints make sense from a higher standpoint (ie not
-> just random implementation detail of the day), and they aren't
-> everywhere, they are unlikely to cause much problem.
->
-> We do have filesystem code that is just disgusting. As an example:
-> fs/afs/ tends to have these crazy "_enter()/_exit()" macros in every
-> single function. If you want that, use the function tracer. That seems
-> to be just debugging code that has been left around for others to
-> stumble over. I do *not* believe that we should encourage that kind of
-> "machine gun spray" use of tracepoints.
->
-> But tracing actual high-level things like IO and faults? I think that
-> makes perfect sense, as long as the data that is collected is also the
-> actual event data, and not so much a random implementation issue of
-> the day.
->
->              Linus
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>  }
+>>
+>>  /**
+>> --
+>> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
