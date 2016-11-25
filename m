@@ -1,116 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38CAE6B0069
-	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 08:08:01 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i131so22272975wmf.3
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 05:08:01 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id g8si42332504wje.166.2016.11.25.05.07.59
+	by kanga.kvack.org (Postfix) with ESMTP id E75C46B0069
+	for <linux-mm@kvack.org>; Fri, 25 Nov 2016 08:18:09 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a20so22354658wme.5
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 05:18:09 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id z83si13721216wmb.72.2016.11.25.05.18.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Nov 2016 05:07:59 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id g23so7764611wme.1
-        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 05:07:59 -0800 (PST)
-Date: Fri, 25 Nov 2016 16:07:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: BUG in pgtable_pmd_page_dtor
-Message-ID: <20161125130757.GC3439@node.shutemov.name>
-References: <CACT4Y+Z0QqeO-fpc_tuStBGPWMwcK-gT-2q+tPmDpQDCkqYUiQ@mail.gmail.com>
- <f8963cc3-69a8-a1ca-9b56-205d919eac41@suse.cz>
- <CACT4Y+Z0f51iJjwTLxqwY2PZObLQpF+GujKQ34enBA3fBp8QiQ@mail.gmail.com>
- <296bdd6b-5c9e-0fbc-8aa1-4e95d0aff031@suse.cz>
- <ab7996b4-baf6-cf8f-6dba-006735e0587c@virtuozzo.com>
- <2ff6eee6-8828-821a-7dde-c2f68da697a5@suse.cz>
+        Fri, 25 Nov 2016 05:18:08 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id xy5so5581816wjc.1
+        for <linux-mm@kvack.org>; Fri, 25 Nov 2016 05:18:08 -0800 (PST)
+Date: Fri, 25 Nov 2016 14:18:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161125131806.GB24353@dhcp22.suse.cz>
+References: <20161123064925.9716-1-mhocko@kernel.org>
+ <20161123064925.9716-3-mhocko@kernel.org>
+ <201611232335.JFC30797.VOOtOMFJFHLQSF@I-love.SAKURA.ne.jp>
+ <20161123153544.GN2864@dhcp22.suse.cz>
+ <201611252100.ADG04225.MFOSOVtHJFFLQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2ff6eee6-8828-821a-7dde-c2f68da697a5@suse.cz>
+In-Reply-To: <201611252100.ADG04225.MFOSOVtHJFFLQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, vbabka@suse.cz, rientjes@google.com, hannes@cmpxchg.org, mgorman@suse.de, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 25, 2016 at 01:58:57PM +0100, Vlastimil Babka wrote:
-> On 11/25/2016 12:41 PM, Andrey Ryabinin wrote:
-> > 
-> > 
-> > On 11/25/2016 11:42 AM, Vlastimil Babka wrote:
-> > 
-> >>  	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
-> >>  		  page, page_ref_count(page), mapcount,
-> >> @@ -59,6 +61,21 @@ void __dump_page(struct page *page, const char *reason)
-> >>  
-> >>  	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
-> >>  
-> >> +	pr_alert("raw struct page data:");
-> >> +	for (i = 0; i < sizeof(struct page) / sizeof(unsigned long); i++) {
-> >> +		unsigned long *word_ptr;
-> >> +
-> >> +		word_ptr = ((unsigned long *) page) + i;
-> >> +
-> >> +		if ((i % words_per_line) == 0) {
-> >> +			pr_cont("\n");
-> >> +			pr_alert(" %016lx", *word_ptr);
-> >> +		} else {
-> >> +			pr_cont(" %016lx", *word_ptr);
-> >> +		}
-> >> +	}
-> >> +	pr_cont("\n");
-> >> +
-> > 
-> > Single call to print_hex_dump() could replace this loop.
+On Fri 25-11-16 21:00:52, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 23-11-16 23:35:10, Tetsuo Handa wrote:
+> > > If __alloc_pages_nowmark() called by __GFP_NOFAIL could not find pages
+> > > with requested order due to fragmentation, __GFP_NOFAIL should invoke
+> > > the OOM killer. I believe that risking kill all processes and panic the
+> > > system eventually is better than __GFP_NOFAIL livelock.
+> >
+> > I violently disagree. Just imagine a driver which asks for an order-9
+> > page and cannot really continue without it so it uses GFP_NOFAIL. There
+> > is absolutely no reason to disrupt or even put the whole system down
+> > just because of this particular request. It might take for ever to
+> > continue but that is to be expected when asking for such a hard
+> > requirement.
 > 
-> Ah, didn't know about that one, thanks!
-> 
-> This also addresses Kirill's comment:
-> 
-> -----8<-----
-> From 417467521d0a68fb70dc2d5bd151524bf0c79437 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Fri, 25 Nov 2016 09:08:05 +0100
-> Subject: [PATCH] mm, debug: print raw struct page data in __dump_page()
-> 
-> The __dump_page() function is used when a page metadata inconsistency is
-> detected, either by standard runtime checks, or extra checks in CONFIG_DEBUG_VM
-> builds. It prints some of the relevant metadata, but not the whole struct page,
-> which is based on unions and interpretation is dependent on the context.
-> 
-> This means that sometimes e.g. a VM_BUG_ON_PAGE() checks certain field, which
-> is however not printed by __dump_page() and the resulting bug report may then
-> lack clues that could help in determining the root cause. This patch solves
-> the problem by simply printing the whole struct page word by word, so no part
-> is missing, but the interpretation of the data is left to developers. This is
-> similar to e.g. x86_64 raw stack dumps.
-> 
-> Example output:
-> 
->  page:ffffea00000475c0 count:1 mapcount:0 mapping:          (null) index:0x0
->  flags: 0x100000000000400(reserved)
->  raw: 0100000000000400 0000000000000000 0000000000000000 00000001ffffffff
->  raw: ffffea00000475e0 ffffea00000475e0 0000000000000000 0000000000000000
->  page dumped because: VM_BUG_ON_PAGE(1)
-> 
-> [aryabinin@virtuozzo.com: suggested print_hex_dump()]
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/debug.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 9feb699c5d25..185c19bda078 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -59,6 +59,10 @@ void __dump_page(struct page *page, const char *reason)
->  
->  	pr_emerg("flags: %#lx(%pGp)\n", page->flags, &page->flags);
->  
-> +	print_hex_dump(KERN_ALERT, "raw: ", DUMP_PREFIX_NONE,
-> +			32, (sizeof(unsigned long) == 8) ? 8 : 4,
+> Did we find such in-tree drivers? If any, we likely already know it via
+> WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1)); in buffered_rmqueue().
+> Even if there were such out-of-tree drivers, we don't need to take care of
+> out-of-tree drivers.
 
-That's a very fancy way to write sizeof(unsigned long) ;)
+We do not have any costly + GFP_NOFAIL users in the tree from my quick
+check. The whole point of this excercise is to make such a potential
+user not seeing unexpected side effects - e.g. when transforming open
+coded endless lopps into GFP_NOFAIL which is imho preferable.
+
+The bottom line is that GFP_NOFAIL is about never failing not to get the
+memory as quickly as possible or for any price.
+
+> > > Unfortunately, there seems to be cases where the
+> > > caller needs to use GFP_NOFS rather than GFP_KERNEL due to unclear dependency
+> > > between memory allocation by system calls and memory reclaim by filesystems.
+> >
+> > I do not understand your point here. Syscall is an entry point to the
+> > kernel where we cannot recurse to the FS code so GFP_NOFS seems wrong
+> > thing to ask.
+> 
+> Will you look at http://marc.info/?t=120716967100004&r=1&w=2 which lead to
+> commit a02fe13297af26c1 ("selinux: prevent rentry into the FS") and commit
+> 869ab5147e1eead8 ("SELinux: more GFP_NOFS fixups to prevent selinux from
+> re-entering the fs code") ? My understanding is that mkdir() system call
+> caused memory allocation for inode creation and that memory allocation
+> caused memory reclaim which had to be !__GFP_FS.
+
+I will have a look later, thanks for the points.
+ 
+> And whether we need to use GFP_NOFS at specific point is very very unclear.
+
+And that is exactly why I am pushing for a scoped GFP_NOFS usage where
+the FS code marks those scopes which are dangerous from the reclaim
+recursion or for other FS internal reasons and the stacking code
+shouldn't care at all. Spreading GFP_NOFS randomly is not at all helpful
+nor it makes the situation any better.
+
+I am sorry but I would prefer not to discuss this part in this thread as
+it is mostly off topic. The point I am trying to make here is to clean
+up GFP_NOFAIL usage. And I argue that overriding the oom prevention
+decisions just because of GFP_NOFAIL is wrong. So let's please stick
+with this topic. I might be wrong and miss some legitimate case but then
+I would like to hear about it.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
