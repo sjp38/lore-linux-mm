@@ -1,144 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 723DC6B0069
-	for <linux-mm@kvack.org>; Sat, 26 Nov 2016 04:09:29 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 23so93075226uat.4
-        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 01:09:29 -0800 (PST)
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C9D6B025E
+	for <linux-mm@kvack.org>; Sat, 26 Nov 2016 04:12:09 -0500 (EST)
+Received: by mail-vk0-f71.google.com with SMTP id p9so39267440vkd.7
+        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 01:12:09 -0800 (PST)
 Received: from mail-ua0-x242.google.com (mail-ua0-x242.google.com. [2607:f8b0:400c:c08::242])
-        by mx.google.com with ESMTPS id 3si9869614uap.118.2016.11.26.01.09.28
+        by mx.google.com with ESMTPS id h20si11060152uab.61.2016.11.26.01.12.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Nov 2016 01:09:28 -0800 (PST)
-Received: by mail-ua0-x242.google.com with SMTP id 20so5416394uak.0
-        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 01:09:28 -0800 (PST)
+        Sat, 26 Nov 2016 01:12:08 -0800 (PST)
+Received: by mail-ua0-x242.google.com with SMTP id 50so5418481uae.2
+        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 01:12:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CALZtONAJLTJikY1Nr0GUa9MPkfWcnaygXKzvy-RwJ_7dp2-sWw@mail.gmail.com>
-References: <20161103220428.984a8d09d0c9569e6bc6b8cc@gmail.com>
- <CALZtONBA5sSJ_tzF1D=seDdryCn8zu=UWwF=k5RxnJQMr1vfSA@mail.gmail.com> <CALZtONAJLTJikY1Nr0GUa9MPkfWcnaygXKzvy-RwJ_7dp2-sWw@mail.gmail.com>
+In-Reply-To: <CALZtONDxQHOT6fZE7L-C+JhHZYOr=Ff3RSd_+5H5JufKijhEig@mail.gmail.com>
+References: <20161115165538.878698352bd45e212751b57a@gmail.com>
+ <20161115170030.f0396011fa00423ff711a3b4@gmail.com> <CALZtONDVC+9s7G0MsXTYB8ZRjO1jJrT64F+O4i5t_dpV-6UCbQ@mail.gmail.com>
+ <CAMJBoFPBsWvBXjTtrNzCysC+UwYQi+Ld31pdJCHw0SR+geCVdg@mail.gmail.com> <CALZtONDxQHOT6fZE7L-C+JhHZYOr=Ff3RSd_+5H5JufKijhEig@mail.gmail.com>
 From: Vitaly Wool <vitalywool@gmail.com>
-Date: Sat, 26 Nov 2016 10:09:27 +0100
-Message-ID: <CAMJBoFMaytBR1JwdbsoZ5Q6DzFd40q81Gfi93kiG302us2qRbQ@mail.gmail.com>
-Subject: Re: [PATH] z3fold: extend compaction function
+Date: Sat, 26 Nov 2016 10:12:08 +0100
+Message-ID: <CAMJBoFOWKHuarYuf3=0WWE3uDg8+7nCKgKw6y5rW3YZGokL8uA@mail.gmail.com>
+Subject: Re: [PATCH 2/3] z3fold: don't fail kernel build if z3fold_header is
+ too big
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Fri, Nov 25, 2016 at 10:17 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Fri, Nov 25, 2016 at 9:43 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->> On Thu, Nov 3, 2016 at 5:04 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
->>> z3fold_compact_page() currently only handles the situation when
->>> there's a single middle chunk within the z3fold page. However it
->>> may be worth it to move middle chunk closer to either first or
->>> last chunk, whichever is there, if the gap between them is big
->>> enough.
+On Fri, Nov 25, 2016 at 7:33 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Fri, Nov 25, 2016 at 11:25 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>> On Fri, Nov 25, 2016 at 4:59 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>> On Tue, Nov 15, 2016 at 11:00 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>>>> Currently the whole kernel build will be stopped if the size of
+>>>> struct z3fold_header is greater than the size of one chunk, which
+>>>> is 64 bytes by default. This may stand in the way of automated
+>>>> test/debug builds so let's remove that and just fail the z3fold
+>>>> initialization in such case instead.
+>>>>
+>>>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>>>> ---
+>>>>  mm/z3fold.c | 11 ++++++++---
+>>>>  1 file changed, 8 insertions(+), 3 deletions(-)
+>>>>
+>>>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>>>> index 7ad70fa..ffd9353 100644
+>>>> --- a/mm/z3fold.c
+>>>> +++ b/mm/z3fold.c
+>>>> @@ -870,10 +870,15 @@ MODULE_ALIAS("zpool-z3fold");
+>>>>
+>>>>  static int __init init_z3fold(void)
+>>>>  {
+>>>> -       /* Make sure the z3fold header will fit in one chunk */
+>>>> -       BUILD_BUG_ON(sizeof(struct z3fold_header) > ZHDR_SIZE_ALIGNED);
 >>>
->>> This patch adds the relevant code, using BIG_CHUNK_GAP define as
->>> a threshold for middle chunk to be worth moving.
->>>
->>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>>> Nak.  this is the wrong way to handle this.  The build bug is there to
+>>> indicate to you that your patch makes the header too large, not as a
+>>> runtime check to disable everything.
 >>
->> with the bikeshedding comments below, looks good.
+>> Okay, let's agree to drop it.
 >>
->> Acked-by: Dan Streetman <ddstreet@ieee.org>
+>>> The right way to handle it is to change the hardcoded assumption that
+>>> the header fits into a single chunk; e.g.:
+>>>
+>>> #define ZHDR_SIZE_ALIGNED round_up(sizeof(struct z3fold_header), CHUNK_SIZE)
+>>> #define ZHDR_CHUNKS (ZHDR_SIZE_ALIGNED >> CHUNK_SHIFT)
+>>>
+>>> then use ZHDR_CHUNKS in all places where it's currently assumed the
+>>> header is 1 chunk, e.g. in num_free_chunks:
+>>>
+>>>   if (zhdr->middle_chunks != 0) {
+>>>     int nfree_before = zhdr->first_chunks ?
+>>> -      0 : zhdr->start_middle - 1;
+>>> +      0 : zhdr->start_middle - ZHDR_CHUNKS;
+>>>
+>>> after changing all needed places like that, the build bug isn't needed
+>>> anymore (unless we want to make sure the header isn't larger than some
+>>> arbitrary number N chunks)
 >>
->>> ---
->>>  mm/z3fold.c | 60 +++++++++++++++++++++++++++++++++++++++++++++++-------------
->>>  1 file changed, 47 insertions(+), 13 deletions(-)
->>>
->>> diff --git a/mm/z3fold.c b/mm/z3fold.c
->>> index 4d02280..fea6791 100644
->>> --- a/mm/z3fold.c
->>> +++ b/mm/z3fold.c
->>> @@ -250,26 +250,60 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
->>>         kfree(pool);
->>>  }
->>>
->>> +static inline void *mchunk_memmove(struct z3fold_header *zhdr,
->>> +                               unsigned short dst_chunk)
->>> +{
->>> +       void *beg = zhdr;
->>> +       return memmove(beg + (dst_chunk << CHUNK_SHIFT),
->>> +                      beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> +                      zhdr->middle_chunks << CHUNK_SHIFT);
->>> +}
->>> +
->>> +#define BIG_CHUNK_GAP  3
->>>  /* Has to be called with lock held */
->>>  static int z3fold_compact_page(struct z3fold_header *zhdr)
->>>  {
->>>         struct page *page = virt_to_page(zhdr);
->>> -       void *beg = zhdr;
->>> +       int ret = 0;
->>> +
->>> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
->>> +               goto out;
->>>
->>> +       if (zhdr->middle_chunks != 0) {
->>
->> bikeshed: this check could be moved up also, as if there's no middle
->> chunk there is no compacting to do and we can just return 0.  saves a
->> tab in all the code below.
->>
->>> +               if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
->>> +                       mchunk_memmove(zhdr, 1); /* move to the beginning */
->>> +                       zhdr->first_chunks = zhdr->middle_chunks;
->>> +                       zhdr->middle_chunks = 0;
->>> +                       zhdr->start_middle = 0;
->>> +                       zhdr->first_num++;
->>> +                       ret = 1;
->>> +                       goto out;
->>> +               }
->>>
->>> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
->>> -           zhdr->middle_chunks != 0 &&
->>> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
->>> -               memmove(beg + ZHDR_SIZE_ALIGNED,
->>> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> -                       zhdr->middle_chunks << CHUNK_SHIFT);
->>> -               zhdr->first_chunks = zhdr->middle_chunks;
->>> -               zhdr->middle_chunks = 0;
->>> -               zhdr->start_middle = 0;
->>> -               zhdr->first_num++;
->>> -               return 1;
->>> +               /*
->>> +                * moving data is expensive, so let's only do that if
->>> +                * there's substantial gain (at least BIG_CHUNK_GAP chunks)
->>> +                */
->>> +               if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
->>> +                   zhdr->start_middle > zhdr->first_chunks + BIG_CHUNK_GAP) {
->>> +                       mchunk_memmove(zhdr, zhdr->first_chunks + 1);
->>> +                       zhdr->start_middle = zhdr->first_chunks + 1;
->>> +                       ret = 1;
->>> +                       goto out;
->>> +               }
->>> +               if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
->>> +                   zhdr->middle_chunks + zhdr->last_chunks <=
->>> +                   NCHUNKS - zhdr->start_middle - BIG_CHUNK_GAP) {
->>> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
->>> +                               zhdr->middle_chunks;
+>> That sounds overly complicated to me. I would rather use bit_spin_lock
+>> as Arnd suggested. What would you say?
 >
-> after closer review, I see that this is wrong.  NCHUNKS isn't the
-> total number of page chunks, it's the total number of chunks minus the
-> header chunk(s).  so that calculation of where the new start is, is
-> wrong.  it should use the total page chunks, not the NCHUNKS, because
-> start_middle already accounts for the header chunk(s).  Probably a new
-> macro would help.
+> using the correctly-calculated header size instead of a hardcoded
+> value is overly complicated?  i don't agree with that...i'd say it
+> should have been done in the first place ;-)
 >
-> Also, the num_free_chunks() function makes the same mistake:
->
-> int nfree_after = zhdr->last_chunks ?
->   0 : NCHUNKS - zhdr->start_middle - zhdr->middle_chunks;
->
-> that's wrong, it should be something like:
->
-> #define TOTAL_CHUNKS (PAGE_SIZE >> CHUNK_SHIFT)
-> ...
-> int nfree_after = zhdr->last_chunks ?
->   0 : TOTAL_CHUNKS - zhdr->start_middle - zhdr->middle_chunks;
+> bit spin locks are hard to debug and slower and should only be used
+> where space really is absolutely required to be minimal, which
+> definitely isn't the case here.  this should use regular spin locks
+> and change the hardcoded assumption of zhdr size < chunk size (which
+> always was a bad assumption) to calculate it correctly.  it's really
+> not that hard; there are only a few places where the offset position
+> of the chunks is calculated.
 
-Right, will fix.
+I gave this a second thought after having run some quick benchmarking
+using bit_spin_lock. The perofrmance drop is substantial, so your
+suggestion is the way to go, thanks.
 
 ~vitaly
 
