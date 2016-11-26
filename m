@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B575A6B0266
-	for <linux-mm@kvack.org>; Sat, 26 Nov 2016 18:14:32 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u144so29392698wmu.1
-        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 15:14:32 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 446966B0268
+	for <linux-mm@kvack.org>; Sat, 26 Nov 2016 18:14:39 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id a20so29428226wme.5
+        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 15:14:39 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id j83si20122294wmj.10.2016.11.26.15.14.31
+        by mx.google.com with ESMTPS id ww1si48804640wjb.147.2016.11.26.15.14.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 26 Nov 2016 15:14:31 -0800 (PST)
+        Sat, 26 Nov 2016 15:14:38 -0800 (PST)
 From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 09/22] mm/vmstat: Convert to hotplug state machine
-Date: Sun, 27 Nov 2016 00:13:37 +0100
-Message-Id: <20161126231350.10321-10-bigeasy@linutronix.de>
+Subject: [PATCH 14/22] mm/compaction: Convert to hotplug state machine
+Date: Sun, 27 Nov 2016 00:13:42 +0100
+Message-Id: <20161126231350.10321-15-bigeasy@linutronix.de>
 In-Reply-To: <20161126231350.10321-1-bigeasy@linutronix.de>
 References: <20161126231350.10321-1-bigeasy@linutronix.de>
 MIME-Version: 1.0
@@ -20,144 +20,81 @@ Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: rt@linutronix.de, tglx@linutronix.de, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+Cc: rt@linutronix.de, tglx@linutronix.de, Anna-Maria Gleixner <anna-maria@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Install the callbacks via the state machine, but do not invoke them as we
-can initialize the node state without calling the callbacks on all online
-CPUs.
+From: Anna-Maria Gleixner <anna-maria@linutronix.de>
 
-start_shepherd_timer() is now called outside the get_online_cpus() block
-which is safe as it only operates on cpu possible mask.
+Install the callbacks via the state machine. Should the hotplug init fail t=
+hen
+no threads are spawned.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-mm@kvack.org
+Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
 Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- include/linux/cpuhotplug.h |  1 +
- mm/vmstat.c                | 76 +++++++++++++++++++++---------------------=
-----
- 2 files changed, 36 insertions(+), 41 deletions(-)
+ mm/compaction.c | 31 ++++++++++++++++++-------------
+ 1 file changed, 18 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/cpuhotplug.h b/include/linux/cpuhotplug.h
-index 18bcfeb2463e..4ebd1bc27f8d 100644
---- a/include/linux/cpuhotplug.h
-+++ b/include/linux/cpuhotplug.h
-@@ -20,6 +20,7 @@ enum cpuhp_state {
- 	CPUHP_VIRT_NET_DEAD,
- 	CPUHP_SLUB_DEAD,
- 	CPUHP_MM_WRITEBACK_DEAD,
-+	CPUHP_MM_VMSTAT_DEAD,
- 	CPUHP_SOFTIRQ_DEAD,
- 	CPUHP_NET_MVNETA_DEAD,
- 	CPUHP_CPUIDLE_DEAD,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index b96dcec7e7d7..dfe3cb9f2c36 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1726,64 +1726,58 @@ static void __init init_cpu_node_state(void)
- 		node_set_state(node, N_CPU);
- }
-=20
--static void vmstat_cpu_dead(int node)
-+static int vmstat_cpu_online(unsigned int cpu)
-+{
-+	refresh_zone_stat_thresholds();
-+	node_set_state(cpu_to_node(cpu), N_CPU);
-+	return 0;
-+}
-+
-+static int vmstat_cpu_down_prep(unsigned int cpu)
-+{
-+	cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-+	return 0;
-+}
-+
-+static int vmstat_cpu_dead(unsigned int cpu)
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 0409a4ad6ea1..0d37192d9423 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2043,33 +2043,38 @@ void kcompactd_stop(int nid)
+  * away, we get changed to run anywhere: as the first one comes back,
+  * restore their cpu bindings.
+  */
+-static int cpu_callback(struct notifier_block *nfb, unsigned long action,
+-			void *hcpu)
++static int kcompactd_cpu_online(unsigned int cpu)
  {
- 	const struct cpumask *node_cpus;
-+	int node;
+ 	int nid;
 =20
-+	node =3D cpu_to_node(cpu);
-+
-+	refresh_zone_stat_thresholds();
- 	node_cpus =3D cpumask_of_node(node);
- 	if (cpumask_weight(node_cpus) > 0)
--		return;
-+		return 0;
+-	if (action =3D=3D CPU_ONLINE || action =3D=3D CPU_ONLINE_FROZEN) {
+-		for_each_node_state(nid, N_MEMORY) {
+-			pg_data_t *pgdat =3D NODE_DATA(nid);
+-			const struct cpumask *mask;
++	for_each_node_state(nid, N_MEMORY) {
++		pg_data_t *pgdat =3D NODE_DATA(nid);
++		const struct cpumask *mask;
 =20
- 	node_clear_state(node, N_CPU);
-+	return 0;
- }
+-			mask =3D cpumask_of_node(pgdat->node_id);
++		mask =3D cpumask_of_node(pgdat->node_id);
 =20
--/*
-- * Use the cpu notifier to insure that the thresholds are recalculated
-- * when necessary.
-- */
--static int vmstat_cpuup_callback(struct notifier_block *nfb,
--		unsigned long action,
--		void *hcpu)
--{
--	long cpu =3D (long)hcpu;
--
--	switch (action) {
--	case CPU_ONLINE:
--	case CPU_ONLINE_FROZEN:
--		refresh_zone_stat_thresholds();
--		node_set_state(cpu_to_node(cpu), N_CPU);
--		break;
--	case CPU_DOWN_PREPARE:
--	case CPU_DOWN_PREPARE_FROZEN:
--		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
--		break;
--	case CPU_DOWN_FAILED:
--	case CPU_DOWN_FAILED_FROZEN:
--		break;
--	case CPU_DEAD:
--	case CPU_DEAD_FROZEN:
--		refresh_zone_stat_thresholds();
--		vmstat_cpu_dead(cpu_to_node(cpu));
--		break;
--	default:
--		break;
--	}
+-			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
+-				/* One of our CPUs online: restore mask */
+-				set_cpus_allowed_ptr(pgdat->kcompactd, mask);
+-		}
++		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
++			/* One of our CPUs online: restore mask */
++			set_cpus_allowed_ptr(pgdat->kcompactd, mask);
+ 	}
 -	return NOTIFY_OK;
--}
--
--static struct notifier_block vmstat_notifier =3D
--	{ &vmstat_cpuup_callback, NULL, 0 };
- #endif
++	return 0;
+ }
 =20
- static int __init setup_vmstat(void)
+ static int __init kcompactd_init(void)
  {
- #ifdef CONFIG_SMP
--	cpu_notifier_register_begin();
--	__register_cpu_notifier(&vmstat_notifier);
+ 	int nid;
 +	int ret;
 +
-+	ret =3D cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
-+					NULL, vmstat_cpu_dead);
-+	if (ret < 0)
-+		pr_err("vmstat: failed to register 'dead' hotplug state\n");
-+
-+	ret =3D cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "mm/vmstat:online",
-+					vmstat_cpu_online,
-+					vmstat_cpu_down_prep);
-+	if (ret < 0)
-+		pr_err("vmstat: failed to register 'online' hotplug state\n");
-+
-+	get_online_cpus();
- 	init_cpu_node_state();
-+	put_online_cpus();
++	ret =3D cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
++					"mm/compaction:online",
++					kcompactd_cpu_online, NULL);
++	if (ret < 0) {
++		pr_err("kcompactd: failed to register hotplug callbacks.\n");
++		return ret;
++	}
 =20
- 	start_shepherd_timer();
--	cpu_notifier_register_done();
- #endif
- #ifdef CONFIG_PROC_FS
- 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+ 	for_each_node_state(nid, N_MEMORY)
+ 		kcompactd_run(nid);
+-	hotcpu_notifier(cpu_callback, 0);
+ 	return 0;
+ }
+ subsys_initcall(kcompactd_init)
 --=20
 2.10.2
 
