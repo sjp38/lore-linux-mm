@@ -1,102 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 446966B0268
-	for <linux-mm@kvack.org>; Sat, 26 Nov 2016 18:14:39 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id a20so29428226wme.5
-        for <linux-mm@kvack.org>; Sat, 26 Nov 2016 15:14:39 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id ww1si48804640wjb.147.2016.11.26.15.14.38
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6528D6B0069
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2016 08:10:53 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id x190so91413209qkb.5
+        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 05:10:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e70si29804927qkh.139.2016.11.27.05.10.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 26 Nov 2016 15:14:38 -0800 (PST)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 14/22] mm/compaction: Convert to hotplug state machine
-Date: Sun, 27 Nov 2016 00:13:42 +0100
-Message-Id: <20161126231350.10321-15-bigeasy@linutronix.de>
-In-Reply-To: <20161126231350.10321-1-bigeasy@linutronix.de>
-References: <20161126231350.10321-1-bigeasy@linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 27 Nov 2016 05:10:52 -0800 (PST)
+Date: Sun, 27 Nov 2016 08:10:44 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM v13 08/18] mm/hmm: heterogeneous memory management (HMM for
+ short)
+Message-ID: <20161127131043.GA3710@redhat.com>
+References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
+ <1479493107-982-9-git-send-email-jglisse@redhat.com>
+ <58351517.2060405@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <58351517.2060405@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: rt@linutronix.de, tglx@linutronix.de, Anna-Maria Gleixner <anna-maria@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-From: Anna-Maria Gleixner <anna-maria@linutronix.de>
+On Wed, Nov 23, 2016 at 09:33:35AM +0530, Anshuman Khandual wrote:
+> On 11/18/2016 11:48 PM, Jerome Glisse wrote:
 
-Install the callbacks via the state machine. Should the hotplug init fail t=
-hen
-no threads are spawned.
+[...]
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org
-Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/compaction.c | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
+> > + *
+> > + *      hmm_vma_migrate(vma, start, end, ops);
+> > + *
+> > + * With ops struct providing 2 callback alloc_and_copy() which allocated the
+> > + * destination memory and initialize it using source memory. Migration can fail
+> > + * after this step and thus last callback finalize_and_map() allow the device
+> > + * driver to know which page were successfully migrated and which were not.
+> 
+> So we have page->pgmap->free_devpage() to release the individual page back
+> into the device driver management during migration and also we have this ops
+> based finalize_and_mmap() to check on the failed instances inside a single
+> migration context which can contain set of pages at a time.
+> 
+> > + *
+> > + * This can easily be use outside of HMM intended use case.
+> 
+> Where you think this can be used outside of HMM ?
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 0409a4ad6ea1..0d37192d9423 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -2043,33 +2043,38 @@ void kcompactd_stop(int nid)
-  * away, we get changed to run anywhere: as the first one comes back,
-  * restore their cpu bindings.
-  */
--static int cpu_callback(struct notifier_block *nfb, unsigned long action,
--			void *hcpu)
-+static int kcompactd_cpu_online(unsigned int cpu)
- {
- 	int nid;
-=20
--	if (action =3D=3D CPU_ONLINE || action =3D=3D CPU_ONLINE_FROZEN) {
--		for_each_node_state(nid, N_MEMORY) {
--			pg_data_t *pgdat =3D NODE_DATA(nid);
--			const struct cpumask *mask;
-+	for_each_node_state(nid, N_MEMORY) {
-+		pg_data_t *pgdat =3D NODE_DATA(nid);
-+		const struct cpumask *mask;
-=20
--			mask =3D cpumask_of_node(pgdat->node_id);
-+		mask =3D cpumask_of_node(pgdat->node_id);
-=20
--			if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
--				/* One of our CPUs online: restore mask */
--				set_cpus_allowed_ptr(pgdat->kcompactd, mask);
--		}
-+		if (cpumask_any_and(cpu_online_mask, mask) < nr_cpu_ids)
-+			/* One of our CPUs online: restore mask */
-+			set_cpus_allowed_ptr(pgdat->kcompactd, mask);
- 	}
--	return NOTIFY_OK;
-+	return 0;
- }
-=20
- static int __init kcompactd_init(void)
- {
- 	int nid;
-+	int ret;
-+
-+	ret =3D cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-+					"mm/compaction:online",
-+					kcompactd_cpu_online, NULL);
-+	if (ret < 0) {
-+		pr_err("kcompactd: failed to register hotplug callbacks.\n");
-+		return ret;
-+	}
-=20
- 	for_each_node_state(nid, N_MEMORY)
- 		kcompactd_run(nid);
--	hotcpu_notifier(cpu_callback, 0);
- 	return 0;
- }
- subsys_initcall(kcompactd_init)
---=20
-2.10.2
+Well on the radar is new memory hierarchy that seems to be on every CPU designer
+roadmap. Where you have a fast small HBM like memory package with the CPU and then
+you have the regular memory.
+
+In the embedded world they want to migrate active process to fast CPU memory and
+shutdown the regular memory to save power.
+
+In the HPC world they want to migrate hot data of hot process to this fast memory.
+
+In both case we are talking about process base memory migration and in case of
+embedded they also have DMA engine they can use to offload the copy operation
+itself.
+
+This are the useful case i have in mind but other people might see that code and
+realise they could also use it for their own specific corner case.
+
+[...]
+
+> > +/*
+> > + * hmm_pfn_t - HMM use its own pfn type to keep several flags per page
+> > + *
+> > + * Flags:
+> > + * HMM_PFN_VALID: pfn is valid
+> > + * HMM_PFN_WRITE: CPU page table have the write permission set
+> > + */
+> > +typedef unsigned long hmm_pfn_t;
+> > +
+> > +#define HMM_PFN_VALID (1 << 0)
+> > +#define HMM_PFN_WRITE (1 << 1)
+> > +#define HMM_PFN_SHIFT 2
+> > +
+> > +static inline struct page *hmm_pfn_to_page(hmm_pfn_t pfn)
+> > +{
+> > +	if (!(pfn & HMM_PFN_VALID))
+> > +		return NULL;
+> > +	return pfn_to_page(pfn >> HMM_PFN_SHIFT);
+> > +}
+> > +
+> > +static inline unsigned long hmm_pfn_to_pfn(hmm_pfn_t pfn)
+> > +{
+> > +	if (!(pfn & HMM_PFN_VALID))
+> > +		return -1UL;
+> > +	return (pfn >> HMM_PFN_SHIFT);
+> > +}
+> > +
+> > +static inline hmm_pfn_t hmm_pfn_from_page(struct page *page)
+> > +{
+> > +	return (page_to_pfn(page) << HMM_PFN_SHIFT) | HMM_PFN_VALID;
+> > +}
+> > +
+> > +static inline hmm_pfn_t hmm_pfn_from_pfn(unsigned long pfn)
+> > +{
+> > +	return (pfn << HMM_PFN_SHIFT) | HMM_PFN_VALID;
+> > +}
+> 
+> Hmm, so if we use last two bits on PFN as flags, it does reduce the number of
+> bits available for the actual PFN range. But given that we support maximum of
+> 64TB on POWER (not sure about X86) we can live with this two bits going away
+> from the unsigned long. But what is the purpose of tracking validity and write
+> flag inside the PFN ?
+
+So 2^46 so with 12bits PAGE_SHIFT we only need 34 bits for pfns value hence i
+should have enough place for my flag or is unsigned long not 64bits on powerpc ?
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
