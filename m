@@ -1,68 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 09D4E6B0069
-	for <linux-mm@kvack.org>; Sun, 27 Nov 2016 08:27:32 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y71so294359955pgd.0
-        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 05:27:32 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0041.outbound.protection.outlook.com. [104.47.0.41])
-        by mx.google.com with ESMTPS id n23si51688361pfg.110.2016.11.27.05.27.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 27 Nov 2016 05:27:31 -0800 (PST)
-Subject: Re: [HMM v13 00/18] HMM (Heterogeneous Memory Management) v13
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com>
- <5ba45b16-8edf-d835-ac04-eca5f71212c9@mellanox.com>
- <20161125161627.GA20703@redhat.com>
-From: Haggai Eran <haggaie@mellanox.com>
-Message-ID: <28120b19-8167-2d27-0f59-f2ab27da2897@mellanox.com>
-Date: Sun, 27 Nov 2016 15:27:11 +0200
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6C786B0038
+	for <linux-mm@kvack.org>; Sun, 27 Nov 2016 17:42:13 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 17so190499007pfy.2
+        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 14:42:13 -0800 (PST)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id 23si52822861pfy.91.2016.11.27.14.42.11
+        for <linux-mm@kvack.org>;
+        Sun, 27 Nov 2016 14:42:12 -0800 (PST)
+Date: Mon, 28 Nov 2016 09:42:08 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
+Message-ID: <20161127224208.GA31101@dastard>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+ <20161124173220.GR1555@ZenIV.linux.org.uk>
+ <20161125024918.GX31101@dastard>
+ <20161125041419.GT1555@ZenIV.linux.org.uk>
+ <20161125070642.GZ31101@dastard>
+ <20161125073747.GU1555@ZenIV.linux.org.uk>
+ <CA+55aFy5=74ad4tByQJYnkyX079z59yn02koJ_G8kfxamjvPDw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20161125161627.GA20703@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFy5=74ad4tByQJYnkyX079z59yn02koJ_G8kfxamjvPDw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Feras Daoud <ferasda@mellanox.com>, Ilya Lesokhin <ilyal@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On 11/25/2016 6:16 PM, Jerome Glisse wrote:
-> Yes this is something i have work on with NVidia, idea is that you will
-> see the hmm_pfn_t with the device flag set you can then retrive the struct
-> device from it. Issue is now to figure out how from that you can know that
-> this is a device with which you can interact. I would like a common and
-> device agnostic solution but i think as first step you will need to rely
-> on some back channel communication.
-Maybe this can be done with the same DMA-API changes you mention below.
-Given two device structs (the peer doing the mapping and the device that
-provided the pages) and some (unaddressable) ZONE_DEVICE page structs,
-ask the DMA-API to provide bus addresses for that p2p transaction.
+On Fri, Nov 25, 2016 at 11:51:26AM -0800, Linus Torvalds wrote:
+> On Thu, Nov 24, 2016 at 11:37 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> >
+> > My impression is that nobody (at least kernel-side) wants them to be
+> > a stable ABI, so long as nobody in userland screams about their code
+> > being broken, everything is fine.  As usual, if nobody notices an ABI
+> > change, it hasn't happened.  The question is what happens when somebody
+> > does.
+> 
+> Right. There is basically _no_ "stable API" for the kernel anywhere,
+> it's just an issue of "you can't break workflow for normal people".
+> 
+> And if somebody writes his own trace scripts, and some random trace
+> point goes away (or changes semantics), that's easy: he can just fix
+> his script. Tracepoints aren't ever going to be stable in that sense.
+> 
+> But when then somebody writes a trace script that is so useful that
+> distros pick it up, and people start using it and depending on it,
+> then _that_ trace point may well have become effectively locked in
+> stone.
 
-> Once you have setup a peer mapping to the GPU memory its lifetime will be
-> tie with CPU page table content ie if the CPU page table is updated either
-> to remove the page (because of munmap/truncate ...) or because the page
-> is migrated to some other place. In both case the device using the peer
-> mapping must stop using it and refault to update its page table with the
-> new page where the data is.
-Sounds good.
+And that's exactly why we need a method of marking tracepoints as
+stable. How else are we going to know whether a specific tracepoint
+is stable if the kernel code doesn't document that it's stable? And
+how are we going to know why it's considered stable if there isn't a
+commit message that explains why it was made stable?
 
-> Issue to implement the above lie in the order in which mmu_notifier call-
-> back are call. We want to tear down the peer mapping only once we know
-> that any device using it is gone. If all device involve use the HMM mirror
-> API then this can be solve easily. Otherwise it will need some change to
-> mmu_notifier.
-I'm not sure I understand how p2p would work this way. If the device
-that provides the memory is using HMM for migration it marks the CPU
-page tables with the special swap entry. Another device that is not
-using HMM mirroring won't be able to translate this into a pfn, even if
-it uses mmu notifiers.
+> We do have filesystem code that is just disgusting. As an example:
+> fs/afs/ tends to have these crazy "_enter()/_exit()" macros in every
+> single function. If you want that, use the function tracer. That seems
+> to be just debugging code that has been left around for others to
+> stumble over. I do *not* believe that we should encourage that kind of
+> "machine gun spray" use of tracepoints.
 
-> Note that all of the above would rely on change to DMA-API to allow to
-> IOMMAP (through iommu) PCI bar address into a device IOMMU context. But
-> this is an orthogonal issue.
+Inappropriate use of tracepoints is a different problem. The issue
+here is getting rid of the uncertainty caused by the handwavy
+"tracepoints a mutable until someone, somewhere decides to use it in
+userspace" policy.
 
-Even without an IOMMU, I think the DMA-API is a good place to tell
-whether p2p is at all possible, or whether it is a good idea in terms of
-performance.
+> But tracing actual high-level things like IO and faults? I think that
+> makes perfect sense, as long as the data that is collected is also the
+> actual event data, and not so much a random implementation issue of
+> the day.
+
+IME, a tracepoint that doesn't expose detailed context specific
+information isn't really useful for complex problem diagnosis...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
