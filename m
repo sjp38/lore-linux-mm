@@ -1,96 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1FC06B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 05:07:22 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id bk3so19613308wjc.4
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:07:22 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E626B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:00:46 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id y16so36123335wmd.6
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 03:00:46 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jd4si22876201wjb.273.2016.11.28.02.07.21
+        by mx.google.com with ESMTPS id p21si25295778wmb.29.2016.11.28.03.00.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 02:07:21 -0800 (PST)
-Date: Mon, 28 Nov 2016 11:07:18 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
- bdev->bd_disk
-Message-ID: <20161128100718.GD2590@quack2.suse.cz>
-References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
+        Mon, 28 Nov 2016 03:00:43 -0800 (PST)
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
+References: <20161127131954.10026-1-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5621b386-ee65-0fa5-e217-334924412c7f@suse.cz>
+Date: Mon, 28 Nov 2016 12:00:41 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
+In-Reply-To: <20161127131954.10026-1-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Fang <fangwei1@huawei.com>
-Cc: akpm@linux-foundation.org, jack@suse.cz, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Sat 26-11-16 10:06:22, Wei Fang wrote:
-> ->bd_disk is assigned to NULL in __blkdev_put() when no one is holding
-> the bdev. After that, ->bd_inode still can be touched in the
-> blockdev_superblock->s_inodes list before the final iput. So iterate_bdevs()
-> can still get this inode, and start writeback on mapping dirty pages.
-> ->bd_disk will be dereferenced in mapping_cap_writeback_dirty() in this
-> case, and a NULL dereference crash will be triggered:
-> 
-> Unable to handle kernel NULL pointer dereference at virtual address 00000388
-> ...
-> [<ffff8000004cb1e4>] blk_get_backing_dev_info+0x1c/0x28
-> [<ffff8000001c879c>] __filemap_fdatawrite_range+0x54/0x98
-> [<ffff8000001c8804>] filemap_fdatawrite+0x24/0x2c
-> [<ffff80000027e7a4>] fdatawrite_one_bdev+0x20/0x28
-> [<ffff800000288b44>] iterate_bdevs+0xec/0x144
-> [<ffff80000027eb50>] sys_sync+0x84/0xd0
-> 
-> Since mapping_cap_writeback_dirty() is always return true about
-> block device inodes, no need to check it if the inode is a block
-> device inode.
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Wei Fang <fangwei1@huawei.com>
+On 11/27/2016 02:19 PM, Mel Gorman wrote:
+>
+> 2-socket modern machine
+>                                 4.9.0-rc5             4.9.0-rc5
+>                                   vanilla             hopcpu-v3
+> Hmean    send-64         178.38 (  0.00%)      256.74 ( 43.93%)
+> Hmean    send-128        351.49 (  0.00%)      507.52 ( 44.39%)
+> Hmean    send-256        671.23 (  0.00%)     1004.19 ( 49.60%)
+> Hmean    send-1024      2663.60 (  0.00%)     3910.42 ( 46.81%)
+> Hmean    send-2048      5126.53 (  0.00%)     7562.13 ( 47.51%)
+> Hmean    send-3312      7949.99 (  0.00%)    11565.98 ( 45.48%)
+> Hmean    send-4096      9433.56 (  0.00%)    12929.67 ( 37.06%)
+> Hmean    send-8192     15940.64 (  0.00%)    21587.63 ( 35.43%)
+> Hmean    send-16384    26699.54 (  0.00%)    32013.79 ( 19.90%)
+> Hmean    recv-64         178.38 (  0.00%)      256.72 ( 43.92%)
+> Hmean    recv-128        351.49 (  0.00%)      507.47 ( 44.38%)
+> Hmean    recv-256        671.20 (  0.00%)     1003.95 ( 49.57%)
+> Hmean    recv-1024      2663.45 (  0.00%)     3909.70 ( 46.79%)
+> Hmean    recv-2048      5126.26 (  0.00%)     7560.67 ( 47.49%)
+> Hmean    recv-3312      7949.50 (  0.00%)    11564.63 ( 45.48%)
+> Hmean    recv-4096      9433.04 (  0.00%)    12927.48 ( 37.04%)
+> Hmean    recv-8192     15939.64 (  0.00%)    21584.59 ( 35.41%)
+> Hmean    recv-16384    26698.44 (  0.00%)    32009.77 ( 19.89%)
+>
+> 1-socket 6 year old machine
+>                                 4.9.0-rc5             4.9.0-rc5
+>                                   vanilla             hopcpu-v3
+> Hmean    send-64          87.47 (  0.00%)      127.14 ( 45.36%)
+> Hmean    send-128        174.36 (  0.00%)      256.42 ( 47.06%)
+> Hmean    send-256        347.52 (  0.00%)      509.41 ( 46.59%)
+> Hmean    send-1024      1363.03 (  0.00%)     1991.54 ( 46.11%)
+> Hmean    send-2048      2632.68 (  0.00%)     3759.51 ( 42.80%)
+> Hmean    send-3312      4123.19 (  0.00%)     5873.28 ( 42.45%)
+> Hmean    send-4096      5056.48 (  0.00%)     7072.81 ( 39.88%)
+> Hmean    send-8192      8784.22 (  0.00%)    12143.92 ( 38.25%)
+> Hmean    send-16384    15081.60 (  0.00%)    19812.71 ( 31.37%)
+> Hmean    recv-64          86.19 (  0.00%)      126.59 ( 46.87%)
+> Hmean    recv-128        173.93 (  0.00%)      255.21 ( 46.73%)
+> Hmean    recv-256        346.19 (  0.00%)      506.72 ( 46.37%)
+> Hmean    recv-1024      1358.28 (  0.00%)     1980.03 ( 45.77%)
+> Hmean    recv-2048      2623.45 (  0.00%)     3729.35 ( 42.15%)
+> Hmean    recv-3312      4108.63 (  0.00%)     5831.47 ( 41.93%)
+> Hmean    recv-4096      5037.25 (  0.00%)     7021.59 ( 39.39%)
+> Hmean    recv-8192      8762.32 (  0.00%)    12072.44 ( 37.78%)
+> Hmean    recv-16384    15042.36 (  0.00%)    19690.14 ( 30.90%)
 
-Good catch but I don't like sprinkling checks like this into the writeback
-code and furthermore we don't want to call into writeback code when block
-device is in the process of being destroyed which is what would happen with
-your patch. That is a bug waiting to happen...
+That looks way much better than the "v1" RFC posting. Was it just 
+because you stopped doing the "at first iteration, use migratetype as 
+index", and initializing pindex UINT_MAX hits so much quicker, or was 
+there something more subtle that I missed? There was no changelog 
+between "v1" and "v2".
 
-As I'm looking into the code, we need a serialization between bdev writeback
-and blkdev_put(). That should be doable if we use writeback_single_inode()
-for writing bdev inode instead of simple filemap_fdatawrite() and then use
-inode_wait_for_writeback() in blkdev_put() but it needs some careful
-thought.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Frankly that whole idea of tearing block devices down on last close is a
-major headache and keeps biting us. I'm wondering whether it is still worth
-it these days...
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-								Honza
-
-> ---
->  mm/filemap.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 235021e..d607677 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -334,8 +334,9 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
->  		.range_end = end,
->  	};
->  
-> -	if (!mapping_cap_writeback_dirty(mapping))
-> -		return 0;
-> +	if (!sb_is_blkdev_sb(mapping->host->i_sb))
-> +		if (!mapping_cap_writeback_dirty(mapping))
-> +			return 0;
->  
->  	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
->  	ret = do_writepages(mapping, &wbc);
-> -- 
-> 2.4.11
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
