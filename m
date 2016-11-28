@@ -1,86 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0506B0038
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 16:39:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y71so385002045pgd.0
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 13:39:52 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id e4si28075455plb.274.2016.11.28.13.39.51
-        for <linux-mm@kvack.org>;
-        Mon, 28 Nov 2016 13:39:51 -0800 (PST)
-Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v2)
-References: <20161117002851.C7BACB98@viggo.jf.intel.com>
- <8769d52a-de0b-8c98-1e0b-e5305c5c02f3@suse.cz>
- <cf887736-2a62-bce5-0d72-0455a642cd99@sr71.net>
- <763d778a-2637-39e0-bcde-265055cf1c18@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <6262d9fa-8098-4e18-4129-932e5e4857cb@sr71.net>
-Date: Mon, 28 Nov 2016 13:39:49 -0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1466B026C
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 17:46:53 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y68so233553667pfb.6
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:46:53 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id s11si56790890pgc.259.2016.11.28.14.46.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 14:46:52 -0800 (PST)
+Date: Mon, 28 Nov 2016 15:46:51 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 3/6] dax: add tracepoint infrastructure, PMD tracing
+Message-ID: <20161128224651.GA1243@linux.intel.com>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-4-git-send-email-ross.zwisler@linux.intel.com>
+ <20161125030059.GY31101@dastard>
 MIME-Version: 1.0
-In-Reply-To: <763d778a-2637-39e0-bcde-265055cf1c18@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161125030059.GY31101@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-... cc'ing the arm64 maintainers
-
-On 11/28/2016 01:07 PM, Vlastimil Babka wrote:
-> On 11/28/2016 05:52 PM, Dave Hansen wrote:
->> On 11/24/2016 06:22 AM, Vlastimil Babka wrote:
->>> On 11/17/2016 01:28 AM, Dave Hansen wrote:
->>>> @@ -702,11 +707,13 @@ static int smaps_hugetlb_range(pte_t *pt
->>>>      }
->>>>      if (page) {
->>>>          int mapcount = page_mapcount(page);
->>>> +        unsigned long hpage_size = huge_page_size(hstate_vma(vma));
->>>>
->>>> +        mss->rss_pud += hpage_size;
->>>
->>> This hardcoded pud doesn't look right, doesn't the pmd/pud depend on
->>> hpage_size?
->>
->> Urg, nope.  Thanks for noticing that!  I think we'll need something
->> along the lines of:
->>
->>                 if (hpage_size == PUD_SIZE)
->>                         mss->rss_pud += PUD_SIZE;
->>                 else if (hpage_size == PMD_SIZE)
->>                         mss->rss_pmd += PMD_SIZE;
+On Fri, Nov 25, 2016 at 02:00:59PM +1100, Dave Chinner wrote:
+> On Wed, Nov 23, 2016 at 11:44:19AM -0700, Ross Zwisler wrote:
+> > Tracepoints are the standard way to capture debugging and tracing
+> > information in many parts of the kernel, including the XFS and ext4
+> > filesystems.  Create a tracepoint header for FS DAX and add the first DAX
+> > tracepoints to the PMD fault handler.  This allows the tracing for DAX to
+> > be done in the same way as the filesystem tracing so that developers can
+> > look at them together and get a coherent idea of what the system is doing.
+> > 
+> > I added both an entry and exit tracepoint because future patches will add
+> > tracepoints to child functions of dax_iomap_pmd_fault() like
+> > dax_pmd_load_hole() and dax_pmd_insert_mapping(). We want those messages to
+> > be wrapped by the parent function tracepoints so the code flow is more
+> > easily understood.  Having entry and exit tracepoints for faults also
+> > allows us to easily see what filesystems functions were called during the
+> > fault.  These filesystem functions get executed via iomap_begin() and
+> > iomap_end() calls, for example, and will have their own tracepoints.
+> > 
+> > For PMD faults we primarily want to understand the faulting address and
+> > whether it fell back to 4k faults.  If it fell back to 4k faults the
+> > tracepoints should let us understand why.
+> > 
+> > I named the new tracepoint header file "fs_dax.h" to allow for device DAX
+> > to have its own separate tracing header in the same directory at some
+> > point.
+> > 
+> > Here is an example output for these events from a successful PMD fault:
+> > 
+> > big-2057  [000] ....   136.396855: dax_pmd_fault: shared mapping write
+> > address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
+> > max_pgoff 0x1400
+> > 
+> > big-2057  [000] ....   136.397943: dax_pmd_fault_done: shared mapping write
+> > address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff 0x200
+> > max_pgoff 0x1400 NOPAGE
 > 
-> Sounds better, although I wonder whether there are some weird arches
-> supporting hugepage sizes that don't match page table levels. I recall
-> that e.g. MIPS could do arbitrary size, but dunno if the kernel supports
-> that...
+> Can we make the output use the same format as most of the filesystem
+> code? i.e. the output starts with backing device + inode number like
+> so:
+> 
+> 	xfs_ilock:            dev 8:96 ino 0x493 flags ILOCK_EXCL....
+> 
+> This way we can filter the output easily across both dax and
+> filesystem tracepoints with 'grep "ino 0x493"'...
 
-arm64 seems to have pretty arbitrary sizes, and seems to be able to
-build them out of multiple hardware PTE sizes.  I think I can fix my
-code to handle those:
+I think I can include the inode number, which I have via mapping->host.  Am I
+correct in assuming "struct inode.i_ino" will always be the same as
+"struct xfs_inode.i_ino"?
 
-                if (hpage_size >= PGD_SIZE)
-                        mss->rss_pgd += PGD_SIZE;
-                else if (hpage_size >= PUD_SIZE)
-                        mss->rss_pud += PUD_SIZE;
-                else if (hpage_size >= PMD_SIZE)
-                        mss->rss_pmd += PMD_SIZE;
-                else
-                        mss->rss_pte += PAGE_SIZE;
+Unfortunately I don't have access to the major/minor (the dev_t) until I call
+iomap_begin().  Currently we call iomap_begin() only after we've done most of
+our sanity checking that would cause us to fall back to PTEs.
 
-But, I *think* that means that smaps_hugetlb_range() is *currently*
-broken for these intermediate arm64 sizes.  The code does:
+I don't think we want to reorder things so that we start with an iomap_begin()
+- that would mean that we would begin by asking the filesystem for a block
+allocation, when in many cases we would then do an alignment check or
+something similar and then fall back to PTEs.
 
-                if (mapcount >= 2)
-                        mss->shared_hugetlb += hpage_size;
-                else
-                        mss->private_hugetlb += hpage_size;
+I'll add "ino" to the output so it looks something like this:
 
-So I *think* if we may count a hugetlbfs arm64 CONT_PTES page multiple
-times, and account hpage_size for *each* of the CONT_PTES.  That would
-artificially inflate the smaps output for those pages.
-
-Will / Catalin, is there something I'm missing?
+big-2057  [000] ....   136.397943: dax_pmd_fault_done: ino 0x493 shared
+mapping write address 0x10505000 vm_start 0x10200000 vm_end 0x10700000 pgoff
+0x200 max_pgoff 0x1400 NOPAGE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
