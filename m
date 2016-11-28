@@ -1,126 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B10196B02EB
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 15:07:54 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id j65so261421684iof.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:07:54 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id k191si18265379itd.12.2016.11.28.12.07.53
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8676B02CE
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 15:55:13 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id m203so262957900iom.6
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:55:13 -0800 (PST)
+Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
+        by mx.google.com with ESMTPS id a82si3482390ita.38.2016.11.28.12.55.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 12:07:53 -0800 (PST)
-From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 04/33] radix tree test suite: Track preempt_count
-Date: Mon, 28 Nov 2016 13:50:08 -0800
-Message-Id: <1480369871-5271-5-git-send-email-mawilcox@linuxonhyperv.com>
-In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
-References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 28 Nov 2016 12:55:12 -0800 (PST)
+Date: Mon, 28 Nov 2016 12:55:08 -0800
+From: Marc MERLIN <marc@merlins.org>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of RAM that should be free
+Message-ID: <20161128205508.GW13371@merlins.org>
+References: <20161121154336.GD19750@merlins.org> <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz> <20161121215639.GF13371@merlins.org> <20161122160629.uzt2u6m75ash4ved@merlins.org> <48061a22-0203-de54-5a44-89773bff1e63@suse.cz> <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com> <20161123063410.GB2864@dhcp22.suse.cz> <20161128072315.GC14788@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="X1bOJ3K7DJ5YkBrT"
+Content-Disposition: inline
+In-Reply-To: <20161128072315.GC14788@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-From: Matthew Wilcox <willy@infradead.org>
 
-Rather than simply NOP out preempt_enable() and preempt_disable(),
-keep track of preempt_count and display it regularly in case either
-the test suite or the code under test is forgetting to balance the
-enables & disables.  Only found a test-case that was forgetting to
-re-enable preemption, but it's a possibility worth checking.
+--X1bOJ3K7DJ5YkBrT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
----
- tools/testing/radix-tree/linux.c         |  1 +
- tools/testing/radix-tree/linux/preempt.h |  6 +++---
- tools/testing/radix-tree/main.c          | 30 ++++++++++++++++++++----------
- 3 files changed, 24 insertions(+), 13 deletions(-)
+On Mon, Nov 28, 2016 at 08:23:15AM +0100, Michal Hocko wrote:
+> Marc, could you try this patch please? I think it should be pretty clear
+> it should help you but running it through your use case would be more
+> than welcome before I ask Greg to take this to the 4.8 stable tree.
+ 
+This will take a little while, the whole copy took 5 days to finish and I'm a
+bit hesitant about blowing it away and starting over :)
+Let me see if I can come up with maybe another disk array for another test.
 
-diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
-index 3cfb04e..1f32a16 100644
---- a/tools/testing/radix-tree/linux.c
-+++ b/tools/testing/radix-tree/linux.c
-@@ -9,6 +9,7 @@
- #include <urcu/uatomic.h>
- 
- int nr_allocated;
-+int preempt_count;
- 
- void *mempool_alloc(mempool_t *pool, int gfp_mask)
- {
-diff --git a/tools/testing/radix-tree/linux/preempt.h b/tools/testing/radix-tree/linux/preempt.h
-index 6210672..65c04c2 100644
---- a/tools/testing/radix-tree/linux/preempt.h
-+++ b/tools/testing/radix-tree/linux/preempt.h
-@@ -1,4 +1,4 @@
--/* */
-+extern int preempt_count;
- 
--#define preempt_disable() do { } while (0)
--#define preempt_enable() do { } while (0)
-+#define preempt_disable()	uatomic_inc(&preempt_count)
-+#define preempt_enable()	uatomic_dec(&preempt_count)
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index daa9010..64ffe67 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -293,27 +293,36 @@ static void single_thread_tests(bool long_run)
- {
- 	int i;
- 
--	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
-+	printf("starting single_thread_tests: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	multiorder_checks();
--	printf("after multiorder_check: %d allocated\n", nr_allocated);
-+	printf("after multiorder_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	locate_check();
--	printf("after locate_check: %d allocated\n", nr_allocated);
-+	printf("after locate_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	tag_check();
--	printf("after tag_check: %d allocated\n", nr_allocated);
-+	printf("after tag_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	gang_check();
--	printf("after gang_check: %d allocated\n", nr_allocated);
-+	printf("after gang_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	add_and_check();
--	printf("after add_and_check: %d allocated\n", nr_allocated);
-+	printf("after add_and_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	dynamic_height_check();
--	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
-+	printf("after dynamic_height_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	big_gang_check(long_run);
--	printf("after big_gang_check: %d allocated\n", nr_allocated);
-+	printf("after big_gang_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
- 		copy_tag_check();
- 		printf("%d ", i);
- 		fflush(stdout);
- 	}
--	printf("after copy_tag_check: %d allocated\n", nr_allocated);
-+	printf("after copy_tag_check: %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- }
- 
- int main(int argc, char **argv)
-@@ -336,7 +345,8 @@ int main(int argc, char **argv)
- 	single_thread_tests(long_run);
- 
- 	sleep(1);
--	printf("after sleep(1): %d allocated\n", nr_allocated);
-+	printf("after sleep(1): %d allocated, preempt %d\n",
-+		nr_allocated, preempt_count);
- 	rcu_unregister_thread();
- 
- 	exit(0);
+For now, as a reminder, I'm running that attached patch, and it works fine
+I'll report back as soon as I can.
+
+Marc
 -- 
-2.10.2
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/  
+
+--X1bOJ3K7DJ5YkBrT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="4.8.8-mem2.patch"
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a2214c64ed3c..9b3b3a79c58a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3347,17 +3347,24 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 					ac->nodemask) {
+ 		unsigned long available;
+ 		unsigned long reclaimable;
++		int check_order = order;
++		unsigned long watermark = min_wmark_pages(zone);
+ 
+ 		available = reclaimable = zone_reclaimable_pages(zone);
+ 		available -= DIV_ROUND_UP(no_progress_loops * available,
+ 					  MAX_RECLAIM_RETRIES);
+ 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+ 
++		if (order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER) {
++			check_order = 0;
++			watermark += 1UL << order;
++		}
++
+ 		/*
+ 		 * Would the allocation succeed if we reclaimed the whole
+ 		 * available?
+ 		 */
+-		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
++		if (__zone_watermark_ok(zone, check_order, watermark,
+ 				ac_classzone_idx(ac), alloc_flags, available)) {
+ 			/*
+ 			 * If we didn't make any progress and have a lot of
+
+
+--X1bOJ3K7DJ5YkBrT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
