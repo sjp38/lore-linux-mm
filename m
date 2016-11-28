@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B006B0294
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C52526B0297
 	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:57:56 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j65so260918846iof.1
+Received: by mail-io0-f200.google.com with SMTP id t93so260796853ioi.0
         for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:57:56 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id h190si19920428ite.62.2016.11.28.11.56.39
+        by mx.google.com with ESMTPS id f4si19953726itg.31.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 11:56:39 -0800 (PST)
+        Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 30/33] rxrpc: Abstract away knowledge of IDR internals
-Date: Mon, 28 Nov 2016 13:51:08 -0800
-Message-Id: <1480369871-5271-65-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 09/33] radix tree test suite: Use rcu_barrier
+Date: Mon, 28 Nov 2016 13:50:47 -0800
+Message-Id: <1480369871-5271-44-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,100 +22,101 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Add idr_get_cursor() / idr_set_cursor() APIs, and remove the reference
-to IDR_SIZE.
+Calling rcu_barrier() allows all of the rcu-freed memory to be actually
+returned to the pool, and allows nr_allocated to return to 0.  As well
+as allowing diffs between runs to be more useful, it also lets us
+pinpoint leaks more effectively.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Reviewed-by: David Howells <dhowells@redhat.com>
 ---
- include/linux/idr.h     | 26 ++++++++++++++++++++++++++
- net/rxrpc/af_rxrpc.c    | 11 ++++++-----
- net/rxrpc/conn_client.c |  4 ++--
- 3 files changed, 34 insertions(+), 7 deletions(-)
+ tools/testing/radix-tree/main.c      | 12 ++++++++++--
+ tools/testing/radix-tree/tag_check.c |  5 +++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 3639a28..1eb755f 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -56,6 +56,32 @@ struct idr {
- #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index f1d1e3b..76d9c95 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
+ 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	multiorder_checks();
++	rcu_barrier();
+ 	printf("after multiorder_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	locate_check();
++	rcu_barrier();
+ 	printf("after locate_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	tag_check();
++	rcu_barrier();
+ 	printf("after tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	gang_check();
++	rcu_barrier();
+ 	printf("after gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	add_and_check();
++	rcu_barrier();
+ 	printf("after add_and_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	dynamic_height_check();
++	rcu_barrier();
+ 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	big_gang_check(long_run);
++	rcu_barrier();
+ 	printf("after big_gang_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
+ 		printf("%d ", i);
+ 		fflush(stdout);
+ 	}
++	rcu_barrier();
+ 	printf("after copy_tag_check: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ }
+@@ -354,8 +362,8 @@ int main(int argc, char **argv)
  
- /**
-+ * idr_get_cursor - Return the current position of the cyclic allocator
-+ * @idr: idr handle
-+ *
-+ * The value returned is the value that will be next returned from
-+ * idr_alloc_cyclic() if it is free (otherwise the search will start from
-+ * this position).
-+ */
-+static inline unsigned int idr_get_cursor(struct idr *idr)
-+{
-+	return READ_ONCE(idr->cur);
-+}
-+
-+/**
-+ * idr_set_cursor - Set the current position of the cyclic allocator
-+ * @idr: idr handle
-+ * @val: new position
-+ *
-+ * The next call to idr_alloc_cyclic() will return @val if it is free
-+ * (otherwise the search will start from this position).
-+ */
-+static inline void idr_set_cursor(struct idr *idr, unsigned int val)
-+{
-+	WRITE_ONCE(idr->cur, val);
-+}
-+
-+/**
-  * DOC: idr sync
-  * idr synchronization (stolen from radix-tree.h)
-  *
-diff --git a/net/rxrpc/af_rxrpc.c b/net/rxrpc/af_rxrpc.c
-index 2d59c9b..5f63f6d 100644
---- a/net/rxrpc/af_rxrpc.c
-+++ b/net/rxrpc/af_rxrpc.c
-@@ -762,16 +762,17 @@ static const struct net_proto_family rxrpc_family_ops = {
- static int __init af_rxrpc_init(void)
- {
- 	int ret = -1;
-+	unsigned int tmp;
+ 	benchmark();
  
- 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
+-	sleep(1);
+-	printf("after sleep(1): %d allocated, preempt %d\n",
++	rcu_barrier();
++	printf("after rcu_barrier: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
+ 	rcu_unregister_thread();
  
- 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
- 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
--	get_random_bytes(&rxrpc_client_conn_ids.cur,
--			 sizeof(rxrpc_client_conn_ids.cur));
--	rxrpc_client_conn_ids.cur &= 0x3fffffff;
--	if (rxrpc_client_conn_ids.cur == 0)
--		rxrpc_client_conn_ids.cur = 1;
-+	get_random_bytes(&tmp, sizeof(tmp));
-+	tmp &= 0x3fffffff;
-+	if (tmp == 0)
-+		tmp = 1;
-+	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
+diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
+index b0ac057..186f6e4 100644
+--- a/tools/testing/radix-tree/tag_check.c
++++ b/tools/testing/radix-tree/tag_check.c
+@@ -51,6 +51,7 @@ void simple_checks(void)
+ 	verify_tag_consistency(&tree, 1);
+ 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
+ 	item_kill_tree(&tree);
++	rcu_barrier();
+ 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
+ }
  
- 	ret = -ENOMEM;
- 	rxrpc_call_jar = kmem_cache_create(
-diff --git a/net/rxrpc/conn_client.c b/net/rxrpc/conn_client.c
-index 60ef960..6cbcdcc 100644
---- a/net/rxrpc/conn_client.c
-+++ b/net/rxrpc/conn_client.c
-@@ -263,12 +263,12 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
- 	 * times the maximum number of client conns away from the current
- 	 * allocation point to try and keep the IDs concentrated.
- 	 */
--	id_cursor = READ_ONCE(rxrpc_client_conn_ids.cur);
-+	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
- 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
- 	distance = id - id_cursor;
- 	if (distance < 0)
- 		distance = -distance;
--	limit = round_up(rxrpc_max_client_connections, IDR_SIZE) * 4;
-+	limit = max(rxrpc_max_client_connections * 4, 1024U);
- 	if (distance > limit)
- 		goto mark_dont_reuse;
- 
+@@ -331,12 +332,16 @@ void tag_check(void)
+ 	single_check();
+ 	extend_checks();
+ 	contract_checks();
++	rcu_barrier();
+ 	printf("after extend_checks: %d allocated\n", nr_allocated);
+ 	__leak_check();
+ 	leak_check();
++	rcu_barrier();
+ 	printf("after leak_check: %d allocated\n", nr_allocated);
+ 	simple_checks();
++	rcu_barrier();
+ 	printf("after simple_checks: %d allocated\n", nr_allocated);
+ 	thrash_tags();
++	rcu_barrier();
+ 	printf("after thrash_tags: %d allocated\n", nr_allocated);
+ }
 -- 
 2.10.2
 
