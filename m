@@ -1,23 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0FD26B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:17:33 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id j10so20865281wjb.3
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:17:33 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D982A6B025E
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:20:07 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a20so37469404wme.5
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:20:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b124si26010459wmg.77.2016.11.28.06.17.32
+        by mx.google.com with ESMTPS id n10si26048486wma.60.2016.11.28.06.20.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 06:17:32 -0800 (PST)
-Subject: Re: [PATCH V2 fix 5/6] mm: hugetlb: add a new function to allocate a
- new gigantic page
-References: <1479107259-2011-6-git-send-email-shijie.huang@arm.com>
- <1479279304-31379-1-git-send-email-shijie.huang@arm.com>
+        Mon, 28 Nov 2016 06:20:06 -0800 (PST)
+Subject: Re: [PATCH v2 0/6] mm: fix the "counter.sh" failure for libhugetlbfs
+References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f6fc93b4-5c1c-bbab-7c74-a0d60d4afc84@suse.cz>
-Date: Mon, 28 Nov 2016 15:17:28 +0100
+Message-ID: <6b83ea5d-a465-7582-a215-51a21fb4ce2e@suse.cz>
+Date: Mon, 28 Nov 2016 15:20:05 +0100
 MIME-Version: 1.0
-In-Reply-To: <1479279304-31379-1-git-send-email-shijie.huang@arm.com>
+In-Reply-To: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,114 +23,46 @@ List-ID: <linux-mm.kvack.org>
 To: Huang Shijie <shijie.huang@arm.com>, akpm@linux-foundation.org, catalin.marinas@arm.com
 Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
 
-On 11/16/2016 07:55 AM, Huang Shijie wrote:
-> There are three ways we can allocate a new gigantic page:
+On 11/14/2016 08:07 AM, Huang Shijie wrote:
+> (1) Background
+>    For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
+>    In the 4K page environment, the max page order is 10 (max_order - 1),
+>    so 32M page is the gigantic page.
 >
-> 1. When the NUMA is not enabled, use alloc_gigantic_page() to get
->    the gigantic page.
+>    The arm64 MMU supports a Contiguous bit which is a hint that the TTE
+>    is one of a set of contiguous entries which can be cached in a single
+>    TLB entry.  Please refer to the arm64v8 mannul :
+>        DDI0487A_f_armv8_arm.pdf (in page D4-1811)
 >
-> 2. The NUMA is enabled, but the vma is NULL.
->    There is no memory policy we can refer to.
->    So create a @nodes_allowed, initialize it with init_nodemask_of_mempolicy()
->    or init_nodemask_of_node(). Then use alloc_fresh_gigantic_page() to get
->    the gigantic page.
+> (2) The bug
+>    After I tested the libhugetlbfs, I found the test case "counter.sh"
+>    will fail with the gigantic page (32M page in arm64 board).
 >
-> 3. The NUMA is enabled, and the vma is valid.
->    We can follow the memory policy of the @vma.
+>    This patch set adds support for gigantic surplus hugetlb pages,
+>    allowing the counter.sh unit test to pass.
 >
->    Get @nodes_allowed by huge_nodemask(), and use alloc_fresh_gigantic_page()
->    to get the gigantic page.
+> v1 -- > v2:
+>    1.) fix the compiler error in X86.
+>    2.) add new patches for NUMA.
+>        The patch #2 ~ #5 are new patches.
 >
-> Signed-off-by: Huang Shijie <shijie.huang@arm.com>
-> ---
-> Since the huge_nodemask() is changed, we have to change this function a little.
+> Huang Shijie (6):
+>   mm: hugetlb: rename some allocation functions
+>   mm: hugetlb: add a new parameter for some functions
+>   mm: hugetlb: change the return type for alloc_fresh_gigantic_page
+>   mm: mempolicy: intruduce a helper huge_nodemask()
+>   mm: hugetlb: add a new function to allocate a new gigantic page
+>   mm: hugetlb: support gigantic surplus pages
 >
-> ---
->  mm/hugetlb.c | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 63 insertions(+)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 6995087..c33bddc 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1502,6 +1502,69 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->
->  /*
->   * There are 3 ways this can get called:
-> + *
-> + * 1. When the NUMA is not enabled, use alloc_gigantic_page() to get
-> + *    the gigantic page.
-> + *
-> + * 2. The NUMA is enabled, but the vma is NULL.
-> + *    Create a @nodes_allowed, and use alloc_fresh_gigantic_page() to get
-> + *    the gigantic page.
-> + *
-> + * 3. The NUMA is enabled, and the vma is valid.
-> + *    Use the @vma's memory policy.
-> + *    Get @nodes_allowed by huge_nodemask(), and use alloc_fresh_gigantic_page()
-> + *    to get the gigantic page.
-> + */
-> +static struct page *__hugetlb_alloc_gigantic_page(struct hstate *h,
-> +		struct vm_area_struct *vma, unsigned long addr, int nid)
-> +{
-> +	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+>  include/linux/mempolicy.h |   8 +++
+>  mm/hugetlb.c              | 128 ++++++++++++++++++++++++++++++++++++----------
+>  mm/mempolicy.c            |  20 ++++++++
+>  3 files changed, 130 insertions(+), 26 deletions(-)
 
-What if the allocation fails and nodes_allowed is NULL?
-It might work fine now, but it's rather fragile, so I'd rather see an 
-explicit check.
-
-BTW same thing applies to __nr_hugepages_store_common().
-
-> +	struct page *page = NULL;
-> +
-> +	/* Not NUMA */
-> +	if (!IS_ENABLED(CONFIG_NUMA)) {
-> +		if (nid == NUMA_NO_NODE)
-> +			nid = numa_mem_id();
-> +
-> +		page = alloc_gigantic_page(nid, huge_page_order(h));
-> +		if (page)
-> +			prep_compound_gigantic_page(page, huge_page_order(h));
-> +
-> +		NODEMASK_FREE(nodes_allowed);
-> +		return page;
-> +	}
-> +
-> +	/* NUMA && !vma */
-> +	if (!vma) {
-> +		if (nid == NUMA_NO_NODE) {
-> +			if (!init_nodemask_of_mempolicy(nodes_allowed)) {
-> +				NODEMASK_FREE(nodes_allowed);
-> +				nodes_allowed = &node_states[N_MEMORY];
-> +			}
-> +		} else if (nodes_allowed) {
-> +			init_nodemask_of_node(nodes_allowed, nid);
-> +		} else {
-> +			nodes_allowed = &node_states[N_MEMORY];
-> +		}
-> +
-> +		page = alloc_fresh_gigantic_page(h, nodes_allowed, true);
-> +
-> +		if (nodes_allowed != &node_states[N_MEMORY])
-> +			NODEMASK_FREE(nodes_allowed);
-> +
-> +		return page;
-> +	}
-> +
-> +	/* NUMA && vma */
-> +	if (huge_nodemask(vma, addr, nodes_allowed))
-> +		page = alloc_fresh_gigantic_page(h, nodes_allowed, true);
-> +
-> +	NODEMASK_FREE(nodes_allowed);
-> +	return page;
-> +}
-> +
-> +/*
-> + * There are 3 ways this can get called:
->   * 1. With vma+addr: we use the VMA's memory policy
->   * 2. With !vma, but nid=NUMA_NO_NODE:  We try to allocate a huge
->   *    page from any node, and let the buddy allocator itself figure
->
+Can't say I'm entirely happy with the continued direction of maze of 
+functions for huge page allocation :( Feels like path of least 
+resistance to basically copy/paste the missing parts here. Is there no 
+way to consolidate the code more?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
