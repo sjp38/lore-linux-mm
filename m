@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1105B6B0038
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:15:38 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id v84so265379334oie.0
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:15:38 -0800 (PST)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id c23si26873909otc.195.2016.11.28.09.15.37
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 696016B0038
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:19:10 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id d187so141509732ywe.1
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:19:10 -0800 (PST)
+Received: from mail-yb0-x243.google.com (mail-yb0-x243.google.com. [2607:f8b0:4002:c09::243])
+        by mx.google.com with ESMTPS id k65si15037786ybc.309.2016.11.28.09.19.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 09:15:37 -0800 (PST)
-Received: by mail-oi0-x241.google.com with SMTP id m75so14587634oig.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:15:37 -0800 (PST)
+        Mon, 28 Nov 2016 09:19:09 -0800 (PST)
+Received: by mail-yb0-x243.google.com with SMTP id d128so198436ybh.3
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:19:09 -0800 (PST)
+Date: Mon, 28 Nov 2016 12:19:07 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort
+ allocations in blkcg
+Message-ID: <20161128171907.GA14754@htj.duckdns.org>
+References: <20161121154336.GD19750@merlins.org>
+ <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org>
+ <20161121230332.GA3767@htj.duckdns.org>
+ <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
+ <20161122164822.GA5459@htj.duckdns.org>
+ <CA+55aFwEik1Q-D0d4pRTNq672RS2eHpT2ULzGfttaSWW69Tajw@mail.gmail.com>
+ <3e8eeadb-8dde-2313-f6e3-ef7763832104@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161128084012.GC21738@aaronlu.sh.intel.com>
-References: <026b73f6-ca1d-e7bb-766c-4aaeb7071ce6@intel.com>
- <CA+55aFzHfpZckv8ck19fZSFK+3TmR5eF=BsDzhwVGKrbyEBjEw@mail.gmail.com>
- <c160bc18-7c1b-2d54-8af1-7c5bfcbcefe8@intel.com> <20161128083715.GA21738@aaronlu.sh.intel.com>
- <20161128084012.GC21738@aaronlu.sh.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 28 Nov 2016 09:15:36 -0800
-Message-ID: <CA+55aFwm8MgLi3pDMOQr2gvmjRKXeSjsmV2kLYSYZHFiUa_0fQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mremap: use mmu gather logic for tlb flush in mremap
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3e8eeadb-8dde-2313-f6e3-ef7763832104@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
 
-On Mon, Nov 28, 2016 at 12:40 AM, Aaron Lu <aaron.lu@intel.com> wrote:
-> As suggested by Linus, the same mmu gather logic could be used for tlb
-> flush in mremap and this patch just did that.
+Hello,
 
-Ok, looking at this patch, I still think it looks like the right thing
-to do, but I'm admittedly rather less certain of it.
+On Wed, Nov 23, 2016 at 09:50:12AM +0100, Vlastimil Babka wrote:
+> > You'd certainly _hope_ that atomic allocations either have fallbacks
+> > or are harmless if they fail, but I'd still rather see that
+> > __GFP_NOWARN just to make that very much explicit.
+> 
+> A global change to GFP_NOWAIT would of course mean that we should audit its
+> users (there don't seem to be many), whether they are using it consciously
+> and should not rather be using GFP_ATOMIC.
 
-The main advantage of the mmu_gather thing is that it automatically
-takes care of the TLB flush ranges for us, and that's a big deal
-during munmap() (where the actual unmapped page range can be _very_
-different from the total range), but now that I notice that this
-doesn't actually remove any other code (in fact, it adds a line), I'm
-wondering if it's worth it. mremap() is already "dense" in the vma
-space, unlike munmap (ie you can't move multiple vma's with a single
-mremap), so the fancy range optimizations that make a difference on
-some architectures aren't much of an issue.
+A while ago, I thought about something like, say, GFP_MAYBE which is
+combination of NOWAIT and NOWARN but couldn't really come up with
+scenarios where one would want to use NOWAIT w/o NOWARN.  If an
+allocation is important enough to warn the user of its failure, it
+better be dipping into the atomic reserve pool; otherwise, it doesn't
+make sense to make noise.
 
-So I guess the MM people should take a look at this and say whether
-they think the current state is fine or whether we should do the
-mmu_gather thing. People?
+Maybe we can come up with a better name which signifies that this is
+likely to fail every now and then but I still think it'd be beneficial
+to make it quiet by default.  Linus, do you still think NOWARN should
+be explicit?
 
-However, I also independently think I found an actual bug while
-looking at the code as part of looking at the patch.
+Thanks.
 
-This part looks racy:
-
-                /*
-                 * We are remapping a dirty PTE, make sure to
-                 * flush TLB before we drop the PTL for the
-                 * old PTE or we may race with page_mkclean().
-                 */
-                if (pte_present(*old_pte) && pte_dirty(*old_pte))
-                        force_flush = true;
-                pte = ptep_get_and_clear(mm, old_addr, old_pte);
-
-where the issue is that another thread might make the pte be dirty (in
-the hardware walker, so no locking of ours make any difference)
-*after* we checked whether it was dirty, but *before* we removed it
-from the page tables.
-
-So I think the "check for force-flush" needs to come *after*, and we should do
-
-                pte = ptep_get_and_clear(mm, old_addr, old_pte);
-                if (pte_present(pte) && pte_dirty(pte))
-                        force_flush = true;
-
-instead.
-
-This happens for the pmd case too.
-
-So now I'm not sure the mmu_gather thing is worth it, but I'm pretty
-sure that there remains a (very very) small race that wasn't fixed by
-the original fix in commit 5d1904204c99 ("mremap: fix race between
-mremap() and page cleanning").
-
-Aaron, sorry for waffling about this, and asking you to look at a
-completely different issue instead.
-
-                 Linus
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
