@@ -1,54 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB6D6B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:38:43 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id j128so203078781pfg.4
-        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:38:43 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 126si53925040pgb.180.2016.11.27.23.38.42
-        for <linux-mm@kvack.org>;
-        Sun, 27 Nov 2016 23:38:42 -0800 (PST)
-Date: Mon, 28 Nov 2016 16:41:41 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6 0/6] Introduce ZONE_CMA
-Message-ID: <20161128074141.GB32105@js1304-P5Q-DELUXE>
-References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20161107062501.GB21159@js1304-P5Q-DELUXE>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A9A16B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 03:07:03 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id w13so35132148wmw.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 00:07:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e124si24759900wme.48.2016.11.28.00.07.01
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 00:07:01 -0800 (PST)
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+References: <20161121154336.GD19750@merlins.org>
+ <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org>
+ <20161122160629.uzt2u6m75ash4ved@merlins.org>
+ <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+ <20161122214607.GA11962@hostway.ca>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <312fa85c-19b3-46e6-fd7f-c8070eab5d08@suse.cz>
+Date: Mon, 28 Nov 2016 09:06:58 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161107062501.GB21159@js1304-P5Q-DELUXE>
+In-Reply-To: <20161122214607.GA11962@hostway.ca>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Simon Kirby <sim@hostway.ca>
+Cc: Marc MERLIN <marc@merlins.org>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Mon, Nov 07, 2016 at 03:25:01PM +0900, Joonsoo Kim wrote:
-> On Fri, Oct 14, 2016 at 12:03:10PM +0900, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > Hello,
-> > 
-> > Changes from v5
-> > o Add acked/reviewed-by tag from Vlastimil and Aneesh
-> > o Rebase on next-20161013
-> > o Cosmetic change on patch 1
-> > o Optimize span of ZONE_CMA on multiple node system
-> 
-> Hello, Andrew.
-> 
-> I got some acked/reviewed-by tags from some of main MM developers who
-> are actually familiar/associated with this change. Could you merge
-> this patchset to your tree to get more test coverage?
-> 
-> If I need to do more things to merge this patchset, please let me know
-> about it.
+On 11/22/2016 10:46 PM, Simon Kirby wrote:
+> On Tue, Nov 22, 2016 at 05:14:02PM +0100, Vlastimil Babka wrote:
+>
+>> On 11/22/2016 05:06 PM, Marc MERLIN wrote:
+>>> On Mon, Nov 21, 2016 at 01:56:39PM -0800, Marc MERLIN wrote:
+>>>> On Mon, Nov 21, 2016 at 10:50:20PM +0100, Vlastimil Babka wrote:
+>>>>>> 4.9rc5 however seems to be doing better, and is still running after 18
+>>>>>> hours. However, I got a few page allocation failures as per below, but the
+>>>>>> system seems to recover.
+>>>>>> Vlastimil, do you want me to continue the copy on 4.9 (may take 3-5 days)
+>>>>>> or is that good enough, and i should go back to 4.8.8 with that patch applied?
+>>>>>> https://marc.info/?l=linux-mm&m=147423605024993
+>>>>>
+>>>>> Hi, I think it's enough for 4.9 for now and I would appreciate trying
+>>>>> 4.8 with that patch, yeah.
+>>>>
+>>>> So the good news is that it's been running for almost 5H and so far so good.
+>>>
+>>> And the better news is that the copy is still going strong, 4.4TB and
+>>> going. So 4.8.8 is fixed with that one single patch as far as I'm
+>>> concerned.
+>>>
+>>> So thanks for that, looks good to me to merge.
+>>
+>> Thanks a lot for the testing. So what do we do now about 4.8? (4.7 is
+>> already EOL AFAICS).
+>>
+>> - send the patch [1] as 4.8-only stable. Greg won't like that, I expect.
+>>   - alternatively a simpler (againm 4.8-only) patch that just outright
+>> prevents OOM for 0 < order < costly, as Michal already suggested.
+>> - backport 10+ compaction patches to 4.8 stable
+>> - something else?
+>>
+>> Michal? Linus?
+>>
+>> [1] https://marc.info/?l=linux-mm&m=147423605024993
+>
+> Sorry for my molasses rate of feedback. I found a workaround, setting
+> vm/watermark_scale_factor to 500, and threw that in sysctl. This was on
+> the MythTV box that OOMs everything after about a day on 4.8 otherwise.
+>
+> I've been running [1] for 9 days on it (4.8.4 + [1]) without issue, but
+> just realized I forgot to remove the watermark_scale_factor workaround.
+> I've restored that now, so I'll see if it becomes unhappy by tomorrow.
 
-Hello, Andrew.
+Thanks for the testing. Could you now try Michal's stable candidate [1] 
+from this thread please?
 
-Could I get your answer about this patchset?
+[1] http://marc.info/?l=linux-mm&m=147988285831283&w=2
 
-Thanks.
+> I also threw up a few other things you had asked for (vmstat, zoneinfo
+> before and after the first OOM on 4.8.4): http://0x.ca/sim/ref/4.8.4/
+> (that was before booting into a rebuild with [1] applied)
+>
+> Simon-
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
