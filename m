@@ -1,124 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 90C9D6B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:11:56 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y71so363786599pgd.0
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:11:56 -0800 (PST)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0091.outbound.protection.outlook.com. [104.47.37.91])
-        by mx.google.com with ESMTPS id a30si26966215pli.303.2016.11.28.07.11.55
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 090756B0260
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:13:57 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 83so217972865pfx.1
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:13:57 -0800 (PST)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0090.outbound.protection.outlook.com. [104.47.37.90])
+        by mx.google.com with ESMTPS id g17si55498361pgh.51.2016.11.28.07.13.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 07:11:55 -0800 (PST)
+        Mon, 28 Nov 2016 07:13:56 -0800 (PST)
 From: Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH 5/5] mm: migrate: Add vm.accel_page_copy in sysfs to
- control whether to use multi-threaded to accelerate page copy.
-Date: Mon, 28 Nov 2016 10:11:46 -0500
-Message-ID: <68190E74-8C89-4A14-A1C3-435A306E46AC@cs.rutgers.edu>
-In-Reply-To: <5836BC48.1080705@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/5] mm: migrate: Add mode parameter to support additional
+ page copy routines.
+Date: Mon, 28 Nov 2016 10:13:48 -0500
+Message-ID: <B5823455-07C1-46A8-8F05-A109E9935A20@cs.rutgers.edu>
+In-Reply-To: <dbb93172-4dd1-e88e-f65d-321ac7882999@gmail.com>
 References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-6-zi.yan@sent.com> <5836BC48.1080705@linux.vnet.ibm.com>
+ <20161122162530.2370-2-zi.yan@sent.com>
+ <dbb93172-4dd1-e88e-f65d-321ac7882999@gmail.com>
 MIME-Version: 1.0
 Content-Type: multipart/signed;
-	boundary="=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=";
+	boundary="=_MailMate_6BEE98CB-C8FE-460C-9B23-62E71A4F8271_=";
 	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com
 
---=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=
+--=_MailMate_6BEE98CB-C8FE-460C-9B23-62E71A4F8271_=
 Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-On 24 Nov 2016, at 5:09, Anshuman Khandual wrote:
+On 24 Nov 2016, at 18:56, Balbir Singh wrote:
 
-> On 11/22/2016 09:55 PM, Zi Yan wrote:
+> On 23/11/16 03:25, Zi Yan wrote:
 >> From: Zi Yan <zi.yan@cs.rutgers.edu>
 >>
 >> From: Zi Yan <ziy@nvidia.com>
 >>
->> Since base page migration did not gain any speedup from
->> multi-threaded methods, we only accelerate the huge page case.
+>> migrate_page_copy() and copy_huge_page() are affected.
 >>
 >> Signed-off-by: Zi Yan <ziy@nvidia.com>
 >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 >> ---
->>  kernel/sysctl.c | 11 +++++++++++
->>  mm/migrate.c    |  6 ++++++
->>  2 files changed, 17 insertions(+)
+>>  fs/aio.c                |  2 +-
+>>  fs/hugetlbfs/inode.c    |  2 +-
+>>  fs/ubifs/file.c         |  2 +-
+>>  include/linux/migrate.h |  6 ++++--
+>>  mm/migrate.c            | 14 ++++++++------
+>>  5 files changed, 15 insertions(+), 11 deletions(-)
 >>
->> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
->> index d54ce12..6c79444 100644
->> --- a/kernel/sysctl.c
->> +++ b/kernel/sysctl.c
->> @@ -98,6 +98,8 @@
->>  #if defined(CONFIG_SYSCTL)
->>
->>
->> +extern int accel_page_copy;
+>> diff --git a/fs/aio.c b/fs/aio.c
+>> index 428484f..a67c764 100644
+>> --- a/fs/aio.c
+>> +++ b/fs/aio.c
+>> @@ -418,7 +418,7 @@ static int aio_migratepage(struct address_space *m=
+apping, struct page *new,
+>>  	 * events from being lost.
+>>  	 */
+>>  	spin_lock_irqsave(&ctx->completion_lock, flags);
+>> -	migrate_page_copy(new, old);
+>> +	migrate_page_copy(new, old, 0);
 >
-> Hmm, accel_mthread_copy because this is achieved by a multi threaded
-> copy mechanism.
+> Can we have a useful enum instead of 0, its harder to read and understa=
+nd
+> 0
+
+How about MIGRATE_SINGLETHREAD =3D 0 ?
+
+
+>>  	BUG_ON(ctx->ring_pages[idx] !=3D old);
+>>  	ctx->ring_pages[idx] =3D new;
+>>  	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+>> index 4fb7b10..a17bfef 100644
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>> @@ -850,7 +850,7 @@ static int hugetlbfs_migrate_page(struct address_s=
+pace *mapping,
+>>  	rc =3D migrate_huge_page_move_mapping(mapping, newpage, page);
+>>  	if (rc !=3D MIGRATEPAGE_SUCCESS)
+>>  		return rc;
+>> -	migrate_page_copy(newpage, page);
+>> +	migrate_page_copy(newpage, page, 0);
 >
->> +
->>  /* External variables not in a header file. */
->>  extern int suid_dumpable;
->>  #ifdef CONFIG_COREDUMP
->> @@ -1361,6 +1363,15 @@ static struct ctl_table vm_table[] = {
->>  		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
->>  	},
->>  #endif
->> +	{
->> +		.procname	= "accel_page_copy",
->> +		.data		= &accel_page_copy,
->> +		.maxlen		= sizeof(accel_page_copy),
->> +		.mode		= 0644,
->> +		.proc_handler	= proc_dointvec,
->> +		.extra1		= &zero,
->> +		.extra2		= &one,
->> +	},
->>  	 {
->>  		.procname	= "hugetlb_shm_group",
->>  		.data		= &sysctl_hugetlb_shm_group,
->> diff --git a/mm/migrate.c b/mm/migrate.c
->> index 244ece6..e64b490 100644
->> --- a/mm/migrate.c
->> +++ b/mm/migrate.c
->> @@ -48,6 +48,8 @@
+> Ditto
+>
 >>
->>  #include "internal.h"
->>
->> +int accel_page_copy = 1;
->> +
->
-> So its enabled by default.
->
->>  /*
->>   * migrate_prep() needs to be called before we start compiling a list of pages
->>   * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
->> @@ -651,6 +653,10 @@ static void copy_huge_page(struct page *dst, struct page *src,
->>  		nr_pages = hpage_nr_pages(src);
+>>  	return MIGRATEPAGE_SUCCESS;
+>>  }
+>> diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+>> index b4fbeef..bf54e32 100644
+>> --- a/fs/ubifs/file.c
+>> +++ b/fs/ubifs/file.c
+>> @@ -1468,7 +1468,7 @@ static int ubifs_migrate_page(struct address_spa=
+ce *mapping,
+>>  		SetPagePrivate(newpage);
 >>  	}
 >>
->> +	/* Try to accelerate page migration if it is not specified in mode  */
->> +	if (accel_page_copy)
->> +		mode |= MIGRATE_MT;
+>> -	migrate_page_copy(newpage, page);
+>> +	migrate_page_copy(newpage, page, 0);
 >
-> So even if none of the system calls requested for a multi threaded copy,
-> this setting will override every thing and make it multi threaded.
-
-This only accelerates huge page copies and achieves much higher
-throughput and lower copy time. It should be used most of the time.
-
-As you suggested in other email, I will make this optimization a config option.
-If people enable it, they expect it is working. The sysctl interface just let
-them disable this optimization when they think it is not going to help.
+> Here as well
+>
+>
+> Balbir Singh.
 
 
 --
 Best Regards
 Yan Zi
 
---=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=
+--=_MailMate_6BEE98CB-C8FE-460C-9B23-62E71A4F8271_=
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
 Content-Type: application/pgp-signature; name="signature.asc"
@@ -126,16 +119,16 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Comment: GPGTools - https://gpgtools.org
 
-iQEcBAEBCgAGBQJYPEkyAAoJEEGLLxGcTqbMDngH/2KzJJaiWfPxHEHMCxpTuW4/
-aAppupsbAMPHpIjS0IVBHWuErj6xlek8eDx19kKv3i/xFwfJ6/vkWlH2RTHpRRKJ
-f1kX9lq7ecZ9o/GXGeXFIWNzrroKFSl0KKmYAcxC22txui1IqYis27gBigrWktUH
-cY3Vz6COg/UVIKubhB2PTALItgmVio3Fuk4Bn1R7JCTJ0DAMF2ZHqt8CV7nnT/X+
-XNL4Lzt0qxKbEOT77eTSUH4Ij9Ok6pdzEf5fsq6DBNneQMgdJ+WVTIAgcEXUF9Eq
-vcQMNggsO5PMhSBARR6L82tFF6B9VInJTSLYL/pz6B1WuKE033sS/wlwC2BZTUw=
-=EENO
+iQEcBAEBCgAGBQJYPEmsAAoJEEGLLxGcTqbMEfQH/iGys3IHsRuqE8ka0/SAL9ya
+DkyF+t98fB5luJpzVrrOUh/7Sj3tejY+1CAYmCoHx408dm9MhfS95JULCxMxR5Ny
+MQ3gz1sV6R4PG/BYt74w7w1tN5Q6iD0ha2SOl8KnGp11iNV1H+fvEBQ8Yp09GZIs
+4EiX4yr5AcII6gfsZJJl5+3oZN+C4bscAI2ES6cRN9ZaRO0asb9cYbRPxoCQ1ZC/
+19a1z2lSCxeWOkQgrrJqrfewDG0O75ZXF8j/kwismYWz9PjowDrXifYHey1l2l2I
+NpVMPOjobgdLbvQT3ibKhlZHPZY9+U0u7s8N7ncRHiC1tZ84DbIBg69g7BrbtDI=
+=0I96
 -----END PGP SIGNATURE-----
 
---=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=--
+--=_MailMate_6BEE98CB-C8FE-460C-9B23-62E71A4F8271_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
