@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A68386B02BA
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:24 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j65so260938463iof.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:24 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id t18si19990967itb.43.2016.11.28.11.56.39
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D76166B0279
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:25 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id c21so252665103ioj.5
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:25 -0800 (PST)
+Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
+        by mx.google.com with ESMTPS id i81si41447549ioi.224.2016.11.28.11.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Nov 2016 11:56:39 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 18/33] radix-tree: Improve dump output
-Date: Mon, 28 Nov 2016 13:50:56 -0800
-Message-Id: <1480369871-5271-53-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 06/33] radix tree test suite: Make runs more reproducible
+Date: Mon, 28 Nov 2016 13:50:44 -0800
+Message-Id: <1480369871-5271-41-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,98 +22,107 @@ Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger
 
 From: Matthew Wilcox <willy@infradead.org>
 
-Print the indices of the entries as unsigned (instead of signed) integers
-and print the parent node of each entry to help navigate around larger
-trees where the layout is not quite so obvious.  Print the indices
-covered by a node.  Rearrange the order of fields printed so the indices
-and parents line up for each type of entry.
+Instead of reseeding the random number generator every time around the
+loop in big_gang_check(), seed it at the beginning of execution.  Use
+rand_r() and an independent base seed for each thread in iteration_test()
+so they don't stomp all over each others state.  Since this particular
+test depends on the kernel scheduler, the iteration test can't be
+reproduced based purely on the random seed, but at least it won't pollute
+the other tests.
+
+Print the seed, and allow the seed to be specified so that a run which
+hits a problem can be reproduced.
 
 Signed-off-by: Matthew Wilcox <willy@infradead.org>
 ---
- lib/radix-tree.c | 49 ++++++++++++++++++++++++++-----------------------
- 1 file changed, 26 insertions(+), 23 deletions(-)
+ tools/testing/radix-tree/iteration_check.c | 11 +++++++----
+ tools/testing/radix-tree/main.c            |  9 +++++++--
+ 2 files changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 01ed70b..49b320e 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -213,15 +213,29 @@ radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
- 	return RADIX_TREE_MAP_SIZE;
- }
+diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
+index 9adb8e7..11d570c 100644
+--- a/tools/testing/radix-tree/iteration_check.c
++++ b/tools/testing/radix-tree/iteration_check.c
+@@ -20,6 +20,7 @@
+ #define TAG 0
+ static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_t threads[NUM_THREADS];
++static unsigned int seeds[3];
+ RADIX_TREE(tree, GFP_KERNEL);
+ bool test_complete;
  
-+/*
-+ * The maximum index which can be stored in a radix tree
-+ */
-+static inline unsigned long shift_maxindex(unsigned int shift)
-+{
-+	return (RADIX_TREE_MAP_SIZE << shift) - 1;
-+}
-+
-+static inline unsigned long node_maxindex(struct radix_tree_node *node)
-+{
-+	return shift_maxindex(node->shift);
-+}
-+
- #ifndef __KERNEL__
- static void dump_node(struct radix_tree_node *node, unsigned long index)
- {
- 	unsigned long i;
+@@ -71,7 +72,7 @@ static void *tagged_iteration_fn(void *arg)
+ 				continue;
+ 			}
  
--	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d exceptional %d parent %p\n",
--		node, node->offset,
-+	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d exceptional %d\n",
-+		node, node->offset, index, index | node_maxindex(node),
-+		node->parent,
- 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
--		node->shift, node->count, node->exceptional, node->parent);
-+		node->shift, node->count, node->exceptional);
- 
- 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
- 		unsigned long first = index | (i << node->shift);
-@@ -229,14 +243,16 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
- 		void *entry = node->slots[i];
- 		if (!entry)
- 			continue;
--		if (is_sibling_entry(node, entry)) {
--			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
--					entry, i,
--					*(void **)entry_to_node(entry),
--					first, last);
-+		if (entry == RADIX_TREE_RETRY) {
-+			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
-+					i, first, last, node);
- 		} else if (!radix_tree_is_internal_node(entry)) {
--			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
--					entry, i, first, last);
-+			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
-+					entry, i, first, last, node);
-+		} else if (is_sibling_entry(node, entry)) {
-+			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
-+					entry, i, first, last, node,
-+					*(void **)entry_to_node(entry));
- 		} else {
- 			dump_node(entry_to_node(entry), first);
+-			if (rand() % 50 == 0)
++			if (rand_r(&seeds[0]) % 50 == 0)
+ 				slot = radix_tree_iter_next(&iter);
  		}
-@@ -454,19 +470,6 @@ int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
- 	return __radix_tree_preload(gfp_mask, nr_nodes);
- }
+ 		rcu_read_unlock();
+@@ -111,7 +112,7 @@ static void *untagged_iteration_fn(void *arg)
+ 				continue;
+ 			}
  
--/*
-- * The maximum index which can be stored in a radix tree
-- */
--static inline unsigned long shift_maxindex(unsigned int shift)
--{
--	return (RADIX_TREE_MAP_SIZE << shift) - 1;
--}
--
--static inline unsigned long node_maxindex(struct radix_tree_node *node)
--{
--	return shift_maxindex(node->shift);
--}
--
- static unsigned radix_tree_load_root(struct radix_tree_root *root,
- 		struct radix_tree_node **nodep, unsigned long *maxindex)
+-			if (rand() % 50 == 0)
++			if (rand_r(&seeds[1]) % 50 == 0)
+ 				slot = radix_tree_iter_next(&iter);
+ 		}
+ 		rcu_read_unlock();
+@@ -129,7 +130,7 @@ static void *remove_entries_fn(void *arg)
+ 	while (!test_complete) {
+ 		int pgoff;
+ 
+-		pgoff = rand() % 100;
++		pgoff = rand_r(&seeds[2]) % 100;
+ 
+ 		pthread_mutex_lock(&tree_lock);
+ 		item_delete(&tree, pgoff);
+@@ -146,9 +147,11 @@ void iteration_test(void)
+ 
+ 	printf("Running iteration tests for 10 seconds\n");
+ 
+-	srand(time(0));
+ 	test_complete = false;
+ 
++	for (i = 0; i < 3; i++)
++		seeds[i] = rand();
++
+ 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
+ 		perror("pthread_create");
+ 		exit(1);
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 52ce1ea..2eb6949 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -67,7 +67,6 @@ void big_gang_check(bool long_run)
+ 
+ 	for (i = 0; i < (long_run ? 1000 : 3); i++) {
+ 		__big_gang_check();
+-		srand(time(0));
+ 		printf("%d ", i);
+ 		fflush(stdout);
+ 	}
+@@ -329,12 +328,18 @@ int main(int argc, char **argv)
  {
+ 	bool long_run = false;
+ 	int opt;
++	unsigned int seed = time(NULL);
+ 
+-	while ((opt = getopt(argc, argv, "l")) != -1) {
++	while ((opt = getopt(argc, argv, "ls:")) != -1) {
+ 		if (opt == 'l')
+ 			long_run = true;
++		else if (opt == 's')
++			seed = strtoul(optarg, NULL, 0);
+ 	}
+ 
++	printf("random seed %u\n", seed);
++	srand(seed);
++
+ 	rcu_register_thread();
+ 	radix_tree_init();
+ 
 -- 
 2.10.2
 
