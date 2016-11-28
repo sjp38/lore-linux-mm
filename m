@@ -1,94 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DA36B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:23:19 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id xy5so18859986wjc.0
-        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:23:19 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id o4si11552558wmb.73.2016.11.27.23.23.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Nov 2016 23:23:17 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id g23so17371391wme.1
-        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:23:17 -0800 (PST)
-Date: Mon, 28 Nov 2016 08:23:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
-Message-ID: <20161128072315.GC14788@dhcp22.suse.cz>
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org>
- <20161122160629.uzt2u6m75ash4ved@merlins.org>
- <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
- <20161123063410.GB2864@dhcp22.suse.cz>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E9A76B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:36:57 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id x23so345059413pgx.6
+        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:36:57 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id v23si53926686pgc.42.2016.11.27.23.36.55
+        for <linux-mm@kvack.org>;
+        Sun, 27 Nov 2016 23:36:56 -0800 (PST)
+Date: Mon, 28 Nov 2016 16:40:02 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [patch] mm, slab: faster active and free stats
+Message-ID: <20161128074001.GA32105@js1304-P5Q-DELUXE>
+References: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com>
+ <20161108151727.b64035da825c69bced88b46d@linux-foundation.org>
+ <alpine.DEB.2.10.1611091637460.125130@chino.kir.corp.google.com>
+ <20161111055326.GA16336@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161123063410.GB2864@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc MERLIN <marc@merlins.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Marc, could you try this patch please? I think it should be pretty clear
-it should help you but running it through your use case would be more
-than welcome before I ask Greg to take this to the 4.8 stable tree.
-
-Thanks!
-
-On Wed 23-11-16 07:34:10, Michal Hocko wrote:
-[...]
-> commit b2ccdcb731b666aa28f86483656c39c5e53828c7
-> Author: Michal Hocko <mhocko@suse.com>
-> Date:   Wed Nov 23 07:26:30 2016 +0100
+On Fri, Nov 11, 2016 at 02:30:39AM -0800, David Rientjes wrote:
+> On Fri, 11 Nov 2016, Joonsoo Kim wrote:
 > 
->     mm, oom: stop pre-mature high-order OOM killer invocations
->     
->     31e49bfda184 ("mm, oom: protect !costly allocations some more for
->     !CONFIG_COMPACTION") was an attempt to reduce chances of pre-mature OOM
->     killer invocation for high order requests. It seemed to work for most
->     users just fine but it is far from bullet proof and obviously not
->     sufficient for Marc who has reported pre-mature OOM killer invocations
->     with 4.8 based kernels. 4.9 will all the compaction improvements seems
->     to be behaving much better but that would be too intrusive to backport
->     to 4.8 stable kernels. Instead this patch simply never declares OOM for
->     !costly high order requests. We rely on order-0 requests to do that in
->     case we are really out of memory. Order-0 requests are much more common
->     and so a risk of a livelock without any way forward is highly unlikely.
->     
->     Reported-by: Marc MERLIN <marc@merlins.org>
->     Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > Hello, David.
+> > 
+> > Maintaining acitve/free_slab counters looks so complex. And, I think
+> > that we don't need to maintain these counters for faster slabinfo.
+> > Key point is to remove iterating n->slabs_partial list.
+> > 
+> > We can calculate active slab/object by following equation as you did in
+> > this patch.
+> > 
+> > active_slab(n) = n->num_slab - the number of free_slab
+> > active_object(n) = n->num_slab * cachep->num - n->free_objects
+> > 
+> > To get the number of free_slab, we need to iterate n->slabs_free list
+> > but I guess it would be small enough.
+> > 
+> > If you don't like to iterate n->slabs_free list in slabinfo, just
+> > maintaining the number of slabs_free would be enough.
+> > 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a2214c64ed3c..7401e996009a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3161,6 +3161,16 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
->  	if (!order || order > PAGE_ALLOC_COSTLY_ORDER)
->  		return false;
->  
-> +#ifdef CONFIG_COMPACTION
-> +	/*
-> +	 * This is a gross workaround to compensate a lack of reliable compaction
-> +	 * operation. We cannot simply go OOM with the current state of the compaction
-> +	 * code because this can lead to pre mature OOM declaration.
-> +	 */
-> +	if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> +		return true;
-> +#endif
-> +
->  	/*
->  	 * There are setups with compaction disabled which would prefer to loop
->  	 * inside the allocator rather than hit the oom killer prematurely.
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Hi Joonsoo,
+> 
+> It's a good point, although I don't think the patch has overly complex 
+> logic to keep track of slab state.
+> 
+> We don't prefer to do any iteration in get_slabinfo() since users can 
+> read /proc/slabinfo constantly; it's better to just settle the stats when 
+> slab state changes instead of repeating an expensive operation over and 
+> over if someone is running slabtop(1) or /proc/slabinfo is scraped 
+> regularly for stats.
+> 
+> That said, I imagine there are more clever ways to arrive at the same 
+> answer, and you bring up a good point about maintaining a n->num_slabs and 
+> n->free_slabs rather than n->active_slabs and n->free_slabs.
+> 
+> I don't feel strongly about either approach, but I think some improvement, 
+> such as what this patch provides, is needed to prevent how expensive 
+> simply reading /proc/slabinfo can be.
 
--- 
-Michal Hocko
-SUSE Labs
+Hello,
+
+Sorry for long delay.
+I agree that this improvement is needed. Could you try the approach
+that maintains n->num_slabs and n->free_slabs? I guess that it would be
+simpler than this patch so more maintainable.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
