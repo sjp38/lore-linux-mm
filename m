@@ -1,128 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA966B02BF
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E1616B02C0
 	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:26 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id k19so258847868iod.4
+Received: by mail-io0-f199.google.com with SMTP id r94so259023603ioe.7
         for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:26 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id r3si20005765ita.25.2016.11.28.11.56.38
+        by mx.google.com with ESMTPS id h190si19920428ite.62.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 06/33] radix tree test suite: Make runs more reproducible
-Date: Mon, 28 Nov 2016 13:50:10 -0800
-Message-Id: <1480369871-5271-7-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 19/33] btrfs: Fix race in btrfs_free_dummy_fs_info()
+Date: Mon, 28 Nov 2016 13:50:57 -0800
+Message-Id: <1480369871-5271-54-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@infradead.org>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Instead of reseeding the random number generator every time around the
-loop in big_gang_check(), seed it at the beginning of execution.  Use
-rand_r() and an independent base seed for each thread in iteration_test()
-so they don't stomp all over each others state.  Since this particular
-test depends on the kernel scheduler, the iteration test can't be
-reproduced based purely on the random seed, but at least it won't pollute
-the other tests.
+We drop the lock which protects the radix tree, so we must call
+radix_tree_iter_next() in order to avoid a modification to the tree
+invalidating the iterator state.
 
-Print the seed, and allow the seed to be specified so that a run which
-hits a problem can be reproduced.
-
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/iteration_check.c | 11 +++++++----
- tools/testing/radix-tree/main.c            |  9 +++++++--
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ fs/btrfs/tests/btrfs-tests.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
-index 9adb8e7..11d570c 100644
---- a/tools/testing/radix-tree/iteration_check.c
-+++ b/tools/testing/radix-tree/iteration_check.c
-@@ -20,6 +20,7 @@
- #define TAG 0
- static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
- static pthread_t threads[NUM_THREADS];
-+static unsigned int seeds[3];
- RADIX_TREE(tree, GFP_KERNEL);
- bool test_complete;
- 
-@@ -71,7 +72,7 @@ static void *tagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand() % 50 == 0)
-+			if (rand_r(&seeds[0]) % 50 == 0)
- 				slot = radix_tree_iter_next(&iter);
+diff --git a/fs/btrfs/tests/btrfs-tests.c b/fs/btrfs/tests/btrfs-tests.c
+index bf62ad9..73076a0 100644
+--- a/fs/btrfs/tests/btrfs-tests.c
++++ b/fs/btrfs/tests/btrfs-tests.c
+@@ -162,6 +162,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
+ 				slot = radix_tree_iter_retry(&iter);
+ 			continue;
  		}
- 		rcu_read_unlock();
-@@ -111,7 +112,7 @@ static void *untagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand() % 50 == 0)
-+			if (rand_r(&seeds[1]) % 50 == 0)
- 				slot = radix_tree_iter_next(&iter);
- 		}
- 		rcu_read_unlock();
-@@ -129,7 +130,7 @@ static void *remove_entries_fn(void *arg)
- 	while (!test_complete) {
- 		int pgoff;
- 
--		pgoff = rand() % 100;
-+		pgoff = rand_r(&seeds[2]) % 100;
- 
- 		pthread_mutex_lock(&tree_lock);
- 		item_delete(&tree, pgoff);
-@@ -146,9 +147,11 @@ void iteration_test(void)
- 
- 	printf("Running iteration tests for 10 seconds\n");
- 
--	srand(time(0));
- 	test_complete = false;
- 
-+	for (i = 0; i < 3; i++)
-+		seeds[i] = rand();
-+
- 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
- 		perror("pthread_create");
- 		exit(1);
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 52ce1ea..2eb6949 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -67,7 +67,6 @@ void big_gang_check(bool long_run)
- 
- 	for (i = 0; i < (long_run ? 1000 : 3); i++) {
- 		__big_gang_check();
--		srand(time(0));
- 		printf("%d ", i);
- 		fflush(stdout);
- 	}
-@@ -329,12 +328,18 @@ int main(int argc, char **argv)
- {
- 	bool long_run = false;
- 	int opt;
-+	unsigned int seed = time(NULL);
- 
--	while ((opt = getopt(argc, argv, "l")) != -1) {
-+	while ((opt = getopt(argc, argv, "ls:")) != -1) {
- 		if (opt == 'l')
- 			long_run = true;
-+		else if (opt == 's')
-+			seed = strtoul(optarg, NULL, 0);
- 	}
- 
-+	printf("random seed %u\n", seed);
-+	srand(seed);
-+
- 	rcu_register_thread();
- 	radix_tree_init();
- 
++		slot = radix_tree_iter_next(&iter);
+ 		spin_unlock(&fs_info->buffer_lock);
+ 		free_extent_buffer_stale(eb);
+ 		spin_lock(&fs_info->buffer_lock);
 -- 
 2.10.2
 
