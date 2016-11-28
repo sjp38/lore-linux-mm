@@ -1,41 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0213E6B025E
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:21:57 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so37429135wmu.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:21:56 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id i3si54597335wja.200.2016.11.28.06.21.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7237B6B0261
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:31:31 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 3so364387731pgd.3
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:31:31 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0118.outbound.protection.outlook.com. [104.47.41.118])
+        by mx.google.com with ESMTPS id 3si26800225plz.158.2016.11.28.06.31.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 06:21:55 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id a20so19290585wme.2
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:21:55 -0800 (PST)
-Date: Mon, 28 Nov 2016 15:21:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 04/12] mm: thp: introduce
- CONFIG_ARCH_ENABLE_THP_MIGRATION
-Message-ID: <20161128142154.GM14788@dhcp22.suse.cz>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 06:31:30 -0800 (PST)
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH 2/5] mm: migrate: Change migrate_mode to support
+ combination migration modes.
+Date: Mon, 28 Nov 2016 09:31:23 -0500
+Message-ID: <A850A74A-3F72-4585-805C-25C72631C692@cs.rutgers.edu>
+In-Reply-To: <5836A1A5.8050102@linux.vnet.ibm.com>
+References: <20161122162530.2370-1-zi.yan@sent.com>
+ <20161122162530.2370-3-zi.yan@sent.com> <5836A1A5.8050102@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: multipart/signed;
+	boundary="=_MailMate_EE240745-9416-408A-9040-CE254C8CE96B_=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, Zi Yan <ziy@nvidia.com>
 
-On Tue 08-11-16 08:31:49, Naoya Horiguchi wrote:
-> Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
-> functionality to x86_64, which should be safer at the first step.
+--=_MailMate_EE240745-9416-408A-9040-CE254C8CE96B_=
+Content-Type: text/plain
 
-Please make sure to describe why this has to be arch specific and what
-are arches supposed to provide in order to enable this option.
--- 
-Michal Hocko
-SUSE Labs
+On 24 Nov 2016, at 3:15, Anshuman Khandual wrote:
+
+> On 11/22/2016 09:55 PM, Zi Yan wrote:
+>> From: Zi Yan <zi.yan@cs.rutgers.edu>
+>>
+>> From: Zi Yan <ziy@nvidia.com>
+>>
+>> No functionality is changed.
+>
+> The commit message need to contains more details like it changes
+> the enum declaration from numbers to bit positions, where all it
+> changes existing code like compaction and migration.
+>
+
+Sure. I will add more detail description in the next version.
+
+>>
+>> Signed-off-by: Zi Yan <ziy@nvidia.com>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>
+> Like last patch please fix the author details and signed offs.
+>
+
+Got it.
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_EE240745-9416-408A-9040-CE254C8CE96B_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJYPD+7AAoJEEGLLxGcTqbM8VoH/0gHTR8ziyioYeWK4hSMLuuV
+W1rcui2s3iRc2YF/AH2GzBsxDKYUZSpTSj1nB9aZNj1k+O0BRyz5n/D50rCgc0nR
+xosG0/6Ja20YPOM4Zn2d0hLBg1PLW8KpHHZfr5OzoP0bI2BnSiBlzicZFpG/P+P8
+FV7MC+44U9uqBG1A6cepBqvL9aJNYjdX7ooDawTTZ2aX8UFGaltp4Z6SGDILlkqx
+ozqW18+nnspPQ0K6Ckgar4pAhD84j8mRLJtKoQMued1LdKIdyp2d1TYlWYf5mFSV
+zvUG+Gmou3t7/J2KgMYu1cgGdFeOVkv/uvesbNNBLYIiyGaKhXrzZwbN++63wS0=
+=T/sO
+-----END PGP SIGNATURE-----
+
+--=_MailMate_EE240745-9416-408A-9040-CE254C8CE96B_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
