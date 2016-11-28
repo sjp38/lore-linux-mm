@@ -1,87 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B8F156B0293
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:57:54 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id j92so262098313ioi.2
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:57:54 -0800 (PST)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B006B0294
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:57:56 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id j65so260918846iof.1
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:57:56 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id q7si19932006itb.45.2016.11.28.11.56.38
+        by mx.google.com with ESMTPS id h190si19920428ite.62.2016.11.28.11.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 11:56:38 -0800 (PST)
+        Mon, 28 Nov 2016 11:56:39 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 17/33] radix-tree: Make radix_tree_find_next_bit more useful
-Date: Mon, 28 Nov 2016 13:50:55 -0800
-Message-Id: <1480369871-5271-52-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 30/33] rxrpc: Abstract away knowledge of IDR internals
+Date: Mon, 28 Nov 2016 13:51:08 -0800
+Message-Id: <1480369871-5271-65-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@linux.intel.com>
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Since this function is specialised to the radix tree, pass in the node
-and tag to calculate the address of the bitmap in radix_tree_find_next_bit()
-instead of the caller.  Likewise, there is no need to pass in the size of
-the bitmap.
+Add idr_get_cursor() / idr_set_cursor() APIs, and remove the reference
+to IDR_SIZE.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Reviewed-by: David Howells <dhowells@redhat.com>
 ---
- lib/radix-tree.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ include/linux/idr.h     | 26 ++++++++++++++++++++++++++
+ net/rxrpc/af_rxrpc.c    | 11 ++++++-----
+ net/rxrpc/conn_client.c |  4 ++--
+ 3 files changed, 34 insertions(+), 7 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index c72da89..01ed70b 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -190,13 +190,12 @@ static inline int any_tag_set(struct radix_tree_node *node, unsigned int tag)
-  * Returns next bit offset, or size if nothing found.
-  */
- static __always_inline unsigned long
--radix_tree_find_next_bit(const unsigned long *addr,
--			 unsigned long size, unsigned long offset)
-+radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
-+			 unsigned long offset)
+diff --git a/include/linux/idr.h b/include/linux/idr.h
+index 3639a28..1eb755f 100644
+--- a/include/linux/idr.h
++++ b/include/linux/idr.h
+@@ -56,6 +56,32 @@ struct idr {
+ #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
+ 
+ /**
++ * idr_get_cursor - Return the current position of the cyclic allocator
++ * @idr: idr handle
++ *
++ * The value returned is the value that will be next returned from
++ * idr_alloc_cyclic() if it is free (otherwise the search will start from
++ * this position).
++ */
++static inline unsigned int idr_get_cursor(struct idr *idr)
++{
++	return READ_ONCE(idr->cur);
++}
++
++/**
++ * idr_set_cursor - Set the current position of the cyclic allocator
++ * @idr: idr handle
++ * @val: new position
++ *
++ * The next call to idr_alloc_cyclic() will return @val if it is free
++ * (otherwise the search will start from this position).
++ */
++static inline void idr_set_cursor(struct idr *idr, unsigned int val)
++{
++	WRITE_ONCE(idr->cur, val);
++}
++
++/**
+  * DOC: idr sync
+  * idr synchronization (stolen from radix-tree.h)
+  *
+diff --git a/net/rxrpc/af_rxrpc.c b/net/rxrpc/af_rxrpc.c
+index 2d59c9b..5f63f6d 100644
+--- a/net/rxrpc/af_rxrpc.c
++++ b/net/rxrpc/af_rxrpc.c
+@@ -762,16 +762,17 @@ static const struct net_proto_family rxrpc_family_ops = {
+ static int __init af_rxrpc_init(void)
  {
--	if (!__builtin_constant_p(size))
--		return find_next_bit(addr, size, offset);
-+	const unsigned long *addr = node->tags[tag];
+ 	int ret = -1;
++	unsigned int tmp;
  
--	if (offset < size) {
-+	if (offset < RADIX_TREE_MAP_SIZE) {
- 		unsigned long tmp;
+ 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
  
- 		addr += offset / BITS_PER_LONG;
-@@ -204,14 +203,14 @@ radix_tree_find_next_bit(const unsigned long *addr,
- 		if (tmp)
- 			return __ffs(tmp) + offset;
- 		offset = (offset + BITS_PER_LONG) & ~(BITS_PER_LONG - 1);
--		while (offset < size) {
-+		while (offset < RADIX_TREE_MAP_SIZE) {
- 			tmp = *++addr;
- 			if (tmp)
- 				return __ffs(tmp) + offset;
- 			offset += BITS_PER_LONG;
- 		}
- 	}
--	return size;
-+	return RADIX_TREE_MAP_SIZE;
- }
+ 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
+ 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
+-	get_random_bytes(&rxrpc_client_conn_ids.cur,
+-			 sizeof(rxrpc_client_conn_ids.cur));
+-	rxrpc_client_conn_ids.cur &= 0x3fffffff;
+-	if (rxrpc_client_conn_ids.cur == 0)
+-		rxrpc_client_conn_ids.cur = 1;
++	get_random_bytes(&tmp, sizeof(tmp));
++	tmp &= 0x3fffffff;
++	if (tmp == 0)
++		tmp = 1;
++	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
  
- #ifndef __KERNEL__
-@@ -1159,9 +1158,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- 				return NULL;
+ 	ret = -ENOMEM;
+ 	rxrpc_call_jar = kmem_cache_create(
+diff --git a/net/rxrpc/conn_client.c b/net/rxrpc/conn_client.c
+index 60ef960..6cbcdcc 100644
+--- a/net/rxrpc/conn_client.c
++++ b/net/rxrpc/conn_client.c
+@@ -263,12 +263,12 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
+ 	 * times the maximum number of client conns away from the current
+ 	 * allocation point to try and keep the IDs concentrated.
+ 	 */
+-	id_cursor = READ_ONCE(rxrpc_client_conn_ids.cur);
++	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
+ 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
+ 	distance = id - id_cursor;
+ 	if (distance < 0)
+ 		distance = -distance;
+-	limit = round_up(rxrpc_max_client_connections, IDR_SIZE) * 4;
++	limit = max(rxrpc_max_client_connections * 4, 1024U);
+ 	if (distance > limit)
+ 		goto mark_dont_reuse;
  
- 			if (flags & RADIX_TREE_ITER_TAGGED)
--				offset = radix_tree_find_next_bit(
--						node->tags[tag],
--						RADIX_TREE_MAP_SIZE,
-+				offset = radix_tree_find_next_bit(node, tag,
- 						offset + 1);
- 			else
- 				while (++offset	< RADIX_TREE_MAP_SIZE) {
 -- 
 2.10.2
 
