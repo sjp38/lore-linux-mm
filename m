@@ -1,93 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3576B0260
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E01AC6B0253
 	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:56:38 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id j65so260854990iof.1
+Received: by mail-io0-f198.google.com with SMTP id r94so258944421ioe.7
         for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id i67si19960734itg.117.2016.11.28.11.56.38
+        by mx.google.com with ESMTPS id v83si41512764iod.8.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 01/33] radix tree test suite: Fix compilation
-Date: Mon, 28 Nov 2016 13:50:05 -0800
-Message-Id: <1480369871-5271-2-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 28/33] idr: Add ida_is_empty
+Date: Mon, 28 Nov 2016 13:50:32 -0800
+Message-Id: <1480369871-5271-29-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Patch "lib/radix-tree: Convert to hotplug state machine" breaks the
-test suite as it adds a call to cpuhp_setup_state_nocalls() which is
-not currently emulated in the test suite.  Add it, and delete the
-emulation of the old CPU hotplug mechanism.
+Two of the USB Gadgets were poking around in the internals of struct ida
+in order to determine if it is empty.  Add the appropriate abstraction.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Acked-by: Konstantin Khlebnikov <koct9i@gmail.com>
 ---
- lib/radix-tree.c                          |  1 -
- tools/testing/radix-tree/linux/cpu.h      | 22 +---------------------
- tools/testing/radix-tree/linux/notifier.h |  8 --------
- 3 files changed, 1 insertion(+), 30 deletions(-)
- delete mode 100644 tools/testing/radix-tree/linux/notifier.h
+ drivers/usb/gadget/function/f_hid.c     | 6 +++---
+ drivers/usb/gadget/function/f_printer.c | 6 +++---
+ include/linux/idr.h                     | 5 +++++
+ 3 files changed, 11 insertions(+), 6 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 2e8c6f7..e0290d1 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -30,7 +30,6 @@
- #include <linux/percpu.h>
- #include <linux/slab.h>
- #include <linux/kmemleak.h>
--#include <linux/notifier.h>
- #include <linux/cpu.h>
- #include <linux/string.h>
- #include <linux/bitops.h>
-diff --git a/tools/testing/radix-tree/linux/cpu.h b/tools/testing/radix-tree/linux/cpu.h
-index 7cf4121..a45530d 100644
---- a/tools/testing/radix-tree/linux/cpu.h
-+++ b/tools/testing/radix-tree/linux/cpu.h
-@@ -1,21 +1 @@
--
--#define hotcpu_notifier(a, b)
--
--#define CPU_ONLINE		0x0002 /* CPU (unsigned)v is up */
--#define CPU_UP_PREPARE		0x0003 /* CPU (unsigned)v coming up */
--#define CPU_UP_CANCELED		0x0004 /* CPU (unsigned)v NOT coming up */
--#define CPU_DOWN_PREPARE	0x0005 /* CPU (unsigned)v going down */
--#define CPU_DOWN_FAILED		0x0006 /* CPU (unsigned)v NOT going down */
--#define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
--#define CPU_POST_DEAD		0x0009 /* CPU (unsigned)v dead, cpu_hotplug
--					* lock is dropped */
--#define CPU_BROKEN		0x000C /* CPU (unsigned)v did not die properly,
--					* perhaps due to preemption. */
--#define CPU_TASKS_FROZEN	0x0010
--
--#define CPU_ONLINE_FROZEN	(CPU_ONLINE | CPU_TASKS_FROZEN)
--#define CPU_UP_PREPARE_FROZEN	(CPU_UP_PREPARE | CPU_TASKS_FROZEN)
--#define CPU_UP_CANCELED_FROZEN  (CPU_UP_CANCELED | CPU_TASKS_FROZEN)
--#define CPU_DOWN_PREPARE_FROZEN (CPU_DOWN_PREPARE | CPU_TASKS_FROZEN)
--#define CPU_DOWN_FAILED_FROZEN  (CPU_DOWN_FAILED | CPU_TASKS_FROZEN)
--#define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
-+#define cpuhp_setup_state_nocalls(a, b, c, d)	(0)
-diff --git a/tools/testing/radix-tree/linux/notifier.h b/tools/testing/radix-tree/linux/notifier.h
-deleted file mode 100644
-index 70e4797..0000000
---- a/tools/testing/radix-tree/linux/notifier.h
-+++ /dev/null
-@@ -1,8 +0,0 @@
--#ifndef _NOTIFIER_H
--#define _NOTIFIER_H
--
--struct notifier_block;
--
--#define NOTIFY_OK              0x0001          /* Suits me */
--
--#endif
+diff --git a/drivers/usb/gadget/function/f_hid.c b/drivers/usb/gadget/function/f_hid.c
+index 7abd70b..3151d2a 100644
+--- a/drivers/usb/gadget/function/f_hid.c
++++ b/drivers/usb/gadget/function/f_hid.c
+@@ -905,7 +905,7 @@ static void hidg_free_inst(struct usb_function_instance *f)
+ 	mutex_lock(&hidg_ida_lock);
+ 
+ 	hidg_put_minor(opts->minor);
+-	if (idr_is_empty(&hidg_ida.idr))
++	if (ida_is_empty(&hidg_ida))
+ 		ghid_cleanup();
+ 
+ 	mutex_unlock(&hidg_ida_lock);
+@@ -931,7 +931,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
+ 
+ 	mutex_lock(&hidg_ida_lock);
+ 
+-	if (idr_is_empty(&hidg_ida.idr)) {
++	if (ida_is_empty(&hidg_ida)) {
+ 		status = ghid_setup(NULL, HIDG_MINORS);
+ 		if (status)  {
+ 			ret = ERR_PTR(status);
+@@ -944,7 +944,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
+ 	if (opts->minor < 0) {
+ 		ret = ERR_PTR(opts->minor);
+ 		kfree(opts);
+-		if (idr_is_empty(&hidg_ida.idr))
++		if (ida_is_empty(&hidg_ida))
+ 			ghid_cleanup();
+ 		goto unlock;
+ 	}
+diff --git a/drivers/usb/gadget/function/f_printer.c b/drivers/usb/gadget/function/f_printer.c
+index 0de36cd..8054da9 100644
+--- a/drivers/usb/gadget/function/f_printer.c
++++ b/drivers/usb/gadget/function/f_printer.c
+@@ -1265,7 +1265,7 @@ static void gprinter_free_inst(struct usb_function_instance *f)
+ 	mutex_lock(&printer_ida_lock);
+ 
+ 	gprinter_put_minor(opts->minor);
+-	if (idr_is_empty(&printer_ida.idr))
++	if (ida_is_empty(&printer_ida))
+ 		gprinter_cleanup();
+ 
+ 	mutex_unlock(&printer_ida_lock);
+@@ -1289,7 +1289,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
+ 
+ 	mutex_lock(&printer_ida_lock);
+ 
+-	if (idr_is_empty(&printer_ida.idr)) {
++	if (ida_is_empty(&printer_ida)) {
+ 		status = gprinter_setup(PRINTER_MINORS);
+ 		if (status) {
+ 			ret = ERR_PTR(status);
+@@ -1302,7 +1302,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
+ 	if (opts->minor < 0) {
+ 		ret = ERR_PTR(opts->minor);
+ 		kfree(opts);
+-		if (idr_is_empty(&printer_ida.idr))
++		if (ida_is_empty(&printer_ida))
+ 			gprinter_cleanup();
+ 		goto unlock;
+ 	}
+diff --git a/include/linux/idr.h b/include/linux/idr.h
+index 083d61e..3639a28 100644
+--- a/include/linux/idr.h
++++ b/include/linux/idr.h
+@@ -195,6 +195,11 @@ static inline int ida_get_new(struct ida *ida, int *p_id)
+ 	return ida_get_new_above(ida, 0, p_id);
+ }
+ 
++static inline bool ida_is_empty(struct ida *ida)
++{
++	return idr_is_empty(&ida->idr);
++}
++
+ void __init idr_init_cache(void);
+ 
+ #endif /* __IDR_H__ */
 -- 
 2.10.2
 
