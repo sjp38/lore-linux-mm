@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E9A76B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:36:57 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x23so345059413pgx.6
-        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:36:57 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AFB6D6B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:38:43 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id j128so203078781pfg.4
+        for <linux-mm@kvack.org>; Sun, 27 Nov 2016 23:38:43 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v23si53926686pgc.42.2016.11.27.23.36.55
+        by mx.google.com with ESMTP id 126si53925040pgb.180.2016.11.27.23.38.42
         for <linux-mm@kvack.org>;
-        Sun, 27 Nov 2016 23:36:56 -0800 (PST)
-Date: Mon, 28 Nov 2016 16:40:02 +0900
+        Sun, 27 Nov 2016 23:38:42 -0800 (PST)
+Date: Mon, 28 Nov 2016 16:41:41 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [patch] mm, slab: faster active and free stats
-Message-ID: <20161128074001.GA32105@js1304-P5Q-DELUXE>
-References: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com>
- <20161108151727.b64035da825c69bced88b46d@linux-foundation.org>
- <alpine.DEB.2.10.1611091637460.125130@chino.kir.corp.google.com>
- <20161111055326.GA16336@js1304-P5Q-DELUXE>
- <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
+Subject: Re: [PATCH v6 0/6] Introduce ZONE_CMA
+Message-ID: <20161128074141.GB32105@js1304-P5Q-DELUXE>
+References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20161107062501.GB21159@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
+In-Reply-To: <20161107062501.GB21159@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 11, 2016 at 02:30:39AM -0800, David Rientjes wrote:
-> On Fri, 11 Nov 2016, Joonsoo Kim wrote:
-> 
-> > Hello, David.
+On Mon, Nov 07, 2016 at 03:25:01PM +0900, Joonsoo Kim wrote:
+> On Fri, Oct 14, 2016 at 12:03:10PM +0900, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > > 
-> > Maintaining acitve/free_slab counters looks so complex. And, I think
-> > that we don't need to maintain these counters for faster slabinfo.
-> > Key point is to remove iterating n->slabs_partial list.
+> > Hello,
 > > 
-> > We can calculate active slab/object by following equation as you did in
-> > this patch.
-> > 
-> > active_slab(n) = n->num_slab - the number of free_slab
-> > active_object(n) = n->num_slab * cachep->num - n->free_objects
-> > 
-> > To get the number of free_slab, we need to iterate n->slabs_free list
-> > but I guess it would be small enough.
-> > 
-> > If you don't like to iterate n->slabs_free list in slabinfo, just
-> > maintaining the number of slabs_free would be enough.
-> > 
+> > Changes from v5
+> > o Add acked/reviewed-by tag from Vlastimil and Aneesh
+> > o Rebase on next-20161013
+> > o Cosmetic change on patch 1
+> > o Optimize span of ZONE_CMA on multiple node system
 > 
-> Hi Joonsoo,
+> Hello, Andrew.
 > 
-> It's a good point, although I don't think the patch has overly complex 
-> logic to keep track of slab state.
+> I got some acked/reviewed-by tags from some of main MM developers who
+> are actually familiar/associated with this change. Could you merge
+> this patchset to your tree to get more test coverage?
 > 
-> We don't prefer to do any iteration in get_slabinfo() since users can 
-> read /proc/slabinfo constantly; it's better to just settle the stats when 
-> slab state changes instead of repeating an expensive operation over and 
-> over if someone is running slabtop(1) or /proc/slabinfo is scraped 
-> regularly for stats.
-> 
-> That said, I imagine there are more clever ways to arrive at the same 
-> answer, and you bring up a good point about maintaining a n->num_slabs and 
-> n->free_slabs rather than n->active_slabs and n->free_slabs.
-> 
-> I don't feel strongly about either approach, but I think some improvement, 
-> such as what this patch provides, is needed to prevent how expensive 
-> simply reading /proc/slabinfo can be.
+> If I need to do more things to merge this patchset, please let me know
+> about it.
 
-Hello,
+Hello, Andrew.
 
-Sorry for long delay.
-I agree that this improvement is needed. Could you try the approach
-that maintains n->num_slabs and n->free_slabs? I guess that it would be
-simpler than this patch so more maintainable.
+Could I get your answer about this patchset?
 
 Thanks.
 
