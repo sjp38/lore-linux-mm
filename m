@@ -1,59 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 42EE76B02BF
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 16:07:22 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id s63so39671043wms.7
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 13:07:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dy10si56119383wjb.80.2016.11.28.13.07.21
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 551AC6B02C2
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 16:10:16 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id t125so145619902ywc.4
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 13:10:16 -0800 (PST)
+Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
+        by mx.google.com with ESMTPS id x4si15222520ywf.219.2016.11.28.13.10.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 13:07:21 -0800 (PST)
-Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v2)
-References: <20161117002851.C7BACB98@viggo.jf.intel.com>
- <8769d52a-de0b-8c98-1e0b-e5305c5c02f3@suse.cz>
- <cf887736-2a62-bce5-0d72-0455a642cd99@sr71.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <763d778a-2637-39e0-bcde-265055cf1c18@suse.cz>
-Date: Mon, 28 Nov 2016 22:07:07 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 13:10:15 -0800 (PST)
+Received: by mail-yw0-x242.google.com with SMTP id s68so10901378ywg.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 13:10:15 -0800 (PST)
+Date: Mon, 28 Nov 2016 16:10:14 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [mm v2 0/3] Support memory cgroup hotplug
+Message-ID: <20161128211014.GB12143@htj.duckdns.org>
+References: <1479875814-11938-1-git-send-email-bsingharora@gmail.com>
+ <20161123072543.GD2864@dhcp22.suse.cz>
+ <342ebcca-b54c-4bc6-906b-653042caae06@gmail.com>
+ <20161123080744.GG2864@dhcp22.suse.cz>
+ <61dc32fd-2802-6deb-24cf-fa11b5b31532@gmail.com>
+ <20161123092830.GH2864@dhcp22.suse.cz>
+ <962ac541-55c4-de09-59a3-4947c394eee6@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <cf887736-2a62-bce5-0d72-0455a642cd99@sr71.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <962ac541-55c4-de09-59a3-4947c394eee6@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On 11/28/2016 05:52 PM, Dave Hansen wrote:
-> On 11/24/2016 06:22 AM, Vlastimil Babka wrote:
->> On 11/17/2016 01:28 AM, Dave Hansen wrote:
->>> @@ -702,11 +707,13 @@ static int smaps_hugetlb_range(pte_t *pt
->>>      }
->>>      if (page) {
->>>          int mapcount = page_mapcount(page);
->>> +        unsigned long hpage_size = huge_page_size(hstate_vma(vma));
->>>
->>> +        mss->rss_pud += hpage_size;
->>
->> This hardcoded pud doesn't look right, doesn't the pmd/pud depend on
->> hpage_size?
-> 
-> Urg, nope.  Thanks for noticing that!  I think we'll need something
-> along the lines of:
-> 
->                 if (hpage_size == PUD_SIZE)
->                         mss->rss_pud += PUD_SIZE;
->                 else if (hpage_size == PMD_SIZE)
->                         mss->rss_pmd += PMD_SIZE;
+On Thu, Nov 24, 2016 at 12:05:12AM +1100, Balbir Singh wrote:
+> On my desktop NODES_SHIFT is 6, many distro kernels have it a 9. I've known
+> of solutions that use fake NUMA for partitioning and need as many nodes as
+> possible.
 
-Sounds better, although I wonder whether there are some weird arches
-supporting hugepage sizes that don't match page table levels. I recall
-that e.g. MIPS could do arbitrary size, but dunno if the kernel supports
-that...
+It was a crude kludge that people used before memcg.  If people still
+use it, that's fine but we don't want to optimize / make code
+complicated for it, so let's please put away this part of
+justification.
 
-> I'll respin and resend.
-> 
+It's understandable that some kernels want to have large NODES_SHIFT
+to support wide range of configurations but if that makes wastage too
+high, the simpler solution is updating the users to use the rumtime
+detected possible number / mask instead of the compile time
+NODES_SHIFT.  Note that we do exactly the same thing for per-cpu
+things - we configure high max but do all operations on what's
+possible on the system.
+
+NUMA code already has possible detection.  Why not simply make memcg
+use those instead of MAX_NUMNODES like how we use nr_cpu_ids instead
+of NR_CPUS?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
