@@ -1,71 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6826B0253
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:05:17 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a8so215339931pfg.0
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:05:17 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q17si55459136pgh.96.2016.11.28.07.05.16
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C9D6B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:11:56 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so363786599pgd.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:11:56 -0800 (PST)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0091.outbound.protection.outlook.com. [104.47.37.91])
+        by mx.google.com with ESMTPS id a30si26966215pli.303.2016.11.28.07.11.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 07:05:16 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uASF3wpA139036
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:05:15 -0500
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 270ns459em-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:05:14 -0500
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 28 Nov 2016 08:05:12 -0700
-Date: Mon, 28 Nov 2016 07:05:09 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <d6981bac-8e97-b482-98c0-40949db03ca3@kernelpanic.ru>
- <20161124133019.GE3612@linux.vnet.ibm.com>
- <de88a72a-f861-b51f-9fb3-4265378702f1@kernelpanic.ru>
- <20161125212000.GI31360@linux.vnet.ibm.com>
- <20161128095825.GI14788@dhcp22.suse.cz>
- <20161128105425.GY31360@linux.vnet.ibm.com>
- <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
- <20161128143435.GC3924@linux.vnet.ibm.com>
- <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 07:11:55 -0800 (PST)
+From: Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH 5/5] mm: migrate: Add vm.accel_page_copy in sysfs to
+ control whether to use multi-threaded to accelerate page copy.
+Date: Mon, 28 Nov 2016 10:11:46 -0500
+Message-ID: <68190E74-8C89-4A14-A1C3-435A306E46AC@cs.rutgers.edu>
+In-Reply-To: <5836BC48.1080705@linux.vnet.ibm.com>
+References: <20161122162530.2370-1-zi.yan@sent.com>
+ <20161122162530.2370-6-zi.yan@sent.com> <5836BC48.1080705@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
-Message-Id: <20161128150509.GG3924@linux.vnet.ibm.com>
+Content-Type: multipart/signed;
+	boundary="=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Zhmurov <bb@kernelpanic.ru>
-Cc: Michal Hocko <mhocko@kernel.org>, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
 
-On Mon, Nov 28, 2016 at 05:40:48PM +0300, Boris Zhmurov wrote:
-> Paul E. McKenney 28/11/16 17:34:
-> 
-> 
-> >> So Paul, I've dropped "mm: Prevent shrink_node_memcg() RCU CPU stall
-> >> warnings" patch, and stalls got back (attached).
-> >>
-> >> With this patch "commit 7cebc6b63bf75db48cb19a94564c39294fd40959" from
-> >> your tree stalls gone. Looks like that.
-> > 
-> > So with only this commit and no other commit or configuration adjustment,
-> > everything works?  Or it the solution this commit and some other stuff?
-> > 
-> > The reason I ask is that if just this commit does the trick, I should
-> > drop the others.
-> 
-> I'd like to ask for some more time to make sure this is it.
-> Approximately 2 or 3 days.
+--=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=
+Content-Type: text/plain
 
-Works for me!
+On 24 Nov 2016, at 5:09, Anshuman Khandual wrote:
 
-							Thanx, Paul
+> On 11/22/2016 09:55 PM, Zi Yan wrote:
+>> From: Zi Yan <zi.yan@cs.rutgers.edu>
+>>
+>> From: Zi Yan <ziy@nvidia.com>
+>>
+>> Since base page migration did not gain any speedup from
+>> multi-threaded methods, we only accelerate the huge page case.
+>>
+>> Signed-off-by: Zi Yan <ziy@nvidia.com>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>> ---
+>>  kernel/sysctl.c | 11 +++++++++++
+>>  mm/migrate.c    |  6 ++++++
+>>  2 files changed, 17 insertions(+)
+>>
+>> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+>> index d54ce12..6c79444 100644
+>> --- a/kernel/sysctl.c
+>> +++ b/kernel/sysctl.c
+>> @@ -98,6 +98,8 @@
+>>  #if defined(CONFIG_SYSCTL)
+>>
+>>
+>> +extern int accel_page_copy;
+>
+> Hmm, accel_mthread_copy because this is achieved by a multi threaded
+> copy mechanism.
+>
+>> +
+>>  /* External variables not in a header file. */
+>>  extern int suid_dumpable;
+>>  #ifdef CONFIG_COREDUMP
+>> @@ -1361,6 +1363,15 @@ static struct ctl_table vm_table[] = {
+>>  		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
+>>  	},
+>>  #endif
+>> +	{
+>> +		.procname	= "accel_page_copy",
+>> +		.data		= &accel_page_copy,
+>> +		.maxlen		= sizeof(accel_page_copy),
+>> +		.mode		= 0644,
+>> +		.proc_handler	= proc_dointvec,
+>> +		.extra1		= &zero,
+>> +		.extra2		= &one,
+>> +	},
+>>  	 {
+>>  		.procname	= "hugetlb_shm_group",
+>>  		.data		= &sysctl_hugetlb_shm_group,
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index 244ece6..e64b490 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -48,6 +48,8 @@
+>>
+>>  #include "internal.h"
+>>
+>> +int accel_page_copy = 1;
+>> +
+>
+> So its enabled by default.
+>
+>>  /*
+>>   * migrate_prep() needs to be called before we start compiling a list of pages
+>>   * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
+>> @@ -651,6 +653,10 @@ static void copy_huge_page(struct page *dst, struct page *src,
+>>  		nr_pages = hpage_nr_pages(src);
+>>  	}
+>>
+>> +	/* Try to accelerate page migration if it is not specified in mode  */
+>> +	if (accel_page_copy)
+>> +		mode |= MIGRATE_MT;
+>
+> So even if none of the system calls requested for a multi threaded copy,
+> this setting will override every thing and make it multi threaded.
+
+This only accelerates huge page copies and achieves much higher
+throughput and lower copy time. It should be used most of the time.
+
+As you suggested in other email, I will make this optimization a config option.
+If people enable it, they expect it is working. The sysctl interface just let
+them disable this optimization when they think it is not going to help.
+
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJYPEkyAAoJEEGLLxGcTqbMDngH/2KzJJaiWfPxHEHMCxpTuW4/
+aAppupsbAMPHpIjS0IVBHWuErj6xlek8eDx19kKv3i/xFwfJ6/vkWlH2RTHpRRKJ
+f1kX9lq7ecZ9o/GXGeXFIWNzrroKFSl0KKmYAcxC22txui1IqYis27gBigrWktUH
+cY3Vz6COg/UVIKubhB2PTALItgmVio3Fuk4Bn1R7JCTJ0DAMF2ZHqt8CV7nnT/X+
+XNL4Lzt0qxKbEOT77eTSUH4Ij9Ok6pdzEf5fsq6DBNneQMgdJ+WVTIAgcEXUF9Eq
+vcQMNggsO5PMhSBARR6L82tFF6B9VInJTSLYL/pz6B1WuKE033sS/wlwC2BZTUw=
+=EENO
+-----END PGP SIGNATURE-----
+
+--=_MailMate_3FAD3B3F-A109-46D1-9C0C-CD11D5366BC1_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
