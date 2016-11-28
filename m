@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8676B02CE
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 15:55:13 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id m203so262957900iom.6
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:55:13 -0800 (PST)
-Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
-        by mx.google.com with ESMTPS id a82si3482390ita.38.2016.11.28.12.55.12
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0A76B0038
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 15:59:54 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id bk3so22818756wjc.4
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 12:59:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f19si56107409wjq.287.2016.11.28.12.59.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 28 Nov 2016 12:55:12 -0800 (PST)
-Date: Mon, 28 Nov 2016 12:55:08 -0800
-From: Marc MERLIN <marc@merlins.org>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of RAM that should be free
-Message-ID: <20161128205508.GW13371@merlins.org>
-References: <20161121154336.GD19750@merlins.org> <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz> <20161121215639.GF13371@merlins.org> <20161122160629.uzt2u6m75ash4ved@merlins.org> <48061a22-0203-de54-5a44-89773bff1e63@suse.cz> <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com> <20161123063410.GB2864@dhcp22.suse.cz> <20161128072315.GC14788@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 12:59:52 -0800 (PST)
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
+References: <20161127131954.10026-1-mgorman@techsingularity.net>
+ <alpine.DEB.2.20.1611280934460.28989@east.gentwo.org>
+ <20161128162126.ulbqrslpahg4wdk3@techsingularity.net>
+ <alpine.DEB.2.20.1611281037400.29533@east.gentwo.org>
+ <20161128184758.bcz5ar5svv7whnqi@techsingularity.net>
+ <alpine.DEB.2.20.1611281251150.30514@east.gentwo.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <142ecddd-ded5-a17e-2a30-411d19fda2c4@suse.cz>
+Date: Mon, 28 Nov 2016 21:59:39 +0100
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="X1bOJ3K7DJ5YkBrT"
-Content-Disposition: inline
-In-Reply-To: <20161128072315.GC14788@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.20.1611281251150.30514@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
+On 11/28/2016 07:54 PM, Christoph Lameter wrote:
+> On Mon, 28 Nov 2016, Mel Gorman wrote:
+> 
+>> If you have a series aimed at parts of the fragmentation problem or how
+>> subsystems can avoid tracking 4K pages in some important cases then by
+>> all means post them.
+> 
+> I designed SLUB with defrag methods in mind. We could warm up some old
+> patchsets that where never merged:
+> 
+> https://lkml.org/lkml/2010/1/29/332
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Mon, Nov 28, 2016 at 08:23:15AM +0100, Michal Hocko wrote:
-> Marc, could you try this patch please? I think it should be pretty clear
-> it should help you but running it through your use case would be more
-> than welcome before I ask Greg to take this to the 4.8 stable tree.
- 
-This will take a little while, the whole copy took 5 days to finish and I'm a
-bit hesitant about blowing it away and starting over :)
-Let me see if I can come up with maybe another disk array for another test.
-
-For now, as a reminder, I'm running that attached patch, and it works fine
-I'll report back as soon as I can.
-
-Marc
--- 
-"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
-Microsoft is to operating systems ....
-                                      .... what McDonalds is to gourmet cooking
-Home page: http://marc.merlins.org/  
-
---X1bOJ3K7DJ5YkBrT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="4.8.8-mem2.patch"
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a2214c64ed3c..9b3b3a79c58a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3347,17 +3347,24 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 					ac->nodemask) {
- 		unsigned long available;
- 		unsigned long reclaimable;
-+		int check_order = order;
-+		unsigned long watermark = min_wmark_pages(zone);
- 
- 		available = reclaimable = zone_reclaimable_pages(zone);
- 		available -= DIV_ROUND_UP(no_progress_loops * available,
- 					  MAX_RECLAIM_RETRIES);
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
- 
-+		if (order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER) {
-+			check_order = 0;
-+			watermark += 1UL << order;
-+		}
-+
- 		/*
- 		 * Would the allocation succeed if we reclaimed the whole
- 		 * available?
- 		 */
--		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-+		if (__zone_watermark_ok(zone, check_order, watermark,
- 				ac_classzone_idx(ac), alloc_flags, available)) {
- 			/*
- 			 * If we didn't make any progress and have a lot of
-
-
---X1bOJ3K7DJ5YkBrT--
+Note that some other solutions to the dentry cache problem (perhaps of a
+more low-hanging fruit kind) were also discussed at KS/LPC MM panel
+session: https://lwn.net/Articles/705758/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
