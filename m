@@ -1,264 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46B116B02C0
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:27 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j65so260940111iof.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:27 -0800 (PST)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E86D16B02C1
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:29 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id r101so261711799ioi.3
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:29 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id i195si41491041ioe.200.2016.11.28.11.56.39
+        by mx.google.com with ESMTPS id v9si19951243itb.11.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 11:56:39 -0800 (PST)
+        Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 27/33] radix tree test suite: Check multiorder iteration
-Date: Mon, 28 Nov 2016 13:51:05 -0800
-Message-Id: <1480369871-5271-62-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 08/33] radix tree test suite: benchmark for iterator
+Date: Mon, 28 Nov 2016 13:50:46 -0800
+Message-Id: <1480369871-5271-43-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
 
-The random iteration test only inserts order-0 entries currently.
-Update it to insert entries of order between 7 and 0.  Also make the
-maximum index configurable, make some variables static, make the test
-duration variable, remove some useless spinning, and add a fifth thread
-which calls tag_tagged_items().
+This adds simple benchmark for iterator similar to one I've used for
+commit 78c1d78 ("radix-tree: introduce bit-optimized iterator")
 
+Building with make BENCHMARK=1 set radix tree order to 6, this allows
+to get performance comparable to in kernel performance.
+
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/iteration_check.c | 80 ++++++++++++++++++------------
- tools/testing/radix-tree/main.c            |  3 +-
- tools/testing/radix-tree/multiorder.c      | 23 +++++++++
- tools/testing/radix-tree/test.h            |  2 +-
- 4 files changed, 73 insertions(+), 35 deletions(-)
+ tools/testing/radix-tree/Makefile       |  6 +-
+ tools/testing/radix-tree/benchmark.c    | 98 +++++++++++++++++++++++++++++++++
+ tools/testing/radix-tree/linux/kernel.h |  4 ++
+ tools/testing/radix-tree/main.c         |  2 +
+ tools/testing/radix-tree/test.h         |  1 +
+ 5 files changed, 110 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/radix-tree/benchmark.c
 
-diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
-index f328a66..7572b7e 100644
---- a/tools/testing/radix-tree/iteration_check.c
-+++ b/tools/testing/radix-tree/iteration_check.c
-@@ -16,26 +16,36 @@
- #include <pthread.h>
- #include "test.h"
- 
--#define NUM_THREADS 4
--#define TAG 0
-+#define NUM_THREADS	5
-+#define MAX_IDX		100
-+#define TAG		0
-+#define NEW_TAG		1
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 3c338dc..08283a8 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -4,7 +4,11 @@ LDFLAGS += -lpthread -lurcu
+ TARGETS = main
+ OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
+ 	 regression1.o regression2.o regression3.o multiorder.o \
+-	 iteration_check.o
++	 iteration_check.o benchmark.o
 +
- static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
- static pthread_t threads[NUM_THREADS];
- static unsigned int seeds[3];
--RADIX_TREE(tree, GFP_KERNEL);
--bool test_complete;
-+static RADIX_TREE(tree, GFP_KERNEL);
-+static bool test_complete;
-+static int max_order;
++ifdef BENCHMARK
++	CFLAGS += -DBENCHMARK=1
++endif
  
- /* relentlessly fill the tree with tagged entries */
- static void *add_entries_fn(void *arg)
- {
--	int pgoff;
--
- 	rcu_register_thread();
+ targets: $(TARGETS)
  
- 	while (!test_complete) {
--		for (pgoff = 0; pgoff < 100; pgoff++) {
-+		unsigned long pgoff;
-+		int order;
+diff --git a/tools/testing/radix-tree/benchmark.c b/tools/testing/radix-tree/benchmark.c
+new file mode 100644
+index 0000000..215ca86
+--- /dev/null
++++ b/tools/testing/radix-tree/benchmark.c
+@@ -0,0 +1,98 @@
++/*
++ * benchmark.c:
++ * Author: Konstantin Khlebnikov <koct9i@gmail.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++#include <linux/radix-tree.h>
++#include <linux/slab.h>
++#include <linux/errno.h>
++#include <time.h>
++#include "test.h"
 +
-+		for (pgoff = 0; pgoff < MAX_IDX; pgoff++) {
- 			pthread_mutex_lock(&tree_lock);
--			if (item_insert(&tree, pgoff) == 0)
--				item_tag_set(&tree, pgoff, TAG);
-+			for (order = max_order; order >= 0; order--) {
-+				if (item_insert_order(&tree, pgoff, order)
-+						== 0) {
-+					item_tag_set(&tree, pgoff, TAG);
-+					break;
-+				}
-+			}
- 			pthread_mutex_unlock(&tree_lock);
- 		}
- 	}
-@@ -62,14 +72,7 @@ static void *tagged_iteration_fn(void *arg)
- 	while (!test_complete) {
- 		rcu_read_lock();
- 		radix_tree_for_each_tagged(slot, &tree, &iter, 0, TAG) {
--			void *entry;
--			int i;
--
--			/* busy wait to let removals happen */
--			for (i = 0; i < 1000000; i++)
--				;
--
--			entry = radix_tree_deref_slot(slot);
-+			void *entry = radix_tree_deref_slot(slot);
- 			if (unlikely(!entry))
- 				continue;
- 
-@@ -110,14 +113,7 @@ static void *untagged_iteration_fn(void *arg)
- 	while (!test_complete) {
- 		rcu_read_lock();
- 		radix_tree_for_each_slot(slot, &tree, &iter, 0) {
--			void *entry;
--			int i;
--
--			/* busy wait to let removals happen */
--			for (i = 0; i < 1000000; i++)
--				;
--
--			entry = radix_tree_deref_slot(slot);
-+			void *entry = radix_tree_deref_slot(slot);
- 			if (unlikely(!entry))
- 				continue;
- 
-@@ -152,7 +148,7 @@ static void *remove_entries_fn(void *arg)
- 	while (!test_complete) {
- 		int pgoff;
- 
--		pgoff = rand_r(&seeds[2]) % 100;
-+		pgoff = rand_r(&seeds[2]) % MAX_IDX;
- 
- 		pthread_mutex_lock(&tree_lock);
- 		item_delete(&tree, pgoff);
-@@ -164,36 +160,54 @@ static void *remove_entries_fn(void *arg)
- 	return NULL;
- }
- 
-+static void *tag_entries_fn(void *arg)
++#define NSEC_PER_SEC	1000000000L
++
++static long long benchmark_iter(struct radix_tree_root *root, bool tagged)
 +{
-+	rcu_register_thread();
++	volatile unsigned long sink = 0;
++	struct radix_tree_iter iter;
++	struct timespec start, finish;
++	long long nsec;
++	int l, loops = 1;
++	void **slot;
 +
-+	while (!test_complete) {
-+		tag_tagged_items(&tree, &tree_lock, 0, MAX_IDX, 10, TAG,
-+					NEW_TAG);
++#ifdef BENCHMARK
++again:
++#endif
++	clock_gettime(CLOCK_MONOTONIC, &start);
++	for (l = 0; l < loops; l++) {
++		if (tagged) {
++			radix_tree_for_each_tagged(slot, root, &iter, 0, 0)
++				sink ^= (unsigned long)slot;
++		} else {
++			radix_tree_for_each_slot(slot, root, &iter, 0)
++				sink ^= (unsigned long)slot;
++		}
 +	}
-+	rcu_unregister_thread();
-+	return NULL;
++	clock_gettime(CLOCK_MONOTONIC, &finish);
++
++	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
++	       (finish.tv_nsec - start.tv_nsec);
++
++#ifdef BENCHMARK
++	if (loops == 1 && nsec * 5 < NSEC_PER_SEC) {
++		loops = NSEC_PER_SEC / nsec / 4 + 1;
++		goto again;
++	}
++#endif
++
++	nsec /= loops;
++	return nsec;
 +}
 +
- /* This is a unit test for a bug found by the syzkaller tester */
--void iteration_test(void)
-+void iteration_test(unsigned order, unsigned test_duration)
- {
- 	int i;
- 
--	printf("Running iteration tests for 10 seconds\n");
-+	printf("Running %siteration tests for %d seconds\n",
-+			order > 0 ? "multiorder " : "", test_duration);
- 
-+	max_order = order;
- 	test_complete = false;
- 
- 	for (i = 0; i < 3; i++)
- 		seeds[i] = rand();
- 
- 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
--		perror("pthread_create");
-+		perror("create tagged iteration thread");
- 		exit(1);
- 	}
- 	if (pthread_create(&threads[1], NULL, untagged_iteration_fn, NULL)) {
--		perror("pthread_create");
-+		perror("create untagged iteration thread");
- 		exit(1);
- 	}
- 	if (pthread_create(&threads[2], NULL, add_entries_fn, NULL)) {
--		perror("pthread_create");
-+		perror("create add entry thread");
- 		exit(1);
- 	}
- 	if (pthread_create(&threads[3], NULL, remove_entries_fn, NULL)) {
--		perror("pthread_create");
-+		perror("create remove entry thread");
-+		exit(1);
-+	}
-+	if (pthread_create(&threads[4], NULL, tag_entries_fn, NULL)) {
-+		perror("create tag entry thread");
- 		exit(1);
- 	}
- 
--	sleep(10);
-+	sleep(test_duration);
- 	test_complete = true;
- 
- 	for (i = 0; i < NUM_THREADS; i++) {
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 170175c..f7e9801 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -350,7 +350,8 @@ int main(int argc, char **argv)
- 	regression1_test();
- 	regression2_test();
- 	regression3_test();
--	iteration_test();
-+	iteration_test(0, 10);
-+	iteration_test(7, 20);
- 	single_thread_tests(long_run);
- 
- 	/* Free any remaining preallocated nodes */
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 9757b89..08b4e16 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -75,8 +75,27 @@ static void __multiorder_tag_test(int index, int order)
- 	item_kill_tree(&tree);
- }
- 
-+static void __multiorder_tag_test2(unsigned order, unsigned long index2)
++static void benchmark_size(unsigned long size, unsigned long step, int order)
 +{
 +	RADIX_TREE(tree, GFP_KERNEL);
-+	unsigned long index = (1 << order);
-+	index2 += index;
++	long long normal, tagged;
++	unsigned long index;
 +
-+	assert(item_insert_order(&tree, 0, order) == 0);
-+	assert(item_insert(&tree, index2) == 0);
++	for (index = 0 ; index < size ; index += step) {
++		item_insert_order(&tree, index, order);
++		radix_tree_tag_set(&tree, index, 0);
++	}
 +
-+	assert(radix_tree_tag_set(&tree, 0, 0));
-+	assert(radix_tree_tag_set(&tree, index2, 0));
++	tagged = benchmark_iter(&tree, true);
++	normal = benchmark_iter(&tree, false);
 +
-+	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 2);
++	printf("Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
++		size, step, order, tagged, normal);
 +
 +	item_kill_tree(&tree);
++	rcu_barrier();
 +}
 +
- static void multiorder_tag_tests(void)
- {
-+	int i, j;
++void benchmark(void)
++{
++	unsigned long size[] = {1 << 10, 1 << 20, 0};
++	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
++				128, 256, 512, 12345, 0};
++	int c, s;
 +
- 	/* test multi-order entry for indices 0-7 with no sibling pointers */
- 	__multiorder_tag_test(0, 3);
- 	__multiorder_tag_test(5, 3);
-@@ -116,6 +135,10 @@ static void multiorder_tag_tests(void)
- 	__multiorder_tag_test(300, 8);
- 
- 	__multiorder_tag_test(0x12345678UL, 8);
++	printf("starting benchmarks\n");
++	printf("RADIX_TREE_MAP_SHIFT = %d\n", RADIX_TREE_MAP_SHIFT);
 +
-+	for (i = 1; i < 10; i++)
-+		for (j = 0; j < (10 << i); j++)
-+			__multiorder_tag_test2(i, j);
- }
++	for (c = 0; size[c]; c++)
++		for (s = 0; step[s]; s++)
++			benchmark_size(size[c], step[s], 0);
++
++	for (c = 0; size[c]; c++)
++		for (s = 0; step[s]; s++)
++			benchmark_size(size[c], step[s] << 9, 9);
++}
+diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
+index be98a47..dbe4b92 100644
+--- a/tools/testing/radix-tree/linux/kernel.h
++++ b/tools/testing/radix-tree/linux/kernel.h
+@@ -10,7 +10,11 @@
+ #include "../../include/linux/compiler.h"
+ #include "../../../include/linux/kconfig.h"
  
- static void multiorder_check(unsigned long index, int order)
++#ifdef BENCHMARK
++#define RADIX_TREE_MAP_SHIFT	6
++#else
+ #define RADIX_TREE_MAP_SHIFT	3
++#endif
+ 
+ #ifndef NULL
+ #define NULL	0
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 2eb6949..f1d1e3b 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -352,6 +352,8 @@ int main(int argc, char **argv)
+ 	/* Free any remaining preallocated nodes */
+ 	radix_tree_cpu_dead(0);
+ 
++	benchmark();
++
+ 	sleep(1);
+ 	printf("after sleep(1): %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
 diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index 7c2611c..056a23b 100644
+index 5d2fad0..215ab77 100644
 --- a/tools/testing/radix-tree/test.h
 +++ b/tools/testing/radix-tree/test.h
-@@ -32,7 +32,7 @@ unsigned long find_item(struct radix_tree_root *, void *item);
- 
+@@ -28,6 +28,7 @@ void item_kill_tree(struct radix_tree_root *root);
  void tag_check(void);
  void multiorder_checks(void);
--void iteration_test(void);
-+void iteration_test(unsigned order, unsigned duration);
- void benchmark(void);
+ void iteration_test(void);
++void benchmark(void);
  
  struct item *
+ item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
 -- 
 2.10.2
 
