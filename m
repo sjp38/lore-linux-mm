@@ -1,103 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 462E66B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:22:53 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id i88so214408351pfk.3
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:22:53 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0122.outbound.protection.outlook.com. [104.47.34.122])
-        by mx.google.com with ESMTPS id z19si8772706pgj.173.2016.11.28.07.22.52
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0768E6B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 10:29:18 -0500 (EST)
+Received: by mail-yw0-f200.google.com with SMTP id b66so136940546ywh.2
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:29:18 -0800 (PST)
+Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
+        by mx.google.com with ESMTPS id u98si14911661ybi.279.2016.11.28.07.29.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 07:22:52 -0800 (PST)
-From: Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH 0/5] Parallel hugepage migration optimization
-Date: Mon, 28 Nov 2016 10:22:45 -0500
-Message-ID: <B5954713-0912-40E6-898E-BF4A05B7E5CB@cs.rutgers.edu>
-In-Reply-To: <9cf7f4c6-6dde-9dbb-cf93-7874437a442d@gmail.com>
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <9cf7f4c6-6dde-9dbb-cf93-7874437a442d@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 07:29:17 -0800 (PST)
+Received: by mail-yw0-x243.google.com with SMTP id s68so10058945ywg.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 07:29:17 -0800 (PST)
+Date: Mon, 28 Nov 2016 10:29:15 -0500
+From: "tj@kernel.org" <tj@kernel.org>
+Subject: Re: Kernel Panics on Xen ARM64 for Domain0 and Guest
+Message-ID: <20161128152915.GA7806@htj.duckdns.org>
+References: <AM5PR0802MB2452C895A95FA378D6F3783D9E8A0@AM5PR0802MB2452.eurprd08.prod.outlook.com>
+ <420a44c0-f86f-e6ab-44af-93ada7e01b58@arm.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
-	boundary="=_MailMate_637746C7-C397-4CC8-B358-3C32989FF3D2_=";
-	micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <420a44c0-f86f-e6ab-44af-93ada7e01b58@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, khandual@linux.vnet.ibm.com
+To: Julien Grall <julien.grall@arm.com>
+Cc: Wei Chen <Wei.Chen@arm.com>, "zijun_hu@htc.com" <zijun_hu@htc.com>, "cl@linux.com" <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>, Kaly Xin <Kaly.Xin@arm.com>, Steve Capper <Steve.Capper@arm.com>, Stefano Stabellini <sstabellini@kernel.org>
 
---=_MailMate_637746C7-C397-4CC8-B358-3C32989FF3D2_=
-Content-Type: text/plain
+Hello,
 
-On 24 Nov 2016, at 18:59, Balbir Singh wrote:
+On Mon, Nov 28, 2016 at 11:59:15AM +0000, Julien Grall wrote:
+> > commit 3ca45a46f8af8c4a92dd8a08eac57787242d5021
+> > percpu: ensure the requested alignment is power of two
+> 
+> It would have been useful to specify the tree used. In this case,
+> this commit comes from linux-next.
 
-> On 23/11/16 03:25, Zi Yan wrote:
->> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>
->> Hi all,
->>
->> This patchset boosts the hugepage migration throughput and helps THP migration
->> which is added by Naoya's patches: https://lwn.net/Articles/705879/.
->>
->> Motivation
->> ===============================
->>
->> In x86, 4KB page migrations are underutilizing the memory bandwidth compared
->> to 2MB THP migrations. I did some page migration benchmarking on a two-socket
->> Intel Xeon E5-2640v3 box, which has 23.4GB/s bandwidth, and discover
->> there are big throughput gap, ~3x, between 4KB and 2MB page migrations.
->>
->> Here are the throughput numbers for different page sizes and page numbers:
->>         | 512 4KB pages | 1 2MB THP  |  1 4KB page
->> x86_64  |  0.98GB/s     |  2.97GB/s  |   0.06GB/s
->>
->> As Linux currently use single-threaded page migration, the throughput is still
->> much lower than the hardware bandwidth, 2.97GB/s vs 23.4GB/s. So I parallelize
->> the copy_page() part of THP migration with workqueue and achieve 2.8x throughput.
->>
->> Here are the throughput numbers of 2MB page migration:
->>            |  single-threaded   | 8-thread
->> x86_64 2MB |    2.97GB/s        | 8.58GB/s
->>
->
-> Whats the impact on CPU utilization? Is there a huge impact?
->
-> Balbir Singh.
+I'm surprised this actually triggered.
 
-It depends on the throughput we can achieve.
+> diff --git a/arch/arm/xen/enlighten.c b/arch/arm/xen/enlighten.c
+> index f193414..4986dc0 100644
+> --- a/arch/arm/xen/enlighten.c
+> +++ b/arch/arm/xen/enlighten.c
+> @@ -372,8 +372,7 @@ static int __init xen_guest_init(void)
+>          * for secondary CPUs as they are brought up.
+>          * For uniformity we use VCPUOP_register_vcpu_info even on cpu0.
+>          */
+> -       xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
+> -                                              sizeof(struct vcpu_info));
+> +       xen_vcpu_info = alloc_percpu(struct vcpu_info);
+>         if (xen_vcpu_info == NULL)
+>                 return -ENOMEM;
 
-For single-threaded copy, the current routine, it takes one CPU 2MB/(2.97GB/s) = 657.6 us
-to copy one 2MB page.
+Yes, this looks correct.  Can you please cc stable too?  percpu
+allocator never supported alignments which aren't power of two and has
+always behaved incorrectly with alignments which aren't power of two.
 
-For 8-thread copy, it take 8 CPUs 2MB/(8.58GB/s) = 227.6 us to copy one 2MB page.
+Thanks.
 
-If we have 8 idle CPUs, I think it worths using them.
-
-I am going to add code to check idle_cpu() in the system before doing the copy.
-If no idle CPUs are present, I can fall back to single-threaded copy.
-
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_637746C7-C397-4CC8-B358-3C32989FF3D2_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJYPEvFAAoJEEGLLxGcTqbMEb8H/2rCChgp11A8SwJhTkt0BFPO
-mgusZsNgrSK7Wi2q+j2ZOkoLidSD+1Mh5N8wFrqVs9LCFiKvfQXIlllrVpze9yIU
-nTd0c3BQjS7eD2fNSx1oCFSIMaUIgtr0qPq0SaVLVq5ho9k/OxSoTk7F0f6iAhKc
-wdb8naUMqUcTFhs0YslzbSRGZNLZQ7cz4QVkR67T6g9uKxYC1NXafyQciP1cpPjc
-cBuqhj7j5Ps3mHpthmmyCixn7r298ROZ00HsKrE1bEFHsRNF0VGMtzvl3rE49T61
-BN7FMPnZ7YVsCOq6j5L6vUe6UqH4k+TFHm6udIUa4eQNjYaf7S8YVqWrA96gfYM=
-=wM2C
------END PGP SIGNATURE-----
-
---=_MailMate_637746C7-C397-4CC8-B358-3C32989FF3D2_=--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
