@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F9866B0261
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:40:52 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id o20so55184989lfg.2
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:40:52 -0800 (PST)
-Received: from mail.setcomm.ru (mail.setcomm.ru. [2a00:1248:5004:5::3])
-        by mx.google.com with ESMTP id o94si27040504lfg.22.2016.11.28.06.40.50
-        for <linux-mm@kvack.org>;
-        Mon, 28 Nov 2016 06:40:50 -0800 (PST)
-Reply-To: bb@kernelpanic.ru
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-References: <d6981bac-8e97-b482-98c0-40949db03ca3@kernelpanic.ru>
- <20161124133019.GE3612@linux.vnet.ibm.com>
- <de88a72a-f861-b51f-9fb3-4265378702f1@kernelpanic.ru>
- <20161125212000.GI31360@linux.vnet.ibm.com>
- <20161128095825.GI14788@dhcp22.suse.cz>
- <20161128105425.GY31360@linux.vnet.ibm.com>
- <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
- <20161128143435.GC3924@linux.vnet.ibm.com>
-From: Boris Zhmurov <bb@kernelpanic.ru>
-Message-ID: <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
-Date: Mon, 28 Nov 2016 17:40:48 +0300
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D38A6B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:49:20 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id bk3so21037456wjc.4
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:49:20 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id d81si26080862wmc.164.2016.11.28.06.49.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 06:49:19 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id u144so19349133wmu.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:49:19 -0800 (PST)
+Date: Mon, 28 Nov 2016 15:49:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 0/2] Add interface let ZRAM close swap cache
+Message-ID: <20161128144917.GQ14788@dhcp22.suse.cz>
+References: <1480062313-7361-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-In-Reply-To: <20161128143435.GC3924@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1480062313-7361-1-git-send-email-zhuhui@xiaomi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Michal Hocko <mhocko@kernel.org>, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, dan.j.williams@intel.com, jthumshirn@suse.de, akpm@linux-foundation.org, re.emese@gmail.com, andriy.shevchenko@linux.intel.com, vishal.l.verma@intel.com, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, vdavydov.dev@gmail.com, kirill.shutemov@linux.intel.com, ying.huang@intel.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, willy@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, jmarchan@redhat.com, lstoakes@gmail.com, geliangtang@163.com, viro@zeniv.linux.org.uk, hughd@google.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
 
-Paul E. McKenney 28/11/16 17:34:
+On Fri 25-11-16 16:25:11, Hui Zhu wrote:
+> SWAP will keep before swap cache before swap space get full.  It will
+> make swap space cannot be freed.  It is harmful to the system that use
+> ZRAM because its space use memory too.
 
+I have hard time to follow what you are trying to say here. Could you be
+more specific about what is the actual problem?
 
->> So Paul, I've dropped "mm: Prevent shrink_node_memcg() RCU CPU stall
->> warnings" patch, and stalls got back (attached).
->>
->> With this patch "commit 7cebc6b63bf75db48cb19a94564c39294fd40959" from
->> your tree stalls gone. Looks like that.
-> 
-> So with only this commit and no other commit or configuration adjustment,
-> everything works?  Or it the solution this commit and some other stuff?
-> 
-> The reason I ask is that if just this commit does the trick, I should
-> drop the others.
+> This two patches will add a sysfs switch to ZRAM that open or close swap
+> cache without check the swap space.
 
-
-I'd like to ask for some more time to make sure this is it.
-Approximately 2 or 3 days.
-
+I find this a crude hack to be honest. Please make sure to describe why
+the swap cache stays in the way and why this is not problem in other
+setups.
 -- 
-Boris Zhmurov
-System/Network Administrator
-mailto: bb@kernelpanic.ru
-"wget http://kernelpanic.ru/bb_public_key.pgp -O - | gpg --import"
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
