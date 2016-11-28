@@ -1,122 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A52276B02B2
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:15 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id j65so260932252iof.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:15 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 385A26B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:20 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id t93so260811891ioi.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:20 -0800 (PST)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTPS id p79si41483085ioo.84.2016.11.28.11.56.38
+        by mx.google.com with ESMTPS id l10si19967742itd.116.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 09/33] radix tree test suite: Use rcu_barrier
-Date: Mon, 28 Nov 2016 13:50:13 -0800
-Message-Id: <1480369871-5271-10-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 16/33] radix-tree: Create node_tag_set()
+Date: Mon, 28 Nov 2016 13:50:54 -0800
+Message-Id: <1480369871-5271-51-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Calling rcu_barrier() allows all of the rcu-freed memory to be actually
-returned to the pool, and allows nr_allocated to return to 0.  As well
-as allowing diffs between runs to be more useful, it also lets us
-pinpoint leaks more effectively.
+Similar to node_tag_clear(), factor node_tag_set() out of
+radix_tree_range_tag_if_tagged().
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- tools/testing/radix-tree/main.c      | 12 ++++++++++--
- tools/testing/radix-tree/tag_check.c |  5 +++++
- 2 files changed, 15 insertions(+), 2 deletions(-)
+ lib/radix-tree.c | 41 +++++++++++++++++++----------------------
+ 1 file changed, 19 insertions(+), 22 deletions(-)
 
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index f1d1e3b..76d9c95 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
- 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	multiorder_checks();
-+	rcu_barrier();
- 	printf("after multiorder_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	locate_check();
-+	rcu_barrier();
- 	printf("after locate_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	tag_check();
-+	rcu_barrier();
- 	printf("after tag_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	gang_check();
-+	rcu_barrier();
- 	printf("after gang_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	add_and_check();
-+	rcu_barrier();
- 	printf("after add_and_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	dynamic_height_check();
-+	rcu_barrier();
- 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	big_gang_check(long_run);
-+	rcu_barrier();
- 	printf("after big_gang_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
-@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
- 		printf("%d ", i);
- 		fflush(stdout);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 3f49417..c72da89 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -990,6 +990,22 @@ static void node_tag_clear(struct radix_tree_root *root,
+ 		root_tag_clear(root, tag);
+ }
+ 
++static void node_tag_set(struct radix_tree_root *root,
++				struct radix_tree_node *node,
++				unsigned int tag, unsigned int offset)
++{
++	while (node) {
++		if (tag_get(node, tag, offset))
++			return;
++		tag_set(node, tag, offset);
++		offset = node->offset;
++		node = node->parent;
++	}
++
++	if (!root_tag_get(root, tag))
++		root_tag_set(root, tag);
++}
++
+ /**
+  *	radix_tree_tag_clear - clear a tag on a radix tree node
+  *	@root:		radix tree root
+@@ -1228,7 +1244,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 		unsigned long nr_to_tag,
+ 		unsigned int iftag, unsigned int settag)
+ {
+-	struct radix_tree_node *parent, *node, *child;
++	struct radix_tree_node *node, *child;
+ 	unsigned long maxindex;
+ 	unsigned long tagged = 0;
+ 	unsigned long index = *first_indexp;
+@@ -1263,22 +1279,8 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 			continue;
+ 		}
+ 
+-		/* tag the leaf */
+ 		tagged++;
+-		tag_set(node, settag, offset);
+-
+-		/* walk back up the path tagging interior nodes */
+-		parent = node;
+-		for (;;) {
+-			offset = parent->offset;
+-			parent = parent->parent;
+-			if (!parent)
+-				break;
+-			/* stop if we find a node with the tag already set */
+-			if (tag_get(parent, settag, offset))
+-				break;
+-			tag_set(parent, settag, offset);
+-		}
++		node_tag_set(root, node, settag, offset);
+  next:
+ 		/* Go to next entry in node */
+ 		index = ((index >> node->shift) + 1) << node->shift;
+@@ -1300,12 +1302,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 		if (tagged >= nr_to_tag)
+ 			break;
  	}
-+	rcu_barrier();
- 	printf("after copy_tag_check: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- }
-@@ -354,8 +362,8 @@ int main(int argc, char **argv)
+-	/*
+-	 * We need not to tag the root tag if there is no tag which is set with
+-	 * settag within the range from *first_indexp to last_index.
+-	 */
+-	if (tagged > 0)
+-		root_tag_set(root, settag);
++
+ 	*first_indexp = index;
  
- 	benchmark();
- 
--	sleep(1);
--	printf("after sleep(1): %d allocated, preempt %d\n",
-+	rcu_barrier();
-+	printf("after rcu_barrier: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
- 	rcu_unregister_thread();
- 
-diff --git a/tools/testing/radix-tree/tag_check.c b/tools/testing/radix-tree/tag_check.c
-index b0ac057..186f6e4 100644
---- a/tools/testing/radix-tree/tag_check.c
-+++ b/tools/testing/radix-tree/tag_check.c
-@@ -51,6 +51,7 @@ void simple_checks(void)
- 	verify_tag_consistency(&tree, 1);
- 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
- 	item_kill_tree(&tree);
-+	rcu_barrier();
- 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
- }
- 
-@@ -331,12 +332,16 @@ void tag_check(void)
- 	single_check();
- 	extend_checks();
- 	contract_checks();
-+	rcu_barrier();
- 	printf("after extend_checks: %d allocated\n", nr_allocated);
- 	__leak_check();
- 	leak_check();
-+	rcu_barrier();
- 	printf("after leak_check: %d allocated\n", nr_allocated);
- 	simple_checks();
-+	rcu_barrier();
- 	printf("after simple_checks: %d allocated\n", nr_allocated);
- 	thrash_tags();
-+	rcu_barrier();
- 	printf("after thrash_tags: %d allocated\n", nr_allocated);
- }
+ 	return tagged;
 -- 
 2.10.2
 
