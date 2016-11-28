@@ -1,125 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1F36B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 04:41:38 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id o3so19503056wjo.1
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 01:41:38 -0800 (PST)
-Received: from mx5-phx2.redhat.com (mx5-phx2.redhat.com. [209.132.183.37])
-        by mx.google.com with ESMTPS id n26si25030252wmi.56.2016.11.28.01.41.36
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A1FC06B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 05:07:22 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id bk3so19613308wjc.4
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 02:07:22 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jd4si22876201wjb.273.2016.11.28.02.07.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 01:41:37 -0800 (PST)
-Date: Mon, 28 Nov 2016 04:41:30 -0500 (EST)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <249830138.374473.1480326090692.JavaMail.zimbra@redhat.com>
-In-Reply-To: <583B9D64.7020005@linux.vnet.ibm.com>
-References: <1479493107-982-1-git-send-email-jglisse@redhat.com> <1479493107-982-9-git-send-email-jglisse@redhat.com> <58351517.2060405@linux.vnet.ibm.com> <20161127131043.GA3710@redhat.com> <583B9D64.7020005@linux.vnet.ibm.com>
-Subject: Re: [HMM v13 08/18] mm/hmm: heterogeneous memory management (HMM
- for short)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 02:07:21 -0800 (PST)
+Date: Mon, 28 Nov 2016 11:07:18 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
+ bdev->bd_disk
+Message-ID: <20161128100718.GD2590@quack2.suse.cz>
+References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Wei Fang <fangwei1@huawei.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>
 
-> On 11/27/2016 06:40 PM, Jerome Glisse wrote:
-> > On Wed, Nov 23, 2016 at 09:33:35AM +0530, Anshuman Khandual wrote:
-> >> On 11/18/2016 11:48 PM, J=C3=A9r=C3=B4me Glisse wrote:
-> >=20
-> > [...]
-> >=20
-> >>> + *
-> >>> + *      hmm_vma_migrate(vma, start, end, ops);
-> >>> + *
-> >>> + * With ops struct providing 2 callback alloc_and_copy() which alloc=
-ated
-> >>> the
-> >>> + * destination memory and initialize it using source memory. Migrati=
-on
-> >>> can fail
-> >>> + * after this step and thus last callback finalize_and_map() allow t=
-he
-> >>> device
-> >>> + * driver to know which page were successfully migrated and which we=
-re
-> >>> not.
-> >>
-> >> So we have page->pgmap->free_devpage() to release the individual page =
-back
-> >> into the device driver management during migration and also we have th=
-is
-> >> ops
-> >> based finalize_and_mmap() to check on the failed instances inside a si=
-ngle
-> >> migration context which can contain set of pages at a time.
-> >>
-> >>> + *
-> >>> + * This can easily be use outside of HMM intended use case.
-> >>
-> >> Where you think this can be used outside of HMM ?
-> >=20
-> > Well on the radar is new memory hierarchy that seems to be on every CPU
-> > designer
-> > roadmap. Where you have a fast small HBM like memory package with the C=
-PU
-> > and then
-> > you have the regular memory.
-> >=20
-> > In the embedded world they want to migrate active process to fast CPU
-> > memory and
-> > shutdown the regular memory to save power.
-> >=20
-> > In the HPC world they want to migrate hot data of hot process to this f=
-ast
-> > memory.
-> >=20
-> > In both case we are talking about process base memory migration and in =
-case
-> > of
-> > embedded they also have DMA engine they can use to offload the copy
-> > operation
-> > itself.
-> >=20
-> > This are the useful case i have in mind but other people might see that
-> > code and
-> > realise they could also use it for their own specific corner case.
->=20
-> If there are plans for HBM or specialized type of memory which will be
-> packaged inside the CPU (without any other device accessing it like in
-> the case of GPU or Network Card), then I think in that case using HMM
-> is not ideal. CPU will be the only thing accessing this memory and
-> there is never going to be any other device or context which can access
-> this outside of CPU. Hence role of a device driver is redundant, it
-> should be initialized and used as a basic platform component.
+On Sat 26-11-16 10:06:22, Wei Fang wrote:
+> ->bd_disk is assigned to NULL in __blkdev_put() when no one is holding
+> the bdev. After that, ->bd_inode still can be touched in the
+> blockdev_superblock->s_inodes list before the final iput. So iterate_bdevs()
+> can still get this inode, and start writeback on mapping dirty pages.
+> ->bd_disk will be dereferenced in mapping_cap_writeback_dirty() in this
+> case, and a NULL dereference crash will be triggered:
+> 
+> Unable to handle kernel NULL pointer dereference at virtual address 00000388
+> ...
+> [<ffff8000004cb1e4>] blk_get_backing_dev_info+0x1c/0x28
+> [<ffff8000001c879c>] __filemap_fdatawrite_range+0x54/0x98
+> [<ffff8000001c8804>] filemap_fdatawrite+0x24/0x2c
+> [<ffff80000027e7a4>] fdatawrite_one_bdev+0x20/0x28
+> [<ffff800000288b44>] iterate_bdevs+0xec/0x144
+> [<ffff80000027eb50>] sys_sync+0x84/0xd0
+> 
+> Since mapping_cap_writeback_dirty() is always return true about
+> block device inodes, no need to check it if the inode is a block
+> device inode.
+> 
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Wei Fang <fangwei1@huawei.com>
 
-AFAIK no CPU can saturate the bandwidth of this memory and thus they only
-make sense when there is something like a GPU on die. So in my mind this
-kind of memory is always use preferably by a GPU but could still be use by
-CPU. In that context you also always have a DMA engine to offload memory
-from CPU. I was more selling the HMM migration code in that context :)
+Good catch but I don't like sprinkling checks like this into the writeback
+code and furthermore we don't want to call into writeback code when block
+device is in the process of being destroyed which is what would happen with
+your patch. That is a bug waiting to happen...
 
-=20
-> In that case what we need is a core VM managed memory with certain kind
-> of restrictions around the allocation and a way of explicit allocation
-> into it if required. Representing these memory like a cpu less restrictiv=
-e
-> coherent device memory node is a better solution IMHO. These RFCs what I
-> have posted regarding CDM representation are efforts in this direction.
->=20
-> [RFC Specialized Zonelists]    https://lkml.org/lkml/2016/10/24/19
-> [RFC Restrictive mems_allowed] https://lkml.org/lkml/2016/11/22/339
->=20
-> I believe both HMM and CDM have their own use cases and will complement
-> each other.
+As I'm looking into the code, we need a serialization between bdev writeback
+and blkdev_put(). That should be doable if we use writeback_single_inode()
+for writing bdev inode instead of simple filemap_fdatawrite() and then use
+inode_wait_for_writeback() in blkdev_put() but it needs some careful
+thought.
 
-Yes how this memory is represented probably better be represented by someth=
-ing
-like CDM.=20
+Frankly that whole idea of tearing block devices down on last close is a
+major headache and keeps biting us. I'm wondering whether it is still worth
+it these days...
 
-Cheers,
-J=C3=A9r=C3=B4me
+								Honza
+
+> ---
+>  mm/filemap.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 235021e..d607677 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -334,8 +334,9 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+>  		.range_end = end,
+>  	};
+>  
+> -	if (!mapping_cap_writeback_dirty(mapping))
+> -		return 0;
+> +	if (!sb_is_blkdev_sb(mapping->host->i_sb))
+> +		if (!mapping_cap_writeback_dirty(mapping))
+> +			return 0;
+>  
+>  	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+>  	ret = do_writepages(mapping, &wbc);
+> -- 
+> 2.4.11
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
