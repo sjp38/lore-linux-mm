@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B55D26B0273
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E8F6B0266
 	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:56:39 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j65so260855529iof.1
+Received: by mail-io0-f198.google.com with SMTP id j65so260855564iof.1
         for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:56:39 -0800 (PST)
 Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id m76si41571665iod.253.2016.11.28.11.56.39
+        by mx.google.com with ESMTPS id h24si41443877ioi.112.2016.11.28.11.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Nov 2016 11:56:39 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 07/33] radix tree test suite: iteration test misuses RCU
-Date: Mon, 28 Nov 2016 13:50:45 -0800
-Message-Id: <1480369871-5271-42-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 00/33] Radix tree patches for 4.10
+Date: Mon, 28 Nov 2016 13:50:38 -0800
+Message-Id: <1480369871-5271-35-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,113 +22,129 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@v
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Each thread needs to register itself with RCU, otherwise the reading
-thread's read lock has no effect and the freeing thread will free the
-memory in the tree without waiting for the read lock to be dropped.
+Hi Andrew,
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- tools/testing/radix-tree/iteration_check.c | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+Please include these patches in the -mm tree for 4.10.  Mostly these
+are improvements; the only bug fixes in here relate to multiorder
+entries (which are unused in the 4.9 tree).  The IDR rewrite has the
+highest potential for causing mayhem as the test suite is quite spartan.
+We have an Outreachy intern scheduled to work on the test suite for the
+2016 winter season, so hopefully it will improve soon.
 
-diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
-index 11d570c..df71cb8 100644
---- a/tools/testing/radix-tree/iteration_check.c
-+++ b/tools/testing/radix-tree/iteration_check.c
-@@ -29,6 +29,8 @@ static void *add_entries_fn(void *arg)
- {
- 	int pgoff;
- 
-+	rcu_register_thread();
-+
- 	while (!test_complete) {
- 		for (pgoff = 0; pgoff < 100; pgoff++) {
- 			pthread_mutex_lock(&tree_lock);
-@@ -38,6 +40,8 @@ static void *add_entries_fn(void *arg)
- 		}
- 	}
- 
-+	rcu_unregister_thread();
-+
- 	return NULL;
- }
- 
-@@ -53,6 +57,8 @@ static void *tagged_iteration_fn(void *arg)
- 	struct radix_tree_iter iter;
- 	void **slot;
- 
-+	rcu_register_thread();
-+
- 	while (!test_complete) {
- 		rcu_read_lock();
- 		radix_tree_for_each_tagged(slot, &tree, &iter, 0, TAG) {
-@@ -72,12 +78,18 @@ static void *tagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand_r(&seeds[0]) % 50 == 0)
-+			if (rand_r(&seeds[0]) % 50 == 0) {
- 				slot = radix_tree_iter_next(&iter);
-+				rcu_read_unlock();
-+				rcu_barrier();
-+				rcu_read_lock();
-+			}
- 		}
- 		rcu_read_unlock();
- 	}
- 
-+	rcu_unregister_thread();
-+
- 	return NULL;
- }
- 
-@@ -93,6 +105,8 @@ static void *untagged_iteration_fn(void *arg)
- 	struct radix_tree_iter iter;
- 	void **slot;
- 
-+	rcu_register_thread();
-+
- 	while (!test_complete) {
- 		rcu_read_lock();
- 		radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-@@ -112,12 +126,18 @@ static void *untagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand_r(&seeds[1]) % 50 == 0)
-+			if (rand_r(&seeds[1]) % 50 == 0) {
- 				slot = radix_tree_iter_next(&iter);
-+				rcu_read_unlock();
-+				rcu_barrier();
-+				rcu_read_lock();
-+			}
- 		}
- 		rcu_read_unlock();
- 	}
- 
-+	rcu_unregister_thread();
-+
- 	return NULL;
- }
- 
-@@ -127,6 +147,8 @@ static void *untagged_iteration_fn(void *arg)
-  */
- static void *remove_entries_fn(void *arg)
- {
-+	rcu_register_thread();
-+
- 	while (!test_complete) {
- 		int pgoff;
- 
-@@ -137,6 +159,8 @@ static void *remove_entries_fn(void *arg)
- 		pthread_mutex_unlock(&tree_lock);
- 	}
- 
-+	rcu_unregister_thread();
-+
- 	return NULL;
- }
- 
+I did not include Konstantin's suggested change to the API for
+radix_tree_iter_resume().  Many of the callers do not currently care
+about the size of the entry they are consuming, and determining that
+information is not always trivial.  Since this is not a performance
+critical API (it's called when we've paused iterating through a tree
+in order to schedule for a higher priority task), I think it's more
+important to have a simpler interface.
+
+I'd like to thank Kiryl for all the testing he's been doing.  He's found
+at least two bugs which weren't related to the API extensions that he
+really wanted from this patch set.
+
+Noteworthy changes from v2:
+
+ - Rebased on latest mmots tree
+ - Various fixes to accommodate Johannes' exceptional entry accounting changes
+ - Renamed radix_tree_iter_next() to radix_tree_iter_resume()
+ - Add kerneldoc to radix_tree_iter_join(), radix_tree_iter_split(), and
+   partially to struct radix_tree_node.
+ - Factor set_iter_tags() out of radix_tree_next_chunk() and use it in
+   __radix_tree_next_slot().
+ - Rename __radix_tree_iter_next() to skip_siblings() and only compile it in
+   when MULTIORDER is supported.
+Test suite:
+ - Record item order
+ - Added an IDR replace test
+ - Improve iteration test to handle multiorder entries
+ - More tests to check exceptional entry accounting
+ - Handle exceptional entries in item_kill_tree()
+
+Konstantin Khlebnikov (1):
+  radix tree test suite: benchmark for iterator
+
+Matthew Wilcox (32):
+  radix tree test suite: Fix compilation
+  tools: Add WARN_ON_ONCE
+  radix tree test suite: Allow GFP_ATOMIC allocations to fail
+  radix tree test suite: Track preempt_count
+  radix tree test suite: Free preallocated nodes
+  radix tree test suite: Make runs more reproducible
+  radix tree test suite: iteration test misuses RCU
+  radix tree test suite: Use rcu_barrier
+  radix tree test suite: Handle exceptional entries
+  radix tree test suite: record order in each item
+  tools: Add more bitmap functions
+  radix tree test suite: Use common find-bit code
+  radix-tree: Fix typo
+  radix-tree: Move rcu_head into a union with private_list
+  radix-tree: Create node_tag_set()
+  radix-tree: Make radix_tree_find_next_bit more useful
+  radix-tree: Improve dump output
+  btrfs: Fix race in btrfs_free_dummy_fs_info()
+  radix-tree: Improve multiorder iterators
+  radix-tree: Delete radix_tree_locate_item()
+  radix-tree: Delete radix_tree_range_tag_if_tagged()
+  radix-tree: Add radix_tree_join
+  radix-tree: Add radix_tree_split
+  radix-tree: Add radix_tree_split_preload()
+  radix-tree: Fix replacement for multiorder entries
+  radix tree test suite: Check multiorder iteration
+  idr: Add ida_is_empty
+  tpm: Use idr_find(), not idr_find_slowpath()
+  rxrpc: Abstract away knowledge of IDR internals
+  idr: Reduce the number of bits per level from 8 to 6
+  radix tree test suite: Add some more functionality
+  Reimplement IDR and IDA using the radix tree
+
+ drivers/char/tpm/tpm-chip.c                        |    4 +-
+ drivers/usb/gadget/function/f_hid.c                |    6 +-
+ drivers/usb/gadget/function/f_printer.c            |    6 +-
+ fs/btrfs/tests/btrfs-tests.c                       |    1 +
+ include/linux/idr.h                                |  156 +-
+ include/linux/radix-tree.h                         |  179 +--
+ init/main.c                                        |    3 +-
+ lib/idr.c                                          | 1078 --------------
+ lib/radix-tree.c                                   | 1526 +++++++++++++++-----
+ mm/khugepaged.c                                    |    7 +-
+ mm/page-writeback.c                                |   28 +-
+ mm/shmem.c                                         |   32 +-
+ net/rxrpc/af_rxrpc.c                               |   11 +-
+ net/rxrpc/conn_client.c                            |    4 +-
+ tools/include/asm/bug.h                            |   11 +
+ tools/include/linux/bitmap.h                       |   26 +
+ tools/testing/radix-tree/Makefile                  |   18 +-
+ tools/testing/radix-tree/benchmark.c               |   98 ++
+ tools/testing/radix-tree/find_next_bit.c           |   57 -
+ tools/testing/radix-tree/idr.c                     |  160 ++
+ tools/testing/radix-tree/iteration_check.c         |  123 +-
+ tools/testing/radix-tree/linux.c                   |   23 +-
+ tools/testing/radix-tree/linux/bitops.h            |   40 +-
+ tools/testing/radix-tree/linux/bitops/non-atomic.h |   13 +-
+ tools/testing/radix-tree/linux/bug.h               |    2 +-
+ tools/testing/radix-tree/linux/cpu.h               |   22 +-
+ tools/testing/radix-tree/linux/gfp.h               |   22 +-
+ tools/testing/radix-tree/linux/idr.h               |    1 +
+ tools/testing/radix-tree/linux/kernel.h            |   20 +
+ tools/testing/radix-tree/linux/notifier.h          |    8 -
+ tools/testing/radix-tree/linux/preempt.h           |    6 +-
+ tools/testing/radix-tree/linux/slab.h              |    6 +-
+ tools/testing/radix-tree/linux/types.h             |    2 -
+ tools/testing/radix-tree/main.c                    |   83 +-
+ tools/testing/radix-tree/multiorder.c              |  289 +++-
+ tools/testing/radix-tree/regression2.c             |    3 +-
+ tools/testing/radix-tree/regression3.c             |    8 +-
+ tools/testing/radix-tree/tag_check.c               |    9 +-
+ tools/testing/radix-tree/test.c                    |   92 +-
+ tools/testing/radix-tree/test.h                    |   23 +-
+ 40 files changed, 2311 insertions(+), 1895 deletions(-)
+ create mode 100644 tools/testing/radix-tree/benchmark.c
+ delete mode 100644 tools/testing/radix-tree/find_next_bit.c
+ create mode 100644 tools/testing/radix-tree/idr.c
+ create mode 100644 tools/testing/radix-tree/linux/idr.h
+ delete mode 100644 tools/testing/radix-tree/linux/notifier.h
+
 -- 
 2.10.2
 
