@@ -1,68 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D982A6B025E
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:20:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a20so37469404wme.5
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:20:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n10si26048486wma.60.2016.11.28.06.20.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0213E6B025E
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:21:57 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u144so37429135wmu.1
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:21:56 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id i3si54597335wja.200.2016.11.28.06.21.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 06:20:06 -0800 (PST)
-Subject: Re: [PATCH v2 0/6] mm: fix the "counter.sh" failure for libhugetlbfs
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6b83ea5d-a465-7582-a215-51a21fb4ce2e@suse.cz>
-Date: Mon, 28 Nov 2016 15:20:05 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 06:21:55 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id a20so19290585wme.2
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:21:55 -0800 (PST)
+Date: Mon, 28 Nov 2016 15:21:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 04/12] mm: thp: introduce
+ CONFIG_ARCH_ENABLE_THP_MIGRATION
+Message-ID: <20161128142154.GM14788@dhcp22.suse.cz>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <shijie.huang@arm.com>, akpm@linux-foundation.org, catalin.marinas@arm.com
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 11/14/2016 08:07 AM, Huang Shijie wrote:
-> (1) Background
->    For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
->    In the 4K page environment, the max page order is 10 (max_order - 1),
->    so 32M page is the gigantic page.
->
->    The arm64 MMU supports a Contiguous bit which is a hint that the TTE
->    is one of a set of contiguous entries which can be cached in a single
->    TLB entry.  Please refer to the arm64v8 mannul :
->        DDI0487A_f_armv8_arm.pdf (in page D4-1811)
->
-> (2) The bug
->    After I tested the libhugetlbfs, I found the test case "counter.sh"
->    will fail with the gigantic page (32M page in arm64 board).
->
->    This patch set adds support for gigantic surplus hugetlb pages,
->    allowing the counter.sh unit test to pass.
->
-> v1 -- > v2:
->    1.) fix the compiler error in X86.
->    2.) add new patches for NUMA.
->        The patch #2 ~ #5 are new patches.
->
-> Huang Shijie (6):
->   mm: hugetlb: rename some allocation functions
->   mm: hugetlb: add a new parameter for some functions
->   mm: hugetlb: change the return type for alloc_fresh_gigantic_page
->   mm: mempolicy: intruduce a helper huge_nodemask()
->   mm: hugetlb: add a new function to allocate a new gigantic page
->   mm: hugetlb: support gigantic surplus pages
->
->  include/linux/mempolicy.h |   8 +++
->  mm/hugetlb.c              | 128 ++++++++++++++++++++++++++++++++++++----------
->  mm/mempolicy.c            |  20 ++++++++
->  3 files changed, 130 insertions(+), 26 deletions(-)
+On Tue 08-11-16 08:31:49, Naoya Horiguchi wrote:
+> Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+> functionality to x86_64, which should be safer at the first step.
 
-Can't say I'm entirely happy with the continued direction of maze of 
-functions for huge page allocation :( Feels like path of least 
-resistance to basically copy/paste the missing parts here. Is there no 
-way to consolidate the code more?
+Please make sure to describe why this has to be arch specific and what
+are arches supposed to provide in order to enable this option.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
