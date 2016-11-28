@@ -1,85 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E626B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:00:46 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id y16so36123335wmd.6
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 03:00:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p21si25295778wmb.29.2016.11.28.03.00.43
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BECD6B025E
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:15:17 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id q10so351792063pgq.7
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 03:15:17 -0800 (PST)
+Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
+        by mx.google.com with ESMTPS id 75si54657871pfx.116.2016.11.28.03.15.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 03:00:43 -0800 (PST)
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-References: <20161127131954.10026-1-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5621b386-ee65-0fa5-e217-334924412c7f@suse.cz>
-Date: Mon, 28 Nov 2016 12:00:41 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 03:15:16 -0800 (PST)
+Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership
+ (XPFO)
+References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
+ <20161104144534.14790-1-juerg.haefliger@hpe.com>
+ <20161104144534.14790-2-juerg.haefliger@hpe.com>
+ <20161124105629.GA23034@linaro.org>
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+Message-ID: <795a34a6-ed04-dea3-73f5-d23e48f69de6@hpe.com>
+Date: Mon, 28 Nov 2016 12:15:10 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161127131954.10026-1-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20161124105629.GA23034@linaro.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="xK83457Tl0b0VsjtiEgrgA8md3HirLXVv"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: AKASHI Takahiro <takahiro.akashi@linaro.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org, vpk@cs.columbia.edu
 
-On 11/27/2016 02:19 PM, Mel Gorman wrote:
->
-> 2-socket modern machine
->                                 4.9.0-rc5             4.9.0-rc5
->                                   vanilla             hopcpu-v3
-> Hmean    send-64         178.38 (  0.00%)      256.74 ( 43.93%)
-> Hmean    send-128        351.49 (  0.00%)      507.52 ( 44.39%)
-> Hmean    send-256        671.23 (  0.00%)     1004.19 ( 49.60%)
-> Hmean    send-1024      2663.60 (  0.00%)     3910.42 ( 46.81%)
-> Hmean    send-2048      5126.53 (  0.00%)     7562.13 ( 47.51%)
-> Hmean    send-3312      7949.99 (  0.00%)    11565.98 ( 45.48%)
-> Hmean    send-4096      9433.56 (  0.00%)    12929.67 ( 37.06%)
-> Hmean    send-8192     15940.64 (  0.00%)    21587.63 ( 35.43%)
-> Hmean    send-16384    26699.54 (  0.00%)    32013.79 ( 19.90%)
-> Hmean    recv-64         178.38 (  0.00%)      256.72 ( 43.92%)
-> Hmean    recv-128        351.49 (  0.00%)      507.47 ( 44.38%)
-> Hmean    recv-256        671.20 (  0.00%)     1003.95 ( 49.57%)
-> Hmean    recv-1024      2663.45 (  0.00%)     3909.70 ( 46.79%)
-> Hmean    recv-2048      5126.26 (  0.00%)     7560.67 ( 47.49%)
-> Hmean    recv-3312      7949.50 (  0.00%)    11564.63 ( 45.48%)
-> Hmean    recv-4096      9433.04 (  0.00%)    12927.48 ( 37.04%)
-> Hmean    recv-8192     15939.64 (  0.00%)    21584.59 ( 35.41%)
-> Hmean    recv-16384    26698.44 (  0.00%)    32009.77 ( 19.89%)
->
-> 1-socket 6 year old machine
->                                 4.9.0-rc5             4.9.0-rc5
->                                   vanilla             hopcpu-v3
-> Hmean    send-64          87.47 (  0.00%)      127.14 ( 45.36%)
-> Hmean    send-128        174.36 (  0.00%)      256.42 ( 47.06%)
-> Hmean    send-256        347.52 (  0.00%)      509.41 ( 46.59%)
-> Hmean    send-1024      1363.03 (  0.00%)     1991.54 ( 46.11%)
-> Hmean    send-2048      2632.68 (  0.00%)     3759.51 ( 42.80%)
-> Hmean    send-3312      4123.19 (  0.00%)     5873.28 ( 42.45%)
-> Hmean    send-4096      5056.48 (  0.00%)     7072.81 ( 39.88%)
-> Hmean    send-8192      8784.22 (  0.00%)    12143.92 ( 38.25%)
-> Hmean    send-16384    15081.60 (  0.00%)    19812.71 ( 31.37%)
-> Hmean    recv-64          86.19 (  0.00%)      126.59 ( 46.87%)
-> Hmean    recv-128        173.93 (  0.00%)      255.21 ( 46.73%)
-> Hmean    recv-256        346.19 (  0.00%)      506.72 ( 46.37%)
-> Hmean    recv-1024      1358.28 (  0.00%)     1980.03 ( 45.77%)
-> Hmean    recv-2048      2623.45 (  0.00%)     3729.35 ( 42.15%)
-> Hmean    recv-3312      4108.63 (  0.00%)     5831.47 ( 41.93%)
-> Hmean    recv-4096      5037.25 (  0.00%)     7021.59 ( 39.39%)
-> Hmean    recv-8192      8762.32 (  0.00%)    12072.44 ( 37.78%)
-> Hmean    recv-16384    15042.36 (  0.00%)    19690.14 ( 30.90%)
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--xK83457Tl0b0VsjtiEgrgA8md3HirLXVv
+Content-Type: multipart/mixed; boundary="7nt0D3PUfp44460FfNLT0gAFB4oxfXvll";
+ protected-headers="v1"
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+To: AKASHI Takahiro <takahiro.akashi@linaro.org>,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org,
+ vpk@cs.columbia.edu
+Message-ID: <795a34a6-ed04-dea3-73f5-d23e48f69de6@hpe.com>
+Subject: Re: [RFC PATCH v3 1/2] Add support for eXclusive Page Frame Ownership
+ (XPFO)
+References: <20160914071901.8127-1-juerg.haefliger@hpe.com>
+ <20161104144534.14790-1-juerg.haefliger@hpe.com>
+ <20161104144534.14790-2-juerg.haefliger@hpe.com>
+ <20161124105629.GA23034@linaro.org>
+In-Reply-To: <20161124105629.GA23034@linaro.org>
 
-That looks way much better than the "v1" RFC posting. Was it just 
-because you stopped doing the "at first iteration, use migratetype as 
-index", and initializing pindex UINT_MAX hits so much quicker, or was 
-there something more subtle that I missed? There was no changelog 
-between "v1" and "v2".
+--7nt0D3PUfp44460FfNLT0gAFB4oxfXvll
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On 11/24/2016 11:56 AM, AKASHI Takahiro wrote:
+> Hi,
+>=20
+> I'm trying to give it a spin on arm64, but ...
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Thanks for trying this.
 
+
+>> +/*
+>> + * Update a single kernel page table entry
+>> + */
+>> +static inline void set_kpte(struct page *page, unsigned long kaddr,
+>> +			    pgprot_t prot) {
+>> +	unsigned int level;
+>> +	pte_t *kpte =3D lookup_address(kaddr, &level);
+>> +
+>> +	/* We only support 4k pages for now */
+>> +	BUG_ON(!kpte || level !=3D PG_LEVEL_4K);
+>> +
+>> +	set_pte_atomic(kpte, pfn_pte(page_to_pfn(page), canon_pgprot(prot)))=
+;
+>> +}
+>=20
+> As lookup_address() and set_pte_atomic() (and PG_LEVEL_4K), are arch-sp=
+ecific,
+> would it be better to put the whole definition into arch-specific part?=
+
+
+Well yes but I haven't really looked into splitting up the arch specific =
+stuff.
+
+
+>> +		/*
+>> +		 * Map the page back into the kernel if it was previously
+>> +		 * allocated to user space.
+>> +		 */
+>> +		if (test_and_clear_bit(PAGE_EXT_XPFO_UNMAPPED,
+>> +				       &page_ext->flags)) {
+>> +			kaddr =3D (unsigned long)page_address(page + i);
+>> +			set_kpte(page + i,  kaddr, __pgprot(__PAGE_KERNEL));
+>=20
+> Why not PAGE_KERNEL?
+
+Good catch, thanks!
+
+
+>> +	/*
+>> +	 * The page is to be allocated back to user space, so unmap it from =
+the
+>> +	 * kernel, flush the TLB and tag it as a user page.
+>> +	 */
+>> +	if (atomic_dec_return(&page_ext->mapcount) =3D=3D 0) {
+>> +		BUG_ON(test_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags));
+>> +		set_bit(PAGE_EXT_XPFO_UNMAPPED, &page_ext->flags);
+>> +		set_kpte(page, (unsigned long)kaddr, __pgprot(0));
+>> +		__flush_tlb_one((unsigned long)kaddr);
+>=20
+> Again __flush_tlb_one() is x86-specific.
+> flush_tlb_kernel_range() instead?
+
+I'll take a look. If you can tell me what the relevant arm64 equivalents =
+are for the arch-specific
+functions, that would help tremendously.
+
+Thanks for the comments!
+
+=2E..Juerg
+
+
+
+> Thanks,
+> -Takahiro AKASHI
+
+
+--=20
+Juerg Haefliger
+Hewlett Packard Enterprise
+
+
+--7nt0D3PUfp44460FfNLT0gAFB4oxfXvll--
+
+--xK83457Tl0b0VsjtiEgrgA8md3HirLXVv
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIcBAEBCAAGBQJYPBG+AAoJEHVMOpb5+LSMYaUP/ivlQhGWbPz1scInxJxIBSSL
+dHPcug/WEH2XjLIfm1BEhWVNMBYSUrVN/eWWcWE7BjYh7O+/makinUSIESNcbTPw
+uuA5NiMtsBEBgjgReq+hWC/yLJg0P3HFxFIdlg6nl8QnbGe3xT31UUm3/KxowaEb
+QcCvONwXl46FxpCMoQxq8Y4+2oSJm7Skaxp3lP3zPPuLClOvucxtbWOFM77nompO
+1GagLX+kssFGKYNlUdkNlEK487hbLNkOx4Ipz9IqoPLvRNiYSJCjVlelFYkV6dfz
+UzBPbchD/HHiGIs8jPZFucGeFgMr9SMRNhJ6yMDfHjNXGsw1PycW93MVU3h2wIUH
+y+jW1IXmMiOI8q89sHPIAJtBYxRxDIStYmmd6XpdFhEmdhQwTJpR0uObwigDxcHz
+qvy88HvWepH8OnT/XkKfNNT7/HuVkg/jYbmraiLYP+ALWQBJg+iStaQ5bsRGtosh
+eQ17odAAs1438iWIaqSr84KtffSsKO+bNARWXAOhd2RPOoJAsWudpl/EkNQ+fyWd
+Lm0X2UfLQJ9MPRIdfXhFL0LkHGOYHfzut/8yG9KKTglV/sSoxDjtkbsWIm9TgyYT
+wpVs1zRAU9JUOfMkPeb+ih0oYZy7KZ1dJNSYPuBcfsQhHEeAAWYu539L51kmbPyu
+sB/zTqnSlUBfM71Ha3fV
+=GxFB
+-----END PGP SIGNATURE-----
+
+--xK83457Tl0b0VsjtiEgrgA8md3HirLXVv--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
