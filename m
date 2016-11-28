@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A51AC6B0069
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 08:29:08 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id xr1so20575016wjb.7
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 05:29:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k141si25822309wmd.133.2016.11.28.05.29.06
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A29576B0069
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 09:06:54 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id m203so37340952wma.2
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:06:54 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id e1si54649418wjy.159.2016.11.28.06.06.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Nov 2016 05:29:07 -0800 (PST)
-Subject: Re: [PATCH v2 1/6] mm: hugetlb: rename some allocation functions
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
- <1479107259-2011-2-git-send-email-shijie.huang@arm.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <52b661c9-f4b0-3d94-cf9b-a0ffd5ecb723@suse.cz>
-Date: Mon, 28 Nov 2016 14:29:03 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Nov 2016 06:06:53 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id u144so19127020wmu.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 06:06:52 -0800 (PST)
+Date: Mon, 28 Nov 2016 15:06:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle
+ PF_LESS_THROTTLE tasks
+Message-ID: <20161128140651.GL14788@dhcp22.suse.cz>
+References: <20160728071711.GB31860@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608030844470.15274@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160803143419.GC1490@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160812123242.GH3639@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1608131323550.3291@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160814103409.GC9248@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1611231558420.31481@file01.intranet.prod.int.rdu2.redhat.com>
+ <20161124132916.GF20668@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1611241158250.9110@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1479107259-2011-2-git-send-email-shijie.huang@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1611241158250.9110@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <shijie.huang@arm.com>, akpm@linux-foundation.org, catalin.marinas@arm.com
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "dm-devel@redhat.com David Rientjes" <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Douglas Anderson <dianders@chromium.org>, shli@kernel.org, Dmitry Torokhov <dmitry.torokhov@gmail.com>
 
-On 11/14/2016 08:07 AM, Huang Shijie wrote:
-> After a future patch, the __alloc_buddy_huge_page() will not necessarily
-> use the buddy allocator.
->
-> So this patch removes the "buddy" from these functions:
-> 	__alloc_buddy_huge_page -> __alloc_huge_page
-> 	__alloc_buddy_huge_page_no_mpol -> __alloc_huge_page_no_mpol
-> 	__alloc_buddy_huge_page_with_mpol -> __alloc_huge_page_with_mpol
->
-> This patch makes preparation for the later patch.
->
-> Signed-off-by: Huang Shijie <shijie.huang@arm.com>
-> ---
->  mm/hugetlb.c | 24 ++++++++++++++----------
->  1 file changed, 14 insertions(+), 10 deletions(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3edb759..496b703 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1157,6 +1157,10 @@ static int alloc_fresh_gigantic_page(struct hstate *h,
->
->  static inline bool gigantic_page_supported(void) { return true; }
->  #else
-> +static inline struct page *alloc_gigantic_page(int nid, unsigned int order)
-> +{
-> +	return NULL;
-> +}
+On Thu 24-11-16 12:10:08, Mikulas Patocka wrote:
+> 
+> 
+> On Thu, 24 Nov 2016, Michal Hocko wrote:
+[...]
+> > Please note that even
+> > GFP_NOWAIT allocations will wake up kspwad which should clean up that
+> 
+> The mempool is also using GFP_NOIO allocations - so do you claim that it 
+> should not use GFP_NOIO too?
 
-This hunk is not explained by the description. Could belong to a later 
-patch?
+No, I am not claiming that. The last time I have asked the throttling
+didn't seem to serious enough to cause any problems. If the memory
+reclaim throttling is serious enough then let's measure and evaluate it.
+
+> You should provide a clear API that the block device drivers should use to 
+> allocate memory - not to apply band aid to vm throttling problems as they 
+> are being discovered.
+
+This is easier said than done, I am afraid. We have been using GFP_NOIO
+in mempool for years and there were no major complains.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
