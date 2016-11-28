@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 44C9F6B0253
-	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:38:49 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id r94so250977239ioe.7
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 08:38:49 -0800 (PST)
-Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
-        by mx.google.com with ESMTPS id 192si19402992itl.125.2016.11.28.08.38.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 08:38:48 -0800 (PST)
-Date: Mon, 28 Nov 2016 10:38:58 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-In-Reply-To: <20161128162126.ulbqrslpahg4wdk3@techsingularity.net>
-Message-ID: <alpine.DEB.2.20.1611281037400.29533@east.gentwo.org>
-References: <20161127131954.10026-1-mgorman@techsingularity.net> <alpine.DEB.2.20.1611280934460.28989@east.gentwo.org> <20161128162126.ulbqrslpahg4wdk3@techsingularity.net>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D53666B0253
+	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:52:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 83so221738470pfx.1
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 08:52:45 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id e3si27320881plj.316.2016.11.28.08.52.45
+        for <linux-mm@kvack.org>;
+        Mon, 28 Nov 2016 08:52:45 -0800 (PST)
+Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v2)
+References: <20161117002851.C7BACB98@viggo.jf.intel.com>
+ <8769d52a-de0b-8c98-1e0b-e5305c5c02f3@suse.cz>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <cf887736-2a62-bce5-0d72-0455a642cd99@sr71.net>
+Date: Mon, 28 Nov 2016 08:52:43 -0800
+MIME-Version: 1.0
+In-Reply-To: <8769d52a-de0b-8c98-1e0b-e5305c5c02f3@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
+Cc: hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, linux-mm@kvack.org
 
-On Mon, 28 Nov 2016, Mel Gorman wrote:
+On 11/24/2016 06:22 AM, Vlastimil Babka wrote:
+> On 11/17/2016 01:28 AM, Dave Hansen wrote:
+>> @@ -702,11 +707,13 @@ static int smaps_hugetlb_range(pte_t *pt
+>>      }
+>>      if (page) {
+>>          int mapcount = page_mapcount(page);
+>> +        unsigned long hpage_size = huge_page_size(hstate_vma(vma));
+>>
+>> +        mss->rss_pud += hpage_size;
+> 
+> This hardcoded pud doesn't look right, doesn't the pmd/pud depend on
+> hpage_size?
 
-> Yes, that's a problem for SLUB with or without this patch. It's always
-> been the case that SLUB relying on high-order pages for performance is
-> problematic.
+Urg, nope.  Thanks for noticing that!  I think we'll need something
+along the lines of:
 
-This is a general issue in the kernel. Performance often requires larger
-contiguous ranges of memory.
+                if (hpage_size == PUD_SIZE)
+                        mss->rss_pud += PUD_SIZE;
+                else if (hpage_size == PMD_SIZE)
+                        mss->rss_pmd += PMD_SIZE;
 
-
-> > that only insiders know how to tune and an overall fragile solution.
-> While I agree with all of this, it's also a problem independent of this
-> patch.
-
-It is related. The fundamental issue with fragmentation remain and IMHO we
-really need to tackle this.
+I'll respin and resend.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
