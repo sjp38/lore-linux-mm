@@ -1,128 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D76166B0279
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DD06C6B02BA
 	for <linux-mm@kvack.org>; Mon, 28 Nov 2016 14:58:25 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id c21so252665103ioj.5
+Received: by mail-io0-f198.google.com with SMTP id m203so260496750iom.6
         for <linux-mm@kvack.org>; Mon, 28 Nov 2016 11:58:25 -0800 (PST)
-Received: from p3plsmtps2ded01.prod.phx3.secureserver.net (p3plsmtps2ded01.prod.phx3.secureserver.net. [208.109.80.58])
-        by mx.google.com with ESMTPS id i81si41447549ioi.224.2016.11.28.11.56.39
+Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
+        by mx.google.com with ESMTPS id o139si19885199itc.125.2016.11.28.11.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 11:56:39 -0800 (PST)
+        Mon, 28 Nov 2016 11:56:38 -0800 (PST)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH v3 06/33] radix tree test suite: Make runs more reproducible
-Date: Mon, 28 Nov 2016 13:50:44 -0800
-Message-Id: <1480369871-5271-41-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH v3 16/33] radix-tree: Create node_tag_set()
+Date: Mon, 28 Nov 2016 13:50:20 -0800
+Message-Id: <1480369871-5271-17-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@infradead.org>
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Instead of reseeding the random number generator every time around the
-loop in big_gang_check(), seed it at the beginning of execution.  Use
-rand_r() and an independent base seed for each thread in iteration_test()
-so they don't stomp all over each others state.  Since this particular
-test depends on the kernel scheduler, the iteration test can't be
-reproduced based purely on the random seed, but at least it won't pollute
-the other tests.
+Similar to node_tag_clear(), factor node_tag_set() out of
+radix_tree_range_tag_if_tagged().
 
-Print the seed, and allow the seed to be specified so that a run which
-hits a problem can be reproduced.
-
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- tools/testing/radix-tree/iteration_check.c | 11 +++++++----
- tools/testing/radix-tree/main.c            |  9 +++++++--
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ lib/radix-tree.c | 41 +++++++++++++++++++----------------------
+ 1 file changed, 19 insertions(+), 22 deletions(-)
 
-diff --git a/tools/testing/radix-tree/iteration_check.c b/tools/testing/radix-tree/iteration_check.c
-index 9adb8e7..11d570c 100644
---- a/tools/testing/radix-tree/iteration_check.c
-+++ b/tools/testing/radix-tree/iteration_check.c
-@@ -20,6 +20,7 @@
- #define TAG 0
- static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
- static pthread_t threads[NUM_THREADS];
-+static unsigned int seeds[3];
- RADIX_TREE(tree, GFP_KERNEL);
- bool test_complete;
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 3f49417..c72da89 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -990,6 +990,22 @@ static void node_tag_clear(struct radix_tree_root *root,
+ 		root_tag_clear(root, tag);
+ }
  
-@@ -71,7 +72,7 @@ static void *tagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand() % 50 == 0)
-+			if (rand_r(&seeds[0]) % 50 == 0)
- 				slot = radix_tree_iter_next(&iter);
- 		}
- 		rcu_read_unlock();
-@@ -111,7 +112,7 @@ static void *untagged_iteration_fn(void *arg)
- 				continue;
- 			}
- 
--			if (rand() % 50 == 0)
-+			if (rand_r(&seeds[1]) % 50 == 0)
- 				slot = radix_tree_iter_next(&iter);
- 		}
- 		rcu_read_unlock();
-@@ -129,7 +130,7 @@ static void *remove_entries_fn(void *arg)
- 	while (!test_complete) {
- 		int pgoff;
- 
--		pgoff = rand() % 100;
-+		pgoff = rand_r(&seeds[2]) % 100;
- 
- 		pthread_mutex_lock(&tree_lock);
- 		item_delete(&tree, pgoff);
-@@ -146,9 +147,11 @@ void iteration_test(void)
- 
- 	printf("Running iteration tests for 10 seconds\n");
- 
--	srand(time(0));
- 	test_complete = false;
- 
-+	for (i = 0; i < 3; i++)
-+		seeds[i] = rand();
++static void node_tag_set(struct radix_tree_root *root,
++				struct radix_tree_node *node,
++				unsigned int tag, unsigned int offset)
++{
++	while (node) {
++		if (tag_get(node, tag, offset))
++			return;
++		tag_set(node, tag, offset);
++		offset = node->offset;
++		node = node->parent;
++	}
 +
- 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
- 		perror("pthread_create");
- 		exit(1);
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 52ce1ea..2eb6949 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -67,7 +67,6 @@ void big_gang_check(bool long_run)
- 
- 	for (i = 0; i < (long_run ? 1000 : 3); i++) {
- 		__big_gang_check();
--		srand(time(0));
- 		printf("%d ", i);
- 		fflush(stdout);
- 	}
-@@ -329,12 +328,18 @@ int main(int argc, char **argv)
++	if (!root_tag_get(root, tag))
++		root_tag_set(root, tag);
++}
++
+ /**
+  *	radix_tree_tag_clear - clear a tag on a radix tree node
+  *	@root:		radix tree root
+@@ -1228,7 +1244,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 		unsigned long nr_to_tag,
+ 		unsigned int iftag, unsigned int settag)
  {
- 	bool long_run = false;
- 	int opt;
-+	unsigned int seed = time(NULL);
+-	struct radix_tree_node *parent, *node, *child;
++	struct radix_tree_node *node, *child;
+ 	unsigned long maxindex;
+ 	unsigned long tagged = 0;
+ 	unsigned long index = *first_indexp;
+@@ -1263,22 +1279,8 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 			continue;
+ 		}
  
--	while ((opt = getopt(argc, argv, "l")) != -1) {
-+	while ((opt = getopt(argc, argv, "ls:")) != -1) {
- 		if (opt == 'l')
- 			long_run = true;
-+		else if (opt == 's')
-+			seed = strtoul(optarg, NULL, 0);
+-		/* tag the leaf */
+ 		tagged++;
+-		tag_set(node, settag, offset);
+-
+-		/* walk back up the path tagging interior nodes */
+-		parent = node;
+-		for (;;) {
+-			offset = parent->offset;
+-			parent = parent->parent;
+-			if (!parent)
+-				break;
+-			/* stop if we find a node with the tag already set */
+-			if (tag_get(parent, settag, offset))
+-				break;
+-			tag_set(parent, settag, offset);
+-		}
++		node_tag_set(root, node, settag, offset);
+  next:
+ 		/* Go to next entry in node */
+ 		index = ((index >> node->shift) + 1) << node->shift;
+@@ -1300,12 +1302,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 		if (tagged >= nr_to_tag)
+ 			break;
  	}
- 
-+	printf("random seed %u\n", seed);
-+	srand(seed);
+-	/*
+-	 * We need not to tag the root tag if there is no tag which is set with
+-	 * settag within the range from *first_indexp to last_index.
+-	 */
+-	if (tagged > 0)
+-		root_tag_set(root, settag);
 +
- 	rcu_register_thread();
- 	radix_tree_init();
+ 	*first_indexp = index;
  
+ 	return tagged;
 -- 
 2.10.2
 
