@@ -1,107 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 22FD76B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:31:40 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x23so465007205pgx.6
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:31:40 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p124si61496445pga.159.2016.11.29.14.31.39
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE2B6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:34:01 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id 98so73586398lfs.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:34:01 -0800 (PST)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id y10si30299550lja.26.2016.11.29.14.33.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 14:31:39 -0800 (PST)
-Date: Tue, 29 Nov 2016 15:31:38 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 3/6] dax: Avoid page invalidation races and unnecessary
- radix tree traversals
-Message-ID: <20161129223138.GB16608@linux.intel.com>
-References: <1479980796-26161-1-git-send-email-jack@suse.cz>
- <1479980796-26161-4-git-send-email-jack@suse.cz>
+        Tue, 29 Nov 2016 14:34:00 -0800 (PST)
+Received: by mail-lf0-x241.google.com with SMTP id p100so14070167lfg.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:33:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1479980796-26161-4-git-send-email-jack@suse.cz>
+In-Reply-To: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
+References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Tue, 29 Nov 2016 17:33:19 -0500
+Message-ID: <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
+Subject: Re: [PATCH 0/2] z3fold fixes
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
 
-On Thu, Nov 24, 2016 at 10:46:33AM +0100, Jan Kara wrote:
-> Currently each filesystem (possibly through generic_file_direct_write()
-> or iomap_dax_rw()) takes care of invalidating page tables and evicting
+On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> Here come 2 patches with z3fold fixes for chunks counting and locking. As=
+ commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is too b=
+ig") was NAK'ed [1], I would suggest that we removed that one and the next =
+z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't compac=
+ted") and applied the coming 2 instead.
 
-Just some nits about the commit message: the DAX I/O path function is now
-called dax_iomap_rw(), and no filesystems still use
-generic_file_direct_write() for DAX so you can probably remove it from the
-changelog - up to you.
+Instead of adding these onto all the previous ones, could you redo the
+entire z3fold series?  I think it'll be simpler to review the series
+all at once and that would remove some of the stuff from previous
+patches that shouldn't be there.
 
-Aside from that:
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+If that's ok with Andrew, of course, but I don't think any of the
+z3fold patches have been pushed to Linus yet.
 
-> hole pages from the radix tree when write(2) to the file happens. This
-> invalidation is only necessary when there is some block allocation
-> resulting from write(2). Furthermore in current place the invalidation
-> is racy wrt page fault instantiating a hole page just after we have
-> invalidated it.
-> 
-> So perform the page invalidation inside dax_do_io() where we can do it
-> only when really necessary and after blocks have been allocated so
-> nobody will be instantiating new hole pages anymore.
-> 
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  fs/dax.c | 28 +++++++++++-----------------
->  1 file changed, 11 insertions(+), 17 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 4534f0e232e9..ddf77ef2ca18 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -984,6 +984,17 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  	if (WARN_ON_ONCE(iomap->type != IOMAP_MAPPED))
->  		return -EIO;
->  
-> +	/*
-> +	 * Write can allocate block for an area which has a hole page mapped
-> +	 * into page tables. We have to tear down these mappings so that data
-> +	 * written by write(2) is visible in mmap.
-> +	 */
-> +	if ((iomap->flags & IOMAP_F_NEW) && inode->i_mapping->nrpages) {
-> +		invalidate_inode_pages2_range(inode->i_mapping,
-> +					      pos >> PAGE_SHIFT,
-> +					      (end - 1) >> PAGE_SHIFT);
-> +	}
-> +
->  	while (pos < end) {
->  		unsigned offset = pos & (PAGE_SIZE - 1);
->  		struct blk_dax_ctl dax = { 0 };
-> @@ -1042,23 +1053,6 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
->  	if (iov_iter_rw(iter) == WRITE)
->  		flags |= IOMAP_WRITE;
->  
-> -	/*
-> -	 * Yes, even DAX files can have page cache attached to them:  A zeroed
-> -	 * page is inserted into the pagecache when we have to serve a write
-> -	 * fault on a hole.  It should never be dirtied and can simply be
-> -	 * dropped from the pagecache once we get real data for the page.
-> -	 *
-> -	 * XXX: This is racy against mmap, and there's nothing we can do about
-> -	 * it. We'll eventually need to shift this down even further so that
-> -	 * we can check if we allocated blocks over a hole first.
-> -	 */
-> -	if (mapping->nrpages) {
-> -		ret = invalidate_inode_pages2_range(mapping,
-> -				pos >> PAGE_SHIFT,
-> -				(pos + iov_iter_count(iter) - 1) >> PAGE_SHIFT);
-> -		WARN_ON_ONCE(ret);
-> -	}
-> -
->  	while (iov_iter_count(iter)) {
->  		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
->  				iter, dax_iomap_actor);
-> -- 
-> 2.6.6
-> 
+>
+> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>
+> [1] https://lkml.org/lkml/2016/11/25/595
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
