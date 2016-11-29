@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C2556B0069
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:28:51 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id m203so45053114wma.2
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 07:28:51 -0800 (PST)
-Received: from mx1.molgen.mpg.de (mx1.molgen.mpg.de. [141.14.17.9])
-        by mx.google.com with ESMTPS id r3si3041435wmd.81.2016.11.29.07.28.50
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 355A66B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:55:46 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j92so302438657ioi.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 07:55:46 -0800 (PST)
+Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
+        by mx.google.com with ESMTPS id n86si8326248ioe.19.2016.11.29.07.55.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 07:28:50 -0800 (PST)
-Received: from keineahnung.molgen.mpg.de (keineahnung.molgen.mpg.de [141.14.17.193])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: pmenzel)
-	by mx.molgen.mpg.de (Postfix) with ESMTPSA id D1876201299B43
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 16:28:49 +0100 (CET)
-From: Paul Menzel <pmenzel@molgen.mpg.de>
-Subject: Securely accessing linux-mm.org over HTTPS
-Message-ID: <b029759f-aa50-0bb7-1c7e-2a83b69fb4b3@molgen.mpg.de>
-Date: Tue, 29 Nov 2016 16:28:49 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Nov 2016 07:55:45 -0800 (PST)
+Date: Tue, 29 Nov 2016 07:55:37 -0800
+From: Marc MERLIN <marc@merlins.org>
+Message-ID: <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
+References: <20161121154336.GD19750@merlins.org>
+ <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
+ <20161121215639.GF13371@merlins.org>
+ <20161122160629.uzt2u6m75ash4ved@merlins.org>
+ <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+ <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+ <20161123063410.GB2864@dhcp22.suse.cz>
+ <20161128072315.GC14788@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161128072315.GC14788@dhcp22.suse.cz>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Dear Linux-MM folks,
+On Mon, Nov 28, 2016 at 08:23:15AM +0100, Michal Hocko wrote:
+> Marc, could you try this patch please? I think it should be pretty clear
+> it should help you but running it through your use case would be more
+> than welcome before I ask Greg to take this to the 4.8 stable tree.
 
+I ran it overnight and copied 1.4TB with it before it failed because
+there wasn't enough disk space on the other side, so I think it fixes
+the problem too.
 
-Securely accessing the MM Web site [1], the browser currently displays a 
-warning sign. Looking at the network traffic with the development tools, 
-the culprit is the URL below, which is embedded with HTTP and not HTTPS.
-
- > http://s7.addthis.com/button1-share.gif
-
-This file is available over HTTPS too.
-
-```
-$ curl -I http://s7.addthis.com/button1-share.gif
-HTTP/1.1 200 OK
-Date: Tue, 29 Nov 2016 15:22:15 GMT
-Content-Type: image/gif
-Content-Length: 605
-Connection: keep-alive
-Last-Modified: Tue, 17 May 2016 17:16:09 GMT
-ETag: "25d-5330ce5b45578"
-Timing-Allow-Origin: *
-Surrogate-Key: client_dist
-CF-Cache-Status: HIT
-Accept-Ranges: bytes
-X-Host: s7.addthis.com
-Server: cloudflare-nginx
-CF-RAY: 30970dd3e0482d35-TXL
-```
-
-I already created a user account on the Web site, but I am unable to 
-edit the template. Please tell me how I can do that, or contact the Web 
-masters.
-
-
-Kind regards,
-
-Paul Menzel
-
-
-[1] https://linux-mm.org
+Marc
+-- 
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
