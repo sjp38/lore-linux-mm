@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A05A86B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:39:05 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id e9so458683579pgc.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:39:05 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a4si32953297pli.5.2016.11.29.14.39.04
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 671556B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:43:03 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id m67so144226471qkf.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:43:03 -0800 (PST)
+Received: from mail-qt0-f178.google.com (mail-qt0-f178.google.com. [209.85.216.178])
+        by mx.google.com with ESMTPS id 21si36019399qkj.43.2016.11.29.14.43.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 14:39:04 -0800 (PST)
-Date: Tue, 29 Nov 2016 14:39:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] z3fold fixes
-Message-Id: <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org>
-In-Reply-To: <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
-References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
-	<CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 29 Nov 2016 14:43:02 -0800 (PST)
+Received: by mail-qt0-f178.google.com with SMTP id n6so171214404qtd.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:43:02 -0800 (PST)
+Subject: Re: [PATCHv4 06/10] xen: Switch to using __pa_symbol
+References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
+ <1480445729-27130-7-git-send-email-labbott@redhat.com>
+ <935fefbf-97dc-83fc-b7c3-ba3f19f2087f@oracle.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <b7bcf276-6983-7eef-07a9-890ad7158789@redhat.com>
+Date: Tue, 29 Nov 2016 14:42:58 -0800
+MIME-Version: 1.0
+In-Reply-To: <935fefbf-97dc-83fc-b7c3-ba3f19f2087f@oracle.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Vitaly Wool <vitalywool@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, xen-devel@lists.xenproject.org
 
-On Tue, 29 Nov 2016 17:33:19 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
-
-> On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> > Here come 2 patches with z3fold fixes for chunks counting and locking. As commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is too big") was NAK'ed [1], I would suggest that we removed that one and the next z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't compacted") and applied the coming 2 instead.
+On 11/29/2016 02:26 PM, Boris Ostrovsky wrote:
+> On 11/29/2016 01:55 PM, Laura Abbott wrote:
+>> __pa_symbol is the correct macro to use on kernel
+>> symbols. Switch to this from __pa.
+>>
+>> Signed-off-by: Laura Abbott <labbott@redhat.com>
+>> ---
+>> Found during a sweep of the kernel. Untested.
+>> ---
+>>  drivers/xen/xenbus/xenbus_dev_backend.c | 2 +-
+>>  drivers/xen/xenfs/xenstored.c           | 2 +-
+>>  2 files changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/drivers/xen/xenbus/xenbus_dev_backend.c b/drivers/xen/xenbus/xenbus_dev_backend.c
+>> index 4a41ac9..31ca2bf 100644
+>> --- a/drivers/xen/xenbus/xenbus_dev_backend.c
+>> +++ b/drivers/xen/xenbus/xenbus_dev_backend.c
+>> @@ -99,7 +99,7 @@ static int xenbus_backend_mmap(struct file *file, struct vm_area_struct *vma)
+>>  		return -EINVAL;
+>>  
+>>  	if (remap_pfn_range(vma, vma->vm_start,
+>> -			    virt_to_pfn(xen_store_interface),
+>> +			    PHYS_PFN(__pa_symbol(xen_store_interface)),
+>>  			    size, vma->vm_page_prot))
+>>  		return -EAGAIN;
+>>  
+>> diff --git a/drivers/xen/xenfs/xenstored.c b/drivers/xen/xenfs/xenstored.c
+>> index fef20db..21009ea 100644
+>> --- a/drivers/xen/xenfs/xenstored.c
+>> +++ b/drivers/xen/xenfs/xenstored.c
+>> @@ -38,7 +38,7 @@ static int xsd_kva_mmap(struct file *file, struct vm_area_struct *vma)
+>>  		return -EINVAL;
+>>  
+>>  	if (remap_pfn_range(vma, vma->vm_start,
+>> -			    virt_to_pfn(xen_store_interface),
+>> +			    PHYS_PFN(__pa_symbol(xen_store_interface)),
+>>  			    size, vma->vm_page_prot))
+>>  		return -EAGAIN;
+>>  
 > 
-> Instead of adding these onto all the previous ones, could you redo the
-> entire z3fold series?  I think it'll be simpler to review the series
-> all at once and that would remove some of the stuff from previous
-> patches that shouldn't be there.
 > 
-> If that's ok with Andrew, of course, but I don't think any of the
-> z3fold patches have been pushed to Linus yet.
+> I suspect this won't work --- xen_store_interface doesn't point to a
+> kernel symbol.
+> 
+> -boris
+> 
 
-Sounds good to me.  I had a few surprise rejects when merging these
-two, which indicates that things might be out of sync.
+I reviewed this again and yes you are right. I missed that this
+was a pointer and not just a symbol so I think this patch can
+just be dropped.
 
-I presently have:
-
-z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patch
-z3fold-make-pages_nr-atomic.patch
-z3fold-extend-compaction-function.patch
-z3fold-use-per-page-spinlock.patch
-z3fold-discourage-use-of-pages-that-werent-compacted.patch
-z3fold-fix-header-size-related-issues.patch
-z3fold-fix-locking-issues.patch
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
