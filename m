@@ -1,87 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C5249280254
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:27 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id m203so46234415wma.2
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:59:27 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id cc1si60650337wjc.168.2016.11.29.10.59.26
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 00E4D6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:34:14 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id xy5so28441021wjc.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:34:13 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m7si3884228wme.134.2016.11.29.11.34.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 10:59:26 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uATIx0lB066040
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:25 -0500
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 271bxcpdxb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:25 -0500
-Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2016 11:59:24 -0700
-Date: Tue, 29 Nov 2016 10:59:21 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20161124133019.GE3612@linux.vnet.ibm.com>
- <de88a72a-f861-b51f-9fb3-4265378702f1@kernelpanic.ru>
- <20161125212000.GI31360@linux.vnet.ibm.com>
- <20161128095825.GI14788@dhcp22.suse.cz>
- <20161128105425.GY31360@linux.vnet.ibm.com>
- <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
- <20161128143435.GC3924@linux.vnet.ibm.com>
- <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
- <20161128150509.GG3924@linux.vnet.ibm.com>
- <f9c76351-56a6-466d-98c0-b821c2b54a3d@kernelpanic.ru>
+        Tue, 29 Nov 2016 11:34:12 -0800 (PST)
+Date: Tue, 29 Nov 2016 14:34:03 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/6] mm: Invalidate DAX radix tree entries only if
+ appropriate
+Message-ID: <20161129193403.GA12396@cmpxchg.org>
+References: <1479980796-26161-1-git-send-email-jack@suse.cz>
+ <1479980796-26161-3-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f9c76351-56a6-466d-98c0-b821c2b54a3d@kernelpanic.ru>
-Message-Id: <20161129185921.GA14183@linux.vnet.ibm.com>
+In-Reply-To: <1479980796-26161-3-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Zhmurov <bb@kernelpanic.ru>
-Cc: Michal Hocko <mhocko@kernel.org>, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Mon, Nov 28, 2016 at 10:16:33PM +0300, Boris Zhmurov wrote:
-> Paul E. McKenney 28/11/16 18:05:
-> > On Mon, Nov 28, 2016 at 05:40:48PM +0300, Boris Zhmurov wrote:
-> >> Paul E. McKenney 28/11/16 17:34:
-> >>
-> >>
-> >>>> So Paul, I've dropped "mm: Prevent shrink_node_memcg() RCU CPU stall
-> >>>> warnings" patch, and stalls got back (attached).
-> >>>>
-> >>>> With this patch "commit 7cebc6b63bf75db48cb19a94564c39294fd40959" from
-> >>>> your tree stalls gone. Looks like that.
-> >>>
-> >>> So with only this commit and no other commit or configuration adjustment,
-> >>> everything works?  Or it the solution this commit and some other stuff?
-> >>>
-> >>> The reason I ask is that if just this commit does the trick, I should
-> >>> drop the others.
-> >>
-> >> I'd like to ask for some more time to make sure this is it.
-> >> Approximately 2 or 3 days.
-> > 
-> > Works for me!
-> > 
-> > 							Thanx, Paul
-> 
-> 
-> FYI.
-> Some more stalls with mm-prevent-shrink_node-RCU-CPU-stall-warning.patch
-> and without mm-prevent-shrink_node_memcg-RCU-CPU-stall-warnings.patch.
+Hi Jan,
 
-Thank you for the info!  Is this one needed?  2d66cccd7343 ("mm: Prevent
-__alloc_pages_nodemask() RCU CPU stall warnings")
+On Thu, Nov 24, 2016 at 10:46:32AM +0100, Jan Kara wrote:
+> @@ -452,16 +452,37 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+>  		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+>  }
+>  
+> +static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+> +					  pgoff_t index, bool trunc)
+> +{
+> +	int ret = 0;
+> +	void *entry;
+> +	struct radix_tree_root *page_tree = &mapping->page_tree;
+> +
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> +	if (!entry || !radix_tree_exceptional_entry(entry))
+> +		goto out;
+> +	if (!trunc &&
+> +	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
+> +	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
+> +		goto out;
+> +	radix_tree_delete(page_tree, index);
 
-It is causing trouble in other tests.  If it is needed, I must fix it,
-if not, I can happily drop it.  ;-)
+You could use the new __radix_tree_replace() here and save a second
+tree lookup.
 
-							Thanx. Paul
+> +/*
+> + * Invalidate exceptional DAX entry if easily possible. This handles DAX
+> + * entries for invalidate_inode_pages() so we evict the entry only if we can
+> + * do so without blocking.
+> + */
+> +int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index)
+> +{
+> +	int ret = 0;
+> +	void *entry, **slot;
+> +	struct radix_tree_root *page_tree = &mapping->page_tree;
+> +
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	entry = __radix_tree_lookup(page_tree, index, NULL, &slot);
+> +	if (!entry || !radix_tree_exceptional_entry(entry) ||
+> +	    slot_locked(mapping, slot))
+> +		goto out;
+> +	if (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
+> +	    radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+> +		goto out;
+> +	radix_tree_delete(page_tree, index);
+
+Ditto for __radix_tree_replace().
+
+> @@ -30,14 +30,6 @@ static void clear_exceptional_entry(struct address_space *mapping,
+>  	struct radix_tree_node *node;
+>  	void **slot;
+>  
+> -	/* Handled by shmem itself */
+> -	if (shmem_mapping(mapping))
+> -		return;
+> -
+> -	if (dax_mapping(mapping)) {
+> -		dax_delete_mapping_entry(mapping, index);
+> -		return;
+> -	}
+>  	spin_lock_irq(&mapping->tree_lock);
+>  	/*
+>  	 * Regular page slots are stabilized by the page lock even
+> @@ -70,6 +62,56 @@ static void clear_exceptional_entry(struct address_space *mapping,
+>  	spin_unlock_irq(&mapping->tree_lock);
+>  }
+>  
+> +/*
+> + * Unconditionally remove exceptional entry. Usually called from truncate path.
+> + */
+> +static void truncate_exceptional_entry(struct address_space *mapping,
+> +				       pgoff_t index, void *entry)
+> +{
+> +	/* Handled by shmem itself */
+> +	if (shmem_mapping(mapping))
+> +		return;
+> +
+> +	if (dax_mapping(mapping)) {
+> +		dax_delete_mapping_entry(mapping, index);
+> +		return;
+> +	}
+> +	clear_exceptional_entry(mapping, index, entry);
+> +}
+> +
+> +/*
+> + * Invalidate exceptional entry if easily possible. This handles exceptional
+> + * entries for invalidate_inode_pages() so for DAX it evicts only unlocked and
+> + * clean entries.
+> + */
+> +static int invalidate_exceptional_entry(struct address_space *mapping,
+> +					pgoff_t index, void *entry)
+> +{
+> +	/* Handled by shmem itself */
+> +	if (shmem_mapping(mapping))
+> +		return 1;
+> +	if (dax_mapping(mapping))
+> +		return dax_invalidate_mapping_entry(mapping, index);
+> +	clear_exceptional_entry(mapping, index, entry);
+> +	return 1;
+> +}
+> +
+> +/*
+> + * Invalidate exceptional entry if clean. This handles exceptional entries for
+> + * invalidate_inode_pages2() so for DAX it evicts only clean entries.
+> + */
+> +static int invalidate_exceptional_entry2(struct address_space *mapping,
+> +					 pgoff_t index, void *entry)
+> +{
+> +	/* Handled by shmem itself */
+> +	if (shmem_mapping(mapping))
+> +		return 1;
+> +	if (dax_mapping(mapping))
+> +		return dax_invalidate_clean_mapping_entry(mapping, index);
+> +	clear_exceptional_entry(mapping, index, entry);
+> +	return 1;
+> +}
+
+The way these functions are split out looks fine to me.
+
+Now that clear_exceptional_entry() doesn't handle shmem and DAX
+anymore, only shadows, could you rename it to clear_shadow_entry()?
+
+The naming situation with truncate, invalidate, invalidate2 worries me
+a bit. They aren't great names to begin with, but now DAX uses yet
+another terminology for what state prevents a page from being dropped.
+Can we switch to truncate, invalidate, and invalidate_sync throughout
+truncate.c and then have DAX follow that naming too? Or maybe you can
+think of better names. But neither invalidate2 and invalidate_clean
+don't seem to capture it quite right ;)
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
