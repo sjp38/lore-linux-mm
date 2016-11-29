@@ -1,129 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1BFC6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:56:43 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id f188so459732669pgc.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:56:43 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n34si26793254pld.250.2016.11.29.14.56.42
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A68886B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 18:01:39 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id j65so319796500iof.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 15:01:39 -0800 (PST)
+Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
+        by mx.google.com with ESMTPS id k204si45646240iok.169.2016.11.29.15.01.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 14:56:42 -0800 (PST)
-Date: Tue, 29 Nov 2016 14:56:54 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
- dereference in mem_cgroup_node_nr_lru_pages
-Message-Id: <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
-In-Reply-To: <bug-189181-27@https.bugzilla.kernel.org/>
-References: <bug-189181-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Nov 2016 15:01:39 -0800 (PST)
+Date: Tue, 29 Nov 2016 15:01:35 -0800
+From: Marc MERLIN <marc@merlins.org>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of RAM that should be free
+Message-ID: <20161129230135.GM7179@merlins.org>
+References: <20161122160629.uzt2u6m75ash4ved@merlins.org> <48061a22-0203-de54-5a44-89773bff1e63@suse.cz> <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com> <20161123063410.GB2864@dhcp22.suse.cz> <20161128072315.GC14788@dhcp22.suse.cz> <20161129155537.f6qgnfmnoljwnx6j@merlins.org> <20161129160751.GC9796@dhcp22.suse.cz> <20161129163406.treuewaqgt4fy4kh@merlins.org> <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com> <20161129174019.fywddwo5h4pyix7r@merlins.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161129174019.fywddwo5h4pyix7r@merlins.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, marmarek@mimuw.edu.pl
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
+On Tue, Nov 29, 2016 at 09:40:19AM -0800, Marc MERLIN wrote:
+> Thanks for the reply and suggestions.
+> 
+> On Tue, Nov 29, 2016 at 09:07:03AM -0800, Linus Torvalds wrote:
+> > On Tue, Nov 29, 2016 at 8:34 AM, Marc MERLIN <marc@merlins.org> wrote:
+> > > Now, to be fair, this is not a new problem, it's just varying degrees of
+> > > bad and usually only happens when I do a lot of I/O with btrfs.
+> > 
+> > One situation where I've seen something like this happen is
+> > 
+> >  (a) lots and lots of dirty data queued up
+> >  (b) horribly slow storage
+> 
+> In my case, it is a 5x 4TB HDD with 
+> software raid 5 < bcache < dmcrypt < btrfs
+> bcache is currently half disabled (as in I removed the actual cache) or
+> too many bcache requests pile up, and the kernel dies when too many
+> workqueues have piled up.
+> I'm just kind of worried that since I'm going through 4 subsystems
+> before my data can hit disk, that's a lot of memory allocations and
+> places where data can accumulate and cause bottlenecks if the next
+> subsystem isn't as fast.
+> 
+> But this shouldn't be "horribly slow", should it? (it does copy a few
+> terabytes per day, not fast, but not horrible, about 30MB/s or so)
+> 
+> > Sadly, our defaults for "how much dirty data do we allow" are somewhat
+> > buggered. The global defaults are in "percent of memory", and are
+> > generally _much_ too high for big-memory machines:
+> > 
+> >     [torvalds@i7 linux]$ cat /proc/sys/vm/dirty_ratio
+> >     20
+> >     [torvalds@i7 linux]$ cat /proc/sys/vm/dirty_background_ratio
+> >     10
+> 
+> I can confirm I have the same.
+> 
+> > says that it only starts really throttling writes when you hit 20% of
+> > all memory used. You don't say how much memory you have in that
+> > machine, but if it's the same one you talked about earlier, it was
+> > 24GB. So you can have 4GB of dirty data waiting to be flushed out.
+> 
+> Correct, 24GB and 4GB.
+> 
+> > And we *try* to do this per-device backing-dev congestion thing to
+> > make things work better, but it generally seems to not work very well.
+> > Possibly because of inconsistent write speeds (ie _sometimes_ the SSD
+> > does really well, and we want to open up, and then it shuts down).
+> > 
+> > One thing you can try is to just make the global limits much lower. As in
+> > 
+> >    echo 2 > /proc/sys/vm/dirty_ratio
+> >    echo 1 > /proc/sys/vm/dirty_background_ratio
+> 
+> I will give that a shot, thank you.
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+And, after 5H of copying, not a single hang, or USB disconnect, or anything.
+Obviously this seems to point to other problems in the code, and I have no
+idea which layer is a culprit here, but reducing the buffers absolutely
+helped a lot.
 
-On Sat, 26 Nov 2016 15:10:16 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=189181
-> 
->             Bug ID: 189181
->            Summary: BUG: unable to handle kernel NULL pointer dereference
->                     in mem_cgroup_node_nr_lru_pages
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.8.10
->           Hardware: Intel
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Slab Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: marmarek@mimuw.edu.pl
->         Regression: No
-> 
-> Created attachment 245931
->   --> https://bugzilla.kernel.org/attachment.cgi?id=245931&action=edit
-> Full console log
-> 
-> Shortly after system startup sometimes (about 1/30 times) I get this:
-> 
-> [   15.665196] BUG: unable to handle kernel NULL pointer dereference at
-> 0000000000000400
-> [   15.665213] IP: [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
-> [   15.665225] PGD 0 
-> [   15.665230] Oops: 0000 [#1] SMP
-> [   15.665235] Modules linked in: fuse xt_nat xen_netback xt_REDIRECT
-> nf_nat_redirect ip6table_filter ip6_tables xt_conntrack ipt_MASQUERADE
-> nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_i
-> pv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack intel_rapl
-> x86_pkg_temp_thermal coretemp crct10dif_pclmul crc32_pclmul crc32c_intel
-> ghash_clmulni_intel pcspkr dummy_hcd udc_core u2mfn(O) 
-> xen_blkback xenfs xen_privcmd xen_blkfront
-> [   15.665285] CPU: 0 PID: 60 Comm: kswapd0 Tainted: G           O   
-> 4.8.10-12.pvops.qubes.x86_64 #1
-> [   15.665292] task: ffff880011863b00 task.stack: ffff880011868000
-> [   15.665297] RIP: e030:[<ffffffff8122d520>]  [<ffffffff8122d520>]
-> mem_cgroup_node_nr_lru_pages+0x20/0x40
-> [   15.665307] RSP: e02b:ffff88001186bc70  EFLAGS: 00010293
-> [   15.665311] RAX: 0000000000000000 RBX: ffff88001186bd20 RCX:
-> 0000000000000002
-> [   15.665317] RDX: 000000000000000c RSI: 0000000000000000 RDI:
-> 0000000000000000
-> [   15.665322] RBP: ffff88001186bc70 R08: 28f5c28f5c28f5c3 R09:
-> 0000000000000000
-> [   15.665327] R10: 0000000000006c34 R11: 0000000000000333 R12:
-> 00000000000001f6
-> [   15.665332] R13: ffffffff81c6f6a0 R14: 0000000000000000 R15:
-> 0000000000000000
-> [   15.665343] FS:  0000000000000000(0000) GS:ffff880013c00000(0000)
-> knlGS:ffff880013d00000
-> [   15.665351] CS:  e033 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   15.665358] CR2: 0000000000000400 CR3: 00000000122f2000 CR4:
-> 0000000000042660
-> [   15.665366] Stack:
-> [   15.665371]  ffff88001186bc98 ffffffff811e0dda 00000000000002eb
-> 0000000000000080
-> [   15.665384]  ffffffff81c6f6a0 ffff88001186bd70 ffffffff811c36d9
-> 0000000000000000
-> [   15.665397]  ffff88001186bcb0 ffff88001186bcb0 ffff88001186bcc0
-> 000000000000abc5
-> [   15.665410] Call Trace:
-> [   15.665419]  [<ffffffff811e0dda>] count_shadow_nodes+0x9a/0xa0
-> [   15.665428]  [<ffffffff811c36d9>] shrink_slab.part.42+0x119/0x3e0
-> [   15.666049]  [<ffffffff811c83ec>] shrink_node+0x22c/0x320
-> [   15.666049]  [<ffffffff811c928c>] kswapd+0x32c/0x700
-> [   15.666049]  [<ffffffff811c8f60>] ? mem_cgroup_shrink_node+0x180/0x180
-> [   15.666049]  [<ffffffff810c1b08>] kthread+0xd8/0xf0
-> [   15.666049]  [<ffffffff817a3abf>] ret_from_fork+0x1f/0x40
-> [   15.666049]  [<ffffffff810c1a30>] ? kthread_create_on_node+0x190/0x190
-> [   15.666049] Code: 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 3b 35 dd
-> eb b1 00 55 48 89 e5 73 2c 89 d2 31 c9 31 c0 4c 63 ce 48 0f a3 ca 73 13 <4a> 8b
-> b4 cf 00 04 00 00 41 89 c8 4a 03
->  84 c6 80 00 00 00 83 c1 
-> [   15.666049] RIP  [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
-> [   15.666049]  RSP <ffff88001186bc70>
-> [   15.666049] CR2: 0000000000000400
-> [   15.666049] ---[ end trace 100494b9edbdfc4d ]---
-> 
-> After this, there is another "unable to handle kerneel paging request" I guess
-> because of do_exit in kswapd0, then a lot of soft lockups and system is
-> unusable (see full log attached).
-> 
-> This is running in PV domU on Xen 4.7.0 (the same also happens on Xen 4.6.3).
-> Same happens on 4.8.7 too. Previously it was working on v4.4.31 without any
-> problem.
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+Thanks much,
+Marc
+-- 
+"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
+Microsoft is to operating systems ....
+                                      .... what McDonalds is to gourmet cooking
+Home page: http://marc.merlins.org/  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
