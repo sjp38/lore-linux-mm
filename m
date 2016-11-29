@@ -1,51 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2184B6B0268
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:55:58 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id k201so138833845qke.6
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:55:58 -0800 (PST)
-Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com. [209.85.220.169])
-        by mx.google.com with ESMTPS id t65si35579845qkl.108.2016.11.29.10.55.57
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4CC6B0269
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:56:01 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id 41so116138088qtn.7
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:56:01 -0800 (PST)
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com. [209.85.220.178])
+        by mx.google.com with ESMTPS id o63si35578013qkc.253.2016.11.29.10.56.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 10:55:57 -0800 (PST)
-Received: by mail-qk0-f169.google.com with SMTP id x190so184728398qkb.0
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:55:57 -0800 (PST)
+        Tue, 29 Nov 2016 10:56:00 -0800 (PST)
+Received: by mail-qk0-f178.google.com with SMTP id x190so184730097qkb.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:56:00 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv4 07/10] kexec: Switch to __pa_symbol
-Date: Tue, 29 Nov 2016 10:55:26 -0800
-Message-Id: <1480445729-27130-8-git-send-email-labbott@redhat.com>
+Subject: [PATCHv4 08/10] mm/kasan: Switch to using __pa_symbol and lm_alias
+Date: Tue, 29 Nov 2016 10:55:27 -0800
+Message-Id: <1480445729-27130-9-git-send-email-labbott@redhat.com>
 In-Reply-To: <1480445729-27130-1-git-send-email-labbott@redhat.com>
 References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Eric Biederman <ebiederm@xmission.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, kexec@lists.infradead.org
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com
 
-
-__pa_symbol is the correct api to get the physical address of kernel
-symbols. Switch to it to allow for better debug checking.
+__pa_symbol is the correct API to find the physical address of symbols.
+Switch to it to allow for debugging APIs to work correctly. Other
+functions such as p*d_populate may call __pa internally. Ensure that the
+address passed is in the linear region by calling lm_alias.
 
 Signed-off-by: Laura Abbott <labbott@redhat.com>
 ---
-Found during review of the kernel. Untested.
+Pointed out during review/testing of v3.
 ---
- kernel/kexec_core.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/kasan/kasan_init.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index 5616755..e1b625e 100644
---- a/kernel/kexec_core.c
-+++ b/kernel/kexec_core.c
-@@ -1397,7 +1397,7 @@ void __weak arch_crash_save_vmcoreinfo(void)
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index 3f9a41c..ff04721 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -49,7 +49,7 @@ static void __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
+ 	pte_t *pte = pte_offset_kernel(pmd, addr);
+ 	pte_t zero_pte;
  
- phys_addr_t __weak paddr_vmcoreinfo_note(void)
- {
--	return __pa((unsigned long)(char *)&vmcoreinfo_note);
-+	return __pa_symbol((unsigned long)(char *)&vmcoreinfo_note);
- }
+-	zero_pte = pfn_pte(PFN_DOWN(__pa(kasan_zero_page)), PAGE_KERNEL);
++	zero_pte = pfn_pte(PFN_DOWN(__pa_symbol(kasan_zero_page)), PAGE_KERNEL);
+ 	zero_pte = pte_wrprotect(zero_pte);
  
- static int __init crash_save_vmcoreinfo_init(void)
+ 	while (addr + PAGE_SIZE <= end) {
+@@ -69,7 +69,7 @@ static void __init zero_pmd_populate(pud_t *pud, unsigned long addr,
+ 		next = pmd_addr_end(addr, end);
+ 
+ 		if (IS_ALIGNED(addr, PMD_SIZE) && end - addr >= PMD_SIZE) {
+-			pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
++			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+ 			continue;
+ 		}
+ 
+@@ -94,7 +94,7 @@ static void __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
+ 
+ 			pud_populate(&init_mm, pud, kasan_zero_pmd);
+ 			pmd = pmd_offset(pud, addr);
+-			pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
++			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+ 			continue;
+ 		}
+ 
+@@ -135,11 +135,11 @@ void __init kasan_populate_zero_shadow(const void *shadow_start,
+ 			 * puds,pmds, so pgd_populate(), pud_populate()
+ 			 * is noops.
+ 			 */
+-			pgd_populate(&init_mm, pgd, kasan_zero_pud);
++			pgd_populate(&init_mm, pgd, lm_alias(kasan_zero_pud));
+ 			pud = pud_offset(pgd, addr);
+-			pud_populate(&init_mm, pud, kasan_zero_pmd);
++			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
+ 			pmd = pmd_offset(pud, addr);
+-			pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
++			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
+ 			continue;
+ 		}
+ 
 -- 
 2.7.4
 
