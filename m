@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 55EAB6B027C
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:53 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q10so422128336pgq.7
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:53 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 145si59362162pgf.169.2016.11.29.03.23.52
+	by kanga.kvack.org (Postfix) with ESMTP id 48AC66B027D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:57 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so421899479pgc.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:57 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 59si30847614plp.46.2016.11.29.03.23.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:23:52 -0800 (PST)
+        Tue, 29 Nov 2016 03:23:56 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 05/36] thp: try to free page's buffers before attempt split
-Date: Tue, 29 Nov 2016 14:22:33 +0300
-Message-Id: <20161129112304.90056-6-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 08/36] filemap: handle huge pages in do_generic_file_read()
+Date: Tue, 29 Nov 2016 14:22:36 +0300
+Message-Id: <20161129112304.90056-9-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,78 +20,47 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We want page to be isolated from the rest of the system before spliting
-it. We rely on page count to be 2 for file pages to make sure nobody
-uses the page: one pin to caller, one to radix-tree.
+Most of work happans on head page. Only when we need to do copy data to
+userspace we find relevant subpage.
 
-Filesystems with backing storage can have page count increased if it has
-buffers.
-
-Let's try to free them, before attempt split. And remove one guarding
-VM_BUG_ON_PAGE().
+We are still limited by PAGE_SIZE per iteration. Lifting this limitation
+would require some more work.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/buffer_head.h |  1 +
- mm/huge_memory.c            | 19 ++++++++++++++++++-
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ mm/filemap.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index d67ab83823ad..fd4134ce9c54 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -400,6 +400,7 @@ extern int __set_page_dirty_buffers(struct page *page);
- #else /* CONFIG_BLOCK */
- 
- static inline void buffer_init(void) {}
-+static inline int page_has_buffers(struct page *page) { return 0; }
- static inline int try_to_free_buffers(struct page *page) { return 1; }
- static inline int inode_has_buffers(struct inode *inode) { return 0; }
- static inline void invalidate_inode_buffers(struct inode *inode) {}
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 91dbab9644be..a15d566b14f6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -30,6 +30,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
-+#include <linux/buffer_head.h>
- 
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -2111,7 +2112,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 
- 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
--	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
- 	if (PageAnon(head)) {
-@@ -2140,6 +2140,23 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 			goto out;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 74341f8b831e..6a2f9ea521fb 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1749,6 +1749,7 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
  		}
++		page = compound_head(page);
+ 		if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+@@ -1830,7 +1831,8 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+ 		 * now we can copy it to user space...
+ 		 */
  
-+		/* Try to free buffers before attempt split */
-+		if (!PageSwapBacked(head) && PagePrivate(page)) {
-+			/*
-+			 * We cannot trigger writeback from here due possible
-+			 * recursion if triggered from vmscan, only wait.
-+			 *
-+			 * Caller can trigger writeback it on its own, if safe.
-+			 */
-+			wait_on_page_writeback(head);
-+
-+			if (page_has_buffers(head) && !try_to_release_page(head,
-+						GFP_KERNEL)) {
-+				ret = -EBUSY;
-+				goto out;
-+			}
-+		}
-+
- 		/* Addidional pin from radix tree */
- 		extra_pins = 1;
- 		anon_vma = NULL;
+-		ret = copy_page_to_iter(page, offset, nr, iter);
++		ret = copy_page_to_iter(page + index - page->index, offset,
++				nr, iter);
+ 		offset += ret;
+ 		index += offset >> PAGE_SHIFT;
+ 		offset &= ~PAGE_MASK;
+@@ -2248,6 +2250,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	 * because there really aren't any performance issues here
+ 	 * and we need to check for errors.
+ 	 */
++	page = compound_head(page);
+ 	ClearPageError(page);
+ 	error = mapping->a_ops->readpage(file, page);
+ 	if (!error) {
 -- 
 2.10.2
 
