@@ -1,312 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 309D26B025E
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 15:17:08 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id e9so450498904pgc.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 12:17:08 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id p61si32669023plb.159.2016.11.29.12.17.06
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 229956B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 16:23:12 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id w63so330052722oiw.4
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:23:12 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id p7si26182357oif.168.2016.11.29.13.23.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 12:17:07 -0800 (PST)
-Subject: [PATCH] proc: mm: export PTE sizes directly in smaps (v3)
-From: Dave Hansen <dave@sr71.net>
-Date: Tue, 29 Nov 2016 12:17:03 -0800
-Message-Id: <20161129201703.CE9D5054@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Nov 2016 13:23:11 -0800 (PST)
+Date: Tue, 29 Nov 2016 13:23:08 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
+ ...' causing hang on sparc32 qemu
+Message-ID: <20161129212308.GA12447@roeck-us.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave@sr71.net>, hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, vbabka@suse.cz, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
 
+Hi Paul,
 
-Andrew, you can drop proc-mm-export-pte-sizes-directly-in-smaps-v2.patch,
-and replace it with this.
+most of my qemu tests for sparc32 targets started to fail in next-20161129.
+The problem is only seen in SMP builds; non-SMP builds are fine.
+Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
+RCU CPU stall warnings"); reverting that commit fixes the problem.
 
-Changes from v2:
- * Do not assume (wrongly) that smaps_hugetlb_range() always uses
-   PUDs.  (Thanks for pointing this out, Vlastimil).  Also handle
-   hstates that are not exactly at PMD/PUD sizes.
+Test scripts are available at:
+	https://github.com/groeck/linux-build-test/tree/master/rootfs/sparc
+Test results are at:
+	https://github.com/groeck/linux-build-test/tree/master/rootfs/sparc
 
-Changes from v1:
- * Do one 'Pte' line per pte size instead of mashing on one line
- * Use PMD_SIZE for pmds instead of PAGE_SIZE, whoops
- * Wrote some Documentation/
+Bisect log is attached.
 
---
+Please let me know if there is anything I can do to help tracking down the
+problem.
 
-/proc/$pid/smaps has a number of fields that are intended to imply the
-kinds of PTEs used to map memory.  "AnonHugePages" obviously tells you
-how many PMDs are being used.  "MMUPageSize" along with the "Hugetlb"
-fields tells you how many PTEs you have for a huge page.
-
-The current mechanisms work fine when we have one or two page sizes.
-But, they start to get a bit muddled when we mix page sizes inside
-one VMA.  For instance, the DAX folks were proposing adding a set of
-fields like:
-
-	DevicePages:
-	DeviceHugePages:
-	DeviceGiganticPages:
-	DeviceGinormousPages:
-
-to unmuddle things when page sizes get mixed.  That's fine, but
-it does require userspace know the mapping from our various
-arbitrary names to hardware page sizes on each architecture and
-kernel configuration.  That seems rather suboptimal.
-
-What folks really want is to know how much memory is mapped with
-each page size.  How about we just do *that* instead?
-
-Patch attached.  Seems harmless enough.  Seems to compile on a
-bunch of random architectures.  Makes smaps look like this:
-
-Private_Hugetlb:       0 kB
-Swap:                  0 kB
-SwapPss:               0 kB
-KernelPageSize:        4 kB
-MMUPageSize:           4 kB
-Locked:                0 kB
-Ptes@4kB:	      32 kB
-Ptes@2MB:	    2048 kB
-
-The format I used here should be unlikely to break smaps parsers
-unless they're looking for "kB" and now match the 'Ptes@4kB' instead
-of the one at the end of the line.
-
-Note: hugetlbfs PTEs are unusual.  We can have more than one "pte_t"
-for each hugetlbfs "page".  arm64 has this configuration, and probably
-others.  The code should now handle when an hstate's size is not equal
-to one of the page table entry sizes.  For instance, it assumes that
-hstates between PMD_SIZE and PUD_SIZE are made up of multiple PMDs
-and prints them as such.
-
-I've tested this on x86 with normal 4k ptes, anonymous huge pages,
-1G hugetlbfs and 2M hugetlbfs pages.
-
-1. I'd like to thank Dan Williams for showing me a mirror as I
-   complained about the bozo that introduced 'AnonHugePages'.
-
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org
+Thanks,
+Guenter
 
 ---
-
- b/Documentation/filesystems/proc.txt |    6 +
- b/fs/proc/task_mmu.c                 |  106 ++++++++++++++++++++++++++++++++++-
- b/mm/hugetlb.c                       |   11 +++
- 3 files changed, 121 insertions(+), 2 deletions(-)
-
-diff -puN fs/proc/task_mmu.c~smaps-pte-sizes fs/proc/task_mmu.c
---- a/fs/proc/task_mmu.c~smaps-pte-sizes	2016-11-28 08:48:10.899054714 -0800
-+++ b/fs/proc/task_mmu.c	2016-11-29 10:31:55.259790185 -0800
-@@ -445,6 +445,9 @@ struct mem_size_stats {
- 	unsigned long swap;
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
-+	unsigned long rss_pte;
-+	unsigned long rss_pmd;
-+	unsigned long rss_pud;
- 	u64 pss;
- 	u64 swap_pss;
- 	bool check_shmem_swap;
-@@ -519,6 +522,7 @@ static void smaps_pte_entry(pte_t *pte,
- 
- 	if (pte_present(*pte)) {
- 		page = vm_normal_page(vma, addr, *pte);
-+		mss->rss_pte += PAGE_SIZE;
- 	} else if (is_swap_pte(*pte)) {
- 		swp_entry_t swpent = pte_to_swp_entry(*pte);
- 
-@@ -578,6 +582,7 @@ static void smaps_pmd_entry(pmd_t *pmd,
- 		/* pass */;
- 	else
- 		VM_BUG_ON_PAGE(1, page);
-+	mss->rss_pmd += PMD_SIZE;
- 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
- }
- #else
-@@ -684,6 +689,30 @@ static void show_smap_vma_flags(struct s
- }
- 
- #ifdef CONFIG_HUGETLB_PAGE
-+/*
-+ * Most architectures have a 1:1 mapping of PTEs to hugetlb page
-+ * sizes, but there are some outliers like arm64 that use
-+ * multiple hardware PTEs to make a hugetlb "page".  Do not
-+ * assume that all 'hpage_size's are not exactly at a page table
-+ * size boundary.  Instead, accept arbitrary 'hpage_size's and
-+ * assume they are made up of the next-smallest size.  We do not
-+ * handle PGD-sized hpages and hugetlb_add_hstate() will WARN()
-+ * if it sees one.
-+ *
-+ * Note also that the page walker code only calls us once per
-+ * huge 'struct page', *not* once per PTE in the page tables.
-+ */
-+static void smaps_hugetlb_present_hpage(struct mem_size_stats *mss,
-+					unsigned long hpage_size)
-+{
-+	if (hpage_size >= PUD_SIZE)
-+		mss->rss_pud += hpage_size;
-+	else if (hpage_size >= PMD_SIZE)
-+		mss->rss_pmd += hpage_size;
-+	else
-+		mss->rss_pte += hpage_size;
-+}
-+
- static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
- 				 unsigned long addr, unsigned long end,
- 				 struct mm_walk *walk)
-@@ -702,11 +731,14 @@ static int smaps_hugetlb_range(pte_t *pt
- 	}
- 	if (page) {
- 		int mapcount = page_mapcount(page);
-+		unsigned long hpage_size = huge_page_size(hstate_vma(vma));
-+
-+		smaps_hugetlb_present_hpage(mss, hpage_size);
- 
- 		if (mapcount >= 2)
--			mss->shared_hugetlb += huge_page_size(hstate_vma(vma));
-+			mss->shared_hugetlb += hpage_size;
- 		else
--			mss->private_hugetlb += huge_page_size(hstate_vma(vma));
-+			mss->private_hugetlb += hpage_size;
- 	}
- 	return 0;
- }
-@@ -716,6 +748,75 @@ void __weak arch_show_smap(struct seq_fi
- {
- }
- 
-+/*
-+ * What units should we use for a given number?  We want
-+ * 2048 to be 2k, so we return 'k'.  1048576 should be
-+ * 1M, so we return 'M'.
-+ */
-+static char size_unit(unsigned long long nr)
-+{
-+	/*
-+	 * This ' ' might look a bit goofy in the output.  But, why
-+	 * bother doing anything.  Do we even have a <1k page size?
-+	 */
-+	if (nr < (1ULL<<10))
-+		return ' ';
-+	if (nr < (1ULL<<20))
-+		return 'k';
-+	if (nr < (1ULL<<30))
-+		return 'M';
-+	if (nr < (1ULL<<40))
-+		return 'G';
-+	if (nr < (1ULL<<50))
-+		return 'T';
-+	if (nr < (1ULL<<60))
-+		return 'P';
-+	return 'E';
-+}
-+
-+/*
-+ * How should we shift down a a given number to scale it
-+ * with the units we are printing it as? 2048 to be 2k,
-+ * so we want it shifted down by 10.  1048576 should be
-+ * 1M, so we want it shifted down by 20.
-+ */
-+static int size_shift(unsigned long long nr)
-+{
-+	if (nr < (1ULL<<10))
-+		return 0;
-+	if (nr < (1ULL<<20))
-+		return 10;
-+	if (nr < (1ULL<<30))
-+		return 20;
-+	if (nr < (1ULL<<40))
-+		return 30;
-+	if (nr < (1ULL<<50))
-+		return 40;
-+	if (nr < (1ULL<<60))
-+		return 50;
-+	return 60;
-+}
-+
-+static void show_one_smap_pte(struct seq_file *m, unsigned long bytes_rss,
-+		unsigned long pte_size)
-+{
-+	seq_printf(m, "Ptes@%ld%cB:	%8lu kB\n",
-+			pte_size >> size_shift(pte_size),
-+			size_unit(pte_size),
-+			bytes_rss >> 10);
-+}
-+
-+static void show_smap_ptes(struct seq_file *m, struct mem_size_stats *mss)
-+{
-+	/* Only print the entries for page sizes present in the VMA */
-+	if (mss->rss_pte)
-+		show_one_smap_pte(m, mss->rss_pte, PAGE_SIZE);
-+	if (mss->rss_pmd)
-+		show_one_smap_pte(m, mss->rss_pmd, PMD_SIZE);
-+	if (mss->rss_pud)
-+		show_one_smap_pte(m, mss->rss_pud, PUD_SIZE);
-+}
-+
- static int show_smap(struct seq_file *m, void *v, int is_pid)
- {
- 	struct vm_area_struct *vma = v;
-@@ -799,6 +900,7 @@ static int show_smap(struct seq_file *m,
- 		   (vma->vm_flags & VM_LOCKED) ?
- 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
- 
-+	show_smap_ptes(m, &mss);
- 	arch_show_smap(m, vma);
- 	show_smap_vma_flags(m, vma);
- 	m_cache_vma(m, vma);
-diff -puN Documentation/filesystems/proc.txt~smaps-pte-sizes Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt~smaps-pte-sizes	2016-11-28 08:48:10.903054895 -0800
-+++ b/Documentation/filesystems/proc.txt	2016-11-28 08:48:10.909055167 -0800
-@@ -418,6 +418,9 @@ SwapPss:               0 kB
- KernelPageSize:        4 kB
- MMUPageSize:           4 kB
- Locked:                0 kB
-+Ptes@4kB:	       4 kB
-+Ptes@2MB:	    8192 kB
-+
- VmFlags: rd ex mr mw me dw
- 
- the first of these lines shows the same information as is displayed for the
-@@ -450,6 +453,9 @@ replaced by copy-on-write) part of the u
- "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
- does not take into account swapped out page of underlying shmem objects.
- "Locked" indicates whether the mapping is locked in memory or not.
-+"Ptes@..." lines show how many page table entries are currently in place and
-+pointing to memory.  There is an entry for each size present in the hardware
-+page tables for this mapping.
- 
- "VmFlags" field deserves a separate description. This member represents the kernel
- flags associated with the particular virtual memory area in two letter encoded
-diff -puN mm/hugetlb.c~smaps-pte-sizes mm/hugetlb.c
---- a/mm/hugetlb.c~smaps-pte-sizes	2016-11-28 14:21:37.555519365 -0800
-+++ b/mm/hugetlb.c	2016-11-28 14:28:49.186234688 -0800
-@@ -2763,6 +2763,17 @@ void __init hugetlb_add_hstate(unsigned
- 					huge_page_size(h)/1024);
- 
- 	parsed_hstate = h;
-+
-+	/*
-+	 * PGD_SIZE isn't widely made available by architecures,
-+	 * so use PUD_SIZE*PTRS_PER_PUD as a substitute.
-+	 *
-+	 * Check for sizes that might be mapped by a PGD.  There
-+	 * are none of these known today, but be on the lookout.
-+	 * If this trips, we will need to update the mss->rss_*
-+	 * code in fs/proc/task_mmu.c.
-+	 */
-+	WARN_ON_ONCE((PAGE_SIZE << order) >= PUD_SIZE * PTRS_PER_PUD);
- }
- 
- static int __init hugetlb_nrpages_setup(char *s)
-_
+# bad: [4030ddad30d69fa041f57a2b742d69889b91e93b] Add linux-next specific files for 20161129
+# good: [e5517c2a5a49ed5e99047008629f1cd60246ea0e] Linux 4.9-rc7
+git bisect start 'HEAD' 'v4.9-rc7'
+# good: [d129495078c343c047171844bfa9c3f81d69125c] next-20161128/crypto
+git bisect good d129495078c343c047171844bfa9c3f81d69125c
+# good: [64c09c8edb6b4ea872538acd144a72434ae20f07] Merge remote-tracking branch 'tip/auto-latest'
+git bisect good 64c09c8edb6b4ea872538acd144a72434ae20f07
+# good: [2d2139c5c746ec61024fdfa9c36e4e034bb18e59] Merge tag 'iio-for-4.10d' of git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio into staging-next
+git bisect good 2d2139c5c746ec61024fdfa9c36e4e034bb18e59
+# bad: [c927024badfb7d3835bed3c386011c9e2b5b28b8] Merge remote-tracking branch 'char-misc/char-misc-next'
+git bisect bad c927024badfb7d3835bed3c386011c9e2b5b28b8
+# bad: [72910000a4180a2f51f4d29308da6138da8e7229] Merge remote-tracking branch 'tty/tty-next'
+git bisect bad 72910000a4180a2f51f4d29308da6138da8e7229
+# bad: [cda711541e3b7a101f3e1ebe9f17e05c144976bd] Merge remote-tracking branch 'kvm-ppc-paulus/kvm-ppc-next'
+git bisect bad cda711541e3b7a101f3e1ebe9f17e05c144976bd
+# bad: [22fa38d8da8ca508c5630b6499acc088dde1dc89] Merge remote-tracking branch 'rcu/rcu/next'
+git bisect bad 22fa38d8da8ca508c5630b6499acc088dde1dc89
+# good: [0f5bacb434cae111078b89df1acaea738c712251] Merge remote-tracking branch 'irqchip/irqchip/for-next'
+git bisect good 0f5bacb434cae111078b89df1acaea738c712251
+# good: [80c099e11c191b0e3c1c7dac2d460cb12d0ea3c7] mm: Prevent shrink_node() RCU CPU stall warnings
+git bisect good 80c099e11c191b0e3c1c7dac2d460cb12d0ea3c7
+# good: [60c1afbf10528f646a6fcae1a2c404d216e594d5] selftests: ftrace: Add a testcase for function filter glob match
+git bisect good 60c1afbf10528f646a6fcae1a2c404d216e594d5
+# good: [9b5e3ff6b9baa77548c6cb832780162055733c67] stm dummy: Mark dummy_stm_packet() with notrace
+git bisect good 9b5e3ff6b9baa77548c6cb832780162055733c67
+# bad: [2d66cccd73436ac9985a08e5c2f82e4344f72264] mm: Prevent __alloc_pages_nodemask() RCU CPU stall warnings
+git bisect bad 2d66cccd73436ac9985a08e5c2f82e4344f72264
+# good: [34c53f5cd399801b083047cc9cf2ad3ed17c3144] mm: Prevent shrink_node_memcg() RCU CPU stall warnings
+git bisect good 34c53f5cd399801b083047cc9cf2ad3ed17c3144
+# first bad commit: [2d66cccd73436ac9985a08e5c2f82e4344f72264] mm: Prevent __alloc_pages_nodemask() RCU CPU stall warnings
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
