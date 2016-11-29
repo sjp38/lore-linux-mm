@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 184F96B02A6
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:24:50 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id u144so43526529wmu.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:50 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id z80si2035452wmd.57.2016.11.29.03.24.48
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2C86B0253
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 09:10:56 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id hb5so26840056wjc.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:10:56 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 15si2659698wml.145.2016.11.29.06.10.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:24:49 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id u144so23711644wmu.0
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:48 -0800 (PST)
-Date: Tue, 29 Nov 2016 14:24:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 00/33] Radix tree patches for 4.10
-Message-ID: <20161129112446.GA8837@node.shutemov.name>
-References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Nov 2016 06:10:55 -0800 (PST)
+Date: Tue, 29 Nov 2016 15:08:10 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 08/22] mm/vmstat: Avoid on each online CPU loops
+In-Reply-To: <20161128092800.GC14835@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1611291505340.4358@nanos>
+References: <20161126231350.10321-1-bigeasy@linutronix.de> <20161126231350.10321-9-bigeasy@linutronix.de> <20161128092800.GC14835@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-kernel@vger.kernel.org, rt@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On Mon, Nov 28, 2016 at 01:50:04PM -0800, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
+On Mon, 28 Nov 2016, Michal Hocko wrote:
+> On Sun 27-11-16 00:13:36, Sebastian Andrzej Siewior wrote:
+> [...]
+> >  static void __init init_cpu_node_state(void)
+> >  {
+> > -	int cpu;
+> > +	int node;
+> >  
+> > -	for_each_online_cpu(cpu)
+> > -		node_set_state(cpu_to_node(cpu), N_CPU);
+> > +	for_each_online_node(node)
+> > +		node_set_state(node, N_CPU);
 > 
-> Hi Andrew,
-> 
-> Please include these patches in the -mm tree for 4.10.  Mostly these
-> are improvements; the only bug fixes in here relate to multiorder
-> entries (which are unused in the 4.9 tree).  The IDR rewrite has the
-> highest potential for causing mayhem as the test suite is quite spartan.
-> We have an Outreachy intern scheduled to work on the test suite for the
-> 2016 winter season, so hopefully it will improve soon.
-> 
-> I did not include Konstantin's suggested change to the API for
-> radix_tree_iter_resume().  Many of the callers do not currently care
-> about the size of the entry they are consuming, and determining that
-> information is not always trivial.  Since this is not a performance
-> critical API (it's called when we've paused iterating through a tree
-> in order to schedule for a higher priority task), I think it's more
-> important to have a simpler interface.
-> 
-> I'd like to thank Kiryl for all the testing he's been doing.  He's found
-> at least two bugs which weren't related to the API extensions that he
-> really wanted from this patch set.
+> Is this really correct? The point of the original code was to mark only
+> those nodes which have at least one CPU. Or am I missing something?
 
-Tested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+You're right. An online node does not necessarily have an online CPU.
 
-I would like to get in as my ext4 patchset depends on this.
+	for_each_online_node(node) {
+		if (cpumask_weight(cpumask_of_node(node)) > 0)
+			node_set_state(node, N_CPU);
+	}
 
--- 
- Kirill A. Shutemov
+is probably more correct.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
