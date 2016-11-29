@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 685576B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:48:27 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id f188so445520066pgc.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:48:27 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0079.outbound.protection.outlook.com. [104.47.34.79])
-        by mx.google.com with ESMTPS id n17si41504773pgj.73.2016.11.29.10.48.26
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5B66B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:55:36 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id n6so116799728qtd.4
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:55:36 -0800 (PST)
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com. [209.85.220.178])
+        by mx.google.com with ESMTPS id q4si28239189qtd.315.2016.11.29.10.55.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 10:48:26 -0800 (PST)
-Subject: Re: [RFC PATCH v3 20/20] x86: Add support to make use of Secure
- Memory Encryption
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003838.3280.23327.stgit@tlendack-t1.amdoffice.net>
- <20161126204703.wlcd6cw7dxzvpxyc@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <4cffdd71-dcc6-35e9-2654-e39067a525a8@amd.com>
-Date: Tue, 29 Nov 2016 12:48:17 -0600
-MIME-Version: 1.0
-In-Reply-To: <20161126204703.wlcd6cw7dxzvpxyc@pd.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Nov 2016 10:55:36 -0800 (PST)
+Received: by mail-qk0-f178.google.com with SMTP id q130so184703849qke.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:55:35 -0800 (PST)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv4 00/10] CONFIG_DEBUG_VIRTUAL for arm64
+Date: Tue, 29 Nov 2016 10:55:19 -0800
+Message-Id: <1480445729-27130-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
 
-On 11/26/2016 2:47 PM, Borislav Petkov wrote:
-> On Wed, Nov 09, 2016 at 06:38:38PM -0600, Tom Lendacky wrote:
->> This patch adds the support to check if SME has been enabled and if the
->> mem_encrypt=on command line option is set. If both of these conditions
->> are true, then the encryption mask is set and the kernel is encrypted
->> "in place."
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/kernel/head_64.S          |    1 +
->>  arch/x86/kernel/mem_encrypt_init.c |   60 +++++++++++++++++++++++++++++++++++-
->>  arch/x86/mm/mem_encrypt.c          |    2 +
->>  3 files changed, 62 insertions(+), 1 deletion(-)
->>
->> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
->> index e8a7272..c225433 100644
->> --- a/arch/x86/kernel/head_64.S
->> +++ b/arch/x86/kernel/head_64.S
->> @@ -100,6 +100,7 @@ startup_64:
->>  	 * to include it in the page table fixups.
->>  	 */
->>  	push	%rsi
->> +	movq	%rsi, %rdi
->>  	call	sme_enable
->>  	pop	%rsi
->>  	movq	%rax, %r12
->> diff --git a/arch/x86/kernel/mem_encrypt_init.c b/arch/x86/kernel/mem_encrypt_init.c
->> index 7bdd159..c94ceb8 100644
->> --- a/arch/x86/kernel/mem_encrypt_init.c
->> +++ b/arch/x86/kernel/mem_encrypt_init.c
->> @@ -16,9 +16,14 @@
->>  #include <linux/mm.h>
->>  
->>  #include <asm/sections.h>
->> +#include <asm/processor-flags.h>
->> +#include <asm/msr.h>
->> +#include <asm/cmdline.h>
->>  
->>  #ifdef CONFIG_AMD_MEM_ENCRYPT
->>  
->> +static char sme_cmdline_arg[] __initdata = "mem_encrypt=on";
-> 
-> One more thing: just like we're adding an =on switch, we'd need an =off
-> switch in case something's wrong with the SME code. IOW, if a user
-> supplies "mem_encrypt=off", we do not encrypt.
 
-Well, we can document "off", but if the exact string "mem_encrypt=on"
-isn't specified on the command line then the encryption won't occur.
-The cmdline_find_option_bool() function looks for the exact string and
-isn't interpreting the value on the right side of the equal sign. So
-omitting mem_encrypt=on or using mem_encrypt=off is the same.
+Hi,
+
+This is v4 of the series to add CONFIG_DEBUG_VIRTUAL for arm64. This mostly
+expanded on __pa_symbol conversion with a few new sites found. There's also
+some reworking done to avoid calling __va too early. __va relies on having
+memstart_addr set so very early code in early_fixmap_init and early KASAN
+initialization can't just call __va(__Ipa_symbol(...)) to get the linear map
+alias. I found this while testing with DEBUG_VM.
+
+All of this could use probably use more testing under more configurations.
+KVM, Xen, kexec, hibernate should all be tested.
 
 Thanks,
-Tom
+Laura
 
-> 
-> Thanks.
-> 
+Laura Abbott (10):
+  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+  mm/cma: Cleanup highmem check
+  arm64: Move some macros under #ifndef __ASSEMBLY__
+  arm64: Add cast for virt_to_pfn
+  arm64: Use __pa_symbol for kernel symbols
+  xen: Switch to using __pa_symbol
+  kexec: Switch to __pa_symbol
+  mm/kasan: Switch to using __pa_symbol and lm_alias
+  mm/usercopy: Switch to using lm_alias
+  arm64: Add support for CONFIG_DEBUG_VIRTUAL
+
+ arch/arm64/Kconfig                        |  1 +
+ arch/arm64/include/asm/kvm_mmu.h          |  4 +-
+ arch/arm64/include/asm/memory.h           | 67 ++++++++++++++++++++++---------
+ arch/arm64/include/asm/mmu_context.h      |  6 +--
+ arch/arm64/include/asm/pgtable.h          |  2 +-
+ arch/arm64/kernel/acpi_parking_protocol.c |  2 +-
+ arch/arm64/kernel/cpu-reset.h             |  2 +-
+ arch/arm64/kernel/cpufeature.c            |  2 +-
+ arch/arm64/kernel/hibernate.c             | 13 +++---
+ arch/arm64/kernel/insn.c                  |  2 +-
+ arch/arm64/kernel/psci.c                  |  2 +-
+ arch/arm64/kernel/setup.c                 |  8 ++--
+ arch/arm64/kernel/smp_spin_table.c        |  2 +-
+ arch/arm64/kernel/vdso.c                  |  4 +-
+ arch/arm64/mm/Makefile                    |  2 +
+ arch/arm64/mm/init.c                      | 11 ++---
+ arch/arm64/mm/kasan_init.c                | 21 ++++++----
+ arch/arm64/mm/mmu.c                       | 32 +++++++++------
+ arch/arm64/mm/physaddr.c                  | 28 +++++++++++++
+ arch/x86/Kconfig                          |  1 +
+ drivers/firmware/psci.c                   |  2 +-
+ drivers/xen/xenbus/xenbus_dev_backend.c   |  2 +-
+ drivers/xen/xenfs/xenstored.c             |  2 +-
+ include/linux/mm.h                        |  4 ++
+ kernel/kexec_core.c                       |  2 +-
+ lib/Kconfig.debug                         |  5 ++-
+ mm/cma.c                                  | 15 +++----
+ mm/kasan/kasan_init.c                     | 12 +++---
+ mm/usercopy.c                             |  4 +-
+ 29 files changed, 167 insertions(+), 93 deletions(-)
+ create mode 100644 arch/arm64/mm/physaddr.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
