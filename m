@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A6A6B026B
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:36 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e9so420512243pgc.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:36 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q71si59468288pfj.175.2016.11.29.03.23.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 539BE6B026D
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:37 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id x23so426470432pgx.6
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:37 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id r14si59443076pfb.184.2016.11.29.03.23.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:23:35 -0800 (PST)
+        Tue, 29 Nov 2016 03:23:36 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 17/36] fs: make block_read_full_page() be able to read huge page
-Date: Tue, 29 Nov 2016 14:22:45 +0300
-Message-Id: <20161129112304.90056-18-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 18/36] fs: make block_write_{begin,end}() be able to handle huge pages
+Date: Tue, 29 Nov 2016 14:22:46 +0300
+Message-Id: <20161129112304.90056-19-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,135 +20,166 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The approach is straight-forward: for compound pages we read out whole
-huge page.
+It's more or less straight-forward.
 
-For huge page we cannot have array of buffer head pointers on stack --
-it's 4096 pointers on x86-64 -- 'arr' is allocated with kmalloc() for
-huge pages.
+Most changes are around getting offset/len withing page right and zero
+out desired part of the page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/buffer.c                 | 22 +++++++++++++++++-----
- include/linux/buffer_head.h |  9 +++++----
- include/linux/page-flags.h  |  2 +-
- 3 files changed, 23 insertions(+), 10 deletions(-)
+ fs/buffer.c | 70 +++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 40 insertions(+), 30 deletions(-)
 
 diff --git a/fs/buffer.c b/fs/buffer.c
-index d21771fcf7d3..090f7edfa6b7 100644
+index 090f7edfa6b7..7d333621ccfb 100644
 --- a/fs/buffer.c
 +++ b/fs/buffer.c
-@@ -871,7 +871,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
+@@ -1902,6 +1902,7 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
+ {
+ 	unsigned int block_start, block_end;
+ 	struct buffer_head *head, *bh;
++	bool uptodate = PageUptodate(page);
  
- try_again:
- 	head = NULL;
--	offset = PAGE_SIZE;
-+	offset = hpage_size(page);
- 	while ((offset -= size) >= 0) {
- 		bh = alloc_buffer_head(GFP_NOFS);
- 		if (!bh)
-@@ -1466,7 +1466,7 @@ void set_bh_page(struct buffer_head *bh,
- 		struct page *page, unsigned long offset)
+ 	BUG_ON(!PageLocked(page));
+ 	if (!page_has_buffers(page))
+@@ -1912,21 +1913,21 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
+ 	do {
+ 		block_end = block_start + bh->b_size;
+ 
+-		if (buffer_new(bh)) {
+-			if (block_end > from && block_start < to) {
+-				if (!PageUptodate(page)) {
+-					unsigned start, size;
++		if (buffer_new(bh) && block_end > from && block_start < to) {
++			if (!uptodate) {
++				unsigned start, size;
+ 
+-					start = max(from, block_start);
+-					size = min(to, block_end) - start;
++				start = max(from, block_start);
++				size = min(to, block_end) - start;
+ 
+-					zero_user(page, start, size);
+-					set_buffer_uptodate(bh);
+-				}
+-
+-				clear_buffer_new(bh);
+-				mark_buffer_dirty(bh);
++				zero_user(page + block_start / PAGE_SIZE,
++						start % PAGE_SIZE,
++						size);
++				set_buffer_uptodate(bh);
+ 			}
++
++			clear_buffer_new(bh);
++			mark_buffer_dirty(bh);
+ 		}
+ 
+ 		block_start = block_end;
+@@ -1992,18 +1993,21 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
+ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+ 		get_block_t *get_block, struct iomap *iomap)
  {
- 	bh->b_page = page;
--	BUG_ON(offset >= PAGE_SIZE);
-+	BUG_ON(offset >= hpage_size(page));
- 	if (PageHighMem(page))
- 		/*
- 		 * This catches illegal uses and preserves the offset:
-@@ -2280,11 +2280,13 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- {
- 	struct inode *inode = page->mapping->host;
- 	sector_t iblock, lblock;
--	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
-+	struct buffer_head *arr_on_stack[MAX_BUF_PER_PAGE];
-+	struct buffer_head *bh, *head, **arr = arr_on_stack;
- 	unsigned int blocksize, bbits;
- 	int nr, i;
- 	int fully_mapped = 1;
+-	unsigned from = pos & (PAGE_SIZE - 1);
+-	unsigned to = from + len;
+-	struct inode *inode = page->mapping->host;
++	unsigned from, to;
++	struct inode *inode = page_mapping(page)->host;
+ 	unsigned block_start, block_end;
+ 	sector_t block;
+ 	int err = 0;
+ 	unsigned blocksize, bbits;
+ 	struct buffer_head *bh, *head, *wait[2], **wait_bh=wait;
++	bool uptodate = PageUptodate(page);
+ 
++	page = compound_head(page);
++	from = pos & ~hpage_mask(page);
++	to = from + len;
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(from > PAGE_SIZE);
+-	BUG_ON(to > PAGE_SIZE);
++	BUG_ON(from > hpage_size(page));
++	BUG_ON(to > hpage_size(page));
+ 	BUG_ON(from > to);
+ 
+ 	head = create_page_buffers(page, inode, 0);
+@@ -2016,10 +2020,8 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+ 	    block++, block_start=block_end, bh = bh->b_this_page) {
+ 		block_end = block_start + blocksize;
+ 		if (block_end <= from || block_start >= to) {
+-			if (PageUptodate(page)) {
+-				if (!buffer_uptodate(bh))
+-					set_buffer_uptodate(bh);
+-			}
++			if (uptodate && !buffer_uptodate(bh))
++				set_buffer_uptodate(bh);
+ 			continue;
+ 		}
+ 		if (buffer_new(bh))
+@@ -2036,23 +2038,28 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+ 
+ 			if (buffer_new(bh)) {
+ 				clean_bdev_bh_alias(bh);
+-				if (PageUptodate(page)) {
++				if (uptodate) {
+ 					clear_buffer_new(bh);
+ 					set_buffer_uptodate(bh);
+ 					mark_buffer_dirty(bh);
+ 					continue;
+ 				}
+-				if (block_end > to || block_start < from)
+-					zero_user_segments(page,
+-						to, block_end,
+-						block_start, from);
++				if (block_end > to || block_start < from) {
++					BUG_ON(to - from  > PAGE_SIZE);
++					zero_user_segments(page +
++							block_start / PAGE_SIZE,
++						to % PAGE_SIZE,
++						(block_start % PAGE_SIZE) + blocksize,
++						block_start % PAGE_SIZE,
++						from % PAGE_SIZE);
++				}
+ 				continue;
+ 			}
+ 		}
+-		if (PageUptodate(page)) {
++		if (uptodate) {
+ 			if (!buffer_uptodate(bh))
+ 				set_buffer_uptodate(bh);
+-			continue; 
++			continue;
+ 		}
+ 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
+ 		    !buffer_unwritten(bh) &&
+@@ -2089,6 +2096,7 @@ static int __block_commit_write(struct inode *inode, struct page *page,
+ 	unsigned blocksize;
+ 	struct buffer_head *bh, *head;
  
 +	VM_BUG_ON_PAGE(PageTail(page), page);
- 	head = create_page_buffers(page, inode, 0);
- 	blocksize = head->b_size;
- 	bbits = block_size_bits(blocksize);
-@@ -2295,6 +2297,11 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 	nr = 0;
- 	i = 0;
+ 	bh = head = page_buffers(page);
+ 	blocksize = bh->b_size;
  
-+	if (PageTransHuge(page)) {
-+		arr = kmalloc(sizeof(struct buffer_head *) * HPAGE_PMD_NR *
-+				MAX_BUF_PER_PAGE, GFP_NOFS);
-+	}
-+
- 	do {
- 		if (buffer_uptodate(bh))
- 			continue;
-@@ -2310,7 +2317,9 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 					SetPageError(page);
- 			}
- 			if (!buffer_mapped(bh)) {
--				zero_user(page, i * blocksize, blocksize);
-+				zero_user(page + (i * blocksize / PAGE_SIZE),
-+						i * blocksize % PAGE_SIZE,
-+						blocksize);
- 				if (!err)
- 					set_buffer_uptodate(bh);
- 				continue;
-@@ -2336,7 +2345,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 		if (!PageError(page))
- 			SetPageUptodate(page);
- 		unlock_page(page);
--		return 0;
-+		goto out;
- 	}
+@@ -2102,7 +2110,8 @@ static int __block_commit_write(struct inode *inode, struct page *page,
+ 			set_buffer_uptodate(bh);
+ 			mark_buffer_dirty(bh);
+ 		}
+-		clear_buffer_new(bh);
++		if (buffer_new(bh))
++			clear_buffer_new(bh);
  
- 	/* Stage two: lock the buffers */
-@@ -2358,6 +2367,9 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 		else
- 			submit_bh(REQ_OP_READ, 0, bh);
- 	}
-+out:
-+	if (arr != arr_on_stack)
-+		kfree(arr);
- 	return 0;
- }
- EXPORT_SYMBOL(block_read_full_page);
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index fd4134ce9c54..f12f6293ed44 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -131,13 +131,14 @@ BUFFER_FNS(Meta, meta)
- BUFFER_FNS(Prio, prio)
- BUFFER_FNS(Defer_Completion, defer_completion)
+ 		block_start = block_end;
+ 		bh = bh->b_this_page;
+@@ -2155,7 +2164,8 @@ int block_write_end(struct file *file, struct address_space *mapping,
+ 	struct inode *inode = mapping->host;
+ 	unsigned start;
  
--#define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
-+#define bh_offset(bh)	((unsigned long)(bh)->b_data & ~hpage_mask(bh->b_page))
+-	start = pos & (PAGE_SIZE - 1);
++	page = compound_head(page);
++	start = pos & ~hpage_mask(page);
  
- /* If we *know* page->private refers to buffer_heads */
--#define page_buffers(page)					\
-+#define page_buffers(__page)					\
- 	({							\
--		BUG_ON(!PagePrivate(page));			\
--		((struct buffer_head *)page_private(page));	\
-+		struct page *p = compound_head(__page);		\
-+		BUG_ON(!PagePrivate(p));			\
-+		((struct buffer_head *)page_private(p));	\
- 	})
- #define page_has_buffers(page)	PagePrivate(page)
- 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index a2bef9a41bcf..20b7684e9298 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -730,7 +730,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
-  */
- static inline int page_has_private(struct page *page)
- {
--	return !!(page->flags & PAGE_FLAGS_PRIVATE);
-+	return !!(compound_head(page)->flags & PAGE_FLAGS_PRIVATE);
- }
- 
- #undef PF_ANY
+ 	if (unlikely(copied < len)) {
+ 		/*
 -- 
 2.10.2
 
