@@ -1,81 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 789AB6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:51:48 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id y71so408773989pgd.0
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 22:51:48 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c73si58653846pfj.76.2016.11.28.22.51.47
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C6BC26B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 02:09:45 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 3so412894323pgd.3
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 23:09:45 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id t67si58735864pfk.141.2016.11.28.23.09.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 22:51:47 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAT6nGqH004682
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:51:46 -0500
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 271367xgxr-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:51:46 -0500
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2016 16:51:43 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5B7562CE8071
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:51:37 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAT6pbOK6029696
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:51:37 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAT6pa4A001569
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:51:37 +1100
-Subject: Re: [RFC 4/4] mm: Ignore cpuset enforcement when allocation flag has
- __GFP_THISNODE
-References: <1479824388-30446-1-git-send-email-khandual@linux.vnet.ibm.com>
- <1479824388-30446-5-git-send-email-khandual@linux.vnet.ibm.com>
- <8216916c-c3f3-bad9-33cb-b0da2508f3d0@intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 29 Nov 2016 12:21:28 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 23:09:45 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 10/12] mm: mempolicy: mbind and migrate_pages support
+ thp migration
+Date: Tue, 29 Nov 2016 07:07:34 +0000
+Message-ID: <20161129070734.GB8686@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-11-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <58382E28.9060706@linux.vnet.ibm.com>
+In-Reply-To: <58382E28.9060706@linux.vnet.ibm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <36C2641DB6F1824ABD83048884B48EDB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <8216916c-c3f3-bad9-33cb-b0da2508f3d0@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <583D2570.6070109@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 11/29/2016 02:42 AM, Dave Hansen wrote:
-> On 11/22/2016 06:19 AM, Anshuman Khandual wrote:
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3715,7 +3715,7 @@ struct page *
->>  		.migratetype = gfpflags_to_migratetype(gfp_mask),
->>  	};
->>  
->> -	if (cpusets_enabled()) {
->> +	if (cpusets_enabled() && !(alloc_mask & __GFP_THISNODE)) {
->>  		alloc_mask |= __GFP_HARDWALL;
->>  		alloc_flags |= ALLOC_CPUSET;
->>  		if (!ac.nodemask)
-> 
-> This means now that any __GFP_THISNODE allocation can "escape" the
-> cpuset.  That seems like a pretty major change to how cpusets works.  Do
-> we know that *ALL* __GFP_THISNODE allocations are truly lacking in a
-> cpuset context that can be enforced?
+On Fri, Nov 25, 2016 at 05:57:20PM +0530, Anshuman Khandual wrote:
+> On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+...
+> > @@ -497,30 +541,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsi=
+gned long addr,
+> >  	struct page *page;
+> >  	struct queue_pages *qp =3D walk->private;
+> >  	unsigned long flags =3D qp->flags;
+> > -	int nid, ret;
+> > +	int ret;
+> >  	pte_t *pte;
+> >  	spinlock_t *ptl;
+> > =20
+> > -	if (pmd_trans_huge(*pmd)) {
+> > -		ptl =3D pmd_lock(walk->mm, pmd);
+> > -		if (pmd_trans_huge(*pmd)) {
+> > -			page =3D pmd_page(*pmd);
+> > -			if (is_huge_zero_page(page)) {
+> > -				spin_unlock(ptl);
+> > -				__split_huge_pmd(vma, pmd, addr, false, NULL);
+> > -			} else {
+> > -				get_page(page);
+> > -				spin_unlock(ptl);
+> > -				lock_page(page);
+> > -				ret =3D split_huge_page(page);
+> > -				unlock_page(page);
+> > -				put_page(page);
+> > -				if (ret)
+> > -					return 0;
+> > -			}
+> > -		} else {
+> > -			spin_unlock(ptl);
+> > -		}
+> > +	ptl =3D pmd_trans_huge_lock(pmd, vma);
+> > +	if (ptl) {
+> > +		ret =3D queue_pages_pmd(pmd, ptl, addr, end, walk);
+> > +		if (ret)
+> > +			return 0;
+> >  	}
+>=20
+> I wonder if we should introduce pte_entry function along with pmd_entry
+> function as we are first looking for trans huge PMDs either for direct
+> addition into the migration list or splitting it before looking for PTEs.
 
-Right, I know its a very blunt change. With the cpuset based isolation
-of coherent device node for the user space tasks leads to a side effect
-that a driver or even kernel cannot allocate memory from the coherent
-device node in the task's own context (ioctl() calls or similar). For
-non task context allocation (work queues, interrupts, anything async
-etc) this problem can be fixed by modifying kernel thread's task->mems
-_allowed to include all nodes of the system including the coherent
-device nodes. Though I have not figured out the details yet. Whats
-your thoughts on this ? What we are looking for is a explicit and
-definite way of allocating from the coherent device node inside the
-kernel.
+Most of pagewalk users don't define pte_entry because of performance reason
+(to avoid the overhead of PTRS_PER_PMD function calls).
+But that could be a nice cleanup if we have a workaround.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
