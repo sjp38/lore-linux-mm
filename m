@@ -1,345 +1,541 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2256B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:04:09 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y68so244477108pfb.6
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 22:04:09 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a96si29932100pli.200.2016.11.28.22.04.08
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F0DB6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:48:19 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id p66so412578933pga.4
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 22:48:19 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id o21si58605686pgj.240.2016.11.28.22.48.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 22:04:08 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAT648fT052099
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:04:08 -0500
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 271367uxr7-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 01:04:00 -0500
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2016 16:03:50 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5DD2F2CE8057
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:03:48 +1100 (EST)
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAT63mhu54853780
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:03:48 +1100
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAT63lcq008488
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:03:48 +1100
-Subject: Re: [PATCH 3/5] migrate: Add copy_page_mt to use multi-threaded page
- migration.
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-4-zi.yan@sent.com> <5836B25E.7040100@linux.vnet.ibm.com>
- <F3961404-1642-4E52-9967-BE03303D8E58@cs.rutgers.edu>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 29 Nov 2016 11:33:45 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 22:48:17 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 07/12] mm: thp: check pmd migration entry in common
+ path
+Date: Tue, 29 Nov 2016 06:46:14 +0000
+Message-ID: <20161129064613.GA8686@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20161117235624.GA8891@node>
+In-Reply-To: <20161117235624.GA8891@node>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <7A8D594F2FA2BF41BA10F070D2809902@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <F3961404-1642-4E52-9967-BE03303D8E58@cs.rutgers.edu>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <583D1A41.7020209@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 11/28/2016 08:33 PM, Zi Yan wrote:
-> On 24 Nov 2016, at 4:26, Anshuman Khandual wrote:
-> 
->> On 11/22/2016 09:55 PM, Zi Yan wrote:
->>> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>>
->>> From: Zi Yan <ziy@nvidia.com>
->>
->> Please fix these.
->>
->>>
->>> Internally, copy_page_mt splits a page into multiple threads
->>> and send them as jobs to system_highpri_wq.
->>
->> The function should be renamed as copy_page_multithread() or at
->> the least copy_page_mthread() to make more sense. The commit
->> message needs to more comprehensive and detailed.
->>
-> 
-> Sure.
-> 
->>>
->>> Signed-off-by: Zi Yan <ziy@nvidia.com>
->>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
->>> ---
->>>  include/linux/highmem.h |  2 ++
->>>  kernel/sysctl.c         |  1 +
->>>  mm/Makefile             |  2 ++
->>>  mm/copy_page.c          | 96 +++++++++++++++++++++++++++++++++++++++++++++++++
->>>  4 files changed, 101 insertions(+)
->>>  create mode 100644 mm/copy_page.c
->>>
->>> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
->>> index bb3f329..519e575 100644
->>> --- a/include/linux/highmem.h
->>> +++ b/include/linux/highmem.h
->>> @@ -236,6 +236,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
->>>
->>>  #endif
->>>
->>> +int copy_page_mt(struct page *to, struct page *from, int nr_pages);
->>> +
->>>  static inline void copy_highpage(struct page *to, struct page *from)
->>>  {
->>>  	char *vfrom, *vto;
->>> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
->>> index 706309f..d54ce12 100644
->>> --- a/kernel/sysctl.c
->>> +++ b/kernel/sysctl.c
->>> @@ -97,6 +97,7 @@
->>>
->>>  #if defined(CONFIG_SYSCTL)
->>>
->>> +
->>
->> I guess this is a stray code change.
->>
->>>  /* External variables not in a header file. */
->>>  extern int suid_dumpable;
->>>  #ifdef CONFIG_COREDUMP
->>> diff --git a/mm/Makefile b/mm/Makefile
->>> index 295bd7a..467305b 100644
->>> --- a/mm/Makefile
->>> +++ b/mm/Makefile
->>> @@ -41,6 +41,8 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
->>>
->>>  obj-y += init-mm.o
->>>
->>> +obj-y += copy_page.o
->>
->> Its getting compiled all the time. Dont you want to make it part of
->> of a new config option which will cover for all these code for multi
->> thread copy ?
-> 
-> I can do that.
-> 
->>> +
->>>  ifdef CONFIG_NO_BOOTMEM
->>>  	obj-y		+= nobootmem.o
->>>  else
->>> diff --git a/mm/copy_page.c b/mm/copy_page.c
->>> new file mode 100644
->>> index 0000000..ca7ce6c
->>> --- /dev/null
->>> +++ b/mm/copy_page.c
->>> @@ -0,0 +1,96 @@
->>> +/*
->>> + * Parallel page copy routine.
->>> + *
->>> + * Zi Yan <ziy@nvidia.com>
->>> + *
->>> + */
->>
->> No, this is too less. Please see other files inside mm directory as
->> example.
->>
-> 
-> Sure, I will add more description here.
-> 
->>> +
->>> +#include <linux/highmem.h>
->>> +#include <linux/workqueue.h>
->>> +#include <linux/slab.h>
->>> +#include <linux/freezer.h>
->>> +
->>> +
->>> +const unsigned int limit_mt_num = 4;
->>
->> From where this number 4 came from ? At the very least it should be
->> configured from either a sysctl variable or from a sysfs file, so
->> that user will have control on number of threads used for copy. But
->> going forward this should be derived out a arch specific call back
->> which then analyzes NUMA topology and scheduler loads to figure out
->> on how many threads should be used for optimum performance of page
->> copy.
-> 
-> I will expose this to sysctl.
+# sorry for late reply ...
 
-When you do, if the user specifies a number, take it after some basic
-sanity checks but if the user specifies "default" then we should fall
-back to arch specific call back to figure out how many of them should
-be used.
- 
-> 
-> For finding optimum performance, can we do a boot time microbenchmark
-> to find the thread number?
+On Fri, Nov 18, 2016 at 02:56:24AM +0300, Kirill A. Shutemov wrote:
+> On Tue, Nov 08, 2016 at 08:31:52AM +0900, Naoya Horiguchi wrote:
+> > If one of callers of page migration starts to handle thp, memory manage=
+ment code
+> > start to see pmd migration entry, so we need to prepare for it before e=
+nabling.
+> > This patch changes various code point which checks the status of given =
+pmds in
+> > order to prevent race between thp migration and the pmd-related works.
+> >=20
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> > ChangeLog v1 -> v2:
+> > - introduce pmd_related() (I know the naming is not good, but can't thi=
+nk up
+> >   no better name. Any suggesntion is welcomed.)
+> > ---
+> >  arch/x86/mm/gup.c       |  4 +--
+> >  fs/proc/task_mmu.c      | 23 +++++++------
+> >  include/linux/huge_mm.h |  9 ++++-
+> >  mm/gup.c                | 10 ++++--
+> >  mm/huge_memory.c        | 88 ++++++++++++++++++++++++++++++++++++++++-=
+--------
+> >  mm/madvise.c            |  2 +-
+> >  mm/memcontrol.c         |  2 ++
+> >  mm/memory.c             |  6 +++-
+> >  mm/mprotect.c           |  2 ++
+> >  mm/mremap.c             |  2 +-
+> >  10 files changed, 114 insertions(+), 34 deletions(-)
+> >=20
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/mm/gup.c v4.9-rc2-m=
+motm-2016-10-27-18-27_patched/arch/x86/mm/gup.c
+> > index 0d4fb3e..78a153d 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/arch/x86/mm/gup.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/arch/x86/mm/gup.c
+> > @@ -222,9 +222,9 @@ static int gup_pmd_range(pud_t pud, unsigned long a=
+ddr, unsigned long end,
+> >  		pmd_t pmd =3D *pmdp;
+> > =20
+> >  		next =3D pmd_addr_end(addr, end);
+> > -		if (pmd_none(pmd))
+> > +		if (!pmd_present(pmd))
+> >  			return 0;
+> > -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
+> > +		if (unlikely(pmd_large(pmd))) {
+> >  			/*
+> >  			 * NUMA hinting faults need to be handled in the GUP
+> >  			 * slowpath for accounting purposes and so that they
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/fs/proc/task_mmu.c v4.9-rc2-=
+mmotm-2016-10-27-18-27_patched/fs/proc/task_mmu.c
+> > index 35b92d8..c1f9cf4 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/fs/proc/task_mmu.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/fs/proc/task_mmu.c
+> > @@ -596,7 +596,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned lon=
+g addr, unsigned long end,
+> > =20
+> >  	ptl =3D pmd_trans_huge_lock(pmd, vma);
+> >  	if (ptl) {
+> > -		smaps_pmd_entry(pmd, addr, walk);
+> > +		if (pmd_present(*pmd))
+> > +			smaps_pmd_entry(pmd, addr, walk);
+> >  		spin_unlock(ptl);
+> >  		return 0;
+> >  	}
+> > @@ -929,6 +930,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigne=
+d long addr,
+> >  			goto out;
+> >  		}
+> > =20
+> > +		if (!pmd_present(*pmd))
+> > +			goto out;
+> > +
+>=20
+> Hm. Looks like clear_soft_dirty_pmd() should handle !present. It doesn't.
+>=20
+> Ah.. Found it in 08/12.
+>=20
+> >  		page =3D pmd_page(*pmd);
+> > =20
+> >  		/* Clear accessed and referenced bits. */
+> > @@ -1208,19 +1212,18 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsig=
+ned long addr, unsigned long end,
+> >  	if (ptl) {
+> >  		u64 flags =3D 0, frame =3D 0;
+> >  		pmd_t pmd =3D *pmdp;
+> > +		struct page *page;
+> > =20
+> >  		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
+> >  			flags |=3D PM_SOFT_DIRTY;
+> > =20
+> > -		/*
+> > -		 * Currently pmd for thp is always present because thp
+> > -		 * can not be swapped-out, migrated, or HWPOISONed
+> > -		 * (split in such cases instead.)
+> > -		 * This if-check is just to prepare for future implementation.
+> > -		 */
+> > -		if (pmd_present(pmd)) {
+> > -			struct page *page =3D pmd_page(pmd);
+> > -
+> > +		if (is_pmd_migration_entry(pmd)) {
+> > +			swp_entry_t entry =3D pmd_to_swp_entry(pmd);
+> > +			frame =3D swp_type(entry) |
+> > +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+> > +			page =3D migration_entry_to_page(entry);
+> > +		} else if (pmd_present(pmd)) {
+> > +			page =3D pmd_page(pmd);
+> >  			if (page_mapcount(page) =3D=3D 1)
+> >  				flags |=3D PM_MMAP_EXCLUSIVE;
+> > =20
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/huge_mm.h v4.9=
+-rc2-mmotm-2016-10-27-18-27_patched/include/linux/huge_mm.h
+> > index fcbca51..3c252cd 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/include/linux/huge_mm.h
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/include/linux/huge_mm.h
+> > @@ -125,12 +125,19 @@ extern void vma_adjust_trans_huge(struct vm_area_=
+struct *vma,
+> >  				    long adjust_next);
+> >  extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd,
+> >  		struct vm_area_struct *vma);
+> > +
+> > +static inline int pmd_related(pmd_t pmd)
+> > +{
+> > +	return !pmd_none(pmd) &&
+> > +		(!pmd_present(pmd) || pmd_trans_huge(pmd) || pmd_devmap(pmd));
+> > +}
+> > +
+>=20
+> I would rather create is_swap_pmd() -- (!none && !present) and leave the
+> reset open-codded.
 
-Hmm, not sure that much of measurement is required. I wonder any other
-part of kernel does this kind of thing ? Arch call back should be able
-to tell you based on already established facts. IMHO that should be
-enough.
+OK, I do this.
 
-> 
-> For scheduler loads, can we traverse all online CPUs and use idle CPUs
-> by checking idle_cpu()?
+>=20
+> >  /* mmap_sem must be held on entry */
+> >  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
+> >  		struct vm_area_struct *vma)
+> >  {
+> >  	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
+> > -	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
+> > +	if (pmd_related(*pmd))
+> >  		return __pmd_trans_huge_lock(pmd, vma);
+> >  	else
+> >  		return NULL;
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/gup.c v4.9-rc2-mmotm-2016=
+-10-27-18-27_patched/mm/gup.c
+> > index e50178c..2dc4978 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/gup.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/gup.c
+> > @@ -267,6 +267,8 @@ struct page *follow_page_mask(struct vm_area_struct=
+ *vma,
+> >  	}
+> >  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+> >  		return no_page_table(vma, flags);
+> > +	if (!pmd_present(*pmd))
+> > +		return no_page_table(vma, flags);
+>=20
+> Don't we need FOLL_MIGRATION, like on pte side?
 
-Arch call back should return a nodemask pointing out exactly which CPUs
-should be used for the copy purpose. The nodemask should be calculated
-based on established facts of multi threaded performance, NUMA affinity
-(based on source and destination pages we are trying to migrate) and
-scheduler run queue states. But this function has to be fast enough
-without eating into the benefits of multi threaded copy. idle_cpu()
-check should be a very good starting point.
+That's better, applied.
 
-> 
-> 
->>> +
->>> +/* ======================== multi-threaded copy page ======================== */
->>> +
->>
->> Please use standard exported function description semantics while
->> describing this new function. I think its a good function to be
->> exported as a symbol as well.
->>
->>> +struct copy_page_info {
->>
->> s/copy_page_info/mthread_copy_struct/
->>
->>> +	struct work_struct copy_page_work;
->>> +	char *to;
->>> +	char *from;
->>
->> Swap the order of 'to' and 'from'.
->>
->>> +	unsigned long chunk_size;
->>
->> Just 'size' should be fine.
->>
->>> +};
->>> +
->>> +static void copy_page_routine(char *vto, char *vfrom,
->>
->> s/copy_page_routine/mthread_copy_fn/
->>
->>> +	unsigned long chunk_size)
->>> +{
->>> +	memcpy(vto, vfrom, chunk_size);
->>> +}
->>
->> s/chunk_size/size/
->>
->>
-> 
-> Will do the suggested changes in the next version.
-> 
->>> +
->>> +static void copy_page_work_queue_thread(struct work_struct *work)
->>> +{
->>> +	struct copy_page_info *my_work = (struct copy_page_info *)work;
->>> +
->>> +	copy_page_routine(my_work->to,
->>> +					  my_work->from,
->>> +					  my_work->chunk_size);
->>> +}
->>> +
->>> +int copy_page_mt(struct page *to, struct page *from, int nr_pages)
->>> +{
->>> +	unsigned int total_mt_num = limit_mt_num;
->>> +	int to_node = page_to_nid(to);
->>
->> Should we make sure that the entire page range [to, to + nr_pages] is
->> part of to_node.
->>
-> 
-> Currently, this is only used for huge pages. nr_pages = hpage_nr_pages().
-> This guarantees the entire page range in the same node.
+> >  	if (pmd_devmap(*pmd)) {
+> >  		ptl =3D pmd_lock(mm, pmd);
+> >  		page =3D follow_devmap_pmd(vma, address, pmd, flags);
+> > @@ -278,6 +280,10 @@ struct page *follow_page_mask(struct vm_area_struc=
+t *vma,
+> >  		return follow_page_pte(vma, address, pmd, flags);
+> > =20
+> >  	ptl =3D pmd_lock(mm, pmd);
+> > +	if (unlikely(!pmd_present(*pmd))) {
+> > +		spin_unlock(ptl);
+> > +		return no_page_table(vma, flags);
+> > +	}
+>=20
+> Ditto.
+>=20
+> >  	if (unlikely(!pmd_trans_huge(*pmd))) {
+> >  		spin_unlock(ptl);
+> >  		return follow_page_pte(vma, address, pmd, flags);
+> > @@ -333,7 +339,7 @@ static int get_gate_page(struct mm_struct *mm, unsi=
+gned long address,
+> >  	pud =3D pud_offset(pgd, address);
+> >  	BUG_ON(pud_none(*pud));
+> >  	pmd =3D pmd_offset(pud, address);
+> > -	if (pmd_none(*pmd))
+> > +	if (!pmd_present(*pmd))
+> >  		return -EFAULT;
+> >  	VM_BUG_ON(pmd_trans_huge(*pmd));
+> >  	pte =3D pte_offset_map(pmd, address);
+> > @@ -1357,7 +1363,7 @@ static int gup_pmd_range(pud_t pud, unsigned long=
+ addr, unsigned long end,
+> >  		pmd_t pmd =3D READ_ONCE(*pmdp);
+> > =20
+> >  		next =3D pmd_addr_end(addr, end);
+> > -		if (pmd_none(pmd))
+> > +		if (!pmd_present(pmd))
+> >  			return 0;
+> > =20
+> >  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c v4.9-rc2-mm=
+otm-2016-10-27-18-27_patched/mm/huge_memory.c
+> > index b3022b3..4e9090c 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/huge_memory.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/huge_memory.c
+> > @@ -825,6 +825,20 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct=
+ mm_struct *src_mm,
+> > =20
+> >  	ret =3D -EAGAIN;
+> >  	pmd =3D *src_pmd;
+> > +
+> > +	if (unlikely(is_pmd_migration_entry(pmd))) {
+> > +		swp_entry_t entry =3D pmd_to_swp_entry(pmd);
+> > +
+> > +		if (is_write_migration_entry(entry)) {
+> > +			make_migration_entry_read(&entry);
+> > +			pmd =3D swp_entry_to_pmd(entry);
+> > +			set_pmd_at(src_mm, addr, src_pmd, pmd);
+> > +		}
+>=20
+> I think we should put at least WARN_ONCE() in 'else' here. We don't want
+> to miss such places when swap will be supported (or other swap entry type=
+).
 
-In that case WARN_ON() if both source and destination pages are not huge.
+I guess that you mean 'else' branch of outer if-block, right?
 
-> 
->>> +	int i;
->>> +	struct copy_page_info *work_items;
->>> +	char *vto, *vfrom;
->>> +	unsigned long chunk_size;
->>> +	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
->>
->> So all the threads used for copy has to be part of cpumask of the
->> destination node ? Why ? The copy accesses both the source pages as
->> well as destination pages. Source node threads might also perform
->> good for the memory accesses. Which and how many threads should be
->> used for copy should be decided wisely from an architecture call
->> back. On a NUMA system this will have impact on performance of the
->> multi threaded copy.
-> 
-> This is based on my copy throughput benchmark results. The results
-> shows that moving data from the remote node to the local node (pulling)
-> has higher throughput than moving data from the local node to the remote node (pushing).
-> 
-> I got the same results from both Intel Xeon and IBM Power8, but
-> it might not be the case for other machines.
-> 
-> Ideally, we can do a boot time benchmark to find out the best configuration,
-> like pulling or pushing the data, how many threads. But for this
-> patchset, I may choose pulling the data.
+> > +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+> > +		ret =3D 0;
+> > +		goto out_unlock;
+> > +	}
 
-Right but again it should be decided by the arch call back.
+Maybe inserting the below here seems OK.
 
-> 
-> 
->>
->>
->>> +	int cpu_id_list[32] = {0};
->>> +	int cpu;
->>> +
->>> +	total_mt_num = min_t(unsigned int, total_mt_num,
->>> +						 cpumask_weight(per_node_cpumask));
->>> +	total_mt_num = (total_mt_num / 2) * 2;
->>> +
->>> +	work_items = kcalloc(total_mt_num, sizeof(struct copy_page_info),
->>> +						 GFP_KERNEL);
->>> +	if (!work_items)
->>> +		return -ENOMEM;
->>> +
->>> +	i = 0;
->>> +	for_each_cpu(cpu, per_node_cpumask) {
->>> +		if (i >= total_mt_num)
->>> +			break;
->>> +		cpu_id_list[i] = cpu;
->>> +		++i;
->>> +	}
->>> +
->>> +	vfrom = kmap(from);
->>> +	vto = kmap(to);
->>> +	chunk_size = PAGE_SIZE*nr_pages / total_mt_num;
->>
->> Coding style ? Please run all these patches though scripts/
->> checkpatch.pl script to catch coding style problems.
->>
->>> +
->>> +	for (i = 0; i < total_mt_num; ++i) {
->>> +		INIT_WORK((struct work_struct *)&work_items[i],
->>> +				  copy_page_work_queue_thread);
->>> +
->>> +		work_items[i].to = vto + i * chunk_size;
->>> +		work_items[i].from = vfrom + i * chunk_size;
->>> +		work_items[i].chunk_size = chunk_size;
->>> +
->>> +		queue_work_on(cpu_id_list[i],
->>> +					  system_highpri_wq,
->>> +					  (struct work_struct *)&work_items[i]);
->>
->> I am not very familiar with the system work queues but is
->> system_highpri_wq has the highest priority ? Because if
->> the time spend waiting on these work queue functions to
->> execute increases it can offset out all the benefits we
->> get by this multi threaded copy.
-> 
-> According to include/linux/workqueue.h, system_highpri_wq has
-> high priority.
-> 
-> Another option is to create a dedicated workqueue for all
-> copy jobs.
+        WARN_ONCE(!pmd_present(pmd), "Unknown non-present format on pmd.\n"=
+);
 
-Not sure, will have to check on this.
+> > +
+> >  	if (unlikely(!pmd_trans_huge(pmd))) {
+> >  		pte_free(dst_mm, pgtable);
+> >  		goto out_unlock;
+> > @@ -1013,6 +1027,9 @@ int do_huge_pmd_wp_page(struct fault_env *fe, pmd=
+_t orig_pmd)
+> >  	if (unlikely(!pmd_same(*fe->pmd, orig_pmd)))
+> >  		goto out_unlock;
+> > =20
+> > +	if (unlikely(!pmd_present(orig_pmd)))
+> > +		goto out_unlock;
+> > +
+> >  	page =3D pmd_page(orig_pmd);
+> >  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+> >  	/*
+> > @@ -1137,7 +1154,14 @@ struct page *follow_trans_huge_pmd(struct vm_are=
+a_struct *vma,
+> >  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
+> >  		goto out;
+> > =20
+> > -	page =3D pmd_page(*pmd);
+> > +	if (is_pmd_migration_entry(*pmd)) {
+> > +		swp_entry_t entry;
+> > +		entry =3D pmd_to_swp_entry(*pmd);
+> > +		page =3D pfn_to_page(swp_offset(entry));
+> > +		if (!is_migration_entry(entry))
+> > +			goto out;
+>=20
+> follow_page_pte() does different thing: wait for page to be migrated and
+> retry. Any reason you don't do the same?
+
+No, just my self-check wasn't enough.
+
+> > +	} else
+> > +		page =3D pmd_page(*pmd);
+> >  	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
+> >  	if (flags & FOLL_TOUCH)
+> >  		touch_pmd(vma, addr, pmd);
+> > @@ -1332,6 +1356,9 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb=
+, struct vm_area_struct *vma,
+> >  	if (is_huge_zero_pmd(orig_pmd))
+> >  		goto out;
+> > =20
+> > +	if (unlikely(!pmd_present(orig_pmd)))
+> > +		goto out;
+> > +
+> >  	page =3D pmd_page(orig_pmd);
+> >  	/*
+> >  	 * If other processes are mapping this page, we couldn't discard
+> > @@ -1410,20 +1437,35 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct=
+ vm_area_struct *vma,
+> >  		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+> >  	} else {
+> >  		struct page *page =3D pmd_page(orig_pmd);
+> > -		page_remove_rmap(page, true);
+> > -		VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+> > -		VM_BUG_ON_PAGE(!PageHead(page), page);
+> > -		if (PageAnon(page)) {
+> > -			pgtable_t pgtable;
+> > -			pgtable =3D pgtable_trans_huge_withdraw(tlb->mm, pmd);
+> > -			pte_free(tlb->mm, pgtable);
+> > -			atomic_long_dec(&tlb->mm->nr_ptes);
+> > -			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+> > +		int migration =3D 0;
+> > +
+> > +		if (!is_pmd_migration_entry(orig_pmd)) {
+> > +			page_remove_rmap(page, true);
+> > +			VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+> > +			VM_BUG_ON_PAGE(!PageHead(page), page);
+> > +			if (PageAnon(page)) {
+> > +				pgtable_t pgtable;
+> > +				pgtable =3D pgtable_trans_huge_withdraw(tlb->mm,
+> > +								      pmd);
+> > +				pte_free(tlb->mm, pgtable);
+> > +				atomic_long_dec(&tlb->mm->nr_ptes);
+> > +				add_mm_counter(tlb->mm, MM_ANONPAGES,
+> > +					       -HPAGE_PMD_NR);
+> > +			} else {
+> > +				add_mm_counter(tlb->mm, MM_FILEPAGES,
+> > +					       -HPAGE_PMD_NR);
+> > +			}
+> >  		} else {
+> > -			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+> > +			swp_entry_t entry;
+> > +
+> > +			entry =3D pmd_to_swp_entry(orig_pmd);
+> > +			free_swap_and_cache(entry); /* waring in failure? */
+> > +			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+> > +			migration =3D 1;
+> >  		}
+> >  		spin_unlock(ptl);
+> > -		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+> > +		if (!migration)
+> > +			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+> >  	}
+> >  	return 1;
+> >  }
+> > @@ -1496,14 +1538,27 @@ int change_huge_pmd(struct vm_area_struct *vma,=
+ pmd_t *pmd,
+> >  		bool preserve_write =3D prot_numa && pmd_write(*pmd);
+> >  		ret =3D 1;
+> > =20
+> > +		if (!pmd_present(*pmd))
+> > +			goto unlock;
+> >  		/*
+> >  		 * Avoid trapping faults against the zero page. The read-only
+> >  		 * data is likely to be read-cached on the local CPU and
+> >  		 * local/remote hits to the zero page are not interesting.
+> >  		 */
+> > -		if (prot_numa && is_huge_zero_pmd(*pmd)) {
+> > -			spin_unlock(ptl);
+> > -			return ret;
+> > +		if (prot_numa && is_huge_zero_pmd(*pmd))
+> > +			goto unlock;
+> > +
+> > +		if (is_pmd_migration_entry(*pmd)) {
+>=20
+> Hm? But we filtered out !present above?
+
+the !present check must come after this if-block with WARN_ONCE().
+
+> > +			swp_entry_t entry =3D pmd_to_swp_entry(*pmd);
+> > +
+> > +			if (is_write_migration_entry(entry)) {
+> > +				pmd_t newpmd;
+> > +
+> > +				make_migration_entry_read(&entry);
+> > +				newpmd =3D swp_entry_to_pmd(entry);
+> > +				set_pmd_at(mm, addr, pmd, newpmd);
+> > +			}
+> > +			goto unlock;
+> >  		}
+> > =20
+> >  		if (!prot_numa || !pmd_protnone(*pmd)) {
+> > @@ -1516,6 +1571,7 @@ int change_huge_pmd(struct vm_area_struct *vma, p=
+md_t *pmd,
+> >  			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
+> >  					pmd_write(entry));
+> >  		}
+> > +unlock:
+> >  		spin_unlock(ptl);
+> >  	}
+> > =20
+> > @@ -1532,7 +1588,7 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, str=
+uct vm_area_struct *vma)
+> >  {
+> >  	spinlock_t *ptl;
+> >  	ptl =3D pmd_lock(vma->vm_mm, pmd);
+> > -	if (likely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
+> > +	if (likely(pmd_related(*pmd)))
+> >  		return ptl;
+> >  	spin_unlock(ptl);
+> >  	return NULL;
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/madvise.c v4.9-rc2-mmotm-=
+2016-10-27-18-27_patched/mm/madvise.c
+> > index 0e3828e..eaa2b02 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/madvise.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/madvise.c
+> > @@ -274,7 +274,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsig=
+ned long addr,
+> >  	unsigned long next;
+> > =20
+> >  	next =3D pmd_addr_end(addr, end);
+> > -	if (pmd_trans_huge(*pmd))
+> > +	if (pmd_related(*pmd))
+>=20
+> I don't see a point going for madvise_free_huge_pmd(), just to fall off o=
+n
+> !present inside.
+
+Sorry, this code was wrong. I should've done like below simply:
+
++	if (!pmd_present(*pmd))
++		return 0;
+ 	if (pmd_trans_huge(*pmd))
+ 		...
+
+> And is it safe for devmap?
+
+I'm not sure, so let's keep it as-is.
+
+Thanks,
+Naoya Horiguchi
+
+>=20
+> >  		if (madvise_free_huge_pmd(tlb, vma, pmd, addr, next))
+> >  			goto next;
+> > =20
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memcontrol.c v4.9-rc2-mmo=
+tm-2016-10-27-18-27_patched/mm/memcontrol.c
+> > index 91dfc7c..ebc2c42 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memcontrol.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memcontrol.c
+> > @@ -4635,6 +4635,8 @@ static enum mc_target_type get_mctgt_type_thp(str=
+uct vm_area_struct *vma,
+> >  	struct page *page =3D NULL;
+> >  	enum mc_target_type ret =3D MC_TARGET_NONE;
+> > =20
+> > +	if (unlikely(!pmd_present(pmd)))
+> > +		return ret;
+> >  	page =3D pmd_page(pmd);
+> >  	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+> >  	if (!(mc.flags & MOVE_ANON))
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory.c v4.9-rc2-mmotm-2=
+016-10-27-18-27_patched/mm/memory.c
+> > index 94b5e2c..33fa439 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/memory.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/memory.c
+> > @@ -999,7 +999,7 @@ static inline int copy_pmd_range(struct mm_struct *=
+dst_mm, struct mm_struct *src
+> >  	src_pmd =3D pmd_offset(src_pud, addr);
+> >  	do {
+> >  		next =3D pmd_addr_end(addr, end);
+> > -		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
+> > +		if (pmd_related(*src_pmd)) {
+> >  			int err;
+> >  			VM_BUG_ON(next-addr !=3D HPAGE_PMD_SIZE);
+> >  			err =3D copy_huge_pmd(dst_mm, src_mm,
+> > @@ -3591,6 +3591,10 @@ static int __handle_mm_fault(struct vm_area_stru=
+ct *vma, unsigned long address,
+> >  		int ret;
+> > =20
+> >  		barrier();
+> > +		if (unlikely(is_pmd_migration_entry(orig_pmd))) {
+> > +			pmd_migration_entry_wait(mm, fe.pmd);
+> > +			return 0;
+> > +		}
+> >  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+> >  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+> >  				return do_huge_pmd_numa_page(&fe, orig_pmd);
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mprotect.c v4.9-rc2-mmotm=
+-2016-10-27-18-27_patched/mm/mprotect.c
+> > index c5ba2aa..81186e3 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mprotect.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mprotect.c
+> > @@ -164,6 +164,8 @@ static inline unsigned long change_pmd_range(struct=
+ vm_area_struct *vma,
+> >  		unsigned long this_pages;
+> > =20
+> >  		next =3D pmd_addr_end(addr, end);
+> > +		if (!pmd_present(*pmd))
+> > +			continue;
+> >  		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
+> >  				&& pmd_none_or_clear_bad(pmd))
+> >  			continue;
+> > diff --git v4.9-rc2-mmotm-2016-10-27-18-27/mm/mremap.c v4.9-rc2-mmotm-2=
+016-10-27-18-27_patched/mm/mremap.c
+> > index da22ad2..a94a698 100644
+> > --- v4.9-rc2-mmotm-2016-10-27-18-27/mm/mremap.c
+> > +++ v4.9-rc2-mmotm-2016-10-27-18-27_patched/mm/mremap.c
+> > @@ -194,7 +194,7 @@ unsigned long move_page_tables(struct vm_area_struc=
+t *vma,
+> >  		new_pmd =3D alloc_new_pmd(vma->vm_mm, vma, new_addr);
+> >  		if (!new_pmd)
+> >  			break;
+> > -		if (pmd_trans_huge(*old_pmd)) {
+> > +		if (pmd_related(*old_pmd)) {
+> >  			if (extent =3D=3D HPAGE_PMD_SIZE) {
+> >  				bool moved;
+> >  				/* See comment in move_ptes() */
+> > --=20
+> > 2.7.0
+> >=20
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
+> --=20
+>  Kirill A. Shutemov
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
