@@ -1,54 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CC34A6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:05 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id i88so244165156pfk.3
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:24:05 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id i10si48454667pgc.63.2016.11.29.00.24.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 148B36B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:53:09 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i131so42643367wmf.3
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:53:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a186si1548746wma.80.2016.11.29.00.53.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 00:24:04 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2 06/12] mm: thp: enable thp migration in generic path
-Date: Tue, 29 Nov 2016 08:16:08 +0000
-Message-ID: <20161129081607.GC15582@hori1.linux.bs1.fc.nec.co.jp>
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1478561517-4317-7-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20161128143331.GO14788@dhcp22.suse.cz>
-In-Reply-To: <20161128143331.GO14788@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <1650E9A2E016004B8CA537B0D06B1EB9@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 29 Nov 2016 00:53:07 -0800 (PST)
+Date: Tue, 29 Nov 2016 09:53:03 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/6] dax: fix build breakage with ext4, dax and !iomap
+Message-ID: <20161129085303.GA7550@quack2.suse.cz>
+References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
+ <20161124090239.GA24138@quack2.suse.cz>
+ <20161128191504.GB6637@linux.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161128191504.GB6637@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Mon, Nov 28, 2016 at 03:33:32PM +0100, Michal Hocko wrote:
-> On Tue 08-11-16 08:31:51, Naoya Horiguchi wrote:
-> > This patch makes it possible to support thp migration gradually. If you=
- fail
-> > to allocate a destination page as a thp, you just split the source thp =
-as we
-> > do now, and then enter the normal page migration. If you succeed to all=
-ocate
-> > destination thp, you enter thp migration. Subsequent patches actually e=
-nable
-> > thp migration for each caller of page migration by allowing its get_new=
-_page()
-> > callback to allocate thps.
->=20
-> Does this need to be in a separate patch? Wouldn't it make more sense to
-> have the full THP migration code in a single one?
+On Mon 28-11-16 12:15:04, Ross Zwisler wrote:
+> On Thu, Nov 24, 2016 at 10:02:39AM +0100, Jan Kara wrote:
+> > On Wed 23-11-16 11:44:17, Ross Zwisler wrote:
+> > > With the current Kconfig setup it is possible to have the following:
+> > > 
+> > > CONFIG_EXT4_FS=y
+> > > CONFIG_FS_DAX=y
+> > > CONFIG_FS_IOMAP=n	# this is in fs/Kconfig & isn't user accessible
+> > > 
+> > > With this config we get build failures in ext4_dax_fault() because the
+> > > iomap functions in fs/dax.c are missing:
+> > > 
+> > > fs/built-in.o: In function `ext4_dax_fault':
+> > > file.c:(.text+0x7f3ac): undefined reference to `dax_iomap_fault'
+> > > file.c:(.text+0x7f404): undefined reference to `dax_iomap_fault'
+> > > fs/built-in.o: In function `ext4_file_read_iter':
+> > > file.c:(.text+0x7fc54): undefined reference to `dax_iomap_rw'
+> > > fs/built-in.o: In function `ext4_file_write_iter':
+> > > file.c:(.text+0x7fe9a): undefined reference to `dax_iomap_rw'
+> > > file.c:(.text+0x7feed): undefined reference to `dax_iomap_rw'
+> > > fs/built-in.o: In function `ext4_block_zero_page_range':
+> > > inode.c:(.text+0x85c0d): undefined reference to `iomap_zero_range'
+> > > 
+> > > Now that the struct buffer_head based DAX fault paths and I/O path have
+> > > been removed we really depend on iomap support being present for DAX.  Make
+> > > this explicit by selecting FS_IOMAP if we compile in DAX support.
+> > > 
+> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > 
+> > I've sent the same patch to Ted yesterday and he will probably queue it on
+> > top of ext4 iomap patches. If it doesn't happen for some reason, feel free
+> > to add:
+> > 
+> > Reviewed-by: Jan Kara <jack@suse.cz>
+> 
+> Cool, looks like Ted has pulled in your patch.
+> 
+> I think we still eventually want this patch because it cleans up our handling
+> of FS_IOMAP.  With your patch we select it separately in both ext4 & ext2
+> based on whether we include DAX, and we still have #ifdefs in fs/dax.c for
+> FS_IOMAP.
 
-Actually, no big reason for separate patch. So I'm OK to merge this into
-patch 5/12.
+Actually, based on Dave's request I've also sent Ted updated version which
+did select FS_IOMAP in CONFIG_DAX section. However Ted didn't pull that
+patch (yet?). Anyway, I don't care whose patch gets merged, I just wanted
+to notify you of possible conflict.
 
-Thanks,
-Naoya Horiguchi=
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
