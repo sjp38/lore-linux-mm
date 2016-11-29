@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 046A06B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:38:10 -0500 (EST)
-Received: by mail-yw0-f197.google.com with SMTP id s68so171686286ywg.7
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 08:38:10 -0800 (PST)
-Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
-        by mx.google.com with ESMTPS id e72si16162805ybh.19.2016.11.29.08.38.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9FE6B025E
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:43:14 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 144so264189237pfv.5
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 08:43:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d10si32067339plj.180.2016.11.29.08.43.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 08:38:09 -0800 (PST)
-Received: by mail-yw0-x242.google.com with SMTP id a10so12666303ywa.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 08:38:09 -0800 (PST)
-Date: Tue, 29 Nov 2016 11:38:07 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort
- allocations in blkcg
-Message-ID: <20161129163807.GB19454@htj.duckdns.org>
+        Tue, 29 Nov 2016 08:43:13 -0800 (PST)
+Date: Tue, 29 Nov 2016 17:43:22 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+Message-ID: <20161129164322.GA26845@kroah.com>
 References: <20161121154336.GD19750@merlins.org>
  <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
  <20161121215639.GF13371@merlins.org>
- <20161121230332.GA3767@htj.duckdns.org>
- <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
- <20161122164822.GA5459@htj.duckdns.org>
- <CA+55aFwEik1Q-D0d4pRTNq672RS2eHpT2ULzGfttaSWW69Tajw@mail.gmail.com>
- <3e8eeadb-8dde-2313-f6e3-ef7763832104@suse.cz>
- <20161128171907.GA14754@htj.duckdns.org>
- <20161129072507.GA31671@dhcp22.suse.cz>
+ <20161122160629.uzt2u6m75ash4ved@merlins.org>
+ <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+ <20161122163801.GA2919@kroah.com>
+ <20161129162515.GD9796@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161129072507.GA31671@dhcp22.suse.cz>
+In-Reply-To: <20161129162515.GD9796@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
+Cc: Stable tree <stable@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Marc MERLIN <marc@merlins.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>
 
-On Tue, Nov 29, 2016 at 08:25:07AM +0100, Michal Hocko wrote:
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -246,7 +246,7 @@ struct vm_area_struct;
->  #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
->  #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
->  #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
-> -#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
-> +#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM|__GFP_NOWARN)
->  #define GFP_NOIO	(__GFP_RECLAIM)
->  #define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
->  #define GFP_TEMPORARY	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | \
+On Tue, Nov 29, 2016 at 05:25:15PM +0100, Michal Hocko wrote:
+> On Tue 22-11-16 17:38:01, Greg KH wrote:
+> > On Tue, Nov 22, 2016 at 05:14:02PM +0100, Vlastimil Babka wrote:
+> > > On 11/22/2016 05:06 PM, Marc MERLIN wrote:
+> > > > On Mon, Nov 21, 2016 at 01:56:39PM -0800, Marc MERLIN wrote:
+> > > >> On Mon, Nov 21, 2016 at 10:50:20PM +0100, Vlastimil Babka wrote:
+> > > >>>> 4.9rc5 however seems to be doing better, and is still running after 18
+> > > >>>> hours. However, I got a few page allocation failures as per below, but the
+> > > >>>> system seems to recover.
+> > > >>>> Vlastimil, do you want me to continue the copy on 4.9 (may take 3-5 days) 
+> > > >>>> or is that good enough, and i should go back to 4.8.8 with that patch applied?
+> > > >>>> https://marc.info/?l=linux-mm&m=147423605024993
+> > > >>>
+> > > >>> Hi, I think it's enough for 4.9 for now and I would appreciate trying
+> > > >>> 4.8 with that patch, yeah.
+> > > >>
+> > > >> So the good news is that it's been running for almost 5H and so far so good.
+> > > > 
+> > > > And the better news is that the copy is still going strong, 4.4TB and
+> > > > going. So 4.8.8 is fixed with that one single patch as far as I'm
+> > > > concerned.
+> > > > 
+> > > > So thanks for that, looks good to me to merge.
+> > > 
+> > > Thanks a lot for the testing. So what do we do now about 4.8? (4.7 is
+> > > already EOL AFAICS).
+> > > 
+> > > - send the patch [1] as 4.8-only stable. Greg won't like that, I expect.
+> > >   - alternatively a simpler (againm 4.8-only) patch that just outright
+> > > prevents OOM for 0 < order < costly, as Michal already suggested.
+> > > - backport 10+ compaction patches to 4.8 stable
+> > > - something else?
+> > 
+> > Just wait for 4.8-stable to go end-of-life in a few weeks after 4.9 is
+> > released?  :)
 > 
-> this will not catch users who are doing gfp & ~__GFP_DIRECT_RECLAIM but
-> I would rather not make warn_alloc() even more cluttered with checks.
+> OK, so can we push this through to 4.8 before EOL and make sure there
+> won't be any additional pre-mature high order OOM reports? The patch
+> should be simple enough and safe for the stable tree. There is no
+> upstream commit because 4.9 is fixed in a different way which would be
+> way too intrusive for the stable backport.
 
-Yeah, FWIW, looks good to me.
+Now queued up, thanks!
 
--- 
-tejun
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
