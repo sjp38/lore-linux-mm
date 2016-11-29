@@ -1,157 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 667056B026B
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:56:07 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id n6so116807950qtd.4
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:56:07 -0800 (PST)
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com. [209.85.220.174])
-        by mx.google.com with ESMTPS id q45si28258987qtf.38.2016.11.29.10.56.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C5249280254
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so46234415wma.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:59:27 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id cc1si60650337wjc.168.2016.11.29.10.59.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 10:56:06 -0800 (PST)
-Received: by mail-qk0-f174.google.com with SMTP id x190so184733361qkb.0
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:56:06 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv4 10/10] arm64: Add support for CONFIG_DEBUG_VIRTUAL
-Date: Tue, 29 Nov 2016 10:55:29 -0800
-Message-Id: <1480445729-27130-11-git-send-email-labbott@redhat.com>
-In-Reply-To: <1480445729-27130-1-git-send-email-labbott@redhat.com>
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
+        Tue, 29 Nov 2016 10:59:26 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uATIx0lB066040
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:25 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 271bxcpdxb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 13:59:25 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Tue, 29 Nov 2016 11:59:24 -0700
+Date: Tue, 29 Nov 2016 10:59:21 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
+ `mem_cgroup_shrink_node`
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20161124133019.GE3612@linux.vnet.ibm.com>
+ <de88a72a-f861-b51f-9fb3-4265378702f1@kernelpanic.ru>
+ <20161125212000.GI31360@linux.vnet.ibm.com>
+ <20161128095825.GI14788@dhcp22.suse.cz>
+ <20161128105425.GY31360@linux.vnet.ibm.com>
+ <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
+ <20161128143435.GC3924@linux.vnet.ibm.com>
+ <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
+ <20161128150509.GG3924@linux.vnet.ibm.com>
+ <f9c76351-56a6-466d-98c0-b821c2b54a3d@kernelpanic.ru>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f9c76351-56a6-466d-98c0-b821c2b54a3d@kernelpanic.ru>
+Message-Id: <20161129185921.GA14183@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Boris Zhmurov <bb@kernelpanic.ru>
+Cc: Michal Hocko <mhocko@kernel.org>, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org
 
+On Mon, Nov 28, 2016 at 10:16:33PM +0300, Boris Zhmurov wrote:
+> Paul E. McKenney 28/11/16 18:05:
+> > On Mon, Nov 28, 2016 at 05:40:48PM +0300, Boris Zhmurov wrote:
+> >> Paul E. McKenney 28/11/16 17:34:
+> >>
+> >>
+> >>>> So Paul, I've dropped "mm: Prevent shrink_node_memcg() RCU CPU stall
+> >>>> warnings" patch, and stalls got back (attached).
+> >>>>
+> >>>> With this patch "commit 7cebc6b63bf75db48cb19a94564c39294fd40959" from
+> >>>> your tree stalls gone. Looks like that.
+> >>>
+> >>> So with only this commit and no other commit or configuration adjustment,
+> >>> everything works?  Or it the solution this commit and some other stuff?
+> >>>
+> >>> The reason I ask is that if just this commit does the trick, I should
+> >>> drop the others.
+> >>
+> >> I'd like to ask for some more time to make sure this is it.
+> >> Approximately 2 or 3 days.
+> > 
+> > Works for me!
+> > 
+> > 							Thanx, Paul
+> 
+> 
+> FYI.
+> Some more stalls with mm-prevent-shrink_node-RCU-CPU-stall-warning.patch
+> and without mm-prevent-shrink_node_memcg-RCU-CPU-stall-warnings.patch.
 
-x86 has an option CONFIG_DEBUG_VIRTUAL to do additional checks
-on virt_to_phys calls. The goal is to catch users who are calling
-virt_to_phys on non-linear addresses immediately. This inclues callers
-using virt_to_phys on image addresses instead of __pa_symbol. As features
-such as CONFIG_VMAP_STACK get enabled for arm64, this becomes increasingly
-important. Add checks to catch bad virt_to_phys usage.
+Thank you for the info!  Is this one needed?  2d66cccd7343 ("mm: Prevent
+__alloc_pages_nodemask() RCU CPU stall warnings")
 
-Signed-off-by: Laura Abbott <labbott@redhat.com>
----
-v4: Refactored virt_to_phys macros for better reuse per suggestions.
----
- arch/arm64/Kconfig              |  1 +
- arch/arm64/include/asm/memory.h | 31 ++++++++++++++++++++++++++++---
- arch/arm64/mm/Makefile          |  2 ++
- arch/arm64/mm/physaddr.c        | 28 ++++++++++++++++++++++++++++
- 4 files changed, 59 insertions(+), 3 deletions(-)
- create mode 100644 arch/arm64/mm/physaddr.c
+It is causing trouble in other tests.  If it is needed, I must fix it,
+if not, I can happily drop it.  ;-)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 969ef88..83b95bc 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -6,6 +6,7 @@ config ARM64
- 	select ACPI_MCFG if ACPI
- 	select ACPI_SPCR_TABLE if ACPI
- 	select ARCH_CLOCKSOURCE_DATA
-+	select ARCH_HAS_DEBUG_VIRTUAL
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
- 	select ARCH_HAS_ELF_RANDOMIZE
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index a219d3f..41ee96f 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -167,10 +167,33 @@ extern u64			kimage_voffset;
-  * private definitions which should NOT be used outside memory.h
-  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
-  */
--#define __virt_to_phys(x) ({						\
-+
-+
-+/*
-+ * The linear kernel range starts in the middle of the virtual adddress
-+ * space. Testing the top bit for the start of the region is a
-+ * sufficient check.
-+ */
-+#define __is_lm_address(addr)	(!!((addr) & BIT(VA_BITS - 1)))
-+
-+#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
-+#define __kimg_to_phys(addr)	((addr) - kimage_voffset)
-+
-+#define __virt_to_phys_nodebug(x) ({					\
- 	phys_addr_t __x = (phys_addr_t)(x);				\
--	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
--				 (__x - kimage_voffset); })
-+	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
-+			       __kimg_to_phys(__x);			\
-+})
-+
-+#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
-+
-+#ifdef CONFIG_DEBUG_VIRTUAL
-+extern phys_addr_t __virt_to_phys(unsigned long x);
-+extern phys_addr_t __phys_addr_symbol(unsigned long x);
-+#else
-+#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-+#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
-+#endif
- 
- #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
- #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
-@@ -202,6 +225,8 @@ static inline void *phys_to_virt(phys_addr_t x)
-  * Drivers should NOT use these either.
-  */
- #define __pa(x)			__virt_to_phys((unsigned long)(x))
-+#define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-+#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
- #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
- #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
- #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
-diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-index 54bb209..38d3811 100644
---- a/arch/arm64/mm/Makefile
-+++ b/arch/arm64/mm/Makefile
-@@ -5,6 +5,8 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
- obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
- obj-$(CONFIG_ARM64_PTDUMP)	+= dump.o
- obj-$(CONFIG_NUMA)		+= numa.o
-+obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
-+KASAN_SANITIZE_physaddr.o	+= n
- 
- obj-$(CONFIG_KASAN)		+= kasan_init.o
- KASAN_SANITIZE_kasan_init.o	:= n
-diff --git a/arch/arm64/mm/physaddr.c b/arch/arm64/mm/physaddr.c
-new file mode 100644
-index 0000000..6684f43
---- /dev/null
-+++ b/arch/arm64/mm/physaddr.c
-@@ -0,0 +1,28 @@
-+#include <linux/bug.h>
-+#include <linux/export.h>
-+#include <linux/types.h>
-+#include <linux/mmdebug.h>
-+#include <linux/mm.h>
-+
-+#include <asm/memory.h>
-+
-+phys_addr_t __virt_to_phys(unsigned long x)
-+{
-+	WARN(!__is_lm_address(x),
-+	     "virt_to_phys used for non-linear address :%pK\n", (void *)x);
-+
-+	return __virt_to_phys_nodebug(x);
-+}
-+EXPORT_SYMBOL(__virt_to_phys);
-+
-+phys_addr_t __phys_addr_symbol(unsigned long x)
-+{
-+	/*
-+	 * This is bounds checking against the kernel image only.
-+	 * __pa_symbol should only be used on kernel symbol addresses.
-+	 */
-+	VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
-+		       x > (unsigned long) KERNEL_END);
-+	return __pa_symbol_nodebug(x);
-+}
-+EXPORT_SYMBOL(__phys_addr_symbol);
--- 
-2.7.4
+							Thanx. Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
