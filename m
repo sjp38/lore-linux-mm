@@ -1,95 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7449D6B0253
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:10:27 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j128so243380038pfg.4
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 21:10:27 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u20si58221774pfd.147.2016.11.28.21.10.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EBFF16B0261
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:27:34 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so405423231pgd.0
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 21:27:34 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id b62si58441346pfl.65.2016.11.28.21.27.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 21:10:26 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAT59DkH095527
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:10:25 -0500
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 271367rufq-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:10:25 -0500
-Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2016 15:10:23 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 8CE4A2BB005B
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 16:10:20 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAT5AKKJ48496802
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 16:10:20 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAT5AJBs007542
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 16:10:20 +1100
-Subject: Re: [PATCH 1/5] mm: migrate: Add mode parameter to support additional
- page copy routines.
-References: <20161122162530.2370-1-zi.yan@sent.com>
- <20161122162530.2370-2-zi.yan@sent.com>
- <dbb93172-4dd1-e88e-f65d-321ac7882999@gmail.com>
- <B5823455-07C1-46A8-8F05-A109E9935A20@cs.rutgers.edu>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 29 Nov 2016 10:40:12 +0530
+        Mon, 28 Nov 2016 21:27:34 -0800 (PST)
+Subject: [PATCH update] mremap: move_ptes: check pte dirty after its removal
+References: <026b73f6-ca1d-e7bb-766c-4aaeb7071ce6@intel.com>
+ <CA+55aFzHfpZckv8ck19fZSFK+3TmR5eF=BsDzhwVGKrbyEBjEw@mail.gmail.com>
+ <c160bc18-7c1b-2d54-8af1-7c5bfcbcefe8@intel.com>
+ <20161128083715.GA21738@aaronlu.sh.intel.com>
+ <20161128084012.GC21738@aaronlu.sh.intel.com>
+ <CA+55aFwm8MgLi3pDMOQr2gvmjRKXeSjsmV2kLYSYZHFiUa_0fQ@mail.gmail.com>
+ <977b6c8b-2df3-5f4b-0d6c-fe766cf3fae0@intel.com>
+ <CA+55aFx_vOfab=WNHd=OR7vng2V_UqrEdx_xZBsKv_ohE65f8w@mail.gmail.com>
+From: Aaron Lu <aaron.lu@intel.com>
+Message-ID: <ccf33e20-5126-15c5-a036-918d7a94344b@intel.com>
+Date: Tue, 29 Nov 2016 13:27:31 +0800
 MIME-Version: 1.0
-In-Reply-To: <B5823455-07C1-46A8-8F05-A109E9935A20@cs.rutgers.edu>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CA+55aFx_vOfab=WNHd=OR7vng2V_UqrEdx_xZBsKv_ohE65f8w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Message-Id: <583D0DB4.5060201@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 11/28/2016 08:43 PM, Zi Yan wrote:
-> On 24 Nov 2016, at 18:56, Balbir Singh wrote:
-> 
->> > On 23/11/16 03:25, Zi Yan wrote:
->>> >> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>> >>
->>> >> From: Zi Yan <ziy@nvidia.com>
->>> >>
->>> >> migrate_page_copy() and copy_huge_page() are affected.
->>> >>
->>> >> Signed-off-by: Zi Yan <ziy@nvidia.com>
->>> >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
->>> >> ---
->>> >>  fs/aio.c                |  2 +-
->>> >>  fs/hugetlbfs/inode.c    |  2 +-
->>> >>  fs/ubifs/file.c         |  2 +-
->>> >>  include/linux/migrate.h |  6 ++++--
->>> >>  mm/migrate.c            | 14 ++++++++------
->>> >>  5 files changed, 15 insertions(+), 11 deletions(-)
->>> >>
->>> >> diff --git a/fs/aio.c b/fs/aio.c
->>> >> index 428484f..a67c764 100644
->>> >> --- a/fs/aio.c
->>> >> +++ b/fs/aio.c
->>> >> @@ -418,7 +418,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
->>> >>  	 * events from being lost.
->>> >>  	 */
->>> >>  	spin_lock_irqsave(&ctx->completion_lock, flags);
->>> >> -	migrate_page_copy(new, old);
->>> >> +	migrate_page_copy(new, old, 0);
->> >
->> > Can we have a useful enum instead of 0, its harder to read and understand
->> > 0
-> How about MIGRATE_SINGLETHREAD = 0 ?
+Linus found there still is a race in mremap after commit 5d1904204c99
+("mremap: fix race between mremap() and page cleanning").
 
-Right, should be an enum declaration for all kind of single page
-copy process. Now we have just two. We dont have to mention
-number of threads in the multi threaded one.
+As described by Linus:
+the issue is that another thread might make the pte be dirty (in
+the hardware walker, so no locking of ours make any difference)
+*after* we checked whether it was dirty, but *before* we removed it
+from the page tables.
 
-MIGRATE_SINGLETHREAD
-MIGRATE_MULTITHREAD
+Fix it by moving the check after we removed it from the page table.
 
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+ mm/huge_memory.c | 4 ++--
+ mm/mremap.c      | 8 ++++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index eff3de359d50..d4a6e4001512 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1456,9 +1456,9 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+ 		new_ptl = pmd_lockptr(mm, new_pmd);
+ 		if (new_ptl != old_ptl)
+ 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+-		if (pmd_present(*old_pmd) && pmd_dirty(*old_pmd))
+-			force_flush = true;
+ 		pmd = pmdp_huge_get_and_clear(mm, old_addr, old_pmd);
++		if (pmd_present(pmd) && pmd_dirty(pmd))
++			force_flush = true;
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
  
+ 		if (pmd_move_must_withdraw(new_ptl, old_ptl) &&
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 6ccecc03f56a..53df7ec8d2ba 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -149,14 +149,18 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+ 		if (pte_none(*old_pte))
+ 			continue;
+ 
++		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+ 		/*
+ 		 * We are remapping a dirty PTE, make sure to
+ 		 * flush TLB before we drop the PTL for the
+ 		 * old PTE or we may race with page_mkclean().
++		 *
++		 * This check has to be done after we removed the
++		 * old PTE from page tables or another thread may
++		 * dirty it after the check and before the removal.
+ 		 */
+-		if (pte_present(*old_pte) && pte_dirty(*old_pte))
++		if (pte_present(pte) && pte_dirty(pte))
+ 			force_flush = true;
+-		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+ 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
+ 		pte = move_soft_dirty_pte(pte);
+ 		set_pte_at(mm, new_addr, new_pte, pte);
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
