@@ -1,329 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7774C6B0284
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:24:09 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id e9so420537417pgc.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:09 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 676946B0287
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:24:12 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 3so424925771pgd.3
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:12 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 1si30866238plp.216.2016.11.29.03.24.08
+        by mx.google.com with ESMTPS id 1si30866238plp.216.2016.11.29.03.24.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:24:08 -0800 (PST)
+        Tue, 29 Nov 2016 03:24:11 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 22/36] mm, hugetlb: switch hugetlbfs to multi-order radix-tree entries
-Date: Tue, 29 Nov 2016 14:22:50 +0300
-Message-Id: <20161129112304.90056-23-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 23/36] mm: account huge pages to dirty, writaback, reclaimable, etc.
+Date: Tue, 29 Nov 2016 14:22:51 +0300
+Message-Id: <20161129112304.90056-24-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+We need to account huge pages according to its size to get background
+writaback work properly.
 
-Currently, hugetlb pages are linked to page cache on the basis of hugepage
-offset (derived from vma_hugecache_offset()) for historical reason, which
-doesn't match to the generic usage of page cache and requires some routines
-to covert page offset <=> hugepage offset in common path. This patch
-adjusts code for multi-order radix-tree to avoid the situation.
-
-Main change is on the behavior of page->index for hugetlbfs. Before this
-patch, it represented hugepage offset, but with this patch it represents
-page offset. So index-related code have to be updated.
-Note that hugetlb_fault_mutex_hash() and reservation region handling are
-still working with hugepage offset.
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-[kirill.shutemov@linux.intel.com: reject fixed]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/hugetlbfs/inode.c    | 22 ++++++++++------------
- include/linux/pagemap.h | 23 +++--------------------
- mm/filemap.c            | 12 +++++-------
- mm/hugetlb.c            | 19 ++++++-------------
- mm/truncate.c           |  8 ++++----
- 5 files changed, 28 insertions(+), 56 deletions(-)
+ fs/fs-writeback.c           | 10 +++---
+ include/linux/backing-dev.h | 10 ++++++
+ include/linux/memcontrol.h  | 22 ++-----------
+ mm/migrate.c                |  1 +
+ mm/page-writeback.c         | 80 +++++++++++++++++++++++++++++----------------
+ mm/rmap.c                   |  4 +--
+ 6 files changed, 74 insertions(+), 53 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 4fb7b10f3a05..45992c839794 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -388,8 +388,8 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- {
- 	struct hstate *h = hstate_inode(inode);
- 	struct address_space *mapping = &inode->i_data;
--	const pgoff_t start = lstart >> huge_page_shift(h);
--	const pgoff_t end = lend >> huge_page_shift(h);
-+	const pgoff_t start = lstart >> PAGE_SHIFT;
-+	const pgoff_t end = lend >> PAGE_SHIFT;
- 	struct vm_area_struct pseudo_vma;
- 	struct pagevec pvec;
- 	pgoff_t next;
-@@ -446,8 +446,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 
- 				i_mmap_lock_write(mapping);
- 				hugetlb_vmdelete_list(&mapping->i_mmap,
--					next * pages_per_huge_page(h),
--					(next + 1) * pages_per_huge_page(h));
-+					next, next + 1);
- 				i_mmap_unlock_write(mapping);
- 			}
- 
-@@ -466,7 +465,8 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			freed++;
- 			if (!truncate_op) {
- 				if (unlikely(hugetlb_unreserve_pages(inode,
--							next, next + 1, 1)))
-+						(next) << huge_page_order(h),
-+						(next + 1) << huge_page_order(h), 1)))
- 					hugetlb_fix_reserve_counts(inode);
- 			}
- 
-@@ -550,8 +550,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	struct hstate *h = hstate_inode(inode);
- 	struct vm_area_struct pseudo_vma;
- 	struct mm_struct *mm = current->mm;
--	loff_t hpage_size = huge_page_size(h);
--	unsigned long hpage_shift = huge_page_shift(h);
- 	pgoff_t start, index, end;
- 	int error;
- 	u32 hash;
-@@ -567,8 +565,8 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	 * For this range, start is rounded down and end is rounded up
- 	 * as well as being converted to page offsets.
- 	 */
--	start = offset >> hpage_shift;
--	end = (offset + len + hpage_size - 1) >> hpage_shift;
-+	start = offset >> PAGE_SHIFT;
-+	end = (offset + len + huge_page_size(h) - 1) >> PAGE_SHIFT;
- 
- 	inode_lock(inode);
- 
-@@ -586,7 +584,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
- 	pseudo_vma.vm_file = file;
- 
--	for (index = start; index < end; index++) {
-+	for (index = start; index < end; index += pages_per_huge_page(h)) {
- 		/*
- 		 * This is supposed to be the vaddr where the page is being
- 		 * faulted in, but we have no vaddr here.
-@@ -607,10 +605,10 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index ef600591d96f..e1c9faddc9e1 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -366,8 +366,9 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
+ 		struct page *page = radix_tree_deref_slot_protected(slot,
+ 							&mapping->tree_lock);
+ 		if (likely(page) && PageDirty(page)) {
+-			__dec_wb_stat(old_wb, WB_RECLAIMABLE);
+-			__inc_wb_stat(new_wb, WB_RECLAIMABLE);
++			int nr = hpage_nr_pages(page);
++			__add_wb_stat(old_wb, WB_RECLAIMABLE, -nr);
++			__add_wb_stat(new_wb, WB_RECLAIMABLE, nr);
  		}
+ 	}
  
- 		/* Set numa allocation policy based on index */
--		hugetlb_set_vma_policy(&pseudo_vma, inode, index);
-+		hugetlb_set_vma_policy(&pseudo_vma, inode, index >> huge_page_order(h));
+@@ -376,9 +377,10 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
+ 		struct page *page = radix_tree_deref_slot_protected(slot,
+ 							&mapping->tree_lock);
+ 		if (likely(page)) {
++			int nr = hpage_nr_pages(page);
+ 			WARN_ON_ONCE(!PageWriteback(page));
+-			__dec_wb_stat(old_wb, WB_WRITEBACK);
+-			__inc_wb_stat(new_wb, WB_WRITEBACK);
++			__add_wb_stat(old_wb, WB_WRITEBACK, -nr);
++			__add_wb_stat(new_wb, WB_WRITEBACK, nr);
+ 		}
+ 	}
  
- 		/* addr is the offset within the file (zero based) */
--		addr = index * hpage_size;
-+		addr = index << PAGE_SHIFT & ~huge_page_mask(h);
- 
- 		/* mutex taken here, fault path and hole punch */
- 		hash = hugetlb_fault_mutex_hash(h, mm, &pseudo_vma, mapping,
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index faa3fa173939..bb0b7022421e 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -398,10 +398,9 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 43b93a947e61..e63487f78824 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -61,6 +61,16 @@ static inline void __add_wb_stat(struct bdi_writeback *wb,
+ 	__percpu_counter_add(&wb->stat[item], amount, WB_STAT_BATCH);
  }
  
- /*
-- * Get index of the page with in radix-tree
-- * (TODO: remove once hugetlb pages will have ->index in PAGE_SIZE)
-+ * Get the offset in PAGE_SIZE.
-  */
--static inline pgoff_t page_to_index(struct page *page)
-+static inline pgoff_t page_to_pgoff(struct page *page)
- {
- 	pgoff_t pgoff;
- 
-@@ -418,18 +417,6 @@ static inline pgoff_t page_to_index(struct page *page)
- }
- 
- /*
-- * Get the offset in PAGE_SIZE.
-- * (TODO: hugepage should have ->index in PAGE_SIZE)
-- */
--static inline pgoff_t page_to_pgoff(struct page *page)
--{
--	if (unlikely(PageHeadHuge(page)))
--		return page->index << compound_order(page);
--
--	return page_to_index(page);
--}
--
--/*
-  * Return byte-offset into filesystem object for page.
-  */
- static inline loff_t page_offset(struct page *page)
-@@ -442,15 +429,11 @@ static inline loff_t page_file_offset(struct page *page)
- 	return ((loff_t)page_index(page)) << PAGE_SHIFT;
- }
- 
--extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
--				     unsigned long address);
--
- static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- 					unsigned long address)
- {
- 	pgoff_t pgoff;
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return linear_hugepage_index(vma, address);
++static inline void add_wb_stat(struct bdi_writeback *wb,
++				 enum wb_stat_item item, s64 amount)
++{
++	unsigned long flags;
 +
- 	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
- 	pgoff += vma->vm_pgoff;
- 	return pgoff;
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 52be2b457208..33974ad1a8ec 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -165,10 +165,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
++	local_irq_save(flags);
++	__add_wb_stat(wb, item, amount);
++	local_irq_restore(flags);
++}
++
+ static inline void __inc_wb_stat(struct bdi_writeback *wb,
+ 				 enum wb_stat_item item)
  {
- 	struct radix_tree_node *node;
- 	void **slot;
--	int nr;
--
--	/* hugetlb pages are represented by one entry in the radix tree */
--	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
-+	int nr = hpage_nr_pages(page);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 61d20c17f3b7..df014eff82da 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -29,6 +29,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/writeback.h>
+ #include <linux/page-flags.h>
++#include <linux/mm.h>
  
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageTail(page), page);
-@@ -1420,16 +1417,17 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 		}
- 
- 		/* For multi-order entries, find relevant subpage */
--		if (PageTransHuge(page)) {
-+		if (PageCompound(page)) {
- 			VM_BUG_ON(index - page->index < 0);
--			VM_BUG_ON(index - page->index >= HPAGE_PMD_NR);
-+			VM_BUG_ON(index - page->index >=
-+					1 << compound_order(page));
- 			page += index - page->index;
- 		}
- 
- 		pages[ret] = page;
- 		if (++ret == nr_pages)
- 			break;
--		if (!PageTransCompound(page))
-+		if (PageHuge(page) || !PageTransCompound(page))
- 			continue;
- 		for (refs = 0; ret < nr_pages &&
- 				(index + 1) % HPAGE_PMD_NR;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3faec05b1875..f359653f31ff 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -622,13 +622,6 @@ static pgoff_t vma_hugecache_offset(struct hstate *h,
- 			(vma->vm_pgoff >> huge_page_order(h));
+ struct mem_cgroup;
+ struct page;
+@@ -503,18 +504,6 @@ static inline void mem_cgroup_update_page_stat(struct page *page,
+ 		this_cpu_add(page->mem_cgroup->stat->count[idx], val);
  }
  
--pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
--				     unsigned long address)
+-static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_stat_index idx)
 -{
--	return vma_hugecache_offset(hstate_vma(vma), vma, address);
+-	mem_cgroup_update_page_stat(page, idx, 1);
 -}
--EXPORT_SYMBOL_GPL(linear_hugepage_index);
 -
- /*
-  * Return the size of the pages allocated when backing a VMA. In the majority
-  * cases this will be same size as used by the page table entries.
-@@ -3658,7 +3651,7 @@ static struct page *hugetlbfs_pagecache_page(struct hstate *h,
- 	pgoff_t idx;
- 
- 	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, address);
-+	idx = linear_page_index(vma, address);
- 
- 	return find_lock_page(mapping, idx);
+-static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_stat_index idx)
+-{
+-	mem_cgroup_update_page_stat(page, idx, -1);
+-}
+-
+ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+ 						gfp_t gfp_mask,
+ 						unsigned long *total_scanned);
+@@ -719,13 +708,8 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+ 	return false;
  }
-@@ -3675,7 +3668,7 @@ static bool hugetlbfs_pagecache_present(struct hstate *h,
- 	struct page *page;
  
- 	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, address);
-+	idx = linear_page_index(vma, address);
+-static inline void mem_cgroup_inc_page_stat(struct page *page,
+-					    enum mem_cgroup_stat_index idx)
+-{
+-}
+-
+-static inline void mem_cgroup_dec_page_stat(struct page *page,
+-					    enum mem_cgroup_stat_index idx)
++static inline void mem_cgroup_update_page_stat(struct page *page,
++				 enum mem_cgroup_stat_index idx, int val)
+ {
+ }
  
- 	page = find_get_page(mapping, idx);
- 	if (page)
-@@ -3730,7 +3723,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
- retry:
- 	page = find_lock_page(mapping, idx);
- 	if (!page) {
--		size = i_size_read(mapping->host) >> huge_page_shift(h);
-+		size = i_size_read(mapping->host) >> PAGE_SHIFT;
- 		if (idx >= size)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 0ed24b1fa77b..c274f9d8ac2b 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -505,6 +505,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 	 * are mapped to swap space.
+ 	 */
+ 	if (newzone != oldzone) {
++		BUG_ON(PageTransHuge(page));
+ 		__dec_node_state(oldzone->zone_pgdat, NR_FILE_PAGES);
+ 		__inc_node_state(newzone->zone_pgdat, NR_FILE_PAGES);
+ 		if (PageSwapBacked(page) && !PageSwapCache(page)) {
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 47d5b12c460e..d7b905d66add 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2430,19 +2430,22 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ 
+ 	if (mapping_cap_account_dirty(mapping)) {
+ 		struct bdi_writeback *wb;
++		struct zone *zone = page_zone(page);
++		pg_data_t *pgdat = page_pgdat(page);
++		int nr = hpage_nr_pages(page);
+ 
+ 		inode_attach_wb(inode, page);
+ 		wb = inode_to_wb(inode);
+ 
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_DIRTY);
+-		__inc_node_page_state(page, NR_FILE_DIRTY);
+-		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
+-		__inc_node_page_state(page, NR_DIRTIED);
+-		__inc_wb_stat(wb, WB_RECLAIMABLE);
+-		__inc_wb_stat(wb, WB_DIRTIED);
+-		task_io_account_write(PAGE_SIZE);
+-		current->nr_dirtied++;
+-		this_cpu_inc(bdp_ratelimits);
++		mem_cgroup_update_page_stat(page, MEM_CGROUP_STAT_DIRTY, nr);
++		__mod_node_page_state(pgdat, NR_FILE_DIRTY, nr);
++		__mod_zone_page_state(zone, NR_ZONE_WRITE_PENDING, nr);
++		__mod_node_page_state(pgdat, NR_DIRTIED, nr);
++		__add_wb_stat(wb, WB_RECLAIMABLE, nr);
++		__add_wb_stat(wb, WB_DIRTIED, nr);
++		task_io_account_write(nr * PAGE_SIZE);
++		current->nr_dirtied += nr;
++		this_cpu_add(bdp_ratelimits, nr);
+ 	}
+ }
+ EXPORT_SYMBOL(account_page_dirtied);
+@@ -2456,11 +2459,15 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
+ 			  struct bdi_writeback *wb)
+ {
+ 	if (mapping_cap_account_dirty(mapping)) {
+-		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_DIRTY);
+-		dec_node_page_state(page, NR_FILE_DIRTY);
+-		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
+-		dec_wb_stat(wb, WB_RECLAIMABLE);
+-		task_io_account_cancelled_write(PAGE_SIZE);
++		struct zone *zone = page_zone(page);
++		pg_data_t *pgdat = page_pgdat(page);
++		int nr = hpage_nr_pages(page);
++
++		mem_cgroup_update_page_stat(page, MEM_CGROUP_STAT_DIRTY, -nr);
++		mod_node_page_state(pgdat, NR_FILE_DIRTY, -nr);
++		mod_zone_page_state(zone, NR_ZONE_WRITE_PENDING, -nr);
++		add_wb_stat(wb, WB_RECLAIMABLE, -nr);
++		task_io_account_cancelled_write(PAGE_SIZE * nr);
+ 	}
+ }
+ 
+@@ -2520,14 +2527,16 @@ void account_page_redirty(struct page *page)
+ 	struct address_space *mapping = page->mapping;
+ 
+ 	if (mapping && mapping_cap_account_dirty(mapping)) {
++		pg_data_t *pgdat = page_pgdat(page);
++		int nr = hpage_nr_pages(page);
+ 		struct inode *inode = mapping->host;
+ 		struct bdi_writeback *wb;
+ 		bool locked;
+ 
+ 		wb = unlocked_inode_to_wb_begin(inode, &locked);
+-		current->nr_dirtied--;
+-		dec_node_page_state(page, NR_DIRTIED);
+-		dec_wb_stat(wb, WB_DIRTIED);
++		current->nr_dirtied -= nr;
++		mod_node_page_state(pgdat, NR_DIRTIED, -nr);
++		add_wb_stat(wb, WB_DIRTIED, -nr);
+ 		unlocked_inode_to_wb_end(inode, locked);
+ 	}
+ }
+@@ -2713,10 +2722,15 @@ int clear_page_dirty_for_io(struct page *page)
+ 		 */
+ 		wb = unlocked_inode_to_wb_begin(inode, &locked);
+ 		if (TestClearPageDirty(page)) {
+-			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_DIRTY);
+-			dec_node_page_state(page, NR_FILE_DIRTY);
+-			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
+-			dec_wb_stat(wb, WB_RECLAIMABLE);
++			struct zone *zone = page_zone(page);
++			pg_data_t *pgdat = page_pgdat(page);
++			int nr = hpage_nr_pages(page);
++
++			mem_cgroup_update_page_stat(page,
++					MEM_CGROUP_STAT_DIRTY, -nr);
++			mod_node_page_state(pgdat, NR_FILE_DIRTY, -nr);
++			mod_zone_page_state(zone, NR_ZONE_WRITE_PENDING, -nr);
++			add_wb_stat(wb, WB_RECLAIMABLE, -nr);
+ 			ret = 1;
+ 		}
+ 		unlocked_inode_to_wb_end(inode, locked);
+@@ -2760,10 +2774,15 @@ int test_clear_page_writeback(struct page *page)
+ 		ret = TestClearPageWriteback(page);
+ 	}
+ 	if (ret) {
+-		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+-		dec_node_page_state(page, NR_WRITEBACK);
+-		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
+-		inc_node_page_state(page, NR_WRITTEN);
++		struct zone *zone = page_zone(page);
++		pg_data_t *pgdat = page_pgdat(page);
++		int nr = hpage_nr_pages(page);
++
++		mem_cgroup_update_page_stat(page,
++				MEM_CGROUP_STAT_WRITEBACK, -nr);
++		mod_node_page_state(pgdat, NR_WRITEBACK, -nr);
++		mod_zone_page_state(zone, NR_ZONE_WRITE_PENDING, -nr);
++		mod_node_page_state(pgdat, NR_WRITTEN, nr);
+ 	}
+ 	unlock_page_memcg(page);
+ 	return ret;
+@@ -2815,9 +2834,14 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ 		ret = TestSetPageWriteback(page);
+ 	}
+ 	if (!ret) {
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+-		inc_node_page_state(page, NR_WRITEBACK);
+-		inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
++		struct zone *zone = page_zone(page);
++		pg_data_t *pgdat = page_pgdat(page);
++		int nr = hpage_nr_pages(page);
++
++		mem_cgroup_update_page_stat(page,
++				MEM_CGROUP_STAT_WRITEBACK, nr);
++		mod_node_page_state(pgdat, NR_WRITEBACK, nr);
++		mod_zone_page_state(zone, NR_ZONE_WRITE_PENDING, nr);
+ 	}
+ 	unlock_page_memcg(page);
+ 	return ret;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 48c7310639bd..b9570e784405 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1297,7 +1297,7 @@ void page_add_file_rmap(struct page *page, bool compound)
  			goto out;
- 		page = alloc_huge_page(vma, address, 0);
-@@ -3791,7 +3784,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
  	}
+ 	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, nr);
+-	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	mem_cgroup_update_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, nr);
+ out:
+ 	unlock_page_memcg(page);
+ }
+@@ -1339,7 +1339,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+ 	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, -nr);
+-	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	mem_cgroup_update_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, -nr);
  
- 	ptl = huge_pte_lock(h, mm, ptep);
--	size = i_size_read(mapping->host) >> huge_page_shift(h);
-+	size = i_size_read(mapping->host) >> PAGE_SHIFT;
- 	if (idx >= size)
- 		goto backout;
- 
-@@ -3839,7 +3832,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
- 
- 	if (vma->vm_flags & VM_SHARED) {
- 		key[0] = (unsigned long) mapping;
--		key[1] = idx;
-+		key[1] = idx >> huge_page_order(h);
- 	} else {
- 		key[0] = (unsigned long) mm;
- 		key[1] = address >> huge_page_shift(h);
-@@ -3895,7 +3888,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- 	mapping = vma->vm_file->f_mapping;
--	idx = vma_hugecache_offset(h, vma, address);
-+	idx = linear_page_index(vma, address);
- 
- 	/*
- 	 * Serialize hugepage allocation and instantiation, so that we don't
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 6df4b06a190f..7508c2c7e4ed 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -267,7 +267,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 
- 			if (!trylock_page(page))
- 				continue;
--			WARN_ON(page_to_index(page) != index);
-+			WARN_ON(page_to_pgoff(page) != index);
- 			if (PageWriteback(page)) {
- 				unlock_page(page);
- 				continue;
-@@ -383,7 +383,7 @@ restart:	cond_resched();
- 			}
- 
- 			lock_page(page);
--			WARN_ON(page_to_index(page) != index);
-+			WARN_ON(page_to_pgoff(page) != index);
- 			wait_on_page_writeback(page);
- 
- 			if (PageTransHuge(page)) {
-@@ -533,7 +533,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 			if (!trylock_page(page))
- 				continue;
- 
--			WARN_ON(page_to_index(page) != index);
-+			WARN_ON(page_to_pgoff(page) != index);
- 
- 			/* Is 'start' or 'end' in the middle of THP ? */
- 			if (PageTransHuge(page) &&
-@@ -650,7 +650,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 			}
- 
- 			lock_page(page);
--			WARN_ON(page_to_index(page) != index);
-+			WARN_ON(page_to_pgoff(page) != index);
- 			if (page->mapping != mapping) {
- 				unlock_page(page);
- 				continue;
+ 	if (unlikely(PageMlocked(page)))
+ 		clear_page_mlock(page);
 -- 
 2.10.2
 
