@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BA0280253
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C154F6B0267
 	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:27 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id y71so421376235pgd.0
+Received: by mail-pg0-f70.google.com with SMTP id e9so420505181pgc.5
         for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:27 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q71si59468288pfj.175.2016.11.29.03.23.26
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 1si30856571plm.51.2016.11.29.03.23.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:23:26 -0800 (PST)
+        Tue, 29 Nov 2016 03:23:27 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 09/36] filemap: allocate huge page in pagecache_get_page(), if allowed
-Date: Tue, 29 Nov 2016 14:22:37 +0300
-Message-Id: <20161129112304.90056-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 12/36] brd: make it handle huge pages
+Date: Tue, 29 Nov 2016 14:22:40 +0300
+Message-Id: <20161129112304.90056-13-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,58 +20,79 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Write path allocate pages using pagecache_get_page(). We should be able
-to allocate huge pages there, if it's allowed. As usually, fallback to
-small pages, if failed.
+Do not assume length of bio segment is never larger than PAGE_SIZE.
+With huge pages it's HPAGE_PMD_SIZE (2M on x86-64).
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ drivers/block/brd.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 6a2f9ea521fb..ec976ddcb88a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1237,13 +1237,16 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index ad793f35632c..fd050445c5d7 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -202,12 +202,15 @@ static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n)
+ 	size_t copy;
  
- no_page:
- 	if (!page && (fgp_flags & FGP_CREAT)) {
-+		pgoff_t hoffset;
- 		int err;
- 		if ((fgp_flags & FGP_WRITE) && mapping_cap_account_dirty(mapping))
- 			gfp_mask |= __GFP_WRITE;
- 		if (fgp_flags & FGP_NOFS)
- 			gfp_mask &= ~__GFP_FS;
+ 	copy = min_t(size_t, n, PAGE_SIZE - offset);
++	n -= copy;
+ 	if (!brd_insert_page(brd, sector))
+ 		return -ENOSPC;
+-	if (copy < n) {
++	while (n) {
+ 		sector += copy >> SECTOR_SHIFT;
+ 		if (!brd_insert_page(brd, sector))
+ 			return -ENOSPC;
++		copy = min_t(size_t, n, PAGE_SIZE);
++		n -= copy;
+ 	}
+ 	return 0;
+ }
+@@ -242,6 +245,7 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
+ 	size_t copy;
  
--		page = __page_cache_alloc(gfp_mask);
-+		page = page_cache_alloc_huge(mapping, offset, gfp_mask);
-+no_huge:	if (!page)
-+			page = __page_cache_alloc(gfp_mask);
- 		if (!page)
- 			return NULL;
+ 	copy = min_t(size_t, n, PAGE_SIZE - offset);
++	n -= copy;
+ 	page = brd_lookup_page(brd, sector);
+ 	BUG_ON(!page);
  
-@@ -1254,9 +1257,19 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
- 		if (fgp_flags & FGP_ACCESSED)
- 			__SetPageReferenced(page);
+@@ -249,10 +253,11 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
+ 	memcpy(dst + offset, src, copy);
+ 	kunmap_atomic(dst);
  
--		err = add_to_page_cache_lru(page, mapping, offset,
-+		if (PageTransHuge(page))
-+			hoffset = round_down(offset, HPAGE_PMD_NR);
-+		else
-+			hoffset = offset;
-+
-+		err = add_to_page_cache_lru(page, mapping, hoffset,
- 				gfp_mask & GFP_RECLAIM_MASK);
- 		if (unlikely(err)) {
-+			if (PageTransHuge(page)) {
-+				put_page(page);
-+				page = NULL;
-+				goto no_huge;
-+			}
- 			put_page(page);
- 			page = NULL;
- 			if (err == -EEXIST)
+-	if (copy < n) {
++	while (n) {
+ 		src += copy;
+ 		sector += copy >> SECTOR_SHIFT;
+-		copy = n - copy;
++		copy = min_t(size_t, n, PAGE_SIZE);
++		n -= copy;
+ 		page = brd_lookup_page(brd, sector);
+ 		BUG_ON(!page);
+ 
+@@ -274,6 +279,7 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
+ 	size_t copy;
+ 
+ 	copy = min_t(size_t, n, PAGE_SIZE - offset);
++	n -= copy;
+ 	page = brd_lookup_page(brd, sector);
+ 	if (page) {
+ 		src = kmap_atomic(page);
+@@ -282,10 +288,11 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
+ 	} else
+ 		memset(dst, 0, copy);
+ 
+-	if (copy < n) {
++	while (n) {
+ 		dst += copy;
+ 		sector += copy >> SECTOR_SHIFT;
+-		copy = n - copy;
++		copy = min_t(size_t, n, PAGE_SIZE);
++		n -= copy;
+ 		page = brd_lookup_page(brd, sector);
+ 		if (page) {
+ 			src = kmap_atomic(page);
 -- 
 2.10.2
 
