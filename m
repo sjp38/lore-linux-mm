@@ -1,83 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 989316B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 02:25:10 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id g23so42204855wme.4
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 23:25:10 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id s9si1318659wmf.36.2016.11.28.23.25.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 352A96B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 02:53:23 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id i88so243261480pfk.3
+        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 23:53:23 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id 79si58879891pfz.134.2016.11.28.23.53.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Nov 2016 23:25:09 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id a20so22792357wme.2
-        for <linux-mm@kvack.org>; Mon, 28 Nov 2016 23:25:09 -0800 (PST)
-Date: Tue, 29 Nov 2016 08:25:07 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] block,blkcg: use __GFP_NOWARN for best-effort
- allocations in blkcg
-Message-ID: <20161129072507.GA31671@dhcp22.suse.cz>
-References: <20161121154336.GD19750@merlins.org>
- <0d4939f3-869d-6fb8-0914-5f74172f8519@suse.cz>
- <20161121215639.GF13371@merlins.org>
- <20161121230332.GA3767@htj.duckdns.org>
- <7189b1f6-98c3-9a36-83c1-79f2ff4099af@suse.cz>
- <20161122164822.GA5459@htj.duckdns.org>
- <CA+55aFwEik1Q-D0d4pRTNq672RS2eHpT2ULzGfttaSWW69Tajw@mail.gmail.com>
- <3e8eeadb-8dde-2313-f6e3-ef7763832104@suse.cz>
- <20161128171907.GA14754@htj.duckdns.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Nov 2016 23:53:22 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2 04/12] mm: thp: introduce
+ CONFIG_ARCH_ENABLE_THP_MIGRATION
+Date: Tue, 29 Nov 2016 07:50:06 +0000
+Message-ID: <20161129075006.GA15582@hori1.linux.bs1.fc.nec.co.jp>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20161128142154.GM14788@dhcp22.suse.cz>
+In-Reply-To: <20161128142154.GM14788@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <9CCFE8352436764EA483008D45B714F4@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161128171907.GA14754@htj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marc MERLIN <marc@merlins.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Mon 28-11-16 12:19:07, Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, Nov 23, 2016 at 09:50:12AM +0100, Vlastimil Babka wrote:
-> > > You'd certainly _hope_ that atomic allocations either have fallbacks
-> > > or are harmless if they fail, but I'd still rather see that
-> > > __GFP_NOWARN just to make that very much explicit.
-> > 
-> > A global change to GFP_NOWAIT would of course mean that we should audit its
-> > users (there don't seem to be many), whether they are using it consciously
-> > and should not rather be using GFP_ATOMIC.
-> 
-> A while ago, I thought about something like, say, GFP_MAYBE which is
-> combination of NOWAIT and NOWARN but couldn't really come up with
-> scenarios where one would want to use NOWAIT w/o NOWARN.  If an
-> allocation is important enough to warn the user of its failure, it
-> better be dipping into the atomic reserve pool; otherwise, it doesn't
-> make sense to make noise.
+On Mon, Nov 28, 2016 at 03:21:54PM +0100, Michal Hocko wrote:
+> On Tue 08-11-16 08:31:49, Naoya Horiguchi wrote:
+> > Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+> > functionality to x86_64, which should be safer at the first step.
+>=20
+> Please make sure to describe why this has to be arch specific and what
+> are arches supposed to provide in order to enable this option.
 
-I do not think we really need a new flag for that and fully agree that
-GFP_NOWAIT warning about failure is rarely, if ever, useful.
-Historically we didn't use to distinguish atomic (with access to
-reserves) allocations from those which just do not want to trigger the
-reclaim resp. to sleep (aka optimistic allocation requests). But this
-has changed so I guess we can really do the following 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index f8041f9de31e..a53b5187b4da 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -246,7 +246,7 @@ struct vm_area_struct;
- #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
- #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
- #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
--#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
-+#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM|__GFP_NOWARN)
- #define GFP_NOIO	(__GFP_RECLAIM)
- #define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
- #define GFP_TEMPORARY	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | \
+OK, the below will be added in the future version:
 
-this will not catch users who are doing gfp & ~__GFP_DIRECT_RECLAIM but
-I would rather not make warn_alloc() even more cluttered with checks.
--- 
-Michal Hocko
-SUSE Labs
+  Thp migration is an arch-specific feature because it depends on the
+  arch-dependent behavior of non-present format of page table entry.
+  What you need to enable this option in other archs are:
+  - to define arch-specific transformation functions like __pmd_to_swp_entr=
+y()
+    and __swp_entry_to_pmd(),
+  - to make sure that arch-specific page table walking code can properly ha=
+ndle
+    !pmd_present case (gup_pmd_range() is a good example),
+  - (if your archs enables CONFIG_HAVE_ARCH_SOFT_DIRTY,) to define soft dir=
+ty
+    routines like pmd_swp_mksoft_dirty.
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
