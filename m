@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 438866B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:56:21 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so28522700wjc.2
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:56:21 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id u184si3930089wmb.168.2016.11.29.11.56.19
-        for <linux-mm@kvack.org>;
-        Tue, 29 Nov 2016 11:56:20 -0800 (PST)
-Date: Tue, 29 Nov 2016 20:56:18 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v3 20/20] x86: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20161129195618.ewuiw5rdsu26yf7w@pd.tnic>
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003838.3280.23327.stgit@tlendack-t1.amdoffice.net>
- <20161126204703.wlcd6cw7dxzvpxyc@pd.tnic>
- <4cffdd71-dcc6-35e9-2654-e39067a525a8@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <4cffdd71-dcc6-35e9-2654-e39067a525a8@amd.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C90C6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 15:11:26 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id b14so72928358lfg.6
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 12:11:26 -0800 (PST)
+Received: from blaine.gmane.org ([195.159.176.226])
+        by mx.google.com with ESMTPS id r79si30100029lfr.51.2016.11.29.12.11.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Nov 2016 12:11:25 -0800 (PST)
+Received: from list by blaine.gmane.org with local (Exim 4.84_2)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1cBokJ-0006gU-7h
+	for linux-mm@kvack.org; Tue, 29 Nov 2016 21:11:19 +0100
+From: Holger =?iso-8859-1?q?Hoffst=E4tte?= <holger@applied-asynchrony.com>
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+Date: Tue, 29 Nov 2016 20:11:13 +0000 (UTC)
+Message-ID: <pan$5ab20$ae3f956b$4d65cb1e$af0a8d06@applied-asynchrony.com>
+References: <20161121215639.GF13371@merlins.org>
+	<20161122160629.uzt2u6m75ash4ved@merlins.org>
+	<48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+	<CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+	<20161123063410.GB2864@dhcp22.suse.cz>
+	<20161128072315.GC14788@dhcp22.suse.cz>
+	<20161129155537.f6qgnfmnoljwnx6j@merlins.org>
+	<20161129160751.GC9796@dhcp22.suse.cz>
+	<20161129163406.treuewaqgt4fy4kh@merlins.org>
+	<CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
+	<20161129174019.fywddwo5h4pyix7r@merlins.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-On Tue, Nov 29, 2016 at 12:48:17PM -0600, Tom Lendacky wrote:
-> > One more thing: just like we're adding an =on switch, we'd need an =off
-> > switch in case something's wrong with the SME code. IOW, if a user
-> > supplies "mem_encrypt=off", we do not encrypt.
+On Tue, 29 Nov 2016 09:40:19 -0800, Marc MERLIN wrote:
+
+>> One thing you can try is to just make the global limits much lower. As in
+>> 
+>>    echo 2 > /proc/sys/vm/dirty_ratio
+>>    echo 1 > /proc/sys/vm/dirty_background_ratio
 > 
-> Well, we can document "off", but if the exact string "mem_encrypt=on"
-> isn't specified on the command line then the encryption won't occur.
+> I will give that a shot, thank you.
 
-So you have this:
+Definitely do - your default values are way too high.
 
-+       /*
-+        * Fixups have not been to applied phys_base yet, so we must obtain
-+        * the address to the SME command line option in the following way.
-+        */
-+       asm ("lea sme_cmdline_arg(%%rip), %0"
-+            : "=r" (cmdline_arg)
-+            : "p" (sme_cmdline_arg));
-+       cmdline_ptr = bp->hdr.cmd_line_ptr | ((u64)bp->ext_cmd_line_ptr << 32);
-+       if (cmdline_find_option_bool((char *)cmdline_ptr, cmdline_arg))
-+               sme_me_mask = 1UL << (ebx & 0x3f);
+Another thing to try would be to activate the 'new' free-space-tree, i.e.
+mount once with space_cache=v2. It will vastly reduce writeback stalls
+especially with many small files or updates, and has been working reliably
+ever since it landed.
 
-If I parse this right, we will enable SME *only* if mem_encrypt=on is
-explicitly supplied on the command line.
-
-Which means, users will have to *know* about that cmdline switch first.
-Which then means, we have to go and tell them. Do you see where I'm
-going with this?
-
-I know we talked about this already but I still think we should enable
-it by default and people who don't want it will use the =off switch. We
-can also do something like CONFIG_AMD_SME_ENABLED_BY_DEFAULT which we
-can be selected during build for the different setups.
-
-Hmmm.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
