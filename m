@@ -1,93 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A416B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:07:18 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a8so259330226pfg.0
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 07:07:18 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 68si47780306pga.235.2016.11.29.07.07.17
-        for <linux-mm@kvack.org>;
-        Tue, 29 Nov 2016 07:07:17 -0800 (PST)
-Date: Tue, 29 Nov 2016 15:07:12 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v2)
-Message-ID: <20161129150711.GD13725@e104818-lin.cambridge.arm.com>
-References: <20161117002851.C7BACB98@viggo.jf.intel.com>
- <8769d52a-de0b-8c98-1e0b-e5305c5c02f3@suse.cz>
- <cf887736-2a62-bce5-0d72-0455a642cd99@sr71.net>
- <763d778a-2637-39e0-bcde-265055cf1c18@suse.cz>
- <6262d9fa-8098-4e18-4129-932e5e4857cb@sr71.net>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A49256B0069
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 10:20:15 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so45046624wme.4
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 07:20:15 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 199si2993597wmi.91.2016.11.29.07.20.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Nov 2016 07:20:14 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id g23so24947272wme.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 07:20:14 -0800 (PST)
+Date: Tue, 29 Nov 2016 16:20:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 08/22 v2] mm/vmstat: Avoid on each online CPU loops
+Message-ID: <20161129152012.GB9796@dhcp22.suse.cz>
+References: <20161126231350.10321-1-bigeasy@linutronix.de>
+ <20161126231350.10321-9-bigeasy@linutronix.de>
+ <20161128092800.GC14835@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1611291505340.4358@nanos>
+ <20161129145113.fn3lw5aazjjvdrr3@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <6262d9fa-8098-4e18-4129-932e5e4857cb@sr71.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161129145113.fn3lw5aazjjvdrr3@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, rt@linutronix.de, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On Mon, Nov 28, 2016 at 01:39:49PM -0800, Dave Hansen wrote:
-> On 11/28/2016 01:07 PM, Vlastimil Babka wrote:
-> > On 11/28/2016 05:52 PM, Dave Hansen wrote:
-> >> On 11/24/2016 06:22 AM, Vlastimil Babka wrote:
-> >>> On 11/17/2016 01:28 AM, Dave Hansen wrote:
-> >>>> @@ -702,11 +707,13 @@ static int smaps_hugetlb_range(pte_t *pt
-> >>>>      }
-> >>>>      if (page) {
-> >>>>          int mapcount = page_mapcount(page);
-> >>>> +        unsigned long hpage_size = huge_page_size(hstate_vma(vma));
-> >>>>
-> >>>> +        mss->rss_pud += hpage_size;
-> >>>
-> >>> This hardcoded pud doesn't look right, doesn't the pmd/pud depend on
-> >>> hpage_size?
-> >>
-> >> Urg, nope.  Thanks for noticing that!  I think we'll need something
-> >> along the lines of:
-> >>
-> >>                 if (hpage_size == PUD_SIZE)
-> >>                         mss->rss_pud += PUD_SIZE;
-> >>                 else if (hpage_size == PMD_SIZE)
-> >>                         mss->rss_pmd += PMD_SIZE;
-> > 
-> > Sounds better, although I wonder whether there are some weird arches
-> > supporting hugepage sizes that don't match page table levels. I recall
-> > that e.g. MIPS could do arbitrary size, but dunno if the kernel supports
-> > that...
+On Tue 29-11-16 15:51:14, Sebastian Andrzej Siewior wrote:
+> Both iterations over online cpus can be replaced by the proper node
+> specific functions.
 > 
-> arm64 seems to have pretty arbitrary sizes, and seems to be able to
-> build them out of multiple hardware PTE sizes.  I think I can fix my
-> code to handle those:
-> 
->                 if (hpage_size >= PGD_SIZE)
->                         mss->rss_pgd += PGD_SIZE;
->                 else if (hpage_size >= PUD_SIZE)
->                         mss->rss_pud += PUD_SIZE;
->                 else if (hpage_size >= PMD_SIZE)
->                         mss->rss_pmd += PMD_SIZE;
->                 else
->                         mss->rss_pte += PAGE_SIZE;
-> 
-> But, I *think* that means that smaps_hugetlb_range() is *currently*
-> broken for these intermediate arm64 sizes.  The code does:
-> 
->                 if (mapcount >= 2)
->                         mss->shared_hugetlb += hpage_size;
->                 else
->                         mss->private_hugetlb += hpage_size;
-> 
-> So I *think* if we may count a hugetlbfs arm64 CONT_PTES page multiple
-> times, and account hpage_size for *each* of the CONT_PTES.  That would
-> artificially inflate the smaps output for those pages.
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-I don't think it would count them multiple times. As Vlastimil
-mentioned, huge_page_size() would return (CONT_PTES * PAGE_SIZE) in such
-case, so walk_hugetlb_range() skips the intermediate ptes. In general,
-we try to keep the contiguous pte/pmd support visible only to the arm64
-hugetlb code and hidden to the core code.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+> v1a?|v2: take into account that we may have online nodes with no CPUs.
+> 
+>  mm/vmstat.c | 16 +++++++++-------
+>  1 file changed, 9 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 0b63ffb5c407..5152cd1c490f 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1720,19 +1720,21 @@ static void __init start_shepherd_timer(void)
+>  
+>  static void __init init_cpu_node_state(void)
+>  {
+> -	int cpu;
+> +	int node;
+>  
+> -	for_each_online_cpu(cpu)
+> -		node_set_state(cpu_to_node(cpu), N_CPU);
+> +	for_each_online_node(node) {
+> +		if (cpumask_weight(cpumask_of_node(node)) > 0)
+> +			node_set_state(node, N_CPU);
+> +	}
+>  }
+>  
+>  static void vmstat_cpu_dead(int node)
+>  {
+> -	int cpu;
+> +	const struct cpumask *node_cpus;
+>  
+> -	for_each_online_cpu(cpu)
+> -		if (cpu_to_node(cpu) == node)
+> -			return;
+> +	node_cpus = cpumask_of_node(node);
+> +	if (cpumask_weight(node_cpus) > 0)
+> +		return;
+>  
+>  	node_clear_state(node, N_CPU);
+>  }
+> -- 
+> 2.10.2
 
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
