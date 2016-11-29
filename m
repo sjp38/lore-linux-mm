@@ -1,99 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2F86B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 12:40:27 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id r101so306628610ioi.3
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 09:40:27 -0800 (PST)
-Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
-        by mx.google.com with ESMTPS id n26si44847957ioi.36.2016.11.29.09.40.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC2A6B025E
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 12:48:13 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id i88so263161947pfk.3
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 09:48:13 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 126si60739212pgb.180.2016.11.29.09.48.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 29 Nov 2016 09:40:26 -0800 (PST)
-Date: Tue, 29 Nov 2016 09:40:19 -0800
-From: Marc MERLIN <marc@merlins.org>
-Message-ID: <20161129174019.fywddwo5h4pyix7r@merlins.org>
-References: <20161121215639.GF13371@merlins.org>
- <20161122160629.uzt2u6m75ash4ved@merlins.org>
- <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
- <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
- <20161123063410.GB2864@dhcp22.suse.cz>
- <20161128072315.GC14788@dhcp22.suse.cz>
- <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
- <20161129160751.GC9796@dhcp22.suse.cz>
- <20161129163406.treuewaqgt4fy4kh@merlins.org>
- <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Nov 2016 09:48:12 -0800 (PST)
+Date: Tue, 29 Nov 2016 10:48:11 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 1/6] ext2: Return BH_New buffers for zeroed blocks
+Message-ID: <20161129174811.GA30208@linux.intel.com>
+References: <1479980796-26161-1-git-send-email-jack@suse.cz>
+ <1479980796-26161-2-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
+In-Reply-To: <1479980796-26161-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>
 
-Thanks for the reply and suggestions.
-
-On Tue, Nov 29, 2016 at 09:07:03AM -0800, Linus Torvalds wrote:
-> On Tue, Nov 29, 2016 at 8:34 AM, Marc MERLIN <marc@merlins.org> wrote:
-> > Now, to be fair, this is not a new problem, it's just varying degrees of
-> > bad and usually only happens when I do a lot of I/O with btrfs.
+On Thu, Nov 24, 2016 at 10:46:31AM +0100, Jan Kara wrote:
+> So far we did not return BH_New buffers from ext2_get_blocks() when we
+> allocated and zeroed-out a block for DAX inode to avoid racy zeroing in
+> DAX code. This zeroing is gone these days so we can remove the
+> workaround.
 > 
-> One situation where I've seen something like this happen is
-> 
->  (a) lots and lots of dirty data queued up
->  (b) horribly slow storage
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-In my case, it is a 5x 4TB HDD with 
-software raid 5 < bcache < dmcrypt < btrfs
-bcache is currently half disabled (as in I removed the actual cache) or
-too many bcache requests pile up, and the kernel dies when too many
-workqueues have piled up.
-I'm just kind of worried that since I'm going through 4 subsystems
-before my data can hit disk, that's a lot of memory allocations and
-places where data can accumulate and cause bottlenecks if the next
-subsystem isn't as fast.
-
-But this shouldn't be "horribly slow", should it? (it does copy a few
-terabytes per day, not fast, but not horrible, about 30MB/s or so)
-
-> Sadly, our defaults for "how much dirty data do we allow" are somewhat
-> buggered. The global defaults are in "percent of memory", and are
-> generally _much_ too high for big-memory machines:
-> 
->     [torvalds@i7 linux]$ cat /proc/sys/vm/dirty_ratio
->     20
->     [torvalds@i7 linux]$ cat /proc/sys/vm/dirty_background_ratio
->     10
-
-I can confirm I have the same.
-
-> says that it only starts really throttling writes when you hit 20% of
-> all memory used. You don't say how much memory you have in that
-> machine, but if it's the same one you talked about earlier, it was
-> 24GB. So you can have 4GB of dirty data waiting to be flushed out.
-
-Correct, 24GB and 4GB.
-
-> And we *try* to do this per-device backing-dev congestion thing to
-> make things work better, but it generally seems to not work very well.
-> Possibly because of inconsistent write speeds (ie _sometimes_ the SSD
-> does really well, and we want to open up, and then it shuts down).
-> 
-> One thing you can try is to just make the global limits much lower. As in
-> 
->    echo 2 > /proc/sys/vm/dirty_ratio
->    echo 1 > /proc/sys/vm/dirty_background_ratio
-
-I will give that a shot, thank you.
-
-Marc
--- 
-"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
-Microsoft is to operating systems ....
-                                      .... what McDonalds is to gourmet cooking
-Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
