@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF1D6B0282
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:24:02 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 17so254542527pfy.2
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:02 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 59si30847614plp.46.2016.11.29.03.24.01
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5A06B0284
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:24:09 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f188so420778729pgc.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:24:09 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 3si30875488plh.307.2016.11.29.03.24.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 03:24:01 -0800 (PST)
+        Tue, 29 Nov 2016 03:24:08 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 16/36] thp: make thp_get_unmapped_area() respect S_HUGE_MODE
-Date: Tue, 29 Nov 2016 14:22:44 +0300
-Message-Id: <20161129112304.90056-17-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 20/36] truncate: make truncate_inode_pages_range() aware about huge pages
+Date: Tue, 29 Nov 2016 14:22:48 +0300
+Message-Id: <20161129112304.90056-21-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,32 +20,220 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We want mmap(NULL) to return PMD-aligned address if the inode can have
-huge pages in page cache.
+As with shmem_undo_range(), truncate_inode_pages_range() removes huge
+pages, if it fully within range.
+
+Partial truncate of huge pages zero out this part of THP.
+
+Unlike with shmem, it doesn't prevent us having holes in the middle of
+huge page we still can skip writeback not touched buffers.
+
+With memory-mapped IO we would loose holes in some cases when we have
+THP in page cache, since we cannot track access on 4k level in this
+case.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/buffer.c        |  2 +-
+ include/linux/mm.h |  9 +++++-
+ mm/truncate.c      | 86 ++++++++++++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 80 insertions(+), 17 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a15d566b14f6..9c6ba124ba50 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -518,10 +518,12 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
- 		unsigned long len, unsigned long pgoff, unsigned long flags)
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 8e000021513c..24daf7b9bdb0 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1534,7 +1534,7 @@ void block_invalidatepage(struct page *page, unsigned int offset,
+ 	/*
+ 	 * Check for overflow
+ 	 */
+-	BUG_ON(stop > PAGE_SIZE || stop < length);
++	BUG_ON(stop > hpage_size(page) || stop < length);
+ 
+ 	head = page_buffers(page);
+ 	bh = head;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 582844ca0b23..59e74dc57359 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1328,8 +1328,15 @@ int get_kernel_page(unsigned long start, int write, struct page **pages);
+ struct page *get_dump_page(unsigned long addr);
+ 
+ extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
+-extern void do_invalidatepage(struct page *page, unsigned int offset,
++extern void __do_invalidatepage(struct page *page, unsigned int offset,
+ 			      unsigned int length);
++static inline void do_invalidatepage(struct page *page, unsigned int offset,
++		unsigned int length)
++{
++	if (page_has_private(page))
++		__do_invalidatepage(page, offset, length);
++}
++
+ 
+ int __set_page_dirty_nobuffers(struct page *page);
+ int __set_page_dirty_no_writeback(struct page *page);
+diff --git a/mm/truncate.c b/mm/truncate.c
+index eb3a3a45feb6..d2d95f283ec3 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -70,12 +70,12 @@ static void clear_exceptional_entry(struct address_space *mapping,
+  * point.  Because the caller is about to free (and possibly reuse) those
+  * blocks on-disk.
+  */
+-void do_invalidatepage(struct page *page, unsigned int offset,
++void __do_invalidatepage(struct page *page, unsigned int offset,
+ 		       unsigned int length)
  {
- 	loff_t off = (loff_t)pgoff << PAGE_SHIFT;
-+	struct inode *inode = filp->f_mapping->host;
+ 	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
  
- 	if (addr)
- 		goto out;
--	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
-+	if ((inode->i_flags & S_HUGE_MODE) == S_HUGE_NEVER &&
-+			(!IS_DAX(inode) || !IS_ENABLED(CONFIG_FS_DAX_PMD)))
- 		goto out;
+-	invalidatepage = page->mapping->a_ops->invalidatepage;
++	invalidatepage = page_mapping(page)->a_ops->invalidatepage;
+ #ifdef CONFIG_BLOCK
+ 	if (!invalidatepage)
+ 		invalidatepage = block_invalidatepage;
+@@ -100,8 +100,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
+ 	if (page->mapping != mapping)
+ 		return -EIO;
  
- 	addr = __thp_get_unmapped_area(filp, len, off, flags, PMD_SIZE);
+-	if (page_has_private(page))
+-		do_invalidatepage(page, 0, PAGE_SIZE);
++	do_invalidatepage(page, 0, hpage_size(page));
+ 
+ 	/*
+ 	 * Some filesystems seem to re-dirty the page even after
+@@ -273,13 +272,35 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 				unlock_page(page);
+ 				continue;
+ 			}
++
++			if (PageTransHuge(page)) {
++				int j, first = 0, last = HPAGE_PMD_NR - 1;
++
++				if (start > page->index)
++					first = start & (HPAGE_PMD_NR - 1);
++				if (index == round_down(end, HPAGE_PMD_NR))
++					last = (end - 1) & (HPAGE_PMD_NR - 1);
++
++				/* Range starts or ends in the middle of THP */
++				if (first != 0 || last != HPAGE_PMD_NR - 1) {
++					int off, len;
++					for (j = first; j <= last; j++)
++						clear_highpage(page + j);
++					off = first * PAGE_SIZE;
++					len = (last + 1) * PAGE_SIZE - off;
++					do_invalidatepage(page, off, len);
++					unlock_page(page);
++					continue;
++				}
++			}
++
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_remove_exceptionals(&pvec);
++		index += pvec.nr ? hpage_nr_pages(pvec.pages[pvec.nr - 1]) : 1;
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+-		index++;
+ 	}
+ 
+ 	if (partial_start) {
+@@ -294,9 +315,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, partial_start, top);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, partial_start,
+-						  top - partial_start);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE + partial_start,
++						top - partial_start);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -307,9 +331,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, 0, partial_end);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, 0,
+-						  partial_end);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE,
++						partial_end);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -323,7 +350,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 
+ 	index = start;
+ 	for ( ; ; ) {
+-		cond_resched();
++restart:	cond_resched();
+ 		if (!pagevec_lookup_entries(&pvec, mapping, index,
+ 			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
+ 			/* If all gone from start onwards, we're done */
+@@ -346,8 +373,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			index = indices[i];
+ 			if (index >= end) {
+ 				/* Restart punch to make sure all gone */
+-				index = start - 1;
+-				break;
++				index = start;
++				goto restart;
+ 			}
+ 
+ 			if (radix_tree_exceptional_entry(page)) {
+@@ -358,12 +385,41 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			lock_page(page);
+ 			WARN_ON(page_to_index(page) != index);
+ 			wait_on_page_writeback(page);
++
++			if (PageTransHuge(page)) {
++				int j, first = 0, last = HPAGE_PMD_NR - 1;
++
++				if (start > page->index)
++					first = start & (HPAGE_PMD_NR - 1);
++				if (index == round_down(end, HPAGE_PMD_NR))
++					last = (end - 1) & (HPAGE_PMD_NR - 1);
++
++				/*
++				 * On Partial thp truncate due 'start' in
++				 * middle of THP: don't need to look on these
++				 * pages again on !pvec.nr restart.
++				 */
++				start = page->index + HPAGE_PMD_NR;
++
++				/* Range starts or ends in the middle of THP */
++				if (first != 0 || last != HPAGE_PMD_NR - 1) {
++					int off, len;
++					for (j = first; j <= last; j++)
++						clear_highpage(page + j);
++					off = first * PAGE_SIZE;
++					len = (last + 1) * PAGE_SIZE - off;
++					do_invalidatepage(page, off, len);
++					unlock_page(page);
++					continue;
++				}
++			}
++
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+ 		pagevec_remove_exceptionals(&pvec);
++		index += pvec.nr ? hpage_nr_pages(pvec.pages[pvec.nr - 1]) : 1;
+ 		pagevec_release(&pvec);
+-		index++;
+ 	}
+ 	cleancache_invalidate_inode(mapping);
+ }
 -- 
 2.10.2
 
