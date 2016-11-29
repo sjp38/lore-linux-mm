@@ -1,82 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 148B36B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:53:09 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so42643367wmf.3
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:53:09 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a186si1548746wma.80.2016.11.29.00.53.07
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D096B0069
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:53:37 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w13so42673720wmw.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:53:37 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id l6si1517070wmd.112.2016.11.29.00.45.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 00:53:07 -0800 (PST)
-Date: Tue, 29 Nov 2016 09:53:03 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/6] dax: fix build breakage with ext4, dax and !iomap
-Message-ID: <20161129085303.GA7550@quack2.suse.cz>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
- <20161124090239.GA24138@quack2.suse.cz>
- <20161128191504.GB6637@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Nov 2016 00:45:18 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id kp2so17151343wjc.0
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 00:45:18 -0800 (PST)
+Date: Tue, 29 Nov 2016 09:45:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 04/12] mm: thp: introduce
+ CONFIG_ARCH_ENABLE_THP_MIGRATION
+Message-ID: <20161129084516.GB31671@dhcp22.suse.cz>
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1478561517-4317-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20161128142154.GM14788@dhcp22.suse.cz>
+ <20161129075006.GA15582@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161128191504.GB6637@linux.intel.com>
+In-Reply-To: <20161129075006.GA15582@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Mon 28-11-16 12:15:04, Ross Zwisler wrote:
-> On Thu, Nov 24, 2016 at 10:02:39AM +0100, Jan Kara wrote:
-> > On Wed 23-11-16 11:44:17, Ross Zwisler wrote:
-> > > With the current Kconfig setup it is possible to have the following:
-> > > 
-> > > CONFIG_EXT4_FS=y
-> > > CONFIG_FS_DAX=y
-> > > CONFIG_FS_IOMAP=n	# this is in fs/Kconfig & isn't user accessible
-> > > 
-> > > With this config we get build failures in ext4_dax_fault() because the
-> > > iomap functions in fs/dax.c are missing:
-> > > 
-> > > fs/built-in.o: In function `ext4_dax_fault':
-> > > file.c:(.text+0x7f3ac): undefined reference to `dax_iomap_fault'
-> > > file.c:(.text+0x7f404): undefined reference to `dax_iomap_fault'
-> > > fs/built-in.o: In function `ext4_file_read_iter':
-> > > file.c:(.text+0x7fc54): undefined reference to `dax_iomap_rw'
-> > > fs/built-in.o: In function `ext4_file_write_iter':
-> > > file.c:(.text+0x7fe9a): undefined reference to `dax_iomap_rw'
-> > > file.c:(.text+0x7feed): undefined reference to `dax_iomap_rw'
-> > > fs/built-in.o: In function `ext4_block_zero_page_range':
-> > > inode.c:(.text+0x85c0d): undefined reference to `iomap_zero_range'
-> > > 
-> > > Now that the struct buffer_head based DAX fault paths and I/O path have
-> > > been removed we really depend on iomap support being present for DAX.  Make
-> > > this explicit by selecting FS_IOMAP if we compile in DAX support.
-> > > 
-> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On Tue 29-11-16 07:50:06, Naoya Horiguchi wrote:
+> On Mon, Nov 28, 2016 at 03:21:54PM +0100, Michal Hocko wrote:
+> > On Tue 08-11-16 08:31:49, Naoya Horiguchi wrote:
+> > > Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+> > > functionality to x86_64, which should be safer at the first step.
 > > 
-> > I've sent the same patch to Ted yesterday and he will probably queue it on
-> > top of ext4 iomap patches. If it doesn't happen for some reason, feel free
-> > to add:
-> > 
-> > Reviewed-by: Jan Kara <jack@suse.cz>
+> > Please make sure to describe why this has to be arch specific and what
+> > are arches supposed to provide in order to enable this option.
 > 
-> Cool, looks like Ted has pulled in your patch.
+> OK, the below will be added in the future version:
 > 
-> I think we still eventually want this patch because it cleans up our handling
-> of FS_IOMAP.  With your patch we select it separately in both ext4 & ext2
-> based on whether we include DAX, and we still have #ifdefs in fs/dax.c for
-> FS_IOMAP.
+>   Thp migration is an arch-specific feature because it depends on the
+>   arch-dependent behavior of non-present format of page table entry.
+>   What you need to enable this option in other archs are:
+>   - to define arch-specific transformation functions like __pmd_to_swp_entry()
+>     and __swp_entry_to_pmd(),
+>   - to make sure that arch-specific page table walking code can properly handle
+>     !pmd_present case (gup_pmd_range() is a good example),
+>   - (if your archs enables CONFIG_HAVE_ARCH_SOFT_DIRTY,) to define soft dirty
+>     routines like pmd_swp_mksoft_dirty.
 
-Actually, based on Dave's request I've also sent Ted updated version which
-did select FS_IOMAP in CONFIG_DAX section. However Ted didn't pull that
-patch (yet?). Anyway, I don't care whose patch gets merged, I just wanted
-to notify you of possible conflict.
-
-								Honza
+Thanks this is _much_ better!
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
