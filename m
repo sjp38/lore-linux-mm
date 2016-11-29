@@ -1,77 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3296B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:39:47 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id c21so298961935ioj.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:39:47 -0800 (PST)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id h200si45116648ioe.75.2016.11.29.11.39.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 11:39:46 -0800 (PST)
-Received: by mail-io0-x233.google.com with SMTP id j65so308996708iof.0
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:39:45 -0800 (PST)
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 438866B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 14:56:21 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id hb5so28522700wjc.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 11:56:21 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id u184si3930089wmb.168.2016.11.29.11.56.19
+        for <linux-mm@kvack.org>;
+        Tue, 29 Nov 2016 11:56:20 -0800 (PST)
+Date: Tue, 29 Nov 2016 20:56:18 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v3 20/20] x86: Add support to make use of Secure
+ Memory Encryption
+Message-ID: <20161129195618.ewuiw5rdsu26yf7w@pd.tnic>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003838.3280.23327.stgit@tlendack-t1.amdoffice.net>
+ <20161126204703.wlcd6cw7dxzvpxyc@pd.tnic>
+ <4cffdd71-dcc6-35e9-2654-e39067a525a8@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <1480445729-27130-10-git-send-email-labbott@redhat.com>
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com> <1480445729-27130-10-git-send-email-labbott@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 29 Nov 2016 11:39:44 -0800
-Message-ID: <CAGXu5jKrBc6R9JYay1L6pd958Vm5-6p=37tiUYgg6uPeZb1HtQ@mail.gmail.com>
-Subject: Re: [PATCHv4 09/10] mm/usercopy: Switch to using lm_alias
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <4cffdd71-dcc6-35e9-2654-e39067a525a8@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue, Nov 29, 2016 at 10:55 AM, Laura Abbott <labbott@redhat.com> wrote:
->
-> The usercopy checking code currently calls __va(__pa(...)) to check for
-> aliases on symbols. Switch to using lm_alias instead.
->
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
+On Tue, Nov 29, 2016 at 12:48:17PM -0600, Tom Lendacky wrote:
+> > One more thing: just like we're adding an =on switch, we'd need an =off
+> > switch in case something's wrong with the SME code. IOW, if a user
+> > supplies "mem_encrypt=off", we do not encrypt.
+> 
+> Well, we can document "off", but if the exact string "mem_encrypt=on"
+> isn't specified on the command line then the encryption won't occur.
 
-Acked-by: Kees Cook <keescook@chromium.org>
+So you have this:
 
-I should probably add a corresponding alias test to lkdtm...
++       /*
++        * Fixups have not been to applied phys_base yet, so we must obtain
++        * the address to the SME command line option in the following way.
++        */
++       asm ("lea sme_cmdline_arg(%%rip), %0"
++            : "=r" (cmdline_arg)
++            : "p" (sme_cmdline_arg));
++       cmdline_ptr = bp->hdr.cmd_line_ptr | ((u64)bp->ext_cmd_line_ptr << 32);
++       if (cmdline_find_option_bool((char *)cmdline_ptr, cmdline_arg))
++               sme_me_mask = 1UL << (ebx & 0x3f);
 
--Kees
+If I parse this right, we will enable SME *only* if mem_encrypt=on is
+explicitly supplied on the command line.
 
-> ---
-> Found when reviewing the kernel. Tested.
-> ---
->  mm/usercopy.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/usercopy.c b/mm/usercopy.c
-> index 3c8da0a..8345299 100644
-> --- a/mm/usercopy.c
-> +++ b/mm/usercopy.c
-> @@ -108,13 +108,13 @@ static inline const char *check_kernel_text_object(const void *ptr,
->          * __pa() is not just the reverse of __va(). This can be detected
->          * and checked:
->          */
-> -       textlow_linear = (unsigned long)__va(__pa(textlow));
-> +       textlow_linear = (unsigned long)lm_alias(textlow);
->         /* No different mapping: we're done. */
->         if (textlow_linear == textlow)
->                 return NULL;
->
->         /* Check the secondary mapping... */
-> -       texthigh_linear = (unsigned long)__va(__pa(texthigh));
-> +       texthigh_linear = (unsigned long)lm_alias(texthigh);
->         if (overlaps(ptr, n, textlow_linear, texthigh_linear))
->                 return "<linear kernel text>";
->
-> --
-> 2.7.4
->
+Which means, users will have to *know* about that cmdline switch first.
+Which then means, we have to go and tell them. Do you see where I'm
+going with this?
 
+I know we talked about this already but I still think we should enable
+it by default and people who don't want it will use the =off switch. We
+can also do something like CONFIG_AMD_SME_ENABLED_BY_DEFAULT which we
+can be selected during build for the different setups.
 
+Hmmm.
 
 -- 
-Kees Cook
-Nexus Security
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
