@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C3E16B0273
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A69016B0273
 	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 06:23:42 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 17so254532430pfy.2
+Received: by mail-pg0-f70.google.com with SMTP id 3so424901511pgd.3
         for <linux-mm@kvack.org>; Tue, 29 Nov 2016 03:23:42 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b192si56373317pga.202.2016.11.29.03.23.41
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 1si30856571plm.51.2016.11.29.03.23.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 29 Nov 2016 03:23:41 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 27/36] ext4: handle huge pages in __ext4_block_zero_page_range()
-Date: Tue, 29 Nov 2016 14:22:55 +0300
-Message-Id: <20161129112304.90056-28-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 30/36] ext4: make ext4_da_page_release_reservation() aware about huge pages
+Date: Tue, 29 Nov 2016 14:22:58 +0300
+Message-Id: <20161129112304.90056-31-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,46 +20,39 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-As the function handles zeroing range only within one block, the
-required changes are trivial, just remove assuption on page size.
+For huge pages 'stop' must be within HPAGE_PMD_SIZE.
+Let's use hpage_size() in the BUG_ON().
+
+We also need to change how we calculate lblk for cluster deallocation.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ fs/ext4/inode.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 387aa857770b..d3143dfe9962 100644
+index e89249c03d2f..035256019e16 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -3776,7 +3776,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		struct address_space *mapping, loff_t from, loff_t length)
- {
- 	ext4_fsblk_t index = from >> PAGE_SHIFT;
--	unsigned offset = from & (PAGE_SIZE-1);
-+	unsigned offset;
- 	unsigned blocksize, pos;
- 	ext4_lblk_t iblock;
- 	struct inode *inode = mapping->host;
-@@ -3789,6 +3789,9 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 	if (!page)
- 		return -ENOMEM;
+@@ -1572,7 +1572,7 @@ static void ext4_da_page_release_reservation(struct page *page,
+ 	int num_clusters;
+ 	ext4_fsblk_t lblk;
  
-+	page = compound_head(page);
-+	offset = from & ~hpage_mask(page);
-+
- 	blocksize = inode->i_sb->s_blocksize;
+-	BUG_ON(stop > PAGE_SIZE || stop < length);
++	BUG_ON(stop > hpage_size(page) || stop < length);
  
- 	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
-@@ -3845,7 +3848,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		if (err)
- 			goto unlock;
- 	}
--	zero_user(page, offset, length);
-+	zero_user(page + offset / PAGE_SIZE, offset % PAGE_SIZE, length);
- 	BUFFER_TRACE(bh, "zeroed end of block");
- 
- 	if (ext4_should_journal_data(inode)) {
+ 	head = page_buffers(page);
+ 	bh = head;
+@@ -1607,7 +1607,8 @@ static void ext4_da_page_release_reservation(struct page *page,
+ 	 * need to release the reserved space for that cluster. */
+ 	num_clusters = EXT4_NUM_B2C(sbi, to_release);
+ 	while (num_clusters > 0) {
+-		lblk = (page->index << (PAGE_SHIFT - inode->i_blkbits)) +
++		lblk = ((page->index + offset / PAGE_SIZE) <<
++				(PAGE_SHIFT - inode->i_blkbits)) +
+ 			((num_clusters - 1) << sbi->s_cluster_bits);
+ 		if (sbi->s_cluster_ratio == 1 ||
+ 		    !ext4_find_delalloc_cluster(inode, lblk))
 -- 
 2.10.2
 
