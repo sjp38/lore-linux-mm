@@ -1,127 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C175A6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 02:34:28 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id m203so48939884wma.2
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 23:34:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 127si5806863wmv.35.2016.11.29.23.34.26
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 583F66B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 03:06:39 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id l192so350916312oih.2
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 00:06:39 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id s1si30630522ots.35.2016.11.30.00.06.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 23:34:27 -0800 (PST)
-Subject: Re: [patch v2 1/2] mm, zone: track number of movable free pages
-References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1611291615400.103050@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ee587096-9d0f-65ef-75aa-d9211e846adb@suse.cz>
-Date: Wed, 30 Nov 2016 08:34:24 +0100
+        Wed, 30 Nov 2016 00:06:38 -0800 (PST)
+Message-ID: <583E8864.9000305@huawei.com>
+Date: Wed, 30 Nov 2016 16:05:56 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1611291615400.103050@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: [RFC] kasan: is it a wrong report from kasan?
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: yang.shi@linaro.org, rostedt@goodmis.org
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, wangwei <bessel.wang@huawei.com>
 
-On 11/30/2016 01:16 AM, David Rientjes wrote:
-> An upcoming compaction change will need the number of movable free pages
-> per zone to determine if async compaction will become unnecessarily
-> expensive.
->
-> This patch introduces no functional change or increased memory footprint.
-> It simply tracks the number of free movable pages as a subset of the
-> total number of free pages.  This is exported to userspace as part of a
-> new /proc/vmstat field.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  v2: do not track free pages per migratetype since page allocator stress
->      testing reveals this tracking can impact workloads and there is no
->      substantial benefit when thp is disabled.  This occurs because
->      entire pageblocks can be converted to new migratetypes and requires
->      iteration of free_areas in the hotpaths for proper tracking.
+The kernel version is v4.1, and I find some error reports from kasan.
+I'm not sure whether it is a wrong report.
 
-Ah, right, forgot about the accuracy issue when focusing on the overhead 
-issue. Unfortunately I'm afraid the NR_FREE_MOVABLE_PAGES in this patch 
-will also drift uncontrollably over time. Stealing is one thing, and 
-also buddy merging can silently move free pages between migratetypes. It 
-already took some effort to make this accurate for MIGRATE_CMA and 
-MIGRATE_ISOLATE, which has some overhead and works only thanks to 
-additional constraints - CMA pageblocks don't ever get converted, and 
-for ISOLATE we don't put them on pcplists, perform pcplists draining 
-during isolation, and have extra code guarded by has_isolate_pageblock() 
-in buddy merging. None of this would be directly viable for 
-MIGRATE_MOVABLE I'm afraid.
+11-29 07:57:26.513 <3>[12507.758056s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in trace_event_buffer_lock_reserve+0x50/0x170 at addr ffffffc035903bf0
+11-29 07:57:26.513 <3>[12507.758087s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
+11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
+11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]flags: 0x0()
+11-29 07:57:26.513 <1>[12507.758148s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
+11-29 07:57:26.513 <4>[12507.758178s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
+11-29 07:57:26.513 <4>[12507.758209s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
+11-29 07:57:26.513 <4>[12507.758239s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
+11-29 07:57:26.514 <0>[12507.758239s][pid:0,cpu3,swapper/3]Call trace:
+11-29 07:57:26.514 <4>[12507.758270s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
+11-29 07:57:26.515 <4>[12507.758300s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
+11-29 07:57:26.516 <4>[12507.758331s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
+11-29 07:57:26.516 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
+11-29 07:57:26.517 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
+11-29 07:57:26.517 <4>[12507.758392s][pid:0,cpu3,swapper/3][<ffffffc0001b4910>] trace_event_buffer_lock_reserve+0x50/0x170
+11-29 07:57:26.517 <4>[12507.758422s][pid:0,cpu3,swapper/3][<ffffffc0001c2174>] ftrace_event_buffer_reserve+0x8c/0xd8
+11-29 07:57:26.517 <4>[12507.758453s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
+11-29 07:57:26.517 <4>[12507.758483s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
+11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
+11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
+11-29 07:57:26.517 <4>[12507.758544s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
+11-29 07:57:26.517 <4>[12507.758575s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
+11-29 07:57:26.518 <4>[12507.758605s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
+11-29 07:57:26.518 <4>[12507.758636s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
+11-29 07:57:26.518 <4>[12507.758666s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
+11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
+11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
+11-29 07:57:26.518 <3>[12507.758728s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
+11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.518 <3>[12507.758789s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
+11-29 07:57:26.518 <3>[12507.758819s][pid:0,cpu3,swapper/3]                                                             ^
+11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
->  include/linux/mmzone.h | 1 +
->  include/linux/vmstat.h | 2 ++
->  mm/page_alloc.c        | 8 +++++++-
->  mm/vmstat.c            | 1 +
->  4 files changed, 11 insertions(+), 1 deletion(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -138,6 +138,7 @@ enum zone_stat_item {
->  	NUMA_OTHER,		/* allocation from other node */
->  #endif
->  	NR_FREE_CMA_PAGES,
-> +	NR_FREE_MOVABLE_PAGES,
->  	NR_VM_ZONE_STAT_ITEMS };
->
->  enum node_stat_item {
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -347,6 +347,8 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
->  	if (is_migrate_cma(migratetype))
->  		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, nr_pages);
-> +	if (migratetype == MIGRATE_MOVABLE)
-> +		__mod_zone_page_state(zone, NR_FREE_MOVABLE_PAGES, nr_pages);
->  }
->
->  extern const char * const vmstat_text[];
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2197,6 +2197,8 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  	spin_lock(&zone->lock);
->  	for (i = 0; i < count; ++i) {
->  		struct page *page = __rmqueue(zone, order, migratetype);
-> +		int mt;
-> +
->  		if (unlikely(page == NULL))
->  			break;
->
-> @@ -2217,9 +2219,13 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  		else
->  			list_add_tail(&page->lru, list);
->  		list = &page->lru;
-> -		if (is_migrate_cma(get_pcppage_migratetype(page)))
-> +		mt = get_pcppage_migratetype(page);
-> +		if (is_migrate_cma(mt))
->  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
->  					      -(1 << order));
-> +		if (mt == MIGRATE_MOVABLE)
-> +			__mod_zone_page_state(zone, NR_FREE_MOVABLE_PAGES,
-> +					      -(1 << order));
->  	}
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
->  	spin_unlock(&zone->lock);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -945,6 +945,7 @@ const char * const vmstat_text[] = {
->  	"numa_other",
->  #endif
->  	"nr_free_cma",
-> +	"nr_free_movable",
->
->  	/* Node-based counters */
->  	"nr_inactive_anon",
->
+
+11-29 07:57:26.523 <3>[12507.759735s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in ftrace_event_buffer_reserve+0x98/0xd8 at addr ffffffc035903bf8
+11-29 07:57:26.523 <3>[12507.759765s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
+11-29 07:57:26.523 <0>[12507.759765s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
+11-29 07:57:26.523 <0>[12507.759796s][pid:0,cpu3,swapper/3]flags: 0x0()
+11-29 07:57:26.523 <1>[12507.759826s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
+11-29 07:57:26.523 <4>[12507.759857s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
+11-29 07:57:26.524 <4>[12507.759857s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
+11-29 07:57:26.524 <4>[12507.759887s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
+11-29 07:57:26.524 <0>[12507.759887s][pid:0,cpu3,swapper/3]Call trace:
+11-29 07:57:26.524 <4>[12507.759918s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
+11-29 07:57:26.524 <4>[12507.759948s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
+11-29 07:57:26.524 <4>[12507.759979s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
+11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
+11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
+11-29 07:57:26.524 <4>[12507.760040s][pid:0,cpu3,swapper/3][<ffffffc0001c2180>] ftrace_event_buffer_reserve+0x98/0xd8
+11-29 07:57:26.525 <4>[12507.760070s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
+11-29 07:57:26.525 <4>[12507.760101s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
+11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
+11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
+11-29 07:57:26.525 <4>[12507.760162s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
+11-29 07:57:26.525 <4>[12507.760192s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
+11-29 07:57:26.525 <4>[12507.760223s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
+11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
+11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
+11-29 07:57:26.526 <4>[12507.760284s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
+11-29 07:57:26.526 <4>[12507.760314s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
+11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
+11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.526 <3>[12507.760375s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
+11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]                                                                ^
+11-29 07:57:26.526 <3>[12507.760437s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
+11-29 07:57:26.526 <3>[12507.760467s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
