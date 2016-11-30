@@ -1,120 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C840E6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:06:17 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id bk3so32841317wjc.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:06:17 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id s5si7259513wma.130.2016.11.30.06.06.16
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8BA6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:13:11 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id k19so17679137iod.4
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:13:11 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0004.hostedemail.com. [216.40.44.4])
+        by mx.google.com with ESMTPS id 131si5847101itp.50.2016.11.30.06.13.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 06:06:16 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id DB0FC992A1
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 14:06:15 +0000 (UTC)
-Date: Wed, 30 Nov 2016 14:06:15 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-Message-ID: <20161130140615.3bbn7576iwbyc3op@techsingularity.net>
-References: <20161127131954.10026-1-mgorman@techsingularity.net>
- <20161130134034.3b60c7f0@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 06:13:10 -0800 (PST)
+Date: Wed, 30 Nov 2016 09:13:06 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [RFC] kasan: is it a wrong report from kasan?
+Message-ID: <20161130091306.3c4ce99e@gandalf.local.home>
+In-Reply-To: <583E8864.9000305@huawei.com>
+References: <583E8864.9000305@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20161130134034.3b60c7f0@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Rick Jones <rick.jones2@hpe.com>, Paolo Abeni <pabeni@redhat.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: yang.shi@linaro.org, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, wangwei <bessel.wang@huawei.com>
 
-On Wed, Nov 30, 2016 at 01:40:34PM +0100, Jesper Dangaard Brouer wrote:
+On Wed, 30 Nov 2016 16:05:56 +0800
+Xishi Qiu <qiuxishi@huawei.com> wrote:
+
+> The kernel version is v4.1, and I find some error reports from kasan.
+
+First off, this is an ancient kernel. Can you reproduce this on 4.9-rc?
+
+> I'm not sure whether it is a wrong report.
+
+No idea, and it may not even be an issue with ftrace, but with the
+caller of the tracepoint.
+
 > 
-> On Sun, 27 Nov 2016 13:19:54 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 11-29 07:57:26.513 <3>[12507.758056s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in trace_event_buffer_lock_reserve+0x50/0x170 at addr ffffffc035903bf0
+
+Use gdb on your vmlinux that ran this kernel, and see exactly where
+ffffffc035903bf0 is.
+
+> 11-29 07:57:26.513 <3>[12507.758087s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
+> 11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
+> 11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]flags: 0x0()
+> 11-29 07:57:26.513 <1>[12507.758148s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
+> 11-29 07:57:26.513 <4>[12507.758178s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
+> 11-29 07:57:26.513 <4>[12507.758209s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
+> 11-29 07:57:26.513 <4>[12507.758239s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
+> 11-29 07:57:26.514 <0>[12507.758239s][pid:0,cpu3,swapper/3]Call trace:
+> 11-29 07:57:26.514 <4>[12507.758270s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
+> 11-29 07:57:26.515 <4>[12507.758300s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
+> 11-29 07:57:26.516 <4>[12507.758331s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
+> 11-29 07:57:26.516 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
+> 11-29 07:57:26.517 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
+> 11-29 07:57:26.517 <4>[12507.758392s][pid:0,cpu3,swapper/3][<ffffffc0001b4910>] trace_event_buffer_lock_reserve+0x50/0x170
+> 11-29 07:57:26.517 <4>[12507.758422s][pid:0,cpu3,swapper/3][<ffffffc0001c2174>] ftrace_event_buffer_reserve+0x8c/0xd8
+> 11-29 07:57:26.517 <4>[12507.758453s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
+> 11-29 07:57:26.517 <4>[12507.758483s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
+> 11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
+> 11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
+> 11-29 07:57:26.517 <4>[12507.758544s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
+> 11-29 07:57:26.517 <4>[12507.758575s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
+> 11-29 07:57:26.518 <4>[12507.758605s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
+
+The interrupt came in from idle.
+
+How did the stack get corrupted?
+
+-- Steve
+
+> 11-29 07:57:26.518 <4>[12507.758636s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
+> 11-29 07:57:26.518 <4>[12507.758666s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
+> 11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
+> 11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
+> 11-29 07:57:26.518 <3>[12507.758728s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
+> 11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.518 <3>[12507.758789s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
+> 11-29 07:57:26.518 <3>[12507.758819s][pid:0,cpu3,swapper/3]                                                             ^
+> 11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 > 
-> [...]
-> > SLUB has been the default small kernel object allocator for quite some time
-> > but it is not universally used due to performance concerns and a reliance
-> > on high-order pages. The high-order concerns has two major components --
-> > high-order pages are not always available and high-order page allocations
-> > potentially contend on the zone->lock. This patch addresses some concerns
-> > about the zone lock contention by extending the per-cpu page allocator to
-> > cache high-order pages. The patch makes the following modifications
-> > 
-> > o New per-cpu lists are added to cache the high-order pages. This increases
-> >   the cache footprint of the per-cpu allocator and overall usage but for
-> >   some workloads, this will be offset by reduced contention on zone->lock.
 > 
-> This will also help performance of NIC driver that allocator
-> higher-order pages for their RX-ring queue (and chop it up for MTU).
-> I do like this patch, even-though I'm working on moving drivers away
-> from allocation these high-order pages.
-> 
-> Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> 
-
-Thanks.
-
-> [...]
-> > This is the result from netperf running UDP_STREAM on localhost. It was
-> > selected on the basis that it is slab-intensive and has been the subject
-> > of previous SLAB vs SLUB comparisons with the caveat that this is not
-> > testing between two physical hosts.
-> 
-> I do like you are using a networking test to benchmark this. Looking at
-> the results, my initial response is that the improvements are basically
-> too good to be true.
-> 
-
-FWIW, LKP independently measured the boost to be 23% so it's expected
-there will be different results depending on exact configuration and CPU.
-
-> Can you share how you tested this with netperf and the specific netperf
-> parameters? 
-
-The mmtests config file used is
-configs/config-global-dhp__network-netperf-unbound so all details can be
-extrapolated or reproduced from that.
-
-> e.g.
->  How do you configure the send/recv sizes?
-
-Static range of sizes specified in the config file.
-
->  Have you pinned netperf and netserver on different CPUs?
-> 
-
-No. While it's possible to do a pinned test which helps stability, it
-also tends to be less reflective of what happens in a variety of
-workloads so I took the "harder" option.
-
-> For localhost testing, when netperf and netserver run on the same CPU,
-> you observer half the performance, very intuitively.  When pinning
-> netperf and netserver (via e.g. option -T 1,2) you observe the most
-> stable results.  When allowing netperf and netserver to migrate between
-> CPUs (default setting), the real fun starts and unstable results,
-> because now the CPU scheduler is also being tested, and my experience
-> is also more "fun" memory situations occurs, as I guess we are hopping
-> between more per CPU alloc caches (also affecting the SLUB per CPU usage
-> pattern).
-> 
-
-Yes which is another reason why I used an unbound configuration. I didn't
-want to get an artificial boost from pinned server/client using the same
-per-cpu caches. As a side-effect, it may mean that machines with fewer
-CPUs get a greater boost as there are fewer per-cpu caches being used.
-
-> > 2-socket modern machine
-> >                                 4.9.0-rc5             4.9.0-rc5
-> >                                   vanilla             hopcpu-v3
-> 
-> The kernel from 4.9.0-rc5-vanilla to 4.9.0-rc5-hopcpu-v3 only contains
-> this single change right?
-
-Yes.
-
--- 
-Mel Gorman
-SUSE Labs
+> 11-29 07:57:26.523 <3>[12507.759735s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in ftrace_event_buffer_reserve+0x98/0xd8 at addr ffffffc035903bf8
+> 11-29 07:57:26.523 <3>[12507.759765s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
+> 11-29 07:57:26.523 <0>[12507.759765s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
+> 11-29 07:57:26.523 <0>[12507.759796s][pid:0,cpu3,swapper/3]flags: 0x0()
+> 11-29 07:57:26.523 <1>[12507.759826s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
+> 11-29 07:57:26.523 <4>[12507.759857s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
+> 11-29 07:57:26.524 <4>[12507.759857s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
+> 11-29 07:57:26.524 <4>[12507.759887s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
+> 11-29 07:57:26.524 <0>[12507.759887s][pid:0,cpu3,swapper/3]Call trace:
+> 11-29 07:57:26.524 <4>[12507.759918s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
+> 11-29 07:57:26.524 <4>[12507.759948s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
+> 11-29 07:57:26.524 <4>[12507.759979s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
+> 11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
+> 11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
+> 11-29 07:57:26.524 <4>[12507.760040s][pid:0,cpu3,swapper/3][<ffffffc0001c2180>] ftrace_event_buffer_reserve+0x98/0xd8
+> 11-29 07:57:26.525 <4>[12507.760070s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
+> 11-29 07:57:26.525 <4>[12507.760101s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
+> 11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
+> 11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
+> 11-29 07:57:26.525 <4>[12507.760162s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
+> 11-29 07:57:26.525 <4>[12507.760192s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
+> 11-29 07:57:26.525 <4>[12507.760223s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
+> 11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
+> 11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
+> 11-29 07:57:26.526 <4>[12507.760284s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
+> 11-29 07:57:26.526 <4>[12507.760314s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
+> 11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
+> 11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.526 <3>[12507.760375s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
+> 11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]                                                                ^
+> 11-29 07:57:26.526 <3>[12507.760437s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
+> 11-29 07:57:26.526 <3>[12507.760467s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
