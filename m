@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B26BA6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 22:02:22 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f188so470899275pgc.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 19:02:22 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0085.outbound.protection.outlook.com. [104.47.0.85])
-        by mx.google.com with ESMTPS id v23si62196105pgc.42.2016.11.29.19.02.21
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CFD086B025E
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 22:03:54 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id l192so342639899oih.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 19:03:54 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0043.outbound.protection.outlook.com. [104.47.2.43])
+        by mx.google.com with ESMTPS id t37si30104007ota.55.2016.11.29.19.03.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 19:02:21 -0800 (PST)
-Date: Wed, 30 Nov 2016 11:02:01 +0800
+        Tue, 29 Nov 2016 19:03:54 -0800 (PST)
+Date: Wed, 30 Nov 2016 11:03:42 +0800
 From: Huang Shijie <shijie.huang@arm.com>
-Subject: Re: [PATCH V2 fix 5/6] mm: hugetlb: add a new function to allocate a
- new gigantic page
-Message-ID: <20161130030159.GA18502@sha-win-210.asiapac.arm.com>
-References: <1479107259-2011-6-git-send-email-shijie.huang@arm.com>
- <1479279304-31379-1-git-send-email-shijie.huang@arm.com>
- <f6fc93b4-5c1c-bbab-7c74-a0d60d4afc84@suse.cz>
- <20161129090322.GB16569@sha-win-210.asiapac.arm.com>
- <777f7e0c-c04b-77c3-b866-0787bad32aa8@suse.cz>
+Subject: Re: [PATCH v2 1/6] mm: hugetlb: rename some allocation functions
+Message-ID: <20161130030341.GB18502@sha-win-210.asiapac.arm.com>
+References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
+ <1479107259-2011-2-git-send-email-shijie.huang@arm.com>
+ <52b661c9-f4b0-3d94-cf9b-a0ffd5ecb723@suse.cz>
+ <20161129085349.GA16569@sha-win-210.asiapac.arm.com>
+ <d28b825d-1026-1e91-fa4e-395df3e1be86@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <777f7e0c-c04b-77c3-b866-0787bad32aa8@suse.cz>
+In-Reply-To: <d28b825d-1026-1e91-fa4e-395df3e1be86@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
 
-On Tue, Nov 29, 2016 at 11:50:37AM +0100, Vlastimil Babka wrote:
-> > > > +	if (!vma) {
-> > > > +		if (nid == NUMA_NO_NODE) {
-> > > > +			if (!init_nodemask_of_mempolicy(nodes_allowed)) {
-> > > > +				NODEMASK_FREE(nodes_allowed);
-> > > > +				nodes_allowed = &node_states[N_MEMORY];
-> > > > +			}
-> > > > +		} else if (nodes_allowed) {
-> > The check is here.
+On Tue, Nov 29, 2016 at 11:44:23AM +0100, Vlastimil Babka wrote:
+> On 11/29/2016 09:53 AM, Huang Shijie wrote:
+> > On Mon, Nov 28, 2016 at 02:29:03PM +0100, Vlastimil Babka wrote:
+> > > On 11/14/2016 08:07 AM, Huang Shijie wrote:
+> > > >  static inline bool gigantic_page_supported(void) { return true; }
+> > > >  #else
+> > > > +static inline struct page *alloc_gigantic_page(int nid, unsigned int order)
+> > > > +{
+> > > > +	return NULL;
+> > > > +}
+> > > 
+> > > This hunk is not explained by the description. Could belong to a later
+> > > patch?
+> > > 
+> > 
+> > Okay, I can create an extra patch to add the description for the
+> > alloc_gigantic_page().
 > 
-> It's below a possible usage of nodes_allowed as an argument of
-> init_nodemask_of_mempolicy(mask). Which does
-Sorry, I missed that.
-> 
->         if (!(mask && current->mempolicy))
->                 return false;
-> 
-> which itself looks like an error at first sight :)
-Yes. I agree.
-> 
-> > Do we really need to re-arrange the code here for the explicit check? :)
-> 
-> We don't need it *now* to be correct, but I still find it fragile. Also it
-> mixes up the semantic of NULL as a conscious "default" value, and NULL as
-> a side-effect of memory allocation failure. Nothing good can come from that
-> in the long term :)
-Okay, I think we do have the need to do the NULL check for
-@nodes_allowed. :)
+> Not sure about extra patch, just move it to an existing later patch that
+> relies on it?
+The whole patch set has been merged to Andrew's tree, so an extra patch
+is better. :)
 
 Thanks
 Huang Shijie
