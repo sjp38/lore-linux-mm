@@ -1,98 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 583F66B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 03:06:39 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id l192so350916312oih.2
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 00:06:39 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id s1si30630522ots.35.2016.11.30.00.06.36
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B7E6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 03:08:46 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id o2so23812128wje.5
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 00:08:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m70si5862917wmg.143.2016.11.30.00.08.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 00:06:38 -0800 (PST)
-Message-ID: <583E8864.9000305@huawei.com>
-Date: Wed, 30 Nov 2016 16:05:56 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Wed, 30 Nov 2016 00:08:45 -0800 (PST)
+Date: Wed, 30 Nov 2016 09:08:41 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/6] mm: Invalidate DAX radix tree entries only if
+ appropriate
+Message-ID: <20161130080841.GD16667@quack2.suse.cz>
+References: <1479980796-26161-1-git-send-email-jack@suse.cz>
+ <1479980796-26161-3-git-send-email-jack@suse.cz>
+ <20161129193403.GA12396@cmpxchg.org>
 MIME-Version: 1.0
-Subject: [RFC] kasan: is it a wrong report from kasan?
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161129193403.GA12396@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yang.shi@linaro.org, rostedt@goodmis.org
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, wangwei <bessel.wang@huawei.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-The kernel version is v4.1, and I find some error reports from kasan.
-I'm not sure whether it is a wrong report.
+Hi Johannes,
 
-11-29 07:57:26.513 <3>[12507.758056s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in trace_event_buffer_lock_reserve+0x50/0x170 at addr ffffffc035903bf0
-11-29 07:57:26.513 <3>[12507.758087s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
-11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
-11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]flags: 0x0()
-11-29 07:57:26.513 <1>[12507.758148s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
-11-29 07:57:26.513 <4>[12507.758178s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
-11-29 07:57:26.513 <4>[12507.758209s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
-11-29 07:57:26.513 <4>[12507.758239s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
-11-29 07:57:26.514 <0>[12507.758239s][pid:0,cpu3,swapper/3]Call trace:
-11-29 07:57:26.514 <4>[12507.758270s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
-11-29 07:57:26.515 <4>[12507.758300s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
-11-29 07:57:26.516 <4>[12507.758331s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
-11-29 07:57:26.516 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
-11-29 07:57:26.517 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
-11-29 07:57:26.517 <4>[12507.758392s][pid:0,cpu3,swapper/3][<ffffffc0001b4910>] trace_event_buffer_lock_reserve+0x50/0x170
-11-29 07:57:26.517 <4>[12507.758422s][pid:0,cpu3,swapper/3][<ffffffc0001c2174>] ftrace_event_buffer_reserve+0x8c/0xd8
-11-29 07:57:26.517 <4>[12507.758453s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
-11-29 07:57:26.517 <4>[12507.758483s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
-11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
-11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
-11-29 07:57:26.517 <4>[12507.758544s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
-11-29 07:57:26.517 <4>[12507.758575s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
-11-29 07:57:26.518 <4>[12507.758605s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
-11-29 07:57:26.518 <4>[12507.758636s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
-11-29 07:57:26.518 <4>[12507.758666s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
-11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
-11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
-11-29 07:57:26.518 <3>[12507.758728s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
-11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.518 <3>[12507.758789s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
-11-29 07:57:26.518 <3>[12507.758819s][pid:0,cpu3,swapper/3]                                                             ^
-11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+On Tue 29-11-16 14:34:03, Johannes Weiner wrote:
+> On Thu, Nov 24, 2016 at 10:46:32AM +0100, Jan Kara wrote:
+> > @@ -452,16 +452,37 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+> >  		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+> >  }
+> >  
+> > +static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+> > +					  pgoff_t index, bool trunc)
+> > +{
+> > +	int ret = 0;
+> > +	void *entry;
+> > +	struct radix_tree_root *page_tree = &mapping->page_tree;
+> > +
+> > +	spin_lock_irq(&mapping->tree_lock);
+> > +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> > +	if (!entry || !radix_tree_exceptional_entry(entry))
+> > +		goto out;
+> > +	if (!trunc &&
+> > +	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
+> > +	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
+> > +		goto out;
+> > +	radix_tree_delete(page_tree, index);
+> 
+> You could use the new __radix_tree_replace() here and save a second
+> tree lookup.
 
+Hum, I'd need to return 'node' from get_unlocked_mapping_entry(). So
+probably I'll do it in a patch separate from this fix. But thanks for
+suggestion.
 
-11-29 07:57:26.523 <3>[12507.759735s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in ftrace_event_buffer_reserve+0x98/0xd8 at addr ffffffc035903bf8
-11-29 07:57:26.523 <3>[12507.759765s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
-11-29 07:57:26.523 <0>[12507.759765s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
-11-29 07:57:26.523 <0>[12507.759796s][pid:0,cpu3,swapper/3]flags: 0x0()
-11-29 07:57:26.523 <1>[12507.759826s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
-11-29 07:57:26.523 <4>[12507.759857s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
-11-29 07:57:26.524 <4>[12507.759857s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
-11-29 07:57:26.524 <4>[12507.759887s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
-11-29 07:57:26.524 <0>[12507.759887s][pid:0,cpu3,swapper/3]Call trace:
-11-29 07:57:26.524 <4>[12507.759918s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
-11-29 07:57:26.524 <4>[12507.759948s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
-11-29 07:57:26.524 <4>[12507.759979s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
-11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
-11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
-11-29 07:57:26.524 <4>[12507.760040s][pid:0,cpu3,swapper/3][<ffffffc0001c2180>] ftrace_event_buffer_reserve+0x98/0xd8
-11-29 07:57:26.525 <4>[12507.760070s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
-11-29 07:57:26.525 <4>[12507.760101s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
-11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
-11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
-11-29 07:57:26.525 <4>[12507.760162s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
-11-29 07:57:26.525 <4>[12507.760192s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
-11-29 07:57:26.525 <4>[12507.760223s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
-11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
-11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
-11-29 07:57:26.526 <4>[12507.760284s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
-11-29 07:57:26.526 <4>[12507.760314s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
-11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
-11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.526 <3>[12507.760375s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
-11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]                                                                ^
-11-29 07:57:26.526 <3>[12507.760437s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
-11-29 07:57:26.526 <3>[12507.760467s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> > +/*
+> > + * Invalidate exceptional DAX entry if easily possible. This handles DAX
+> > + * entries for invalidate_inode_pages() so we evict the entry only if we can
+> > + * do so without blocking.
+> > + */
+> > +int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index)
+> > +{
+> > +	int ret = 0;
+> > +	void *entry, **slot;
+> > +	struct radix_tree_root *page_tree = &mapping->page_tree;
+> > +
+> > +	spin_lock_irq(&mapping->tree_lock);
+> > +	entry = __radix_tree_lookup(page_tree, index, NULL, &slot);
+> > +	if (!entry || !radix_tree_exceptional_entry(entry) ||
+> > +	    slot_locked(mapping, slot))
+> > +		goto out;
+> > +	if (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
+> > +	    radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+> > +		goto out;
+> > +	radix_tree_delete(page_tree, index);
+> 
+> Ditto for __radix_tree_replace().
+
+Yes, here I can do it easily rightaway.
+
+> > @@ -30,14 +30,6 @@ static void clear_exceptional_entry(struct address_space *mapping,
+> >  	struct radix_tree_node *node;
+> >  	void **slot;
+> >  
+> > -	/* Handled by shmem itself */
+> > -	if (shmem_mapping(mapping))
+> > -		return;
+> > -
+> > -	if (dax_mapping(mapping)) {
+> > -		dax_delete_mapping_entry(mapping, index);
+> > -		return;
+> > -	}
+> >  	spin_lock_irq(&mapping->tree_lock);
+> >  	/*
+> >  	 * Regular page slots are stabilized by the page lock even
+> > @@ -70,6 +62,56 @@ static void clear_exceptional_entry(struct address_space *mapping,
+> >  	spin_unlock_irq(&mapping->tree_lock);
+> >  }
+> >  
+> > +/*
+> > + * Unconditionally remove exceptional entry. Usually called from truncate path.
+> > + */
+> > +static void truncate_exceptional_entry(struct address_space *mapping,
+> > +				       pgoff_t index, void *entry)
+> > +{
+> > +	/* Handled by shmem itself */
+> > +	if (shmem_mapping(mapping))
+> > +		return;
+> > +
+> > +	if (dax_mapping(mapping)) {
+> > +		dax_delete_mapping_entry(mapping, index);
+> > +		return;
+> > +	}
+> > +	clear_exceptional_entry(mapping, index, entry);
+> > +}
+> > +
+> > +/*
+> > + * Invalidate exceptional entry if easily possible. This handles exceptional
+> > + * entries for invalidate_inode_pages() so for DAX it evicts only unlocked and
+> > + * clean entries.
+> > + */
+> > +static int invalidate_exceptional_entry(struct address_space *mapping,
+> > +					pgoff_t index, void *entry)
+> > +{
+> > +	/* Handled by shmem itself */
+> > +	if (shmem_mapping(mapping))
+> > +		return 1;
+> > +	if (dax_mapping(mapping))
+> > +		return dax_invalidate_mapping_entry(mapping, index);
+> > +	clear_exceptional_entry(mapping, index, entry);
+> > +	return 1;
+> > +}
+> > +
+> > +/*
+> > + * Invalidate exceptional entry if clean. This handles exceptional entries for
+> > + * invalidate_inode_pages2() so for DAX it evicts only clean entries.
+> > + */
+> > +static int invalidate_exceptional_entry2(struct address_space *mapping,
+> > +					 pgoff_t index, void *entry)
+> > +{
+> > +	/* Handled by shmem itself */
+> > +	if (shmem_mapping(mapping))
+> > +		return 1;
+> > +	if (dax_mapping(mapping))
+> > +		return dax_invalidate_clean_mapping_entry(mapping, index);
+> > +	clear_exceptional_entry(mapping, index, entry);
+> > +	return 1;
+> > +}
+> 
+> The way these functions are split out looks fine to me.
+> 
+> Now that clear_exceptional_entry() doesn't handle shmem and DAX
+> anymore, only shadows, could you rename it to clear_shadow_entry()?
+
+Sure. Done.
+
+> The naming situation with truncate, invalidate, invalidate2 worries me
+> a bit. They aren't great names to begin with, but now DAX uses yet
+> another terminology for what state prevents a page from being dropped.
+> Can we switch to truncate, invalidate, and invalidate_sync throughout
+> truncate.c and then have DAX follow that naming too? Or maybe you can
+> think of better names. But neither invalidate2 and invalidate_clean
+> don't seem to capture it quite right ;)
+
+Yeah, the naming is confusing. I like the invalidate_sync proposal however
+renaming invalidate_inode_pages2() to invalidate_inode_pages_sync() is a
+larger undertaking - grep shows 51 places need to be changed. So I don't
+want to do it in this patch set. I can call the function
+dax_invalidate_mapping_entry_sync() if it makes you happier and do the rest
+later... OK?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
