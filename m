@@ -1,98 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0ADE6B0253
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:21:53 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xr1so34069197wjb.7
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 10:21:53 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u198si8216566wmf.106.2016.11.30.10.21.52
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E1F06B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:25:55 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id jb2so34062948wjb.6
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 10:25:55 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id m141si8258196wmd.20.2016.11.30.10.25.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 10:21:52 -0800 (PST)
-Date: Wed, 30 Nov 2016 13:16:53 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
- dereference in mem_cgroup_node_nr_lru_pages
-Message-ID: <20161130181653.GA30558@cmpxchg.org>
-References: <bug-189181-27@https.bugzilla.kernel.org/>
- <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
- <20161130170040.GJ18432@dhcp22.suse.cz>
+        Wed, 30 Nov 2016 10:25:54 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id jb2so23476640wjb.3
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 10:25:54 -0800 (PST)
+Date: Wed, 30 Nov 2016 19:25:52 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
+ `mem_cgroup_shrink_node`
+Message-ID: <20161130182552.GN18432@dhcp22.suse.cz>
+References: <20161125212000.GI31360@linux.vnet.ibm.com>
+ <20161128095825.GI14788@dhcp22.suse.cz>
+ <20161128105425.GY31360@linux.vnet.ibm.com>
+ <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
+ <20161128143435.GC3924@linux.vnet.ibm.com>
+ <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
+ <20161128150509.GG3924@linux.vnet.ibm.com>
+ <66fd50e1-a922-846a-f427-7654795bd4b5@kernelpanic.ru>
+ <20161130174802.GM18432@dhcp22.suse.cz>
+ <fd34243c-2ebf-c14b-55e6-684a9dc614e7@kernelpanic.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161130170040.GJ18432@dhcp22.suse.cz>
+In-Reply-To: <fd34243c-2ebf-c14b-55e6-684a9dc614e7@kernelpanic.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, marmarek@mimuw.edu.pl, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Boris Zhmurov <bb@kernelpanic.ru>
+Cc: paulmck@linux.vnet.ibm.com, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org
 
-Hi Michael,
-
-On Wed, Nov 30, 2016 at 06:00:40PM +0100, Michal Hocko wrote:
-> > > [   15.665196] BUG: unable to handle kernel NULL pointer dereference at
-> > > 0000000000000400
-> > > [   15.665213] IP: [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
-> > > [   15.665225] PGD 0 
-> > > [   15.665230] Oops: 0000 [#1] SMP
-> > > [   15.665235] Modules linked in: fuse xt_nat xen_netback xt_REDIRECT
-> > > nf_nat_redirect ip6table_filter ip6_tables xt_conntrack ipt_MASQUERADE
-> > > nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_i
-> > > pv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack intel_rapl
-> > > x86_pkg_temp_thermal coretemp crct10dif_pclmul crc32_pclmul crc32c_intel
-> > > ghash_clmulni_intel pcspkr dummy_hcd udc_core u2mfn(O) 
-> > > xen_blkback xenfs xen_privcmd xen_blkfront
-> > > [   15.665285] CPU: 0 PID: 60 Comm: kswapd0 Tainted: G           O   
-> > > 4.8.10-12.pvops.qubes.x86_64 #1
-> > > [   15.665292] task: ffff880011863b00 task.stack: ffff880011868000
-> > > [   15.665297] RIP: e030:[<ffffffff8122d520>]  [<ffffffff8122d520>]
-> > > mem_cgroup_node_nr_lru_pages+0x20/0x40
-> > > [   15.665307] RSP: e02b:ffff88001186bc70  EFLAGS: 00010293
-> > > [   15.665311] RAX: 0000000000000000 RBX: ffff88001186bd20 RCX:
-> > > 0000000000000002
-> > > [   15.665317] RDX: 000000000000000c RSI: 0000000000000000 RDI:
-> > > 0000000000000000
+On Wed 30-11-16 21:12:52, Boris Zhmurov wrote:
+> Michal Hocko 30/11/16 20:48:
 > 
-> I cannot generate a similar code to yours but the above suggests that we
-> are getting NULL memcg. This would suggest a global reclaim and
-> count_shadow_nodes misinterprets that because it does
+> >> Well, after some testing I may say, that your patch:
+> >> ---------------------8<-----------------------------------
+> >> commit 7cebc6b63bf75db48cb19a94564c39294fd40959
+> >> Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> >> Date:   Fri Nov 25 12:48:10 2016 -0800
+> >>
+> >>    mm: Prevent shrink_node_memcg() RCU CPU stall warnings
+> >> ---------------------8<-----------------------------------
+> >>
+> >> fixes stall warning and dmesg is clean now.
+> > 
+> > Do I get it right that s@cond_resched_rcu_qs@cond_resched@ didn't help?
 > 
-> 	if (memcg_kmem_enabled()) {
-> 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
-> 						     LRU_ALL_FILE);
-> 	} else {
-> 		pages = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
-> 			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
-> 	}
-> 
-> this might be a race with kmem enabling AFAICS. Anyaway I believe that
-> the above check needs to ne extended for the sc->memcg != NULL
+> I didn't try that. I've tried 4 patches from Paul's linux-rcu tree.
+> I can try another portion of patches, no problem :)
 
-Yep, my locally built code looks very different from the report, but
-it's clear that memcg is NULL. I didn't see the race you mention, but
-it makes sense to me: shrink_slab() is supposed to filter memcg-aware
-shrinkers based on whether we have a memcg or not, but it only does it
-when kmem accounting is enabled; if it's disabled, the shrinker should
-also use its non-memcg behavior. However, nothing prevents a memcg
-with kmem from onlining between the filter and the shrinker run.
-
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index 617475f529f4..0f07522c5c0e 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
->  	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
->  	local_irq_enable();
->  
-> -	if (memcg_kmem_enabled()) {
-> +	if (memcg_kmem_enabled() && sc->memcg) {
->  		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
->  						     LRU_ALL_FILE);
->  	} else {
-
-If we do that, I'd remove the racy memcg_kmem_enabled() check
-altogether and just check for whether we have a memcg or not.
-
-What do you think, Vladimir?
+Replacing cond_resched_rcu_qs in shrink_node_memcg by cond_resched would
+be really helpful to tell whether we are missing a real scheduling point
+or whether something more serious is going on here.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
