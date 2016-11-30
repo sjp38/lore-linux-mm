@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 95DAA6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:05:54 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id g23so50800482wme.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 05:05:54 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id f9si63796871wjw.135.2016.11.30.05.05.52
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7233E6B025E
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:16:25 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id g186so22605184pgc.2
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 05:16:25 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id z63si64449416pff.293.2016.11.30.05.16.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 05:05:52 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id m203so29328242wma.3
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 05:05:52 -0800 (PST)
-Date: Wed, 30 Nov 2016 14:05:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-Message-ID: <20161130130549.GE18432@dhcp22.suse.cz>
-References: <20161127131954.10026-1-mgorman@techsingularity.net>
+        Wed, 30 Nov 2016 05:16:24 -0800 (PST)
+Date: Wed, 30 Nov 2016 16:15:34 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv5 22/36] mm, hugetlb: switch hugetlbfs to multi-order
+ radix-tree entries
+Message-ID: <20161130131534.3k35cigsn36d7ku6@black.fi.intel.com>
+References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com>
+ <20161129112304.90056-23-kirill.shutemov@linux.intel.com>
+ <017501d24aee$d9a189c0$8ce49d40$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161127131954.10026-1-mgorman@techsingularity.net>
+In-Reply-To: <017501d24aee$d9a189c0$8ce49d40$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Theodore Ts'o' <tytso@mit.edu>, 'Andreas Dilger' <adilger.kernel@dilger.ca>, 'Jan Kara' <jack@suse.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, 'Hugh Dickins' <hughd@google.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Dave Hansen' <dave.hansen@intel.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Matthew Wilcox' <willy@infradead.org>, 'Ross Zwisler' <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>
 
-On Sun 27-11-16 13:19:54, Mel Gorman wrote:
-[...]
-> @@ -2588,18 +2594,22 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
->  	struct page *page;
->  	bool cold = ((gfp_flags & __GFP_COLD) != 0);
->  
-> -	if (likely(order == 0)) {
-> +	if (likely(order <= PAGE_ALLOC_COSTLY_ORDER)) {
->  		struct per_cpu_pages *pcp;
->  		struct list_head *list;
->  
->  		local_irq_save(flags);
->  		do {
-> +			unsigned int pindex;
-> +
-> +			pindex = order_to_pindex(migratetype, order);
->  			pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> -			list = &pcp->lists[migratetype];
-> +			list = &pcp->lists[pindex];
->  			if (list_empty(list)) {
-> -				pcp->count += rmqueue_bulk(zone, 0,
-> +				int nr_pages = rmqueue_bulk(zone, order,
->  						pcp->batch, list,
->  						migratetype, cold);
-> +				pcp->count += (nr_pages << order);
->  				if (unlikely(list_empty(list)))
->  					goto failed;
+On Wed, Nov 30, 2016 at 05:48:05PM +0800, Hillf Danton wrote:
+> On Tuesday, November 29, 2016 7:23 PM Kirill A. Shutemov wrote:
+> > @@ -607,10 +605,10 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+> >  		}
+> > 
+> >  		/* Set numa allocation policy based on index */
+> > -		hugetlb_set_vma_policy(&pseudo_vma, inode, index);
+> > +		hugetlb_set_vma_policy(&pseudo_vma, inode, index >> huge_page_order(h));
+> > 
+> >  		/* addr is the offset within the file (zero based) */
+> > -		addr = index * hpage_size;
+> > +		addr = index << PAGE_SHIFT & ~huge_page_mask(h);
+> > 
+> >  		/* mutex taken here, fault path and hole punch */
+> >  		hash = hugetlb_fault_mutex_hash(h, mm, &pseudo_vma, mapping,
+> 
+> Seems we can't use index in computing hash as long as it isn't in huge page size.
 
-just a nit, we can reorder the check and the count update because nobody
-could have stolen pages allocated by rmqueue_bulk. I would also consider
-nr_pages a bit misleading because we get a number or allocated elements.
-Nothing to lose sleep over...
-
->  			}
-
-But...  Unless I am missing something this effectively means that we do
-not exercise high order atomic reserves. Shouldn't we fallback to
-the locked __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC) for
-order > 0 && ALLOC_HARDER ? Or is this just hidden in some other code
-path which I am not seeing?
-
-Other than that the patch looks reasonable to me. Keeping some portion
-of !costly pages on pcp lists sounds useful from the fragmentation
-point of view as well AFAICS because it would be normally dissolved for
-order-0 requests while we push on the reclaim more right now.
+Look at changes in hugetlb_fault_mutex_hash(): we shift the index right by
+huge_page_order(), before calculating the hash. I don't see a problem
+here.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
