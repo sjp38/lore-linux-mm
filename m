@@ -1,121 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8BA6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:13:11 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id k19so17679137iod.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:13:11 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0004.hostedemail.com. [216.40.44.4])
-        by mx.google.com with ESMTPS id 131si5847101itp.50.2016.11.30.06.13.10
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 28D276B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:15:18 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so306443827pfx.1
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:15:18 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id f17si45036443pge.120.2016.11.30.05.59.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 06:13:10 -0800 (PST)
-Date: Wed, 30 Nov 2016 09:13:06 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC] kasan: is it a wrong report from kasan?
-Message-ID: <20161130091306.3c4ce99e@gandalf.local.home>
-In-Reply-To: <583E8864.9000305@huawei.com>
-References: <583E8864.9000305@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Nov 2016 05:59:49 -0800 (PST)
+Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
+ RAM that should be free
+References: <20161122160629.uzt2u6m75ash4ved@merlins.org>
+ <48061a22-0203-de54-5a44-89773bff1e63@suse.cz>
+ <CA+55aFweND3KoV=00onz0Y5W9ViFedd-nvfCuB+phorc=75tpQ@mail.gmail.com>
+ <20161123063410.GB2864@dhcp22.suse.cz>
+ <20161128072315.GC14788@dhcp22.suse.cz>
+ <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
+ <20161129160751.GC9796@dhcp22.suse.cz>
+ <20161129163406.treuewaqgt4fy4kh@merlins.org>
+ <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
+ <20161129174019.fywddwo5h4pyix7r@merlins.org>
+ <20161129230135.GM7179@merlins.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <66f5d234-d221-fa3c-7abe-71fc4f5259ec@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Nov 2016 22:58:19 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20161129230135.GM7179@merlins.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: yang.shi@linaro.org, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, wangwei <bessel.wang@huawei.com>
+To: Marc MERLIN <marc@merlins.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Wed, 30 Nov 2016 16:05:56 +0800
-Xishi Qiu <qiuxishi@huawei.com> wrote:
+On 2016/11/30 8:01, Marc MERLIN wrote:
+> And, after 5H of copying, not a single hang, or USB disconnect, or anything.
+> Obviously this seems to point to other problems in the code, and I have no
+> idea which layer is a culprit here, but reducing the buffers absolutely
+> helped a lot.
 
-> The kernel version is v4.1, and I find some error reports from kasan.
-
-First off, this is an ancient kernel. Can you reproduce this on 4.9-rc?
-
-> I'm not sure whether it is a wrong report.
-
-No idea, and it may not even be an issue with ftrace, but with the
-caller of the tracepoint.
-
-> 
-> 11-29 07:57:26.513 <3>[12507.758056s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in trace_event_buffer_lock_reserve+0x50/0x170 at addr ffffffc035903bf0
-
-Use gdb on your vmlinux that ran this kernel, and see exactly where
-ffffffc035903bf0 is.
-
-> 11-29 07:57:26.513 <3>[12507.758087s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
-> 11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
-> 11-29 07:57:26.513 <0>[12507.758117s][pid:0,cpu3,swapper/3]flags: 0x0()
-> 11-29 07:57:26.513 <1>[12507.758148s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
-> 11-29 07:57:26.513 <4>[12507.758178s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
-> 11-29 07:57:26.513 <4>[12507.758209s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
-> 11-29 07:57:26.513 <4>[12507.758239s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
-> 11-29 07:57:26.514 <0>[12507.758239s][pid:0,cpu3,swapper/3]Call trace:
-> 11-29 07:57:26.514 <4>[12507.758270s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
-> 11-29 07:57:26.515 <4>[12507.758300s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
-> 11-29 07:57:26.516 <4>[12507.758331s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
-> 11-29 07:57:26.516 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
-> 11-29 07:57:26.517 <4>[12507.758361s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
-> 11-29 07:57:26.517 <4>[12507.758392s][pid:0,cpu3,swapper/3][<ffffffc0001b4910>] trace_event_buffer_lock_reserve+0x50/0x170
-> 11-29 07:57:26.517 <4>[12507.758422s][pid:0,cpu3,swapper/3][<ffffffc0001c2174>] ftrace_event_buffer_reserve+0x8c/0xd8
-> 11-29 07:57:26.517 <4>[12507.758453s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
-> 11-29 07:57:26.517 <4>[12507.758483s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
-> 11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
-> 11-29 07:57:26.517 <4>[12507.758514s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
-> 11-29 07:57:26.517 <4>[12507.758544s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
-> 11-29 07:57:26.517 <4>[12507.758575s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
-> 11-29 07:57:26.518 <4>[12507.758605s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
-
-The interrupt came in from idle.
-
-How did the stack get corrupted?
-
--- Steve
-
-> 11-29 07:57:26.518 <4>[12507.758636s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
-> 11-29 07:57:26.518 <4>[12507.758666s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
-> 11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
-> 11-29 07:57:26.518 <4>[12507.758697s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
-> 11-29 07:57:26.518 <3>[12507.758728s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
-> 11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.518 <3>[12507.758758s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.518 <3>[12507.758789s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
-> 11-29 07:57:26.518 <3>[12507.758819s][pid:0,cpu3,swapper/3]                                                             ^
-> 11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.519 <3>[12507.758850s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> 
-> 
-> 11-29 07:57:26.523 <3>[12507.759735s][pid:0,cpu3,swapper/3]BUG: KASAN: stack-out-of-bounds in ftrace_event_buffer_reserve+0x98/0xd8 at addr ffffffc035903bf8
-> 11-29 07:57:26.523 <3>[12507.759765s][pid:0,cpu3,swapper/3]Write of size 8 by task swapper/3/0
-> 11-29 07:57:26.523 <0>[12507.759765s][pid:0,cpu3,swapper/3]page:ffffffbdc0d740c0 count:0 mapcount:0 mapping:          (null) index:0x0
-> 11-29 07:57:26.523 <0>[12507.759796s][pid:0,cpu3,swapper/3]flags: 0x0()
-> 11-29 07:57:26.523 <1>[12507.759826s][pid:0,cpu3,swapper/3]page dumped because: kasan: bad access detected
-> 11-29 07:57:26.523 <4>[12507.759857s][pid:0,cpu3,swapper/3]CPU: 3 PID: 0 Comm: swapper/3 Tainted: G    B           4.1.18-gd8679e8 #1
-> 11-29 07:57:26.524 <4>[12507.759857s][pid:0,cpu3,swapper/3]TGID: 0 Comm: swapper/3
-> 11-29 07:57:26.524 <4>[12507.759887s][pid:0,cpu3,swapper/3]Hardware name: hi6250 (DT)
-> 11-29 07:57:26.524 <0>[12507.759887s][pid:0,cpu3,swapper/3]Call trace:
-> 11-29 07:57:26.524 <4>[12507.759918s][pid:0,cpu3,swapper/3][<ffffffc00008cf9c>] dump_backtrace+0x0/0x1f4
-> 11-29 07:57:26.524 <4>[12507.759948s][pid:0,cpu3,swapper/3][<ffffffc00008d1b0>] show_stack+0x20/0x28
-> 11-29 07:57:26.524 <4>[12507.759979s][pid:0,cpu3,swapper/3][<ffffffc001558010>] dump_stack+0x84/0xa8
-> 11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000261d88>] kasan_report+0x54c/0x574
-> 11-29 07:57:26.524 <4>[12507.760009s][pid:0,cpu3,swapper/3][<ffffffc000260948>] __asan_store8+0x6c/0x84
-> 11-29 07:57:26.524 <4>[12507.760040s][pid:0,cpu3,swapper/3][<ffffffc0001c2180>] ftrace_event_buffer_reserve+0x98/0xd8
-> 11-29 07:57:26.525 <4>[12507.760070s][pid:0,cpu3,swapper/3][<ffffffc0000e8690>] ftrace_raw_event_sched_wakeup_template+0xe0/0x194
-> 11-29 07:57:26.525 <4>[12507.760101s][pid:0,cpu3,swapper/3][<ffffffc0000f0bc4>] ttwu_do_wakeup+0x19c/0x200
-> 11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f52ec>] try_to_wake_up+0x558/0x638
-> 11-29 07:57:26.525 <4>[12507.760131s][pid:0,cpu3,swapper/3][<ffffffc0000f5408>] wake_up_process+0x3c/0x78
-> 11-29 07:57:26.525 <4>[12507.760162s][pid:0,cpu3,swapper/3][<ffffffc0000b3644>] raise_softirq+0xa0/0xb4
-> 11-29 07:57:26.525 <4>[12507.760192s][pid:0,cpu3,swapper/3][<ffffffc00013c040>] invoke_rcu_core+0x5c/0x6c
-> 11-29 07:57:26.525 <4>[12507.760223s][pid:0,cpu3,swapper/3][<ffffffc000143cd8>] rcu_needs_cpu+0x190/0x198
-> 11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc000164bac>] __tick_nohz_idle_enter+0x220/0x814
-> 11-29 07:57:26.525 <4>[12507.760253s][pid:0,cpu3,swapper/3][<ffffffc0001658d4>] tick_nohz_idle_enter+0x68/0xa8
-> 11-29 07:57:26.526 <4>[12507.760284s][pid:0,cpu3,swapper/3][<ffffffc00011b750>] cpu_startup_entry+0x88/0x51c
-> 11-29 07:57:26.526 <4>[12507.760314s][pid:0,cpu3,swapper/3][<ffffffc000091fb4>] secondary_start_kernel+0x1d8/0x22c
-> 11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3]Memory state around the buggy address:
-> 11-29 07:57:26.526 <3>[12507.760345s][pid:0,cpu3,swapper/3] ffffffc035903a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.526 <3>[12507.760375s][pid:0,cpu3,swapper/3] ffffffc035903b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]>ffffffc035903b80: 00 00 00 00 f1 f1 f1 f1 00 00 f1 f1 f1 f1 f3 f3
-> 11-29 07:57:26.526 <3>[12507.760406s][pid:0,cpu3,swapper/3]                                                                ^
-> 11-29 07:57:26.526 <3>[12507.760437s][pid:0,cpu3,swapper/3] ffffffc035903c00: 00 00 00 00 f4 f4 00 00 00 00 00 00 00 00 00 00
-> 11-29 07:57:26.526 <3>[12507.760467s][pid:0,cpu3,swapper/3] ffffffc035903c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Maybe you can try commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for too long")
+or http://lkml.kernel.org/r/1478416501-10104-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+for finding the culprit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
