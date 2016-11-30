@@ -1,87 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 942B56B025E
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:19:13 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id m203so50813503wma.2
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 05:19:13 -0800 (PST)
-Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
-        by mx.google.com with ESMTPS id m193si7097363wmd.4.2016.11.30.05.19.12
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C840E6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:06:17 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id bk3so32841317wjc.4
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:06:17 -0800 (PST)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id s5si7259513wma.130.2016.11.30.06.06.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 05:19:12 -0800 (PST)
-Received: by mail-wj0-f193.google.com with SMTP id jb2so22171291wjb.3
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 05:19:12 -0800 (PST)
-Date: Wed, 30 Nov 2016 14:19:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-Message-ID: <20161130131910.GF18432@dhcp22.suse.cz>
-References: <20161121141818.GD18112@dhcp22.suse.cz>
- <20161121142901.GV3612@linux.vnet.ibm.com>
- <68025f6c-6801-ab46-b0fc-a9407353d8ce@molgen.mpg.de>
- <20161124101525.GB20668@dhcp22.suse.cz>
- <583AA50A.9010608@molgen.mpg.de>
- <20161128110449.GK14788@dhcp22.suse.cz>
- <109d5128-f3a4-4b6e-db17-7a1fcb953500@molgen.mpg.de>
- <29196f89-c35e-f79d-8e4d-2bf73fe930df@molgen.mpg.de>
- <20161130110944.GD18432@dhcp22.suse.cz>
- <20161130115320.GO3924@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Nov 2016 06:06:16 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id DB0FC992A1
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 14:06:15 +0000 (UTC)
+Date: Wed, 30 Nov 2016 14:06:15 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
+Message-ID: <20161130140615.3bbn7576iwbyc3op@techsingularity.net>
+References: <20161127131954.10026-1-mgorman@techsingularity.net>
+ <20161130134034.3b60c7f0@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20161130115320.GO3924@linux.vnet.ibm.com>
+In-Reply-To: <20161130134034.3b60c7f0@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Rick Jones <rick.jones2@hpe.com>, Paolo Abeni <pabeni@redhat.com>
 
-On Wed 30-11-16 03:53:20, Paul E. McKenney wrote:
-> On Wed, Nov 30, 2016 at 12:09:44PM +0100, Michal Hocko wrote:
-> > [CCing Paul]
+On Wed, Nov 30, 2016 at 01:40:34PM +0100, Jesper Dangaard Brouer wrote:
+> 
+> On Sun, 27 Nov 2016 13:19:54 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> [...]
+> > SLUB has been the default small kernel object allocator for quite some time
+> > but it is not universally used due to performance concerns and a reliance
+> > on high-order pages. The high-order concerns has two major components --
+> > high-order pages are not always available and high-order page allocations
+> > potentially contend on the zone->lock. This patch addresses some concerns
+> > about the zone lock contention by extending the per-cpu page allocator to
+> > cache high-order pages. The patch makes the following modifications
 > > 
-> > On Wed 30-11-16 11:28:34, Donald Buczek wrote:
-> > [...]
-> > > shrink_active_list gets and releases the spinlock and calls cond_resched().
-> > > This should give other tasks a chance to run. Just as an experiment, I'm
-> > > trying
-> > > 
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -1921,7 +1921,7 @@ static void shrink_active_list(unsigned long
-> > > nr_to_scan,
-> > >         spin_unlock_irq(&pgdat->lru_lock);
-> > > 
-> > >         while (!list_empty(&l_hold)) {
-> > > -               cond_resched();
-> > > +               cond_resched_rcu_qs();
-> > >                 page = lru_to_page(&l_hold);
-> > >                 list_del(&page->lru);
-> > > 
-> > > and didn't hit a rcu_sched warning for >21 hours uptime now. We'll see.
-> > 
-> > This is really interesting! Is it possible that the RCU stall detector
-> > is somehow confused?
+> > o New per-cpu lists are added to cache the high-order pages. This increases
+> >   the cache footprint of the per-cpu allocator and overall usage but for
+> >   some workloads, this will be offset by reduced contention on zone->lock.
 > 
-> No, it is not confused.  Again, cond_resched() is not a quiescent
-> state unless it does a context switch.  Therefore, if the task running
-> in that loop was the only runnable task on its CPU, cond_resched()
-> would -never- provide RCU with a quiescent state.
+> This will also help performance of NIC driver that allocator
+> higher-order pages for their RX-ring queue (and chop it up for MTU).
+> I do like this patch, even-though I'm working on moving drivers away
+> from allocation these high-order pages.
+> 
+> Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> 
 
-Sorry for being dense here. But why cannot we hide the QS handling into
-cond_resched()? I mean doesn't every current usage of cond_resched
-suffer from the same problem wrt RCU stalls?
+Thanks.
 
-> In contrast, cond_resched_rcu_qs() unconditionally provides RCU
-> with a quiescent state (hence the _rcu_qs in its name), regardless
-> of whether or not a context switch happens.
+> [...]
+> > This is the result from netperf running UDP_STREAM on localhost. It was
+> > selected on the basis that it is slab-intensive and has been the subject
+> > of previous SLAB vs SLUB comparisons with the caveat that this is not
+> > testing between two physical hosts.
 > 
-> It is therefore expected behavior that this change might prevent
-> RCU CPU stall warnings.
+> I do like you are using a networking test to benchmark this. Looking at
+> the results, my initial response is that the improvements are basically
+> too good to be true.
 > 
-> 							Thanx, Paul
+
+FWIW, LKP independently measured the boost to be 23% so it's expected
+there will be different results depending on exact configuration and CPU.
+
+> Can you share how you tested this with netperf and the specific netperf
+> parameters? 
+
+The mmtests config file used is
+configs/config-global-dhp__network-netperf-unbound so all details can be
+extrapolated or reproduced from that.
+
+> e.g.
+>  How do you configure the send/recv sizes?
+
+Static range of sizes specified in the config file.
+
+>  Have you pinned netperf and netserver on different CPUs?
+> 
+
+No. While it's possible to do a pinned test which helps stability, it
+also tends to be less reflective of what happens in a variety of
+workloads so I took the "harder" option.
+
+> For localhost testing, when netperf and netserver run on the same CPU,
+> you observer half the performance, very intuitively.  When pinning
+> netperf and netserver (via e.g. option -T 1,2) you observe the most
+> stable results.  When allowing netperf and netserver to migrate between
+> CPUs (default setting), the real fun starts and unstable results,
+> because now the CPU scheduler is also being tested, and my experience
+> is also more "fun" memory situations occurs, as I guess we are hopping
+> between more per CPU alloc caches (also affecting the SLUB per CPU usage
+> pattern).
+> 
+
+Yes which is another reason why I used an unbound configuration. I didn't
+want to get an artificial boost from pinned server/client using the same
+per-cpu caches. As a side-effect, it may mean that machines with fewer
+CPUs get a greater boost as there are fewer per-cpu caches being used.
+
+> > 2-socket modern machine
+> >                                 4.9.0-rc5             4.9.0-rc5
+> >                                   vanilla             hopcpu-v3
+> 
+> The kernel from 4.9.0-rc5-vanilla to 4.9.0-rc5-hopcpu-v3 only contains
+> this single change right?
+
+Yes.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
