@@ -1,52 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AD9B6B026B
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 11:38:27 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id r101so23986688ioi.3
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:38:27 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id b124si6247963itc.90.2016.11.30.08.38.26
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BEF486B026D
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 12:00:43 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id j10so33714838wjb.3
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:00:43 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id ey12si37329497wjc.243.2016.11.30.09.00.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 08:38:26 -0800 (PST)
-Date: Wed, 30 Nov 2016 17:38:20 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-Message-ID: <20161130163820.GQ3092@twins.programming.kicks-ass.net>
-References: <68025f6c-6801-ab46-b0fc-a9407353d8ce@molgen.mpg.de>
- <20161124101525.GB20668@dhcp22.suse.cz>
- <583AA50A.9010608@molgen.mpg.de>
- <20161128110449.GK14788@dhcp22.suse.cz>
- <109d5128-f3a4-4b6e-db17-7a1fcb953500@molgen.mpg.de>
- <29196f89-c35e-f79d-8e4d-2bf73fe930df@molgen.mpg.de>
- <20161130110944.GD18432@dhcp22.suse.cz>
- <20161130115320.GO3924@linux.vnet.ibm.com>
- <20161130131910.GF18432@dhcp22.suse.cz>
- <20161130142955.GS3924@linux.vnet.ibm.com>
+        Wed, 30 Nov 2016 09:00:42 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id jb2so23146968wjb.3
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 09:00:42 -0800 (PST)
+Date: Wed, 30 Nov 2016 18:00:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
+ dereference in mem_cgroup_node_nr_lru_pages
+Message-ID: <20161130170040.GJ18432@dhcp22.suse.cz>
+References: <bug-189181-27@https.bugzilla.kernel.org/>
+ <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161130142955.GS3924@linux.vnet.ibm.com>
+In-Reply-To: <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, marmarek@mimuw.edu.pl, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Wed, Nov 30, 2016 at 06:29:55AM -0800, Paul E. McKenney wrote:
-> We can, and you are correct that cond_resched() does not unconditionally
-> supply RCU quiescent states, and never has.  Last time I tried to add
-> cond_resched_rcu_qs() semantics to cond_resched(), I got told "no",
-> but perhaps it is time to try again.
+[CC Vladimir]
 
-Well, you got told: "ARRGH my benchmark goes all regress", or something
-along those lines. Didn't we recently dig out those commits for some
-reason or other?
+On Tue 29-11-16 14:56:54, Andrew Morton wrote:
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Sat, 26 Nov 2016 15:10:16 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=189181
+> > 
+> >             Bug ID: 189181
+> >            Summary: BUG: unable to handle kernel NULL pointer dereference
+> >                     in mem_cgroup_node_nr_lru_pages
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.8.10
+> >           Hardware: Intel
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Slab Allocator
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: marmarek@mimuw.edu.pl
+> >         Regression: No
+> > 
+> > Created attachment 245931
+> >   --> https://bugzilla.kernel.org/attachment.cgi?id=245931&action=edit
+> > Full console log
+> > 
+> > Shortly after system startup sometimes (about 1/30 times) I get this:
+> > 
+> > [   15.665196] BUG: unable to handle kernel NULL pointer dereference at
+> > 0000000000000400
+> > [   15.665213] IP: [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> > [   15.665225] PGD 0 
+> > [   15.665230] Oops: 0000 [#1] SMP
+> > [   15.665235] Modules linked in: fuse xt_nat xen_netback xt_REDIRECT
+> > nf_nat_redirect ip6table_filter ip6_tables xt_conntrack ipt_MASQUERADE
+> > nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_i
+> > pv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack intel_rapl
+> > x86_pkg_temp_thermal coretemp crct10dif_pclmul crc32_pclmul crc32c_intel
+> > ghash_clmulni_intel pcspkr dummy_hcd udc_core u2mfn(O) 
+> > xen_blkback xenfs xen_privcmd xen_blkfront
+> > [   15.665285] CPU: 0 PID: 60 Comm: kswapd0 Tainted: G           O   
+> > 4.8.10-12.pvops.qubes.x86_64 #1
+> > [   15.665292] task: ffff880011863b00 task.stack: ffff880011868000
+> > [   15.665297] RIP: e030:[<ffffffff8122d520>]  [<ffffffff8122d520>]
+> > mem_cgroup_node_nr_lru_pages+0x20/0x40
+> > [   15.665307] RSP: e02b:ffff88001186bc70  EFLAGS: 00010293
+> > [   15.665311] RAX: 0000000000000000 RBX: ffff88001186bd20 RCX:
+> > 0000000000000002
+> > [   15.665317] RDX: 000000000000000c RSI: 0000000000000000 RDI:
+> > 0000000000000000
 
-Finding out what benchmark that was and running it against this patch
-would make sense.
+I cannot generate a similar code to yours but the above suggests that we
+are getting NULL memcg. This would suggest a global reclaim and
+count_shadow_nodes misinterprets that because it does
 
-Also, I seem to have missed, why are we going through this again?
+	if (memcg_kmem_enabled()) {
+		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+						     LRU_ALL_FILE);
+	} else {
+		pages = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
+			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
+	}
+
+this might be a race with kmem enabling AFAICS. Anyaway I believe that
+the above check needs to ne extended for the sc->memcg != NULL
+
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 617475f529f4..0f07522c5c0e 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+ 	local_irq_enable();
+ 
+-	if (memcg_kmem_enabled()) {
++	if (memcg_kmem_enabled() && sc->memcg) {
+ 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+ 						     LRU_ALL_FILE);
+ 	} else {
+
+Or am I missing something?
+
+[Keeping the rest of the email for the reference]
+
+> > [   15.665322] RBP: ffff88001186bc70 R08: 28f5c28f5c28f5c3 R09:
+> > 0000000000000000
+> > [   15.665327] R10: 0000000000006c34 R11: 0000000000000333 R12:
+> > 00000000000001f6
+> > [   15.665332] R13: ffffffff81c6f6a0 R14: 0000000000000000 R15:
+> > 0000000000000000
+> > [   15.665343] FS:  0000000000000000(0000) GS:ffff880013c00000(0000)
+> > knlGS:ffff880013d00000
+> > [   15.665351] CS:  e033 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [   15.665358] CR2: 0000000000000400 CR3: 00000000122f2000 CR4:
+> > 0000000000042660
+> > [   15.665366] Stack:
+> > [   15.665371]  ffff88001186bc98 ffffffff811e0dda 00000000000002eb
+> > 0000000000000080
+> > [   15.665384]  ffffffff81c6f6a0 ffff88001186bd70 ffffffff811c36d9
+> > 0000000000000000
+> > [   15.665397]  ffff88001186bcb0 ffff88001186bcb0 ffff88001186bcc0
+> > 000000000000abc5
+> > [   15.665410] Call Trace:
+> > [   15.665419]  [<ffffffff811e0dda>] count_shadow_nodes+0x9a/0xa0
+> > [   15.665428]  [<ffffffff811c36d9>] shrink_slab.part.42+0x119/0x3e0
+> > [   15.666049]  [<ffffffff811c83ec>] shrink_node+0x22c/0x320
+> > [   15.666049]  [<ffffffff811c928c>] kswapd+0x32c/0x700
+> > [   15.666049]  [<ffffffff811c8f60>] ? mem_cgroup_shrink_node+0x180/0x180
+> > [   15.666049]  [<ffffffff810c1b08>] kthread+0xd8/0xf0
+> > [   15.666049]  [<ffffffff817a3abf>] ret_from_fork+0x1f/0x40
+> > [   15.666049]  [<ffffffff810c1a30>] ? kthread_create_on_node+0x190/0x190
+> > [   15.666049] Code: 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 3b 35 dd
+> > eb b1 00 55 48 89 e5 73 2c 89 d2 31 c9 31 c0 4c 63 ce 48 0f a3 ca 73 13 <4a> 8b
+> > b4 cf 00 04 00 00 41 89 c8 4a 03
+> >  84 c6 80 00 00 00 83 c1 
+> > [   15.666049] RIP  [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> > [   15.666049]  RSP <ffff88001186bc70>
+> > [   15.666049] CR2: 0000000000000400
+> > [   15.666049] ---[ end trace 100494b9edbdfc4d ]---
+> > 
+> > After this, there is another "unable to handle kerneel paging request" I guess
+> > because of do_exit in kswapd0, then a lot of soft lockups and system is
+> > unusable (see full log attached).
+> > 
+> > This is running in PV domU on Xen 4.7.0 (the same also happens on Xen 4.6.3).
+> > Same happens on 4.8.7 too. Previously it was working on v4.4.31 without any
+> > problem.
+> > 
+> > -- 
+> > You are receiving this mail because:
+> > You are the assignee for the bug.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
