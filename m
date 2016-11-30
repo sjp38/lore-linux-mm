@@ -1,89 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F2A6B0069
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:01:57 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 3so49994627pgd.3
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:01:57 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g129si65952100pfc.132.2016.11.30.13.01.56
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 267956B0069
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:15:30 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y71so49349834pgd.0
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:15:30 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id 8si65873368pge.77.2016.11.30.13.15.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 13:01:56 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAUKwiSs090875
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:01:56 -0500
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2721hkfqas-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:01:55 -0500
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 30 Nov 2016 14:01:55 -0700
-Date: Wed, 30 Nov 2016 13:01:52 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
- ...' causing hang on sparc32 qemu
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20161129212308.GA12447@roeck-us.net>
- <20161130012817.GH3924@linux.vnet.ibm.com>
- <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
- <20161130070212.GM3924@linux.vnet.ibm.com>
- <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
- <20161130120333.GQ3924@linux.vnet.ibm.com>
- <20161130192159.GB22216@roeck-us.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161130192159.GB22216@roeck-us.net>
-Message-Id: <20161130210152.GL3924@linux.vnet.ibm.com>
+        Wed, 30 Nov 2016 13:15:29 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id c4so41115826pfb.1
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:15:29 -0800 (PST)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH v2] zswap: only use CPU notifier when HOTPLUG_CPU=y
+Date: Wed, 30 Nov 2016 13:15:16 -0800
+Message-Id: <1480540516-6458-1-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
+To: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
 
-On Wed, Nov 30, 2016 at 11:21:59AM -0800, Guenter Roeck wrote:
-> On Wed, Nov 30, 2016 at 04:03:33AM -0800, Paul E. McKenney wrote:
-> > On Wed, Nov 30, 2016 at 02:52:11AM -0800, Guenter Roeck wrote:
-> > > On 11/29/2016 11:02 PM, Paul E. McKenney wrote:
-> > > >On Tue, Nov 29, 2016 at 08:32:51PM -0800, Guenter Roeck wrote:
-> > > >>On 11/29/2016 05:28 PM, Paul E. McKenney wrote:
-> > > >>>On Tue, Nov 29, 2016 at 01:23:08PM -0800, Guenter Roeck wrote:
-> > > >>>>Hi Paul,
-> > > >>>>
-> > > >>>>most of my qemu tests for sparc32 targets started to fail in next-20161129.
-> > > >>>>The problem is only seen in SMP builds; non-SMP builds are fine.
-> > > >>>>Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
-> > > >>>>RCU CPU stall warnings"); reverting that commit fixes the problem.
-> > 
-> > And I have dropped this patch.  Michal Hocko showed me the error of
-> > my ways with this patch.
-> > 
-> 
-> :-)
-> 
-> On another note, I still get RCU tracebacks in the s390 tests.
-> 
-> BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
-> 
-> That is caused by 'rcu: Maintain special bits at bottom of ->dynticks counter';
-> if I recall correctly we had discussed that earlier.
+__unregister_cpu_notifier() only removes registered notifier from its
+linked list when CPU hotplug is configured. If we free registered CPU
+notifier when HOTPLUG_CPU=n, we corrupt the linked list.
 
-Indeed, I had missed a dyntick counter update back on Nov 11, which meant
-that some of the code was still looking at the low-order bit instead of
-the next bit up.  This is now fixed.
+To fix the problem, we can either use a static CPU notifier that walks
+through each pool or just simply disable CPU notifier when CPU hotplug
+is not configured (which is perfectly safe because the code in question
+is called after all possible CPUs are online and will remain online
+until power off).
 
-So to get to the error message you call out above, I need to have improperly
-left the system in bh state or left irqs disabled, while the system was
-running normally without an oops.  I am having a hard time seeing how this
-patch can do that.
+v2: #ifdef for cpu_notifier_register_done during cleanup.
 
-I would be more suspicious of f2a471ffc8a8 ("rcu: Allow boot-time use
-of cond_resched_rcu_qs()").
+Signe-off-by: Yu Zhao <yuzhao@google.com>
+---
+ mm/zswap.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-So you bisected or did a revert to work out which was the offending commit?
-
-							Thanx, Paul
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 275b22c..2915f44 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -118,7 +118,9 @@ struct zswap_pool {
+ 	struct kref kref;
+ 	struct list_head list;
+ 	struct work_struct work;
++#ifdef CONFIG_HOTPLUG_CPU
+ 	struct notifier_block notifier;
++#endif
+ 	char tfm_name[CRYPTO_MAX_ALG_NAME];
+ };
+ 
+@@ -448,6 +450,7 @@ static int __zswap_cpu_comp_notifier(struct zswap_pool *pool,
+ 	return NOTIFY_OK;
+ }
+ 
++#ifdef CONFIG_HOTPLUG_CPU
+ static int zswap_cpu_comp_notifier(struct notifier_block *nb,
+ 				   unsigned long action, void *pcpu)
+ {
+@@ -456,27 +459,34 @@ static int zswap_cpu_comp_notifier(struct notifier_block *nb,
+ 
+ 	return __zswap_cpu_comp_notifier(pool, action, cpu);
+ }
++#endif
+ 
+ static int zswap_cpu_comp_init(struct zswap_pool *pool)
+ {
+ 	unsigned long cpu;
+ 
++#ifdef CONFIG_HOTPLUG_CPU
+ 	memset(&pool->notifier, 0, sizeof(pool->notifier));
+ 	pool->notifier.notifier_call = zswap_cpu_comp_notifier;
+ 
+ 	cpu_notifier_register_begin();
++#endif
+ 	for_each_online_cpu(cpu)
+ 		if (__zswap_cpu_comp_notifier(pool, CPU_UP_PREPARE, cpu) ==
+ 		    NOTIFY_BAD)
+ 			goto cleanup;
++#ifdef CONFIG_HOTPLUG_CPU
+ 	__register_cpu_notifier(&pool->notifier);
+ 	cpu_notifier_register_done();
++#endif
+ 	return 0;
+ 
+ cleanup:
+ 	for_each_online_cpu(cpu)
+ 		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
++#ifdef CONFIG_HOTPLUG_CPU
+ 	cpu_notifier_register_done();
++#endif
+ 	return -ENOMEM;
+ }
+ 
+@@ -484,11 +494,15 @@ static void zswap_cpu_comp_destroy(struct zswap_pool *pool)
+ {
+ 	unsigned long cpu;
+ 
++#ifdef CONFIG_HOTPLUG_CPU
+ 	cpu_notifier_register_begin();
++#endif
+ 	for_each_online_cpu(cpu)
+ 		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
++#ifdef CONFIG_HOTPLUG_CPU
+ 	__unregister_cpu_notifier(&pool->notifier);
+ 	cpu_notifier_register_done();
++#endif
+ }
+ 
+ /*********************************
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
