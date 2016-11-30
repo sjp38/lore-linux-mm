@@ -1,93 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FE8F6B0069
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:18:50 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id j65so42505972iof.1
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 15:18:50 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id e64si32083463otb.19.2016.11.30.15.18.48
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DB736B0069
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:45:55 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 83so327987076pfx.1
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 15:45:55 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id n11si37788461plg.331.2016.11.30.15.45.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 15:18:49 -0800 (PST)
-Date: Wed, 30 Nov 2016 15:18:46 -0800
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
- ...' causing hang on sparc32 qemu
-Message-ID: <20161130231846.GB17244@roeck-us.net>
-References: <20161129212308.GA12447@roeck-us.net>
- <20161130012817.GH3924@linux.vnet.ibm.com>
- <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
- <20161130070212.GM3924@linux.vnet.ibm.com>
- <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
- <20161130120333.GQ3924@linux.vnet.ibm.com>
- <20161130192159.GB22216@roeck-us.net>
- <20161130210152.GL3924@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161130210152.GL3924@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 15:45:54 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 0/6] introduce DAX tracepoint support
+Date: Wed, 30 Nov 2016 16:45:27 -0700
+Message-Id: <1480549533-29038-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Wed, Nov 30, 2016 at 01:01:52PM -0800, Paul E. McKenney wrote:
-> On Wed, Nov 30, 2016 at 11:21:59AM -0800, Guenter Roeck wrote:
-> > On Wed, Nov 30, 2016 at 04:03:33AM -0800, Paul E. McKenney wrote:
-> > > On Wed, Nov 30, 2016 at 02:52:11AM -0800, Guenter Roeck wrote:
-> > > > On 11/29/2016 11:02 PM, Paul E. McKenney wrote:
-> > > > >On Tue, Nov 29, 2016 at 08:32:51PM -0800, Guenter Roeck wrote:
-> > > > >>On 11/29/2016 05:28 PM, Paul E. McKenney wrote:
-> > > > >>>On Tue, Nov 29, 2016 at 01:23:08PM -0800, Guenter Roeck wrote:
-> > > > >>>>Hi Paul,
-> > > > >>>>
-> > > > >>>>most of my qemu tests for sparc32 targets started to fail in next-20161129.
-> > > > >>>>The problem is only seen in SMP builds; non-SMP builds are fine.
-> > > > >>>>Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
-> > > > >>>>RCU CPU stall warnings"); reverting that commit fixes the problem.
-> > > 
-> > > And I have dropped this patch.  Michal Hocko showed me the error of
-> > > my ways with this patch.
-> > > 
-> > 
-> > :-)
-> > 
-> > On another note, I still get RCU tracebacks in the s390 tests.
-> > 
-> > BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
-> > 
-> > That is caused by 'rcu: Maintain special bits at bottom of ->dynticks counter';
-> > if I recall correctly we had discussed that earlier.
-> 
-> Indeed, I had missed a dyntick counter update back on Nov 11, which meant
-> that some of the code was still looking at the low-order bit instead of
-> the next bit up.  This is now fixed.
-> 
-> So to get to the error message you call out above, I need to have improperly
-> left the system in bh state or left irqs disabled, while the system was
-> running normally without an oops.  I am having a hard time seeing how this
-> patch can do that.
-> 
-> I would be more suspicious of f2a471ffc8a8 ("rcu: Allow boot-time use
-> of cond_resched_rcu_qs()").
-> 
-> So you bisected or did a revert to work out which was the offending commit?
-> 
+Tracepoints are the standard way to capture debugging and tracing
+information in many parts of the kernel, including the XFS and ext4
+filesystems.  This series creates a tracepoint header for FS DAX and add
+the first few DAX tracepoints to the PMD fault handler.  This allows the
+tracing for DAX to be done in the same way as the filesystem tracing so
+that developers can look at them together and get a coherent idea of what
+the system is doing.
 
-My most recent bisect was with the November 10 image, so that would have missed
-any later fix. Comparing the log messages, the current message is indeed
-different. Sorry, I mixed that up; I just assumed that the problem would be
-the same without really checking. My bad.
+I do intend to add tracepoints to the normal 4k DAX fault path and to the
+DAX I/O path, but I wanted to get feedback on the PMD tracepoints before I
+went any further.
 
-Bisect would be tricky, since the s390 image was broken for some time after
-November 10. The first time I have seen the above BUG: was with next-20161128
-(which is the first build after the crash was fixed). That version did not
-include f2a471ffc8a8, so that can not be the cause.
+This series is based on Jan Kara's "dax: Clear dirty bits after flushing
+caches" series:
 
-I'll try to set up a bisect tonight, working around the crash problem.
-I'll let you know how it goes.
+https://lists.01.org/pipermail/linux-nvdimm/2016-November/007864.html
 
-Guenter
+I've pushed a git tree with this work here:
+
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_tracepoints_v2
+
+Changes since v1:
+ - Dropped the patch fixing the build issue between DAX, ext4 and FS_IOMAP.
+   I'll resend an updated patch if needed once Jan's patches for this issue
+   are applied.
+ - Added incude/linux/dax.h to MAINTAINERS in patch 4. (Matthew)
+ - Begin each DAX tracepoint with the device major/minor and the inode so
+   that we are consistent with the XFS tracepoints. This will allow for
+   easy grepping of the tracepoint output. (Dave)
+ - Print all PMD fault flags, not just whether we are doing a read or a
+   write. (Jan)
+ - Added __print_flags_u64() and the necessary helpers to the tracing
+   infrastructure.  These functions allow us to print symbols associated
+   with flags that are 64 bits wide even on 32 bit machines.  We need this
+   for the pfn_t flags.
+
+Ross Zwisler (6):
+  tracing: add __print_flags_u64()
+  dax: remove leading space from labels
+  dax: add tracepoint infrastructure, PMD tracing
+  dax: update MAINTAINERS entries for FS DAX
+  dax: add tracepoints to dax_pmd_load_hole()
+  dax: add tracepoints to dax_pmd_insert_mapping()
+
+ MAINTAINERS                   |   5 +-
+ fs/dax.c                      |  80 +++++++++++++--------
+ include/linux/mm.h            |  25 +++++++
+ include/linux/pfn_t.h         |   6 ++
+ include/linux/trace_events.h  |   4 ++
+ include/trace/events/fs_dax.h | 161 ++++++++++++++++++++++++++++++++++++++++++
+ include/trace/trace_events.h  |  11 +++
+ kernel/trace/trace_output.c   |  38 ++++++++++
+ 8 files changed, 300 insertions(+), 30 deletions(-)
+ create mode 100644 include/trace/events/fs_dax.h
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
