@@ -1,101 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D86666B0269
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 11:35:22 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so51917440wmf.3
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:35:22 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id ge18si64716849wjc.226.2016.11.30.08.35.21
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD9B6B026B
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 11:38:27 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id r101so23986688ioi.3
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 08:38:27 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id b124si6247963itc.90.2016.11.30.08.38.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 08:35:21 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 3C2EC986BD
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:35:21 +0000 (UTC)
-Date: Wed, 30 Nov 2016 16:35:20 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-Message-ID: <20161130163520.hg7icdflagmvarbr@techsingularity.net>
-References: <20161127131954.10026-1-mgorman@techsingularity.net>
- <20161130134034.3b60c7f0@redhat.com>
- <20161130140615.3bbn7576iwbyc3op@techsingularity.net>
- <20161130160612.474ca93c@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 08:38:26 -0800 (PST)
+Date: Wed, 30 Nov 2016 17:38:20 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
+ `mem_cgroup_shrink_node`
+Message-ID: <20161130163820.GQ3092@twins.programming.kicks-ass.net>
+References: <68025f6c-6801-ab46-b0fc-a9407353d8ce@molgen.mpg.de>
+ <20161124101525.GB20668@dhcp22.suse.cz>
+ <583AA50A.9010608@molgen.mpg.de>
+ <20161128110449.GK14788@dhcp22.suse.cz>
+ <109d5128-f3a4-4b6e-db17-7a1fcb953500@molgen.mpg.de>
+ <29196f89-c35e-f79d-8e4d-2bf73fe930df@molgen.mpg.de>
+ <20161130110944.GD18432@dhcp22.suse.cz>
+ <20161130115320.GO3924@linux.vnet.ibm.com>
+ <20161130131910.GF18432@dhcp22.suse.cz>
+ <20161130142955.GS3924@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161130160612.474ca93c@redhat.com>
+In-Reply-To: <20161130142955.GS3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Rick Jones <rick.jones2@hpe.com>, Paolo Abeni <pabeni@redhat.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>
 
-On Wed, Nov 30, 2016 at 04:06:12PM +0100, Jesper Dangaard Brouer wrote:
-> > > [...]  
-> > > > This is the result from netperf running UDP_STREAM on localhost. It was
-> > > > selected on the basis that it is slab-intensive and has been the subject
-> > > > of previous SLAB vs SLUB comparisons with the caveat that this is not
-> > > > testing between two physical hosts.  
-> > > 
-> > > I do like you are using a networking test to benchmark this. Looking at
-> > > the results, my initial response is that the improvements are basically
-> > > too good to be true.
-> > >   
-> > 
-> > FWIW, LKP independently measured the boost to be 23% so it's expected
-> > there will be different results depending on exact configuration and CPU.
-> 
-> Yes, noticed that, nice (which was a SCTP test) 
->  https://lists.01.org/pipermail/lkp/2016-November/005210.html
-> 
-> It is of-cause great. It is just strange I cannot reproduce it on my
-> high-end box, with manual testing. I'll try your test suite and try to
-> figure out what is wrong with my setup.
-> 
+On Wed, Nov 30, 2016 at 06:29:55AM -0800, Paul E. McKenney wrote:
+> We can, and you are correct that cond_resched() does not unconditionally
+> supply RCU quiescent states, and never has.  Last time I tried to add
+> cond_resched_rcu_qs() semantics to cond_resched(), I got told "no",
+> but perhaps it is time to try again.
 
-That would be great. I had seen the boost on multiple machines and LKP
-verifying it is helpful. 
+Well, you got told: "ARRGH my benchmark goes all regress", or something
+along those lines. Didn't we recently dig out those commits for some
+reason or other?
 
-> 
-> > > Can you share how you tested this with netperf and the specific netperf
-> > > parameters?   
-> > 
-> > The mmtests config file used is
-> > configs/config-global-dhp__network-netperf-unbound so all details can be
-> > extrapolated or reproduced from that.
-> 
-> I didn't know of mmtests: https://github.com/gormanm/mmtests
-> 
-> It looks nice and quite comprehensive! :-)
-> 
+Finding out what benchmark that was and running it against this patch
+would make sense.
 
-Thanks.
-
-> > > e.g.
-> > >  How do you configure the send/recv sizes?  
-> > 
-> > Static range of sizes specified in the config file.
-> 
-> I'll figure it out... reading your shell code :-)
-> 
-> export NETPERF_BUFFER_SIZES=64,128,256,1024,2048,3312,4096,8192,16384
->  https://github.com/gormanm/mmtests/blob/master/configs/config-global-dhp__network-netperf-unbound#L72
-> 
-> I see you are using netperf 2.4.5 and setting both the send an recv
-> size (-- -m and -M) which is fine.
-> 
-
-Ok.
-
-> I don't quite get why you are setting the socket recv size (with -- -s
-> and -S) to such a small number, size + 256.
-> 
-
-Maybe I missed something at the time I wrote that but why would it need
-to be larger?
-
--- 
-Mel Gorman
-SUSE Labs
+Also, I seem to have missed, why are we going through this again?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
