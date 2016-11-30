@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE426B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:43:46 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id a20so50332634wme.5
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 03:43:46 -0800 (PST)
-Received: from mx1.molgen.mpg.de (mx1.molgen.mpg.de. [141.14.17.9])
-        by mx.google.com with ESMTPS id qc15si63451829wjb.233.2016.11.30.03.43.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 355266B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:46:21 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so17907274pgc.2
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 03:46:21 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 12si64050267pfi.251.2016.11.30.03.46.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 03:43:45 -0800 (PST)
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-References: <20161121134130.GB18112@dhcp22.suse.cz>
- <20161121140122.GU3612@linux.vnet.ibm.com>
- <20161121141818.GD18112@dhcp22.suse.cz>
- <20161121142901.GV3612@linux.vnet.ibm.com>
- <68025f6c-6801-ab46-b0fc-a9407353d8ce@molgen.mpg.de>
- <20161124101525.GB20668@dhcp22.suse.cz> <583AA50A.9010608@molgen.mpg.de>
- <20161128110449.GK14788@dhcp22.suse.cz>
- <109d5128-f3a4-4b6e-db17-7a1fcb953500@molgen.mpg.de>
- <29196f89-c35e-f79d-8e4d-2bf73fe930df@molgen.mpg.de>
- <20161130110944.GD18432@dhcp22.suse.cz>
-From: Donald Buczek <buczek@molgen.mpg.de>
-Message-ID: <099c4569-a010-5414-0934-6af3734d8460@molgen.mpg.de>
-Date: Wed, 30 Nov 2016 12:43:44 +0100
+        Wed, 30 Nov 2016 03:46:20 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAUBj0AY139663
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:46:19 -0500
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 271u5626c3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 06:46:19 -0500
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 30 Nov 2016 21:46:17 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 28E972BB0055
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 22:46:14 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uAUBkDn829819114
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 22:46:13 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uAUBkDao024952
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 22:46:13 +1100
+Subject: Re: [RFC 1/4] mm: Define coherent device memory node
+References: <1479824388-30446-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1479824388-30446-2-git-send-email-khandual@linux.vnet.ibm.com>
+ <692074f0-184f-e506-40a1-8fc078d1e706@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 30 Nov 2016 17:16:04 +0530
 MIME-Version: 1.0
-In-Reply-To: <20161130110944.GD18432@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <692074f0-184f-e506-40a1-8fc078d1e706@intel.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <583EBBFC.7090700@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com
 
-On 11/30/16 12:09, Michal Hocko wrote:
-> [CCing Paul]
->
-> On Wed 30-11-16 11:28:34, Donald Buczek wrote:
-> [...]
->> shrink_active_list gets and releases the spinlock and calls cond_resched().
->> This should give other tasks a chance to run. Just as an experiment, I'm
->> trying
->>
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1921,7 +1921,7 @@ static void shrink_active_list(unsigned long
->> nr_to_scan,
->>          spin_unlock_irq(&pgdat->lru_lock);
->>
->>          while (!list_empty(&l_hold)) {
->> -               cond_resched();
->> +               cond_resched_rcu_qs();
->>                  page = lru_to_page(&l_hold);
->>                  list_del(&page->lru);
->>
->> and didn't hit a rcu_sched warning for >21 hours uptime now. We'll see.
-> This is really interesting! Is it possible that the RCU stall detector
-> is somehow confused?
+On 11/29/2016 11:27 PM, Dave Hansen wrote:
+> On 11/22/2016 06:19 AM, Anshuman Khandual wrote:
+>> @@ -393,6 +393,9 @@ enum node_states {
+>>  	N_MEMORY = N_HIGH_MEMORY,
+>>  #endif
+>>  	N_CPU,		/* The node has one or more cpus */
+>> +#ifdef CONFIG_COHERENT_DEVICE
+>> +	N_COHERENT_DEVICE,
+>> +#endif
+>>  	NR_NODE_STATES
+>>  };
+> 
+> Don't we really want this to be N_MEMORY_ISOLATED?  Or, better yet,
 
-Wait... 21 hours is not yet a test result.
+Sure, If we move from a CDM description to a purely node isolation one.
+I am still thinking through this.
 
->> Is preemption disabled for another reason?
-> I do not think so. I will have to double check the code but this is a
-> standard sleepable context. Just wondering what is the PREEMPT
-> configuration here?
+> N_MEMORY_UNISOLATED so that we can just drop the bitmap in for N_MEMORY
 
-buczek@null:~$ zcat /proc/config.gz |grep PREE
-CONFIG_PREEMPT_NOTIFIERS=y
-# CONFIG_PREEMPT_NONE is not set
-CONFIG_PREEMPT_VOLUNTARY=y
-# CONFIG_PREEMPT is not set
+Did not get that, N_MEMORY_UNISOLATED for the system RAM nodes which are
+not isolated ? Then where the isolated/CDM nodes go in ?
 
-Thanks
-   Donald
-
--- 
-Donald Buczek
-buczek@molgen.mpg.de
-Tel: +49 30 8413 1433
+> and not have to do any bit manipulation operations at runtime.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
