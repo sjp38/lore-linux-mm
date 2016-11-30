@@ -1,91 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1BB96B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 02:30:49 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id o3so30820599wjo.1
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 23:30:49 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C175A6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 02:34:28 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id m203so48939884wma.2
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 23:34:28 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hd4si62682173wjb.149.2016.11.29.23.30.47
+        by mx.google.com with ESMTPS id 127si5806863wmv.35.2016.11.29.23.34.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Nov 2016 23:30:48 -0800 (PST)
-Date: Wed, 30 Nov 2016 08:30:45 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
- bdev->bd_disk
-Message-ID: <20161130073045.GA16667@quack2.suse.cz>
-References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
- <20161129150828.e0a4897160b9ee7301e5f554@linux-foundation.org>
+        Tue, 29 Nov 2016 23:34:27 -0800 (PST)
+Subject: Re: [patch v2 1/2] mm, zone: track number of movable free pages
+References: <alpine.DEB.2.10.1611161731350.17379@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1611291615400.103050@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ee587096-9d0f-65ef-75aa-d9211e846adb@suse.cz>
+Date: Wed, 30 Nov 2016 08:34:24 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161129150828.e0a4897160b9ee7301e5f554@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.10.1611291615400.103050@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wei Fang <fangwei1@huawei.com>, jack@suse.cz, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 29-11-16 15:08:28, Andrew Morton wrote:
-> On Sat, 26 Nov 2016 10:06:22 +0800 Wei Fang <fangwei1@huawei.com> wrote:
-> 
-> > ->bd_disk is assigned to NULL in __blkdev_put() when no one is holding
-> > the bdev. After that, ->bd_inode still can be touched in the
-> > blockdev_superblock->s_inodes list before the final iput. So iterate_bdevs()
-> > can still get this inode, and start writeback on mapping dirty pages.
-> > ->bd_disk will be dereferenced in mapping_cap_writeback_dirty() in this
-> > case, and a NULL dereference crash will be triggered:
-> > 
-> > Unable to handle kernel NULL pointer dereference at virtual address 00000388
-> > ...
-> > [<ffff8000004cb1e4>] blk_get_backing_dev_info+0x1c/0x28
-> > [<ffff8000001c879c>] __filemap_fdatawrite_range+0x54/0x98
-> > [<ffff8000001c8804>] filemap_fdatawrite+0x24/0x2c
-> > [<ffff80000027e7a4>] fdatawrite_one_bdev+0x20/0x28
-> > [<ffff800000288b44>] iterate_bdevs+0xec/0x144
-> > [<ffff80000027eb50>] sys_sync+0x84/0xd0
-> > 
-> > Since mapping_cap_writeback_dirty() is always return true about
-> > block device inodes, no need to check it if the inode is a block
-> > device inode.
-> > 
-> > ...
-> >
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -334,8 +334,9 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
-> >  		.range_end = end,
-> >  	};
-> >  
-> > -	if (!mapping_cap_writeback_dirty(mapping))
-> > -		return 0;
-> > +	if (!sb_is_blkdev_sb(mapping->host->i_sb))
-> > +		if (!mapping_cap_writeback_dirty(mapping))
-> > +			return 0;
-> >  
-> >  	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
-> >  	ret = do_writepages(mapping, &wbc);
-> 
-> This seems wrong to me.  If __blkdev_put() has got so deep into the
-> release process as to be zeroing out ->bd_disk then the blockdev's
-> inode shouldn't be visible to iterate_bdevs()?
+On 11/30/2016 01:16 AM, David Rientjes wrote:
+> An upcoming compaction change will need the number of movable free pages
+> per zone to determine if async compaction will become unnecessarily
+> expensive.
+>
+> This patch introduces no functional change or increased memory footprint.
+> It simply tracks the number of free movable pages as a subset of the
+> total number of free pages.  This is exported to userspace as part of a
+> new /proc/vmstat field.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  v2: do not track free pages per migratetype since page allocator stress
+>      testing reveals this tracking can impact workloads and there is no
+>      substantial benefit when thp is disabled.  This occurs because
+>      entire pageblocks can be converted to new migratetypes and requires
+>      iteration of free_areas in the hotpaths for proper tracking.
 
-That's the trouble with how block devices currently work. On last close of
-the block device, the block device inode is detached from bd_disk and thus
-from request_queue & bdi. bd_disk & company gets freed, inode stays (bdev
-inode is referenced by inodes representing block device in the filesystem
-which are referenced by dentries). This happens asynchronously wrt
-iterate_bdevs() and inode_to_bdi() calls in general - any inode_to_bdi()
-call on block device inode can oops if it happens to race with
-__blkdev_put().  The use of inode_to_bdi() in mapping_cap_writeback_dirty()
-from iterate_bdevs() is one such possibility - that is relatively easy to
-fix by modifying iterate_bdevs() however it is not so easy to protect in
-this way inode_to_bdi() calls in writeback happening periodically from the
-flusher work.
-								Honza
+Ah, right, forgot about the accuracy issue when focusing on the overhead 
+issue. Unfortunately I'm afraid the NR_FREE_MOVABLE_PAGES in this patch 
+will also drift uncontrollably over time. Stealing is one thing, and 
+also buddy merging can silently move free pages between migratetypes. It 
+already took some effort to make this accurate for MIGRATE_CMA and 
+MIGRATE_ISOLATE, which has some overhead and works only thanks to 
+additional constraints - CMA pageblocks don't ever get converted, and 
+for ISOLATE we don't put them on pcplists, perform pcplists draining 
+during isolation, and have extra code guarded by has_isolate_pageblock() 
+in buddy merging. None of this would be directly viable for 
+MIGRATE_MOVABLE I'm afraid.
 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>  include/linux/mmzone.h | 1 +
+>  include/linux/vmstat.h | 2 ++
+>  mm/page_alloc.c        | 8 +++++++-
+>  mm/vmstat.c            | 1 +
+>  4 files changed, 11 insertions(+), 1 deletion(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -138,6 +138,7 @@ enum zone_stat_item {
+>  	NUMA_OTHER,		/* allocation from other node */
+>  #endif
+>  	NR_FREE_CMA_PAGES,
+> +	NR_FREE_MOVABLE_PAGES,
+>  	NR_VM_ZONE_STAT_ITEMS };
+>
+>  enum node_stat_item {
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -347,6 +347,8 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
+>  	if (is_migrate_cma(migratetype))
+>  		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, nr_pages);
+> +	if (migratetype == MIGRATE_MOVABLE)
+> +		__mod_zone_page_state(zone, NR_FREE_MOVABLE_PAGES, nr_pages);
+>  }
+>
+>  extern const char * const vmstat_text[];
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2197,6 +2197,8 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  	spin_lock(&zone->lock);
+>  	for (i = 0; i < count; ++i) {
+>  		struct page *page = __rmqueue(zone, order, migratetype);
+> +		int mt;
+> +
+>  		if (unlikely(page == NULL))
+>  			break;
+>
+> @@ -2217,9 +2219,13 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  		else
+>  			list_add_tail(&page->lru, list);
+>  		list = &page->lru;
+> -		if (is_migrate_cma(get_pcppage_migratetype(page)))
+> +		mt = get_pcppage_migratetype(page);
+> +		if (is_migrate_cma(mt))
+>  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+>  					      -(1 << order));
+> +		if (mt == MIGRATE_MOVABLE)
+> +			__mod_zone_page_state(zone, NR_FREE_MOVABLE_PAGES,
+> +					      -(1 << order));
+>  	}
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+>  	spin_unlock(&zone->lock);
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -945,6 +945,7 @@ const char * const vmstat_text[] = {
+>  	"numa_other",
+>  #endif
+>  	"nr_free_cma",
+> +	"nr_free_movable",
+>
+>  	/* Node-based counters */
+>  	"nr_inactive_anon",
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
