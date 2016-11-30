@@ -1,84 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 56EA06B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 14:04:37 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id p66so42717383pga.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 11:04:37 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id b34si36972724pli.204.2016.11.30.11.04.36
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5F86B0038
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 14:15:24 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id y71so42493054pgd.0
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 11:15:24 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 33si37045655pli.217.2016.11.30.11.15.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 11:04:36 -0800 (PST)
-Date: Wed, 30 Nov 2016 12:04:31 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/6] dax: fix build breakage with ext4, dax and !iomap
-Message-ID: <20161130190431.GA11793@linux.intel.com>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
- <20161124090239.GA24138@quack2.suse.cz>
- <20161128191504.GB6637@linux.intel.com>
- <20161129085303.GA7550@quack2.suse.cz>
+        Wed, 30 Nov 2016 11:15:23 -0800 (PST)
+Subject: Re: [PATCH kernel v5 5/5] virtio-balloon: tell host vm's unused page
+ info
+References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
+ <1480495397-23225-6-git-send-email-liang.z.li@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <438dd41a-fdf1-2a77-ef9c-8c103f492b2f@intel.com>
+Date: Wed, 30 Nov 2016 11:15:23 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161129085303.GA7550@quack2.suse.cz>
+In-Reply-To: <1480495397-23225-6-git-send-email-liang.z.li@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Liang Li <liang.z.li@intel.com>, kvm@vger.kernel.org
+Cc: virtualization@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, mst@redhat.com, jasowang@redhat.com, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, pbonzini@redhat.com, Mel Gorman <mgorman@techsingularity.net>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-On Tue, Nov 29, 2016 at 09:53:03AM +0100, Jan Kara wrote:
-> On Mon 28-11-16 12:15:04, Ross Zwisler wrote:
-> > On Thu, Nov 24, 2016 at 10:02:39AM +0100, Jan Kara wrote:
-> > > On Wed 23-11-16 11:44:17, Ross Zwisler wrote:
-> > > > With the current Kconfig setup it is possible to have the following:
-> > > > 
-> > > > CONFIG_EXT4_FS=y
-> > > > CONFIG_FS_DAX=y
-> > > > CONFIG_FS_IOMAP=n	# this is in fs/Kconfig & isn't user accessible
-> > > > 
-> > > > With this config we get build failures in ext4_dax_fault() because the
-> > > > iomap functions in fs/dax.c are missing:
-> > > > 
-> > > > fs/built-in.o: In function `ext4_dax_fault':
-> > > > file.c:(.text+0x7f3ac): undefined reference to `dax_iomap_fault'
-> > > > file.c:(.text+0x7f404): undefined reference to `dax_iomap_fault'
-> > > > fs/built-in.o: In function `ext4_file_read_iter':
-> > > > file.c:(.text+0x7fc54): undefined reference to `dax_iomap_rw'
-> > > > fs/built-in.o: In function `ext4_file_write_iter':
-> > > > file.c:(.text+0x7fe9a): undefined reference to `dax_iomap_rw'
-> > > > file.c:(.text+0x7feed): undefined reference to `dax_iomap_rw'
-> > > > fs/built-in.o: In function `ext4_block_zero_page_range':
-> > > > inode.c:(.text+0x85c0d): undefined reference to `iomap_zero_range'
-> > > > 
-> > > > Now that the struct buffer_head based DAX fault paths and I/O path have
-> > > > been removed we really depend on iomap support being present for DAX.  Make
-> > > > this explicit by selecting FS_IOMAP if we compile in DAX support.
-> > > > 
-> > > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > 
-> > > I've sent the same patch to Ted yesterday and he will probably queue it on
-> > > top of ext4 iomap patches. If it doesn't happen for some reason, feel free
-> > > to add:
-> > > 
-> > > Reviewed-by: Jan Kara <jack@suse.cz>
-> > 
-> > Cool, looks like Ted has pulled in your patch.
-> > 
-> > I think we still eventually want this patch because it cleans up our handling
-> > of FS_IOMAP.  With your patch we select it separately in both ext4 & ext2
-> > based on whether we include DAX, and we still have #ifdefs in fs/dax.c for
-> > FS_IOMAP.
-> 
-> Actually, based on Dave's request I've also sent Ted updated version which
-> did select FS_IOMAP in CONFIG_DAX section. However Ted didn't pull that
-> patch (yet?). Anyway, I don't care whose patch gets merged, I just wanted
-> to notify you of possible conflict.
+On 11/30/2016 12:43 AM, Liang Li wrote:
+> +static void send_unused_pages_info(struct virtio_balloon *vb,
+> +				unsigned long req_id)
+> +{
+> +	struct scatterlist sg_in;
+> +	unsigned long pos = 0;
+> +	struct virtqueue *vq = vb->req_vq;
+> +	struct virtio_balloon_resp_hdr *hdr = vb->resp_hdr;
+> +	int ret, order;
+> +
+> +	mutex_lock(&vb->balloon_lock);
+> +
+> +	for (order = MAX_ORDER - 1; order >= 0; order--) {
 
-Can you please CC me on these patches in the future?  I also don't care whose
-patches end up fixing this, but I want to make sure we end up in a world where
-the "select FS_IOMAP" just happens directly for FS_DAX in fs/Kconfig so that
-I can get rid of the unnecessary #ifdefs in fs/dax.c for CONFIG_FS_IOMAP.
+I scratched my head for a bit on this one.  Why are you walking over
+orders, *then* zones.  I *think* you're doing it because you can
+efficiently fill the bitmaps at a given order for all zones, then move
+to a new bitmap.  But, it would be interesting to document this.
+
+> +		pos = 0;
+> +		ret = get_unused_pages(vb->resp_data,
+> +			 vb->resp_buf_size / sizeof(unsigned long),
+> +			 order, &pos);
+
+FWIW, get_unsued_pages() is a pretty bad name.  "get" usually implies
+bumping reference counts or consuming something.  You're just
+"recording" or "marking" them.
+
+> +		if (ret == -ENOSPC) {
+> +			void *new_resp_data;
+> +
+> +			new_resp_data = kmalloc(2 * vb->resp_buf_size,
+> +						GFP_KERNEL);
+> +			if (new_resp_data) {
+> +				kfree(vb->resp_data);
+> +				vb->resp_data = new_resp_data;
+> +				vb->resp_buf_size *= 2;
+
+What happens to the data in ->resp_data at this point?  Doesn't this
+just throw it away?
+
+...
+> +struct page_info_item {
+> +	__le64 start_pfn : 52; /* start pfn for the bitmap */
+> +	__le64 page_shift : 6; /* page shift width, in bytes */
+> +	__le64 bmap_len : 6;  /* bitmap length, in bytes */
+> +};
+
+Is 'bmap_len' too short?  a 64-byte buffer is a bit tiny.  Right?
+
+> +static int  mark_unused_pages(struct zone *zone,
+> +		unsigned long *unused_pages, unsigned long size,
+> +		int order, unsigned long *pos)
+> +{
+> +	unsigned long pfn, flags;
+> +	unsigned int t;
+> +	struct list_head *curr;
+> +	struct page_info_item *info;
+> +
+> +	if (zone_is_empty(zone))
+> +		return 0;
+> +
+> +	spin_lock_irqsave(&zone->lock, flags);
+> +
+> +	if (*pos + zone->free_area[order].nr_free > size)
+> +		return -ENOSPC;
+
+Urg, so this won't partially fill?  So, what the nr_free pages limit
+where we no longer fit in the kmalloc()'d buffer where this simply won't
+work?
+
+> +	for (t = 0; t < MIGRATE_TYPES; t++) {
+> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+> +			info = (struct page_info_item *)(unused_pages + *pos);
+> +			info->start_pfn = pfn;
+> +			info->page_shift = order + PAGE_SHIFT;
+> +			*pos += 1;
+> +		}
+> +	}
+
+Do we need to fill in ->bmap_len here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
