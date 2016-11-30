@@ -1,64 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5D86B0038
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:21:52 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id r94so28385915ioe.7
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 10:21:52 -0800 (PST)
-Received: from mail1.merlins.org (magic.merlins.org. [209.81.13.136])
-        by mx.google.com with ESMTPS id 65si48457909ioc.133.2016.11.30.10.21.51
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0ADE6B0253
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 13:21:53 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xr1so34069197wjb.7
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 10:21:53 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u198si8216566wmf.106.2016.11.30.10.21.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 30 Nov 2016 10:21:52 -0800 (PST)
-Date: Wed, 30 Nov 2016 10:21:44 -0800
-From: Marc MERLIN <marc@merlins.org>
-Message-ID: <20161130182144.xhnmgpsyyv423pqw@merlins.org>
-References: <20161123063410.GB2864@dhcp22.suse.cz>
- <20161128072315.GC14788@dhcp22.suse.cz>
- <20161129155537.f6qgnfmnoljwnx6j@merlins.org>
- <20161129160751.GC9796@dhcp22.suse.cz>
- <20161129163406.treuewaqgt4fy4kh@merlins.org>
- <CA+55aFzNe=3e=cDig+vEzZS5jm2c6apPV4s5NKG4eYL4_jxQjQ@mail.gmail.com>
- <20161129174019.fywddwo5h4pyix7r@merlins.org>
- <CA+55aFz04aMBurHuME5A1NuhumMECD5iROhn06GB4=ceA+s6mw@mail.gmail.com>
- <20161130174713.lhvqgophhiupzwrm@merlins.org>
- <CA+55aFzPQpvttSryRL3+EWeY7X+uFWOk2V+mM8JYm7ba+X1gHg@mail.gmail.com>
+Date: Wed, 30 Nov 2016 13:16:53 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
+ dereference in mem_cgroup_node_nr_lru_pages
+Message-ID: <20161130181653.GA30558@cmpxchg.org>
+References: <bug-189181-27@https.bugzilla.kernel.org/>
+ <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
+ <20161130170040.GJ18432@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzPQpvttSryRL3+EWeY7X+uFWOk2V+mM8JYm7ba+X1gHg@mail.gmail.com>
-Subject: Re: 4.8.8 kernel trigger OOM killer repeatedly when I have lots of
- RAM that should be free
+In-Reply-To: <20161130170040.GJ18432@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kent Overstreet <kent.overstreet@gmail.com>, Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, marmarek@mimuw.edu.pl, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Wed, Nov 30, 2016 at 10:14:50AM -0800, Linus Torvalds wrote:
-> Anyway, none of this seems new per se. I'm adding Kent and Jens to the
-> cc (Tejun already was), in the hope that maybe they have some idea how
-> to control the nasty worst-case behavior wrt workqueue lockup (it's
-> not really a "lockup", it looks like it's just hundreds of workqueues
-> all waiting for IO to complete and much too deep IO queues).
- 
-I'll take your word for it, all I got in the end was
-Kernel panic - not syncing: Hard LOCKUP
-and the system stone dead when I woke up hours later.
+Hi Michael,
 
-> And I think your NMI watchdog then turns the "system is no longer
-> responsive" into an actual kernel panic.
+On Wed, Nov 30, 2016 at 06:00:40PM +0100, Michal Hocko wrote:
+> > > [   15.665196] BUG: unable to handle kernel NULL pointer dereference at
+> > > 0000000000000400
+> > > [   15.665213] IP: [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> > > [   15.665225] PGD 0 
+> > > [   15.665230] Oops: 0000 [#1] SMP
+> > > [   15.665235] Modules linked in: fuse xt_nat xen_netback xt_REDIRECT
+> > > nf_nat_redirect ip6table_filter ip6_tables xt_conntrack ipt_MASQUERADE
+> > > nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_i
+> > > pv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack intel_rapl
+> > > x86_pkg_temp_thermal coretemp crct10dif_pclmul crc32_pclmul crc32c_intel
+> > > ghash_clmulni_intel pcspkr dummy_hcd udc_core u2mfn(O) 
+> > > xen_blkback xenfs xen_privcmd xen_blkfront
+> > > [   15.665285] CPU: 0 PID: 60 Comm: kswapd0 Tainted: G           O   
+> > > 4.8.10-12.pvops.qubes.x86_64 #1
+> > > [   15.665292] task: ffff880011863b00 task.stack: ffff880011868000
+> > > [   15.665297] RIP: e030:[<ffffffff8122d520>]  [<ffffffff8122d520>]
+> > > mem_cgroup_node_nr_lru_pages+0x20/0x40
+> > > [   15.665307] RSP: e02b:ffff88001186bc70  EFLAGS: 00010293
+> > > [   15.665311] RAX: 0000000000000000 RBX: ffff88001186bd20 RCX:
+> > > 0000000000000002
+> > > [   15.665317] RDX: 000000000000000c RSI: 0000000000000000 RDI:
+> > > 0000000000000000
+> 
+> I cannot generate a similar code to yours but the above suggests that we
+> are getting NULL memcg. This would suggest a global reclaim and
+> count_shadow_nodes misinterprets that because it does
+> 
+> 	if (memcg_kmem_enabled()) {
+> 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+> 						     LRU_ALL_FILE);
+> 	} else {
+> 		pages = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
+> 			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
+> 	}
+> 
+> this might be a race with kmem enabling AFAICS. Anyaway I believe that
+> the above check needs to ne extended for the sc->memcg != NULL
 
-Ah, I see.
+Yep, my locally built code looks very different from the report, but
+it's clear that memcg is NULL. I didn't see the race you mention, but
+it makes sense to me: shrink_slab() is supposed to filter memcg-aware
+shrinkers based on whether we have a memcg or not, but it only does it
+when kmem accounting is enabled; if it's disabled, the shrinker should
+also use its non-memcg behavior. However, nothing prevents a memcg
+with kmem from onlining between the filter and the shrinker run.
 
-Thanks for the reply, and sorry for bringing in that separate thread
-from the btrfs mailing list, which effectively was a suggestion similar
-to what you're saying here too.
+> diff --git a/mm/workingset.c b/mm/workingset.c
+> index 617475f529f4..0f07522c5c0e 100644
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+>  	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+>  	local_irq_enable();
+>  
+> -	if (memcg_kmem_enabled()) {
+> +	if (memcg_kmem_enabled() && sc->memcg) {
+>  		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+>  						     LRU_ALL_FILE);
+>  	} else {
 
-Marc
--- 
-"A mouse is a device used to point at the xterm you want to type in" - A.S.R.
-Microsoft is to operating systems ....
-                                      .... what McDonalds is to gourmet cooking
-Home page: http://marc.merlins.org/                         | PGP 1024R/763BE901
+If we do that, I'd remove the racy memcg_kmem_enabled() check
+altogether and just check for whether we have a memcg or not.
+
+What do you think, Vladimir?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
