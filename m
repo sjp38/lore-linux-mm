@@ -1,104 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CCBEA6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 20:28:23 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id a20so47740040wme.5
-        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 17:28:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r3si4838131wmd.81.2016.11.29.17.28.21
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B26BA6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 22:02:22 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f188so470899275pgc.1
+        for <linux-mm@kvack.org>; Tue, 29 Nov 2016 19:02:22 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0085.outbound.protection.outlook.com. [104.47.0.85])
+        by mx.google.com with ESMTPS id v23si62196105pgc.42.2016.11.29.19.02.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Nov 2016 17:28:22 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uAU1NfpB027022
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 20:28:20 -0500
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 271hre32qt-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Nov 2016 20:28:20 -0500
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 29 Nov 2016 18:28:20 -0700
-Date: Tue, 29 Nov 2016 17:28:17 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
- ...' causing hang on sparc32 qemu
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20161129212308.GA12447@roeck-us.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 29 Nov 2016 19:02:21 -0800 (PST)
+Date: Wed, 30 Nov 2016 11:02:01 +0800
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: Re: [PATCH V2 fix 5/6] mm: hugetlb: add a new function to allocate a
+ new gigantic page
+Message-ID: <20161130030159.GA18502@sha-win-210.asiapac.arm.com>
+References: <1479107259-2011-6-git-send-email-shijie.huang@arm.com>
+ <1479279304-31379-1-git-send-email-shijie.huang@arm.com>
+ <f6fc93b4-5c1c-bbab-7c74-a0d60d4afc84@suse.cz>
+ <20161129090322.GB16569@sha-win-210.asiapac.arm.com>
+ <777f7e0c-c04b-77c3-b866-0787bad32aa8@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20161129212308.GA12447@roeck-us.net>
-Message-Id: <20161130012817.GH3924@linux.vnet.ibm.com>
+In-Reply-To: <777f7e0c-c04b-77c3-b866-0787bad32aa8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
 
-On Tue, Nov 29, 2016 at 01:23:08PM -0800, Guenter Roeck wrote:
-> Hi Paul,
+On Tue, Nov 29, 2016 at 11:50:37AM +0100, Vlastimil Babka wrote:
+> > > > +	if (!vma) {
+> > > > +		if (nid == NUMA_NO_NODE) {
+> > > > +			if (!init_nodemask_of_mempolicy(nodes_allowed)) {
+> > > > +				NODEMASK_FREE(nodes_allowed);
+> > > > +				nodes_allowed = &node_states[N_MEMORY];
+> > > > +			}
+> > > > +		} else if (nodes_allowed) {
+> > The check is here.
 > 
-> most of my qemu tests for sparc32 targets started to fail in next-20161129.
-> The problem is only seen in SMP builds; non-SMP builds are fine.
-> Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
-> RCU CPU stall warnings"); reverting that commit fixes the problem.
+> It's below a possible usage of nodes_allowed as an argument of
+> init_nodemask_of_mempolicy(mask). Which does
+Sorry, I missed that.
 > 
-> Test scripts are available at:
-> 	https://github.com/groeck/linux-build-test/tree/master/rootfs/sparc
-> Test results are at:
-> 	https://github.com/groeck/linux-build-test/tree/master/rootfs/sparc
+>         if (!(mask && current->mempolicy))
+>                 return false;
 > 
-> Bisect log is attached.
+> which itself looks like an error at first sight :)
+Yes. I agree.
 > 
-> Please let me know if there is anything I can do to help tracking down the
-> problem.
+> > Do we really need to re-arrange the code here for the explicit check? :)
+> 
+> We don't need it *now* to be correct, but I still find it fragile. Also it
+> mixes up the semantic of NULL as a conscious "default" value, and NULL as
+> a side-effect of memory allocation failure. Nothing good can come from that
+> in the long term :)
+Okay, I think we do have the need to do the NULL check for
+@nodes_allowed. :)
 
-Apologies!!!  Does the patch below help?
-
-							Thanx, Paul
-
-------------------------------------------------------------------------
-
-commit 97708e737e2a55fed4bdbc005bf05ea909df6b73
-Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Date:   Tue Nov 29 11:06:05 2016 -0800
-
-    rcu: Allow boot-time use of cond_resched_rcu_qs()
-    
-    The cond_resched_rcu_qs() macro is used to force RCU quiescent states into
-    long-running in-kernel loops.  However, some of these loops can execute
-    during early boot when interrupts are disabled, and during which time
-    it is therefore illegal to enter the scheduler.  This commit therefore
-    makes cond_resched_rcu_qs() be a no-op during early boot.
-    
-    Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-
-diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-index 525ca34603b7..b6944cc19a07 100644
---- a/include/linux/rcupdate.h
-+++ b/include/linux/rcupdate.h
-@@ -423,7 +423,7 @@ extern struct srcu_struct tasks_rcu_exit_srcu;
-  */
- #define cond_resched_rcu_qs() \
- do { \
--	if (!cond_resched()) \
-+	if (!is_idle_task(current) && !cond_resched()) \
- 		rcu_note_voluntary_context_switch(current); \
- } while (0)
- 
-diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
-index 7232d199a81c..20f5990deeee 100644
---- a/include/linux/rcutiny.h
-+++ b/include/linux/rcutiny.h
-@@ -228,6 +228,7 @@ static inline void exit_rcu(void)
- extern int rcu_scheduler_active __read_mostly;
- void rcu_scheduler_starting(void);
- #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
-+#define rcu_scheduler_active false
- static inline void rcu_scheduler_starting(void)
- {
- }
+Thanks
+Huang Shijie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
