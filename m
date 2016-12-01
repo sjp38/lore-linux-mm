@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC3928025A
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:25:28 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id o3so39599358wjo.1
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:28 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id l10si626367wjr.92.2016.12.01.07.25.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 726E628025A
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:25:29 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so57843599wmw.0
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:29 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id m88si12399235wmc.167.2016.12.01.07.25.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 07:25:27 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id g23so34806648wme.1
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:27 -0800 (PST)
+        Thu, 01 Dec 2016 07:25:28 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id m203so34678865wma.3
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:28 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] mm: consolidate GFP_NOFAIL checks in the allocator slowpath
-Date: Thu,  1 Dec 2016 16:25:16 +0100
-Message-Id: <20161201152517.27698-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
+Date: Thu,  1 Dec 2016 16:25:17 +0100
+Message-Id: <20161201152517.27698-3-mhocko@kernel.org>
 In-Reply-To: <20161201152517.27698-1-mhocko@kernel.org>
 References: <20161201152517.27698-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,132 +24,179 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA
 
 From: Michal Hocko <mhocko@suse.com>
 
-Tetsuo Handa has pointed out that 0a0337e0d1d1 ("mm, oom: rework oom
-detection") has subtly changed semantic for costly high order requests
-with __GFP_NOFAIL and withtout __GFP_REPEAT and those can fail right now.
-My code inspection didn't reveal any such users in the tree but it is
-true that this might lead to unexpected allocation failures and
-subsequent OOPs.
+__alloc_pages_may_oom makes sure to skip the OOM killer depending on
+the allocation request. This includes lowmem requests, costly high
+order requests and others. For a long time __GFP_NOFAIL acted as an
+override for all those rules. This is not documented and it can be quite
+surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
+killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
+the existing open coded loops around allocator to nofail request (and we
+have done that in the past) then such a change would have a non trivial
+side effect which is not obvious. Note that the primary motivation for
+skipping the OOM killer is to prevent from pre-mature invocation.
 
-__alloc_pages_slowpath wrt. GFP_NOFAIL is hard to follow currently.
-There are few special cases but we are lacking a catch all place to be
-sure we will not miss any case where the non failing allocation might
-fail. This patch reorganizes the code a bit and puts all those special
-cases under nopage label which is the generic go-to-fail path. Non
-failing allocations are retried or those that cannot retry like
-non-sleeping allocation go to the failure point directly. This should
-make the code flow much easier to follow and make it less error prone
-for future changes.
+The exception has been added by 82553a937f12 ("oom: invoke oom killer
+for __GFP_NOFAIL"). The changelog points out that the oom killer has to
+be invoked otherwise the request would be looping for ever. But this
+argument is rather weak because the OOM killer doesn't really guarantee
+any forward progress for those exceptional cases - e.g. it will hardly
+help to form costly order - I believe we certainly do not want to kill
+all processes and eventually panic the system just because there is a
+nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
+the consequences - it is much better this request would loop for ever
+than the massive system disruption, lowmem is also highly unlikely to be
+freed during OOM killer and GFP_NOFS request could trigger while there
+is still a lot of memory pinned by filesystems.
 
-While we are there we have to move the stall check up to catch
-potentially looping non-failing allocations.
+This patch simply removes the __GFP_NOFAIL special case in order to have
+a more clear semantic without surprising side effects. Instead we do
+allow nofail requests to access memory reserves to move forward in both
+cases when the OOM killer is invoked and when it should be supressed.
+__alloc_pages_nowmark helper has been introduced for that purpose.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/page_alloc.c | 68 ++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 41 insertions(+), 27 deletions(-)
+ mm/oom_kill.c   |  2 +-
+ mm/page_alloc.c | 95 +++++++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 59 insertions(+), 38 deletions(-)
 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ec9f11d4f094..12a6fce85f61 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * make sure exclude 0 mask - all other users should have at least
+ 	 * ___GFP_DIRECT_RECLAIM to get here.
+ 	 */
+-	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
++	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+ 		return true;
+ 
+ 	/*
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0fbfead6aa7d..76c0b6bb0baf 100644
+index 76c0b6bb0baf..7102641147c4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3627,32 +3627,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto got_pg;
+@@ -3044,6 +3044,25 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+ }
  
- 	/* Caller is not willing to reclaim, we can't balance anything */
--	if (!can_direct_reclaim) {
--		/*
--		 * All existing users of the __GFP_NOFAIL are blockable, so warn
--		 * of any new users that actually allow this type of allocation
--		 * to fail.
--		 */
--		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-+	if (!can_direct_reclaim)
- 		goto nopage;
+ static inline struct page *
++__alloc_pages_nowmark(gfp_t gfp_mask, unsigned int order,
++						const struct alloc_context *ac)
++{
++	struct page *page;
 +
-+	/* Make sure we know about allocations which stall for too long */
-+	if (time_after(jiffies, alloc_start + stall_timeout)) {
-+		warn_alloc(gfp_mask,
-+			"page alloction stalls for %ums, order:%u",
-+			jiffies_to_msecs(jiffies-alloc_start), order);
-+		stall_timeout += 10 * HZ;
- 	}
- 
- 	/* Avoid recursion of direct reclaim */
--	if (current->flags & PF_MEMALLOC) {
--		/*
--		 * __GFP_NOFAIL request from this context is rather bizarre
--		 * because we cannot reclaim anything and only can loop waiting
--		 * for somebody to do a work for us.
--		 */
--		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
--			cond_resched();
--			goto retry;
--		}
-+	if (current->flags & PF_MEMALLOC)
- 		goto nopage;
--	}
- 
- 	/* Avoid allocations with no watermarks from looping endlessly */
--	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-+	if (test_thread_flag(TIF_MEMDIE))
- 		goto nopage;
- 
- 
-@@ -3679,14 +3670,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
- 		goto nopage;
- 
--	/* Make sure we know about allocations which stall for too long */
--	if (time_after(jiffies, alloc_start + stall_timeout)) {
--		warn_alloc(gfp_mask,
--			"page alloction stalls for %ums, order:%u",
--			jiffies_to_msecs(jiffies-alloc_start), order);
--		stall_timeout += 10 * HZ;
--	}
--
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
- 				 did_some_progress > 0, &no_progress_loops))
- 		goto retry;
-@@ -3715,6 +3698,37 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	}
- 
- nopage:
++	page = get_page_from_freelist(gfp_mask, order,
++			ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
 +	/*
-+	 * Make sure that __GFP_NOFAIL request doesn't leak out and make sure
-+	 * we always retry
++	 * fallback to ignore cpuset restriction if our nodes
++	 * are depleted
 +	 */
-+	if (gfp_mask & __GFP_NOFAIL) {
-+		/*
-+		 * All existing users of the __GFP_NOFAIL are blockable, so warn
-+		 * of any new users that actually require GFP_NOWAIT
-+		 */
-+		if (WARN_ON_ONCE(!can_direct_reclaim))
-+			goto fail;
++	if (!page)
++		page = get_page_from_freelist(gfp_mask, order,
++				ALLOC_NO_WATERMARKS, ac);
 +
-+		/*
-+		 * PF_MEMALLOC request from this context is rather bizarre
-+		 * because we cannot reclaim anything and only can loop waiting
-+		 * for somebody to do a work for us
-+		 */
-+		WARN_ON_ONCE(current->flags & PF_MEMALLOC);
++	return page;
++}
 +
-+		/*
-+		 * non failing costly orders are a hard requirement which we
-+		 * are not prepared for much so let's warn about these users
-+		 * so that we can identify them and convert them to something
-+		 * else.
-+		 */
-+		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
++static inline struct page *
+ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	const struct alloc_context *ac, unsigned long *did_some_progress)
+ {
+@@ -3078,47 +3097,41 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	if (page)
+ 		goto out;
+ 
+-	if (!(gfp_mask & __GFP_NOFAIL)) {
+-		/* Coredumps can quickly deplete all memory reserves */
+-		if (current->flags & PF_DUMPCORE)
+-			goto out;
+-		/* The OOM killer will not help higher order allocs */
+-		if (order > PAGE_ALLOC_COSTLY_ORDER)
+-			goto out;
+-		/* The OOM killer does not needlessly kill tasks for lowmem */
+-		if (ac->high_zoneidx < ZONE_NORMAL)
+-			goto out;
+-		if (pm_suspended_storage())
+-			goto out;
+-		/*
+-		 * XXX: GFP_NOFS allocations should rather fail than rely on
+-		 * other request to make a forward progress.
+-		 * We are in an unfortunate situation where out_of_memory cannot
+-		 * do much for this context but let's try it to at least get
+-		 * access to memory reserved if the current task is killed (see
+-		 * out_of_memory). Once filesystems are ready to handle allocation
+-		 * failures more gracefully we should just bail out here.
+-		 */
++	/* Coredumps can quickly deplete all memory reserves */
++	if (current->flags & PF_DUMPCORE)
++		goto out;
++	/* The OOM killer will not help higher order allocs */
++	if (order > PAGE_ALLOC_COSTLY_ORDER)
++		goto out;
++	/* The OOM killer does not needlessly kill tasks for lowmem */
++	if (ac->high_zoneidx < ZONE_NORMAL)
++		goto out;
++	if (pm_suspended_storage())
++		goto out;
++	/*
++	 * XXX: GFP_NOFS allocations should rather fail than rely on
++	 * other request to make a forward progress.
++	 * We are in an unfortunate situation where out_of_memory cannot
++	 * do much for this context but let's try it to at least get
++	 * access to memory reserved if the current task is killed (see
++	 * out_of_memory). Once filesystems are ready to handle allocation
++	 * failures more gracefully we should just bail out here.
++	 */
 +
-+		cond_resched();
-+		goto retry;
-+	}
-+fail:
- 	warn_alloc(gfp_mask,
- 			"page allocation failure: order:%u", order);
- got_pg:
++	/* The OOM killer may not free memory on a specific node */
++	if (gfp_mask & __GFP_THISNODE)
++		goto out;
+ 
+-		/* The OOM killer may not free memory on a specific node */
+-		if (gfp_mask & __GFP_THISNODE)
+-			goto out;
+-	}
+ 	/* Exhausted what can be done so it's blamo time */
+-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
++	if (out_of_memory(&oc)) {
+ 		*did_some_progress = 1;
+ 
+-		if (gfp_mask & __GFP_NOFAIL) {
+-			page = get_page_from_freelist(gfp_mask, order,
+-					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
+-			/*
+-			 * fallback to ignore cpuset restriction if our nodes
+-			 * are depleted
+-			 */
+-			if (!page)
+-				page = get_page_from_freelist(gfp_mask, order,
+-					ALLOC_NO_WATERMARKS, ac);
+-		}
++		/*
++		 * Help non-failing allocations by giving them access to memory
++		 * reserves
++		 */
++		if (gfp_mask & __GFP_NOFAIL)
++			page = __alloc_pages_nowmark(gfp_mask, order, ac);
+ 	}
+ out:
+ 	mutex_unlock(&oom_lock);
+@@ -3725,6 +3738,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 */
+ 		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
+ 
++		/*
++		 * Help non-failing allocations by giving them access to memory
++		 * reserves
++		 */
++		page = __alloc_pages_nowmark(gfp_mask, order, ac);
++		if (page)
++			goto got_pg;
++
+ 		cond_resched();
+ 		goto retry;
+ 	}
 -- 
 2.10.2
 
