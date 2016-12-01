@@ -1,103 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF556B0069
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:25:04 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id g12so49680589lfe.5
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:25:04 -0800 (PST)
-Received: from mail.mimuw.edu.pl (mail.mimuw.edu.pl. [2001:6a0:5001::4])
-        by mx.google.com with ESMTPS id v67si33124782lfi.271.2016.11.30.18.25.02
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5C46B025E
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:30:59 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id c21so50763966ioj.5
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:30:59 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id p205si32395399oif.74.2016.11.30.18.30.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 18:25:02 -0800 (PST)
-Date: Thu, 1 Dec 2016 03:24:54 +0100
-From: Marek =?utf-8?Q?Marczykowski-G=C3=B3recki?= <marmarek@mimuw.edu.pl>
-Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
- dereference in mem_cgroup_node_nr_lru_pages
-Message-ID: <20161201022454.GB21693@mail-personal>
-References: <bug-189181-27@https.bugzilla.kernel.org/>
- <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
- <20161130170040.GJ18432@dhcp22.suse.cz>
- <20161130181653.GA30558@cmpxchg.org>
- <20161130183016.GO18432@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Nov 2016 18:30:59 -0800 (PST)
+Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
+ bdev->bd_disk
+References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
+ <20161128100718.GD2590@quack2.suse.cz> <583CE0C7.1040406@huawei.com>
+ <20161130095104.GB20030@quack2.suse.cz>
+From: Wei Fang <fangwei1@huawei.com>
+Message-ID: <583F8B2D.8090908@huawei.com>
+Date: Thu, 1 Dec 2016 10:30:05 +0800
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ZfOjI3PrQbgiZnxM"
-Content-Disposition: inline
-In-Reply-To: <20161130183016.GO18432@dhcp22.suse.cz>
+In-Reply-To: <20161130095104.GB20030@quack2.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>
 
+Hi, Jan,
 
---ZfOjI3PrQbgiZnxM
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On 2016/11/30 17:51, Jan Kara wrote:
+> On Tue 29-11-16 09:58:31, Wei Fang wrote:
+>> Hi, Jan,
+>>
+>> On 2016/11/28 18:07, Jan Kara wrote:
+>>> Good catch but I don't like sprinkling checks like this into the writeback
+>>> code and furthermore we don't want to call into writeback code when block
+>>> device is in the process of being destroyed which is what would happen with
+>>> your patch. That is a bug waiting to happen...
+>>
+>> Agreed. Need another way to fix this problem. I looked through the
+>> writeback cgroup code in __filemap_fdatawrite_range(), found if we
+>> turn on CONFIG_CGROUP_WRITEBACK, a new crash will happen.
+> 
+> OK, can you test with attached patch please? Thanks!
 
-On Wed, Nov 30, 2016 at 07:30:17PM +0100, Michal Hocko wrote:
-> On Wed 30-11-16 13:16:53, Johannes Weiner wrote:
-> > Hi Michael,
-> >=20
-> > On Wed, Nov 30, 2016 at 06:00:40PM +0100, Michal Hocko wrote:
-> [...]
-> > > diff --git a/mm/workingset.c b/mm/workingset.c
-> > > index 617475f529f4..0f07522c5c0e 100644
-> > > --- a/mm/workingset.c
-> > > +++ b/mm/workingset.c
-> > > @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct sh=
-rinker *shrinker,
-> > >  	shadow_nodes =3D list_lru_shrink_count(&workingset_shadow_nodes, sc=
-);
-> > >  	local_irq_enable();
-> > > =20
-> > > -	if (memcg_kmem_enabled()) {
-> > > +	if (memcg_kmem_enabled() && sc->memcg) {
-> > >  		pages =3D mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
-> > >  						     LRU_ALL_FILE);
-> > >  	} else {
-> >=20
-> > If we do that, I'd remove the racy memcg_kmem_enabled() check
-> > altogether and just check for whether we have a memcg or not.
->=20
-> But that would make this a memcg aware shrinker even when kmem is not
-> enabled...
->=20
-> But now that I am looking into the code
-> shrink_slab:
-> 		if (memcg_kmem_enabled() &&
-> 		    !!memcg !=3D !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
-> 			continue;
->=20
-> this should be taken care of already. So sc->memcg should be indeed
-> sufficient. So unless I am missing something I will respin my local
-> patch and post it later after the reporter has some time to test the
-> current one.
+I've tested this patch with linux-next about 2 hours, and all goes well.
+Without this patch, kernel crashes in minutes.
 
-The above patch seems to help. At least the problem haven't occurred for
-the last ~40 VM startups.
-
-> =20
-> > What do you think, Vladimir?
->=20
-
---=20
-Pozdrawiam / Best Regards,
-Marek Marczykowski-G=C3=B3recki  | RLU #390519
-marmarek at staszic waw pl  | xmpp:marmarek at staszic waw pl
-
---ZfOjI3PrQbgiZnxM
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iEYEARECAAYFAlg/ifYACgkQXmmj5DNap+pIDACg2IMLGxsQKOObDnHM9yFNMoF+
-XkoAn3m8KbgSIyzTTbs68+p+eMnR40x7
-=EAZK
------END PGP SIGNATURE-----
-
---ZfOjI3PrQbgiZnxM--
+Thanks,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
