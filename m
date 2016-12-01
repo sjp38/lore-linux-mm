@@ -1,109 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 27AAF6B0069
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:57 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id jb2so35685016wjb.6
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 17:19:57 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 193si9744770wmu.34.2016.11.30.17.19.55
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF556B0069
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:25:04 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id g12so49680589lfe.5
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:25:04 -0800 (PST)
+Received: from mail.mimuw.edu.pl (mail.mimuw.edu.pl. [2001:6a0:5001::4])
+        by mx.google.com with ESMTPS id v67si33124782lfi.271.2016.11.30.18.25.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 17:19:56 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB11Iqvn082467
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:54 -0500
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2727e8pkgj-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:54 -0500
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 30 Nov 2016 18:19:53 -0700
-Date: Wed, 30 Nov 2016 17:19:50 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
- ...' causing hang on sparc32 qemu
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20161129212308.GA12447@roeck-us.net>
- <20161130012817.GH3924@linux.vnet.ibm.com>
- <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
- <20161130070212.GM3924@linux.vnet.ibm.com>
- <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
- <20161130120333.GQ3924@linux.vnet.ibm.com>
- <20161130192159.GB22216@roeck-us.net>
- <20161130210152.GL3924@linux.vnet.ibm.com>
- <20161130231846.GB17244@roeck-us.net>
+        Wed, 30 Nov 2016 18:25:02 -0800 (PST)
+Date: Thu, 1 Dec 2016 03:24:54 +0100
+From: Marek =?utf-8?Q?Marczykowski-G=C3=B3recki?= <marmarek@mimuw.edu.pl>
+Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
+ dereference in mem_cgroup_node_nr_lru_pages
+Message-ID: <20161201022454.GB21693@mail-personal>
+References: <bug-189181-27@https.bugzilla.kernel.org/>
+ <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
+ <20161130170040.GJ18432@dhcp22.suse.cz>
+ <20161130181653.GA30558@cmpxchg.org>
+ <20161130183016.GO18432@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="ZfOjI3PrQbgiZnxM"
 Content-Disposition: inline
-In-Reply-To: <20161130231846.GB17244@roeck-us.net>
-Message-Id: <20161201011950.GX3924@linux.vnet.ibm.com>
+In-Reply-To: <20161130183016.GO18432@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Wed, Nov 30, 2016 at 03:18:46PM -0800, Guenter Roeck wrote:
-> On Wed, Nov 30, 2016 at 01:01:52PM -0800, Paul E. McKenney wrote:
-> > On Wed, Nov 30, 2016 at 11:21:59AM -0800, Guenter Roeck wrote:
-> > > On Wed, Nov 30, 2016 at 04:03:33AM -0800, Paul E. McKenney wrote:
-> > > > On Wed, Nov 30, 2016 at 02:52:11AM -0800, Guenter Roeck wrote:
-> > > > > On 11/29/2016 11:02 PM, Paul E. McKenney wrote:
-> > > > > >On Tue, Nov 29, 2016 at 08:32:51PM -0800, Guenter Roeck wrote:
-> > > > > >>On 11/29/2016 05:28 PM, Paul E. McKenney wrote:
-> > > > > >>>On Tue, Nov 29, 2016 at 01:23:08PM -0800, Guenter Roeck wrote:
-> > > > > >>>>Hi Paul,
-> > > > > >>>>
-> > > > > >>>>most of my qemu tests for sparc32 targets started to fail in next-20161129.
-> > > > > >>>>The problem is only seen in SMP builds; non-SMP builds are fine.
-> > > > > >>>>Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
-> > > > > >>>>RCU CPU stall warnings"); reverting that commit fixes the problem.
-> > > > 
-> > > > And I have dropped this patch.  Michal Hocko showed me the error of
-> > > > my ways with this patch.
-> > > > 
-> > > 
-> > > :-)
-> > > 
-> > > On another note, I still get RCU tracebacks in the s390 tests.
-> > > 
-> > > BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
-> > > 
-> > > That is caused by 'rcu: Maintain special bits at bottom of ->dynticks counter';
-> > > if I recall correctly we had discussed that earlier.
-> > 
-> > Indeed, I had missed a dyntick counter update back on Nov 11, which meant
-> > that some of the code was still looking at the low-order bit instead of
-> > the next bit up.  This is now fixed.
-> > 
-> > So to get to the error message you call out above, I need to have improperly
-> > left the system in bh state or left irqs disabled, while the system was
-> > running normally without an oops.  I am having a hard time seeing how this
-> > patch can do that.
-> > 
-> > I would be more suspicious of f2a471ffc8a8 ("rcu: Allow boot-time use
-> > of cond_resched_rcu_qs()").
-> > 
-> > So you bisected or did a revert to work out which was the offending commit?
-> > 
-> 
-> My most recent bisect was with the November 10 image, so that would have missed
-> any later fix. Comparing the log messages, the current message is indeed
-> different. Sorry, I mixed that up; I just assumed that the problem would be
-> the same without really checking. My bad.
-> 
-> Bisect would be tricky, since the s390 image was broken for some time after
-> November 10. The first time I have seen the above BUG: was with next-20161128
-> (which is the first build after the crash was fixed). That version did not
-> include f2a471ffc8a8, so that can not be the cause.
-> 
-> I'll try to set up a bisect tonight, working around the crash problem.
-> I'll let you know how it goes.
 
-Whew!  You had me going for a bit there.  ;-)
+--ZfOjI3PrQbgiZnxM
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-							Thanx, Paul
+On Wed, Nov 30, 2016 at 07:30:17PM +0100, Michal Hocko wrote:
+> On Wed 30-11-16 13:16:53, Johannes Weiner wrote:
+> > Hi Michael,
+> >=20
+> > On Wed, Nov 30, 2016 at 06:00:40PM +0100, Michal Hocko wrote:
+> [...]
+> > > diff --git a/mm/workingset.c b/mm/workingset.c
+> > > index 617475f529f4..0f07522c5c0e 100644
+> > > --- a/mm/workingset.c
+> > > +++ b/mm/workingset.c
+> > > @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct sh=
+rinker *shrinker,
+> > >  	shadow_nodes =3D list_lru_shrink_count(&workingset_shadow_nodes, sc=
+);
+> > >  	local_irq_enable();
+> > > =20
+> > > -	if (memcg_kmem_enabled()) {
+> > > +	if (memcg_kmem_enabled() && sc->memcg) {
+> > >  		pages =3D mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+> > >  						     LRU_ALL_FILE);
+> > >  	} else {
+> >=20
+> > If we do that, I'd remove the racy memcg_kmem_enabled() check
+> > altogether and just check for whether we have a memcg or not.
+>=20
+> But that would make this a memcg aware shrinker even when kmem is not
+> enabled...
+>=20
+> But now that I am looking into the code
+> shrink_slab:
+> 		if (memcg_kmem_enabled() &&
+> 		    !!memcg !=3D !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> 			continue;
+>=20
+> this should be taken care of already. So sc->memcg should be indeed
+> sufficient. So unless I am missing something I will respin my local
+> patch and post it later after the reporter has some time to test the
+> current one.
+
+The above patch seems to help. At least the problem haven't occurred for
+the last ~40 VM startups.
+
+> =20
+> > What do you think, Vladimir?
+>=20
+
+--=20
+Pozdrawiam / Best Regards,
+Marek Marczykowski-G=C3=B3recki  | RLU #390519
+marmarek at staszic waw pl  | xmpp:marmarek at staszic waw pl
+
+--ZfOjI3PrQbgiZnxM
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iEYEARECAAYFAlg/ifYACgkQXmmj5DNap+pIDACg2IMLGxsQKOObDnHM9yFNMoF+
+XkoAn3m8KbgSIyzTTbs68+p+eMnR40x7
+=EAZK
+-----END PGP SIGNATURE-----
+
+--ZfOjI3PrQbgiZnxM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
