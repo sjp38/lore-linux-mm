@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B8ED06B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 01:57:01 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id n6so146744985qtd.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 22:57:01 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id x37si7933271ota.257.2016.11.30.22.57.00
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFE66B0069
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 02:02:16 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id bk3so36838835wjc.4
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 23:02:16 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id z84si10830823wmg.75.2016.11.30.23.02.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 22:57:00 -0800 (PST)
-Date: Wed, 30 Nov 2016 22:56:57 -0800
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
- ...' causing hang on sparc32 qemu
-Message-ID: <20161201065657.GA4697@roeck-us.net>
-References: <20161129212308.GA12447@roeck-us.net>
- <20161130012817.GH3924@linux.vnet.ibm.com>
- <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
- <20161130070212.GM3924@linux.vnet.ibm.com>
- <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
- <20161130120333.GQ3924@linux.vnet.ibm.com>
- <20161130192159.GB22216@roeck-us.net>
- <20161130210152.GL3924@linux.vnet.ibm.com>
- <20161130231846.GB17244@roeck-us.net>
- <20161201011950.GX3924@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 23:02:15 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id a20so32727779wme.2
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 23:02:15 -0800 (PST)
+Date: Thu, 1 Dec 2016 08:02:13 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 189181] New: BUG: unable to handle kernel NULL pointer
+ dereference in mem_cgroup_node_nr_lru_pages
+Message-ID: <20161201070213.GA18272@dhcp22.suse.cz>
+References: <bug-189181-27@https.bugzilla.kernel.org/>
+ <20161129145654.c48bebbd684edcd6f64a03fe@linux-foundation.org>
+ <20161130170040.GJ18432@dhcp22.suse.cz>
+ <20161130181653.GA30558@cmpxchg.org>
+ <20161130183016.GO18432@dhcp22.suse.cz>
+ <20161201022454.GB21693@mail-personal>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20161201011950.GX3924@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161201022454.GB21693@mail-personal>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
+To: Marek =?iso-8859-1?Q?Marczykowski-G=F3recki?= <marmarek@mimuw.edu.pl>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Hi Paul,
-
-On Wed, Nov 30, 2016 at 05:19:50PM -0800, Paul E. McKenney wrote:
-[ ... ]
-
-> > > > 
-> > > > BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
-[ ... ]
+On Thu 01-12-16 03:24:54, Marek Marczykowski-Gorecki wrote:
+> On Wed, Nov 30, 2016 at 07:30:17PM +0100, Michal Hocko wrote:
+> > On Wed 30-11-16 13:16:53, Johannes Weiner wrote:
+> > > Hi Michael,
+> > > 
+> > > On Wed, Nov 30, 2016 at 06:00:40PM +0100, Michal Hocko wrote:
+> > [...]
+> > > > diff --git a/mm/workingset.c b/mm/workingset.c
+> > > > index 617475f529f4..0f07522c5c0e 100644
+> > > > --- a/mm/workingset.c
+> > > > +++ b/mm/workingset.c
+> > > > @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+> > > >  	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+> > > >  	local_irq_enable();
+> > > >  
+> > > > -	if (memcg_kmem_enabled()) {
+> > > > +	if (memcg_kmem_enabled() && sc->memcg) {
+> > > >  		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+> > > >  						     LRU_ALL_FILE);
+> > > >  	} else {
+> > > 
+> > > If we do that, I'd remove the racy memcg_kmem_enabled() check
+> > > altogether and just check for whether we have a memcg or not.
+> > 
+> > But that would make this a memcg aware shrinker even when kmem is not
+> > enabled...
+> > 
+> > But now that I am looking into the code
+> > shrink_slab:
+> > 		if (memcg_kmem_enabled() &&
+> > 		    !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> > 			continue;
+> > 
+> > this should be taken care of already. So sc->memcg should be indeed
+> > sufficient. So unless I am missing something I will respin my local
+> > patch and post it later after the reporter has some time to test the
+> > current one.
 > 
-> Whew!  You had me going for a bit there.  ;-)
+> The above patch seems to help. At least the problem haven't occurred for
+> the last ~40 VM startups.
 
-Bisect results are here ... the culprit is, again, commit 2d66cccd73 ("mm:
-Prevent __alloc_pages_nodemask() RCU CPU stall warnings"), and reverting that
-patch fixes the problem. Good that you dropped it already :-).
+I will consider this as
+Tested-by: Marek Marczykowski-Gorecki <marmarek@mimuw.edu.pl>
 
-Guenter
+OK? Thanks for the report and testing!
 
----
-# bad: [59ab0083490c8a871b51e893bae5806e55901d7e] Add linux-next specific files for 20161130
-# good: [e5517c2a5a49ed5e99047008629f1cd60246ea0e] Linux 4.9-rc7
-git bisect start 'HEAD' 'v4.9-rc7'
-# good: [187f99e5c22bb3fab8b330f3ebbbd235d238f3f8] Merge remote-tracking branch 'crypto/master'
-git bisect good 187f99e5c22bb3fab8b330f3ebbbd235d238f3f8
-# good: [36126657c908e822523b8563f9b1512937c0f342] Merge remote-tracking branch 'tip/auto-latest'
-git bisect good 36126657c908e822523b8563f9b1512937c0f342
-# good: [2d2139c5c746ec61024fdfa9c36e4e034bb18e59] Merge tag 'iio-for-4.10d' of git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio into staging-next
-git bisect good 2d2139c5c746ec61024fdfa9c36e4e034bb18e59
-# bad: [926a60551123048c589b45abee2a2ec4c924ab21] Merge remote-tracking branch 'extcon/extcon-next'
-git bisect bad 926a60551123048c589b45abee2a2ec4c924ab21
-# bad: [1541655795a90720b8a094c8cc39f582dec17398] Merge remote-tracking branch 'tty/tty-next'
-git bisect bad 1541655795a90720b8a094c8cc39f582dec17398
-# bad: [69a6720a1e54519d9bf8563764e9e93bf1bd6a84] Merge remote-tracking branch 'kvm-arm/next'
-git bisect bad 69a6720a1e54519d9bf8563764e9e93bf1bd6a84
-# good: [33b8b045b93f9104c61ecad1865af961b3bef03e] Merge remote-tracking branch 'ftrace/for-next'
-git bisect good 33b8b045b93f9104c61ecad1865af961b3bef03e
-# good: [8370c3d08bd98576d97514eca29970e03767a5d1] kvm: svm: Add kvm_fast_pio_in support
-git bisect good 8370c3d08bd98576d97514eca29970e03767a5d1
-# good: [0a895142323de3eebb0b753d3d8c0e768ff179d9] mm: Prevent shrink_node() RCU CPU stall warnings
-git bisect good 0a895142323de3eebb0b753d3d8c0e768ff179d9
-# bad: [f8045446ca778333e960dcb9e30a5858ff2b8c20] srcu: Force full grace-period ordering
-git bisect bad f8045446ca778333e960dcb9e30a5858ff2b8c20
-# good: [f660d64912ccadadcdce6dfb39eb06924dd93767] doc: Fix RCU requirements typos
-git bisect good f660d64912ccadadcdce6dfb39eb06924dd93767
-# good: [d2db185bfee894c573faebed93461e9938bdbb61] rcu: Remove short-term CPU kicking
-git bisect good d2db185bfee894c573faebed93461e9938bdbb61
-# bad: [2d66cccd73436ac9985a08e5c2f82e4344f72264] mm: Prevent __alloc_pages_nodemask() RCU CPU stall warnings
-git bisect bad 2d66cccd73436ac9985a08e5c2f82e4344f72264
-# good: [34c53f5cd399801b083047cc9cf2ad3ed17c3144] mm: Prevent shrink_node_memcg() RCU CPU stall warnings
-git bisect good 34c53f5cd399801b083047cc9cf2ad3ed17c3144
-# first bad commit: [2d66cccd73436ac9985a08e5c2f82e4344f72264] mm: Prevent __alloc_pages_nodemask() RCU CPU stall warnings
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
