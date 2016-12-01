@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5C46B025E
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:30:59 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id c21so50763966ioj.5
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:30:59 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id p205si32395399oif.74.2016.11.30.18.30.57
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DA976B025E
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:41:20 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id p16so143263126qta.5
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:41:20 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v35si31845462qtb.132.2016.11.30.18.41.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 18:30:59 -0800 (PST)
-Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
- bdev->bd_disk
-References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
- <20161128100718.GD2590@quack2.suse.cz> <583CE0C7.1040406@huawei.com>
- <20161130095104.GB20030@quack2.suse.cz>
-From: Wei Fang <fangwei1@huawei.com>
-Message-ID: <583F8B2D.8090908@huawei.com>
-Date: Thu, 1 Dec 2016 10:30:05 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 18:41:19 -0800 (PST)
+Date: Thu, 1 Dec 2016 10:41:03 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCHv4 07/10] kexec: Switch to __pa_symbol
+Message-ID: <20161201024103.GA32438@dhcp-128-65.nay.redhat.com>
+References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
+ <1480445729-27130-8-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161130095104.GB20030@quack2.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1480445729-27130-8-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Eric Biederman <ebiederm@xmission.com>, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Hi, Jan,
-
-On 2016/11/30 17:51, Jan Kara wrote:
-> On Tue 29-11-16 09:58:31, Wei Fang wrote:
->> Hi, Jan,
->>
->> On 2016/11/28 18:07, Jan Kara wrote:
->>> Good catch but I don't like sprinkling checks like this into the writeback
->>> code and furthermore we don't want to call into writeback code when block
->>> device is in the process of being destroyed which is what would happen with
->>> your patch. That is a bug waiting to happen...
->>
->> Agreed. Need another way to fix this problem. I looked through the
->> writeback cgroup code in __filemap_fdatawrite_range(), found if we
->> turn on CONFIG_CGROUP_WRITEBACK, a new crash will happen.
+Hi, Laura
+On 11/29/16 at 10:55am, Laura Abbott wrote:
 > 
-> OK, can you test with attached patch please? Thanks!
+> __pa_symbol is the correct api to get the physical address of kernel
+> symbols. Switch to it to allow for better debug checking.
+> 
 
-I've tested this patch with linux-next about 2 hours, and all goes well.
-Without this patch, kernel crashes in minutes.
+I assume __pa_symbol is faster than __pa, but it still need some testing
+on all arches which support kexec.
 
-Thanks,
-Wei
+But seems long long ago there is a commit e3ebadd95cb in the commit log
+I see below from:
+"we should deprecate __pa_symbol(), and preferably __pa() too - and
+ just use "virt_to_phys()" instead, which is is more readable and has
+ nicer semantics."
+
+But maybe in modern code __pa_symbol is prefered I may miss background.
+virt_to_phys still sounds more readable now for me though.
+
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+> Found during review of the kernel. Untested.
+> ---
+>  kernel/kexec_core.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+> index 5616755..e1b625e 100644
+> --- a/kernel/kexec_core.c
+> +++ b/kernel/kexec_core.c
+> @@ -1397,7 +1397,7 @@ void __weak arch_crash_save_vmcoreinfo(void)
+>  
+>  phys_addr_t __weak paddr_vmcoreinfo_note(void)
+>  {
+> -	return __pa((unsigned long)(char *)&vmcoreinfo_note);
+> +	return __pa_symbol((unsigned long)(char *)&vmcoreinfo_note);
+>  }
+>  
+>  static int __init crash_save_vmcoreinfo_init(void)
+> -- 
+> 2.7.4
+> 
+> 
+> _______________________________________________
+> kexec mailing list
+> kexec@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/kexec
+
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
