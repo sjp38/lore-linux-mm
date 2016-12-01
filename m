@@ -1,66 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F33B6B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 07:50:26 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id w194so99923596vkw.2
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 04:50:26 -0800 (PST)
-Received: from mail-vk0-x242.google.com (mail-vk0-x242.google.com. [2607:f8b0:400c:c05::242])
-        by mx.google.com with ESMTPS id 102si17215vkq.139.2016.12.01.04.50.25
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C33D56B0253
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 07:50:44 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id g8so10750894ioi.0
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 04:50:44 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id r6si35286oih.169.2016.12.01.04.50.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 04:50:25 -0800 (PST)
-Received: by mail-vk0-x242.google.com with SMTP id x186so10693429vkd.2
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 04:50:25 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Dec 2016 04:50:43 -0800 (PST)
+Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
+ ...' causing hang on sparc32 qemu
+References: <20161130012817.GH3924@linux.vnet.ibm.com>
+ <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
+ <20161130070212.GM3924@linux.vnet.ibm.com>
+ <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
+ <20161130120333.GQ3924@linux.vnet.ibm.com>
+ <20161130192159.GB22216@roeck-us.net>
+ <20161130210152.GL3924@linux.vnet.ibm.com>
+ <20161130231846.GB17244@roeck-us.net>
+ <20161201011950.GX3924@linux.vnet.ibm.com>
+ <20161201065657.GA4697@roeck-us.net>
+ <20161201123409.GA3924@linux.vnet.ibm.com>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <d489c061-00ff-2b1c-cf96-c4cf1bb7b2b6@roeck-us.net>
+Date: Thu, 1 Dec 2016 04:50:40 -0800
 MIME-Version: 1.0
-In-Reply-To: <885a17ba-fed8-e312-c2d3-e28a996f5424@linux.vnet.ibm.com>
-References: <20161018150243.GZ3117@twins.programming.kicks-ass.net>
- <cover.1479465699.git.ldufour@linux.vnet.ibm.com> <871sy8284n.fsf@tassilo.jf.intel.com>
- <885a17ba-fed8-e312-c2d3-e28a996f5424@linux.vnet.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 1 Dec 2016 23:50:24 +1100
-Message-ID: <CAKTCnz=0QZ55L5=WbLoCQwB8sXZ_2dgqrBCgdtt=jCqejy=wHA@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 0/7] Speculative page faults
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20161201123409.GA3924@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
+To: paulmck@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
 
-On Thu, Dec 1, 2016 at 7:34 PM, Laurent Dufour
-<ldufour@linux.vnet.ibm.com> wrote:
-> On 18/11/2016 15:08, Andi Kleen wrote:
->> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+On 12/01/2016 04:34 AM, Paul E. McKenney wrote:
+> On Wed, Nov 30, 2016 at 10:56:57PM -0800, Guenter Roeck wrote:
+>> Hi Paul,
 >>
->>> This is a port on kernel 4.8 of the work done by Peter Zijlstra to
->>> handle page fault without holding the mm semaphore.
+>> On Wed, Nov 30, 2016 at 05:19:50PM -0800, Paul E. McKenney wrote:
+>> [ ... ]
 >>
->> One of the big problems with patches like this today is that it is
->> unclear what mmap_sem actually protects. It's a big lock covering lots
->> of code. Parts in the core VM, but also do VM callbacks in file systems
->> and drivers rely on it too?
+>>>>>>
+>>>>>> BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
+>> [ ... ]
+>>>
+>>> Whew!  You had me going for a bit there.  ;-)
 >>
->> IMHO the first step is a comprehensive audit and then writing clear
->> documentation on what it is supposed to protect. Then based on that such
->> changes can be properly evaluated.
+>> Bisect results are here ... the culprit is, again, commit 2d66cccd73 ("mm:
+>> Prevent __alloc_pages_nodemask() RCU CPU stall warnings"), and reverting that
+>> patch fixes the problem. Good that you dropped it already :-).
 >
-> Hi Andi,
+> "My work is done."  ;-)
 >
-> Sorry for the late answer...
+> And apologies for the hassle.  I have no idea what I was thinking when
+> I put the cond_resched_rcu_qs() there!
 >
-> I do agree, this semaphore is massively used and it would be nice to
-> have all its usage documented.
->
-> I'm currently tracking all the mmap_sem use in 4.8 kernel (about 380
-> hits) and I'm trying to identify which it is protecting.
->
-> In addition, I think it may be nice to limit its usage to code under mm/
-> so that in the future it may be easier to find its usage.
 
-Is this possible? All sorts of arch's fault
-handling/virtualization/file system and drivers (IO/DRM/) hold
-mmap_sem.
+No worries.
 
-Balbir Singh.
+Cheers,
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
