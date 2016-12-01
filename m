@@ -1,94 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 145006B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 08:26:57 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 3so96211241pgd.3
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 05:26:57 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z66si183611pfk.207.2016.12.01.05.26.56
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B6ECE6B0069
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 08:32:48 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id b14so96352781lfg.6
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 05:32:48 -0800 (PST)
+Received: from smtp20.mail.ru (smtp20.mail.ru. [94.100.179.251])
+        by mx.google.com with ESMTPS id 190si130195ljj.5.2016.12.01.05.32.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 05:26:56 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB1DOrXe062199
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2016 08:26:55 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 272jtf7026-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 01 Dec 2016 08:26:55 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 1 Dec 2016 13:26:53 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 42F221B08067
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 13:29:12 +0000 (GMT)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uB1DQn9S36372582
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2016 13:26:49 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uB1DQnd5031803
-	for <linux-mm@kvack.org>; Thu, 1 Dec 2016 06:26:49 -0700
-Subject: Re: [RFC PATCH v2 0/7] Speculative page faults
-References: <20161018150243.GZ3117@twins.programming.kicks-ass.net>
- <cover.1479465699.git.ldufour@linux.vnet.ibm.com>
- <871sy8284n.fsf@tassilo.jf.intel.com>
- <885a17ba-fed8-e312-c2d3-e28a996f5424@linux.vnet.ibm.com>
- <CAKTCnz=0QZ55L5=WbLoCQwB8sXZ_2dgqrBCgdtt=jCqejy=wHA@mail.gmail.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 1 Dec 2016 14:26:48 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Dec 2016 05:32:47 -0800 (PST)
+Date: Thu, 1 Dec 2016 16:32:41 +0300
+From: Vladimir Davydov <vdavydov@tarantool.org>
+Subject: Re: [PATCH] mm: workingset: fix NULL ptr in count_shadow_nodes
+Message-ID: <20161201133241.GB13790@esperanza>
+References: <20161201132156.21450-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <CAKTCnz=0QZ55L5=WbLoCQwB8sXZ_2dgqrBCgdtt=jCqejy=wHA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <2d934437-fd56-983c-b4a6-dc265be6f0b9@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161201132156.21450-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Marek =?iso-8859-1?Q?Marczykowski-G=F3recki?= <marmarek@mimuw.edu.pl>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 01/12/2016 13:50, Balbir Singh wrote:
-> On Thu, Dec 1, 2016 at 7:34 PM, Laurent Dufour
-> <ldufour@linux.vnet.ibm.com> wrote:
->> On 18/11/2016 15:08, Andi Kleen wrote:
->>> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
->>>
->>>> This is a port on kernel 4.8 of the work done by Peter Zijlstra to
->>>> handle page fault without holding the mm semaphore.
->>>
->>> One of the big problems with patches like this today is that it is
->>> unclear what mmap_sem actually protects. It's a big lock covering lots
->>> of code. Parts in the core VM, but also do VM callbacks in file systems
->>> and drivers rely on it too?
->>>
->>> IMHO the first step is a comprehensive audit and then writing clear
->>> documentation on what it is supposed to protect. Then based on that such
->>> changes can be properly evaluated.
->>
->> Hi Andi,
->>
->> Sorry for the late answer...
->>
->> I do agree, this semaphore is massively used and it would be nice to
->> have all its usage documented.
->>
->> I'm currently tracking all the mmap_sem use in 4.8 kernel (about 380
->> hits) and I'm trying to identify which it is protecting.
->>
->> In addition, I think it may be nice to limit its usage to code under mm/
->> so that in the future it may be easier to find its usage.
+On Thu, Dec 01, 2016 at 02:21:56PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Is this possible? All sorts of arch's fault
-> handling/virtualization/file system and drivers (IO/DRM/) hold
-> mmap_sem.
+> 0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
+> has made the workingset shadow nodes shrinker memcg aware. The
+> implementation is not correct though because memcg_kmem_enabled() might
+> become true while we are doing a global reclaim when the sc->memcg might
+> be NULL which is exactly what Marek has seen:
+> 
+> [   15.665196] BUG: unable to handle kernel NULL pointer dereference at 0000000000000400
+> [   15.665213] IP: [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> [   15.665225] PGD 0
+> [   15.665230] Oops: 0000 [#1] SMP
+> [   15.665285] CPU: 0 PID: 60 Comm: kswapd0 Tainted: G           O   4.8.10-12.pvops.qubes.x86_64 #1
+> [   15.665292] task: ffff880011863b00 task.stack: ffff880011868000
+> [   15.665297] RIP: e030:[<ffffffff8122d520>]  [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> [   15.665307] RSP: e02b:ffff88001186bc70  EFLAGS: 00010293
+> [   15.665311] RAX: 0000000000000000 RBX: ffff88001186bd20 RCX: 0000000000000002
+> [   15.665317] RDX: 000000000000000c RSI: 0000000000000000 RDI: 0000000000000000
+> [   15.665322] RBP: ffff88001186bc70 R08: 28f5c28f5c28f5c3 R09: 0000000000000000
+> [   15.665327] R10: 0000000000006c34 R11: 0000000000000333 R12: 00000000000001f6
+> [   15.665332] R13: ffffffff81c6f6a0 R14: 0000000000000000 R15: 0000000000000000
+> [   15.665343] FS:  0000000000000000(0000) GS:ffff880013c00000(0000) knlGS:ffff880013d00000
+> [   15.665351] CS:  e033 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   15.665358] CR2: 0000000000000400 CR3: 00000000122f2000 CR4: 0000000000042660
+> [   15.665366] Stack:
+> [   15.665371]  ffff88001186bc98 ffffffff811e0dda 00000000000002eb 0000000000000080
+> [   15.665384]  ffffffff81c6f6a0 ffff88001186bd70 ffffffff811c36d9 0000000000000000
+> [   15.665397]  ffff88001186bcb0 ffff88001186bcb0 ffff88001186bcc0 000000000000abc5
+> [   15.665410] Call Trace:
+> [   15.665419]  [<ffffffff811e0dda>] count_shadow_nodes+0x9a/0xa0
+> [   15.665428]  [<ffffffff811c36d9>] shrink_slab.part.42+0x119/0x3e0
+> [   15.666049]  [<ffffffff811c83ec>] shrink_node+0x22c/0x320
+> [   15.666049]  [<ffffffff811c928c>] kswapd+0x32c/0x700
+> [   15.666049]  [<ffffffff811c8f60>] ? mem_cgroup_shrink_node+0x180/0x180
+> [   15.666049]  [<ffffffff810c1b08>] kthread+0xd8/0xf0
+> [   15.666049]  [<ffffffff817a3abf>] ret_from_fork+0x1f/0x40
+> [   15.666049]  [<ffffffff810c1a30>] ? kthread_create_on_node+0x190/0x190
+> [   15.666049] Code: 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 3b 35 dd eb b1 00 55 48 89 e5 73 2c 89 d2 31 c9 31 c0 4c 63 ce 48 0f a3 ca 73 13 <4a> 8b b4 cf 00 04 00 00 41 89 c8 4a 03 84 c6 80 00 00 00 83 c1
+> [   15.666049] RIP  [<ffffffff8122d520>] mem_cgroup_node_nr_lru_pages+0x20/0x40
+> [   15.666049]  RSP <ffff88001186bc70>
+> [   15.666049] CR2: 0000000000000400
+> [   15.666049] ---[ end trace 100494b9edbdfc4d ]---
+> 
+> This patch fixes the issue by checking sc->memcg rather than memcg_kmem_enabled()
+> which is sufficient because shrink_slab makes sure that only memcg aware shrinkers
+> will get non-NULL memcgs and only if memcg_kmem_enabled is true.
+> 
+> Fixes: 0a6b76dd23fa ("mm: workingset: make shadow node shrinker memcg aware")
+> Reported-and-tested-by: Marek Marczykowski-Gorecki <marmarek@mimuw.edu.pl>
+> Cc: stable@vger.kernel.org # 4.6+
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-That's a good question ;)
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-I may be too optimistic / naive, and I'm not confident in the result of
-such a goal but I think it may be good to keep such a direction in mind.
-It may be possible to limit its usage as it has been done in the fs part.
-
-Laurent.
+> ---
+>  mm/workingset.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/workingset.c b/mm/workingset.c
+> index 617475f529f4..fb1f9183d89a 100644
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -348,7 +348,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+>  	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+>  	local_irq_enable();
+>  
+> -	if (memcg_kmem_enabled()) {
+> +	if (sc->memcg) {
+>  		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+>  						     LRU_ALL_FILE);
+>  	} else {
+> -- 
+> 2.10.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
