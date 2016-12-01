@@ -1,204 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 726E628025A
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:25:29 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w13so57843599wmw.0
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:29 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id m88si12399235wmc.167.2016.12.01.07.25.28
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C331128025A
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:26:21 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id g186so101805591pgc.2
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:26:21 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id l81si574689pfi.32.2016.12.01.07.26.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 07:25:28 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id m203so34678865wma.3
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:25:28 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
-Date: Thu,  1 Dec 2016 16:25:17 +0100
-Message-Id: <20161201152517.27698-3-mhocko@kernel.org>
-In-Reply-To: <20161201152517.27698-1-mhocko@kernel.org>
-References: <20161201152517.27698-1-mhocko@kernel.org>
+        Thu, 01 Dec 2016 07:26:21 -0800 (PST)
+Date: Thu, 1 Dec 2016 08:26:19 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 2/6] dax: remove leading space from labels
+Message-ID: <20161201152619.GA5160@linux.intel.com>
+References: <1480549533-29038-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1480549533-29038-3-git-send-email-ross.zwisler@linux.intel.com>
+ <20161201081144.GC12804@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161201081144.GC12804@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Dec 01, 2016 at 09:11:44AM +0100, Jan Kara wrote:
+> On Wed 30-11-16 16:45:29, Ross Zwisler wrote:
+> > No functional change.
+> > 
+> > As of this commit:
+> > 
+> > commit 218dd85887da (".gitattributes: set git diff driver for C source code
+> > files")
+> > 
+> > git-diff and git-format-patch both generate diffs whose hunks are correctly
+> > prefixed by function names instead of labels, even if those labels aren't
+> > indented with spaces.
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> 
+> Didn't we agree do leave this for a bit later?
 
-__alloc_pages_may_oom makes sure to skip the OOM killer depending on
-the allocation request. This includes lowmem requests, costly high
-order requests and others. For a long time __GFP_NOFAIL acted as an
-override for all those rules. This is not documented and it can be quite
-surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
-killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
-the existing open coded loops around allocator to nofail request (and we
-have done that in the past) then such a change would have a non trivial
-side effect which is not obvious. Note that the primary motivation for
-skipping the OOM killer is to prevent from pre-mature invocation.
+Sorry, I thought you just asked to not have to edit your "Page invalidation
+fixes" series because of this change.  This series is based on a tree that
+already includes your page invalidation work, so it shouldn't cause you any
+thrash.
 
-The exception has been added by 82553a937f12 ("oom: invoke oom killer
-for __GFP_NOFAIL"). The changelog points out that the oom killer has to
-be invoked otherwise the request would be looping for ever. But this
-argument is rather weak because the OOM killer doesn't really guarantee
-any forward progress for those exceptional cases - e.g. it will hardly
-help to form costly order - I believe we certainly do not want to kill
-all processes and eventually panic the system just because there is a
-nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
-the consequences - it is much better this request would loop for ever
-than the massive system disruption, lowmem is also highly unlikely to be
-freed during OOM killer and GFP_NOFS request could trigger while there
-is still a lot of memory pinned by filesystems.
-
-This patch simply removes the __GFP_NOFAIL special case in order to have
-a more clear semantic without surprising side effects. Instead we do
-allow nofail requests to access memory reserves to move forward in both
-cases when the OOM killer is invoked and when it should be supressed.
-__alloc_pages_nowmark helper has been introduced for that purpose.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c   |  2 +-
- mm/page_alloc.c | 95 +++++++++++++++++++++++++++++++++++----------------------
- 2 files changed, 59 insertions(+), 38 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index ec9f11d4f094..12a6fce85f61 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
- 	 * make sure exclude 0 mask - all other users should have at least
- 	 * ___GFP_DIRECT_RECLAIM to get here.
- 	 */
--	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
-+	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
- 		return true;
- 
- 	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 76c0b6bb0baf..7102641147c4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3044,6 +3044,25 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- }
- 
- static inline struct page *
-+__alloc_pages_nowmark(gfp_t gfp_mask, unsigned int order,
-+						const struct alloc_context *ac)
-+{
-+	struct page *page;
-+
-+	page = get_page_from_freelist(gfp_mask, order,
-+			ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
-+	/*
-+	 * fallback to ignore cpuset restriction if our nodes
-+	 * are depleted
-+	 */
-+	if (!page)
-+		page = get_page_from_freelist(gfp_mask, order,
-+				ALLOC_NO_WATERMARKS, ac);
-+
-+	return page;
-+}
-+
-+static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	const struct alloc_context *ac, unsigned long *did_some_progress)
- {
-@@ -3078,47 +3097,41 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	if (page)
- 		goto out;
- 
--	if (!(gfp_mask & __GFP_NOFAIL)) {
--		/* Coredumps can quickly deplete all memory reserves */
--		if (current->flags & PF_DUMPCORE)
--			goto out;
--		/* The OOM killer will not help higher order allocs */
--		if (order > PAGE_ALLOC_COSTLY_ORDER)
--			goto out;
--		/* The OOM killer does not needlessly kill tasks for lowmem */
--		if (ac->high_zoneidx < ZONE_NORMAL)
--			goto out;
--		if (pm_suspended_storage())
--			goto out;
--		/*
--		 * XXX: GFP_NOFS allocations should rather fail than rely on
--		 * other request to make a forward progress.
--		 * We are in an unfortunate situation where out_of_memory cannot
--		 * do much for this context but let's try it to at least get
--		 * access to memory reserved if the current task is killed (see
--		 * out_of_memory). Once filesystems are ready to handle allocation
--		 * failures more gracefully we should just bail out here.
--		 */
-+	/* Coredumps can quickly deplete all memory reserves */
-+	if (current->flags & PF_DUMPCORE)
-+		goto out;
-+	/* The OOM killer will not help higher order allocs */
-+	if (order > PAGE_ALLOC_COSTLY_ORDER)
-+		goto out;
-+	/* The OOM killer does not needlessly kill tasks for lowmem */
-+	if (ac->high_zoneidx < ZONE_NORMAL)
-+		goto out;
-+	if (pm_suspended_storage())
-+		goto out;
-+	/*
-+	 * XXX: GFP_NOFS allocations should rather fail than rely on
-+	 * other request to make a forward progress.
-+	 * We are in an unfortunate situation where out_of_memory cannot
-+	 * do much for this context but let's try it to at least get
-+	 * access to memory reserved if the current task is killed (see
-+	 * out_of_memory). Once filesystems are ready to handle allocation
-+	 * failures more gracefully we should just bail out here.
-+	 */
-+
-+	/* The OOM killer may not free memory on a specific node */
-+	if (gfp_mask & __GFP_THISNODE)
-+		goto out;
- 
--		/* The OOM killer may not free memory on a specific node */
--		if (gfp_mask & __GFP_THISNODE)
--			goto out;
--	}
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if (out_of_memory(&oc)) {
- 		*did_some_progress = 1;
- 
--		if (gfp_mask & __GFP_NOFAIL) {
--			page = get_page_from_freelist(gfp_mask, order,
--					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
--			/*
--			 * fallback to ignore cpuset restriction if our nodes
--			 * are depleted
--			 */
--			if (!page)
--				page = get_page_from_freelist(gfp_mask, order,
--					ALLOC_NO_WATERMARKS, ac);
--		}
-+		/*
-+		 * Help non-failing allocations by giving them access to memory
-+		 * reserves
-+		 */
-+		if (gfp_mask & __GFP_NOFAIL)
-+			page = __alloc_pages_nowmark(gfp_mask, order, ac);
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -3725,6 +3738,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 */
- 		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
- 
-+		/*
-+		 * Help non-failing allocations by giving them access to memory
-+		 * reserves
-+		 */
-+		page = __alloc_pages_nowmark(gfp_mask, order, ac);
-+		if (page)
-+			goto got_pg;
-+
- 		cond_resched();
- 		goto retry;
- 	}
--- 
-2.10.2
+I'll pull it out of the next version of this series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
