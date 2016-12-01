@@ -1,79 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DA976B025E
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 21:41:20 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id p16so143263126qta.5
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 18:41:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v35si31845462qtb.132.2016.11.30.18.41.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Nov 2016 18:41:19 -0800 (PST)
-Date: Thu, 1 Dec 2016 10:41:03 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCHv4 07/10] kexec: Switch to __pa_symbol
-Message-ID: <20161201024103.GA32438@dhcp-128-65.nay.redhat.com>
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
- <1480445729-27130-8-git-send-email-labbott@redhat.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 466626B0069
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 22:11:14 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c4so333426333pfb.7
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 19:11:14 -0800 (PST)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id 90si38505924pla.214.2016.11.30.19.11.11
+        for <linux-mm@kvack.org>;
+        Wed, 30 Nov 2016 19:11:13 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161129112304.90056-1-kirill.shutemov@linux.intel.com> <20161129112304.90056-23-kirill.shutemov@linux.intel.com> <017501d24aee$d9a189c0$8ce49d40$@alibaba-inc.com> <20161130131534.3k35cigsn36d7ku6@black.fi.intel.com>
+In-Reply-To: <20161130131534.3k35cigsn36d7ku6@black.fi.intel.com>
+Subject: Re: [PATCHv5 22/36] mm, hugetlb: switch hugetlbfs to multi-order radix-tree entries
+Date: Thu, 01 Dec 2016 11:10:52 +0800
+Message-ID: <018c01d24b80$86b85490$9428fdb0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1480445729-27130-8-git-send-email-labbott@redhat.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Eric Biederman <ebiederm@xmission.com>, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>
+Cc: 'Theodore Ts'o' <tytso@mit.edu>, 'Andreas Dilger' <adilger.kernel@dilger.ca>, 'Jan Kara' <jack@suse.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, 'Hugh Dickins' <hughd@google.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Dave Hansen' <dave.hansen@intel.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Matthew Wilcox' <willy@infradead.org>, 'Ross Zwisler' <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>
 
-Hi, Laura
-On 11/29/16 at 10:55am, Laura Abbott wrote:
+On Wednesday, November 30, 2016 9:16 PM Kirill A. Shutemov wrote:
+> On Wed, Nov 30, 2016 at 05:48:05PM +0800, Hillf Danton wrote:
+> > On Tuesday, November 29, 2016 7:23 PM Kirill A. Shutemov wrote:
+> > > @@ -607,10 +605,10 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+> > >  		}
+> > >
+> > >  		/* Set numa allocation policy based on index */
+> > > -		hugetlb_set_vma_policy(&pseudo_vma, inode, index);
+> > > +		hugetlb_set_vma_policy(&pseudo_vma, inode, index >> huge_page_order(h));
+> > >
+> > >  		/* addr is the offset within the file (zero based) */
+> > > -		addr = index * hpage_size;
+> > > +		addr = index << PAGE_SHIFT & ~huge_page_mask(h);
+> > >
+> > >  		/* mutex taken here, fault path and hole punch */
+> > >  		hash = hugetlb_fault_mutex_hash(h, mm, &pseudo_vma, mapping,
+> >
+> > Seems we can't use index in computing hash as long as it isn't in huge page size.
 > 
-> __pa_symbol is the correct api to get the physical address of kernel
-> symbols. Switch to it to allow for better debug checking.
+> Look at changes in hugetlb_fault_mutex_hash(): we shift the index right by
+> huge_page_order(), before calculating the hash. I don't see a problem
+> here.
 > 
+You are right. I missed that critical point.
 
-I assume __pa_symbol is faster than __pa, but it still need some testing
-on all arches which support kexec.
-
-But seems long long ago there is a commit e3ebadd95cb in the commit log
-I see below from:
-"we should deprecate __pa_symbol(), and preferably __pa() too - and
- just use "virt_to_phys()" instead, which is is more readable and has
- nicer semantics."
-
-But maybe in modern code __pa_symbol is prefered I may miss background.
-virt_to_phys still sounds more readable now for me though.
-
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
-> Found during review of the kernel. Untested.
-> ---
->  kernel/kexec_core.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-> index 5616755..e1b625e 100644
-> --- a/kernel/kexec_core.c
-> +++ b/kernel/kexec_core.c
-> @@ -1397,7 +1397,7 @@ void __weak arch_crash_save_vmcoreinfo(void)
->  
->  phys_addr_t __weak paddr_vmcoreinfo_note(void)
->  {
-> -	return __pa((unsigned long)(char *)&vmcoreinfo_note);
-> +	return __pa_symbol((unsigned long)(char *)&vmcoreinfo_note);
->  }
->  
->  static int __init crash_save_vmcoreinfo_init(void)
-> -- 
-> 2.7.4
-> 
-> 
-> _______________________________________________
-> kexec mailing list
-> kexec@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/kexec
-
-Thanks
-Dave
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
