@@ -1,145 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EB936B0253
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 03:11:48 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id o3so37188144wjo.1
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 00:11:48 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD316B0069
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 03:18:11 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id o3so37217256wjo.1
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 00:18:11 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f6si67933298wjj.241.2016.12.01.00.11.46
+        by mx.google.com with ESMTPS id n70si11032269wmd.139.2016.12.01.00.18.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Dec 2016 00:11:46 -0800 (PST)
-Date: Thu, 1 Dec 2016 09:11:44 +0100
+        Thu, 01 Dec 2016 00:18:10 -0800 (PST)
+Date: Thu, 1 Dec 2016 09:18:07 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 2/6] dax: remove leading space from labels
-Message-ID: <20161201081144.GC12804@quack2.suse.cz>
-References: <1480549533-29038-1-git-send-email-ross.zwisler@linux.intel.com>
- <1480549533-29038-3-git-send-email-ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] mm: Fix a NULL dereference crash while accessing
+ bdev->bd_disk
+Message-ID: <20161201081807.GD12804@quack2.suse.cz>
+References: <1480125982-8497-1-git-send-email-fangwei1@huawei.com>
+ <20161128100718.GD2590@quack2.suse.cz>
+ <583CE0C7.1040406@huawei.com>
+ <20161130095104.GB20030@quack2.suse.cz>
+ <583F8B2D.8090908@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1480549533-29038-3-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <583F8B2D.8090908@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Wei Fang <fangwei1@huawei.com>
+Cc: Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, hannes@cmpxchg.org, hch@infradead.org, linux-mm@kvack.org, stable@vger.kernel.org, Jens Axboe <axboe@kernel.dk>, Tejun Heo <tj@kernel.org>
 
-On Wed 30-11-16 16:45:29, Ross Zwisler wrote:
-> No functional change.
+On Thu 01-12-16 10:30:05, Wei Fang wrote:
+> On 2016/11/30 17:51, Jan Kara wrote:
+> > On Tue 29-11-16 09:58:31, Wei Fang wrote:
+> >> Hi, Jan,
+> >>
+> >> On 2016/11/28 18:07, Jan Kara wrote:
+> >>> Good catch but I don't like sprinkling checks like this into the writeback
+> >>> code and furthermore we don't want to call into writeback code when block
+> >>> device is in the process of being destroyed which is what would happen with
+> >>> your patch. That is a bug waiting to happen...
+> >>
+> >> Agreed. Need another way to fix this problem. I looked through the
+> >> writeback cgroup code in __filemap_fdatawrite_range(), found if we
+> >> turn on CONFIG_CGROUP_WRITEBACK, a new crash will happen.
+> > 
+> > OK, can you test with attached patch please? Thanks!
 > 
-> As of this commit:
-> 
-> commit 218dd85887da (".gitattributes: set git diff driver for C source code
-> files")
-> 
-> git-diff and git-format-patch both generate diffs whose hunks are correctly
-> prefixed by function names instead of labels, even if those labels aren't
-> indented with spaces.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> I've tested this patch with linux-next about 2 hours, and all goes well.
+> Without this patch, kernel crashes in minutes.
 
-Didn't we agree do leave this for a bit later?
+Good. Thanks for testing! I'll send the patch for inclusion.
 
-								Honza
-
-> ---
->  fs/dax.c | 24 ++++++++++++------------
->  1 file changed, 12 insertions(+), 12 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index be39633..b14335c 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -422,7 +422,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
->  		return page;
->  	}
->  	entry = lock_slot(mapping, slot);
-> - out_unlock:
-> +out_unlock:
->  	spin_unlock_irq(&mapping->tree_lock);
->  	return entry;
->  }
-> @@ -557,7 +557,7 @@ static int dax_load_hole(struct address_space *mapping, void **entry,
->  				   vmf->gfp_mask | __GFP_ZERO);
->  	if (!page)
->  		return VM_FAULT_OOM;
-> - out:
-> +out:
->  	vmf->page = page;
->  	ret = finish_fault(vmf);
->  	vmf->page = NULL;
-> @@ -659,7 +659,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
->  	}
->  	if (vmf->flags & FAULT_FLAG_WRITE)
->  		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);
-> - unlock:
-> +unlock:
->  	spin_unlock_irq(&mapping->tree_lock);
->  	if (hole_fill) {
->  		radix_tree_preload_end();
-> @@ -812,12 +812,12 @@ static int dax_writeback_one(struct block_device *bdev,
->  	spin_lock_irq(&mapping->tree_lock);
->  	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_DIRTY);
->  	spin_unlock_irq(&mapping->tree_lock);
-> - unmap:
-> +unmap:
->  	dax_unmap_atomic(bdev, &dax);
->  	put_locked_mapping_entry(mapping, index, entry);
->  	return ret;
->  
-> - put_unlocked:
-> +put_unlocked:
->  	put_unlocked_mapping_entry(mapping, index, entry2);
->  	spin_unlock_irq(&mapping->tree_lock);
->  	return ret;
-> @@ -1194,11 +1194,11 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  		break;
->  	}
->  
-> - error_unlock_entry:
-> +error_unlock_entry:
->  	vmf_ret = dax_fault_return(error) | major;
-> - unlock_entry:
-> +unlock_entry:
->  	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
-> - finish_iomap:
-> +finish_iomap:
->  	if (ops->iomap_end) {
->  		int copied = PAGE_SIZE;
->  
-> @@ -1255,7 +1255,7 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
->  
->  	return vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
->  
-> - unmap_fallback:
-> +unmap_fallback:
->  	dax_unmap_atomic(bdev, &dax);
->  	return VM_FAULT_FALLBACK;
->  }
-> @@ -1379,9 +1379,9 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  		break;
->  	}
->  
-> - unlock_entry:
-> +unlock_entry:
->  	put_locked_mapping_entry(mapping, pgoff, entry);
-> - finish_iomap:
-> +finish_iomap:
->  	if (ops->iomap_end) {
->  		int copied = PMD_SIZE;
->  
-> @@ -1396,7 +1396,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
->  		ops->iomap_end(inode, pos, PMD_SIZE, copied, iomap_flags,
->  				&iomap);
->  	}
-> - fallback:
-> +fallback:
->  	if (result == VM_FAULT_FALLBACK) {
->  		split_huge_pmd(vma, pmd, address);
->  		count_vm_event(THP_FAULT_FALLBACK);
-> -- 
-> 2.7.4
-> 
+								hONZA
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
