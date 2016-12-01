@@ -1,198 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5576B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 07:05:18 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 144so346558768pfv.5
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 04:05:18 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u17si68920519pgo.250.2016.12.01.04.05.17
-        for <linux-mm@kvack.org>;
-        Thu, 01 Dec 2016 04:05:17 -0800 (PST)
-Message-ID: <584011CB.3050505@arm.com>
-Date: Thu, 01 Dec 2016 12:04:27 +0000
-From: James Morse <james.morse@arm.com>
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B6E36B025E
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 07:21:44 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id o3so38545818wjo.1
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 04:21:44 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r3si68624642wjo.130.2016.12.01.04.21.42
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Dec 2016 04:21:42 -0800 (PST)
+Subject: Re: [PATCH] proc: mm: export PTE sizes directly in smaps (v3)
+References: <20161129201703.CE9D5054@viggo.jf.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <3d879b98-1d11-adc1-b417-3faa1dd6d9d8@suse.cz>
+Date: Thu, 1 Dec 2016 13:21:39 +0100
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com> <1480445729-27130-6-git-send-email-labbott@redhat.com>
-In-Reply-To: <1480445729-27130-6-git-send-email-labbott@redhat.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20161129201703.CE9D5054@viggo.jf.intel.com>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: hch@lst.de, akpm@linux-foundation.org, dan.j.williams@intel.com, khandual@linux.vnet.ibm.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-Hi Laura,
+On 11/29/2016 09:17 PM, Dave Hansen wrote:
+> Andrew, you can drop proc-mm-export-pte-sizes-directly-in-smaps-v2.patch,
+> and replace it with this.
+>
+> Changes from v2:
+>  * Do not assume (wrongly) that smaps_hugetlb_range() always uses
+>    PUDs.  (Thanks for pointing this out, Vlastimil).  Also handle
+>    hstates that are not exactly at PMD/PUD sizes.
+>
+> Changes from v1:
+>  * Do one 'Pte' line per pte size instead of mashing on one line
+>  * Use PMD_SIZE for pmds instead of PAGE_SIZE, whoops
+>  * Wrote some Documentation/
+>
+> --
+>
+> /proc/$pid/smaps has a number of fields that are intended to imply the
+> kinds of PTEs used to map memory.  "AnonHugePages" obviously tells you
+> how many PMDs are being used.  "MMUPageSize" along with the "Hugetlb"
+> fields tells you how many PTEs you have for a huge page.
+>
+> The current mechanisms work fine when we have one or two page sizes.
+> But, they start to get a bit muddled when we mix page sizes inside
+> one VMA.  For instance, the DAX folks were proposing adding a set of
+> fields like:
+>
+> 	DevicePages:
+> 	DeviceHugePages:
+> 	DeviceGiganticPages:
+> 	DeviceGinormousPages:
+>
+> to unmuddle things when page sizes get mixed.  That's fine, but
+> it does require userspace know the mapping from our various
+> arbitrary names to hardware page sizes on each architecture and
+> kernel configuration.  That seems rather suboptimal.
+>
+> What folks really want is to know how much memory is mapped with
+> each page size.  How about we just do *that* instead?
+>
+> Patch attached.  Seems harmless enough.  Seems to compile on a
+> bunch of random architectures.  Makes smaps look like this:
+>
+> Private_Hugetlb:       0 kB
+> Swap:                  0 kB
+> SwapPss:               0 kB
+> KernelPageSize:        4 kB
+> MMUPageSize:           4 kB
+> Locked:                0 kB
+> Ptes@4kB:	      32 kB
+> Ptes@2MB:	    2048 kB
+>
+> The format I used here should be unlikely to break smaps parsers
+> unless they're looking for "kB" and now match the 'Ptes@4kB' instead
+> of the one at the end of the line.
+>
+> Note: hugetlbfs PTEs are unusual.  We can have more than one "pte_t"
+> for each hugetlbfs "page".  arm64 has this configuration, and probably
+> others.  The code should now handle when an hstate's size is not equal
+> to one of the page table entry sizes.  For instance, it assumes that
+> hstates between PMD_SIZE and PUD_SIZE are made up of multiple PMDs
+> and prints them as such.
+>
+> I've tested this on x86 with normal 4k ptes, anonymous huge pages,
+> 1G hugetlbfs and 2M hugetlbfs pages.
+>
+> 1. I'd like to thank Dan Williams for showing me a mirror as I
+>    complained about the bozo that introduced 'AnonHugePages'.
+>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: linux-mm@kvack.org
+> Cc: linux-arch@vger.kernel.org
 
-On 29/11/16 18:55, Laura Abbott wrote:
-> __pa_symbol is technically the marco that should be used for kernel
-
-macro
-
-> symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
-> will do bounds checking. As part of this, introduce lm_alias, a
-> macro which wraps the __va(__pa(...)) idiom used a few places to
-> get the alias.
-
-> diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-> index d55a7b0..4f0c77d 100644
-> --- a/arch/arm64/kernel/hibernate.c
-> +++ b/arch/arm64/kernel/hibernate.c
-> @@ -484,7 +481,7 @@ int swsusp_arch_resume(void)
->  	 * Since we only copied the linear map, we need to find restore_pblist's
->  	 * linear map address.
->  	 */
-> -	lm_restore_pblist = LMADDR(restore_pblist);
-> +	lm_restore_pblist = lm_alias(restore_pblist);
->  
->  	/*
->  	 * We need a zero page that is zero before & after resume in order to
-
-This change causes resume from hibernate to panic in:
-> VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
-> 		x > (unsigned long) KERNEL_END);
-
-It looks like kaslr's relocation code has already fixed restore_pblist, so your
-debug virtual check catches this doing the wrong thing. My bug.
-
-readelf -s vmlinux | grep ...
-> 103495: ffff000008080000     0 NOTYPE  GLOBAL DEFAULT    1 _text
->  92104: ffff000008e43860     8 OBJECT  GLOBAL DEFAULT   24 restore_pblist
-> 105442: ffff000008e85000     0 NOTYPE  GLOBAL DEFAULT   24 _end
-
-But restore_pblist == 0xffff800971b7f998 when passed to __phys_addr_symbol().
-
-This fixes the problem:
-----------------%<----------------
-diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-index 4f0c77d2ff7a..8bed26a2d558 100644
---- a/arch/arm64/kernel/hibernate.c
-+++ b/arch/arm64/kernel/hibernate.c
-@@ -457,7 +457,6 @@ int swsusp_arch_resume(void)
-        void *zero_page;
-        size_t exit_size;
-        pgd_t *tmp_pg_dir;
--       void *lm_restore_pblist;
-        phys_addr_t phys_hibernate_exit;
-        void __noreturn (*hibernate_exit)(phys_addr_t, phys_addr_t, void *,
-                                          void *, phys_addr_t, phys_addr_t);
-@@ -478,12 +477,6 @@ int swsusp_arch_resume(void)
-                goto out;
-
-        /*
--        * Since we only copied the linear map, we need to find restore_pblist's
--        * linear map address.
--        */
--       lm_restore_pblist = lm_alias(restore_pblist);
--
--       /*
-         * We need a zero page that is zero before & after resume in order to
-         * to break before make on the ttbr1 page tables.
-         */
-@@ -534,7 +527,7 @@ int swsusp_arch_resume(void)
-        }
-
-        hibernate_exit(virt_to_phys(tmp_pg_dir), resume_hdr.ttbr1_el1,
--                      resume_hdr.reenter_kernel, lm_restore_pblist,
-+                      resume_hdr.reenter_kernel, restore_pblist,
-                       resume_hdr.__hyp_stub_vectors, virt_to_phys(zero_page));
-
- out:
-----------------%<----------------
-
-I can post it as a separate fixes patch if you prefer.
-
-I also tested kexec. FWIW:
-Tested-by: James Morse <james.morse@arm.com>
-
-
-Thanks,
-
-James
-
-[0] Trace
-[    4.191607] Freezing user space processes ... (elapsed 0.000 seconds) done.
-[    4.224251] random: fast init done
-[    4.243825] PM: Using 3 thread(s) for decompression.
-[    4.243825] PM: Loading and decompressing image data (90831 pages)...
-[    4.255257] hibernate: Hibernated on CPU 0 [mpidr:0x100]
-[    5.213469] PM: Image loading progress:   0%
-[    5.579886] PM: Image loading progress:  10%
-[    5.740234] ata2: SATA link down (SStatus 0 SControl 0)
-[    5.760435] PM: Image loading progress:  20%
-[    5.970647] PM: Image loading progress:  30%
-[    6.563108] PM: Image loading progress:  40%
-[    6.848389] PM: Image loading progress:  50%
-[    7.526272] PM: Image loading progress:  60%
-[    7.702727] PM: Image loading progress:  70%
-[    7.899754] PM: Image loading progress:  80%
-[    8.100703] PM: Image loading progress:  90%
-[    8.300978] PM: Image loading progress: 100%
-[    8.305441] PM: Image loading done.
-[    8.308975] PM: Read 363324 kbytes in 4.05 seconds (89.70 MB/s)
-[    8.344299] PM: quiesce of devices complete after 22.706 msecs
-[    8.350762] PM: late quiesce of devices complete after 0.596 msecs
-[    8.381334] PM: noirq quiesce of devices complete after 24.365 msecs
-[    8.387729] Disabling non-boot CPUs ...
-[    8.412500] CPU1: shutdown
-[    8.415211] psci: CPU1 killed.
-[    8.460465] CPU2: shutdown
-[    8.463175] psci: CPU2 killed.
-[    8.504447] CPU3: shutdown
-[    8.507156] psci: CPU3 killed.
-[    8.540375] CPU4: shutdown
-[    8.543084] psci: CPU4 killed.
-[    8.580333] CPU5: shutdown
-[    8.583043] psci: CPU5 killed.
-[    8.601206] ------------[ cut here ]------------
-[    8.601206] kernel BUG at ../arch/arm64/mm/physaddr.c:25!
-[    8.601206] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
-[    8.601206] Modules linked in:
-[    8.601206] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.9.0-rc7-00010-g27c672
-[    8.601206] Hardware name: ARM Juno development board (r1) (DT)
-[    8.601206] task: ffff800976ca8000 task.stack: ffff800976c3c000
-[    8.601206] PC is at __phys_addr_symbol+0x30/0x34
-[    8.601206] LR is at swsusp_arch_resume+0x304/0x588
-[    8.601206] pc : [<ffff0000080992d8>] lr : [<ffff0000080938b4>] pstate: 20005
-[    8.601206] sp : ffff800976c3fca0
-[    8.601206] x29: ffff800976c3fca0 x28: ffff000008bee000
-[    8.601206] x27: 000000000e5ea000 x26: ffff000008e83000
-[    8.601206] x25: 0000000000000801 x24: 0000000040000000
-[    8.601206] x23: 0000000000000000 x22: 000000000e00d000
-[    8.601206] x21: ffff808000000000 x20: ffff800080000000
-[    8.601206] x19: 0000000000000000 x18: 4000000000000000
-[    8.601206] x17: 0000000000000000 x16: 0000000000000694
-[    8.601206] x15: ffff000008bee000 x14: 0000000000000008
-[    8.601206] x13: 0000000000000000 x12: 003d090000000000
-[    8.601206] x11: 0000000000000001 x10: fffffffff1a0f000
-[    8.601206] x9 : 0000000000000001 x8 : ffff800971a0aff8
-[    8.601206] x7 : 0000000000000001 x6 : 000000000000003f
-[    8.601206] x5 : 0000000000000040 x4 : 0000000000000000
-[    8.601206] x3 : ffff807fffffffff x2 : 0000000000000000
-[    8.601206] x1 : ffff000008e85000 x0 : ffff80097152b578
-[    8.601206]
-[    8.601206] Process swapper/0 (pid: 1, stack limit = 0xffff800976c3c020)
-[    8.601206] Stack: (0xffff800976c3fca0 to 0xffff800976c40000)
-
-[    8.601206] Call trace:
-[    8.601206] Exception stack(0xffff800976c3fad0 to 0xffff800976c3fc00)
-
-[    8.601206] [<ffff0000080992d8>] __phys_addr_symbol+0x30/0x34
-[    8.601206] [<ffff0000080fe340>] hibernation_restore+0xf8/0x130
-[    8.601206] [<ffff0000080fe3e4>] load_image_and_restore+0x6c/0x70
-[    8.601206] [<ffff0000080fe640>] software_resume+0x258/0x288
-[    8.601206] [<ffff0000080830b8>] do_one_initcall+0x38/0x128
-[    8.601206] [<ffff000008c60cf4>] kernel_init_freeable+0x1ac/0x250
-[    8.601206] [<ffff0000088acd10>] kernel_init+0x10/0x100
-[    8.601206] [<ffff000008082e80>] ret_from_fork+0x10/0x50
-[    8.601206] Code: b0005aa1 f9475c21 cb010000 d65f03c0 (d4210000)
-[    8.601206] ---[ end trace e15be9f4f989f0b5 ]---
-[    8.601206] Kernel panic - not syncing: Attempted to kill init! exitcode=0x0b
-[    8.601206]
-[    8.601206] Kernel Offset: disabled
-[    8.601206] Memory Limit: none
-[    8.601206] ---[ end Kernel panic - not syncing: Attempted to kill init! exib
-[    8.601206]
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
