@@ -1,46 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 638A36B0069
-	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 19:44:36 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 144so327804868pfv.5
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 16:44:36 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id z15si66518310pfj.14.2016.11.30.16.44.34
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 27AAF6B0069
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:57 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id jb2so35685016wjb.6
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 17:19:57 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 193si9744770wmu.34.2016.11.30.17.19.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Nov 2016 16:44:35 -0800 (PST)
-Date: Thu, 1 Dec 2016 11:44:31 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm 2016-11-30-15-46 uploaded
-Message-ID: <20161201114431.2a2cb11d@canb.auug.org.au>
-In-Reply-To: <583f6515.fNq/FWln01oGaTxN%akpm@linux-foundation.org>
-References: <583f6515.fNq/FWln01oGaTxN%akpm@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 17:19:56 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB11Iqvn082467
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:54 -0500
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2727e8pkgj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 30 Nov 2016 20:19:54 -0500
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 30 Nov 2016 18:19:53 -0700
+Date: Wed, 30 Nov 2016 17:19:50 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: next: Commit 'mm: Prevent __alloc_pages_nodemask() RCU CPU stall
+ ...' causing hang on sparc32 qemu
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20161129212308.GA12447@roeck-us.net>
+ <20161130012817.GH3924@linux.vnet.ibm.com>
+ <b96c1560-3f06-bb6d-717a-7a0f0c6e869a@roeck-us.net>
+ <20161130070212.GM3924@linux.vnet.ibm.com>
+ <929f6b29-461a-6e94-fcfd-710c3da789e9@roeck-us.net>
+ <20161130120333.GQ3924@linux.vnet.ibm.com>
+ <20161130192159.GB22216@roeck-us.net>
+ <20161130210152.GL3924@linux.vnet.ibm.com>
+ <20161130231846.GB17244@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161130231846.GB17244@roeck-us.net>
+Message-Id: <20161201011950.GX3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz, broonie@kernel.org
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, sparclinux@vger.kernel.org, davem@davemloft.net
 
-Hi Andrew,
+On Wed, Nov 30, 2016 at 03:18:46PM -0800, Guenter Roeck wrote:
+> On Wed, Nov 30, 2016 at 01:01:52PM -0800, Paul E. McKenney wrote:
+> > On Wed, Nov 30, 2016 at 11:21:59AM -0800, Guenter Roeck wrote:
+> > > On Wed, Nov 30, 2016 at 04:03:33AM -0800, Paul E. McKenney wrote:
+> > > > On Wed, Nov 30, 2016 at 02:52:11AM -0800, Guenter Roeck wrote:
+> > > > > On 11/29/2016 11:02 PM, Paul E. McKenney wrote:
+> > > > > >On Tue, Nov 29, 2016 at 08:32:51PM -0800, Guenter Roeck wrote:
+> > > > > >>On 11/29/2016 05:28 PM, Paul E. McKenney wrote:
+> > > > > >>>On Tue, Nov 29, 2016 at 01:23:08PM -0800, Guenter Roeck wrote:
+> > > > > >>>>Hi Paul,
+> > > > > >>>>
+> > > > > >>>>most of my qemu tests for sparc32 targets started to fail in next-20161129.
+> > > > > >>>>The problem is only seen in SMP builds; non-SMP builds are fine.
+> > > > > >>>>Bisect points to commit 2d66cccd73436 ("mm: Prevent __alloc_pages_nodemask()
+> > > > > >>>>RCU CPU stall warnings"); reverting that commit fixes the problem.
+> > > > 
+> > > > And I have dropped this patch.  Michal Hocko showed me the error of
+> > > > my ways with this patch.
+> > > > 
+> > > 
+> > > :-)
+> > > 
+> > > On another note, I still get RCU tracebacks in the s390 tests.
+> > > 
+> > > BUG: sleeping function called from invalid context at mm/page_alloc.c:3775
+> > > 
+> > > That is caused by 'rcu: Maintain special bits at bottom of ->dynticks counter';
+> > > if I recall correctly we had discussed that earlier.
+> > 
+> > Indeed, I had missed a dyntick counter update back on Nov 11, which meant
+> > that some of the code was still looking at the low-order bit instead of
+> > the next bit up.  This is now fixed.
+> > 
+> > So to get to the error message you call out above, I need to have improperly
+> > left the system in bh state or left irqs disabled, while the system was
+> > running normally without an oops.  I am having a hard time seeing how this
+> > patch can do that.
+> > 
+> > I would be more suspicious of f2a471ffc8a8 ("rcu: Allow boot-time use
+> > of cond_resched_rcu_qs()").
+> > 
+> > So you bisected or did a revert to work out which was the offending commit?
+> > 
+> 
+> My most recent bisect was with the November 10 image, so that would have missed
+> any later fix. Comparing the log messages, the current message is indeed
+> different. Sorry, I mixed that up; I just assumed that the problem would be
+> the same without really checking. My bad.
+> 
+> Bisect would be tricky, since the s390 image was broken for some time after
+> November 10. The first time I have seen the above BUG: was with next-20161128
+> (which is the first build after the crash was fixed). That version did not
+> include f2a471ffc8a8, so that can not be the cause.
+> 
+> I'll try to set up a bisect tonight, working around the crash problem.
+> I'll let you know how it goes.
 
-On Wed, 30 Nov 2016 15:47:33 -0800 akpm@linux-foundation.org wrote:
->
-> * ima-define-a-canonical-binary_runtime_measurements-list-format.patch
+Whew!  You had me going for a bit there.  ;-)
 
-This patch tries to patch the file
-
-  Documentation/kernel-parameters.txt
-
-but that file has been renamed to
-
-  Documentation/admin-guide/kernel-parameters.rst
-
-in linux-next.  I just dropped the hunk from the patch.
--- 
-Cheers,
-Stephen Rothwell
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
