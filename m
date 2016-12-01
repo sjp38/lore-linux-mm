@@ -1,227 +1,93 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 447CC6B0038
-	for <linux-mm@kvack.org>; Sat, 31 Dec 2016 21:57:59 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 127so372419669pfg.5
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2016 18:57:59 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id r90si36734627pfk.118.2016.12.31.18.57.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Dec 2016 18:57:58 -0800 (PST)
-From: "Williams, Dan J" <dan.j.williams@intel.com>
-Subject: [GIT PULL] dax final updates and fixes for 4.10-rc2
-Date: Sun, 1 Jan 2017 02:57:56 +0000
-Message-ID: <1483239473.2943.17.camel@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-7"
-Content-ID: <AF13CB2738A7EF44A4F4026C2D15AAF2@intel.com>
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: PROBLEM-PERSISTS: dmesg spam: alloc_contig_range: [XX, YY) PFNs busy
+Date: Thu, 01 Dec 2016 02:39:35 +0100
+Message-ID: <xa1td1hcwhpk.fsf@mina86.com>
+References: <robbat2-20161129T223723-754929513Z@orbis-terrarum.net> <20161130092239.GD18437@dhcp22.suse.cz> <xa1ty4012k0f.fsf@mina86.com> <20161130132848.GG18432@dhcp22.suse.cz> <robbat2-20161130T195244-998539995Z@orbis-terrarum.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jack@suse.cz" <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <robbat2-20161130T195244-998539995Z@orbis-terrarum.net>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Robin H. Johnson" <robbat2@orbis-terrarum.net>, linux-kernel@vger.kernel.org, robbat2@gentoo.org, linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-Hi Linus, please pull from:
+On Wed, Nov 30 2016, Robin H. Johnson wrote:
+> (I'm going to respond directly to this email with the stack trace.)
+>
+> On Wed, Nov 30, 2016 at 02:28:49PM +0100, Michal Hocko wrote:
+>> > On the other hand, if this didn=E2=80=99t happen and now happens all t=
+he time,
+>> > this indicates a regression in CMA=E2=80=99s capability to allocate pa=
+ges so
+>> > just rate limiting the output would hide the potential actual issue.
+>>=20
+>> Or there might be just a much larger demand on those large blocks, no?
+>> But seriously, dumping those message again and again into the low (see
+>> the 2.5_GB_/h to the log is just insane. So there really should be some
+>> throttling.
+>>=20
+>> Does the following help you Robin. At least to not get swamped by those
+>> message.
+> Here's what I whipped up based on that, to ensure that dump_stack got
+> rate-limited at the same pass as PFNs-busy. It dropped the dmesg spew to
+> ~25MB/hour (and is suppressing ~43 entries/second right now).
+>
+> commit 6ad4037e18ec2199f8755274d8a745a9904241a1
+> Author: Robin H. Johnson <robbat2@gentoo.org>
+> Date:   Wed Nov 30 10:32:57 2016 -0800
+>
+>     mm: ratelimit & trace PFNs busy.
+>=20=20=20=20=20
+>     Signed-off-by: Robin H. Johnson <robbat2@gentoo.org>
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm libnvdimm-fix=
-es
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-...to receive the completion of Jan's DAX work for 4.10.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6de9440e3ae2..3c28ec3d18f8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7289,8 +7289,15 @@ int alloc_contig_range(unsigned long start, unsign=
+ed long end,
+>=20=20
+>  	/* Make sure the range is really isolated. */
+>  	if (test_pages_isolated(outer_start, end, false)) {
+> -		pr_info("%s: [%lx, %lx) PFNs busy\n",
+> -			__func__, outer_start, end);
+> +		static DEFINE_RATELIMIT_STATE(ratelimit_pfn_busy,
+> +					DEFAULT_RATELIMIT_INTERVAL,
+> +					DEFAULT_RATELIMIT_BURST);
+> +		if (__ratelimit(&ratelimit_pfn_busy)) {
+> +			pr_info("%s: [%lx, %lx) PFNs busy\n",
+> +				__func__, outer_start, end);
 
-As I mentioned in the libnvdimm-for-4.10 pull request +AFs-1+AF0-, these ar=
-e
-some final fixes for the DAX dirty-cacheline-tracking invalidation work
-that was merged through the -mm, ext4, and xfs trees in -rc1. These
-patches were prepared prior to the merge window, but we waited for
-4.10-rc1 to have a stable merge base after all the prerequisites were
-merged.
+I=E2=80=99m thinking out loud here, but maybe it would be useful to include
+a count of how many times this message has been suppressed?
 
-Quoting Jan on the overall changes in these patches:
+> +			dump_stack();
 
-    So I'd like all these 6 patches to go for rc2. The first three
-    patches fix invalidation of exceptional DAX entries (a bug which is
-    there for a long time) - without these patches data loss can occur
-    on power failure even though user called fsync(2). The other three
-    patches change locking of DAX faults so that -+AD4-iomap+AF8-begin() is
-    called in a more relaxed locking context and we are safe to start a
-    transaction there for ext4.
+Perhaps do it only if CMA_DEBUG?
 
-These have received a build success notification from the kbuild robot,
-and pass the latest libnvdimm unit tests. There have not been any -next
-releases since -rc1, so they have not appeared there.
++			if (IS_ENABLED(CONFIG_CMA_DEBUG))
++				dump_stack();
 
-+AFs-1+AF0-:+AKA-https://lists.01.org/pipermail/linux-nvdimm/2016-December/=
-008279.h
-tml
+> +		}
+> +
+>  		ret =3D -EBUSY;
+>  		goto done;
+>  	}
+>
+> --=20
+> Robin Hugh Johnson
+> Gentoo Linux: Dev, Infra Lead, Foundation Trustee & Treasurer
+> E-Mail   : robbat2@gentoo.org
+> GnuPG FP : 11ACBA4F 4778E3F6 E4EDF38E B27B944E 34884E85
+> GnuPG FP : 7D0B3CEB E9B85B1F 825BCECF EE05E6F6 A48F6136
 
----
-
-The following changes since commit 7ce7d89f48834cefece7804d38fc5d85382edf77=
-:
-
-  Linux 4.10-rc1 (2016-12-25 16:13:08 -0800)
-
-are available in the git repository at:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm libnvdimm-fix=
-es
-
-for you to fetch changes up to 1db175428ee374489448361213e9c3b749d14900:
-
-  ext4: Simplify DAX fault path (2016-12-26 20:29:25 -0800)
-
-----------------------------------------------------------------
-Jan Kara (6):
-      ext2: Return BH+AF8-New buffers for zeroed blocks
-      mm: Invalidate DAX radix tree entries only if appropriate
-      dax: Avoid page invalidation races and unnecessary radix tree travers=
-als
-      dax: Finish fault completely when loading holes
-      dax: Call -+AD4-iomap+AF8-begin without entry lock during dax fault
-      ext4: Simplify DAX fault path
-
- fs/dax.c            +AHw- 243 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-=
-+-+-+-+-+-+-+-+-+-+-+--------------------
- fs/ext2/inode.c     +AHw-   3 +--
- fs/ext4/file.c      +AHw-  48 +-+-+---------
- include/linux/dax.h +AHw-   3 +-
- mm/truncate.c       +AHw-  75 +-+-+-+-+-+-+-+-+-+-+-+-+----
- 5 files changed, 229 insertions(+-), 143 deletions(-)
-
-commit e568df6b84ff05a22467503afc11bee7a6ba0700
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Wed Aug 10 16:42:53 2016 +-0200
-
-    ext2: Return BH+AF8-New buffers for zeroed blocks
-   =20
-    So far we did not return BH+AF8-New buffers from ext2+AF8-get+AF8-block=
-s() when we
-    allocated and zeroed-out a block for DAX inode to avoid racy zeroing in
-    DAX code. This zeroing is gone these days so we can remove the
-    workaround.
-   =20
-    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
-    Reviewed-by: Christoph Hellwig +ADw-hch+AEA-lst.de+AD4-
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
-
-commit c6dcf52c23d2d3fb5235cec42d7dd3f786b87d55
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Wed Aug 10 17:22:44 2016 +-0200
-
-    mm: Invalidate DAX radix tree entries only if appropriate
-   =20
-    Currently invalidate+AF8-inode+AF8-pages2+AF8-range() and invalidate+AF=
-8-mapping+AF8-pages()
-    just delete all exceptional radix tree entries they find. For DAX this
-    is not desirable as we track cache dirtiness in these entries and when
-    they are evicted, we may not flush caches although it is necessary. Thi=
-s
-    can for example manifest when we write to the same block both via mmap
-    and via write(2) (to different offsets) and fsync(2) then does not
-    properly flush CPU caches when modification via write(2) was the last
-    one.
-   =20
-    Create appropriate DAX functions to handle invalidation of DAX entries
-    for invalidate+AF8-inode+AF8-pages2+AF8-range() and invalidate+AF8-mapp=
-ing+AF8-pages() and
-    wire them up into the corresponding mm functions.
-   =20
-    Acked-by: Johannes Weiner +ADw-hannes+AEA-cmpxchg.org+AD4-
-    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
-
-commit e3fce68cdbed297d927e993b3ea7b8b1cee545da
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Wed Aug 10 17:10:28 2016 +-0200
-
-    dax: Avoid page invalidation races and unnecessary radix tree traversal=
-s
-   =20
-    Currently dax+AF8-iomap+AF8-rw() takes care of invalidating page tables=
- and
-    evicting hole pages from the radix tree when write(2) to the file
-    happens. This invalidation is only necessary when there is some block
-    allocation resulting from write(2). Furthermore in current place the
-    invalidation is racy wrt page fault instantiating a hole page just afte=
-r
-    we have invalidated it.
-   =20
-    So perform the page invalidation inside dax+AF8-iomap+AF8-actor() where=
- we can
-    do it only when really necessary and after blocks have been allocated s=
-o
-    nobody will be instantiating new hole pages anymore.
-   =20
-    Reviewed-by: Christoph Hellwig +ADw-hch+AEA-lst.de+AD4-
-    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
-
-commit f449b936f1aff7696b24a338f493d5cee8d48d55
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Wed Oct 19 14:48:38 2016 +-0200
-
-    dax: Finish fault completely when loading holes
-   =20
-    The only case when we do not finish the page fault completely is when w=
-e
-    are loading hole pages into a radix tree. Avoid this special case and
-    finish the fault in that case as well inside the DAX fault handler. It
-    will allow us for easier iomap handling.
-   =20
-    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
-
-commit 9f141d6ef6258a3a37a045842d9ba7e68f368956
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Wed Oct 19 14:34:31 2016 +-0200
-
-    dax: Call -+AD4-iomap+AF8-begin without entry lock during dax fault
-   =20
-    Currently -+AD4-iomap+AF8-begin() handler is called with entry lock hel=
-d. If the
-    filesystem held any locks between -+AD4-iomap+AF8-begin() and -+AD4-iom=
-ap+AF8-end()
-    (such as ext4 which will want to hold transaction open), this would cau=
-se
-    lock inversion with the iomap+AF8-apply() from standard IO path which f=
-irst
-    calls -+AD4-iomap+AF8-begin() and only then calls -+AD4-actor() callbac=
-k which grabs
-    entry locks for DAX (if it faults when copying from/to user provided
-    buffers).
-   =20
-    Fix the problem by nesting grabbing of entry lock inside -+AD4-iomap+AF=
-8-begin()
-    - -+AD4-iomap+AF8-end() pair.
-   =20
-    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
-
-commit 1db175428ee374489448361213e9c3b749d14900
-Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-Date:   Fri Oct 21 11:33:49 2016 +-0200
-
-    ext4: Simplify DAX fault path
-   =20
-    Now that dax+AF8-iomap+AF8-fault() calls -+AD4-iomap+AF8-begin() withou=
-t entry lock, we
-    can use transaction starting in ext4+AF8-iomap+AF8-begin() and thus sim=
-plify
-    ext4+AF8-dax+AF8-fault(). It also provides us proper retries in case of=
- ENOSPC.
-   =20
-    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
-    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-=
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--=20
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
