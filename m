@@ -1,93 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 943E36B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 02:54:01 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id bk3so37057803wjc.4
-        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 23:54:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u82si10997148wme.75.2016.11.30.23.54.00
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 048A76B0069
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 02:58:57 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y71so78686235pgd.0
+        for <linux-mm@kvack.org>; Wed, 30 Nov 2016 23:58:56 -0800 (PST)
+Received: from smtp.gentoo.org (smtp.gentoo.org. [140.211.166.183])
+        by mx.google.com with ESMTPS id u64si68219734pgc.175.2016.11.30.23.58.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Nov 2016 23:54:00 -0800 (PST)
-Date: Thu, 1 Dec 2016 08:53:56 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/6] dax: fix build breakage with ext4, dax and !iomap
-Message-ID: <20161201075356.GA12804@quack2.suse.cz>
-References: <1479926662-21718-1-git-send-email-ross.zwisler@linux.intel.com>
- <1479926662-21718-2-git-send-email-ross.zwisler@linux.intel.com>
- <20161124090239.GA24138@quack2.suse.cz>
- <20161128191504.GB6637@linux.intel.com>
- <20161129085303.GA7550@quack2.suse.cz>
- <20161130190431.GA11793@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Nov 2016 23:58:56 -0800 (PST)
+Received: from grubbs.orbis-terrarum.net (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by smtp.gentoo.org (Postfix) with ESMTPS id 0E3FC3413FD
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 07:58:55 +0000 (UTC)
+Date: Thu, 1 Dec 2016 07:58:54 +0000
+From: "Robin H. Johnson" <robbat2@gentoo.org>
+Subject: Re: drm/radeon spamming alloc_contig_range: [xxx, yyy) PFNs busy busy
+Message-ID: <robbat2-20161201T074556-337570278Z@orbis-terrarum.net>
+References: <robbat2-20161129T223723-754929513Z@orbis-terrarum.net>
+ <20161130092239.GD18437@dhcp22.suse.cz>
+ <xa1ty4012k0f.fsf@mina86.com>
+ <20161130132848.GG18432@dhcp22.suse.cz>
+ <robbat2-20161130T195244-998539995Z@orbis-terrarum.net>
+ <robbat2-20161130T195846-190979177Z@orbis-terrarum.net>
+ <9d6e922b-d853-f24d-353c-25fbac38115b@suse.cz>
+ <20161201062142.GA25917@orbis-terrarum.net>
+ <48823c64-37b4-7ba4-f206-7cb86a4d5540@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161130190431.GA11793@linux.intel.com>
+In-Reply-To: <48823c64-37b4-7ba4-f206-7cb86a4d5540@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Robin H. Johnson" <robbat2@gentoo.org>, Michal Hocko <mhocko@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed 30-11-16 12:04:31, Ross Zwisler wrote:
-> On Tue, Nov 29, 2016 at 09:53:03AM +0100, Jan Kara wrote:
-> > On Mon 28-11-16 12:15:04, Ross Zwisler wrote:
-> > > On Thu, Nov 24, 2016 at 10:02:39AM +0100, Jan Kara wrote:
-> > > > On Wed 23-11-16 11:44:17, Ross Zwisler wrote:
-> > > > > With the current Kconfig setup it is possible to have the following:
-> > > > > 
-> > > > > CONFIG_EXT4_FS=y
-> > > > > CONFIG_FS_DAX=y
-> > > > > CONFIG_FS_IOMAP=n	# this is in fs/Kconfig & isn't user accessible
-> > > > > 
-> > > > > With this config we get build failures in ext4_dax_fault() because the
-> > > > > iomap functions in fs/dax.c are missing:
-> > > > > 
-> > > > > fs/built-in.o: In function `ext4_dax_fault':
-> > > > > file.c:(.text+0x7f3ac): undefined reference to `dax_iomap_fault'
-> > > > > file.c:(.text+0x7f404): undefined reference to `dax_iomap_fault'
-> > > > > fs/built-in.o: In function `ext4_file_read_iter':
-> > > > > file.c:(.text+0x7fc54): undefined reference to `dax_iomap_rw'
-> > > > > fs/built-in.o: In function `ext4_file_write_iter':
-> > > > > file.c:(.text+0x7fe9a): undefined reference to `dax_iomap_rw'
-> > > > > file.c:(.text+0x7feed): undefined reference to `dax_iomap_rw'
-> > > > > fs/built-in.o: In function `ext4_block_zero_page_range':
-> > > > > inode.c:(.text+0x85c0d): undefined reference to `iomap_zero_range'
-> > > > > 
-> > > > > Now that the struct buffer_head based DAX fault paths and I/O path have
-> > > > > been removed we really depend on iomap support being present for DAX.  Make
-> > > > > this explicit by selecting FS_IOMAP if we compile in DAX support.
-> > > > > 
-> > > > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > > 
-> > > > I've sent the same patch to Ted yesterday and he will probably queue it on
-> > > > top of ext4 iomap patches. If it doesn't happen for some reason, feel free
-> > > > to add:
-> > > > 
-> > > > Reviewed-by: Jan Kara <jack@suse.cz>
-> > > 
-> > > Cool, looks like Ted has pulled in your patch.
-> > > 
-> > > I think we still eventually want this patch because it cleans up our handling
-> > > of FS_IOMAP.  With your patch we select it separately in both ext4 & ext2
-> > > based on whether we include DAX, and we still have #ifdefs in fs/dax.c for
-> > > FS_IOMAP.
-> > 
-> > Actually, based on Dave's request I've also sent Ted updated version which
-> > did select FS_IOMAP in CONFIG_DAX section. However Ted didn't pull that
-> > patch (yet?). Anyway, I don't care whose patch gets merged, I just wanted
-> > to notify you of possible conflict.
+On Thu, Dec 01, 2016 at 08:38:15AM +0100, Vlastimil Babka wrote:
+> >> By default config this should not be used on x86.
+> > What do you mean by that statement?
 > 
-> Can you please CC me on these patches in the future?  I also don't care whose
-> patches end up fixing this, but I want to make sure we end up in a world where
-> the "select FS_IOMAP" just happens directly for FS_DAX in fs/Kconfig so that
-> I can get rid of the unnecessary #ifdefs in fs/dax.c for CONFIG_FS_IOMAP.
+> I mean that the 16 mbytes for generic CMA area is not a default on x86:
+> 
+> config CMA_SIZE_MBYTES
+>          int "Size in Mega Bytes"
+>          depends on !CMA_SIZE_SEL_PERCENTAGE
+>          default 0 if X86
+>          default 16
+d7be003a9d275299f5ee36bbdf156654f59e08e9 (v3.18-2122-gd7be003a9d27)
+is there the 0MB if-x86 default was added to the tree. Prior to that, it
+was 16MiB, and that's where my system picked up the value from.
 
-Sure, will do.
+I have a record of all my kconfigs, because I use oldconfig each time
+(going back 8 years to 2.6.27)
 
-								Honza
+# Added in 3.12.0-00001-g5f258d0
+CONFIG_CMA=y 
+# Added in 3.16.0-rc6-00042-g67dd8f3
+CONFIG_CMA_ALIGNMENT=8
+CONFIG_CMA_AREAS=7
+CONFIG_CMA_SIZE_MBYTES=16
+CONFIG_CMA_SIZE_SEL_MBYTES=y
+CONFIG_DMA_CMA=y
+
+So the next question, is why did I pick up CMA in
+3.16.0-rc6-00042-g67dd8f3... I'll poke at that.
+
+> > Yes, I'd say if there's a fallback without much penalty, nowarn makes
+> > sense. If the fallback just tries multiple addresses until success, then
+> > the warning should only be issued when too many attempts have been made.
+> On the other hand, if the warnings are correlated with high kernel CPU usage, 
+> it's arguably better to be warned.
+Keep the rate-limit on the warning for cases like this?
+
+> >> > The rate of the problem starts slow, and also is relatively low on an idle
+> >> > system (my screens blank at night, no xscreensaver running), but it still ramps
+> >> > up over time (to the point of generating 2.5GB/hour of "(timestamp)
+> >> > alloc_contig_range: [83e4d9, 83e4da) PFNs busy"), with various addresses (~100
+> >> > unique ranges for a day).
+> >> >
+> >> > My X workload is ~50 chrome tabs and ~20 terminals (over 3x 24" monitors w/ 9
+> >> > virtual desktops per monitor).
+> >> So IIUC, except the messages, everything actually works fine?
+> > There's high kernel CPU usage that seems to roughly correlate with the
+> > messages, but I can't yet tell if that's due to the syslog itself, or
+> > repeated alloc_contig_range requests.
+> You could try running perf top.
+Will do in the morning.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Robin Hugh Johnson
+Gentoo Linux: Dev, Infra Lead, Foundation Trustee & Treasurer
+E-Mail   : robbat2@gentoo.org
+GnuPG FP : 11ACBA4F 4778E3F6 E4EDF38E B27B944E 34884E85
+GnuPG FP : 7D0B3CEB E9B85B1F 825BCECF EE05E6F6 A48F6136
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
