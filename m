@@ -1,176 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 64D2E6B025E
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 12:34:14 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id y205so185175760qkb.4
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 09:34:14 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l40si668781qtf.193.2016.12.01.09.34.13
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AC55D6B0069
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 13:10:00 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id q10so110003162pgq.7
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 10:10:00 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id w17si1014131pgf.262.2016.12.01.10.09.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 09:34:13 -0800 (PST)
-Date: Thu, 1 Dec 2016 18:34:02 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v3
-Message-ID: <20161201183402.2fbb8c5b@redhat.com>
-In-Reply-To: <20161130163520.hg7icdflagmvarbr@techsingularity.net>
-References: <20161127131954.10026-1-mgorman@techsingularity.net>
-	<20161130134034.3b60c7f0@redhat.com>
-	<20161130140615.3bbn7576iwbyc3op@techsingularity.net>
-	<20161130160612.474ca93c@redhat.com>
-	<20161130163520.hg7icdflagmvarbr@techsingularity.net>
+        Thu, 01 Dec 2016 10:09:59 -0800 (PST)
+Date: Thu, 1 Dec 2016 19:09:53 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
+ `mem_cgroup_shrink_node`
+Message-ID: <20161201180953.GO3045@worktop.programming.kicks-ass.net>
+References: <20161130131910.GF18432@dhcp22.suse.cz>
+ <20161130142955.GS3924@linux.vnet.ibm.com>
+ <20161130163820.GQ3092@twins.programming.kicks-ass.net>
+ <20161130170557.GK18432@dhcp22.suse.cz>
+ <20161130175015.GR3092@twins.programming.kicks-ass.net>
+ <20161130194019.GF3924@linux.vnet.ibm.com>
+ <20161201053035.GC3092@twins.programming.kicks-ass.net>
+ <20161201124024.GB3924@linux.vnet.ibm.com>
+ <20161201163614.GL3092@twins.programming.kicks-ass.net>
+ <20161201165918.GG3924@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161201165918.GG3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Rick Jones <rick.jones2@hpe.com>, Paolo Abeni <pabeni@redhat.com>, brouer@redhat.com, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Hannes Frederic Sowa <hannes@stressinduktion.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>
 
-(Cc. netdev, we might have an issue with Paolo's UDP accounting and
-small socket queues)
-
-On Wed, 30 Nov 2016 16:35:20 +0000
-Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> > I don't quite get why you are setting the socket recv size
-> > (with -- -s and -S) to such a small number, size + 256.
-> >   
+On Thu, Dec 01, 2016 at 08:59:18AM -0800, Paul E. McKenney wrote:
+> On Thu, Dec 01, 2016 at 05:36:14PM +0100, Peter Zijlstra wrote:
+> > Well, with the above change cond_resched() is already sufficient, no?
 > 
-> Maybe I missed something at the time I wrote that but why would it
-> need to be larger?
+> Maybe.  Right now, cond_resched_rcu_qs() gets a quiescent state to
+> the RCU core in less than one jiffy, with my other change, this becomes
+> a handful of jiffies depending on HZ and NR_CPUS.  I expect this
+> increase to a handful of jiffies to be a non-event.
+> 
+> After my upcoming patch, cond_resched() will get a quiescent state to
+> the RCU core in about ten seconds.  While I am am not all that nervous
+> about the increase from less than a jiffy to a handful of jiffies,
+> increasing to ten seconds via cond_resched() does make me quite nervous.
+> Past experience indicates that someone's kernel will likely be fatally
+> inconvenienced by this magnitude of change.
+> 
+> Or am I misunderstanding what you are proposing?
 
-Well, to me it is quite obvious that we need some queue to avoid packet
-drops.  We have two processes netperf and netserver, that are sending
-packets between each-other (UDP_STREAM mostly netperf -> netserver).
-These PIDs are getting scheduled and migrated between CPUs, and thus
-does not get executed equally fast, thus a queue is need absorb the
-fluctuations.
+No, that is indeed what I was proposing. Hurm.. OK let me ponder that a
+bit. There might be a few games we can play with !PREEMPT to avoid IPIs.
 
-The network stack is even partly catching your config "mistake" and
-increase the socket queue size, so we minimum can handle one max frame
-(due skb "truesize" concept approx PAGE_SIZE + overhead).
+Thing is, I'm slightly uncomfortable with de-coupling rcu-sched from
+actual schedule() calls.
 
-Hopefully for localhost testing a small queue should hopefully not
-result in packet drops.  Testing... ups, this does result in packet
-drops.
+> > In fact, by doing the IPI thing we get the entire cond_resched*()
+> > family, and we could add the should_resched() guard to
+> > cond_resched_rcu().
+> 
+> So that cond_resched_rcu_qs() looks something like this, in order
+> to avoid the function call in the case where the scheduler has nothing
+> to do?
 
-Test command extracted from mmtests, UDP_STREAM size 1024:
+I was actually thinking of this:
 
- netperf-2.4.5-installed/bin/netperf -t UDP_STREAM  -l 60  -H 127.0.0.1 \
-   -- -s 1280 -S 1280 -m 1024 -M 1024 -P 15895
-
- UDP UNIDIRECTIONAL SEND TEST from 0.0.0.0 (0.0.0.0)
-  port 15895 AF_INET to 127.0.0.1 (127.0.0.1) port 15895 AF_INET
- Socket  Message  Elapsed      Messages                
- Size    Size     Time         Okay Errors   Throughput
- bytes   bytes    secs            #      #   10^6bits/sec
-
-   4608    1024   60.00     50024301      0    6829.98
-   2560           60.00     46133211           6298.72
-
- Dropped packets: 50024301-46133211=3891090
-
-To get a better drop indication, during this I run a command, to get
-system-wide network counters from the last second, so below numbers are
-per second.
-
- $ nstat > /dev/null && sleep 1  && nstat
- #kernel
- IpInReceives                    885162             0.0
- IpInDelivers                    885161             0.0
- IpOutRequests                   885162             0.0
- UdpInDatagrams                  776105             0.0
- UdpInErrors                     109056             0.0
- UdpOutDatagrams                 885160             0.0
- UdpRcvbufErrors                 109056             0.0
- IpExtInOctets                   931190476          0.0
- IpExtOutOctets                  931189564          0.0
- IpExtInNoECTPkts                885162             0.0
-
-So, 885Kpps but only 776Kpps delivered and 109Kpps drops. See
-UdpInErrors and UdpRcvbufErrors is equal (109056/sec). This drop
-happens kernel side in __udp_queue_rcv_skb[1], because receiving
-process didn't empty it's queue fast enough see [2].
-
-Although upstream changes are coming in this area, [2] is replaced with
-__udp_enqueue_schedule_skb, which I actually tested with... hmm
-
-Retesting with kernel 4.7.0-baseline+ ... show something else. 
-To Paolo, you might want to look into this.  And it could also explain why
-I've not see the mentioned speedup by mm-change, as I've been testing
-this patch on top of net-next (at 93ba2222550) with Paolo's UDP changes.
-
- netperf-2.4.5-installed/bin/netperf -t UDP_STREAM  -l 60  -H 127.0.0.1 \
-   -- -s 1280 -S 1280 -m 1024 -M 1024 -P 15895
-
- UDP UNIDIRECTIONAL SEND TEST from 0.0.0.0 (0.0.0.0) port 15895
-  AF_INET to 127.0.0.1 (127.0.0.1) port 15895 AF_INET
- Socket  Message  Elapsed      Messages                
- Size    Size     Time         Okay Errors   Throughput
- bytes   bytes    secs            #      #   10^6bits/sec
-
-   4608    1024   60.00     47248301      0    6450.97
-   2560           60.00     47245030           6450.52
-
-Only dropped 47248301-47245030=3271
-
-$ nstat > /dev/null && sleep 1  && nstat
-#kernel
-IpInReceives                    810566             0.0
-IpInDelivers                    810566             0.0
-IpOutRequests                   810566             0.0
-UdpInDatagrams                  810468             0.0
-UdpInErrors                     99                 0.0
-UdpOutDatagrams                 810566             0.0
-UdpRcvbufErrors                 99                 0.0
-IpExtInOctets                   852713328          0.0
-IpExtOutOctets                  852713328          0.0
-IpExtInNoECTPkts                810563             0.0
-
-And nstat is also much better with only 99 drop/sec.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
-
-[1] http://lxr.free-electrons.com/source/net/ipv4/udp.c?v=4.8#L1454
-[2] http://lxr.free-electrons.com/source/net/core/sock.c?v=4.8#L413
-
-
-Extra: with net-next at 93ba2222550
-
-If I use netperf default socket queue, then there is not a single
-packet drop:
-
-netperf-2.4.5-installed/bin/netperf -t UDP_STREAM  -l 60  -H 127.0.0.1  
-   -- -m 1024 -M 1024 -P 15895
-
-UDP UNIDIRECTIONAL SEND TEST from 0.0.0.0 (0.0.0.0) 
- port 15895 AF_INET to 127.0.0.1 (127.0.0.1) port 15895 AF_INET
-Socket  Message  Elapsed      Messages                
-Size    Size     Time         Okay Errors   Throughput
-bytes   bytes    secs            #      #   10^6bits/sec
-
-212992    1024   60.00     48485642      0    6619.91
-212992           60.00     48485642           6619.91
-
-
-$ nstat > /dev/null && sleep 1  && nstat
-#kernel
-IpInReceives                    821723             0.0
-IpInDelivers                    821722             0.0
-IpOutRequests                   821723             0.0
-UdpInDatagrams                  821722             0.0
-UdpOutDatagrams                 821722             0.0
-IpExtInOctets                   864457856          0.0
-IpExtOutOctets                  864458908          0.0
-IpExtInNoECTPkts                821729             0.0
-
-
-
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 2d0c82e1d348..2dc7d8056b2a 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -3374,9 +3374,11 @@ static inline int signal_pending_state(long state, struct task_struct *p)
+ static inline void cond_resched_rcu(void)
+ {
+ #if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
+-	rcu_read_unlock();
+-	cond_resched();
+-	rcu_read_lock();
++	if (should_resched(1)) {
++		rcu_read_unlock();
++		cond_resched();
++		rcu_read_lock();
++	}
+ #endif
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
