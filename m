@@ -1,64 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D4C16B0069
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 09:11:28 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a20so57445408wme.5
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:11:28 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id t14si12171953wme.122.2016.12.01.06.11.27
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A8AD682F64
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 09:11:50 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id y205so180614782qkb.4
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:11:50 -0800 (PST)
+Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
+        by mx.google.com with ESMTPS id p16si211079qtp.282.2016.12.01.06.11.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 06:11:27 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id a20so34487208wme.2
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:11:27 -0800 (PST)
-Date: Thu, 1 Dec 2016 15:11:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: drm/radeon spamming alloc_contig_range: [xxx, yyy) PFNs busy busy
-Message-ID: <20161201141125.GB20966@dhcp22.suse.cz>
-References: <robbat2-20161129T223723-754929513Z@orbis-terrarum.net>
- <20161130092239.GD18437@dhcp22.suse.cz>
- <xa1ty4012k0f.fsf@mina86.com>
- <20161130132848.GG18432@dhcp22.suse.cz>
- <robbat2-20161130T195244-998539995Z@orbis-terrarum.net>
- <robbat2-20161130T195846-190979177Z@orbis-terrarum.net>
- <20161201071507.GC18272@dhcp22.suse.cz>
- <20161201072119.GD18272@dhcp22.suse.cz>
- <9f2aa4e4-d7d5-e24f-112e-a4b43f0a0ccc@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9f2aa4e4-d7d5-e24f-112e-a4b43f0a0ccc@suse.cz>
+        Thu, 01 Dec 2016 06:11:49 -0800 (PST)
+Received: by mail-qt0-x241.google.com with SMTP id n34so23690114qtb.3
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:11:49 -0800 (PST)
+Message-ID: <1480601506.2511.7.camel@poochiereds.net>
+Subject: LSF/MM 2017: Call for Proposals
+From: Jeff Layton <jlayton@poochiereds.net>
+Date: Thu, 01 Dec 2016 09:11:46 -0500
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Robin H. Johnson" <robbat2@gentoo.org>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Joonsoo Kim <js1304@gmail.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: linux-block@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-scsi@vger.kernel.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, ceph-devel@vger.kernel.org, linux-nvme@lists.infradead.org
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-Let's also CC Marek
+The annual Linux Storage, Filesystem and Memory Management (LSF/MM)
+Summit for 2017 will be held on March 20th and 21st at the Hyatt
+Cambridge, Cambridge, MA. LSF/MM is an invitation-only technical
+workshop to map out improvements to the Linux storage, filesystem and
+memory management subsystems that will make their way into the mainline
+kernel within the coming years.
 
-On Thu 01-12-16 08:43:40, Vlastimil Babka wrote:
-> On 12/01/2016 08:21 AM, Michal Hocko wrote:
-> > Forgot to CC Joonsoo. The email thread starts more or less here
-> > http://lkml.kernel.org/r/20161130092239.GD18437@dhcp22.suse.cz
-> > 
-> > On Thu 01-12-16 08:15:07, Michal Hocko wrote:
-> > > On Wed 30-11-16 20:19:03, Robin H. Johnson wrote:
-> > > [...]
-> > > > alloc_contig_range: [83f2a3, 83f2a4) PFNs busy
-> > > 
-> > > Huh, do I get it right that the request was for a _single_ page? Why do
-> > > we need CMA for that?
-> 
-> Ugh, good point. I assumed that was just the PFNs that it failed to migrate
-> away, but it seems that's indeed the whole requested range. Yeah sounds some
-> part of the dma-cma chain could be smarter and attempt CMA only for e.g.
-> costly orders.
+A A A A http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
 
-Is there any reason why the DMA api doesn't try the page allocator first
-before falling back to the CMA? I simply have a hard time to see why the
-CMA should be used (and fragment) for small requests size.
+Like last year, LSF/MM will be colocated with the Linux Foundation Vault
+conference which takes place on March 22nd and 23rd in the same Venue.
+For those that do not know, Vault is designed to be an event where open
+source storage and filesystem practitioners meet storage implementors
+and, as such, it would be of benefit for LSF/MM attendees to attend.
+
+Unlike past years, Vault admission is not free for LSF/MM attendees this
+year unless they're giving a talk. There is a discount for LSF/MM
+attendees, however we would also like to encourage folks to submit talk
+proposals to speak at the Vault conference.
+
+A A A A http://events.linuxfoundation.org/events/vault
+
+On behalf of the committee I am issuing a call for agenda proposals that
+are suitable for cross-track discussion as well as technical subjects
+for the breakout sessions.
+
+If advance notice is required for visa applications then please point
+that out in your proposal or request to attend, and submit the topic
+as soon as possible.
+
+1) Proposals for agenda topics should be sent before January 15th, 2016
+to:
+
+A A A A lsf-pc@lists.linux-foundation.org
+
+and cc the Linux list or lists that are relevant for the topic in
+question:
+
+A A A A ATA:A A A linux-ide@vger.kernel.org
+A A A A Block: linux-block@vger.kernel.org
+A A A A FS:A A A A linux-fsdevel@vger.kernel.org
+A A A A MM:A A A A linux-mm@kvack.org
+A A A A SCSI:A A linux-scsi@vger.kernel.org
+A A A A NVMe:A A linux-nvme@lists.infradead.org
+
+Please tag your proposal with [LSF/MM TOPIC] to make it easier to track.
+In addition, please make sure to start a new thread for each topic
+rather than following up to an existing one.A A Agenda topics and
+attendees will be selected by the program committee, but the final
+agenda will be formed by consensus of the attendees on the day.
+
+2) Requests to attend the summit for those that are not proposing a
+topic should be sent to:
+
+A A A A lsf-pc@lists.linux-foundation.org
+
+Please summarise what expertise you will bring to the meeting, and what
+you would like to discuss. Please also tag your email with [LSF/MM
+ATTEND] and send it as a new thread so there is less chance of it
+getting lost.
+
+We will try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes at
+the venue.
+
+Brief presentations are allowed to guide discussion, but are strongly
+discouraged. There will be no recording or audio bridge. However, we
+expect that written minutes will be published as we did in previous
+years:
+
+2016: https://lwn.net/Articles/lsfmm2016/
+
+2015: https://lwn.net/Articles/lsfmm2015/
+
+2014: http://lwn.net/Articles/LSFMM2014/
+
+2013: http://lwn.net/Articles/548089/
+
+3) If you have feedback on last year's meeting that we can use to
+improve this year's, please also send that to:
+
+A A A A lsf-pc@lists.linux-foundation.org
+
+Thank you on behalf of the program committee:
+
+Storage:
+A A A A James Bottomley
+A A A A Martin K. Petersen (track chair)
+A A A A Sagi Grimberg
+
+Filesystems:
+A A A A Anna Schumaker
+A A A A Chris Mason
+A A A A Eric Sandeen
+A A A A Jan Kara
+A A A A Jeff Layton (summit chair)
+A A A A Josef Bacik (track chair)
+A A A A Trond Myklebust
+
+MM:
+A A A A Johannes Weiner
+A A A A Rik van Riel (track chair)
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@poochiereds.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
