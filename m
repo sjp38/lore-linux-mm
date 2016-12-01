@@ -1,85 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DC2280260
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:44:34 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id p66so103312546pga.4
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:44:34 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id t1si625453pge.38.2016.12.01.07.44.33
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A407280260
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 10:49:56 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xr1so39697208wjb.7
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:49:56 -0800 (PST)
+Received: from mail-wj0-f175.google.com (mail-wj0-f175.google.com. [209.85.210.175])
+        by mx.google.com with ESMTPS id z80si1167150wmd.57.2016.12.01.07.49.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 07:44:33 -0800 (PST)
-Date: Thu, 1 Dec 2016 08:44:32 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 6/6] dax: add tracepoints to dax_pmd_insert_mapping()
-Message-ID: <20161201154432.GD5160@linux.intel.com>
-References: <1480549533-29038-1-git-send-email-ross.zwisler@linux.intel.com>
- <1480549533-29038-7-git-send-email-ross.zwisler@linux.intel.com>
- <20161201091930.2084d32c@gandalf.local.home>
+        Thu, 01 Dec 2016 07:49:55 -0800 (PST)
+Received: by mail-wj0-f175.google.com with SMTP id v7so208157680wjy.2
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 07:49:54 -0800 (PST)
+Date: Thu, 1 Dec 2016 16:49:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: btrfs flooding the I/O subsystem and hanging the machine, with
+ bcache cache turned off
+Message-ID: <20161201154952.GC20966@dhcp22.suse.cz>
+References: <20161118164643.g7ttuzgsj74d6fbz@merlins.org>
+ <20161118184915.j6dlazbgminxnxzx@merlins.org>
+ <b6c3daab-d990-e873-4d0f-0f0afe2259b1@coly.li>
+ <alpine.LRH.2.11.1611291255350.1914@mail.ewheeler.net>
+ <20161130164646.d6ejlv72hzellddd@merlins.org>
+ <20161130171814.3yrqzzoocg3kz4ki@merlins.org>
+ <6303e492-62f8-cbcc-4536-81350f2e9a86@gmail.com>
+ <20161130181653.g2hujqqu2fu2unjj@merlins.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161201091930.2084d32c@gandalf.local.home>
+In-Reply-To: <20161130181653.g2hujqqu2fu2unjj@merlins.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Marc MERLIN <marc@merlins.org>
+Cc: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>, Btrfs BTRFS <linux-btrfs@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, torvalds@linux-foundation.org
 
-On Thu, Dec 01, 2016 at 09:19:30AM -0500, Steven Rostedt wrote:
-> On Wed, 30 Nov 2016 16:45:33 -0700
-> Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+On Wed 30-11-16 10:16:53, Marc MERLIN wrote:
+> +folks from linux-mm thread for your suggestion
 > 
-> > diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-> > index a3d90b9..033fc7b 100644
-> > --- a/include/linux/pfn_t.h
-> > +++ b/include/linux/pfn_t.h
-> > @@ -15,6 +15,12 @@
-> >  #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
-> >  #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
-> >  
-> > +#define PFN_FLAGS_TRACE \
-> > +	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
-> > +	{ PFN_SG_LAST,	"SG_LAST" }, \
-> > +	{ PFN_DEV,	"DEV" }, \
-> > +	{ PFN_MAP,	"MAP" }
-> > +
-> >  static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
-> >  {
-> >  	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
-> > diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
-> > index 9f0a455..7d0ea33 100644
-> > --- a/include/trace/events/fs_dax.h
-> > +++ b/include/trace/events/fs_dax.h
-> > @@ -104,6 +104,57 @@ DEFINE_EVENT(dax_pmd_load_hole_class, name, \
-> >  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
-> >  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
-> >  
-> > +DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
-> > +	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-> > +		unsigned long address, int write, long length, pfn_t pfn,
-> > +		void *radix_entry),
-> > +	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry),
-> > +	TP_STRUCT__entry(
-> > +		__field(dev_t, dev)
-> > +		__field(unsigned long, ino)
-> > +		__field(unsigned long, vm_flags)
-> > +		__field(unsigned long, address)
-> > +		__field(int, write)
+> On Wed, Nov 30, 2016 at 01:00:45PM -0500, Austin S. Hemmelgarn wrote:
+> > > swraid5 < bcache < dmcrypt < btrfs
+> > > 
+> > > Copying with btrfs send/receive causes massive hangs on the system.
+> > > Please see this explanation from Linus on why the workaround was
+> > > suggested:
+> > > https://lkml.org/lkml/2016/11/29/667
+> > And Linux' assessment is absolutely correct (at least, the general
+> > assessment is, I have no idea about btrfs_start_shared_extent, but I'm more
+> > than willing to bet he's correct that that's the culprit).
 > 
-> Place "write" at the end. The ring buffer is 4 byte aligned, so on
-> archs that can access 8 bytes on 4 byte alignment, this will be packed
-> tighter. Otherwise, you'll get 4 empty bytes after "write".
+> > > All of this mostly went away with Linus' suggestion:
+> > > echo 2 > /proc/sys/vm/dirty_ratio
+> > > echo 1 > /proc/sys/vm/dirty_background_ratio
+> > > 
+> > > But that's hiding the symptom which I think is that btrfs is piling up too many I/O
+> > > requests during btrfs send/receive and btrfs scrub (probably balance too) and not
+> > > looking at resulting impact to system health.
+> 
+> > I see pretty much identical behavior using any number of other storage
+> > configurations on a USB 2.0 flash drive connected to a system with 16GB of
+> > RAM with the default dirty ratios because it's trying to cache up to 3.2GB
+> > of data for writeback.  While BTRFS is doing highly sub-optimal things here,
+> > the ancient default writeback ratios are just as much a culprit.  I would
+> > suggest that get changed to 200MB or 20% of RAM, whichever is smaller, which
+> > would give overall almost identical behavior to x86-32, which in turn works
+> > reasonably well for most cases.  I sadly don't have the time, patience, or
+> > expertise to write up such a patch myself though.
+> 
+> Dear linux-mm folks, is that something you could consider (changing the
+> dirty_ratio defaults) given that it affects at least bcache and btrfs
+> (with or without bcache)?
 
-Actually I think it may be ideal to stick it as the 2nd entry after 'dev'.
-dev_t is:
+As much as the dirty_*ratio defaults a major PITA this is not something
+that would be _easy_ to change without high risks of regressions. This
+topic has been discussed many times with many good ideas, nothing really
+materialized from them though :/
 
-typedef __u32 __kernel_dev_t;
-typedef __kernel_dev_t		dev_t;
+To be honest I really do hate dirty_*ratio and have seen many issues on
+very large machines and always suggested to use dirty_bytes instead but
+a particular value has always been a challenge to get right. It has
+always been very workload specific.
 
-So those two 32 bit values should combine into a single 64 bit space.
+That being said this is something more for IO people than MM IMHO.
 
-Thanks for the help, I obviously wasn't considering packing when ordering the
-elements.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
