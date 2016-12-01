@@ -1,118 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E509280254
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 09:19:35 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id g8so15029023ioi.0
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:19:35 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0193.hostedemail.com. [216.40.44.193])
-        by mx.google.com with ESMTPS id u74si9364759itu.40.2016.12.01.06.19.34
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE167280254
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 09:24:31 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id o2so32064317wje.5
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 06:24:31 -0800 (PST)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id p75si836721wmd.162.2016.12.01.06.24.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 06:19:34 -0800 (PST)
-Date: Thu, 1 Dec 2016 09:19:30 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v2 6/6] dax: add tracepoints to dax_pmd_insert_mapping()
-Message-ID: <20161201091930.2084d32c@gandalf.local.home>
-In-Reply-To: <1480549533-29038-7-git-send-email-ross.zwisler@linux.intel.com>
-References: <1480549533-29038-1-git-send-email-ross.zwisler@linux.intel.com>
-	<1480549533-29038-7-git-send-email-ross.zwisler@linux.intel.com>
+        Thu, 01 Dec 2016 06:24:30 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 0C1161C2DF1
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 14:24:30 +0000 (GMT)
+Date: Thu, 1 Dec 2016 14:24:29 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v4
+Message-ID: <20161201142429.w6lazfn4g6ndpezl@techsingularity.net>
+References: <20161201002440.5231-1-mgorman@techsingularity.net>
+ <8c666476-f8b6-d468-6050-56e3b5ff84cd@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <8c666476-f8b6-d468-6050-56e3b5ff84cd@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 30 Nov 2016 16:45:33 -0700
-Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+On Thu, Dec 01, 2016 at 02:41:29PM +0100, Vlastimil Babka wrote:
+> On 12/01/2016 01:24 AM, Mel Gorman wrote:
+> 
+> ...
+> 
+> > @@ -1096,28 +1097,29 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> >  	if (nr_scanned)
+> >  		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
+> > 
+> > -	while (count) {
+> > +	while (count > 0) {
+> >  		struct page *page;
+> >  		struct list_head *list;
+> > +		unsigned int order;
+> > 
+> >  		/*
+> >  		 * Remove pages from lists in a round-robin fashion. A
+> >  		 * batch_free count is maintained that is incremented when an
+> > -		 * empty list is encountered.  This is so more pages are freed
+> > -		 * off fuller lists instead of spinning excessively around empty
+> > -		 * lists
+> > +		 * empty list is encountered. This is not exact due to
+> > +		 * high-order but percision is not required.
+> >  		 */
+> >  		do {
+> >  			batch_free++;
+> > -			if (++migratetype == MIGRATE_PCPTYPES)
+> > -				migratetype = 0;
+> > -			list = &pcp->lists[migratetype];
+> > +			if (++pindex == NR_PCP_LISTS)
+> > +				pindex = 0;
+> > +			list = &pcp->lists[pindex];
+> >  		} while (list_empty(list));
+> > 
+> >  		/* This is the only non-empty list. Free them all. */
+> > -		if (batch_free == MIGRATE_PCPTYPES)
+> > +		if (batch_free == NR_PCP_LISTS)
+> >  			batch_free = count;
+> > 
+> > +		order = pindex_to_order(pindex);
+> >  		do {
+> >  			int mt;	/* migratetype of the to-be-freed page */
+> > 
+> > @@ -1135,11 +1137,14 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> >  			if (bulkfree_pcp_prepare(page))
+> >  				continue;
+> 
+> Hmm I think that if this hits, we don't decrease count/increase nr_freed and
+> pcp->count will become wrong.
 
-> diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-> index a3d90b9..033fc7b 100644
-> --- a/include/linux/pfn_t.h
-> +++ b/include/linux/pfn_t.h
-> @@ -15,6 +15,12 @@
->  #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
->  #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
->  
-> +#define PFN_FLAGS_TRACE \
-> +	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
-> +	{ PFN_SG_LAST,	"SG_LAST" }, \
-> +	{ PFN_DEV,	"DEV" }, \
-> +	{ PFN_MAP,	"MAP" }
-> +
->  static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
->  {
->  	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
-> diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
-> index 9f0a455..7d0ea33 100644
-> --- a/include/trace/events/fs_dax.h
-> +++ b/include/trace/events/fs_dax.h
-> @@ -104,6 +104,57 @@ DEFINE_EVENT(dax_pmd_load_hole_class, name, \
->  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
->  DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
->  
-> +DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
-> +	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-> +		unsigned long address, int write, long length, pfn_t pfn,
-> +		void *radix_entry),
-> +	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry),
-> +	TP_STRUCT__entry(
-> +		__field(dev_t, dev)
-> +		__field(unsigned long, ino)
-> +		__field(unsigned long, vm_flags)
-> +		__field(unsigned long, address)
-> +		__field(int, write)
+Ok, I think you're right but I also think it's relatively trivial to fix
+with
 
-Place "write" at the end. The ring buffer is 4 byte aligned, so on
-archs that can access 8 bytes on 4 byte alignment, this will be packed
-tighter. Otherwise, you'll get 4 empty bytes after "write".
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 94808f565f74..8777aefc1b8e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1134,13 +1134,13 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			if (unlikely(isolated_pageblocks))
+ 				mt = get_pageblock_migratetype(page);
+ 
++			nr_freed += (1 << order);
++			count -= (1 << order);
+ 			if (bulkfree_pcp_prepare(page))
+ 				continue;
+ 
+ 			__free_one_page(page, page_to_pfn(page), zone, order, mt);
+ 			trace_mm_page_pcpu_drain(page, order, mt);
+-			nr_freed += (1 << order);
+-			count -= (1 << order);
+ 		} while (count > 0 && --batch_free && !list_empty(list));
+ 	}
+ 	spin_unlock(&zone->lock);
 
--- Steve
+> And if we are unlucky/doing full drain, all
+> lists will get empty, but as count stays e.g. 1, we loop forever on the
+> outer while()?
+> 
 
-> +		__field(long, length)
-> +		__field(u64, pfn_val)
-> +		__field(void *, radix_entry)
-> +	),
-> +	TP_fast_assign(
-> +		__entry->dev = inode->i_sb->s_dev;
-> +		__entry->ino = inode->i_ino;
-> +		__entry->vm_flags = vma->vm_flags;
-> +		__entry->address = address;
-> +		__entry->write = write;
-> +		__entry->length = length;
-> +		__entry->pfn_val = pfn.val;
-> +		__entry->radix_entry = radix_entry;
-> +	),
-> +	TP_printk("dev %d:%d ino %#lx %s %s address %#lx length %#lx "
-> +			"pfn %#llx %s radix_entry %#lx",
-> +		MAJOR(__entry->dev),
-> +		MINOR(__entry->dev),
-> +		__entry->ino,
-> +		__entry->vm_flags & VM_SHARED ? "shared" : "private",
-> +		__entry->write ? "write" : "read",
-> +		__entry->address,
-> +		__entry->length,
-> +		__entry->pfn_val & ~PFN_FLAGS_MASK,
-> +		__print_flags_u64(__entry->pfn_val & PFN_FLAGS_MASK, "|",
-> +			PFN_FLAGS_TRACE),
-> +		(unsigned long)__entry->radix_entry
-> +	)
-> +)
-> +
-> +#define DEFINE_PMD_INSERT_MAPPING_EVENT(name) \
-> +DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
-> +	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-> +		unsigned long address, int write, long length, pfn_t pfn, \
-> +		void *radix_entry), \
-> +	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry))
-> +
-> +DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
-> +DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
-> +
->  #endif /* _TRACE_FS_DAX_H */
->  
->  /* This part must be outside protection */
+Potentially yes. Granted the system is already in a bad state as pages
+are being freed in a bad or unknown state but we haven't halted the
+system for that in the past.
+
+> BTW, I think there's a similar problem (but not introduced by this patch) in
+> rmqueue_bulk() and its
+> 
+>     if (unlikely(check_pcp_refill(page)))
+>             continue;
+> 
+
+Potentially yes. It's outside the scope of this patch but it needs
+fixing.
+
+If you agree with the above fix, I'll roll it into a v5 and append
+another patch for this issue.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
