@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2832682F64
-	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 17:34:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 144so369739741pfv.5
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 14:34:19 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id s68si1897170pgs.208.2016.12.01.14.34.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9459782F64
+	for <linux-mm@kvack.org>; Thu,  1 Dec 2016 17:34:26 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e9so125297694pgc.5
+        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 14:34:26 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id c62si1934569pfg.22.2016.12.01.14.34.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Dec 2016 14:34:18 -0800 (PST)
-Subject: [PATCH 04/11] mm: cleanup sparse_init_one_section() return value
+        Thu, 01 Dec 2016 14:34:24 -0800 (PST)
+Subject: [PATCH 05/11] mm: track active portions of a section at boot
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 01 Dec 2016 14:30:08 -0800
-Message-ID: <148063140833.37496.16919341685197482324.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Thu, 01 Dec 2016 14:30:13 -0800
+Message-ID: <148063141354.37496.14750466772324043245.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <148063138593.37496.4684424640746238765.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <148063138593.37496.4684424640746238765.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -23,11 +23,9 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: toshi.kani@hpe.com, linux-nvdimm@lists.01.org, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Logan Gunthorpe <logang@deltatee.com>, Vlastimil Babka <vbabka@suse.cz>
 
-We mark and check that the section is present under a spin_lock() in
-sparse_add_one_section(), so the lock ensures it will not change between
-those 2 events. Also, we do not check the -EBUSY return value in
-sparse_init(). Just make sparse_init_one_section() return void and clean
-up the error handling.
+Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
+section active bitmask, each bit representing 2MB (SECTION_SIZE (128M) /
+map_active bitmask length (64)).
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>
@@ -37,75 +35,114 @@ Cc: Logan Gunthorpe <logang@deltatee.com>
 Cc: Stephen Bates <stephen.bates@microsemi.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/sparse.c |   21 ++++++---------------
- 1 file changed, 6 insertions(+), 15 deletions(-)
+ include/linux/mmzone.h |    3 +++
+ mm/page_alloc.c        |    4 +++-
+ mm/sparse.c            |   53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 5a0117a72ec4..e282dc328ada 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1083,6 +1083,8 @@ struct mem_section_usage {
+ 	unsigned long pageblock_flags[0];
+ };
+ 
++void section_active_init(unsigned long pfn, unsigned long nr_pages);
++
+ struct page;
+ struct page_ext;
+ struct mem_section {
+@@ -1224,6 +1226,7 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++#define section_active_init(_pfn, _nr_pages) do {} while (0)
+ #endif /* CONFIG_SPARSEMEM */
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8a509e382f55..8dbfb131e358 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6308,10 +6308,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 
+ 	/* Print out the early node map */
+ 	pr_info("Early memory node ranges\n");
+-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
++	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+ 		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
+ 			(u64)start_pfn << PAGE_SHIFT,
+ 			((u64)end_pfn << PAGE_SHIFT) - 1);
++		section_active_init(start_pfn, end_pfn - start_pfn);
++	}
+ 
+ 	/* Initialise every node */
+ 	mminit_verify_pageflags_layout();
 diff --git a/mm/sparse.c b/mm/sparse.c
-index 91e1908db23d..59966a3e8ff0 100644
+index 59966a3e8ff0..00fdb5d04680 100644
 --- a/mm/sparse.c
 +++ b/mm/sparse.c
-@@ -231,19 +231,14 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
- 	return ((struct page *)coded_mem_map) + section_nr_to_pfn(pnum);
- }
- 
--static int __meminit sparse_init_one_section(struct mem_section *ms,
-+static void __meminit sparse_init_one_section(struct mem_section *ms,
- 		unsigned long pnum, struct page *mem_map,
- 		struct mem_section_usage *usage)
- {
--	if (!present_section(ms))
--		return -EINVAL;
--
- 	ms->section_mem_map &= ~SECTION_MAP_MASK;
- 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
- 		SECTION_HAS_MEM_MAP;
- 	ms->usage = usage;
--
--	return 1;
- }
- 
- unsigned long usemap_size(void)
-@@ -690,11 +685,6 @@ static void free_map_bootmem(struct page *memmap)
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
--/*
-- * returns the number of sections whose mem_maps were properly
-- * set.  If this is <=0, then that means that the passed-in
-- * map was not consumed and must be freed.
-- */
- int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
- {
- 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
-@@ -725,7 +715,7 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
- 
- 	ms = __pfn_to_section(start_pfn);
- 	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
--		ret = -EEXIST;
-+		ret = -EBUSY;
- 		goto out;
+@@ -168,6 +168,59 @@ void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
  	}
- 
-@@ -733,15 +723,16 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
- 
- 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
- 
--	ret = sparse_init_one_section(ms, section_nr, memmap, usage);
-+	sparse_init_one_section(ms, section_nr, memmap, usage);
- 
- out:
- 	pgdat_resize_unlock(pgdat, &flags);
--	if (ret <= 0) {
-+	if (ret < 0 && ret != -EEXIST) {
- 		kfree(usage);
- 		__kfree_section_memmap(memmap);
-+		return ret;
- 	}
--	return ret;
-+	return 0;
  }
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
++static int section_active_index(phys_addr_t phys)
++{
++	return (phys & ~(PA_SECTION_MASK)) / SECTION_ACTIVE_SIZE;
++}
++
++static unsigned long section_active_mask(unsigned long pfn,
++		unsigned long nr_pages)
++{
++	int idx_start, idx_size;
++	phys_addr_t start, size;
++
++	if (!nr_pages)
++		return 0;
++
++	start = PFN_PHYS(pfn);
++	size = PFN_PHYS(min(nr_pages, PAGES_PER_SECTION
++				- (pfn & ~PAGE_SECTION_MASK)));
++	size = ALIGN(size, SECTION_ACTIVE_SIZE);
++
++	idx_start = section_active_index(start);
++	idx_size = section_active_index(size);
++
++	if (idx_size == 0)
++		return -1;
++	return ((1UL << idx_size) - 1) << idx_start;
++}
++
++void section_active_init(unsigned long pfn, unsigned long nr_pages)
++{
++	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
++	int i, start_sec = pfn_to_section_nr(pfn);
++
++	if (!nr_pages)
++		return;
++
++	for (i = start_sec; i <= end_sec; i++) {
++		struct mem_section *ms;
++		unsigned long mask;
++		unsigned long pfns;
++
++		pfns = min(nr_pages, PAGES_PER_SECTION
++				- (pfn & ~PAGE_SECTION_MASK));
++		mask = section_active_mask(pfn, pfns);
++
++		ms = __nr_to_section(i);
++		pr_debug("%s: sec: %d mask: %#018lx\n", __func__, i, mask);
++		ms->usage->map_active = mask;
++
++		pfn += pfns;
++		nr_pages -= pfns;
++	}
++}
++
+ /* Record a memory area against a node. */
+ void __init memory_present(int nid, unsigned long start, unsigned long end)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
