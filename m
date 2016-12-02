@@ -1,66 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 307F46B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 02:23:28 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id o3so43218920wjo.1
-        for <linux-mm@kvack.org>; Thu, 01 Dec 2016 23:23:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mn20si4010185wjb.216.2016.12.01.23.23.26
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Dec 2016 23:23:26 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-References: <20161201152517.27698-1-mhocko@kernel.org>
- <20161201152517.27698-3-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f7ac6711-4c9b-5603-7901-ae90a56a0d1a@suse.cz>
-Date: Fri, 2 Dec 2016 08:23:24 +0100
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD996B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 03:03:03 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so150151479pgd.0
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 00:03:03 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id z6si4171276plh.238.2016.12.02.00.03.01
+        for <linux-mm@kvack.org>;
+        Fri, 02 Dec 2016 00:03:02 -0800 (PST)
+From: 
+	=?ks_c_5601-1987?B?sejB2Lz2L7yxwNO/rLG4v/gvU1cgUGxhdGZvcm0ov6wpQU9UxsAo?=
+ =?ks_c_5601-1987?B?aWFtam9vbnNvby5raW1AbGdlLmNvbSk=?=
+	<iamjoonsoo.kim@lge.com>
+Date: Fri, 2 Dec 2016 16:58:55 +0900
+Subject: RE: [patch] mm, slab: faster active and free stats
+Message-ID: <C80AB6F618D91B4E8F391CB202C12DFD14C4E91C59@LGEVEXMBHQSVC1.LGE.NET>
+References: <alpine.DEB.2.10.1611081505240.13403@chino.kir.corp.google.com>
+ <20161108151727.b64035da825c69bced88b46d@linux-foundation.org>
+ <alpine.DEB.2.10.1611091637460.125130@chino.kir.corp.google.com>
+ <20161111055326.GA16336@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.10.1611110222440.16406@chino.kir.corp.google.com>
+ <20161128074001.GA32105@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.10.1611291655580.135607@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1611291655580.135607@chino.kir.corp.google.com>
+Content-Language: ko-KR
+Content-Type: text/plain; charset="ks_c_5601-1987"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20161201152517.27698-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, Christoph Lameter <cl@linux.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "js1304@gmail.com" <js1304@gmail.com>
 
-On 12/01/2016 04:25 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> __alloc_pages_may_oom makes sure to skip the OOM killer depending on
-> the allocation request. This includes lowmem requests, costly high
-> order requests and others. For a long time __GFP_NOFAIL acted as an
-> override for all those rules. This is not documented and it can be quite
-> surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
-> killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
-> the existing open coded loops around allocator to nofail request (and we
-> have done that in the past) then such a change would have a non trivial
-> side effect which is not obvious. Note that the primary motivation for
-> skipping the OOM killer is to prevent from pre-mature invocation.
->
-> The exception has been added by 82553a937f12 ("oom: invoke oom killer
-> for __GFP_NOFAIL"). The changelog points out that the oom killer has to
-> be invoked otherwise the request would be looping for ever. But this
-> argument is rather weak because the OOM killer doesn't really guarantee
-> any forward progress for those exceptional cases - e.g. it will hardly
-> help to form costly order - I believe we certainly do not want to kill
-> all processes and eventually panic the system just because there is a
-> nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
-> the consequences - it is much better this request would loop for ever
-> than the massive system disruption, lowmem is also highly unlikely to be
-> freed during OOM killer and GFP_NOFS request could trigger while there
-> is still a lot of memory pinned by filesystems.
->
-> This patch simply removes the __GFP_NOFAIL special case in order to have
-> a more clear semantic without surprising side effects. Instead we do
-> allow nofail requests to access memory reserves to move forward in both
-> cases when the OOM killer is invoked and when it should be supressed.
-> __alloc_pages_nowmark helper has been introduced for that purpose.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+SGVsbG8sIERhdmlkLg0KDQpUaGVyZSBpcyBzb21lIHByb2JsZW0gb24gbXkgZS1tYWlsIGNsaWVu
+dCBzbyBJIGhhdmUgdG8gdXNlIGFub3RoZXIgb25lLg0KUGxlYXNlIHVuZGVyc3RhbmQgYnJva2Vu
+IHJlcGx5IHN0eWxlLg0KDQpZZWFoLCBJIGxpa2UgdGhpcyB2ZXJzaW9uIG11Y2guIENhbiB3ZSBk
+byBhY2NvdW50IHNsYWJzX2ZyZWUgZGlyZWN0bHkgaW4gZ2V0X2ZpcnN0X3NsYWIoKQ0KYW5kIGdl
+dF92YWxpZF9maXJzdF9zbGFiKCk/IFBhc3NpbmcgcGFnZV9pc19mcmVlIGlzbid0IG5lZWRlZCBp
+ZiB3ZSBkbyBpdCBkaXJlY3RseSBpbg0KdGhvc2UgZnVuY3Rpb25zLg0KDQpPbmUgbml0cGljayBp
+cyB0aGF0IGlmIHdlIGRvbid0IHJlcGxhY2UgdmFyaWFibGUgbmFtZSwgbnVtX3NsYWJzIHdpdGgg
+dG90YWxfc2xhYnMsIHdlIHdpbGwNCmdldCBsZXNzIGNodXJuIHRoZSBjb2RlLiBIb3dldmVyLCB0
+b3RhbF9zbGFicyBsb29rcyBiZXR0ZXIgdGhhbiBudW1fc2xhYnMuDQoNClRoYW5rcy4NCg0KLS0t
+LS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IERhdmlkIFJpZW50amVzIFttYWlsdG86cmll
+bnRqZXNAZ29vZ2xlLmNvbV0gDQpTZW50OiBXZWRuZXNkYXksIE5vdmVtYmVyIDMwLCAyMDE2IDk6
+NTcgQU0NClRvOiBKb29uc29vIEtpbSA8aWFtam9vbnNvby5raW1AbGdlLmNvbT4NCkNjOiBBbmRy
+ZXcgTW9ydG9uIDxha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnPjsgR3JlZyBUaGVsZW4gPGd0aGVs
+ZW5AZ29vZ2xlLmNvbT47IEFydW5hIFJhbWFrcmlzaG5hIDxhcnVuYS5yYW1ha3Jpc2huYUBvcmFj
+bGUuY29tPjsgQ2hyaXN0b3BoIExhbWV0ZXIgPGNsQGxpbnV4LmNvbT47IGxpbnV4LWtlcm5lbEB2
+Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZw0KU3ViamVjdDogUmU6IFtwYXRjaF0g
+bW0sIHNsYWI6IGZhc3RlciBhY3RpdmUgYW5kIGZyZWUgc3RhdHMNCg0KT24gTW9uLCAyOCBOb3Yg
+MjAxNiwgSm9vbnNvbyBLaW0gd3JvdGU6DQoNCj4gSGVsbG8sDQo+IA0KPiBTb3JyeSBmb3IgbG9u
+ZyBkZWxheS4NCj4gSSBhZ3JlZSB0aGF0IHRoaXMgaW1wcm92ZW1lbnQgaXMgbmVlZGVkLiBDb3Vs
+ZCB5b3UgdHJ5IHRoZSBhcHByb2FjaCANCj4gdGhhdCBtYWludGFpbnMgbi0+bnVtX3NsYWJzIGFu
+ZCBuLT5mcmVlX3NsYWJzPyBJIGd1ZXNzIHRoYXQgaXQgd291bGQgDQo+IGJlIHNpbXBsZXIgdGhh
+biB0aGlzIHBhdGNoIHNvIG1vcmUgbWFpbnRhaW5hYmxlLg0KPiANCg0KT2ssIHdoYXQgZG8geW91
+IHRoaW5rIGFib3V0IHRoZSBmb2xsb3dpbmc/ICBJJ20gbm90IHN1cmUgaXQncyB0aGF0IG11Y2gg
+bW9yZSBzaW1wbGVyLg0KDQoNCm1tLCBzbGFiOiB0cmFjayB0b3RhbCBudW1iZXIgb2Ygc2xhYnMg
+aW5zdGVhZCBvZiBhY3RpdmUgc2xhYnMNCg0KUmF0aGVyIHRoYW4gdHJhY2tpbmcgdGhlIG51bWJl
+ciBvZiBhY3RpdmUgc2xhYnMgZm9yIGVhY2ggbm9kZSwgdHJhY2sgdGhlDQp0b3RhbCBudW1iZXIg
+b2Ygc2xhYnMuICBUaGlzIGlzIGEgbWlub3IgaW1wcm92ZW1lbnQgdGhhdCBhdm9pZHMgYWN0aXZl
+DQpzbGFiIHRyYWNraW5nIHdoZW4gYSBzbGFiIGdvZXMgZnJvbSBmcmVlIHRvIHBhcnRpYWwgb3Ig
+cGFydGlhbCB0byBmcmVlLg0KDQpTdWdnZXN0ZWQtYnk6IEpvb25zb28gS2ltIDxpYW1qb29uc29v
+LmtpbUBsZ2UuY29tPg0KU2lnbmVkLW9mZi1ieTogRGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdv
+b2dsZS5jb20+DQotLS0NCiBtbS9zbGFiLmMgfCA0OCArKysrKysrKysrKysrKysrKysrKystLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0NCiBtbS9zbGFiLmggfCAgNCArKy0tDQogMiBmaWxlcyBj
+aGFuZ2VkLCAyMyBpbnNlcnRpb25zKCspLCAyOSBkZWxldGlvbnMoLSkNCg0KZGlmZiAtLWdpdCBh
+L21tL3NsYWIuYyBiL21tL3NsYWIuYw0KLS0tIGEvbW0vc2xhYi5jDQorKysgYi9tbS9zbGFiLmMN
+CkBAIC0yMjcsNyArMjI3LDcgQEAgc3RhdGljIHZvaWQga21lbV9jYWNoZV9ub2RlX2luaXQoc3Ry
+dWN0IGttZW1fY2FjaGVfbm9kZSAqcGFyZW50KQ0KIAlJTklUX0xJU1RfSEVBRCgmcGFyZW50LT5z
+bGFic19mdWxsKTsNCiAJSU5JVF9MSVNUX0hFQUQoJnBhcmVudC0+c2xhYnNfcGFydGlhbCk7DQog
+CUlOSVRfTElTVF9IRUFEKCZwYXJlbnQtPnNsYWJzX2ZyZWUpOw0KLQlwYXJlbnQtPmFjdGl2ZV9z
+bGFicyA9IDA7DQorCXBhcmVudC0+dG90YWxfc2xhYnMgPSAwOw0KIAlwYXJlbnQtPmZyZWVfc2xh
+YnMgPSAwOw0KIAlwYXJlbnQtPnNoYXJlZCA9IE5VTEw7DQogCXBhcmVudC0+YWxpZW4gPSBOVUxM
+Ow0KQEAgLTEzODEsMjAgKzEzODEsMTggQEAgc2xhYl9vdXRfb2ZfbWVtb3J5KHN0cnVjdCBrbWVt
+X2NhY2hlICpjYWNoZXAsIGdmcF90IGdmcGZsYWdzLCBpbnQgbm9kZWlkKQ0KIAkJY2FjaGVwLT5u
+YW1lLCBjYWNoZXAtPnNpemUsIGNhY2hlcC0+Z2Zwb3JkZXIpOw0KIA0KIAlmb3JfZWFjaF9rbWVt
+X2NhY2hlX25vZGUoY2FjaGVwLCBub2RlLCBuKSB7DQotCQl1bnNpZ25lZCBsb25nIGFjdGl2ZV9v
+YmpzID0gMCwgZnJlZV9vYmpzID0gMDsNCi0JCXVuc2lnbmVkIGxvbmcgYWN0aXZlX3NsYWJzLCBu
+dW1fc2xhYnM7DQorCQl1bnNpZ25lZCBsb25nIHRvdGFsX3NsYWJzLCBmcmVlX3NsYWJzLCBmcmVl
+X29ianM7DQogDQogCQlzcGluX2xvY2tfaXJxc2F2ZSgmbi0+bGlzdF9sb2NrLCBmbGFncyk7DQot
+CQlhY3RpdmVfc2xhYnMgPSBuLT5hY3RpdmVfc2xhYnM7DQotCQludW1fc2xhYnMgPSBhY3RpdmVf
+c2xhYnMgKyBuLT5mcmVlX3NsYWJzOw0KLQ0KLQkJYWN0aXZlX29ianMgKz0gKG51bV9zbGFicyAq
+IGNhY2hlcC0+bnVtKSAtIG4tPmZyZWVfb2JqZWN0czsNCi0JCWZyZWVfb2JqcyArPSBuLT5mcmVl
+X29iamVjdHM7DQorCQl0b3RhbF9zbGFicyA9IG4tPnRvdGFsX3NsYWJzOw0KKwkJZnJlZV9zbGFi
+cyA9IG4tPmZyZWVfc2xhYnM7DQorCQlmcmVlX29ianMgPSBuLT5mcmVlX29iamVjdHM7DQogCQlz
+cGluX3VubG9ja19pcnFyZXN0b3JlKCZuLT5saXN0X2xvY2ssIGZsYWdzKTsNCiANCi0JCXByX3dh
+cm4oIiAgbm9kZSAlZDogc2xhYnM6ICVsZC8lbGQsIG9ianM6ICVsZC8lbGQsIGZyZWU6ICVsZFxu
+IiwNCi0JCQlub2RlLCBhY3RpdmVfc2xhYnMsIG51bV9zbGFicywgYWN0aXZlX29ianMsDQotCQkJ
+bnVtX3NsYWJzICogY2FjaGVwLT5udW0sIGZyZWVfb2Jqcyk7DQorCQlwcl93YXJuKCIgIG5vZGUg
+JWQ6IHNsYWJzOiAlbGQvJWxkLCBvYmpzOiAlbGQvJWxkXG4iLA0KKwkJCW5vZGUsIHRvdGFsX3Ns
+YWJzIC0gZnJlZV9zbGFicywgdG90YWxfc2xhYnMsDQorCQkJKHRvdGFsX3NsYWJzICogY2FjaGVw
+LT5udW0pIC0gZnJlZV9vYmpzLA0KKwkJCXRvdGFsX3NsYWJzICogY2FjaGVwLT5udW0pOw0KIAl9
+DQogI2VuZGlmDQogfQ0KQEAgLTIzMDcsNiArMjMwNSw3IEBAIHN0YXRpYyBpbnQgZHJhaW5fZnJl
+ZWxpc3Qoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hlLA0KIAkJcGFnZSA9IGxpc3RfZW50cnkocCwg
+c3RydWN0IHBhZ2UsIGxydSk7DQogCQlsaXN0X2RlbCgmcGFnZS0+bHJ1KTsNCiAJCW4tPmZyZWVf
+c2xhYnMtLTsNCisJCW4tPnRvdGFsX3NsYWJzLS07DQogCQkvKg0KIAkJICogU2FmZSB0byBkcm9w
+IHRoZSBsb2NrLiBUaGUgc2xhYiBpcyBubyBsb25nZXIgbGlua2VkDQogCQkgKiB0byB0aGUgY2Fj
+aGUuDQpAQCAtMjc0MSwxMyArMjc0MCwxMiBAQCBzdGF0aWMgdm9pZCBjYWNoZV9ncm93X2VuZChz
+dHJ1Y3Qga21lbV9jYWNoZSAqY2FjaGVwLCBzdHJ1Y3QgcGFnZSAqcGFnZSkNCiAJbiA9IGdldF9u
+b2RlKGNhY2hlcCwgcGFnZV90b19uaWQocGFnZSkpOw0KIA0KIAlzcGluX2xvY2soJm4tPmxpc3Rf
+bG9jayk7DQorCW4tPnRvdGFsX3NsYWJzKys7DQogCWlmICghcGFnZS0+YWN0aXZlKSB7DQogCQls
+aXN0X2FkZF90YWlsKCZwYWdlLT5scnUsICYobi0+c2xhYnNfZnJlZSkpOw0KIAkJbi0+ZnJlZV9z
+bGFicysrOw0KLQl9IGVsc2Ugew0KKwl9IGVsc2UNCiAJCWZpeHVwX3NsYWJfbGlzdChjYWNoZXAs
+IG4sIHBhZ2UsICZsaXN0KTsNCi0JCW4tPmFjdGl2ZV9zbGFicysrOw0KLQl9DQogDQogCVNUQVRT
+X0lOQ19HUk9XTihjYWNoZXApOw0KIAluLT5mcmVlX29iamVjdHMgKz0gY2FjaGVwLT5udW0gLSBw
+YWdlLT5hY3RpdmU7DQpAQCAtMjkzNSwxMCArMjkzMyw4IEBAIHN0YXRpYyBzdHJ1Y3QgcGFnZSAq
+Z2V0X2ZpcnN0X3NsYWIoc3RydWN0IGttZW1fY2FjaGVfbm9kZSAqbiwgYm9vbCBwZm1lbWFsbG9j
+KQ0KIAlpZiAoc2tfbWVtYWxsb2Nfc29ja3MoKSkNCiAJCXBhZ2UgPSBnZXRfdmFsaWRfZmlyc3Rf
+c2xhYihuLCBwYWdlLCAmcGFnZV9pc19mcmVlLCBwZm1lbWFsbG9jKTsNCiANCi0JaWYgKHBhZ2Ug
+JiYgcGFnZV9pc19mcmVlKSB7DQotCQluLT5hY3RpdmVfc2xhYnMrKzsNCisJaWYgKHBhZ2UgJiYg
+cGFnZV9pc19mcmVlKQ0KIAkJbi0+ZnJlZV9zbGFicy0tOw0KLQl9DQogDQogCXJldHVybiBwYWdl
+Ow0KIH0NCkBAIC0zNDQxLDcgKzM0MzcsNiBAQCBzdGF0aWMgdm9pZCBmcmVlX2Jsb2NrKHN0cnVj
+dCBrbWVtX2NhY2hlICpjYWNoZXAsIHZvaWQgKipvYmpwcCwNCiAJCWlmIChwYWdlLT5hY3RpdmUg
+PT0gMCkgew0KIAkJCWxpc3RfYWRkKCZwYWdlLT5scnUsICZuLT5zbGFic19mcmVlKTsNCiAJCQlu
+LT5mcmVlX3NsYWJzKys7DQotCQkJbi0+YWN0aXZlX3NsYWJzLS07DQogCQl9IGVsc2Ugew0KIAkJ
+CS8qIFVuY29uZGl0aW9uYWxseSBtb3ZlIGEgc2xhYiB0byB0aGUgZW5kIG9mIHRoZQ0KIAkJCSAq
+IHBhcnRpYWwgbGlzdCBvbiBmcmVlIC0gbWF4aW11bSB0aW1lIGZvciB0aGUNCkBAIC0zNDU3LDYg
+KzM0NTIsNyBAQCBzdGF0aWMgdm9pZCBmcmVlX2Jsb2NrKHN0cnVjdCBrbWVtX2NhY2hlICpjYWNo
+ZXAsIHZvaWQgKipvYmpwcCwNCiAJCXBhZ2UgPSBsaXN0X2xhc3RfZW50cnkoJm4tPnNsYWJzX2Zy
+ZWUsIHN0cnVjdCBwYWdlLCBscnUpOw0KIAkJbGlzdF9tb3ZlKCZwYWdlLT5scnUsIGxpc3QpOw0K
+IAkJbi0+ZnJlZV9zbGFicy0tOw0KKwkJbi0+dG90YWxfc2xhYnMtLTsNCiAJfQ0KIH0NCiANCkBA
+IC00MTA5LDggKzQxMDUsOCBAQCBzdGF0aWMgdm9pZCBjYWNoZV9yZWFwKHN0cnVjdCB3b3JrX3N0
+cnVjdCAqdykNCiB2b2lkIGdldF9zbGFiaW5mbyhzdHJ1Y3Qga21lbV9jYWNoZSAqY2FjaGVwLCBz
+dHJ1Y3Qgc2xhYmluZm8gKnNpbmZvKQ0KIHsNCiAJdW5zaWduZWQgbG9uZyBhY3RpdmVfb2Jqcywg
+bnVtX29ianMsIGFjdGl2ZV9zbGFiczsNCi0JdW5zaWduZWQgbG9uZyBudW1fc2xhYnMgPSAwLCBm
+cmVlX29ianMgPSAwLCBzaGFyZWRfYXZhaWwgPSAwOw0KLQl1bnNpZ25lZCBsb25nIG51bV9zbGFi
+c19mcmVlID0gMDsNCisJdW5zaWduZWQgbG9uZyB0b3RhbF9zbGFicyA9IDAsIGZyZWVfb2JqcyA9
+IDAsIHNoYXJlZF9hdmFpbCA9IDA7DQorCXVuc2lnbmVkIGxvbmcgZnJlZV9zbGFicyA9IDA7DQog
+CWludCBub2RlOw0KIAlzdHJ1Y3Qga21lbV9jYWNoZV9ub2RlICpuOw0KIA0KQEAgLTQxMTgsOSAr
+NDExNCw4IEBAIHZvaWQgZ2V0X3NsYWJpbmZvKHN0cnVjdCBrbWVtX2NhY2hlICpjYWNoZXAsIHN0
+cnVjdCBzbGFiaW5mbyAqc2luZm8pDQogCQljaGVja19pcnFfb24oKTsNCiAJCXNwaW5fbG9ja19p
+cnEoJm4tPmxpc3RfbG9jayk7DQogDQotCQludW1fc2xhYnMgKz0gbi0+YWN0aXZlX3NsYWJzICsg
+bi0+ZnJlZV9zbGFiczsNCi0JCW51bV9zbGFic19mcmVlICs9IG4tPmZyZWVfc2xhYnM7DQotDQor
+CQl0b3RhbF9zbGFicyArPSBuLT50b3RhbF9zbGFiczsNCisJCWZyZWVfc2xhYnMgKz0gbi0+ZnJl
+ZV9zbGFiczsNCiAJCWZyZWVfb2JqcyArPSBuLT5mcmVlX29iamVjdHM7DQogDQogCQlpZiAobi0+
+c2hhcmVkKQ0KQEAgLTQxMjgsMTUgKzQxMjMsMTQgQEAgdm9pZCBnZXRfc2xhYmluZm8oc3RydWN0
+IGttZW1fY2FjaGUgKmNhY2hlcCwgc3RydWN0IHNsYWJpbmZvICpzaW5mbykNCiANCiAJCXNwaW5f
+dW5sb2NrX2lycSgmbi0+bGlzdF9sb2NrKTsNCiAJfQ0KLQludW1fb2JqcyA9IG51bV9zbGFicyAq
+IGNhY2hlcC0+bnVtOw0KLQlhY3RpdmVfc2xhYnMgPSBudW1fc2xhYnMgLSBudW1fc2xhYnNfZnJl
+ZTsNCi0NCisJbnVtX29ianMgPSB0b3RhbF9zbGFicyAqIGNhY2hlcC0+bnVtOw0KKwlhY3RpdmVf
+c2xhYnMgPSB0b3RhbF9zbGFicyAtIGZyZWVfc2xhYnM7DQogCWFjdGl2ZV9vYmpzID0gbnVtX29i
+anMgLSBmcmVlX29ianM7DQogDQogCXNpbmZvLT5hY3RpdmVfb2JqcyA9IGFjdGl2ZV9vYmpzOw0K
+IAlzaW5mby0+bnVtX29ianMgPSBudW1fb2JqczsNCiAJc2luZm8tPmFjdGl2ZV9zbGFicyA9IGFj
+dGl2ZV9zbGFiczsNCi0Jc2luZm8tPm51bV9zbGFicyA9IG51bV9zbGFiczsNCisJc2luZm8tPm51
+bV9zbGFicyA9IHRvdGFsX3NsYWJzOw0KIAlzaW5mby0+c2hhcmVkX2F2YWlsID0gc2hhcmVkX2F2
+YWlsOw0KIAlzaW5mby0+bGltaXQgPSBjYWNoZXAtPmxpbWl0Ow0KIAlzaW5mby0+YmF0Y2hjb3Vu
+dCA9IGNhY2hlcC0+YmF0Y2hjb3VudDsNCmRpZmYgLS1naXQgYS9tbS9zbGFiLmggYi9tbS9zbGFi
+LmgNCi0tLSBhL21tL3NsYWIuaA0KKysrIGIvbW0vc2xhYi5oDQpAQCAtNDMyLDggKzQzMiw4IEBA
+IHN0cnVjdCBrbWVtX2NhY2hlX25vZGUgew0KIAlzdHJ1Y3QgbGlzdF9oZWFkIHNsYWJzX3BhcnRp
+YWw7CS8qIHBhcnRpYWwgbGlzdCBmaXJzdCwgYmV0dGVyIGFzbSBjb2RlICovDQogCXN0cnVjdCBs
+aXN0X2hlYWQgc2xhYnNfZnVsbDsNCiAJc3RydWN0IGxpc3RfaGVhZCBzbGFic19mcmVlOw0KLQl1
+bnNpZ25lZCBsb25nIGFjdGl2ZV9zbGFiczsJLyogbGVuZ3RoIG9mIHNsYWJzX3BhcnRpYWwrc2xh
+YnNfZnVsbCAqLw0KLQl1bnNpZ25lZCBsb25nIGZyZWVfc2xhYnM7CS8qIGxlbmd0aCBvZiBzbGFi
+c19mcmVlICovDQorCXVuc2lnbmVkIGxvbmcgdG90YWxfc2xhYnM7CS8qIGxlbmd0aCBvZiBhbGwg
+c2xhYiBsaXN0cyAqLw0KKwl1bnNpZ25lZCBsb25nIGZyZWVfc2xhYnM7CS8qIGxlbmd0aCBvZiBm
+cmVlIHNsYWIgbGlzdCBvbmx5ICovDQogCXVuc2lnbmVkIGxvbmcgZnJlZV9vYmplY3RzOw0KIAl1
+bnNpZ25lZCBpbnQgZnJlZV9saW1pdDsNCiAJdW5zaWduZWQgaW50IGNvbG91cl9uZXh0OwkvKiBQ
+ZXItbm9kZSBjYWNoZSBjb2xvcmluZyAqLw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
