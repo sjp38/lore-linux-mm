@@ -1,112 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DD26B0038
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 11:16:33 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xr1so64773300wjb.7
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 08:16:33 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m76si659861wmi.48.2016.12.05.08.16.30
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6797D6B025E
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 11:37:05 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id c13so127909422lfg.4
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 08:37:05 -0800 (PST)
+Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
+        by mx.google.com with ESMTPS id h77si7490856lfg.253.2016.12.05.08.37.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 08:16:31 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB5G8anB101966
-	for <linux-mm@kvack.org>; Mon, 5 Dec 2016 11:16:29 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2759gxr7ra-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 05 Dec 2016 11:16:29 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 5 Dec 2016 09:16:28 -0700
-Date: Mon, 5 Dec 2016 08:16:29 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm, vmscan: add cond_resched into shrink_node_memcg
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20161202095841.16648-1-mhocko@kernel.org>
- <CAKTCnz=K8QG69tKB8yStiZypBzcvnE=wW+25xuo9f_HZNzPtDg@mail.gmail.com>
- <20161205124955.GG30758@dhcp22.suse.cz>
+        Mon, 05 Dec 2016 08:37:03 -0800 (PST)
+Received: by mail-lf0-x229.google.com with SMTP id t196so226565347lff.3
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 08:37:03 -0800 (PST)
+Date: Sat, 3 Dec 2016 01:09:13 +0300
+From: Anatoly Stepanov <astepanov@cloudlinux.com>
+Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
+ allocations
+Message-ID: <20161202220913.GA536156@stepanov.centos7>
+References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
+ <03a17767-1322-3466-a1f1-dba2c6862be4@suse.cz>
+ <20161202091933.GD6830@dhcp22.suse.cz>
+ <20161202065417.GB358195@stepanov.centos7>
+ <20161205052325.GA30758@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161205124955.GG30758@dhcp22.suse.cz>
-Message-Id: <20161205161629.GD3924@linux.vnet.ibm.com>
+In-Reply-To: <20161205052325.GA30758@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Boris Zhmurov <bb@kernelpanic.ru>, "Christopher S. Aker" <caker@theshore.net>, Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, umka@cloudlinux.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
 
-On Mon, Dec 05, 2016 at 01:49:55PM +0100, Michal Hocko wrote:
-> [CC Paul - sorry I've tried to save you from more emails...]
-> 
-> On Mon 05-12-16 23:44:27, Balbir Singh wrote:
-> > >
-> > > Hi,
-> > > there were multiple reportes of the similar RCU stalls. Only Boris has
-> > > confirmed that this patch helps in his workload. Others might see a
-> > > slightly different issue and that should be investigated if it is the
-> > > case. As pointed out by Paul [1] cond_resched might be not sufficient
-> > > to silence RCU stalls because that would require a real scheduling.
-> > > This is a separate problem, though, and Paul is working with Peter [2]
-> > > to resolve it.
-> > >
-> > > Anyway, I believe that this patch should be a good start because it
-> > > really seems that nr_taken=0 during the LRU isolation can be triggered
-> > > in the real life. All reporters are agreeing to start seeing this issue
-> > > when moving on to 4.8 kernel which might be just a coincidence or a
-> > > different behavior of some subsystem. Well, MM has moved from zone to
-> > > node reclaim but I couldn't have found any direct relation to that
-> > > change.
-> > >
-> > > [1] http://lkml.kernel.org/r/20161130142955.GS3924@linux.vnet.ibm.com
-> > > [2] http://lkml.kernel.org/r/20161201124024.GB3924@linux.vnet.ibm.com
-> > >
-> > >  mm/vmscan.c | 2 ++
-> > >  1 file changed, 2 insertions(+)
-> > >
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index c05f00042430..c4abf08861d2 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -2362,6 +2362,8 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
-> > >                         }
-> > >                 }
-> > >
-> > > +               cond_resched();
-> > > +
+On Mon, Dec 05, 2016 at 06:23:26AM +0100, Michal Hocko wrote:
+> On Fri 02-12-16 09:54:17, Anatoly Stepanov wrote:
+> > Alex, Vlasimil, Michal, thanks for your responses!
 > > 
-> > I see a cond_resched_rcu_qs() as a part of linux next inside the while
-> > (nr[..]) loop.
+> > On Fri, Dec 02, 2016 at 10:19:33AM +0100, Michal Hocko wrote:
+> > > Thanks for CCing me Vlastimil
+> > > 
+> > > On Fri 02-12-16 09:44:23, Vlastimil Babka wrote:
+> > > > On 12/01/2016 02:16 AM, Anatoly Stepanov wrote:
+> > > > > As memcg array size can be up to:
+> > > > > sizeof(struct memcg_cache_array) + kmemcg_id * sizeof(void *);
+> > > > > 
+> > > > > where kmemcg_id can be up to MEMCG_CACHES_MAX_SIZE.
+> > > > > 
+> > > > > When a memcg instance count is large enough it can lead
+> > > > > to high order allocations up to order 7.
+> > > 
+> > > This is definitely not nice and worth fixing! I am just wondering
+> > > whether this is something you have encountered in the real life. Having
+> > > thousands of memcgs sounds quite crazy^Wscary to me. I am not at all
+> > > sure we are prepared for that and some controllers would have real
+> > > issues with it AFAIR.
+> > 
+> > In our company we use custom-made lightweight container technology, the thing is
+> > we can have up to several thousands of them on a server.
+> > So those high-order allocations were observed on a real production workload.
 > 
-> This is a left over from Paul's initial attempt to fix this issue. I
-> expect him to drop his patch from his tree. He has considered it
-> experimental anyway.
-
-To prevent further confusion, I am dropping these patches from my tree:
-
-80c099e11c19 ("mm: Prevent shrink_node() RCU CPU stall warnings")
-34c53f5cd399 ("mm: Prevent shrink_node_memcg() RCU CPU stall warnings")
-
-If you need them, please feel free to pull them in.
-
-Given that I don't have those, I am dropping this one as well:
-
-f2a471ffc8a8 ("rcu: Allow boot-time use of cond_resched_rcu_qs()")
-
-If you need it, please let me know.
-
-> > Do we need this as well?
+> OK, this is interesting. Definitely worth mentioning in the changelog!
 > 
-> Paul is working with Peter to make cond_resched general and cover RCU
-> stalls even when cond_resched doesn't schedule because there is no
-> runnable task.
+> [...]
+> > > 	/*
+> > > 	 * Do not invoke OOM killer for larger requests as we can fall
+> > > 	 * back to the vmalloc
+> > > 	 */
+> > > 	if (size > PAGE_SIZE)
+> > > 		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
+> > 
+> > I think we should check against PAGE_ALLOC_COSTLY_ORDER anyway, as
+> > there's no big need to allocate large contiguous chunks here, at the
+> > same time someone in the kernel might really need them.
+> 
+> PAGE_ALLOC_COSTLY_ORDER is and should remain the page allocator internal
+> implementation detail and shouldn't spread out much outside. GFP_NORETRY
+> will already make sure we do not push hard here.
 
-And 0day just told me that my current attempt gets a 227% increase in
-context switches on the unlink tests in LTP, so back to the drawing
-board...
+May be i didn't put my thoughts well, so let's discuss in more detail:
 
-						Thanx, Paul
+1. Yes, we don't try that hard to allocate high-order blocks with __GFP_NORETRY,
+but we still can do compaction and direct reclaim, which can be heavy for large chunk.
+In the worst case we can even fail to find the chunk, after all reclaim/compaction steps were made.
+
+2. The second point is, even if we got the desired chunk quickly, we end up wasting large contiguous chunks,
+which might be needed for CMA or some h/w driver (DMA for inst.), when they can't use non-contiguous chunks.
+
+BTW, in the kernel there are few examples like alloc_fdmem() for inst., which
+use that "costly order" idea of the fallback.
+
+static void *alloc_fdmem(size_t size)
+{
+        /*
+         * Very large allocations can stress page reclaim, so fall back to
+         * vmalloc() if the allocation size will be considered "large" by the VM.
+         */
+        if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+                void *data = kmalloc(size, GFP_KERNEL_ACCOUNT |
+                                     __GFP_NOWARN | __GFP_NORETRY);
+                if (data != NULL)
+                        return data;
+        }
+        return __vmalloc(size, GFP_KERNEL_ACCOUNT | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+Also in netfilter,ceph and some other places.
+
+Please, correct me if i'am somewhere mistaken with this thoughts.
+
+And don't get me wrong, i'm just trying to get deeper into the problem,
+especially as we're going to introduce something more or less generic.
+
+> 
+> > 
+> > > 
+> > > 	ret = kzalloc(size, gfp_mask);
+> > > 	if (ret)
+> > > 		return ret;
+> > > 	return vzalloc(size);
+> > > 
+> > 
+> > > I also do not like memcg_alloc helper name. It suggests we are
+> > > allocating a memcg while it is used for cache arrays and slab LRUS.
+> > > Anyway this pattern is quite widespread in the kernel so I would simply
+> > > suggest adding kvmalloc function instead.
+> > 
+> > Agreed, it would be nice to have a generic call.
+> > I would suggest an impl. like this:
+> > 
+> > void *kvmalloc(size_t size)
+> 
+> gfp_t gfp_mask should be a parameter as this should be a generic helper.
+> 
+> > {
+> > 	gfp_t gfp_mask = GFP_KERNEL;
+> 
+> 
+> > 	void *ret;
+> > 
+> >  	if (size > PAGE_SIZE)
+> >  		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
+> > 
+> > 
+> > 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+> > 		ret = kzalloc(size, gfp_mask);
+> > 		if (ret)
+> > 			return ret;
+> > 	}
+> 
+> No, please just do as suggested above. Tweak the gfp_mask for higher
+> order requests and do kmalloc first with vmalloc as a  fallback.
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
