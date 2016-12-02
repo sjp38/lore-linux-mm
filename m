@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 315886B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 05:57:49 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id xr1so44198075wjb.7
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 02:57:49 -0800 (PST)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id bt18si4616496wjb.137.2016.12.02.02.57.47
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0BC6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 06:02:45 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id he10so3697153wjc.6
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 03:02:45 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id v130si2419120wmf.126.2016.12.02.03.02.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 02:57:48 -0800 (PST)
-Message-ID: <1480676263.17003.55.camel@pengutronix.de>
-Subject: Re: [PATCH] mm: alloc_contig: demote PFN busy message to debug level
-From: Lucas Stach <l.stach@pengutronix.de>
-Date: Fri, 02 Dec 2016 11:57:43 +0100
-In-Reply-To: <20161202104851.GH6830@dhcp22.suse.cz>
-References: <20161202095742.32449-1-l.stach@pengutronix.de>
-	 <74234427-005f-609e-3f33-cdf9a739c1d2@suse.cz>
-	 <1480675271.17003.50.camel@pengutronix.de>
-	 <20161202104851.GH6830@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 02 Dec 2016 03:02:44 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id CCE672F8079
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 11:02:43 +0000 (UTC)
+Date: Fri, 2 Dec 2016 11:02:42 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
+ sync if struct page is corrupted
+Message-ID: <20161202110242.tjy7fj55naubx6bk@techsingularity.net>
+References: <20161202002244.18453-1-mgorman@techsingularity.net>
+ <20161202002244.18453-2-mgorman@techsingularity.net>
+ <01d601d24c4e$dca6e190$95f4a4b0$@alibaba-inc.com>
+ <55e1d640-72cf-d7b5-695b-87863ca7a843@suse.cz>
+ <01f201d24c7e$ac04ed40$040ec7c0$@alibaba-inc.com>
+ <20161202100411.GG6830@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20161202100411.GG6830@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Michal Nazarewicz <mina86@mina86.com>, "Robin H. Johnson" <robbat2@gentoo.org>, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, patchwork-lst@pengutronix.de, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Jesper Dangaard Brouer' <brouer@redhat.com>, 'Linux-MM' <linux-mm@kvack.org>, 'Linux-Kernel' <linux-kernel@vger.kernel.org>
 
-Am Freitag, den 02.12.2016, 11:48 +0100 schrieb Michal Hocko:
-> On Fri 02-12-16 11:41:11, Lucas Stach wrote:
-> > Am Freitag, den 02.12.2016, 11:18 +0100 schrieb Vlastimil Babka:
-> > > On 12/02/2016 10:57 AM, Lucas Stach wrote:
-> > > > There are a lot of reasons why a PFN might be busy and unable to be isolated
-> > > > some of which can't really be avoided. This message is spamming the logs when
-> > > > a lot of CMA allocations are happening, causing isolation to happen quite
-> > > > frequently.
+On Fri, Dec 02, 2016 at 11:04:11AM +0100, Michal Hocko wrote:
+> On Fri 02-12-16 17:30:07, Hillf Danton wrote:
+> [...]
+> > > >> @@ -2217,13 +2217,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+> > > >>  		else
+> > > >>  			list_add_tail(&page->lru, list);
+> > > >>  		list = &page->lru;
+> > > >> +		alloced++;
+> > > >>  		if (is_migrate_cma(get_pcppage_migratetype(page)))
+> > > >>  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+> > > >>  					      -(1 << order));
+> > > >>  	}
+> > > >>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+> > > >
+> > > > Now i is a pure index, yes?
 > > > 
-> > > Is this related to Robin's report [1] or you have an independent case of 
-> > > lots of CMA allocations, and in which context are there?
+> > > No, even if a page fails the check_pcp_refill() check and is not
+> > > "allocated", it is also no longer a free page, so it's correct to
+> > > subtract it from NR_FREE_PAGES.
 > > > 
-> > No, I've seen this bug report, but this patch was sitting to be sent out
-> > for a while now.
-> > 
-> > > > Demote the message to log level, as CMA will just retry the allocation, so
-> > > > there is no need to have this message in the logs. If someone is interested
-> > > > in the failing case, there is a tracepoint to track those failures properly.
-> > > 
-> > > I don't think we should just hide the issue like this, as getting high 
-> > > volume reports from this is also very likely associated with high 
-> > > overhead for the allocations. If it's the generic dma-cma context, like 
-> > > in [1] where it attempts CMA for order-0 allocations, we should first do 
-> > > something about that, before tweaking the logging.
-> > > 
-> > Etnaviv (the driver I maintain) currently does a stupid thing by
-> > allocating and freeing lots of DMA buffers (higher-order) from different
-> > threads. This is causing overhead at the CMA side, but really isn't
-> > something to be handled at the CMA side, but rather Etnaviv must get
-> > more clever about its CMA usage.
-> > 
-> > Still this message is really disturbing as page isolation failures can
-> > be caused by lots of other reasons like temporarily pinned pages.
+> > Yes, we can allocate free page   next time.
 > 
-> Hmm, then I think that what Robin has proposed [1] should be a generally
-> better solution because it both ratelimits and points to the user who is
-> triggering this path. 
+> No we cannot. The page is gone from the free list. We have effectively
+> leaked it.
 
-Dumping a stacktrace at this point is only going to increase the noise
-from this message, as it can be trigger under normal operating
-conditions of CMA. If someone temporarily locked a previously movable
-page with GUP or something alike, the stacktrace will point to the
-victim rather than the offender, so I think the value of the stackstrace
-is rather limited.
+And deliberately so. It's in an unknown state, possibly due to memory
+corruption or a use-after free bug. The machine can continue limping on
+with warnings in the kernel log but the VM stops going near the page
+itself as much as possible.
 
-Regards,
-Lucas
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
