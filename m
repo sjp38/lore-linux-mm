@@ -1,101 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE536B0253
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:01:10 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id m67so204614858qkf.0
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:01:10 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s185si2865002qkc.314.2016.12.02.05.01.08
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CC4E6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:15:30 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id he10so4353123wjc.6
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:15:30 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id lt8si5151955wjb.107.2016.12.02.05.15.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 05:01:08 -0800 (PST)
-Date: Fri, 2 Dec 2016 14:01:02 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Initial thoughts on TXDP
-Message-ID: <20161202140102.1d515e0b@redhat.com>
-In-Reply-To: <859a0c99-f427-1db8-d260-1297777792fb@stressinduktion.org>
-References: <CALx6S34qPqXa7s1eHmk9V-k6xb=36dfiQvx3JruaNnqg4v8r9g@mail.gmail.com>
-	<20161201024407.GE26507@breakpoint.cc>
-	<CALx6S36ywu3ruY7AFKYk=N4Ekr5zjY33ivx92EgNNT36XoXhFA@mail.gmail.com>
-	<859a0c99-f427-1db8-d260-1297777792fb@stressinduktion.org>
+        Fri, 02 Dec 2016 05:15:29 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id u144so2694629wmu.0
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:15:29 -0800 (PST)
+Date: Fri, 2 Dec 2016 14:15:26 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
+ sync if struct page is corrupted
+Message-ID: <20161202131526.GI6830@dhcp22.suse.cz>
+References: <20161202112951.23346-1-mgorman@techsingularity.net>
+ <20161202112951.23346-2-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161202112951.23346-2-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hannes Frederic Sowa <hannes@stressinduktion.org>
-Cc: brouer@redhat.com, Tom Herbert <tom@herbertland.com>, Florian Westphal <fw@strlen.de>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Alexander Duyck <alexander.duyck@gmail.com>, John Fastabend <john.fastabend@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, 1 Dec 2016 23:47:44 +0100
-Hannes Frederic Sowa <hannes@stressinduktion.org> wrote:
-
-> Side note:
+On Fri 02-12-16 11:29:50, Mel Gorman wrote:
+> Vlastimil Babka pointed out that commit 479f854a207c ("mm, page_alloc:
+> defer debugging checks of pages allocated from the PCP") will allow the
+> per-cpu list counter to be out of sync with the per-cpu list contents
+> if a struct page is corrupted.
 > 
-> On 01.12.2016 20:51, Tom Herbert wrote:
-> >> > E.g. "mini-skb": Even if we assume that this provides a speedup
-> >> > (where does that come from? should make no difference if a 32 or
-> >> >  320 byte buffer gets allocated).
-
-Yes, the size of the allocation from the SLUB allocator does not change
-base performance/cost much (at least for small objects, if < 1024).
-
-Do notice the base SLUB alloc+free cost is fairly high (compared to a
-201 cycles budget). Especially for networking as the free-side is very
-likely to hit a slow path.  SLUB fast-path 53 cycles, and slow-path
-around 100 cycles (data from [1]).  I've tried to address this with the
-kmem_cache bulk APIs.  Which reduce the cost to approx 30 cycles.
-(Something we have not fully reaped the benefit from yet!)
-
-[1] https://git.kernel.org/torvalds/c/ca257195511
-
-> >> >  
-> > It's the zero'ing of three cache lines. I believe we talked about that
-> > as netdev.
-
-Actually 4 cache-lines, but with some cleanup I believe we can get down
-to clearing 192 bytes 3 cache-lines.
-
+> The consequence is an infinite loop if the per-cpu lists get fully drained
+> by free_pcppages_bulk because all the lists are empty but the count is
+> positive. The infinite loop occurs here
 > 
-> Jesper and me played with that again very recently:
+>                 do {
+>                         batch_free++;
+>                         if (++migratetype == MIGRATE_PCPTYPES)
+>                                 migratetype = 0;
+>                         list = &pcp->lists[migratetype];
+>                 } while (list_empty(list));
 > 
-> https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/lib/time_bench_memset.c#L590
+> >From a user perspective, it's a bad page warning followed by a soft lockup
+> with interrupts disabled in free_pcppages_bulk().
 > 
-> In micro-benchmarks we saw a pretty good speed up not using the rep
-> stosb generated by gcc builtin but plain movq's. Probably the cost model
-> for __builtin_memset in gcc is wrong?
-
-Yes, I believe so.
- 
-> When Jesper is free we wanted to benchmark this and maybe come up with a
-> arch specific way of cleaning if it turns out to really improve throughput.
+> This patch keeps the accounting in sync.
 > 
-> SIMD instructions seem even faster but the kernel_fpu_begin/end() kill
-> all the benefits.
+> Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> cc: stable@vger.kernel.org [4.7+]
 
-One strange thing was, that on my skylake CPU (i7-6700K @4.00GHz),
-Hannes's hand-optimized MOVQ ASM-code didn't go past 8 bytes per cycle,
-or 32 cycles for 256 bytes.
+Thanks for adding the comment it should really make the code more clear.
 
-Talking to Alex and John during netdev, and reading on the Intel arch,
-I though that this CPU should be-able-to perform 16 bytes per cycle.
-The CPU can do it as the rep-stos show this once the size gets large
-enough.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-On this CPU the memset rep stos starts to win around 512 bytes:
-
- 192/35 =  5.5 bytes/cycle
- 256/36 =  7.1 bytes/cycle
- 512/40 = 12.8 bytes/cycle
- 768/46 = 16.7 bytes/cycle
-1024/52 = 19.7 bytes/cycle
-2048/84 = 24.4 bytes/cycle
-4096/148= 27.7 bytes/cycle
+> ---
+>  mm/page_alloc.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6de9440e3ae2..34ada718ef47 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2192,7 +2192,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  			unsigned long count, struct list_head *list,
+>  			int migratetype, bool cold)
+>  {
+> -	int i;
+> +	int i, alloced = 0;
+>  
+>  	spin_lock(&zone->lock);
+>  	for (i = 0; i < count; ++i) {
+> @@ -2217,13 +2217,21 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+>  		else
+>  			list_add_tail(&page->lru, list);
+>  		list = &page->lru;
+> +		alloced++;
+>  		if (is_migrate_cma(get_pcppage_migratetype(page)))
+>  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+>  					      -(1 << order));
+>  	}
+> +
+> +	/*
+> +	 * i pages were removed from the buddy list even if some leak due
+> +	 * to check_pcp_refill failing so adjust NR_FREE_PAGES based
+> +	 * on i. Do not confuse with 'alloced' which is the number of
+> +	 * pages added to the pcp list.
+> +	 */
+>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+>  	spin_unlock(&zone->lock);
+> -	return i;
+> +	return alloced;
+>  }
+>  
+>  #ifdef CONFIG_NUMA
+> -- 
+> 2.10.2
+> 
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
