@@ -1,72 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE636B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 07:13:50 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id y205so203739703qkb.4
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 04:13:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t44si2783775qtc.169.2016.12.02.04.13.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33B416B025E
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 07:32:18 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so2769611wma.2
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 04:32:18 -0800 (PST)
+Received: from mail-wj0-x22c.google.com (mail-wj0-x22c.google.com. [2a00:1450:400c:c01::22c])
+        by mx.google.com with ESMTPS id o9si2778135wmo.54.2016.12.02.04.32.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 04:13:49 -0800 (PST)
-Date: Fri, 2 Dec 2016 13:13:44 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Initial thoughts on TXDP
-Message-ID: <20161202131344.12ce594c@redhat.com>
-In-Reply-To: <CALx6S36ywu3ruY7AFKYk=N4Ekr5zjY33ivx92EgNNT36XoXhFA@mail.gmail.com>
-References: <CALx6S34qPqXa7s1eHmk9V-k6xb=36dfiQvx3JruaNnqg4v8r9g@mail.gmail.com>
-	<20161201024407.GE26507@breakpoint.cc>
-	<CALx6S36ywu3ruY7AFKYk=N4Ekr5zjY33ivx92EgNNT36XoXhFA@mail.gmail.com>
+        Fri, 02 Dec 2016 04:32:17 -0800 (PST)
+Received: by mail-wj0-x22c.google.com with SMTP id xy5so230749567wjc.0
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 04:32:16 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: alloc_contig: demote PFN busy message to debug level
+In-Reply-To: <1480676263.17003.55.camel@pengutronix.de>
+References: <20161202095742.32449-1-l.stach@pengutronix.de> <74234427-005f-609e-3f33-cdf9a739c1d2@suse.cz> <1480675271.17003.50.camel@pengutronix.de> <20161202104851.GH6830@dhcp22.suse.cz> <1480676263.17003.55.camel@pengutronix.de>
+Date: Fri, 02 Dec 2016 13:32:13 +0100
+Message-ID: <xa1tfum6v7ea.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Herbert <tom@herbertland.com>
-Cc: brouer@redhat.com, Florian Westphal <fw@strlen.de>, Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, "Robin H. Johnson" <robbat2@gentoo.org>, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, patchwork-lst@pengutronix.de, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
+>>> Am Freitag, den 02.12.2016, 11:18 +0100 schrieb Vlastimil Babka:
+>>>> I don't think we should just hide the issue like this, as getting high=
+=20
+>>>> volume reports from this is also very likely associated with high=20
+>>>> overhead for the allocations. If it's the generic dma-cma context, lik=
+e=20
+>>>> in [1] where it attempts CMA for order-0 allocations, we should first =
+do=20
+>>>> something about that, before tweaking the logging.
 
-On Thu, 1 Dec 2016 11:51:42 -0800 Tom Herbert <tom@herbertland.com> wrote:
-> On Wed, Nov 30, 2016 at 6:44 PM, Florian Westphal <fw@strlen.de> wrote:
-> > Tom Herbert <tom@herbertland.com> wrote:  
-[...]
-> >>   - Call into TCP/IP stack with page data directly from driver-- no
-> >> skbuff allocation or interface. This is essentially provided by the
-> >> XDP API although we would need to generalize the interface to call
-> >> stack functions (I previously posted patches for that). We will also
-> >> need a new action, XDP_HELD?, that indicates the XDP function held the
-> >> packet (put on a socket for instance).  
-> >
-> > Seems this will not work at all with the planned page pool thing when
-> > pages start to be held indefinitely.
+That was also my concern.  Ideally we would have a counter which
+increments whenever isolation failure happens and some monitoring of
+that counter but this is kernel so that=E2=80=99s just a pipe dream.
 
-It is quite the opposite, the page pool support pages are being held
-for longer times, than drivers today.  The current driver page recycle
-tricks cannot, as they depend on page refcnt being decremented quickly
-(while pages are still mapped in their recycle queue).
+>> On Fri 02-12-16 11:41:11, Lucas Stach wrote:
+>>> Still this message is really disturbing as page isolation failures can
+>>> be caused by lots of other reasons like temporarily pinned pages.
 
-> > You can also never get even close to userspace offload stacks once you
-> > need/do this; allocations in hotpath are too expensive.
+Just so we=E2=80=99re on the same page, lots of allocations is not a *reaso=
+n* of
+isolation failures.  It only surfaces it.
 
-Yes. It is important to understand that once the number of outstanding
-pages get large, the driver recycle stops working.  Meaning the pages
-allocations start to go through the page allocator.  I've documented[1]
-that the bare alloc+free cost[2] (231 cycles order-0/4K) is higher than
-the 10G wirespeed budget (201 cycles).
+This is not to disagree about better having code that is smart about
+allocating DMA buffers.  This is true regardless.
 
-Thus, the driver recycle tricks are nice for benchmarking, as it hides
-the page allocator overhead. But this optimization might disappear for
-Tom's and Eric's more real-world use-cases e.g. like 10.000 sockets.
-The page pool don't these issues.
+> Am Freitag, den 02.12.2016, 11:48 +0100 schrieb Michal Hocko:
+>> Hmm, then I think that what Robin has proposed [1] should be a generally
+>> better solution because it both ratelimits and points to the user who is
+>> triggering this path.=20
 
-[1] http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
-[2] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench01.c
+On Fri, Dec 02 2016, Lucas Stach wrote:
+> Dumping a stacktrace at this point is only going to increase the noise
+> from this message, as it can be trigger under normal operating
+> conditions of CMA. If someone temporarily locked a previously movable
+> page with GUP or something alike, the stacktrace will point to the
+> victim rather than the offender, so I think the value of the stackstrace
+> is rather limited.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+I agree, which is why I suggested printing the stack only if
+CONFIG_CMA_DEBUG is enabled.
+
+--=20
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
