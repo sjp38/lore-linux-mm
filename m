@@ -1,99 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 625676B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 06:53:39 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id xr1so44469632wjb.7
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 03:53:39 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hm2si4805281wjb.167.2016.12.02.03.53.37
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE636B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 07:13:50 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id y205so203739703qkb.4
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 04:13:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t44si2783775qtc.169.2016.12.02.04.13.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Dec 2016 03:53:38 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
- sync if struct page is corrupted
-References: <20161202112951.23346-1-mgorman@techsingularity.net>
- <20161202112951.23346-2-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0a5ccb09-6f51-ca65-3c19-4c6371dbb9ba@suse.cz>
-Date: Fri, 2 Dec 2016 12:53:33 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Dec 2016 04:13:49 -0800 (PST)
+Date: Fri, 2 Dec 2016 13:13:44 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Initial thoughts on TXDP
+Message-ID: <20161202131344.12ce594c@redhat.com>
+In-Reply-To: <CALx6S36ywu3ruY7AFKYk=N4Ekr5zjY33ivx92EgNNT36XoXhFA@mail.gmail.com>
+References: <CALx6S34qPqXa7s1eHmk9V-k6xb=36dfiQvx3JruaNnqg4v8r9g@mail.gmail.com>
+	<20161201024407.GE26507@breakpoint.cc>
+	<CALx6S36ywu3ruY7AFKYk=N4Ekr5zjY33ivx92EgNNT36XoXhFA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20161202112951.23346-2-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Tom Herbert <tom@herbertland.com>
+Cc: brouer@redhat.com, Florian Westphal <fw@strlen.de>, Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On 12/02/2016 12:29 PM, Mel Gorman wrote:
-> Vlastimil Babka pointed out that commit 479f854a207c ("mm, page_alloc:
-> defer debugging checks of pages allocated from the PCP") will allow the
-> per-cpu list counter to be out of sync with the per-cpu list contents
-> if a struct page is corrupted.
->
-> The consequence is an infinite loop if the per-cpu lists get fully drained
-> by free_pcppages_bulk because all the lists are empty but the count is
-> positive. The infinite loop occurs here
->
->                 do {
->                         batch_free++;
->                         if (++migratetype == MIGRATE_PCPTYPES)
->                                 migratetype = 0;
->                         list = &pcp->lists[migratetype];
->                 } while (list_empty(list));
->
-> From a user perspective, it's a bad page warning followed by a soft lockup
-> with interrupts disabled in free_pcppages_bulk().
->
-> This patch keeps the accounting in sync.
->
-> Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> cc: stable@vger.kernel.org [4.7+]
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On Thu, 1 Dec 2016 11:51:42 -0800 Tom Herbert <tom@herbertland.com> wrote:
+> On Wed, Nov 30, 2016 at 6:44 PM, Florian Westphal <fw@strlen.de> wrote:
+> > Tom Herbert <tom@herbertland.com> wrote:  
+[...]
+> >>   - Call into TCP/IP stack with page data directly from driver-- no
+> >> skbuff allocation or interface. This is essentially provided by the
+> >> XDP API although we would need to generalize the interface to call
+> >> stack functions (I previously posted patches for that). We will also
+> >> need a new action, XDP_HELD?, that indicates the XDP function held the
+> >> packet (put on a socket for instance).  
+> >
+> > Seems this will not work at all with the planned page pool thing when
+> > pages start to be held indefinitely.
 
-> ---
->  mm/page_alloc.c | 12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6de9440e3ae2..34ada718ef47 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2192,7 +2192,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  			unsigned long count, struct list_head *list,
->  			int migratetype, bool cold)
->  {
-> -	int i;
-> +	int i, alloced = 0;
->
->  	spin_lock(&zone->lock);
->  	for (i = 0; i < count; ++i) {
-> @@ -2217,13 +2217,21 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  		else
->  			list_add_tail(&page->lru, list);
->  		list = &page->lru;
-> +		alloced++;
->  		if (is_migrate_cma(get_pcppage_migratetype(page)))
->  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
->  					      -(1 << order));
->  	}
-> +
-> +	/*
-> +	 * i pages were removed from the buddy list even if some leak due
-> +	 * to check_pcp_refill failing so adjust NR_FREE_PAGES based
-> +	 * on i. Do not confuse with 'alloced' which is the number of
-> +	 * pages added to the pcp list.
-> +	 */
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
->  	spin_unlock(&zone->lock);
-> -	return i;
-> +	return alloced;
->  }
->
->  #ifdef CONFIG_NUMA
->
+It is quite the opposite, the page pool support pages are being held
+for longer times, than drivers today.  The current driver page recycle
+tricks cannot, as they depend on page refcnt being decremented quickly
+(while pages are still mapped in their recycle queue).
+
+> > You can also never get even close to userspace offload stacks once you
+> > need/do this; allocations in hotpath are too expensive.
+
+Yes. It is important to understand that once the number of outstanding
+pages get large, the driver recycle stops working.  Meaning the pages
+allocations start to go through the page allocator.  I've documented[1]
+that the bare alloc+free cost[2] (231 cycles order-0/4K) is higher than
+the 10G wirespeed budget (201 cycles).
+
+Thus, the driver recycle tricks are nice for benchmarking, as it hides
+the page allocator overhead. But this optimization might disappear for
+Tom's and Eric's more real-world use-cases e.g. like 10.000 sockets.
+The page pool don't these issues.
+
+[1] http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
+[2] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench01.c
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
