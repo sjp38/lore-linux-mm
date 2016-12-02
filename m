@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 567286B025E
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 09:06:01 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id he10so4630527wjc.6
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 06:06:01 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 538076B025E
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 09:10:10 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id a20so3218584wme.5
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 06:10:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lt8si5365750wjb.107.2016.12.02.06.06.00
+        by mx.google.com with ESMTPS id m88si3155460wmc.159.2016.12.02.06.10.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Dec 2016 06:06:00 -0800 (PST)
-Date: Fri, 2 Dec 2016 15:05:57 +0100
+        Fri, 02 Dec 2016 06:10:09 -0800 (PST)
+Date: Fri, 2 Dec 2016 15:10:06 +0100
 From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v2 0/6] mm: fix the "counter.sh" failure for libhugetlbfs
-Message-ID: <20161202140556.GN6830@dhcp22.suse.cz>
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
+Subject: Re: [RFC PATCH v2 0/7] Speculative page faults
+Message-ID: <20161202141006.GO6830@dhcp22.suse.cz>
+References: <20161018150243.GZ3117@twins.programming.kicks-ass.net>
+ <cover.1479465699.git.ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
+In-Reply-To: <cover.1479465699.git.ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <shijie.huang@arm.com>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: "Kirill A . Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>, Linux MM <linux-mm@kvack.org>
 
-On Mon 14-11-16 15:07:33, Huang Shijie wrote:
-> (1) Background
->    For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
->    In the 4K page environment, the max page order is 10 (max_order - 1),
->    so 32M page is the gigantic page.    
+On Fri 18-11-16 12:08:44, Laurent Dufour wrote:
+> This is a port on kernel 4.8 of the work done by Peter Zijlstra to
+> handle page fault without holding the mm semaphore.
 > 
->    The arm64 MMU supports a Contiguous bit which is a hint that the TTE
->    is one of a set of contiguous entries which can be cached in a single
->    TLB entry.  Please refer to the arm64v8 mannul :
->        DDI0487A_f_armv8_arm.pdf (in page D4-1811)
+> http://linux-kernel.2935.n7.nabble.com/RFC-PATCH-0-6-Another-go-at-speculative-page-faults-tt965642.html#none
 > 
-> (2) The bug   
->    After I tested the libhugetlbfs, I found the test case "counter.sh"
->    will fail with the gigantic page (32M page in arm64 board).
+> This series is not yet functional, I'm sending it to get feedback
+> before going forward in the wrong direction. It's building on top of
+> the 4.8 kernel but some task remain stuck at runtime, so there is
+> still need for additional work. 
 > 
->    This patch set adds support for gigantic surplus hugetlb pages,
->    allowing the counter.sh unit test to pass.   
+> According to the review made by Kirill A. Shutemov on the Peter's
+> work, there are still pending issues around the VMA sequence count
+> management. I'll look at it right now.
+> 
+> Kirill, Peter, if you have any tips on the place where VMA sequence
+> count should be handled, please advise.
 
-Andrew, I have noticed that this patchset is sitting in the mmotm tree
-already. I have to say I am not really happy about the changes it is
-introducing. It is making a confused code base even more so. I have
-already commented on respective patches but in general I think it needs
-a deeper thought before it can be merged.
-
+I believe that a highlevel description of the change would be _more_
+than welcome. 
 -- 
 Michal Hocko
 SUSE Labs
