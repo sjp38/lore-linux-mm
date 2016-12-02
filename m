@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA77F6B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 04:49:35 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so43873638wjc.2
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 01:49:35 -0800 (PST)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id j13si2211996wmf.109.2016.12.02.01.49.34
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3396B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 04:57:46 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id t31so52185123ioi.4
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 01:57:46 -0800 (PST)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id w4si2379096wmg.1.2016.12.02.01.57.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 01:49:34 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 43F991C14BB
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 09:49:34 +0000 (GMT)
-Date: Fri, 2 Dec 2016 09:49:33 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
- sync if struct page is corrupted
-Message-ID: <20161202094933.jxcgvtth2poqdm3n@techsingularity.net>
-References: <20161202002244.18453-1-mgorman@techsingularity.net>
- <20161202002244.18453-2-mgorman@techsingularity.net>
- <20161202081216.GA6830@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20161202081216.GA6830@dhcp22.suse.cz>
+        Fri, 02 Dec 2016 01:57:45 -0800 (PST)
+From: Lucas Stach <l.stach@pengutronix.de>
+Subject: [PATCH] mm: alloc_contig: demote PFN busy message to debug level
+Date: Fri,  2 Dec 2016 10:57:42 +0100
+Message-Id: <20161202095742.32449-1-l.stach@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-On Fri, Dec 02, 2016 at 09:12:17AM +0100, Michal Hocko wrote:
-> On Fri 02-12-16 00:22:43, Mel Gorman wrote:
-> > Vlastimil Babka pointed out that commit 479f854a207c ("mm, page_alloc:
-> > defer debugging checks of pages allocated from the PCP") will allow the
-> > per-cpu list counter to be out of sync with the per-cpu list contents
-> > if a struct page is corrupted. This patch keeps the accounting in sync.
-> >
-> > Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > cc: stable@vger.kernel.org [4.7+]
-> 
-> I am trying to think about what would happen if we did go out of sync
-> and cannot spot a problem. Vlastimil has mentioned something about
-> free_pcppages_bulk looping for ever but I cannot see it happening right
-> now.
+There are a lot of reasons why a PFN might be busy and unable to be isolated
+some of which can't really be avoided. This message is spamming the logs when
+a lot of CMA allocations are happening, causing isolation to happen quite
+frequently.
 
-free_pcppages_bulk can infinite loop if the page count is positive and
-there are no pages. While I've only seen this during development, a
-corrupted count loops here
+Demote the message to log level, as CMA will just retry the allocation, so
+there is no need to have this message in the logs. If someone is interested
+in the failing case, there is a tracepoint to track those failures properly.
 
-                do {
-                        batch_free++;
-                        if (++pindex == NR_PCP_LISTS)
-                                pindex = 0;
-                        list = &pcp->lists[pindex];
-                } while (list_empty(list));
+Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-It would only be seen in a situation where struct page corruption was
-detected so it's rare.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2b3bf6767d54..b2cfb4074f90 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7398,7 +7398,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end, false)) {
+-		pr_info("%s: [%lx, %lx) PFNs busy\n",
++		pr_debug("%s: [%lx, %lx) PFNs busy\n",
+ 			__func__, outer_start, end);
+ 		ret = -EBUSY;
+ 		goto done;
 -- 
-Mel Gorman
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
