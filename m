@@ -1,95 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 833F56B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 03:12:20 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id w13so1663340wmw.0
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 00:12:20 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id fi2si4135275wjb.206.2016.12.02.00.12.19
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AEDD96B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 03:19:49 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id s63so1648354wms.7
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 00:19:49 -0800 (PST)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id j133si1989065wma.86.2016.12.02.00.19.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 00:12:19 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id kp2so29220751wjc.0
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 00:12:19 -0800 (PST)
-Date: Fri, 2 Dec 2016 09:12:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
- sync if struct page is corrupted
-Message-ID: <20161202081216.GA6830@dhcp22.suse.cz>
-References: <20161202002244.18453-1-mgorman@techsingularity.net>
- <20161202002244.18453-2-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161202002244.18453-2-mgorman@techsingularity.net>
+        Fri, 02 Dec 2016 00:19:48 -0800 (PST)
+Received: by mail-wm0-x232.google.com with SMTP id g23so9294937wme.1
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 00:19:48 -0800 (PST)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.1 \(3251\))
+Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
+ allocations
+From: Alexey Lyashkov <umka@cloudlinux.com>
+In-Reply-To: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
+Date: Fri, 2 Dec 2016 11:19:45 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <8EB96A3D-F5B3-4358-A1A9-049866875C12@cloudlinux.com>
+References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Anatoly Stepanov <astepanov@cloudlinux.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
 
-On Fri 02-12-16 00:22:43, Mel Gorman wrote:
-> Vlastimil Babka pointed out that commit 479f854a207c ("mm, page_alloc:
-> defer debugging checks of pages allocated from the PCP") will allow the
-> per-cpu list counter to be out of sync with the per-cpu list contents
-> if a struct page is corrupted. This patch keeps the accounting in sync.
->
-> Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> cc: stable@vger.kernel.org [4.7+]
 
-I am trying to think about what would happen if we did go out of sync
-and cannot spot a problem. Vlastimil has mentioned something about
-free_pcppages_bulk looping for ever but I cannot see it happening right
-now. So why is this worth stable backport?
-
-Anyway the patch looks correct
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> 1 =D0=B4=D0=B5=D0=BA. 2016 =D0=B3., =D0=B2 4:16, Anatoly Stepanov =
+<astepanov@cloudlinux.com> =D0=BD=D0=B0=D0=BF=D0=B8=D1=81=D0=B0=D0=BB(=D0=B0=
+):
+>=20
+> As memcg array size can be up to:
+> sizeof(struct memcg_cache_array) + kmemcg_id * sizeof(void *);
+>=20
+> where kmemcg_id can be up to MEMCG_CACHES_MAX_SIZE.
+>=20
+> When a memcg instance count is large enough it can lead
+> to high order allocations up to order 7.
+>=20
+> The same story with memcg_lrus allocations.
+> So let's work this around by utilizing vmalloc fallback path.
+>=20
+> Signed-off-by: Anatoly Stepanov <astepanov@cloudlinux.com>
 > ---
->  mm/page_alloc.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6de9440e3ae2..777ed59570df 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2192,7 +2192,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  			unsigned long count, struct list_head *list,
->  			int migratetype, bool cold)
->  {
-> -	int i;
-> +	int i, alloced = 0;
->  
->  	spin_lock(&zone->lock);
->  	for (i = 0; i < count; ++i) {
-> @@ -2217,13 +2217,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  		else
->  			list_add_tail(&page->lru, list);
->  		list = &page->lru;
-> +		alloced++;
->  		if (is_migrate_cma(get_pcppage_migratetype(page)))
->  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
->  					      -(1 << order));
->  	}
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+> include/linux/memcontrol.h | 16 ++++++++++++++++
+> mm/list_lru.c              | 14 +++++++-------
+> mm/slab_common.c           | 21 ++++++++++++++-------
+> 3 files changed, 37 insertions(+), 14 deletions(-)
+>=20
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 61d20c1..a281622 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -29,6 +29,9 @@
+> #include <linux/mmzone.h>
+> #include <linux/writeback.h>
+> #include <linux/page-flags.h>
+> +#include <linux/vmalloc.h>
+> +#include <linux/slab.h>
+> +#include <linux/mm.h>
+>=20
+> struct mem_cgroup;
+> struct page;
+> @@ -878,4 +881,17 @@ static inline void =
+memcg_kmem_update_page_stat(struct page *page,
+> }
+> #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+>=20
+> +static inline void memcg_free(const void *ptr)
+> +{
+> +	is_vmalloc_addr(ptr) ? vfree(ptr) : kfree(ptr);
+> +}
+please to use a kvfree() instead.
 
-I guess this deserves a comment (i vs. alloced is confusing and I bet
-somebody will come up with a cleanup...). We leak corrupted pages
-intentionally so we should uncharge them from the NR_FREE_PAGES.
-
->  	spin_unlock(&zone->lock);
-> -	return i;
-> +	return alloced;
->  }
->  
->  #ifdef CONFIG_NUMA
-> -- 
-> 2.10.2
-> 
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
