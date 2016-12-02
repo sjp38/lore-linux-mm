@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0BC6B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 06:02:45 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id he10so3697153wjc.6
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 03:02:45 -0800 (PST)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id v130si2419120wmf.126.2016.12.02.03.02.43
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5691C6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 06:30:04 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id o3so44386405wjo.1
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 03:30:04 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id e27si2586678wmi.0.2016.12.02.03.30.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Dec 2016 03:02:44 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id CCE672F8079
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 11:02:43 +0000 (UTC)
-Date: Fri, 2 Dec 2016 11:02:42 +0000
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Dec 2016 03:30:02 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 66DF11C25AA
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 11:30:02 +0000 (GMT)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
- sync if struct page is corrupted
-Message-ID: <20161202110242.tjy7fj55naubx6bk@techsingularity.net>
-References: <20161202002244.18453-1-mgorman@techsingularity.net>
- <20161202002244.18453-2-mgorman@techsingularity.net>
- <01d601d24c4e$dca6e190$95f4a4b0$@alibaba-inc.com>
- <55e1d640-72cf-d7b5-695b-87863ca7a843@suse.cz>
- <01f201d24c7e$ac04ed40$040ec7c0$@alibaba-inc.com>
- <20161202100411.GG6830@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20161202100411.GG6830@dhcp22.suse.cz>
+Subject: [PATCH 0/2] High-order per-cpu cache v6
+Date: Fri,  2 Dec 2016 11:29:49 +0000
+Message-Id: <20161202112951.23346-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Jesper Dangaard Brouer' <brouer@redhat.com>, 'Linux-MM' <linux-mm@kvack.org>, 'Linux-Kernel' <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, Dec 02, 2016 at 11:04:11AM +0100, Michal Hocko wrote:
-> On Fri 02-12-16 17:30:07, Hillf Danton wrote:
-> [...]
-> > > >> @@ -2217,13 +2217,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
-> > > >>  		else
-> > > >>  			list_add_tail(&page->lru, list);
-> > > >>  		list = &page->lru;
-> > > >> +		alloced++;
-> > > >>  		if (is_migrate_cma(get_pcppage_migratetype(page)))
-> > > >>  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
-> > > >>  					      -(1 << order));
-> > > >>  	}
-> > > >>  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
-> > > >
-> > > > Now i is a pure index, yes?
-> > > 
-> > > No, even if a page fails the check_pcp_refill() check and is not
-> > > "allocated", it is also no longer a free page, so it's correct to
-> > > subtract it from NR_FREE_PAGES.
-> > > 
-> > Yes, we can allocate free page   next time.
-> 
-> No we cannot. The page is gone from the free list. We have effectively
-> leaked it.
+Changelog since v5
+o Changelog clarification in patch 1
+o Additional comments in patch 2
 
-And deliberately so. It's in an unknown state, possibly due to memory
-corruption or a use-after free bug. The machine can continue limping on
-with warnings in the kernel log but the VM stops going near the page
-itself as much as possible.
+Changelog since v4
+o Avoid pcp->count getting out of sync if struct page gets corrupted
+
+Changelog since v3
+o Allow high-order atomic allocations to use reserves
+
+Changelog since v2
+o Correct initialisation to avoid -Woverflow warning
+
+The following is two patches that implement a per-cpu cache for high-order
+allocations, primarily aimed at SLUB. The first patch is a bug fix that
+is technically unrelated but was discovered by review and so batched
+together. The second is the patch that implements the high-order pcpu cache.
+
+ include/linux/mmzone.h |  20 +++++++-
+ mm/page_alloc.c        | 129 ++++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 103 insertions(+), 46 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
