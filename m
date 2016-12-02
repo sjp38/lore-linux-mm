@@ -1,105 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CC4E6B0038
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:15:30 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id he10so4353123wjc.6
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:15:30 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id lt8si5151955wjb.107.2016.12.02.05.15.29
+	by kanga.kvack.org (Postfix) with ESMTP id 460526B0038
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:46:11 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id o3so45076497wjo.1
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:46:11 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id p28si3067695wma.121.2016.12.02.05.46.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 05:15:29 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id u144so2694629wmu.0
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:15:29 -0800 (PST)
-Date: Fri, 2 Dec 2016 14:15:26 +0100
+        Fri, 02 Dec 2016 05:46:09 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id j10so2922220wjb.3
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:46:09 -0800 (PST)
+Date: Fri, 2 Dec 2016 14:46:06 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, page_alloc: Keep pcp count and list contents in
- sync if struct page is corrupted
-Message-ID: <20161202131526.GI6830@dhcp22.suse.cz>
-References: <20161202112951.23346-1-mgorman@techsingularity.net>
- <20161202112951.23346-2-mgorman@techsingularity.net>
+Subject: Re: [PATCH v2] zswap: only use CPU notifier when HOTPLUG_CPU=y
+Message-ID: <20161202134604.GA6837@dhcp22.suse.cz>
+References: <1480540516-6458-1-git-send-email-yuzhao@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161202112951.23346-2-mgorman@techsingularity.net>
+In-Reply-To: <1480540516-6458-1-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Yu Zhao <yuzhao@google.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 02-12-16 11:29:50, Mel Gorman wrote:
-> Vlastimil Babka pointed out that commit 479f854a207c ("mm, page_alloc:
-> defer debugging checks of pages allocated from the PCP") will allow the
-> per-cpu list counter to be out of sync with the per-cpu list contents
-> if a struct page is corrupted.
+On Wed 30-11-16 13:15:16, Yu Zhao wrote:
+> __unregister_cpu_notifier() only removes registered notifier from its
+> linked list when CPU hotplug is configured. If we free registered CPU
+> notifier when HOTPLUG_CPU=n, we corrupt the linked list.
 > 
-> The consequence is an infinite loop if the per-cpu lists get fully drained
-> by free_pcppages_bulk because all the lists are empty but the count is
-> positive. The infinite loop occurs here
+> To fix the problem, we can either use a static CPU notifier that walks
+> through each pool or just simply disable CPU notifier when CPU hotplug
+> is not configured (which is perfectly safe because the code in question
+> is called after all possible CPUs are online and will remain online
+> until power off).
 > 
->                 do {
->                         batch_free++;
->                         if (++migratetype == MIGRATE_PCPTYPES)
->                                 migratetype = 0;
->                         list = &pcp->lists[migratetype];
->                 } while (list_empty(list));
-> 
-> >From a user perspective, it's a bad page warning followed by a soft lockup
-> with interrupts disabled in free_pcppages_bulk().
-> 
-> This patch keeps the accounting in sync.
-> 
-> Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> cc: stable@vger.kernel.org [4.7+]
+> v2: #ifdef for cpu_notifier_register_done during cleanup.
 
-Thanks for adding the comment it should really make the code more clear.
+this ifedfery is just ugly as hell. I am also wondering whether it is
+really needed. __register_cpu_notifier and __unregister_cpu_notifier are
+noops for CONFIG_HOTPLUG_CPU=n. So what's exactly that is broken here?
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> Signe-off-by: Yu Zhao <yuzhao@google.com>
 > ---
->  mm/page_alloc.c | 12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
+>  mm/zswap.c | 14 ++++++++++++++
+>  1 file changed, 14 insertions(+)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6de9440e3ae2..34ada718ef47 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2192,7 +2192,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  			unsigned long count, struct list_head *list,
->  			int migratetype, bool cold)
->  {
-> -	int i;
-> +	int i, alloced = 0;
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index 275b22c..2915f44 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -118,7 +118,9 @@ struct zswap_pool {
+>  	struct kref kref;
+>  	struct list_head list;
+>  	struct work_struct work;
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	struct notifier_block notifier;
+> +#endif
+>  	char tfm_name[CRYPTO_MAX_ALG_NAME];
+>  };
 >  
->  	spin_lock(&zone->lock);
->  	for (i = 0; i < count; ++i) {
-> @@ -2217,13 +2217,21 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  		else
->  			list_add_tail(&page->lru, list);
->  		list = &page->lru;
-> +		alloced++;
->  		if (is_migrate_cma(get_pcppage_migratetype(page)))
->  			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
->  					      -(1 << order));
->  	}
-> +
-> +	/*
-> +	 * i pages were removed from the buddy list even if some leak due
-> +	 * to check_pcp_refill failing so adjust NR_FREE_PAGES based
-> +	 * on i. Do not confuse with 'alloced' which is the number of
-> +	 * pages added to the pcp list.
-> +	 */
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
->  	spin_unlock(&zone->lock);
-> -	return i;
-> +	return alloced;
+> @@ -448,6 +450,7 @@ static int __zswap_cpu_comp_notifier(struct zswap_pool *pool,
+>  	return NOTIFY_OK;
 >  }
 >  
->  #ifdef CONFIG_NUMA
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  static int zswap_cpu_comp_notifier(struct notifier_block *nb,
+>  				   unsigned long action, void *pcpu)
+>  {
+> @@ -456,27 +459,34 @@ static int zswap_cpu_comp_notifier(struct notifier_block *nb,
+>  
+>  	return __zswap_cpu_comp_notifier(pool, action, cpu);
+>  }
+> +#endif
+>  
+>  static int zswap_cpu_comp_init(struct zswap_pool *pool)
+>  {
+>  	unsigned long cpu;
+>  
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	memset(&pool->notifier, 0, sizeof(pool->notifier));
+>  	pool->notifier.notifier_call = zswap_cpu_comp_notifier;
+>  
+>  	cpu_notifier_register_begin();
+> +#endif
+>  	for_each_online_cpu(cpu)
+>  		if (__zswap_cpu_comp_notifier(pool, CPU_UP_PREPARE, cpu) ==
+>  		    NOTIFY_BAD)
+>  			goto cleanup;
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	__register_cpu_notifier(&pool->notifier);
+>  	cpu_notifier_register_done();
+> +#endif
+>  	return 0;
+>  
+>  cleanup:
+>  	for_each_online_cpu(cpu)
+>  		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	cpu_notifier_register_done();
+> +#endif
+>  	return -ENOMEM;
+>  }
+>  
+> @@ -484,11 +494,15 @@ static void zswap_cpu_comp_destroy(struct zswap_pool *pool)
+>  {
+>  	unsigned long cpu;
+>  
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	cpu_notifier_register_begin();
+> +#endif
+>  	for_each_online_cpu(cpu)
+>  		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
+> +#ifdef CONFIG_HOTPLUG_CPU
+>  	__unregister_cpu_notifier(&pool->notifier);
+>  	cpu_notifier_register_done();
+> +#endif
+>  }
+>  
+>  /*********************************
 > -- 
-> 2.10.2
+> 2.8.0.rc3.226.g39d4020
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
