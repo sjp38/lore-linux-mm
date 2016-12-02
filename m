@@ -1,78 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 50AF76B025E
-	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:52:20 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g186so168732967pgc.2
-        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:52:20 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q127si5258908pfb.189.2016.12.02.05.52.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 521D86B0260
+	for <linux-mm@kvack.org>; Fri,  2 Dec 2016 08:52:36 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id s63so3102091wms.7
+        for <linux-mm@kvack.org>; Fri, 02 Dec 2016 05:52:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w65si3154419wmf.6.2016.12.02.05.52.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Dec 2016 05:52:19 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB2DnjSY131328
-	for <linux-mm@kvack.org>; Fri, 2 Dec 2016 08:52:18 -0500
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2737vwywm0-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 02 Dec 2016 08:52:17 -0500
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 2 Dec 2016 06:52:16 -0700
-Date: Fri, 2 Dec 2016 05:52:16 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <3a4242cb-0198-0a3b-97ae-536fb5ff83ec@kernelpanic.ru>
- <20161128143435.GC3924@linux.vnet.ibm.com>
- <eba1571e-f7a8-09b3-5516-c2bc35b38a83@kernelpanic.ru>
- <20161128150509.GG3924@linux.vnet.ibm.com>
- <66fd50e1-a922-846a-f427-7654795bd4b5@kernelpanic.ru>
- <20161130174802.GM18432@dhcp22.suse.cz>
- <fd34243c-2ebf-c14b-55e6-684a9dc614e7@kernelpanic.ru>
- <20161130182552.GN18432@dhcp22.suse.cz>
- <e50dcb85-4552-9249-c53e-017fefcaf80b@kernelpanic.ru>
- <20161202093734.GE6830@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 02 Dec 2016 05:52:35 -0800 (PST)
+Date: Fri, 2 Dec 2016 14:52:30 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v2 2/6] mm: hugetlb: add a new parameter for some
+ functions
+Message-ID: <20161202135229.GJ6830@dhcp22.suse.cz>
+References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
+ <1479107259-2011-3-git-send-email-shijie.huang@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161202093734.GE6830@dhcp22.suse.cz>
-Message-Id: <20161202135216.GJ3924@linux.vnet.ibm.com>
+In-Reply-To: <1479107259-2011-3-git-send-email-shijie.huang@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Boris Zhmurov <bb@kernelpanic.ru>, Paul Menzel <pmenzel@molgen.mpg.de>, Donald Buczek <buczek@molgen.mpg.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Huang Shijie <shijie.huang@arm.com>
+Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
 
-On Fri, Dec 02, 2016 at 10:37:35AM +0100, Michal Hocko wrote:
-> On Thu 01-12-16 21:10:01, Boris Zhmurov wrote:
-> > Michal Hocko 30/11/16 21:25:
-> > 
-> > >>> Do I get it right that s@cond_resched_rcu_qs@cond_resched@ didn't help?
-> > >>
-> > >> I didn't try that. I've tried 4 patches from Paul's linux-rcu tree.
-> > >> I can try another portion of patches, no problem :)
-> > > 
-> > > Replacing cond_resched_rcu_qs in shrink_node_memcg by cond_resched would
-> > > be really helpful to tell whether we are missing a real scheduling point
-> > > or whether something more serious is going on here.
-> > 
-> > Well, I can confirm, that replacing cond_resched_rcu_qs in
-> > shrink_node_memcg by cond_resched also makes dmesg clean from RCU CPU
-> > stall warnings.
-> > 
-> > I've attached patch (just modification of Paul's patch), that fixes RCU
-> > stall messages in situations, when all memory is used by
-> > couchbase/memcached + fs cache and linux starts to use swap.
+On Mon 14-11-16 15:07:35, Huang Shijie wrote:
+> This patch adds a new parameter, the "no_init", for these functions:
+>    alloc_fresh_gigantic_page_node()
+>    alloc_fresh_gigantic_page()
 > 
-> OK, thanks for the confirmation! I will send a patch because it is true
-> that we do not have any scheduling point if no pages can be isolated
-> fromm the LRU. This might be what you are seeing.
+> The prep_new_huge_page() does some initialization for the new page.
+> But sometime, we do not need it to do so, such as in the surplus case
+> in later patch.
+> 
+> With this parameter, the prep_new_huge_page() can be called by needed:
+>    If the "no_init" is false, calls the prep_new_huge_page() in
+>    the alloc_fresh_gigantic_page_node();
 
-Thank you both!
+This double negative just makes my head spin. I haven't got to later
+patch to understand the motivation but if anything bool do_prep would
+be much more clear. In general doing these "init if a parameter is
+specified" is a bad idea. It just makes the code more convoluted and
+sutble. If you need the separation then __foo vs foo with the first
+doing the real work and the later some additional initialization on top
+sounds like a better idea to me.
 
-							Thanx, Paul
+Let's see what other changes are about.
+
+> This patch makes preparation for the later patches.
+> 
+> Signed-off-by: Huang Shijie <shijie.huang@arm.com>
+> ---
+>  mm/hugetlb.c | 15 +++++++++------
+>  1 file changed, 9 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 496b703..db0177b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1127,27 +1127,29 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
+>  static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
+>  static void prep_compound_gigantic_page(struct page *page, unsigned int order);
+>  
+> -static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
+> +static struct page *alloc_fresh_gigantic_page_node(struct hstate *h,
+> +					int nid, bool no_init)
+>  {
+>  	struct page *page;
+>  
+>  	page = alloc_gigantic_page(nid, huge_page_order(h));
+>  	if (page) {
+>  		prep_compound_gigantic_page(page, huge_page_order(h));
+> -		prep_new_huge_page(h, page, nid);
+> +		if (!no_init)
+> +			prep_new_huge_page(h, page, nid);
+>  	}
+>  
+>  	return page;
+>  }
+>  
+>  static int alloc_fresh_gigantic_page(struct hstate *h,
+> -				nodemask_t *nodes_allowed)
+> +				nodemask_t *nodes_allowed, bool no_init)
+>  {
+>  	struct page *page = NULL;
+>  	int nr_nodes, node;
+>  
+>  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+> -		page = alloc_fresh_gigantic_page_node(h, node);
+> +		page = alloc_fresh_gigantic_page_node(h, node, no_init);
+>  		if (page)
+>  			return 1;
+>  	}
+> @@ -1166,7 +1168,7 @@ static inline void free_gigantic_page(struct page *page, unsigned int order) { }
+>  static inline void destroy_compound_gigantic_page(struct page *page,
+>  						unsigned int order) { }
+>  static inline int alloc_fresh_gigantic_page(struct hstate *h,
+> -					nodemask_t *nodes_allowed) { return 0; }
+> +		nodemask_t *nodes_allowed, bool no_init) { return 0; }
+>  #endif
+>  
+>  static void update_and_free_page(struct hstate *h, struct page *page)
+> @@ -2313,7 +2315,8 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>  		cond_resched();
+>  
+>  		if (hstate_is_gigantic(h))
+> -			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
+> +			ret = alloc_fresh_gigantic_page(h, nodes_allowed,
+> +							false);
+>  		else
+>  			ret = alloc_fresh_huge_page(h, nodes_allowed);
+>  		spin_lock(&hugetlb_lock);
+> -- 
+> 2.5.5
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
