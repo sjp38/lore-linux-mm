@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B326B0069
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2016 16:57:35 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id h201so251079301qke.7
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 13:57:35 -0800 (PST)
-Received: from mail-qt0-x229.google.com (mail-qt0-x229.google.com. [2607:f8b0:400d:c0d::229])
-        by mx.google.com with ESMTPS id l126si7622538qkd.76.2016.12.04.13.57.34
+	by kanga.kvack.org (Postfix) with ESMTP id 3BC2C6B0038
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2016 18:31:12 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id y205so252873577qkb.4
+        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 15:31:12 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t6si7723424qtd.12.2016.12.04.15.31.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Dec 2016 13:57:34 -0800 (PST)
-Received: by mail-qt0-x229.google.com with SMTP id n6so298602743qtd.1
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 13:57:34 -0800 (PST)
-MIME-Version: 1.0
-From: Raymond Jennings <shentino@gmail.com>
-Date: Sun, 4 Dec 2016 13:56:54 -0800
-Message-ID: <CAGDaZ_r3-DxOEsGdE2y1UsS_-=UR-Qc0CsouGtcCgoXY3kVotQ@mail.gmail.com>
-Subject: Silly question about dethrottling
-Content-Type: multipart/alternative; boundary=001a11407a10340c4c0542dc4251
+        Sun, 04 Dec 2016 15:31:11 -0800 (PST)
+Message-ID: <1480894267.3781.1.camel@redhat.com>
+Subject: Re: [vfs:work.autofs 6/10] ERROR: "path_is_mountpoint"
+ [fs/autofs4/autofs4.ko] undefined!
+From: Ian Kent <ikent@redhat.com>
+Date: Mon, 05 Dec 2016 07:31:07 +0800
+In-Reply-To: <20161204152308.GF1555@ZenIV.linux.org.uk>
+References: <201612040921.wXtI5ecC%fengguang.wu@intel.com>
+	 <1480843688.7509.3.camel@redhat.com>
+	 <20161204152308.GF1555@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: kbuild-all@01.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
---001a11407a10340c4c0542dc4251
-Content-Type: text/plain; charset=UTF-8
+On Sun, 2016-12-04 at 15:23 +0000, Al Viro wrote:
+> On Sun, Dec 04, 2016 at 05:28:08PM +0800, Ian Kent wrote:
+> 
+> > 
+> > Oh wait, I did see this when I looked at vfs.git#work.autofs but was more
+> > concerned with the substance of the changes to pay attention to it.
+> > 
+> > That would be caused by:
+> > bool path_is_mountpoint(const struct path *path)
+> > {
+> > ...
+> > }
+> > EXPORT_SYMBOL(__path_is_mountpoint);
+> Had been fixed and pushed yesterday.
 
-I have an application that is generating HUGE amounts of dirty data.
-Multiple GiB worth, and I'd like to allow it to fill at least half of my
-RAM.
+I missed it when I built my test kernel because I compile in the autofs module,
+;)
 
-I already have /proc/sys/vm/dirty_ratio pegged at 80 and the background one
-pegged at 50.  RAM is 32GiB.
-
-it appears to be butting heads with clean memory.  How do I tell my system
-to prefer using RAM to soak up writes instead of caching?
-
-Atm I'm at the stage where I'm prepared to patch the kernel itself.
-
---001a11407a10340c4c0542dc4251
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">I have an application that is generating HUGE amounts of d=
-irty data.=C2=A0 Multiple GiB worth, and I&#39;d like to allow it to fill a=
-t least half of my RAM.<div><br></div><div>I already have /proc/sys/vm/dirt=
-y_ratio pegged at 80 and the background one pegged at 50.=C2=A0 RAM is 32Gi=
-B.</div><div><br></div><div>it appears to be butting heads with clean memor=
-y.=C2=A0 How do I tell my system to prefer using RAM to soak up writes inst=
-ead of caching?</div><div><br></div><div>Atm I&#39;m at the stage where I&#=
-39;m prepared to patch the kernel itself.</div></div>
-
---001a11407a10340c4c0542dc4251--
+Ian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
