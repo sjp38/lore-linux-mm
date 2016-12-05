@@ -1,108 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30D716B025E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:16:21 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id x190so260048346qkb.5
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:16:21 -0800 (PST)
-Received: from mail-qt0-x22f.google.com (mail-qt0-x22f.google.com. [2607:f8b0:400d:c0d::22f])
-        by mx.google.com with ESMTPS id i7si8463682qtf.245.2016.12.05.01.16.20
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3144C6B025E
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:18:01 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id b202so541684832oii.3
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:18:01 -0800 (PST)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20067.outbound.protection.outlook.com. [40.107.2.67])
+        by mx.google.com with ESMTPS id t207si6651206oie.268.2016.12.05.01.17.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 01:16:20 -0800 (PST)
-Received: by mail-qt0-x22f.google.com with SMTP id c47so307909983qtc.2
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:16:20 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 05 Dec 2016 01:18:00 -0800 (PST)
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: [PATCH v3 0/4]  mm: fix the "counter.sh" failure for libhugetlbfs 
+Date: Mon, 5 Dec 2016 17:17:07 +0800
+Message-ID: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20161205070519.GA30765@dhcp22.suse.cz>
-References: <CAGDaZ_r3-DxOEsGdE2y1UsS_-=UR-Qc0CsouGtcCgoXY3kVotQ@mail.gmail.com>
- <20161205070519.GA30765@dhcp22.suse.cz>
-From: Raymond Jennings <shentino@gmail.com>
-Date: Mon, 5 Dec 2016 01:15:39 -0800
-Message-ID: <CAGDaZ_oXcWVVAugGetVV2qBR9kJ-=VKKn8A0ErT-0vXOAZ6NTg@mail.gmail.com>
-Subject: Re: Silly question about dethrottling
-Content-Type: multipart/alternative; boundary=001a113f4d72a375d00542e5bd32
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, catalin.marinas@arm.com
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, vbabka@suze.cz, Huang Shijie <shijie.huang@arm.com>
 
---001a113f4d72a375d00542e5bd32
-Content-Type: text/plain; charset=UTF-8
+(1) Background
+   For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
+   In the 4K page environment, the max page order is 10 (max_order - 1),
+   so 32M page is the gigantic page.    
 
-On Sun, Dec 4, 2016 at 11:05 PM, Michal Hocko <mhocko@kernel.org> wrote:
+   The arm64 MMU supports a Contiguous bit which is a hint that the TTE
+   is one of a set of contiguous entries which can be cached in a single
+   TLB entry.  Please refer to the arm64v8 mannul :
+       DDI0487A_f_armv8_arm.pdf (in page D4-1811)
 
-> On Sun 04-12-16 13:56:54, Raymond Jennings wrote:
-> > I have an application that is generating HUGE amounts of dirty data.
-> > Multiple GiB worth, and I'd like to allow it to fill at least half of my
-> > RAM.
->
-> Could you be more specific why and what kind of problem you are trying
-> to solve?
->
-> > I already have /proc/sys/vm/dirty_ratio pegged at 80 and the background
-> one
-> > pegged at 50.  RAM is 32GiB.
->
-> There is also dirty_bytes alternative which is an absolute numer.
->
+(2) The bug   
+   After I tested the libhugetlbfs, I found the test case "counter.sh"
+   will fail with the gigantic page (32M page in arm64 board).
 
-How does this compare to setting dirty_ratio to a high percentage?
+   The counter.sh is just a wrapper for counter.c.
+   You can find them in:
+       https://github.com/libhugetlbfs/libhugetlbfs/blob/master/tests/counters.c
+       https://github.com/libhugetlbfs/libhugetlbfs/blob/master/tests/counters.sh
 
->
-> > it appears to be butting heads with clean memory.  How do I tell my
-> system
-> > to prefer using RAM to soak up writes instead of caching?
->
-> I am not sure I understand. Could you be more specific about what is the
-> actual problem? Is it possible that your dirty data is already being
-> flushed and that is wy you see a clean cache?
->
+   The error log shows below:
 
-What I'm wanting is for my writing process not to get throttled, even when
-the dirty memory it starts creating starts hogging memory the system would
-rather use for cache.
+   ----------------------------------------------------------
+        ...........................................
+	LD_PRELOAD=libhugetlbfs.so shmoverride_unlinked (32M: 64):	PASS
+	LD_PRELOAD=libhugetlbfs.so HUGETLB_SHM=yes shmoverride_unlinked (32M: 64):	PASS
+	quota.sh (32M: 64):	PASS
+	counters.sh (32M: 64):	FAIL mmap failed: Invalid argument
+	********** TEST SUMMARY
+	*                      32M           
+	*                      32-bit 64-bit 
+	*     Total testcases:     0     87   
+	*             Skipped:     0      0   
+	*                PASS:     0     86   
+	*                FAIL:     0      1   
+	*    Killed by signal:     0      0   
+	*   Bad configuration:     0      0   
+	*       Expected FAIL:     0      0   
+	*     Unexpected PASS:     0      0   
+	* Strange test result:     0      0   
+	**********
+   ----------------------------------------------------------
 
---001a113f4d72a375d00542e5bd32
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+   The failure is caused by:
+    1) kernel fails to allocate a gigantic page for the surplus case.
+       And the gather_surplus_pages() will return NULL in the end.
 
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On S=
-un, Dec 4, 2016 at 11:05 PM, Michal Hocko <span dir=3D"ltr">&lt;<a href=3D"=
-mailto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt;</span=
-> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bo=
-rder-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Sun 04-12-16=
- 13:56:54, Raymond Jennings wrote:<br>
-&gt; I have an application that is generating HUGE amounts of dirty data.<b=
-r>
-&gt; Multiple GiB worth, and I&#39;d like to allow it to fill at least half=
- of my<br>
-&gt; RAM.<br>
-<br>
-</span>Could you be more specific why and what kind of problem you are tryi=
-ng<br>
-to solve?<br>
-<span class=3D""><br>
-&gt; I already have /proc/sys/vm/dirty_ratio pegged at 80 and the backgroun=
-d one<br>
-&gt; pegged at 50.=C2=A0 RAM is 32GiB.<br>
-<br>
-</span>There is also dirty_bytes alternative which is an absolute numer.<br=
-></blockquote><div><br></div><div>How does this compare to setting dirty_ra=
-tio to a high percentage?=C2=A0</div><blockquote class=3D"gmail_quote" styl=
-e=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-<span class=3D""><br>
-&gt; it appears to be butting heads with clean memory.=C2=A0 How do I tell =
-my system<br>
-&gt; to prefer using RAM to soak up writes instead of caching?<br>
-<br>
-</span>I am not sure I understand. Could you be more specific about what is=
- the<br>
-actual problem? Is it possible that your dirty data is already being<br>
-flushed and that is wy you see a clean cache?<br></blockquote><div><br></di=
-v><div>What I&#39;m wanting is for my writing process not to get throttled,=
- even when the dirty memory it starts creating starts hogging memory the sy=
-stem would rather use for cache.</div><div><br></div></div></div></div>
+    2) The condition checks for some functions are wrong:
+        return_unused_surplus_pages()
+        nr_overcommit_hugepages_store()
+        hugetlb_overcommit_handler()
+   
+   This patch set adds support for gigantic surplus hugetlb pages,
+   allowing the counter.sh unit test to pass. 
+   Test this patch set with Juno-r1 board.
 
---001a113f4d72a375d00542e5bd32--
+   	
+v2 -- > v3:
+   1.) In patch 2, change argument "no_init" to "do_prep" 
+   2.) In patch 3, also change alloc_fresh_huge_page().
+       In the v2, this patch only changes the alloc_fresh_gigantic_page().  
+   3.) Merge old patch #4,#5 into the last one.    
+   4.) Follow Babka's suggestion, do the NULL check for @mask.
+   5.) others.
+
+
+v1 -- > v2:
+   1.) fix the compiler error in X86.
+   2.) add new patches for NUMA.
+       The patch #2 ~ #5 are new patches.
+
+Huang Shijie (4):
+  mm: hugetlb: rename some allocation functions
+  mm: hugetlb: add a new parameter for some functions
+  mm: hugetlb: change the return type for some functions
+  mm: hugetlb: support gigantic surplus pages
+
+ include/linux/mempolicy.h |   8 +++
+ mm/hugetlb.c              | 146 +++++++++++++++++++++++++++++++++++-----------
+ mm/mempolicy.c            |  44 ++++++++++++++
+ 3 files changed, 163 insertions(+), 35 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
