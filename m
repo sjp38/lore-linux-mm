@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F176B025E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 07:49:58 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so17772618wmu.1
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 04:49:58 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id a5si14838138wji.77.2016.12.05.04.49.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A1F6B0038
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 08:45:34 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id j198so551951902oih.5
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 05:45:34 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 5si7008182ota.119.2016.12.05.05.45.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 04:49:57 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id m203so15716550wma.3
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 04:49:57 -0800 (PST)
-Date: Mon, 5 Dec 2016 13:49:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: add cond_resched into shrink_node_memcg
-Message-ID: <20161205124955.GG30758@dhcp22.suse.cz>
-References: <20161202095841.16648-1-mhocko@kernel.org>
- <CAKTCnz=K8QG69tKB8yStiZypBzcvnE=wW+25xuo9f_HZNzPtDg@mail.gmail.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Dec 2016 05:45:33 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161201152517.27698-1-mhocko@kernel.org>
+	<20161201152517.27698-3-mhocko@kernel.org>
+In-Reply-To: <20161201152517.27698-3-mhocko@kernel.org>
+Message-Id: <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
+Date: Mon, 5 Dec 2016 22:45:19 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKTCnz=K8QG69tKB8yStiZypBzcvnE=wW+25xuo9f_HZNzPtDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Boris Zhmurov <bb@kernelpanic.ru>, "Christopher S. Aker" <caker@theshore.net>, Donald Buczek <buczek@molgen.mpg.de>, Paul Menzel <pmenzel@molgen.mpg.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-[CC Paul - sorry I've tried to save you from more emails...]
-
-On Mon 05-12-16 23:44:27, Balbir Singh wrote:
-> >
-> > Hi,
-> > there were multiple reportes of the similar RCU stalls. Only Boris has
-> > confirmed that this patch helps in his workload. Others might see a
-> > slightly different issue and that should be investigated if it is the
-> > case. As pointed out by Paul [1] cond_resched might be not sufficient
-> > to silence RCU stalls because that would require a real scheduling.
-> > This is a separate problem, though, and Paul is working with Peter [2]
-> > to resolve it.
-> >
-> > Anyway, I believe that this patch should be a good start because it
-> > really seems that nr_taken=0 during the LRU isolation can be triggered
-> > in the real life. All reporters are agreeing to start seeing this issue
-> > when moving on to 4.8 kernel which might be just a coincidence or a
-> > different behavior of some subsystem. Well, MM has moved from zone to
-> > node reclaim but I couldn't have found any direct relation to that
-> > change.
-> >
-> > [1] http://lkml.kernel.org/r/20161130142955.GS3924@linux.vnet.ibm.com
-> > [2] http://lkml.kernel.org/r/20161201124024.GB3924@linux.vnet.ibm.com
-> >
-> >  mm/vmscan.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> >
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index c05f00042430..c4abf08861d2 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2362,6 +2362,8 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
-> >                         }
-> >                 }
-> >
-> > +               cond_resched();
-> > +
+Michal Hocko wrote:
+> __alloc_pages_may_oom makes sure to skip the OOM killer depending on
+> the allocation request. This includes lowmem requests, costly high
+> order requests and others. For a long time __GFP_NOFAIL acted as an
+> override for all those rules. This is not documented and it can be quite
+> surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
+> killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
+> the existing open coded loops around allocator to nofail request (and we
+> have done that in the past) then such a change would have a non trivial
+> side effect which is not obvious. Note that the primary motivation for
+> skipping the OOM killer is to prevent from pre-mature invocation.
 > 
-> I see a cond_resched_rcu_qs() as a part of linux next inside the while
-> (nr[..]) loop.
+> The exception has been added by 82553a937f12 ("oom: invoke oom killer
+> for __GFP_NOFAIL"). The changelog points out that the oom killer has to
+> be invoked otherwise the request would be looping for ever. But this
+> argument is rather weak because the OOM killer doesn't really guarantee
+> any forward progress for those exceptional cases - e.g. it will hardly
+> help to form costly order - I believe we certainly do not want to kill
+> all processes and eventually panic the system just because there is a
+> nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
+> the consequences - it is much better this request would loop for ever
+> than the massive system disruption, lowmem is also highly unlikely to be
+> freed during OOM killer and GFP_NOFS request could trigger while there
+> is still a lot of memory pinned by filesystems.
 
-This is a left over from Paul's initial attempt to fix this issue. I
-expect him to drop his patch from his tree. He has considered it
-experimental anyway.
+I disagree. I believe that panic caused by OOM killer is much much better
+than a locked up system. I hate to add new locations that can lockup inside
+page allocator. This is __GFP_NOFAIL and reclaim has failed. Administrator
+has to go in front of console and press SysRq-f until locked up situation
+gets resolved is silly.
 
-> Do we need this as well?
+If there is a nasty driver asking for order-9 page with __GFP_NOFAIL, fix
+that driver.
 
-Paul is working with Peter to make cond_resched general and cover RCU
-stalls even when cond_resched doesn't schedule because there is no
-runnable task.
-
--- 
-Michal Hocko
-SUSE Labs
+> 
+> This patch simply removes the __GFP_NOFAIL special case in order to have
+> a more clear semantic without surprising side effects. Instead we do
+> allow nofail requests to access memory reserves to move forward in both
+> cases when the OOM killer is invoked and when it should be supressed.
+> __alloc_pages_nowmark helper has been introduced for that purpose.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
