@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9079D6B025E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 11:42:34 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id 98so126959835lfs.0
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 08:42:34 -0800 (PST)
-Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
-        by mx.google.com with ESMTPS id 64si7513471ljf.3.2016.12.05.08.42.33
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA61C6B0038
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 12:01:13 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j65so203180350iof.1
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 09:01:13 -0800 (PST)
+Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
+        by mx.google.com with ESMTPS id y82si11167107ioi.164.2016.12.05.09.01.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 08:42:33 -0800 (PST)
-Received: by mail-lf0-x235.google.com with SMTP id o141so226093919lff.1
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 08:42:33 -0800 (PST)
-Date: Sat, 3 Dec 2016 01:15:10 +0300
-From: Anatoly Stepanov <astepanov@cloudlinux.com>
-Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
- allocations
-Message-ID: <20161202221510.GB536156@stepanov.centos7>
-References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
- <03a17767-1322-3466-a1f1-dba2c6862be4@suse.cz>
- <20161202091933.GD6830@dhcp22.suse.cz>
- <20161202065417.GB358195@stepanov.centos7>
- <20161205052325.GA30758@dhcp22.suse.cz>
- <20161205140932.GC8045@osiris>
- <20161205141928.GM30758@dhcp22.suse.cz>
+        Mon, 05 Dec 2016 09:01:12 -0800 (PST)
+Received: by mail-io0-x243.google.com with SMTP id h133so15613654ioe.2
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 09:01:12 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161205141928.GM30758@dhcp22.suse.cz>
+In-Reply-To: <20161129182010.13445.31256.stgit@localhost.localdomain>
+References: <20161129182010.13445.31256.stgit@localhost.localdomain>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Mon, 5 Dec 2016 09:01:12 -0800
+Message-ID: <CAKgT0UchMkvsboO23R332j96=yumL7=oSSm97zqJ5-v30_SgCw@mail.gmail.com>
+Subject: Re: [mm PATCH 0/3] Page fragment updates
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, umka@cloudlinux.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
+To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Netdev <netdev@vger.kernel.org>, Eric Dumazet <edumazet@google.com>, David Miller <davem@davemloft.net>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 05, 2016 at 03:19:29PM +0100, Michal Hocko wrote:
-> On Mon 05-12-16 15:09:33, Heiko Carstens wrote:
-> > On Mon, Dec 05, 2016 at 06:23:26AM +0100, Michal Hocko wrote:
-> > > > > 
-> > > > > 	ret = kzalloc(size, gfp_mask);
-> > > > > 	if (ret)
-> > > > > 		return ret;
-> > > > > 	return vzalloc(size);
-> > > > > 
-> > > > 
-> > > > > I also do not like memcg_alloc helper name. It suggests we are
-> > > > > allocating a memcg while it is used for cache arrays and slab LRUS.
-> > > > > Anyway this pattern is quite widespread in the kernel so I would simply
-> > > > > suggest adding kvmalloc function instead.
-> > > > 
-> > > > Agreed, it would be nice to have a generic call.
-> > > > I would suggest an impl. like this:
-> > > > 
-> > > > void *kvmalloc(size_t size)
-> > > 
-> > > gfp_t gfp_mask should be a parameter as this should be a generic helper.
-> > > 
-> > > > {
-> > > > 	gfp_t gfp_mask = GFP_KERNEL;
-> > > 
-> > > 
-> > > > 	void *ret;
-> > > > 
-> > > >  	if (size > PAGE_SIZE)
-> > > >  		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
-> > > > 
-> > > > 
-> > > > 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> > > > 		ret = kzalloc(size, gfp_mask);
-> > > > 		if (ret)
-> > > > 			return ret;
-> > > > 	}
-> > > 
-> > > No, please just do as suggested above. Tweak the gfp_mask for higher
-> > > order requests and do kmalloc first with vmalloc as a  fallback.
-> > 
-> > You may simply use the slightly different and open-coded variant within
-> > fs/seq_file.c:seq_buf_alloc(). That one got a lot of testing in the
-> > meantime...
-> 
-> Yeah. I would just add WARN_ON((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-> to catch users who might want to rely on GFP_NOFS, GFP_NOWAIT or other
-> restricted requests because vmalloc cannot cope with those properly.
+On Tue, Nov 29, 2016 at 10:23 AM, Alexander Duyck
+<alexander.duyck@gmail.com> wrote:
+> This patch series takes care of a few cleanups for the page fragments API.
+>
+> First we do some renames so that things are much more consistent.  First we
+> move the page_frag_ portion of the name to the front of the functions
+> names.  Secondly we split out the cache specific functions from the other
+> page fragment functions by adding the word "cache" to the name.
+>
+> Second I did some minor clean-up on the function calls so that they are
+> more inline with the existing __free_pages calls in terms of how they
+> operate.
+>
+> Finally I added a bit of documentation that will hopefully help to explain
+> some of this.  I plan to revisit this later as we get things more ironed
+> out in the near future with the changes planned for the DMA setup to
+> support eXpress Data Path.
+>
+> ---
+>
+> Alexander Duyck (3):
+>       mm: Rename __alloc_page_frag to page_frag_alloc and __free_page_frag to page_frag_free
+>       mm: Rename __page_frag functions to __page_frag_cache, drop order from drain
+>       mm: Add documentation for page fragment APIs
+>
+>
+>  Documentation/vm/page_frags               |   42 +++++++++++++++++++++++++++++
+>  drivers/net/ethernet/intel/igb/igb_main.c |    6 ++--
+>  include/linux/gfp.h                       |    9 +++---
+>  include/linux/skbuff.h                    |    2 +
+>  mm/page_alloc.c                           |   33 +++++++++++++----------
+>  net/core/skbuff.c                         |    8 +++---
+>  6 files changed, 73 insertions(+), 27 deletions(-)
+>  create mode 100644 Documentation/vm/page_frags
+>
+> --
 
-What about __vmalloc(size, gfp, prot)? I guess it's fine with theese
+It's been about a week since I submitted this series.  Just wanted to
+check in and see if anyone had any feedback or if this is good to be
+accepted for 4.10-rc1 with the rest of the set?
 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Thanks.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
