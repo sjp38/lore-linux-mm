@@ -1,53 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A8B816B0038
-	for <linux-mm@kvack.org>; Sun,  4 Dec 2016 22:05:37 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c4so489572962pfb.7
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 19:05:37 -0800 (PST)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10082.outbound.protection.outlook.com. [40.107.1.82])
-        by mx.google.com with ESMTPS id 31si13002214plj.195.2016.12.04.19.05.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 04 Dec 2016 19:05:36 -0800 (PST)
-Date: Mon, 5 Dec 2016 11:05:26 +0800
-From: Huang Shijie <shijie.huang@arm.com>
-Subject: Re: [PATCH v2 2/6] mm: hugetlb: add a new parameter for some
- functions
-Message-ID: <20161205030525.GA13365@sha-win-210.asiapac.arm.com>
-References: <1479107259-2011-1-git-send-email-shijie.huang@arm.com>
- <1479107259-2011-3-git-send-email-shijie.huang@arm.com>
- <20161202135229.GJ6830@dhcp22.suse.cz>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 82A5B6B0253
+	for <linux-mm@kvack.org>; Sun,  4 Dec 2016 22:06:45 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x23so339360826pgx.6
+        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 19:06:45 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 197si13012756pfy.74.2016.12.04.19.06.44
+        for <linux-mm@kvack.org>;
+        Sun, 04 Dec 2016 19:06:44 -0800 (PST)
+Date: Mon, 5 Dec 2016 12:10:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/2] mm: page_alloc: High-order per-cpu page allocator v5
+Message-ID: <20161205031013.GB1378@js1304-P5Q-DELUXE>
+References: <20161202002244.18453-1-mgorman@techsingularity.net>
+ <20161202002244.18453-3-mgorman@techsingularity.net>
+ <20161202060346.GA21434@js1304-P5Q-DELUXE>
+ <20161202082108.GB6830@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161202135229.GJ6830@dhcp22.suse.cz>
+In-Reply-To: <20161202082108.GB6830@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 02, 2016 at 02:52:30PM +0100, Michal Hocko wrote:
-> On Mon 14-11-16 15:07:35, Huang Shijie wrote:
-> > This patch adds a new parameter, the "no_init", for these functions:
-> >    alloc_fresh_gigantic_page_node()
-> >    alloc_fresh_gigantic_page()
+On Fri, Dec 02, 2016 at 09:21:08AM +0100, Michal Hocko wrote:
+> On Fri 02-12-16 15:03:46, Joonsoo Kim wrote:
+> [...]
+> > > o pcp accounting during free is now confined to free_pcppages_bulk as it's
+> > >   impossible for the caller to know exactly how many pages were freed.
+> > >   Due to the high-order caches, the number of pages drained for a request
+> > >   is no longer precise.
+> > > 
+> > > o The high watermark for per-cpu pages is increased to reduce the probability
+> > >   that a single refill causes a drain on the next free.
+> [...]
+> > I guess that this patch would cause following problems.
 > > 
-> > The prep_new_huge_page() does some initialization for the new page.
-> > But sometime, we do not need it to do so, such as in the surplus case
-> > in later patch.
+> > 1. If pcp->batch is too small, high order page will not be freed
+> > easily and survive longer. Think about following situation.
 > > 
-> > With this parameter, the prep_new_huge_page() can be called by needed:
-> >    If the "no_init" is false, calls the prep_new_huge_page() in
-> >    the alloc_fresh_gigantic_page_node();
+> > Batch count: 7
+> > MIGRATE_UNMOVABLE -> MIGRATE_MOVABLE -> MIGRATE_RECLAIMABLE -> order 1
+> > -> order 2...
+> > 
+> > free count: 1 + 1 + 1 + 2 + 4 = 9
+> > so order 3 would not be freed.
 > 
-> This double negative just makes my head spin. I haven't got to later
-> patch to understand the motivation but if anything bool do_prep would
-> be much more clear. In general doing these "init if a parameter is
-Okay, I will use the "do_prep" for the new parameter.
+> I guess the second paragraph above in the changelog tries to clarify
+> that...
 
-thanks for the code review.
+It doesn't perfectly clarify my concern. This is a different problem.
 
-Huang Shijie
+>  
+> > 2. And, It seems that this logic penalties high order pages. One free
+> > to high order page means 1 << order pages free rather than just
+> > one page free. This logic do round-robin to choose the target page so
+> > amount of freed page will be different by the order.
+> 
+> Yes this is indeed possible. The first paragraph above mentions this
+> problem.
+
+Yes, it is mentioned simply but we cannot easily notice that the above
+penalty for high order page is there.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
