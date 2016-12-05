@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84ED86B0038
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 02:05:23 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so14716079wmf.3
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 23:05:23 -0800 (PST)
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id n13si11620338wmg.164.2016.12.04.23.05.22
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACDED6B0038
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 03:31:27 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id he10so19963769wjc.6
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 00:31:27 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p123si11849323wmg.154.2016.12.05.00.31.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Dec 2016 23:05:22 -0800 (PST)
-Received: by mail-wm0-f44.google.com with SMTP id a197so82082280wmd.0
-        for <linux-mm@kvack.org>; Sun, 04 Dec 2016 23:05:22 -0800 (PST)
-Date: Mon, 5 Dec 2016 08:05:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Silly question about dethrottling
-Message-ID: <20161205070519.GA30765@dhcp22.suse.cz>
-References: <CAGDaZ_r3-DxOEsGdE2y1UsS_-=UR-Qc0CsouGtcCgoXY3kVotQ@mail.gmail.com>
+        Mon, 05 Dec 2016 00:31:26 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB58TStu112469
+	for <linux-mm@kvack.org>; Mon, 5 Dec 2016 03:31:25 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2750kgf4bg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 05 Dec 2016 03:31:24 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Mon, 5 Dec 2016 01:31:24 -0700
+Subject: Re: [RFC PATCH] mm: use ACCESS_ONCE in page_cpupid_xchg_last()
+References: <584523E4.9030600@huawei.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Date: Mon, 5 Dec 2016 09:31:18 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGDaZ_r3-DxOEsGdE2y1UsS_-=UR-Qc0CsouGtcCgoXY3kVotQ@mail.gmail.com>
+In-Reply-To: <584523E4.9030600@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <26c66f28-d836-4d6e-fb40-3e2189a540ed@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raymond Jennings <shentino@gmail.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>
 
-On Sun 04-12-16 13:56:54, Raymond Jennings wrote:
-> I have an application that is generating HUGE amounts of dirty data.
-> Multiple GiB worth, and I'd like to allow it to fill at least half of my
-> RAM.
+On 12/05/2016 09:23 AM, Xishi Qiu wrote:
+> By reading the code, I find the following code maybe optimized by
+> compiler, maybe page->flags and old_flags use the same register,
+> so use ACCESS_ONCE in page_cpupid_xchg_last() to fix the problem.
 
-Could you be more specific why and what kind of problem you are trying
-to solve?
+please use READ_ONCE instead of ACCESS_ONCE for future patches.
 
-> I already have /proc/sys/vm/dirty_ratio pegged at 80 and the background one
-> pegged at 50.  RAM is 32GiB.
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  mm/mmzone.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/mmzone.c b/mm/mmzone.c
+> index 5652be8..e0b698e 100644
+> --- a/mm/mmzone.c
+> +++ b/mm/mmzone.c
+> @@ -102,7 +102,7 @@ int page_cpupid_xchg_last(struct page *page, int cpupid)
+>  	int last_cpupid;
+> 
+>  	do {
+> -		old_flags = flags = page->flags;
+> +		old_flags = flags = ACCESS_ONCE(page->flags);
+>  		last_cpupid = page_cpupid_last(page);
+> 
+>  		flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
 
-There is also dirty_bytes alternative which is an absolute numer.
 
-> it appears to be butting heads with clean memory.  How do I tell my system
-> to prefer using RAM to soak up writes instead of caching?
+I dont thing that this is actually a problem. The code below does  
 
-I am not sure I understand. Could you be more specific about what is the
-actual problem? Is it possible that your dirty data is already being
-flushed and that is wy you see a clean cache?
+   } while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags))
 
--- 
-Michal Hocko
-SUSE Labs
+and the cmpxchg should be an atomic op that should already take care of everything
+(page->flags is passed as a pointer).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
