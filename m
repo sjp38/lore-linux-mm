@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 873686B025E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:24:44 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id xr1so61046522wjb.7
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:24:44 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n6si14201475wjk.207.2016.12.05.01.24.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F016B0260
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:25:40 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i131so15902402wmf.3
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:25:40 -0800 (PST)
+Received: from mail-wj0-f177.google.com (mail-wj0-f177.google.com. [209.85.210.177])
+        by mx.google.com with ESMTPS id t10si7003767wmb.0.2016.12.05.01.25.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Dec 2016 01:24:43 -0800 (PST)
-Message-ID: <584531CF.9030204@huawei.com>
-Date: Mon, 5 Dec 2016 17:22:23 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Dec 2016 01:25:38 -0800 (PST)
+Received: by mail-wj0-f177.google.com with SMTP id tg4so28873174wjb.1
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:25:38 -0800 (PST)
+Date: Mon, 5 Dec 2016 10:25:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Silly question about dethrottling
+Message-ID: <20161205092536.GE30758@dhcp22.suse.cz>
+References: <CAGDaZ_r3-DxOEsGdE2y1UsS_-=UR-Qc0CsouGtcCgoXY3kVotQ@mail.gmail.com>
+ <20161205070519.GA30765@dhcp22.suse.cz>
+ <CAGDaZ_oXcWVVAugGetVV2qBR9kJ-=VKKn8A0ErT-0vXOAZ6NTg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] mm: use ACCESS_ONCE in page_cpupid_xchg_last()
-References: <584523E4.9030600@huawei.com> <26c66f28-d836-4d6e-fb40-3e2189a540ed@de.ibm.com> <0cc3c2bb-e292-2d7b-8d44-16c8e6c19899@de.ibm.com>
-In-Reply-To: <0cc3c2bb-e292-2d7b-8d44-16c8e6c19899@de.ibm.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGDaZ_oXcWVVAugGetVV2qBR9kJ-=VKKn8A0ErT-0vXOAZ6NTg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng
- Xie <xieyisheng1@huawei.com>
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-On 2016/12/5 16:50, Christian Borntraeger wrote:
-
-> On 12/05/2016 09:31 AM, Christian Borntraeger wrote:
->> On 12/05/2016 09:23 AM, Xishi Qiu wrote:
->>> By reading the code, I find the following code maybe optimized by
->>> compiler, maybe page->flags and old_flags use the same register,
->>> so use ACCESS_ONCE in page_cpupid_xchg_last() to fix the problem.
->>
->> please use READ_ONCE instead of ACCESS_ONCE for future patches.
->>
->>>
->>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->>> ---
->>>  mm/mmzone.c | 2 +-
->>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/mm/mmzone.c b/mm/mmzone.c
->>> index 5652be8..e0b698e 100644
->>> --- a/mm/mmzone.c
->>> +++ b/mm/mmzone.c
->>> @@ -102,7 +102,7 @@ int page_cpupid_xchg_last(struct page *page, int cpupid)
->>>  	int last_cpupid;
->>>
->>>  	do {
->>> -		old_flags = flags = page->flags;
->>> +		old_flags = flags = ACCESS_ONCE(page->flags);
->>>  		last_cpupid = page_cpupid_last(page);
->>>
->>>  		flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
->>
->>
->> I dont thing that this is actually a problem. The code below does  
->>
->>    } while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags))
->>
->> and the cmpxchg should be an atomic op that should already take care of everything
->> (page->flags is passed as a pointer).
->>
+On Mon 05-12-16 01:15:39, Raymond Jennings wrote:
+> On Sun, Dec 4, 2016 at 11:05 PM, Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Reading the code again, you might be right, but I think your patch description
-> is somewhat misleading. I think the problem is that old_flags and flags are
-> not necessarily the same.
+> > On Sun 04-12-16 13:56:54, Raymond Jennings wrote:
+> > > I have an application that is generating HUGE amounts of dirty data.
+> > > Multiple GiB worth, and I'd like to allow it to fill at least half of my
+> > > RAM.
+> >
+> > Could you be more specific why and what kind of problem you are trying
+> > to solve?
+> >
+> > > I already have /proc/sys/vm/dirty_ratio pegged at 80 and the background
+> > one
+> > > pegged at 50.  RAM is 32GiB.
+> >
+> > There is also dirty_bytes alternative which is an absolute numer.
+> >
 > 
-> So what about
+> How does this compare to setting dirty_ratio to a high percentage?
+
+Well, dirty_bytes is an absolute number when to start to throttle while
+ratio is relative to node_dirtyable_memory
+
+> > > it appears to be butting heads with clean memory.  How do I tell my
+> > system
+> > > to prefer using RAM to soak up writes instead of caching?
+> >
+> > I am not sure I understand. Could you be more specific about what is the
+> > actual problem? Is it possible that your dirty data is already being
+> > flushed and that is wy you see a clean cache?
+> >
 > 
-> a compiler could re-read "old_flags" from the memory location after reading
-> and calculation "flags" and passes a newer value into the cmpxchg making 
-> the comparison succeed while it should actually fail.
-> 
+> What I'm wanting is for my writing process not to get throttled, even when
+> the dirty memory it starts creating starts hogging memory the system would
+> rather use for cache.
 
-Hi Christian,
+Then you can configure dirty_background_{bytes,ratio} to start flushing
+dirty data sooner. Having a lot of dirty data in the system just asks
+for troubles elsewhere as it would take a lot of time to sync that to
+the backing store. That means that many unrelated processes might get
+stuck on sync etc. for an unconfortably large amount of time.
 
-I'll resend v2, thanks!
-
-> 
-> 
-
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
