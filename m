@@ -1,95 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E06526B0038
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 09:09:41 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 83so508960024pfx.1
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 06:09:41 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l2si14738063pgo.298.2016.12.05.06.09.40
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B27746B0253
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 09:10:13 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id o3so63970530wjo.1
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 06:10:13 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id c133si241064wme.54.2016.12.05.06.10.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 06:09:40 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uB5E9DmK135082
-	for <linux-mm@kvack.org>; Mon, 5 Dec 2016 09:09:40 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2753yducjv-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 05 Dec 2016 09:09:40 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Mon, 5 Dec 2016 14:09:38 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 3B8B02190066
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 14:08:46 +0000 (GMT)
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uB5E9ZPT6095122
-	for <linux-mm@kvack.org>; Mon, 5 Dec 2016 14:09:35 GMT
-Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uB5E9YqY025032
-	for <linux-mm@kvack.org>; Mon, 5 Dec 2016 09:09:35 -0500
-Date: Mon, 5 Dec 2016 15:09:33 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
- allocations
-References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
- <03a17767-1322-3466-a1f1-dba2c6862be4@suse.cz>
- <20161202091933.GD6830@dhcp22.suse.cz>
- <20161202065417.GB358195@stepanov.centos7>
- <20161205052325.GA30758@dhcp22.suse.cz>
+        Mon, 05 Dec 2016 06:10:12 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id he10so25333483wjc.2
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 06:10:12 -0800 (PST)
+Date: Mon, 5 Dec 2016 15:10:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161205141009.GJ30758@dhcp22.suse.cz>
+References: <20161201152517.27698-1-mhocko@kernel.org>
+ <20161201152517.27698-3-mhocko@kernel.org>
+ <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161205052325.GA30758@dhcp22.suse.cz>
-Message-Id: <20161205140932.GC8045@osiris>
+In-Reply-To: <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Anatoly Stepanov <astepanov@cloudlinux.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, umka@cloudlinux.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 05, 2016 at 06:23:26AM +0100, Michal Hocko wrote:
-> > > 
-> > > 	ret = kzalloc(size, gfp_mask);
-> > > 	if (ret)
-> > > 		return ret;
-> > > 	return vzalloc(size);
-> > > 
+On Mon 05-12-16 22:45:19, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > __alloc_pages_may_oom makes sure to skip the OOM killer depending on
+> > the allocation request. This includes lowmem requests, costly high
+> > order requests and others. For a long time __GFP_NOFAIL acted as an
+> > override for all those rules. This is not documented and it can be quite
+> > surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
+> > killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
+> > the existing open coded loops around allocator to nofail request (and we
+> > have done that in the past) then such a change would have a non trivial
+> > side effect which is not obvious. Note that the primary motivation for
+> > skipping the OOM killer is to prevent from pre-mature invocation.
 > > 
-> > > I also do not like memcg_alloc helper name. It suggests we are
-> > > allocating a memcg while it is used for cache arrays and slab LRUS.
-> > > Anyway this pattern is quite widespread in the kernel so I would simply
-> > > suggest adding kvmalloc function instead.
-> > 
-> > Agreed, it would be nice to have a generic call.
-> > I would suggest an impl. like this:
-> > 
-> > void *kvmalloc(size_t size)
+> > The exception has been added by 82553a937f12 ("oom: invoke oom killer
+> > for __GFP_NOFAIL"). The changelog points out that the oom killer has to
+> > be invoked otherwise the request would be looping for ever. But this
+> > argument is rather weak because the OOM killer doesn't really guarantee
+> > any forward progress for those exceptional cases - e.g. it will hardly
+> > help to form costly order - I believe we certainly do not want to kill
+> > all processes and eventually panic the system just because there is a
+> > nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
+> > the consequences - it is much better this request would loop for ever
+> > than the massive system disruption, lowmem is also highly unlikely to be
+> > freed during OOM killer and GFP_NOFS request could trigger while there
+> > is still a lot of memory pinned by filesystems.
 > 
-> gfp_t gfp_mask should be a parameter as this should be a generic helper.
-> 
-> > {
-> > 	gfp_t gfp_mask = GFP_KERNEL;
-> 
-> 
-> > 	void *ret;
-> > 
-> >  	if (size > PAGE_SIZE)
-> >  		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
-> > 
-> > 
-> > 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> > 		ret = kzalloc(size, gfp_mask);
-> > 		if (ret)
-> > 			return ret;
-> > 	}
-> 
-> No, please just do as suggested above. Tweak the gfp_mask for higher
-> order requests and do kmalloc first with vmalloc as a  fallback.
+> I disagree. I believe that panic caused by OOM killer is much much better
+> than a locked up system. I hate to add new locations that can lockup inside
+> page allocator. This is __GFP_NOFAIL and reclaim has failed.
 
-You may simply use the slightly different and open-coded variant within
-fs/seq_file.c:seq_buf_alloc(). That one got a lot of testing in the
-meantime...
+As a matter of fact any __GFP_NOFAIL can lockup inside the allocator.
+Full stop. There is no guaranteed way to make a forward progress with
+the current page allocator implementation.
+
+So we are somewhere in the middle between pre-mature and pointless
+system disruption (GFP_NOFS with a lots of metadata or lowmem request)
+where the OOM killer even might not help and potential lockup which is
+inevitable with the current design. Dunno about you but I would rather
+go with the first option. To be honest I really fail to understand your
+line of argumentation. We have this
+	do {
+		cond_resched();
+	} (page = alloc_page(GFP_NOFS));
+vs.
+	page = alloc_page(GFP_NOFS | __GFP_NOFAIL);
+
+the first one doesn't invoke OOM killer while the later does. This
+discrepancy just cannot make any sense... The same is true for
+
+	alloc_page(GFP_DMA) vs alloc_page(GFP_DMA|__GFP_NOFAIL)
+
+Now we can discuss whether it is a _good_ idea to not invoke OOM killer
+for those exceptions but whatever we do __GFP_NOFAIL is not a way to
+give such a subtle side effect. Or do you disagree even with that?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
