@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3144C6B025E
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:18:01 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id b202so541684832oii.3
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:18:01 -0800 (PST)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20067.outbound.protection.outlook.com. [40.107.2.67])
-        by mx.google.com with ESMTPS id t207si6651206oie.268.2016.12.05.01.17.59
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1AE6B0260
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 04:18:04 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so353016248pgc.2
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 01:18:04 -0800 (PST)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30084.outbound.protection.outlook.com. [40.107.3.84])
+        by mx.google.com with ESMTPS id h26si14006191pfh.56.2016.12.05.01.18.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 05 Dec 2016 01:18:00 -0800 (PST)
+        Mon, 05 Dec 2016 01:18:03 -0800 (PST)
 From: Huang Shijie <shijie.huang@arm.com>
-Subject: [PATCH v3 0/4]  mm: fix the "counter.sh" failure for libhugetlbfs 
-Date: Mon, 5 Dec 2016 17:17:07 +0800
-Message-ID: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
+Subject: [PATCH v3 1/4] mm: hugetlb: rename some allocation functions
+Date: Mon, 5 Dec 2016 17:17:08 +0800
+Message-ID: <1480929431-22348-2-git-send-email-shijie.huang@arm.com>
+In-Reply-To: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
+References: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,87 +22,131 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, catalin.marinas@arm.com
 Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, mike.kravetz@oracle.com, linux-mm@kvack.org, will.deacon@arm.com, steve.capper@arm.com, kaly.xin@arm.com, nd@arm.com, linux-arm-kernel@lists.infradead.org, vbabka@suze.cz, Huang Shijie <shijie.huang@arm.com>
 
-(1) Background
-   For the arm64, the hugetlb page size can be 32M (PMD + Contiguous bit).
-   In the 4K page environment, the max page order is 10 (max_order - 1),
-   so 32M page is the gigantic page.    
+After a future patch, the __alloc_buddy_huge_page() will not necessarily
+use the buddy allocator.
 
-   The arm64 MMU supports a Contiguous bit which is a hint that the TTE
-   is one of a set of contiguous entries which can be cached in a single
-   TLB entry.  Please refer to the arm64v8 mannul :
-       DDI0487A_f_armv8_arm.pdf (in page D4-1811)
+So this patch removes the "buddy" from these functions:
+	__alloc_buddy_huge_page -> __alloc_huge_page
+	__alloc_buddy_huge_page_no_mpol -> __alloc_huge_page_no_mpol
+	__alloc_buddy_huge_page_with_mpol -> __alloc_huge_page_with_mpol
 
-(2) The bug   
-   After I tested the libhugetlbfs, I found the test case "counter.sh"
-   will fail with the gigantic page (32M page in arm64 board).
+This patch also adds the description for alloc_gigantic_page().
 
-   The counter.sh is just a wrapper for counter.c.
-   You can find them in:
-       https://github.com/libhugetlbfs/libhugetlbfs/blob/master/tests/counters.c
-       https://github.com/libhugetlbfs/libhugetlbfs/blob/master/tests/counters.sh
+This patch makes preparation for the later patch.
 
-   The error log shows below:
+Signed-off-by: Huang Shijie <shijie.huang@arm.com>
+---
+ mm/hugetlb.c | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)
 
-   ----------------------------------------------------------
-        ...........................................
-	LD_PRELOAD=libhugetlbfs.so shmoverride_unlinked (32M: 64):	PASS
-	LD_PRELOAD=libhugetlbfs.so HUGETLB_SHM=yes shmoverride_unlinked (32M: 64):	PASS
-	quota.sh (32M: 64):	PASS
-	counters.sh (32M: 64):	FAIL mmap failed: Invalid argument
-	********** TEST SUMMARY
-	*                      32M           
-	*                      32-bit 64-bit 
-	*     Total testcases:     0     87   
-	*             Skipped:     0      0   
-	*                PASS:     0     86   
-	*                FAIL:     0      1   
-	*    Killed by signal:     0      0   
-	*   Bad configuration:     0      0   
-	*       Expected FAIL:     0      0   
-	*     Unexpected PASS:     0      0   
-	* Strange test result:     0      0   
-	**********
-   ----------------------------------------------------------
-
-   The failure is caused by:
-    1) kernel fails to allocate a gigantic page for the surplus case.
-       And the gather_surplus_pages() will return NULL in the end.
-
-    2) The condition checks for some functions are wrong:
-        return_unused_surplus_pages()
-        nr_overcommit_hugepages_store()
-        hugetlb_overcommit_handler()
-   
-   This patch set adds support for gigantic surplus hugetlb pages,
-   allowing the counter.sh unit test to pass. 
-   Test this patch set with Juno-r1 board.
-
-   	
-v2 -- > v3:
-   1.) In patch 2, change argument "no_init" to "do_prep" 
-   2.) In patch 3, also change alloc_fresh_huge_page().
-       In the v2, this patch only changes the alloc_fresh_gigantic_page().  
-   3.) Merge old patch #4,#5 into the last one.    
-   4.) Follow Babka's suggestion, do the NULL check for @mask.
-   5.) others.
-
-
-v1 -- > v2:
-   1.) fix the compiler error in X86.
-   2.) add new patches for NUMA.
-       The patch #2 ~ #5 are new patches.
-
-Huang Shijie (4):
-  mm: hugetlb: rename some allocation functions
-  mm: hugetlb: add a new parameter for some functions
-  mm: hugetlb: change the return type for some functions
-  mm: hugetlb: support gigantic surplus pages
-
- include/linux/mempolicy.h |   8 +++
- mm/hugetlb.c              | 146 +++++++++++++++++++++++++++++++++++-----------
- mm/mempolicy.c            |  44 ++++++++++++++
- 3 files changed, 163 insertions(+), 35 deletions(-)
-
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5f228cd..5f4213d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1089,6 +1089,12 @@ static bool zone_spans_last_pfn(const struct zone *zone,
+ 	return zone_spans_pfn(zone, last_pfn);
+ }
+ 
++/*
++ * Allocate a gigantic page from @nid node.
++ *
++ * Scan the zones of @nid node, and try to allocate a number of contiguous
++ * pages (1 << order).
++ */
+ static struct page *alloc_gigantic_page(int nid, unsigned int order)
+ {
+ 	unsigned long nr_pages = 1 << order;
+@@ -1157,6 +1163,10 @@ static int alloc_fresh_gigantic_page(struct hstate *h,
+ 
+ static inline bool gigantic_page_supported(void) { return true; }
+ #else
++static inline struct page *alloc_gigantic_page(int nid, unsigned int order)
++{
++	return NULL;
++}
+ static inline bool gigantic_page_supported(void) { return false; }
+ static inline void free_gigantic_page(struct page *page, unsigned int order) { }
+ static inline void destroy_compound_gigantic_page(struct page *page,
+@@ -1568,7 +1578,7 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+  * For (2), we ignore 'vma' and 'addr' and use 'nid' exclusively. This
+  * implies that memory policies will not be taken in to account.
+  */
+-static struct page *__alloc_buddy_huge_page(struct hstate *h,
++static struct page *__alloc_huge_page(struct hstate *h,
+ 		struct vm_area_struct *vma, unsigned long addr, int nid)
+ {
+ 	struct page *page;
+@@ -1649,21 +1659,21 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
+  * anywhere.
+  */
+ static
+-struct page *__alloc_buddy_huge_page_no_mpol(struct hstate *h, int nid)
++struct page *__alloc_huge_page_no_mpol(struct hstate *h, int nid)
+ {
+ 	unsigned long addr = -1;
+ 
+-	return __alloc_buddy_huge_page(h, NULL, addr, nid);
++	return __alloc_huge_page(h, NULL, addr, nid);
+ }
+ 
+ /*
+  * Use the VMA's mpolicy to allocate a huge page from the buddy.
+  */
+ static
+-struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
++struct page *__alloc_huge_page_with_mpol(struct hstate *h,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+-	return __alloc_buddy_huge_page(h, vma, addr, NUMA_NO_NODE);
++	return __alloc_huge_page(h, vma, addr, NUMA_NO_NODE);
+ }
+ 
+ /*
+@@ -1681,7 +1691,7 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page)
+-		page = __alloc_buddy_huge_page_no_mpol(h, nid);
++		page = __alloc_huge_page_no_mpol(h, nid);
+ 
+ 	return page;
+ }
+@@ -1711,7 +1721,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = __alloc_buddy_huge_page_no_mpol(h, NUMA_NO_NODE);
++		page = __alloc_huge_page_no_mpol(h, NUMA_NO_NODE);
+ 		if (!page) {
+ 			alloc_ok = false;
+ 			break;
+@@ -2027,7 +2037,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
+ 	if (!page) {
+ 		spin_unlock(&hugetlb_lock);
+-		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
++		page = __alloc_huge_page_with_mpol(h, vma, addr);
+ 		if (!page)
+ 			goto out_uncharge_cgroup;
+ 		if (!avoid_reserve && vma_has_reserves(vma, gbl_chg)) {
+@@ -2285,7 +2295,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ 	 * First take pages out of surplus state.  Then make up the
+ 	 * remaining difference by allocating fresh huge pages.
+ 	 *
+-	 * We might race with __alloc_buddy_huge_page() here and be unable
++	 * We might race with __alloc_huge_page() here and be unable
+ 	 * to convert a surplus huge page to a normal huge page. That is
+ 	 * not critical, though, it just means the overall size of the
+ 	 * pool might be one hugepage larger than it needs to be, but
+@@ -2331,7 +2341,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ 	 * By placing pages into the surplus state independent of the
+ 	 * overcommit value, we are allowing the surplus pool size to
+ 	 * exceed overcommit. There are few sane options here. Since
+-	 * __alloc_buddy_huge_page() is checking the global counter,
++	 * __alloc_huge_page() is checking the global counter,
+ 	 * though, we'll note that we're not allowed to exceed surplus
+ 	 * and won't grow the pool anywhere else. Not until one of the
+ 	 * sysctls are changed, or the surplus pages go out of use.
 -- 
 2.5.5
 
