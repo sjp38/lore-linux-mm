@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B58826B0069
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 08:53:30 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a20so25675528wme.5
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 05:53:30 -0800 (PST)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id z3si3767460wme.12.2016.12.06.05.53.29
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DFF36B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 10:14:59 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y68so558376860pfb.6
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 07:14:59 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id p125si19886829pfp.119.2016.12.06.07.14.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 05:53:29 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E47591C15B1
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 13:53:28 +0000 (GMT)
-Date: Tue, 6 Dec 2016 13:53:28 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] mm: page_alloc: High-order per-cpu page allocator v5
-Message-ID: <20161206135328.lvafbdemb3bjjktv@techsingularity.net>
-References: <20161202002244.18453-1-mgorman@techsingularity.net>
- <20161202002244.18453-3-mgorman@techsingularity.net>
- <20161202060346.GA21434@js1304-P5Q-DELUXE>
- <20161202090449.kxktmyf5sdp2sroh@techsingularity.net>
- <20161205030619.GA1378@js1304-P5Q-DELUXE>
- <20161205095739.i5ucbzspnjedupin@techsingularity.net>
- <20161206024345.GA6542@js1304-P5Q-DELUXE>
+        Tue, 06 Dec 2016 07:14:58 -0800 (PST)
+Subject: Re: [PATCH] mm: make transparent hugepage size public
+References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
+ <877f7difx1.fsf@linux.vnet.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <85c787f4-36ff-37fe-ff93-e42bad4b7c1e@intel.com>
+Date: Tue, 6 Dec 2016 07:14:50 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20161206024345.GA6542@js1304-P5Q-DELUXE>
+In-Reply-To: <877f7difx1.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On Tue, Dec 06, 2016 at 11:43:45AM +0900, Joonsoo Kim wrote:
-> > actually clear at all it's an unfair situation, particularly given that the
-> > vanilla code is also unfair -- the vanilla code can artifically preserve
-> > MIGRATE_UNMOVABLE without any clear indication that it is a universal win.
-> > The only deciding factor there was a fault-intensive workload would mask
-> > overhead of the page allocator due to page zeroing cost which UNMOVABLE
-> > allocations may or may not require. Even that is vague considering that
-> > page-table allocations are zeroing even if many kernel allocations are not.
+On 12/06/2016 01:07 AM, Aneesh Kumar K.V wrote:
+> Hugh Dickins <hughd@google.com> writes:
 > 
-> "Vanilla works like that" doesn't seem to be reasonable to justify
-> this change.  Vanilla code works with three lists and it now become
-> six lists and each list can have different size of page. We need to
-> think that previous approach will also work fine with current one. I
-> think that there is a problem although it's not permanent and would be
-> minor. However, it's better to fix it when it is found.
+>> Test programs want to know the size of a transparent hugepage.
+>> While it is commonly the same as the size of a hugetlbfs page
+>> (shown as Hugepagesize in /proc/meminfo), that is not always so:
+>> powerpc implements transparent hugepages in a different way from
+>> hugetlbfs pages, so it's coincidence when their sizes are the same;
+>> and x86 and others can support more than one hugetlbfs page size.
+>>
+>> Add /sys/kernel/mm/transparent_hugepage/hpage_pmd_size to show the
+>> THP size in bytes - it's the same for Anonymous and Shmem hugepages.
+>> Call it hpage_pmd_size (after HPAGE_PMD_SIZE) rather than hpage_size,
+>> in case some transparent support for pud and pgd pages is added later.
 > 
+> We have in /proc/meminfo
+> 
+> Hugepagesize:       2048 kB
+> 
+> Does it makes it easy for application to find THP page size also there ?
 
-This is going in circles. I prototyped the modification which increases
-the per-cpu structure slightly and will evaluate. It takes about a day
-to run through the full set of tests. If it causes no harm, I'll release
-another version.
-
--- 
-Mel Gorman
-SUSE Labs
+Nope.  That's the default hugetlbfs page size.  Even on x86, that can be
+changed and _could_ be 1G.  If hugetlbfs is configured out, you also
+won't get this in meminfo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
