@@ -1,103 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EEF866B0069
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 05:34:25 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 83so549247418pfx.1
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 02:34:25 -0800 (PST)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 703356B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 05:38:51 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id j92so239600531ioi.2
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 02:38:51 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y186si18950703pfy.31.2016.12.06.02.34.24
+        by mx.google.com with ESMTPS id e205si13672123ioa.58.2016.12.06.02.38.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Dec 2016 02:34:24 -0800 (PST)
+        Tue, 06 Dec 2016 02:38:50 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Date: Tue,  6 Dec 2016 19:33:59 +0900
-Message-Id: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161201152517.27698-1-mhocko@kernel.org>
+	<20161201152517.27698-3-mhocko@kernel.org>
+	<201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
+	<20161205141009.GJ30758@dhcp22.suse.cz>
+In-Reply-To: <20161205141009.GJ30758@dhcp22.suse.cz>
+Message-Id: <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
+Date: Tue, 6 Dec 2016 19:38:38 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-If the OOM killer is invoked when many threads are looping inside the
-page allocator, it is possible that the OOM killer is preempted by other
-threads. As a result, the OOM killer is unable to send SIGKILL to OOM
-victims and/or wake up the OOM reaper by releasing oom_lock for minutes
-because other threads consume a lot of CPU time for pointless direct
-reclaim.
+Michal Hocko wrote:
+> On Mon 05-12-16 22:45:19, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > __alloc_pages_may_oom makes sure to skip the OOM killer depending on
+> > > the allocation request. This includes lowmem requests, costly high
+> > > order requests and others. For a long time __GFP_NOFAIL acted as an
+> > > override for all those rules. This is not documented and it can be quite
+> > > surprising as well. E.g. GFP_NOFS requests are not invoking the OOM
+> > > killer but GFP_NOFS|__GFP_NOFAIL does so if we try to convert some of
+> > > the existing open coded loops around allocator to nofail request (and we
+> > > have done that in the past) then such a change would have a non trivial
+> > > side effect which is not obvious. Note that the primary motivation for
+> > > skipping the OOM killer is to prevent from pre-mature invocation.
+> > > 
+> > > The exception has been added by 82553a937f12 ("oom: invoke oom killer
+> > > for __GFP_NOFAIL"). The changelog points out that the oom killer has to
+> > > be invoked otherwise the request would be looping for ever. But this
+> > > argument is rather weak because the OOM killer doesn't really guarantee
+> > > any forward progress for those exceptional cases - e.g. it will hardly
+> > > help to form costly order - I believe we certainly do not want to kill
+> > > all processes and eventually panic the system just because there is a
+> > > nasty driver asking for order-9 page with GFP_NOFAIL not realizing all
+> > > the consequences - it is much better this request would loop for ever
+> > > than the massive system disruption, lowmem is also highly unlikely to be
+> > > freed during OOM killer and GFP_NOFS request could trigger while there
+> > > is still a lot of memory pinned by filesystems.
+> > 
+> > I disagree. I believe that panic caused by OOM killer is much much better
+> > than a locked up system. I hate to add new locations that can lockup inside
+> > page allocator. This is __GFP_NOFAIL and reclaim has failed.
+> 
+> As a matter of fact any __GFP_NOFAIL can lockup inside the allocator.
 
-----------
-[ 2802.635229] Killed process 7267 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[ 2802.644296] oom_reaper: reaped process 7267 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-[ 2802.650237] Out of memory: Kill process 7268 (a.out) score 999 or sacrifice child
-[ 2803.653052] Killed process 7268 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[ 2804.426183] oom_reaper: reaped process 7268 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-[ 2804.432524] Out of memory: Kill process 7269 (a.out) score 999 or sacrifice child
-[ 2805.349380] a.out: page allocation stalls for 10047ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-[ 2805.349383] CPU: 2 PID: 7243 Comm: a.out Not tainted 4.9.0-rc8 #62
-(...snipped...)
-[ 3540.977499]           a.out  7269     22716.893359      5272   120
-[ 3540.977499]         0.000000      1447.601063         0.000000
-[ 3540.977499]  0 0
-[ 3540.977500]  /autogroup-155
-----------
+You are trying to increase possible locations of lockups by changing
+default behavior of __GFP_NOFAIL.
 
-This patch adds extra sleeps which is effectively equivalent to
+> Full stop. There is no guaranteed way to make a forward progress with
+> the current page allocator implementation.
 
-  if (mutex_lock_killable(&oom_lock) == 0)
-    mutex_unlock(&oom_lock);
+Then, will you accept kmallocwd until page allocator implementation
+can provide a guaranteed way to make a forward progress?
 
-before retrying allocation at __alloc_pages_may_oom() so that the
-OOM killer is not preempted by other threads waiting for the OOM
-killer/reaper to reclaim memory. Since the OOM reaper grabs oom_lock
-due to commit e2fe14564d3316d1 ("oom_reaper: close race with exiting
-task"), waking up other threads before the OOM reaper is woken up by
-directly waiting for oom_lock might not help so much.
+> 
+> So we are somewhere in the middle between pre-mature and pointless
+> system disruption (GFP_NOFS with a lots of metadata or lowmem request)
+> where the OOM killer even might not help and potential lockup which is
+> inevitable with the current design. Dunno about you but I would rather
+> go with the first option. To be honest I really fail to understand your
+> line of argumentation. We have this
+> 	do {
+> 		cond_resched();
+> 	} while (!(page = alloc_page(GFP_NOFS)));
+> vs.
+> 	page = alloc_page(GFP_NOFS | __GFP_NOFAIL);
+> 
+> the first one doesn't invoke OOM killer while the later does. This
+> discrepancy just cannot make any sense... The same is true for
+> 
+> 	alloc_page(GFP_DMA) vs alloc_page(GFP_DMA|__GFP_NOFAIL)
+> 
+> Now we can discuss whether it is a _good_ idea to not invoke OOM killer
+> for those exceptions but whatever we do __GFP_NOFAIL is not a way to
+> give such a subtle side effect. Or do you disagree even with that?
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/page_alloc.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+"[PATCH 1/2] mm: consolidate GFP_NOFAIL checks in the allocator slowpath"
+silently changes __GFP_NOFAIL vs. __GFP_NORETRY priority.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 51cbe1e..e5c1102 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3060,6 +3060,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 		.order = order,
- 	};
- 	struct page *page;
-+	static bool wait_more;
- 
- 	*did_some_progress = 0;
- 
-@@ -3070,6 +3071,9 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 	if (!mutex_trylock(&oom_lock)) {
- 		*did_some_progress = 1;
- 		schedule_timeout_uninterruptible(1);
-+		while (wait_more)
-+			if (schedule_timeout_killable(1) < 0)
-+				break;
- 		return NULL;
- 	}
- 
-@@ -3109,6 +3113,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 		if (gfp_mask & __GFP_THISNODE)
- 			goto out;
- 	}
-+	wait_more = true;
- 	/* Exhausted what can be done so it's blamo time */
- 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
-@@ -3125,6 +3130,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 					ALLOC_NO_WATERMARKS, ac);
- 		}
- 	}
-+	wait_more = false;
- out:
- 	mutex_unlock(&oom_lock);
- 	return page;
--- 
-1.8.3.1
+Currently, __GFP_NORETRY is stronger than __GFP_NOFAIL; __GFP_NOFAIL
+allocation requests fail without invoking the OOM killer when both
+__GFP_NORETRY and __GFP_NOFAIL are given.
+
+With [PATCH 1/2], __GFP_NOFAIL becomes stronger than __GFP_NORETRY;
+__GFP_NOFAIL allocation requests will loop forever without invoking
+the OOM killer when both __GFP_NORETRY and __GFP_NOFAIL are given.
+
+Those callers which prefer lockup over panic can specify both
+__GFP_NORETRY and __GFP_NOFAIL. You are trying to change behavior of
+__GFP_NOFAIL without asking whether existing __GFP_NOFAIL users
+want to invoke the OOM killer.
+
+And the story is not specific to existing __GFP_NOFAIL users;
+it applies to existing GFP_NOFS users as well.
+
+Quoting from http://lkml.kernel.org/r/20161125131806.GB24353@dhcp22.suse.cz :
+> > Will you look at http://marc.info/?t=120716967100004&r=1&w=2 which lead to
+> > commit a02fe13297af26c1 ("selinux: prevent rentry into the FS") and commit
+> > 869ab5147e1eead8 ("SELinux: more GFP_NOFS fixups to prevent selinux from
+> > re-entering the fs code") ? My understanding is that mkdir() system call
+> > caused memory allocation for inode creation and that memory allocation
+> > caused memory reclaim which had to be !__GFP_FS.
+> 
+> I will have a look later, thanks for the points.
+
+What is your answer to this problem? For those who prefer panic over lockup,
+please provide a mean to invoke the OOM killer (e.g. __GFP_WANT_OOM_KILLER).
+
+If you provide __GFP_WANT_OOM_KILLER, you can change
+
+-#define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
++#define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_WANT_OOM_KILLER)
+
+in gfp.h and add __GFP_WANT_OOM_KILLER to any existing __GFP_NOFAIL/GFP_NOFS
+users who prefer panic over lockup. Then, I think I'm fine with
+
+-	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
+-		return true;
++	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_WANT_OOM_KILLER))
++		return false;
+
+in out_of_memory().
+
+As you know, quite few people are responding to discussions regarding
+almost OOM situation. Changing default behavior without asking existing
+users is annoying.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
