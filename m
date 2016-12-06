@@ -1,145 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 326D86B0069
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 12:03:12 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g186so29708999pgc.2
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 09:03:12 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c3si20233678pld.29.2016.12.06.09.03.10
-        for <linux-mm@kvack.org>;
-        Tue, 06 Dec 2016 09:03:10 -0800 (PST)
-Date: Tue, 6 Dec 2016 17:02:22 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
-Message-ID: <20161206170222.GE24177@leverpostej>
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
- <1480445729-27130-6-git-send-email-labbott@redhat.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D8CBC6B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 12:19:43 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f188so30438016pgc.1
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 09:19:43 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id k1si20238067plb.309.2016.12.06.09.19.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Dec 2016 09:19:43 -0800 (PST)
+Date: Tue, 6 Dec 2016 20:19:05 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] mm: make transparent hugepage size public
+Message-ID: <20161206171905.n7qwvfb5sjxn3iif@black.fi.intel.com>
+References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
+ <877f7difx1.fsf@linux.vnet.ibm.com>
+ <85c787f4-36ff-37fe-ff93-e42bad4b7c1e@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1480445729-27130-6-git-send-email-labbott@redhat.com>
+In-Reply-To: <85c787f4-36ff-37fe-ff93-e42bad4b7c1e@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-Hi,
+On Tue, Dec 06, 2016 at 07:14:50AM -0800, Dave Hansen wrote:
+> On 12/06/2016 01:07 AM, Aneesh Kumar K.V wrote:
+> > Hugh Dickins <hughd@google.com> writes:
+> > 
+> >> Test programs want to know the size of a transparent hugepage.
+> >> While it is commonly the same as the size of a hugetlbfs page
+> >> (shown as Hugepagesize in /proc/meminfo), that is not always so:
+> >> powerpc implements transparent hugepages in a different way from
+> >> hugetlbfs pages, so it's coincidence when their sizes are the same;
+> >> and x86 and others can support more than one hugetlbfs page size.
+> >>
+> >> Add /sys/kernel/mm/transparent_hugepage/hpage_pmd_size to show the
+> >> THP size in bytes - it's the same for Anonymous and Shmem hugepages.
+> >> Call it hpage_pmd_size (after HPAGE_PMD_SIZE) rather than hpage_size,
+> >> in case some transparent support for pud and pgd pages is added later.
+> > 
+> > We have in /proc/meminfo
+> > 
+> > Hugepagesize:       2048 kB
+> > 
+> > Does it makes it easy for application to find THP page size also there ?
+> 
+> Nope.  That's the default hugetlbfs page size.  Even on x86, that can be
+> changed and _could_ be 1G.  If hugetlbfs is configured out, you also
+> won't get this in meminfo.
 
-As a heads-up, it looks like this got mangled somewhere. In the hunk at
-arch/arm64/mm/kasan_init.c:68, 'do' in the context became 'edo'.
-Deleting the 'e' makes it apply.
+I think Aneesh propose to add one more line into the file.
 
-I think this is almost there; other than James's hibernate bug I only
-see one real issue, and everything else is a minor nit.
-
-On Tue, Nov 29, 2016 at 10:55:24AM -0800, Laura Abbott wrote:
-> __pa_symbol is technically the marco that should be used for kernel
-> symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
-> will do bounds checking. As part of this, introduce lm_alias, a
-> macro which wraps the __va(__pa(...)) idiom used a few places to
-> get the alias.
-
-I think the addition of the lm_alias() macro under include/mm should be
-a separate preparatory patch. That way it's separate from the
-arm64-specific parts, and more obvious to !arm64 people reviewing the
-other parts.
-
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
-> v4: Stop calling __va early, conversion of a few more sites. I decided against
-> wrapping the __p*d_populate calls into new functions since the call sites
-> should be limited.
-> ---
->  arch/arm64/include/asm/kvm_mmu.h          |  4 ++--
->  arch/arm64/include/asm/memory.h           |  2 ++
->  arch/arm64/include/asm/mmu_context.h      |  6 +++---
->  arch/arm64/include/asm/pgtable.h          |  2 +-
->  arch/arm64/kernel/acpi_parking_protocol.c |  2 +-
->  arch/arm64/kernel/cpu-reset.h             |  2 +-
->  arch/arm64/kernel/cpufeature.c            |  2 +-
->  arch/arm64/kernel/hibernate.c             | 13 +++++--------
->  arch/arm64/kernel/insn.c                  |  2 +-
->  arch/arm64/kernel/psci.c                  |  2 +-
->  arch/arm64/kernel/setup.c                 |  8 ++++----
->  arch/arm64/kernel/smp_spin_table.c        |  2 +-
->  arch/arm64/kernel/vdso.c                  |  4 ++--
->  arch/arm64/mm/init.c                      | 11 ++++++-----
->  arch/arm64/mm/kasan_init.c                | 21 +++++++++++++-------
->  arch/arm64/mm/mmu.c                       | 32 +++++++++++++++++++------------
->  drivers/firmware/psci.c                   |  2 +-
->  include/linux/mm.h                        |  4 ++++
->  18 files changed, 70 insertions(+), 51 deletions(-)
-
-It looks like we need to make sure these (directly) include <linux/mm.h>
-for __pa_symbol() and lm_alias(), or there's some fragility, e.g.
-
-[mark@leverpostej:~/src/linux]% uselinaro 15.08 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j10 -s
-arch/arm64/kernel/psci.c: In function 'cpu_psci_cpu_boot':
-arch/arm64/kernel/psci.c:48:50: error: implicit declaration of function '__pa_symbol' [-Werror=implicit-function-declaration]
-  int err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa_symbol(secondary_entry));
-                                                  ^
-cc1: some warnings being treated as errors
-make[1]: *** [arch/arm64/kernel/psci.o] Error 1
-make: *** [arch/arm64/kernel] Error 2
-make: *** Waiting for unfinished jobs....
-
-> --- a/arch/arm64/include/asm/memory.h
-> +++ b/arch/arm64/include/asm/memory.h
-> @@ -205,6 +205,8 @@ static inline void *phys_to_virt(phys_addr_t x)
->  #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
->  #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
->  #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
-> +#define sym_to_pfn(x)	    __phys_to_pfn(__pa_symbol(x))
-> +#define lm_alias(x)		__va(__pa_symbol(x))
-
-As Catalin mentioned, we should be able to drop this copy of lm_alias(),
-given we have the same in the core headers.
-
-> diff --git a/arch/arm64/kernel/vdso.c b/arch/arm64/kernel/vdso.c
-> index a2c2478..79cd86b 100644
-> --- a/arch/arm64/kernel/vdso.c
-> +++ b/arch/arm64/kernel/vdso.c
-> @@ -140,11 +140,11 @@ static int __init vdso_init(void)
->  		return -ENOMEM;
->  
->  	/* Grab the vDSO data page. */
-> -	vdso_pagelist[0] = pfn_to_page(PHYS_PFN(__pa(vdso_data)));
-> +	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
->  
->  	/* Grab the vDSO code pages. */
->  	for (i = 0; i < vdso_pages; i++)
-> -		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa(&vdso_start)) + i);
-> +		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa_symbol(&vdso_start)) + i);
-
-I see you added sym_to_pfn(), which we can use here to keep this short
-and legible. It might also be worth using a temporary pfn_t, e.g.
-
-	pfn = sym_to_pfn(&vdso_start);
-
-	for (i = 0; i < vdso_pages; i++)
-		vdso_pagelist[i + 1] = pfn_to_page(pfn + i);
-
-> diff --git a/drivers/firmware/psci.c b/drivers/firmware/psci.c
-> index 8263429..9defbe2 100644
-> --- a/drivers/firmware/psci.c
-> +++ b/drivers/firmware/psci.c
-> @@ -383,7 +383,7 @@ static int psci_suspend_finisher(unsigned long index)
->  	u32 *state = __this_cpu_read(psci_power_state);
->  
->  	return psci_ops.cpu_suspend(state[index - 1],
-> -				    virt_to_phys(cpu_resume));
-> +				    __pa_symbol(cpu_resume));
->  }
->  
->  int psci_cpu_suspend_enter(unsigned long index)
-
-This should probably be its own patch since it's not under arch/arm64/.
-
-I'm happy for this to go via the arm64 tree with the rest regardless
-(assuming Lorenzo has no objections).
-
-Thanks,
-Mark.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
