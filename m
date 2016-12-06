@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2BC6B0069
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 19:50:38 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id a8so527501158pfg.0
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 16:50:38 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id y1si16705446pfd.3.2016.12.05.16.50.37
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2AEF6B025E
+	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 20:02:08 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g186so406792270pgc.2
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 17:02:08 -0800 (PST)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id j68si16681056pfj.291.2016.12.05.17.02.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 16:50:37 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id x23so17988806pgx.3
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 16:50:37 -0800 (PST)
-Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
- <1480445729-27130-6-git-send-email-labbott@redhat.com>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <72eb08c8-4f2c-6cb9-1e23-0860fd153a2e@gmail.com>
-Date: Mon, 5 Dec 2016 16:50:33 -0800
+        Mon, 05 Dec 2016 17:02:07 -0800 (PST)
+Received: by mail-pf0-x231.google.com with SMTP id c4so66621000pfb.1
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 17:02:07 -0800 (PST)
+Date: Mon, 5 Dec 2016 17:01:58 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] device-dax: fail all private mapping attempts
+In-Reply-To: <147931721349.37471.4835899844582504197.stgit@dwillia2-desk3.amr.corp.intel.com>
+Message-ID: <alpine.LSU.2.11.1612051648270.1536@eggly.anvils>
+References: <147931721349.37471.4835899844582504197.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1480445729-27130-6-git-send-email-labbott@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Pawel Lebioda <pawel.lebioda@intel.com>
 
-On 11/29/2016 10:55 AM, Laura Abbott wrote:
-> __pa_symbol is technically the marco that should be used for kernel
-> symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
-> will do bounds checking. As part of this, introduce lm_alias, a
-> macro which wraps the __va(__pa(...)) idiom used a few places to
-> get the alias.
+On Wed, 16 Nov 2016, Dan Williams wrote:
+
+> The device-dax implementation originally tried to be tricky and allow
+> private read-only mappings, but in the process allowed writable
+> MAP_PRIVATE + MAP_NORESERVE mappings.  For simplicity and predictability
+> just fail all private mapping attempts since device-dax memory is
+> statically allocated and will never support overcommit.
 > 
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> Cc: <stable@vger.kernel.org>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Fixes: dee410792419 ("/dev/dax, core: file operations and dax-mmap")
+> Reported-by: Pawel Lebioda <pawel.lebioda@intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 > ---
-> v4: Stop calling __va early, conversion of a few more sites. I decided against
-> wrapping the __p*d_populate calls into new functions since the call sites
-> should be limited.
-> ---
+>  drivers/dax/dax.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/drivers/dax/dax.c b/drivers/dax/dax.c
+> index 0e499bfca41c..3d94ff20fdca 100644
+> --- a/drivers/dax/dax.c
+> +++ b/drivers/dax/dax.c
+> @@ -270,8 +270,8 @@ static int check_vma(struct dax_dev *dax_dev, struct vm_area_struct *vma,
+>  	if (!dax_dev->alive)
+>  		return -ENXIO;
+>  
+> -	/* prevent private / writable mappings from being established */
+> -	if ((vma->vm_flags & (VM_NORESERVE|VM_SHARED|VM_WRITE)) == VM_WRITE) {
+> +	/* prevent private mappings from being established */
+> +	if ((vma->vm_flags & VM_SHARED) != VM_SHARED) {
 
+I think that is more restrictive than you intended: haven't tried,
+but I believe it rejects a PROT_READ, MAP_SHARED, O_RDONLY fd mmap,
+leaving no way to mmap /dev/dax without write permission to it.
 
-> -	pud_populate(&init_mm, pud, bm_pmd);
-> +	if (pud_none(*pud))
-> +		__pud_populate(pud, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
->  	pmd = fixmap_pmd(addr);
-> -	pmd_populate_kernel(&init_mm, pmd, bm_pte);
-> +	__pmd_populate(pmd, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
+See line 1393 of mm/mmap.c: the test you want is probably
+	if (!(vma->vm_flags & VM_MAYSHARE))
 
-Is there a particular reason why pmd_populate_kernel() is not changed to
-use __pa_symbol() instead of using __pa()? The other users in the arm64
-kernel is arch/arm64/kernel/hibernate.c which seems to call this against
-kernel symbols as well?
--- 
-Florian
+Hugh
+
+>  		dev_info(dev, "%s: %s: fail, attempted private mapping\n",
+>  				current->comm, func);
+>  		return -EINVAL;
+> 
+> --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
