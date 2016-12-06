@@ -1,172 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 769EB6B0069
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 14:12:24 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id d45so248454709qta.2
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 11:12:24 -0800 (PST)
-Received: from mail-qt0-f175.google.com (mail-qt0-f175.google.com. [209.85.216.175])
-        by mx.google.com with ESMTPS id w28si12413024qtw.261.2016.12.06.11.12.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 11:12:23 -0800 (PST)
-Received: by mail-qt0-f175.google.com with SMTP id p16so355133051qta.0
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 11:12:23 -0800 (PST)
-Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 41C6A6B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 14:19:09 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j128so567300498pfg.4
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 11:19:09 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w17si20540434pgh.156.2016.12.06.11.19.08
+        for <linux-mm@kvack.org>;
+        Tue, 06 Dec 2016 11:19:08 -0800 (PST)
+Date: Tue, 6 Dec 2016 19:18:20 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCHv4 08/10] mm/kasan: Switch to using __pa_symbol and
+ lm_alias
+Message-ID: <20161206191820.GK24177@leverpostej>
 References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
- <1480445729-27130-6-git-send-email-labbott@redhat.com>
- <20161206170222.GE24177@leverpostej>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <7408b896-f0c0-592c-2ae2-ca01b604aebb@redhat.com>
-Date: Tue, 6 Dec 2016 11:12:18 -0800
+ <1480445729-27130-9-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161206170222.GE24177@leverpostej>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1480445729-27130-9-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com
 
-On 12/06/2016 09:02 AM, Mark Rutland wrote:
-> Hi,
-> 
-> As a heads-up, it looks like this got mangled somewhere. In the hunk at
-> arch/arm64/mm/kasan_init.c:68, 'do' in the context became 'edo'.
-> Deleting the 'e' makes it apply.
-> 
+On Tue, Nov 29, 2016 at 10:55:27AM -0800, Laura Abbott wrote:
+> @@ -94,7 +94,7 @@ static void __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
+>  
+>  			pud_populate(&init_mm, pud, kasan_zero_pmd);
 
-Argh, this must have come in while editing the .patch before e-mailing.
-Sorry about that.
+We also need to lm_alias()-ify kasan_zero_pmd here, or we'll get a
+stream of warnings at boot (example below).
 
-> I think this is almost there; other than James's hibernate bug I only
-> see one real issue, and everything else is a minor nit.
-> 
-> On Tue, Nov 29, 2016 at 10:55:24AM -0800, Laura Abbott wrote:
->> __pa_symbol is technically the marco that should be used for kernel
->> symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
->> will do bounds checking. As part of this, introduce lm_alias, a
->> macro which wraps the __va(__pa(...)) idiom used a few places to
->> get the alias.
-> 
-> I think the addition of the lm_alias() macro under include/mm should be
-> a separate preparatory patch. That way it's separate from the
-> arm64-specific parts, and more obvious to !arm64 people reviewing the
-> other parts.
-> 
+I should have spotted that. :/
 
-I debated if it was more obvious to show how it was used in context
-vs a stand alone patch. I think you're right that for non-arm64 reviewers
-the separate patch would be easier to find.
-
->> Signed-off-by: Laura Abbott <labbott@redhat.com>
->> ---
->> v4: Stop calling __va early, conversion of a few more sites. I decided against
->> wrapping the __p*d_populate calls into new functions since the call sites
->> should be limited.
->> ---
->>  arch/arm64/include/asm/kvm_mmu.h          |  4 ++--
->>  arch/arm64/include/asm/memory.h           |  2 ++
->>  arch/arm64/include/asm/mmu_context.h      |  6 +++---
->>  arch/arm64/include/asm/pgtable.h          |  2 +-
->>  arch/arm64/kernel/acpi_parking_protocol.c |  2 +-
->>  arch/arm64/kernel/cpu-reset.h             |  2 +-
->>  arch/arm64/kernel/cpufeature.c            |  2 +-
->>  arch/arm64/kernel/hibernate.c             | 13 +++++--------
->>  arch/arm64/kernel/insn.c                  |  2 +-
->>  arch/arm64/kernel/psci.c                  |  2 +-
->>  arch/arm64/kernel/setup.c                 |  8 ++++----
->>  arch/arm64/kernel/smp_spin_table.c        |  2 +-
->>  arch/arm64/kernel/vdso.c                  |  4 ++--
->>  arch/arm64/mm/init.c                      | 11 ++++++-----
->>  arch/arm64/mm/kasan_init.c                | 21 +++++++++++++-------
->>  arch/arm64/mm/mmu.c                       | 32 +++++++++++++++++++------------
->>  drivers/firmware/psci.c                   |  2 +-
->>  include/linux/mm.h                        |  4 ++++
->>  18 files changed, 70 insertions(+), 51 deletions(-)
-> 
-> It looks like we need to make sure these (directly) include <linux/mm.h>
-> for __pa_symbol() and lm_alias(), or there's some fragility, e.g.
-> 
-> [mark@leverpostej:~/src/linux]% uselinaro 15.08 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j10 -s
-> arch/arm64/kernel/psci.c: In function 'cpu_psci_cpu_boot':
-> arch/arm64/kernel/psci.c:48:50: error: implicit declaration of function '__pa_symbol' [-Werror=implicit-function-declaration]
->   int err = psci_ops.cpu_on(cpu_logical_map(cpu), __pa_symbol(secondary_entry));
->                                                   ^
-> cc1: some warnings being treated as errors
-> make[1]: *** [arch/arm64/kernel/psci.o] Error 1
-> make: *** [arch/arm64/kernel] Error 2
-> make: *** Waiting for unfinished jobs....
-> 
-
-Right, I'll double check. 
-
->> --- a/arch/arm64/include/asm/memory.h
->> +++ b/arch/arm64/include/asm/memory.h
->> @@ -205,6 +205,8 @@ static inline void *phys_to_virt(phys_addr_t x)
->>  #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
->>  #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
->>  #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
->> +#define sym_to_pfn(x)	    __phys_to_pfn(__pa_symbol(x))
->> +#define lm_alias(x)		__va(__pa_symbol(x))
-> 
-> As Catalin mentioned, we should be able to drop this copy of lm_alias(),
-> given we have the same in the core headers.
-> 
->> diff --git a/arch/arm64/kernel/vdso.c b/arch/arm64/kernel/vdso.c
->> index a2c2478..79cd86b 100644
->> --- a/arch/arm64/kernel/vdso.c
->> +++ b/arch/arm64/kernel/vdso.c
->> @@ -140,11 +140,11 @@ static int __init vdso_init(void)
->>  		return -ENOMEM;
->>  
->>  	/* Grab the vDSO data page. */
->> -	vdso_pagelist[0] = pfn_to_page(PHYS_PFN(__pa(vdso_data)));
->> +	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
->>  
->>  	/* Grab the vDSO code pages. */
->>  	for (i = 0; i < vdso_pages; i++)
->> -		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa(&vdso_start)) + i);
->> +		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa_symbol(&vdso_start)) + i);
-> 
-> I see you added sym_to_pfn(), which we can use here to keep this short
-> and legible. It might also be worth using a temporary pfn_t, e.g.
-> 
-> 	pfn = sym_to_pfn(&vdso_start);
-> 
-> 	for (i = 0; i < vdso_pages; i++)
-> 		vdso_pagelist[i + 1] = pfn_to_page(pfn + i);
-> 
-
-Good idea.
-
->> diff --git a/drivers/firmware/psci.c b/drivers/firmware/psci.c
->> index 8263429..9defbe2 100644
->> --- a/drivers/firmware/psci.c
->> +++ b/drivers/firmware/psci.c
->> @@ -383,7 +383,7 @@ static int psci_suspend_finisher(unsigned long index)
->>  	u32 *state = __this_cpu_read(psci_power_state);
->>  
->>  	return psci_ops.cpu_suspend(state[index - 1],
->> -				    virt_to_phys(cpu_resume));
->> +				    __pa_symbol(cpu_resume));
->>  }
->>  
->>  int psci_cpu_suspend_enter(unsigned long index)
-> 
-> This should probably be its own patch since it's not under arch/arm64/.
-> 
-
-Fine by me.
-
-> I'm happy for this to go via the arm64 tree with the rest regardless
-> (assuming Lorenzo has no objections).
-> 
-> Thanks,
-> Mark.
-> 
+With that fixed up, I'm able to boot Juno with both KASAN_INLINE and
+DEBUG_VIRTUAL, without issued. With that, my previous Reviewed-by and Tested-by
+stand.
 
 Thanks,
-Laura
+Mark.
+
+---->8----
+
+[    0.000000] virt_to_phys used for non-linear address :ffff20000a367000
+[    0.000000] ------------[ cut here ]------------
+[    0.000000] WARNING: CPU: 0 PID: 0 at arch/arm64/mm/physaddr.c:13 __virt_to_phys+0x48/0x68
+[    0.000000] Modules linked in:
+[    0.000000] 
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.9.0-rc6-00012-gdcc0162-dirty #13
+[    0.000000] Hardware name: ARM Juno development board (r1) (DT)
+[    0.000000] task: ffff200009ec2200 task.stack: ffff200009eb0000
+[    0.000000] PC is at __virt_to_phys+0x48/0x68
+[    0.000000] LR is at __virt_to_phys+0x48/0x68
+[    0.000000] pc : [<ffff2000080af310>] lr : [<ffff2000080af310>] pstate: 600000c5
+[    0.000000] sp : ffff200009eb3c80
+[    0.000000] x29: ffff200009eb3c80 x28: ffff20000abdd000 
+[    0.000000] x27: ffff200009ce1000 x26: ffff047fffffffff 
+[    0.000000] x25: ffff200009ce1000 x24: ffff20000a366100 
+[    0.000000] x23: ffff048000000000 x22: ffff20000a366000 
+[    0.000000] x21: ffff040080000000 x20: ffff040040000000 
+[    0.000000] x19: ffff20000a367000 x18: 000000000000005c 
+[    0.000000] x17: 00000009ffec20e0 x16: 00000000fefff4b0 
+[    0.000000] x15: ffffffffffffffff x14: 302b646d705f6f72 
+[    0.000000] x13: 657a5f6e6173616b x12: 2820303030373633 
+[    0.000000] x11: ffff20000a376ca0 x10: 0000000000000010 
+[    0.000000] x9 : 646461207261656e x8 : 696c2d6e6f6e2072 
+[    0.000000] x7 : 6f66206465737520 x6 : ffff20000a3741e5 
+[    0.000000] x5 : 1fffe4000146ee0e x4 : 1fffe400013de704 
+[    0.000000] x3 : 1fffe400013d6003 x2 : 1fffe400013d6003 
+[    0.000000] x1 : 0000000000000000 x0 : 0000000000000056 
+[    0.000000] 
+[    0.000000] ---[ end trace 0000000000000000 ]---
+[    0.000000] Call trace:
+[    0.000000] Exception stack(0xffff200009eb3a50 to 0xffff200009eb3b80)
+[    0.000000] 3a40:                                   ffff20000a367000 0001000000000000
+[    0.000000] 3a60: ffff200009eb3c80 ffff2000080af310 00000000600000c5 000000000000003d
+[    0.000000] 3a80: ffff200009ce1000 ffff2000081c4720 0000000041b58ab3 ffff200009c6cd98
+[    0.000000] 3aa0: ffff2000080818a0 ffff20000a366000 ffff048000000000 ffff20000a366100
+[    0.000000] 3ac0: ffff200009ce1000 ffff047fffffffff ffff200009ce1000 ffff20000abdd000
+[    0.000000] 3ae0: ffff0400013e3ccf ffff20000a3766c0 0000000000000000 0000000000000000
+[    0.000000] 3b00: ffff200009eb3c80 ffff200009eb3c80 ffff200009eb3c40 00000000ffffffc8
+[    0.000000] 3b20: ffff200009eb3b50 ffff2000082cbd3c ffff200009eb3c80 ffff200009eb3c80
+[    0.000000] 3b40: ffff200009eb3c40 00000000ffffffc8 0000000000000056 0000000000000000
+[    0.000000] 3b60: 1fffe400013d6003 1fffe400013d6003 1fffe400013de704 1fffe4000146ee0e
+[    0.000000] [<ffff2000080af310>] __virt_to_phys+0x48/0x68
+[    0.000000] [<ffff200009d734e8>] zero_pud_populate+0x88/0x138
+[    0.000000] [<ffff200009d736f8>] kasan_populate_zero_shadow+0x160/0x18c
+[    0.000000] [<ffff200009d5a048>] kasan_init+0x1f8/0x408
+[    0.000000] [<ffff200009d54000>] setup_arch+0x314/0x948
+[    0.000000] [<ffff200009d50c64>] start_kernel+0xb4/0x54c
+[    0.000000] [<ffff200009d501e0>] __primary_switched+0x64/0x74
+
+[mark@leverpostej:~/src/linux]% uselinaro 15.08 aarch64-linux-gnu-readelf -s vmlinux | grep ffff20000a367000
+108184: ffff20000a367000  4096 OBJECT  GLOBAL DEFAULT   25 kasan_zero_pmd
+
+[mark@leverpostej:~/src/linux]% uselinaro 15.08 aarch64-linux-gnu-addr2line -ife vmlinux ffff200009d734e8              
+set_pud
+/home/mark/src/linux/./arch/arm64/include/asm/pgtable.h:435
+__pud_populate
+/home/mark/src/linux/./arch/arm64/include/asm/pgalloc.h:47
+pud_populate
+/home/mark/src/linux/./arch/arm64/include/asm/pgalloc.h:52
+zero_pud_populate
+/home/mark/src/linux/mm/kasan/kasan_init.c:95
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
