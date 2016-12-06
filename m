@@ -1,97 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A876B025E
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 03:32:03 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u144so22798552wmu.1
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 00:32:03 -0800 (PST)
-Received: from mx1.molgen.mpg.de (mx1.molgen.mpg.de. [141.14.17.9])
-        by mx.google.com with ESMTPS id dh9si18742512wjc.125.2016.12.06.00.32.02
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9302D6B025E
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 03:34:45 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id xy5so68538036wjc.0
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 00:34:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c63si2678813wmf.97.2016.12.06.00.34.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 00:32:02 -0800 (PST)
-Subject: Re: INFO: rcu_sched detected stalls on CPUs/tasks with `kswapd` and
- `mem_cgroup_shrink_node`
-References: <20161121134130.GB18112@dhcp22.suse.cz>
- <20161121140122.GU3612@linux.vnet.ibm.com>
- <20161121141818.GD18112@dhcp22.suse.cz>
- <20161121142901.GV3612@linux.vnet.ibm.com>
- <68025f6c-6801-ab46-b0fc-a9407353d8ce@molgen.mpg.de>
- <20161124101525.GB20668@dhcp22.suse.cz> <583AA50A.9010608@molgen.mpg.de>
- <20161128110449.GK14788@dhcp22.suse.cz>
- <109d5128-f3a4-4b6e-db17-7a1fcb953500@molgen.mpg.de>
- <29196f89-c35e-f79d-8e4d-2bf73fe930df@molgen.mpg.de>
- <20161130110944.GD18432@dhcp22.suse.cz>
- <099c4569-a010-5414-0934-6af3734d8460@molgen.mpg.de>
- <6c8599e5-7f4c-c60b-8954-08168af6343b@molgen.mpg.de>
-From: Donald Buczek <buczek@molgen.mpg.de>
-Message-ID: <4f7a37cc-2315-8163-71a1-cf947ee2a457@molgen.mpg.de>
-Date: Tue, 6 Dec 2016 09:32:01 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 06 Dec 2016 00:34:44 -0800 (PST)
+Date: Tue, 6 Dec 2016 09:34:42 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
+ allocations
+Message-ID: <20161206083442.GB18664@dhcp22.suse.cz>
+References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
+ <03a17767-1322-3466-a1f1-dba2c6862be4@suse.cz>
+ <20161202091933.GD6830@dhcp22.suse.cz>
+ <20161202065417.GB358195@stepanov.centos7>
+ <20161205052325.GA30758@dhcp22.suse.cz>
+ <20161205140932.GC8045@osiris>
+ <20161205141928.GM30758@dhcp22.suse.cz>
+ <20161202221510.GB536156@stepanov.centos7>
 MIME-Version: 1.0
-In-Reply-To: <6c8599e5-7f4c-c60b-8954-08168af6343b@molgen.mpg.de>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161202221510.GB536156@stepanov.centos7>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Paul Menzel <pmenzel@molgen.mpg.de>, dvteam@molgen.mpg.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>
+To: Anatoly Stepanov <astepanov@cloudlinux.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, umka@cloudlinux.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
 
-On 12/02/16 10:14, Donald Buczek wrote:
-> On 11/30/16 12:43, Donald Buczek wrote:
->> On 11/30/16 12:09, Michal Hocko wrote:
->>> [CCing Paul]
->>>
->>> On Wed 30-11-16 11:28:34, Donald Buczek wrote:
->>> [...]
->>>> shrink_active_list gets and releases the spinlock and calls 
->>>> cond_resched().
->>>> This should give other tasks a chance to run. Just as an 
->>>> experiment, I'm
->>>> trying
->>>>
->>>> --- a/mm/vmscan.c
->>>> +++ b/mm/vmscan.c
->>>> @@ -1921,7 +1921,7 @@ static void shrink_active_list(unsigned long
->>>> nr_to_scan,
->>>>          spin_unlock_irq(&pgdat->lru_lock);
->>>>
->>>>          while (!list_empty(&l_hold)) {
->>>> -               cond_resched();
->>>> +               cond_resched_rcu_qs();
->>>>                  page = lru_to_page(&l_hold);
->>>>                  list_del(&page->lru);
->>>>
->>>> and didn't hit a rcu_sched warning for >21 hours uptime now. We'll 
->>>> see.
->>> This is really interesting! Is it possible that the RCU stall detector
->>> is somehow confused?
->>
->> Wait... 21 hours is not yet a test result.
->
-> For the records: We didn't have any stall warnings after 2 days and 20 
-> hours now and so I'm quite confident, that my above patch fixed the 
-> problem for v4.8.0. On previous boots the rcu warnings started after 
-> 37,0.2,1,2,0.8 hours uptime.
->
-> Now I've applied this patch to stable latest (v4.8.11) on another 
-> backup machine which suffered even more rcu stalls.
->
-> Donald
->
->> [...]
+On Sat 03-12-16 01:15:10, Anatoly Stepanov wrote:
+> On Mon, Dec 05, 2016 at 03:19:29PM +0100, Michal Hocko wrote:
+> > On Mon 05-12-16 15:09:33, Heiko Carstens wrote:
+> > > On Mon, Dec 05, 2016 at 06:23:26AM +0100, Michal Hocko wrote:
+> > > > > > 
+> > > > > > 	ret = kzalloc(size, gfp_mask);
+> > > > > > 	if (ret)
+> > > > > > 		return ret;
+> > > > > > 	return vzalloc(size);
+> > > > > > 
+> > > > > 
+> > > > > > I also do not like memcg_alloc helper name. It suggests we are
+> > > > > > allocating a memcg while it is used for cache arrays and slab LRUS.
+> > > > > > Anyway this pattern is quite widespread in the kernel so I would simply
+> > > > > > suggest adding kvmalloc function instead.
+> > > > > 
+> > > > > Agreed, it would be nice to have a generic call.
+> > > > > I would suggest an impl. like this:
+> > > > > 
+> > > > > void *kvmalloc(size_t size)
+> > > > 
+> > > > gfp_t gfp_mask should be a parameter as this should be a generic helper.
+> > > > 
+> > > > > {
+> > > > > 	gfp_t gfp_mask = GFP_KERNEL;
+> > > > 
+> > > > 
+> > > > > 	void *ret;
+> > > > > 
+> > > > >  	if (size > PAGE_SIZE)
+> > > > >  		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
+> > > > > 
+> > > > > 
+> > > > > 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+> > > > > 		ret = kzalloc(size, gfp_mask);
+> > > > > 		if (ret)
+> > > > > 			return ret;
+> > > > > 	}
+> > > > 
+> > > > No, please just do as suggested above. Tweak the gfp_mask for higher
+> > > > order requests and do kmalloc first with vmalloc as a  fallback.
+> > > 
+> > > You may simply use the slightly different and open-coded variant within
+> > > fs/seq_file.c:seq_buf_alloc(). That one got a lot of testing in the
+> > > meantime...
+> > 
+> > Yeah. I would just add WARN_ON((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+> > to catch users who might want to rely on GFP_NOFS, GFP_NOWAIT or other
+> > restricted requests because vmalloc cannot cope with those properly.
+> 
+> What about __vmalloc(size, gfp, prot)? I guess it's fine with theese
 
-For the records: After 3 days and 21 hours we've got a rcu stall warning 
-again [1]. So my patch didn't fix it.
-
-Trying "[PATCH] mm, vmscan: add cond_resched into shrink_node_memcg" 
-from Michal Hocko [2] on top of v4.8.12 on both servers now.
-
-[1] https://owww.molgen.mpg.de/~buczek/321322/2016-12-06.dmesg.txt
-[2] https://marc.info/?i=20161202095841.16648-1-mhocko%40kernel.org
-
+Not really. Parts of the vmalloc allocator still use hardcoded
+GFP_KERNEL AFAIR.
 -- 
-Donald Buczek
-buczek@molgen.mpg.de
-Tel: +49 30 8413 1433
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
