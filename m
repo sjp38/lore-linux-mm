@@ -1,47 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 89F066B0253
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 14:27:34 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f188so37293856pgc.1
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 11:27:34 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id v1si20629051plb.62.2016.12.06.11.27.33
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD516B0038
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 15:10:52 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id m203so259889858iom.6
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 12:10:52 -0800 (PST)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id v63si14994421iof.137.2016.12.06.12.10.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 11:27:33 -0800 (PST)
-Subject: Re: [PATCH] mm: make transparent hugepage size public
-References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
- <877f7difx1.fsf@linux.vnet.ibm.com>
- <85c787f4-36ff-37fe-ff93-e42bad4b7c1e@intel.com>
- <20161206171905.n7qwvfb5sjxn3iif@black.fi.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <db569a60-5dd1-b0a8-9fcb-6dd2106765ee@intel.com>
-Date: Tue, 6 Dec 2016 11:27:28 -0800
+        Tue, 06 Dec 2016 12:10:52 -0800 (PST)
+Received: by mail-io0-x22b.google.com with SMTP id l140so58488553iol.3
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 12:10:51 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20161206171905.n7qwvfb5sjxn3iif@black.fi.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20161206181859.GH24177@leverpostej>
+References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
+ <1480445729-27130-10-git-send-email-labbott@redhat.com> <CAGXu5jKrBc6R9JYay1L6pd958Vm5-6p=37tiUYgg6uPeZb1HtQ@mail.gmail.com>
+ <20161206181859.GH24177@leverpostej>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 6 Dec 2016 12:10:50 -0800
+Message-ID: <CAGXu5jKTdZUbbHU91mbN+Qy80AGXRhpzdLNXr3oxxZyxAzmjmQ@mail.gmail.com>
+Subject: Re: [PATCHv4 09/10] mm/usercopy: Switch to using lm_alias
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On 12/06/2016 09:19 AM, Kirill A. Shutemov wrote:
->>> > > We have in /proc/meminfo
->>> > > 
->>> > > Hugepagesize:       2048 kB
->>> > > 
->>> > > Does it makes it easy for application to find THP page size also there ?
->> > 
->> > Nope.  That's the default hugetlbfs page size.  Even on x86, that can be
->> > changed and _could_ be 1G.  If hugetlbfs is configured out, you also
->> > won't get this in meminfo.
-> I think Aneesh propose to add one more line into the file.
+On Tue, Dec 6, 2016 at 10:18 AM, Mark Rutland <mark.rutland@arm.com> wrote:
+> On Tue, Nov 29, 2016 at 11:39:44AM -0800, Kees Cook wrote:
+>> On Tue, Nov 29, 2016 at 10:55 AM, Laura Abbott <labbott@redhat.com> wrote:
+>> >
+>> > The usercopy checking code currently calls __va(__pa(...)) to check for
+>> > aliases on symbols. Switch to using lm_alias instead.
+>> >
+>> > Signed-off-by: Laura Abbott <labbott@redhat.com>
+>>
+>> Acked-by: Kees Cook <keescook@chromium.org>
+>>
+>> I should probably add a corresponding alias test to lkdtm...
+>>
+>> -Kees
+>
+> Something like the below?
+>
+> It uses lm_alias(), so it depends on Laura's patches. We seem to do the
+> right thing, anyhow:
 
-Ahhh, ok...
+Cool, this looks good. What happens on systems without an alias?
 
-Personally, I think Hugh did the right things.  There's no reason to
-waste cycles sticking a number in meminfo that never changes.
+Laura, feel free to add this to your series:
+
+Acked-by: Kees Cook <keescook@chromium.org>
+
+-Kees
+
+>
+> root@ribbensteg:/home/nanook# echo USERCOPY_KERNEL_ALIAS > /sys/kernel/debug/provoke-crash/DIRECT
+> [   44.493400] usercopy: kernel memory exposure attempt detected from ffff80000031a730 (<linear kernel text>) (4096 bytes)
+> [   44.504263] kernel BUG at mm/usercopy.c:75!
+>
+> Thanks,
+> Mark.
+>
+> ---->8----
+> diff --git a/drivers/misc/lkdtm.h b/drivers/misc/lkdtm.h
+> index fdf954c..96d8d76 100644
+> --- a/drivers/misc/lkdtm.h
+> +++ b/drivers/misc/lkdtm.h
+> @@ -56,5 +56,6 @@
+>  void lkdtm_USERCOPY_STACK_FRAME_FROM(void);
+>  void lkdtm_USERCOPY_STACK_BEYOND(void);
+>  void lkdtm_USERCOPY_KERNEL(void);
+> +void lkdtm_USERCOPY_KERNEL_ALIAS(void);
+>
+>  #endif
+> diff --git a/drivers/misc/lkdtm_core.c b/drivers/misc/lkdtm_core.c
+> index f9154b8..f6bc6d6 100644
+> --- a/drivers/misc/lkdtm_core.c
+> +++ b/drivers/misc/lkdtm_core.c
+> @@ -228,6 +228,7 @@ struct crashtype crashtypes[] = {
+>         CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
+>         CRASHTYPE(USERCOPY_STACK_BEYOND),
+>         CRASHTYPE(USERCOPY_KERNEL),
+> +       CRASHTYPE(USERCOPY_KERNEL_ALIAS),
+>  };
+>
+>
+> diff --git a/drivers/misc/lkdtm_usercopy.c b/drivers/misc/lkdtm_usercopy.c
+> index 1dd6114..955f2dc 100644
+> --- a/drivers/misc/lkdtm_usercopy.c
+> +++ b/drivers/misc/lkdtm_usercopy.c
+> @@ -279,9 +279,16 @@ void lkdtm_USERCOPY_STACK_BEYOND(void)
+>         do_usercopy_stack(true, false);
+>  }
+>
+> -void lkdtm_USERCOPY_KERNEL(void)
+> +static void do_usercopy_kernel(bool use_alias)
+>  {
+>         unsigned long user_addr;
+> +       const void *rodata = test_text;
+> +       void *text = vm_mmap;
+> +
+> +       if (use_alias) {
+> +               rodata = lm_alias(rodata);
+> +               text = lm_alias(text);
+> +       }
+>
+>         user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+>                             PROT_READ | PROT_WRITE | PROT_EXEC,
+> @@ -292,14 +299,14 @@ void lkdtm_USERCOPY_KERNEL(void)
+>         }
+>
+>         pr_info("attempting good copy_to_user from kernel rodata\n");
+> -       if (copy_to_user((void __user *)user_addr, test_text,
+> +       if (copy_to_user((void __user *)user_addr, rodata,
+>                          unconst + sizeof(test_text))) {
+>                 pr_warn("copy_to_user failed unexpectedly?!\n");
+>                 goto free_user;
+>         }
+>
+>         pr_info("attempting bad copy_to_user from kernel text\n");
+> -       if (copy_to_user((void __user *)user_addr, vm_mmap,
+> +       if (copy_to_user((void __user *)user_addr, text,
+>                          unconst + PAGE_SIZE)) {
+>                 pr_warn("copy_to_user failed, but lacked Oops\n");
+>                 goto free_user;
+> @@ -309,6 +316,16 @@ void lkdtm_USERCOPY_KERNEL(void)
+>         vm_munmap(user_addr, PAGE_SIZE);
+>  }
+>
+> +void lkdtm_USERCOPY_KERNEL(void)
+> +{
+> +       do_usercopy_kernel(false);
+> +}
+> +
+> +void lkdtm_USERCOPY_KERNEL_ALIAS(void)
+> +{
+> +       do_usercopy_kernel(true);
+> +}
+> +
+>  void __init lkdtm_usercopy_init(void)
+>  {
+>         /* Prepare cache that lacks SLAB_USERCOPY flag. */
+
+
+
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
