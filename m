@@ -1,48 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F3D86B0038
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 16:25:13 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id x23so45097029pgx.6
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 13:25:13 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65EFC6B025E
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 16:36:44 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y71so45329291pgd.0
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 13:36:44 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 90si20914547plb.305.2016.12.06.13.25.10
+        by mx.google.com with ESMTPS id g34si20957804pld.184.2016.12.06.13.36.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 13:25:10 -0800 (PST)
-Date: Tue, 6 Dec 2016 13:25:38 -0800
+        Tue, 06 Dec 2016 13:36:43 -0800 (PST)
+Date: Tue, 6 Dec 2016 13:37:11 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 33/33] Reimplement IDR and IDA using the radix tree
-Message-Id: <20161206132538.e474083ae851c7284bb89b2a@linux-foundation.org>
-In-Reply-To: <CY1PR21MB0071D603E8B6F6A7F820492BCB820@CY1PR21MB0071.namprd21.prod.outlook.com>
-References: <1480369871-5271-1-git-send-email-mawilcox@linuxonhyperv.com>
-	<1480369871-5271-34-git-send-email-mawilcox@linuxonhyperv.com>
-	<20161206124453.3d3ce26a1526fedd70988ab8@linux-foundation.org>
-	<CY1PR21MB0071D603E8B6F6A7F820492BCB820@CY1PR21MB0071.namprd21.prod.outlook.com>
+Subject: Re: [PATCH] mm: make transparent hugepage size public
+Message-Id: <20161206133711.3109e092d550adc68f2f369c@linux-foundation.org>
+In-Reply-To: <877f7difx1.fsf@linux.vnet.ibm.com>
+References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
+	<877f7difx1.fsf@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Matthew Wilcox <mawilcox@linuxonhyperv.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On Tue, 6 Dec 2016 21:17:52 +0000 Matthew Wilcox <mawilcox@microsoft.com> wrote:
+On Tue, 06 Dec 2016 14:37:54 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > On Mon, 28 Nov 2016 13:50:37 -0800 Matthew Wilcox
-> > <mawilcox@linuxonhyperv.com> wrote:
-> > >  include/linux/idr.h                     |  132 ++--
-> > >  include/linux/radix-tree.h              |    5 +-
-> > >  init/main.c                             |    3 +-
-> > >  lib/idr.c                               | 1078 -------------------------------
-> > >  lib/radix-tree.c                        |  632 ++++++++++++++++--
-> > 
-> > hm.  It's just a cosmetic issue, but perhaps the idr
-> > wrappers-around-radix-tree code should be in a different .c file.
+> Hugh Dickins <hughd@google.com> writes:
 > 
-> I can put some of them back into idr.c -- there's a couple of routines left in there still, so adding some more won't hurt.
+> > Test programs want to know the size of a transparent hugepage.
+> > While it is commonly the same as the size of a hugetlbfs page
+> > (shown as Hugepagesize in /proc/meminfo), that is not always so:
+> > powerpc implements transparent hugepages in a different way from
+> > hugetlbfs pages, so it's coincidence when their sizes are the same;
+> > and x86 and others can support more than one hugetlbfs page size.
+> >
+> > Add /sys/kernel/mm/transparent_hugepage/hpage_pmd_size to show the
+> > THP size in bytes - it's the same for Anonymous and Shmem hugepages.
+> > Call it hpage_pmd_size (after HPAGE_PMD_SIZE) rather than hpage_size,
+> > in case some transparent support for pud and pgd pages is added later.
+> 
+> We have in /proc/meminfo
+> 
+> Hugepagesize:       2048 kB
+> 
+> Does it makes it easy for application to find THP page size also there ?
+> 
 
-OK.  Sometime.  Let's see how this lot pans out as-is for now?
+Probably that would be more logical.  But I'm a bit concerned about
+adding more stuff to /proc/meminfo from a performance point of view -
+that file gets read from quite frequently and we've already put some
+quite obscure things in there.  Probably we whould be careful about
+this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
