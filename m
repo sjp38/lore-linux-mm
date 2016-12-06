@@ -1,178 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1F76B0069
-	for <linux-mm@kvack.org>; Mon,  5 Dec 2016 23:47:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id a8so533791496pfg.0
-        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 20:47:34 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id t1si17629552plb.188.2016.12.05.20.47.33
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A68FA6B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 00:52:53 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id x23so422784138pgx.6
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 21:52:53 -0800 (PST)
+Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
+        by mx.google.com with ESMTPS id 90si17930987pla.214.2016.12.05.21.52.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Dec 2016 20:47:33 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH kernel v5 5/5] virtio-balloon: tell host vm's unused
- page info
-Date: Tue, 6 Dec 2016 04:47:27 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A12F831@shsmsx102.ccr.corp.intel.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <1480495397-23225-6-git-send-email-liang.z.li@intel.com>
- <438dd41a-fdf1-2a77-ef9c-8c103f492b2f@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A12D814@shsmsx102.ccr.corp.intel.com>
- <70ece7a5-348b-2eb9-c40a-f21b08df042c@intel.com>
-In-Reply-To: <70ece7a5-348b-2eb9-c40a-f21b08df042c@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 05 Dec 2016 21:52:52 -0800 (PST)
+Received: by mail-pg0-x22a.google.com with SMTP id 3so145421166pgd.0
+        for <linux-mm@kvack.org>; Mon, 05 Dec 2016 21:52:52 -0800 (PST)
+Date: Mon, 5 Dec 2016 21:52:36 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: change shmem_mapping() to test shmem_aops
+Message-ID: <alpine.LSU.2.11.1612052148530.13021@eggly.anvils>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
-Cc: "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "mst@redhat.com" <mst@redhat.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-> >>> +	mutex_lock(&vb->balloon_lock);
-> >>> +
-> >>> +	for (order =3D MAX_ORDER - 1; order >=3D 0; order--) {
-> >>
-> >> I scratched my head for a bit on this one.  Why are you walking over
-> >> orders,
-> >> *then* zones.  I *think* you're doing it because you can efficiently
-> >> fill the bitmaps at a given order for all zones, then move to a new
-> >> bitmap.  But, it would be interesting to document this.
-> >
-> > Yes, use the order is somewhat strange, but it's helpful to keep the AP=
-I simple.
-> > Do you think it's acceptable?
->=20
-> Yeah, it's fine.  Just comment it, please.
->=20
-Good!
+Callers of shmem_mapping() are interested in whether the mapping is
+swap backed - except for uprobes, which is interested in whether it
+should use shmem_read_mapping_page().  All these callers are better
+served by a shmem_mapping() which checks for shmem_aops, than the
+current version which goes through several indirections to find where
+the inode lives - and has the surprising effect that a private mmap of
+/dev/zero satisfies both vma_is_anonymous() and shmem_mapping(), when
+that device node is on devtmpfs.  I don't think anything in the tree
+suffers from that surprise, but it caught me out, and is better fixed.
 
-> >>> +		if (ret =3D=3D -ENOSPC) {
-> >>> +			void *new_resp_data;
-> >>> +
-> >>> +			new_resp_data =3D kmalloc(2 * vb->resp_buf_size,
-> >>> +						GFP_KERNEL);
-> >>> +			if (new_resp_data) {
-> >>> +				kfree(vb->resp_data);
-> >>> +				vb->resp_data =3D new_resp_data;
-> >>> +				vb->resp_buf_size *=3D 2;
-> >>
-> >> What happens to the data in ->resp_data at this point?  Doesn't this
-> >> just throw it away?
-> >
-> > Yes, so we should make sure the data in resp_data is not inuse.
->=20
-> But doesn't it have valid data that we just collected and haven't told th=
-e
-> hypervisor about yet?  Aren't we throwing away good data that cost us
-> something to collect?
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-Indeed.  Some filled data may exist for the previous zone. Should we
-change the API to=20
-'int get_unused_pages(unsigned long *unused_pages, unsigned long size,
-		int order, unsigned long *pos, struct zone *zone)' ?
+ mm/shmem.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-then we can use the 'zone' to record the zone to retry and not discard the
-filled data.
-
-> >> ...
-> >>> +struct page_info_item {
-> >>> +	__le64 start_pfn : 52; /* start pfn for the bitmap */
-> >>> +	__le64 page_shift : 6; /* page shift width, in bytes */
->=20
-> What does a page_shift "in bytes" mean? :)
-
-Obviously, you know. :o
-I will try to make it clear.
-
->=20
-> >>> +	__le64 bmap_len : 6;  /* bitmap length, in bytes */ };
-> >>
-> >> Is 'bmap_len' too short?  a 64-byte buffer is a bit tiny.  Right?
-> >
-> > Currently, we just use the 8 bytes and 0 bytes bitmap, should we suppor=
-t
-> more than 64 bytes?
->=20
-> It just means that with this format, you end up wasting at least ~1/8th o=
-f the
-> space with metadata.  That's a bit unfortunate, but I guess it's not fata=
-l.
->=20
-> I'd definitely call it out in the patch description and make sure other f=
-olks take
-> a look at it.
-
-OK.
-
->=20
-> There's a somewhat easy fix, but that would make the qemu implementation
-> more complicated: You could just have bmap_len=3D=3D0x3f imply that there=
-'s
-> another field that contains an extended bitmap length for when you need l=
-ong
-> bitmaps.
->=20
-> But, as you note, there's no need for it, so it's a matter of trading the=
- extra
-> complexity versus the desire to not habing to change the ABI again for lo=
-nger
-> (hopefully).
->=20
-
-Your suggestion still works without changing the current code, just reserve
- ' bmap_len=3D=3D0x3f' for future extension, and it's not used by the curre=
-nt code.
-
-> >>> +static int  mark_unused_pages(struct zone *zone,
-> >>> +		unsigned long *unused_pages, unsigned long size,
-> >>> +		int order, unsigned long *pos)
-> >>> +{
-> >>> +	unsigned long pfn, flags;
-> >>> +	unsigned int t;
-> >>> +	struct list_head *curr;
-> >>> +	struct page_info_item *info;
-> >>> +
-> >>> +	if (zone_is_empty(zone))
-> >>> +		return 0;
-> >>> +
-> >>> +	spin_lock_irqsave(&zone->lock, flags);
-> >>> +
-> >>> +	if (*pos + zone->free_area[order].nr_free > size)
-> >>> +		return -ENOSPC;
-> >>
-> >> Urg, so this won't partially fill?  So, what the nr_free pages limit
-> >> where we no longer fit in the kmalloc()'d buffer where this simply won=
-'t
-> work?
-> >
-> > Yes.  My initial implementation is partially fill, it's better for the =
-worst case.
-> > I thought the above code is more efficient for most case ...
-> > Do you think partially fill the bitmap is better?
->=20
-> Could you please answer the question I asked?
->=20
-
-For your question:
----------------------------------------------------------------------------=
-----------------------------
->So, what the nr_free pages limit where we no longer fit in the kmalloc()'d=
- buffer
-> where this simply won't work?
----------------------------------------------------------------------------=
----------------------------
-No, if the buffer is not big enough to save 'nr_free'  pages, get_unused_pa=
-ges() will return
-'-ENOSPC', and the following code will try to allocate a 2x times size buff=
-er for retrying,
-until the proper size buffer is allocated. The current order will not be sk=
-ipped unless the
-buffer allocation failed.
-
-> Because if you don't get this right, it could mean that there are system =
-that
-> simply *fail* here.
+--- 4.9-rc8/mm/shmem.c	2016-11-13 11:44:43.052622519 -0800
++++ linux/mm/shmem.c	2016-12-05 18:54:25.348596732 -0800
+@@ -2131,10 +2131,7 @@ static struct inode *shmem_get_inode(str
+ 
+ bool shmem_mapping(struct address_space *mapping)
+ {
+-	if (!mapping->host)
+-		return false;
+-
+-	return mapping->host->i_sb->s_op == &shmem_ops;
++	return mapping->a_ops == &shmem_aops;
+ }
+ 
+ #ifdef CONFIG_TMPFS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
