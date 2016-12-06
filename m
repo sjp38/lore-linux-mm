@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 622AF6B025E
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 06:03:21 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a20so24075648wme.5
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 03:03:21 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f184si3137431wme.33.2016.12.06.03.03.19
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Dec 2016 03:03:19 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-References: <20161201152517.27698-1-mhocko@kernel.org>
- <20161201152517.27698-3-mhocko@kernel.org>
- <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
- <20161205141009.GJ30758@dhcp22.suse.cz>
- <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <01a495b8-36f6-28f5-5a55-089f4860747d@suse.cz>
-Date: Tue, 6 Dec 2016 12:03:02 +0100
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F3FC6B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 06:46:51 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id p66so12083291pga.4
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 03:46:51 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f5si19125120pgh.37.2016.12.06.03.46.50
+        for <linux-mm@kvack.org>;
+        Tue, 06 Dec 2016 03:46:50 -0800 (PST)
+Date: Tue, 6 Dec 2016 11:46:44 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
+Message-ID: <20161206114644.GA16701@e104818-lin.cambridge.arm.com>
+References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
+ <1480445729-27130-6-git-send-email-labbott@redhat.com>
+ <72eb08c8-4f2c-6cb9-1e23-0860fd153a2e@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <72eb08c8-4f2c-6cb9-1e23-0860fd153a2e@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On 12/06/2016 11:38 AM, Tetsuo Handa wrote:
->>
->> So we are somewhere in the middle between pre-mature and pointless
->> system disruption (GFP_NOFS with a lots of metadata or lowmem request)
->> where the OOM killer even might not help and potential lockup which is
->> inevitable with the current design. Dunno about you but I would rather
->> go with the first option. To be honest I really fail to understand your
->> line of argumentation. We have this
->> 	do {
->> 		cond_resched();
->> 	} while (!(page = alloc_page(GFP_NOFS)));
->> vs.
->> 	page = alloc_page(GFP_NOFS | __GFP_NOFAIL);
->>
->> the first one doesn't invoke OOM killer while the later does. This
->> discrepancy just cannot make any sense... The same is true for
->>
->> 	alloc_page(GFP_DMA) vs alloc_page(GFP_DMA|__GFP_NOFAIL)
->>
->> Now we can discuss whether it is a _good_ idea to not invoke OOM killer
->> for those exceptions but whatever we do __GFP_NOFAIL is not a way to
->> give such a subtle side effect. Or do you disagree even with that?
+On Mon, Dec 05, 2016 at 04:50:33PM -0800, Florian Fainelli wrote:
+> On 11/29/2016 10:55 AM, Laura Abbott wrote:
+> > __pa_symbol is technically the marco that should be used for kernel
+> > symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
+> > will do bounds checking. As part of this, introduce lm_alias, a
+> > macro which wraps the __va(__pa(...)) idiom used a few places to
+> > get the alias.
+> > 
+> > Signed-off-by: Laura Abbott <labbott@redhat.com>
+> > ---
+> > v4: Stop calling __va early, conversion of a few more sites. I decided against
+> > wrapping the __p*d_populate calls into new functions since the call sites
+> > should be limited.
+> > ---
 > 
-> "[PATCH 1/2] mm: consolidate GFP_NOFAIL checks in the allocator slowpath"
-> silently changes __GFP_NOFAIL vs. __GFP_NORETRY priority.
-
-I guess that wasn't intended?
-
-> Currently, __GFP_NORETRY is stronger than __GFP_NOFAIL; __GFP_NOFAIL
-> allocation requests fail without invoking the OOM killer when both
-> __GFP_NORETRY and __GFP_NOFAIL are given.
 > 
-> With [PATCH 1/2], __GFP_NOFAIL becomes stronger than __GFP_NORETRY;
-> __GFP_NOFAIL allocation requests will loop forever without invoking
-> the OOM killer when both __GFP_NORETRY and __GFP_NOFAIL are given.
+> > -	pud_populate(&init_mm, pud, bm_pmd);
+> > +	if (pud_none(*pud))
+> > +		__pud_populate(pud, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
+> >  	pmd = fixmap_pmd(addr);
+> > -	pmd_populate_kernel(&init_mm, pmd, bm_pte);
+> > +	__pmd_populate(pmd, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
+> 
+> Is there a particular reason why pmd_populate_kernel() is not changed to
+> use __pa_symbol() instead of using __pa()? The other users in the arm64
+> kernel is arch/arm64/kernel/hibernate.c which seems to call this against
+> kernel symbols as well?
 
-Does such combination of flag make sense? Should we warn about it, or
-even silently remove __GFP_NORETRY in such case?
+create_safe_exec_page() may allocate a pte from the linear map and
+passes such pointer to pmd_populate_kernel(). The copy_pte() function
+does something similar. In addition, we have the generic
+__pte_alloc_kernel() in mm/memory.c using linear addresses.
 
-> Those callers which prefer lockup over panic can specify both
-> __GFP_NORETRY and __GFP_NOFAIL.
-
-What lockup exactly, if __GFP_NORETRY did lead to fail?
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
