@@ -1,64 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F3FC6B0069
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 06:46:51 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id p66so12083291pga.4
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 03:46:51 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f5si19125120pgh.37.2016.12.06.03.46.50
-        for <linux-mm@kvack.org>;
-        Tue, 06 Dec 2016 03:46:50 -0800 (PST)
-Date: Tue, 6 Dec 2016 11:46:44 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv4 05/10] arm64: Use __pa_symbol for kernel symbols
-Message-ID: <20161206114644.GA16701@e104818-lin.cambridge.arm.com>
-References: <1480445729-27130-1-git-send-email-labbott@redhat.com>
- <1480445729-27130-6-git-send-email-labbott@redhat.com>
- <72eb08c8-4f2c-6cb9-1e23-0860fd153a2e@gmail.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B58826B0069
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 08:53:30 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a20so25675528wme.5
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 05:53:30 -0800 (PST)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id z3si3767460wme.12.2016.12.06.05.53.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Dec 2016 05:53:29 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E47591C15B1
+	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 13:53:28 +0000 (GMT)
+Date: Tue, 6 Dec 2016 13:53:28 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm: page_alloc: High-order per-cpu page allocator v5
+Message-ID: <20161206135328.lvafbdemb3bjjktv@techsingularity.net>
+References: <20161202002244.18453-1-mgorman@techsingularity.net>
+ <20161202002244.18453-3-mgorman@techsingularity.net>
+ <20161202060346.GA21434@js1304-P5Q-DELUXE>
+ <20161202090449.kxktmyf5sdp2sroh@techsingularity.net>
+ <20161205030619.GA1378@js1304-P5Q-DELUXE>
+ <20161205095739.i5ucbzspnjedupin@techsingularity.net>
+ <20161206024345.GA6542@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <72eb08c8-4f2c-6cb9-1e23-0860fd153a2e@gmail.com>
+In-Reply-To: <20161206024345.GA6542@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Fainelli <f.fainelli@gmail.com>
-Cc: Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 05, 2016 at 04:50:33PM -0800, Florian Fainelli wrote:
-> On 11/29/2016 10:55 AM, Laura Abbott wrote:
-> > __pa_symbol is technically the marco that should be used for kernel
-> > symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
-> > will do bounds checking. As part of this, introduce lm_alias, a
-> > macro which wraps the __va(__pa(...)) idiom used a few places to
-> > get the alias.
-> > 
-> > Signed-off-by: Laura Abbott <labbott@redhat.com>
-> > ---
-> > v4: Stop calling __va early, conversion of a few more sites. I decided against
-> > wrapping the __p*d_populate calls into new functions since the call sites
-> > should be limited.
-> > ---
+On Tue, Dec 06, 2016 at 11:43:45AM +0900, Joonsoo Kim wrote:
+> > actually clear at all it's an unfair situation, particularly given that the
+> > vanilla code is also unfair -- the vanilla code can artifically preserve
+> > MIGRATE_UNMOVABLE without any clear indication that it is a universal win.
+> > The only deciding factor there was a fault-intensive workload would mask
+> > overhead of the page allocator due to page zeroing cost which UNMOVABLE
+> > allocations may or may not require. Even that is vague considering that
+> > page-table allocations are zeroing even if many kernel allocations are not.
 > 
+> "Vanilla works like that" doesn't seem to be reasonable to justify
+> this change.  Vanilla code works with three lists and it now become
+> six lists and each list can have different size of page. We need to
+> think that previous approach will also work fine with current one. I
+> think that there is a problem although it's not permanent and would be
+> minor. However, it's better to fix it when it is found.
 > 
-> > -	pud_populate(&init_mm, pud, bm_pmd);
-> > +	if (pud_none(*pud))
-> > +		__pud_populate(pud, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
-> >  	pmd = fixmap_pmd(addr);
-> > -	pmd_populate_kernel(&init_mm, pmd, bm_pte);
-> > +	__pmd_populate(pmd, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
-> 
-> Is there a particular reason why pmd_populate_kernel() is not changed to
-> use __pa_symbol() instead of using __pa()? The other users in the arm64
-> kernel is arch/arm64/kernel/hibernate.c which seems to call this against
-> kernel symbols as well?
 
-create_safe_exec_page() may allocate a pte from the linear map and
-passes such pointer to pmd_populate_kernel(). The copy_pte() function
-does something similar. In addition, we have the generic
-__pte_alloc_kernel() in mm/memory.c using linear addresses.
+This is going in circles. I prototyped the modification which increases
+the per-cpu structure slightly and will evaluate. It takes about a day
+to run through the full set of tests. If it causes no harm, I'll release
+another version.
 
 -- 
-Catalin
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
