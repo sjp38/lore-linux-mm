@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6956B0269
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 14:01:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 3so112128140pgd.3
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 11:01:52 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id s136si25088198pgc.65.2016.12.07.11.01.51
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 353136B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 14:12:12 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y68so614734719pfb.6
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 11:12:12 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id o32si22361494pld.152.2016.12.07.11.12.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 11:01:51 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id i88so11589929pfk.2
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 11:01:51 -0800 (PST)
-Message-ID: <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+        Wed, 07 Dec 2016 11:12:10 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id p66so24305171pga.2
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 11:12:10 -0800 (PST)
+Message-ID: <1481137869.4930.62.camel@edumazet-glaptop3.roam.corp.google.com>
 Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
 From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Wed, 07 Dec 2016 11:00:49 -0800
-In-Reply-To: <20161207101228.8128-1-mgorman@techsingularity.net>
+Date: Wed, 07 Dec 2016 11:11:09 -0800
+In-Reply-To: <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
 References: <20161207101228.8128-1-mgorman@techsingularity.net>
+	 <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -25,39 +26,20 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 2016-12-07 at 10:12 +0000, Mel Gorman wrote:
+On Wed, 2016-12-07 at 11:00 -0800, Eric Dumazet wrote:
 
-> This is the result from netperf running UDP_STREAM on localhost. It was
-> selected on the basis that it is slab-intensive and has been the subject
-> of previous SLAB vs SLUB comparisons with the caveat that this is not
-> testing between two physical hosts.
-> 
+>  
+> So far, I believe net/unix/af_unix.c uses PAGE_ALLOC_COSTLY_ORDER as
+> max_order, but UDP does not do that yet.
 
-Interesting results.
+For af_unix, it happened in
+https://git.kernel.org/cgit/linux/kernel/git/davem/net-next.git/commit/?id=28d6427109d13b0f447cba5761f88d3548e83605
 
-netperf UDP_STREAM is not really slab intensive : (for large sendsizes
-like 16KB)
+This came to fix a regression, since we had a gigantic slab allocation
+in af_unix before 
 
-Bulk of the storage should be allocated from alloc_skb_with_frags(),
-ie using pages.
+https://git.kernel.org/cgit/linux/kernel/git/davem/net-next.git/commit/?id=eb6a24816b247c0be6b2e97e68933072874bbe54
 
-And I am not sure we enabled high order pages in this path ?
-
-ip_make_skb()
- __ip_append_data()
-  sock_alloc_send_skb()
-   sock_alloc_send_pskb (...,  max_page_order=0)
-    alloc_skb_with_frags ( max_page_order=0)
- 
-So far, I believe net/unix/af_unix.c uses PAGE_ALLOC_COSTLY_ORDER as
-max_order, but UDP does not do that yet.
-
-We probably could enable high-order pages there, if we believe this is
-okay.
-
-Or maybe I missed and this already happened ? ;)
-
-Thanks.
 
 
 --
