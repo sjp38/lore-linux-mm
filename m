@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C7FC56B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 10:57:54 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id g23so38785617wme.4
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 07:57:54 -0800 (PST)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id g78si8990168wme.5.2016.12.07.07.57.53
+	by kanga.kvack.org (Postfix) with ESMTP id 761A96B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 11:21:55 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g23so39045727wme.4
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 08:21:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e126si9087947wme.41.2016.12.07.08.21.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 07:57:53 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 9F34C1C1B3A
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 15:57:51 +0000 (GMT)
-Date: Wed, 7 Dec 2016 15:57:50 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-Message-ID: <20161207155750.yfsizliaoodks5k4@techsingularity.net>
-References: <20161207101228.8128-1-mgorman@techsingularity.net>
- <alpine.DEB.2.20.1612070849260.8398@east.gentwo.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 07 Dec 2016 08:21:53 -0800 (PST)
+Subject: Re: mlockall() with pid parameter
+References: <CACKey4xEaMJ8qQyT7H5jQSxEBrxxuopg2a_AiMFJLeTTA+M9Lg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <52a0d9c3-5c9a-d207-4cbc-a6df27ba6a9c@suse.cz>
+Date: Wed, 7 Dec 2016 17:21:38 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1612070849260.8398@east.gentwo.org>
+In-Reply-To: <CACKey4xEaMJ8qQyT7H5jQSxEBrxxuopg2a_AiMFJLeTTA+M9Lg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Federico Reghenzani <federico.reghenzani@polimi.it>, linux-mm@kvack.org
 
-On Wed, Dec 07, 2016 at 08:52:27AM -0600, Christoph Lameter wrote:
-> On Wed, 7 Dec 2016, Mel Gorman wrote:
+On 12/07/2016 04:39 PM, Federico Reghenzani wrote:
+> Hello,
 > 
-> > SLUB has been the default small kernel object allocator for quite some time
-> > but it is not universally used due to performance concerns and a reliance
-> > on high-order pages. The high-order concerns has two major components --
+> I'm working on Real-Time applications in Linux. `mlockall()` is a
+> typical syscall used in RT processes in order to avoid page faults.
+> However, the use of this syscall is strongly limited by ulimits, so
+> basically all RT processes that want to call `mlockall()` have to be
+> executed with root privileges.
+
+Is it not possible to change the ulimits with e.g. prlimit?
+
+> What I would like to have is a syscall that accept a "pid", so a process
+> spawned by root would be able to enforce the memory locking to other
+> non-root processes. The prototypes would be:
 > 
-> SLUB does not rely on high order pages. It falls back to lower order if
-> the higher orders are not available. Its a performance concern.
+> int mlockall(int flags, pid_t pid);
+> int munlockall(pid_t pid);
 > 
-
-Ok -- While SLUB does not rely on high-order pages for functional
-correctness, it perfoms better if high-order pages are available.
-
-> This is also an issue for various other kernel subsystems that really
-> would like to have larger contiguous memory area. We are often seeing
-> performance constraints due to the high number of 4k segments when doing
-> large scale block I/O f.e.
+> I checked the source code and it seems to me quite easy to add this
+> syscall variant.
 > 
-
-Which is related to the fundamentals of fragmentation control in
-general. At some point there will have to be a revisit to get back to
-the type of reliability that existed in 3.0-era without the massive
-overhead it incurred. As stated before, I agree it's important but
-outside the scope of this patch.
-
--- 
-Mel Gorman
-SUSE Labs
+> I'm writing here to have a feedback before starting to edit the code. Do
+> you think that this is a good approach?
+> 
+> 
+> Thank you,
+> Federico
+> 
+> -- 
+> *Federico Reghenzani*
+> PhD Candidate
+> Politecnico di Milano
+> Dipartimento di Elettronica, Informazione e Bioingegneria
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
