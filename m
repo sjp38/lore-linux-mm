@@ -1,152 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 381D16B025E
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 08:19:06 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id m203so37127108wma.2
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:19:06 -0800 (PST)
-Received: from mail-wj0-x233.google.com (mail-wj0-x233.google.com. [2a00:1450:400c:c01::233])
-        by mx.google.com with ESMTPS id x70si8290497wmf.147.2016.12.07.05.19.04
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8A06B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 08:35:30 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c4so601045449pfb.7
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:35:30 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id z21si24086972pgi.50.2016.12.07.05.35.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 05:19:05 -0800 (PST)
-Received: by mail-wj0-x233.google.com with SMTP id xy5so360347854wjc.0
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:19:04 -0800 (PST)
-Date: Wed, 7 Dec 2016 13:19:03 +0000
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [RFC PATCH v3 10/20] Add support to access boot related data in
- the clear
-Message-ID: <20161207131903.GU20785@codeblueprint.co.uk>
-References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
- <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
+        Wed, 07 Dec 2016 05:35:29 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [PATCH kernel v5 0/5] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+Date: Wed, 7 Dec 2016 13:35:26 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
+References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
+ <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
+In-Reply-To: <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-On Wed, 09 Nov, at 06:36:31PM, Tom Lendacky wrote:
-> Boot data (such as EFI related data) is not encrypted when the system is
-> booted and needs to be accessed unencrypted.  Add support to apply the
-> proper attributes to the EFI page tables and to the early_memremap and
-> memremap APIs to identify the type of data being accessed so that the
-> proper encryption attribute can be applied.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/e820.h    |    1 
->  arch/x86/kernel/e820.c         |   16 +++++++
->  arch/x86/mm/ioremap.c          |   89 ++++++++++++++++++++++++++++++++++++++++
->  arch/x86/platform/efi/efi_64.c |   12 ++++-
->  drivers/firmware/efi/efi.c     |   33 +++++++++++++++
->  include/linux/efi.h            |    2 +
->  kernel/memremap.c              |    8 +++-
->  mm/early_ioremap.c             |   18 +++++++-
->  8 files changed, 172 insertions(+), 7 deletions(-)
- 
-FWIW, I think this version is an improvement over all the previous
-ones.
+> Am 30.11.2016 um 09:43 schrieb Liang Li:
+> > This patch set contains two parts of changes to the virtio-balloon.
+> >
+> > One is the change for speeding up the inflating & deflating process,
+> > the main idea of this optimization is to use bitmap to send the page
+> > information to host instead of the PFNs, to reduce the overhead of
+> > virtio data transmission, address translation and madvise(). This can
+> > help to improve the performance by about 85%.
+>=20
+> Do you have some statistics/some rough feeling how many consecutive bits =
+are
+> usually set in the bitmaps? Is it really just purely random or is there s=
+ome
+> granularity that is usually consecutive?
+>=20
 
-[...]
+I did something similar. Filled the balloon with 15GB for a 16GB idle guest=
+, by
+using bitmap, the madvise count was reduced to 605. when using the PFNs, th=
+e madvise count
+was 3932160. It means there are quite a lot consecutive bits in the bitmap.
+I didn't test for a guest with heavy memory workload.=20
 
-> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-> index ff542cd..ee347c2 100644
-> --- a/arch/x86/mm/ioremap.c
-> +++ b/arch/x86/mm/ioremap.c
-> @@ -20,6 +20,9 @@
->  #include <asm/tlbflush.h>
->  #include <asm/pgalloc.h>
->  #include <asm/pat.h>
-> +#include <asm/e820.h>
-> +#include <asm/setup.h>
-> +#include <linux/efi.h>
->  
->  #include "physaddr.h"
->  
-> @@ -418,6 +421,92 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
->  	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
->  }
->  
-> +static bool memremap_setup_data(resource_size_t phys_addr,
-> +				unsigned long size)
-> +{
-> +	u64 paddr;
-> +
-> +	if (phys_addr == boot_params.hdr.setup_data)
-> +		return true;
-> +
+> IOW in real examples, do we have really large consecutive areas or are al=
+l
+> pages just completely distributed over our memory?
+>=20
 
-Why is the setup_data linked list not traversed when checking for
-matching addresses? Am I reading this incorrectly? I don't see how
-this can work.
+The buddy system of Linux kernel memory management shows there should be qu=
+ite a lot of
+ consecutive pages as long as there are a portion of free memory in the gue=
+st.
+If all pages just completely distributed over our memory, it means the memo=
+ry=20
+fragmentation is very serious, the kernel has the mechanism to avoid this h=
+appened.
+In the other hand, the inflating should not happen at this time because the=
+ guest is almost
+'out of memory'.
 
-> +	paddr = boot_params.efi_info.efi_memmap_hi;
-> +	paddr <<= 32;
-> +	paddr |= boot_params.efi_info.efi_memmap;
-> +	if (phys_addr == paddr)
-> +		return true;
-> +
-> +	paddr = boot_params.efi_info.efi_systab_hi;
-> +	paddr <<= 32;
-> +	paddr |= boot_params.efi_info.efi_systab;
-> +	if (phys_addr == paddr)
-> +		return true;
-> +
-> +	if (efi_table_address_match(phys_addr))
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
-> +static bool memremap_apply_encryption(resource_size_t phys_addr,
-> +				      unsigned long size)
-> +{
-> +	/* SME is not active, just return true */
-> +	if (!sme_me_mask)
-> +		return true;
-> +
-> +	/* Check if the address is part of the setup data */
-> +	if (memremap_setup_data(phys_addr, size))
-> +		return false;
-> +
-> +	/* Check if the address is part of EFI boot/runtime data */
-> +	switch (efi_mem_type(phys_addr)) {
-> +	case EFI_BOOT_SERVICES_DATA:
-> +	case EFI_RUNTIME_SERVICES_DATA:
-> +		return false;
-> +	}
+Liang
 
-EFI_LOADER_DATA is notable by its absence.
-
-We use that memory type for allocations inside of the EFI boot stub
-that are than used while the kernel is running. One use that comes to
-mind is for initrd files, see handle_cmdline_files().
-
-Oh I see you handle that in PATCH 9, never mind.
-
-> diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
-> index 58b0f80..3f89179 100644
-> --- a/arch/x86/platform/efi/efi_64.c
-> +++ b/arch/x86/platform/efi/efi_64.c
-> @@ -221,7 +221,13 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
->  	if (efi_enabled(EFI_OLD_MEMMAP))
->  		return 0;
->  
-> -	efi_scratch.efi_pgt = (pgd_t *)__pa(efi_pgd);
-> +	/*
-> +	 * Since the PGD is encrypted, set the encryption mask so that when
-> +	 * this value is loaded into cr3 the PGD will be decrypted during
-> +	 * the pagetable walk.
-> +	 */
-> +	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
-> +
->  	pgd = efi_pgd;
->  
->  	/*
-
-Do all callers of __pa() in arch/x86 need fixing up like this?
+> Thanks!
+>=20
+> --
+>=20
+> David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
