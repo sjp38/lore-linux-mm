@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B19466B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 12:35:09 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so39733404wmf.3
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 09:35:09 -0800 (PST)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id d10si25365253wjc.187.2016.12.07.09.35.08
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 420146B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 12:40:06 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id g186so106592520pgc.2
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 09:40:06 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id a9si24867024pgn.328.2016.12.07.09.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 07 Dec 2016 09:35:08 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id E8E7598DBF
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 17:35:07 +0000 (UTC)
-Date: Wed, 7 Dec 2016 17:35:07 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-Message-ID: <20161207173507.abvj3tp3vh6es3yz@techsingularity.net>
-References: <20161207101228.8128-1-mgorman@techsingularity.net>
- <alpine.DEB.2.20.1612070849260.8398@east.gentwo.org>
- <20161207155750.yfsizliaoodks5k4@techsingularity.net>
- <alpine.DEB.2.20.1612071037480.11056@east.gentwo.org>
- <20161207164554.b73qjfxy2w3h3ycr@techsingularity.net>
- <alpine.DEB.2.20.1612071109160.11056@east.gentwo.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Dec 2016 09:40:05 -0800 (PST)
+Subject: Re: mlockall() with pid parameter
+References: <CACKey4xEaMJ8qQyT7H5jQSxEBrxxuopg2a_AiMFJLeTTA+M9Lg@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4664bc3f-67b8-af11-3f98-a7d480996f5f@intel.com>
+Date: Wed, 7 Dec 2016 09:40:04 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1612071109160.11056@east.gentwo.org>
+In-Reply-To: <CACKey4xEaMJ8qQyT7H5jQSxEBrxxuopg2a_AiMFJLeTTA+M9Lg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Federico Reghenzani <federico.reghenzani@polimi.it>, linux-mm@kvack.org, Vlastimil Babka <VBabka@suse.com>
 
-On Wed, Dec 07, 2016 at 11:11:08AM -0600, Christoph Lameter wrote:
-> On Wed, 7 Dec 2016, Mel Gorman wrote:
+On 12/07/2016 07:39 AM, Federico Reghenzani wrote:
+> What I would like to have is a syscall that accept a "pid", so a process
+> spawned by root would be able to enforce the memory locking to other
+> non-root processes. The prototypes would be:
 > 
-> > 3.0-era kernels had better fragmentation control, higher success rates at
-> > allocation etc. I vaguely recall that it had fewer sources of high-order
-> > allocations but I don't remember specifics and part of that could be the
-> > lack of THP at the time. The overhead was massive due to massive stalls
-> > and excessive reclaim -- hours to complete some high-allocation stress
-> > tests even if the success rate was high.
-> 
-> There were a couple of high order page reclaim improvements implemented
-> at that time that were later abandoned. I think higher order pages were
-> more available than now.
+> int mlockall(int flags, pid_t pid);
+> int munlockall(pid_t pid);
 
-There were, the cost was high -- lumpy reclaim was a major source of the
-cost but not the only one. The cost of allocation offset any benefit of
-having them. At least for hugepages it did, I don't know about SLUB because
-I didn't quantify if the benefit of SLUB using huge pages was offset by
-the allocation cost (I doubt it). The cost later became intolerable when
-THP started hitting those paths routinely.
+The prototypes don't really tell enough of the story to give you good
+feedback.  For instance, whose rlimit do these count against?  Are all
+the MCL_CURRENT/FUTURE/FAULT flags supported?
 
-It's not simply a case of going back to how fragmentation control was
-managed then because it'll simply reintroduce excessive stalls in
-allocation paths.
-
--- 
-Mel Gorman
-SUSE Labs
+I think you need to start implementing something to actually see how
+ugly this gets in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
