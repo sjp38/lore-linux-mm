@@ -1,87 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A02C16B025E
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 08:08:16 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so83794169wjc.2
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:08:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k8si24314213wjv.25.2016.12.07.05.08.15
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 381D16B025E
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 08:19:06 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so37127108wma.2
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:19:06 -0800 (PST)
+Received: from mail-wj0-x233.google.com (mail-wj0-x233.google.com. [2a00:1450:400c:c01::233])
+        by mx.google.com with ESMTPS id x70si8290497wmf.147.2016.12.07.05.19.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 07 Dec 2016 05:08:15 -0800 (PST)
-Subject: Re: [PATCH] mm: page_idle_get_page() does not need zone_lru_lock
-References: <alpine.LSU.2.11.1612052152560.13021@eggly.anvils>
- <20161207110845.GA4655@esperanza>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3e48f802-b489-a052-f703-dd456ffeda46@suse.cz>
-Date: Wed, 7 Dec 2016 14:07:56 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Dec 2016 05:19:05 -0800 (PST)
+Received: by mail-wj0-x233.google.com with SMTP id xy5so360347854wjc.0
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 05:19:04 -0800 (PST)
+Date: Wed, 7 Dec 2016 13:19:03 +0000
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [RFC PATCH v3 10/20] Add support to access boot related data in
+ the clear
+Message-ID: <20161207131903.GU20785@codeblueprint.co.uk>
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <20161207110845.GA4655@esperanza>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@tarantool.org>, Hugh Dickins <hughd@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm@kvack.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On 12/07/2016 12:08 PM, Vladimir Davydov wrote:
-> Hello,
+On Wed, 09 Nov, at 06:36:31PM, Tom Lendacky wrote:
+> Boot data (such as EFI related data) is not encrypted when the system is
+> booted and needs to be accessed unencrypted.  Add support to apply the
+> proper attributes to the EFI page tables and to the early_memremap and
+> memremap APIs to identify the type of data being accessed so that the
+> proper encryption attribute can be applied.
 > 
-> On Mon, Dec 05, 2016 at 09:55:10PM -0800, Hugh Dickins wrote:
->> Rechecking PageLRU() after get_page_unless_zero() may have value, but
->> holding zone_lru_lock around that serves no useful purpose: delete it.
-> 
-> IIRC this lock/unlock was added on purpose, by request from Minchan. It
-> serves as a barrier that guarantees that all page fields (specifically
-> ->mapping in case of anonymous pages) have been properly initialized by
-> the time we pass it to rmap_walk(). Here's a reference to the thread
-> where this problem was discussed:
-> 
->   http://lkml.kernel.org/r/<20150430082531.GD21771@blaptop>
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/e820.h    |    1 
+>  arch/x86/kernel/e820.c         |   16 +++++++
+>  arch/x86/mm/ioremap.c          |   89 ++++++++++++++++++++++++++++++++++++++++
+>  arch/x86/platform/efi/efi_64.c |   12 ++++-
+>  drivers/firmware/efi/efi.c     |   33 +++++++++++++++
+>  include/linux/efi.h            |    2 +
+>  kernel/memremap.c              |    8 +++-
+>  mm/early_ioremap.c             |   18 +++++++-
+>  8 files changed, 172 insertions(+), 7 deletions(-)
+ 
+FWIW, I think this version is an improvement over all the previous
+ones.
 
-Um OK, but then there should have been a comment explaining why the lock
-is there :/
+[...]
 
-Vlastimil
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index ff542cd..ee347c2 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -20,6 +20,9 @@
+>  #include <asm/tlbflush.h>
+>  #include <asm/pgalloc.h>
+>  #include <asm/pat.h>
+> +#include <asm/e820.h>
+> +#include <asm/setup.h>
+> +#include <linux/efi.h>
+>  
+>  #include "physaddr.h"
+>  
+> @@ -418,6 +421,92 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+>  	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
+>  }
+>  
+> +static bool memremap_setup_data(resource_size_t phys_addr,
+> +				unsigned long size)
+> +{
+> +	u64 paddr;
+> +
+> +	if (phys_addr == boot_params.hdr.setup_data)
+> +		return true;
+> +
 
->>
->> Signed-off-by: Hugh Dickins <hughd@google.com>
->> ---
->>
->>  mm/page_idle.c |    4 ----
->>  1 file changed, 4 deletions(-)
->>
->> --- 4.9-rc8/mm/page_idle.c	2016-10-02 16:24:33.000000000 -0700
->> +++ linux/mm/page_idle.c	2016-12-05 19:44:32.646625435 -0800
->> @@ -30,7 +30,6 @@
->>  static struct page *page_idle_get_page(unsigned long pfn)
->>  {
->>  	struct page *page;
->> -	struct zone *zone;
->>  
->>  	if (!pfn_valid(pfn))
->>  		return NULL;
->> @@ -40,13 +39,10 @@ static struct page *page_idle_get_page(u
->>  	    !get_page_unless_zero(page))
->>  		return NULL;
->>  
->> -	zone = page_zone(page);
->> -	spin_lock_irq(zone_lru_lock(zone));
->>  	if (unlikely(!PageLRU(page))) {
->>  		put_page(page);
->>  		page = NULL;
->>  	}
->> -	spin_unlock_irq(zone_lru_lock(zone));
->>  	return page;
->>  }
->>  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Why is the setup_data linked list not traversed when checking for
+matching addresses? Am I reading this incorrectly? I don't see how
+this can work.
+
+> +	paddr = boot_params.efi_info.efi_memmap_hi;
+> +	paddr <<= 32;
+> +	paddr |= boot_params.efi_info.efi_memmap;
+> +	if (phys_addr == paddr)
+> +		return true;
+> +
+> +	paddr = boot_params.efi_info.efi_systab_hi;
+> +	paddr <<= 32;
+> +	paddr |= boot_params.efi_info.efi_systab;
+> +	if (phys_addr == paddr)
+> +		return true;
+> +
+> +	if (efi_table_address_match(phys_addr))
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
+> +static bool memremap_apply_encryption(resource_size_t phys_addr,
+> +				      unsigned long size)
+> +{
+> +	/* SME is not active, just return true */
+> +	if (!sme_me_mask)
+> +		return true;
+> +
+> +	/* Check if the address is part of the setup data */
+> +	if (memremap_setup_data(phys_addr, size))
+> +		return false;
+> +
+> +	/* Check if the address is part of EFI boot/runtime data */
+> +	switch (efi_mem_type(phys_addr)) {
+> +	case EFI_BOOT_SERVICES_DATA:
+> +	case EFI_RUNTIME_SERVICES_DATA:
+> +		return false;
+> +	}
+
+EFI_LOADER_DATA is notable by its absence.
+
+We use that memory type for allocations inside of the EFI boot stub
+that are than used while the kernel is running. One use that comes to
+mind is for initrd files, see handle_cmdline_files().
+
+Oh I see you handle that in PATCH 9, never mind.
+
+> diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+> index 58b0f80..3f89179 100644
+> --- a/arch/x86/platform/efi/efi_64.c
+> +++ b/arch/x86/platform/efi/efi_64.c
+> @@ -221,7 +221,13 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+>  	if (efi_enabled(EFI_OLD_MEMMAP))
+>  		return 0;
+>  
+> -	efi_scratch.efi_pgt = (pgd_t *)__pa(efi_pgd);
+> +	/*
+> +	 * Since the PGD is encrypted, set the encryption mask so that when
+> +	 * this value is loaded into cr3 the PGD will be decrypted during
+> +	 * the pagetable walk.
+> +	 */
+> +	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
+> +
+>  	pgd = efi_pgd;
+>  
+>  	/*
+
+Do all callers of __pa() in arch/x86 need fixing up like this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
