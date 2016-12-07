@@ -1,62 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6ED6B0038
-	for <linux-mm@kvack.org>; Tue,  6 Dec 2016 23:13:18 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id j128so584264869pfg.4
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 20:13:18 -0800 (PST)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id u71si22273623pgd.117.2016.12.06.20.13.17
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A27E46B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 02:50:10 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id w13so33997007wmw.0
+        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 23:50:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u200si7311242wmd.19.2016.12.06.23.50.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Dec 2016 20:13:17 -0800 (PST)
-Received: by mail-pf0-x22a.google.com with SMTP id 189so74562493pfz.3
-        for <linux-mm@kvack.org>; Tue, 06 Dec 2016 20:13:17 -0800 (PST)
-Date: Tue, 6 Dec 2016 20:13:07 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 06 Dec 2016 23:50:09 -0800 (PST)
+Date: Wed, 7 Dec 2016 08:50:03 +0100
+From: Michal Hocko <mhocko@suse.com>
 Subject: Re: [PATCH] mm: make transparent hugepage size public
-In-Reply-To: <db569a60-5dd1-b0a8-9fcb-6dd2106765ee@intel.com>
-Message-ID: <alpine.LSU.2.11.1612061937220.1094@eggly.anvils>
-References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils> <877f7difx1.fsf@linux.vnet.ibm.com> <85c787f4-36ff-37fe-ff93-e42bad4b7c1e@intel.com> <20161206171905.n7qwvfb5sjxn3iif@black.fi.intel.com> <db569a60-5dd1-b0a8-9fcb-6dd2106765ee@intel.com>
+Message-ID: <20161207075003.GA17136@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1612052200290.13021@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On Tue, 6 Dec 2016, Dave Hansen wrote:
-> On 12/06/2016 09:19 AM, Kirill A. Shutemov wrote:
-> >>> > > We have in /proc/meminfo
-> >>> > > 
-> >>> > > Hugepagesize:       2048 kB
-> >>> > > 
-> >>> > > Does it makes it easy for application to find THP page size also there ?
-> >> > 
-> >> > Nope.  That's the default hugetlbfs page size.  Even on x86, that can be
-> >> > changed and _could_ be 1G.  If hugetlbfs is configured out, you also
-> >> > won't get this in meminfo.
-> > I think Aneesh propose to add one more line into the file.
+On Mon 05-12-16 22:05:22, Hugh Dickins wrote:
+> Test programs want to know the size of a transparent hugepage.
+> While it is commonly the same as the size of a hugetlbfs page
+> (shown as Hugepagesize in /proc/meminfo), that is not always so:
+> powerpc implements transparent hugepages in a different way from
+> hugetlbfs pages, so it's coincidence when their sizes are the same;
+> and x86 and others can support more than one hugetlbfs page size.
 > 
-> Ahhh, ok...
+> Add /sys/kernel/mm/transparent_hugepage/hpage_pmd_size to show the
+> THP size in bytes - it's the same for Anonymous and Shmem hugepages.
+> Call it hpage_pmd_size (after HPAGE_PMD_SIZE) rather than hpage_size,
+> in case some transparent support for pud and pgd pages is added later.
+
+Definitely much better than cluttering /proc/meminfo even more.
+
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
 > 
-> Personally, I think Hugh did the right things.  There's no reason to
-> waste cycles sticking a number in meminfo that never changes.
+>  Documentation/vm/transhuge.txt |    5 +++++
+>  mm/huge_memory.c               |   10 ++++++++++
+>  2 files changed, 15 insertions(+)
+> 
+> --- 4.9-rc8/Documentation/vm/transhuge.txt	2016-10-02 16:24:33.000000000 -0700
+> +++ linux/Documentation/vm/transhuge.txt	2016-12-05 20:55:12.142578631 -0800
+> @@ -136,6 +136,11 @@ or enable it back by writing 1:
+>  echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+>  echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+>  
+> +Some userspace (such as a test program, or an optimized memory allocation
+> +library) may want to know the size (in bytes) of a transparent hugepage:
+> +
+> +cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
+> +
+>  khugepaged will be automatically started when
+>  transparent_hugepage/enabled is set to "always" or "madvise, and it'll
+>  be automatically shutdown if it's set to "never".
+> --- 4.9-rc8/mm/huge_memory.c	2016-12-04 16:42:39.881703357 -0800
+> +++ linux/mm/huge_memory.c	2016-12-05 20:58:19.953010005 -0800
+> @@ -285,6 +285,15 @@ static ssize_t use_zero_page_store(struc
+>  }
+>  static struct kobj_attribute use_zero_page_attr =
+>  	__ATTR(use_zero_page, 0644, use_zero_page_show, use_zero_page_store);
+> +
+> +static ssize_t hpage_pmd_size_show(struct kobject *kobj,
+> +		struct kobj_attribute *attr, char *buf)
+> +{
+> +	return sprintf(buf, "%lu\n", HPAGE_PMD_SIZE);
+> +}
+> +static struct kobj_attribute hpage_pmd_size_attr =
+> +	__ATTR_RO(hpage_pmd_size);
+> +
+>  #ifdef CONFIG_DEBUG_VM
+>  static ssize_t debug_cow_show(struct kobject *kobj,
+>  				struct kobj_attribute *attr, char *buf)
+> @@ -307,6 +316,7 @@ static struct attribute *hugepage_attr[]
+>  	&enabled_attr.attr,
+>  	&defrag_attr.attr,
+>  	&use_zero_page_attr.attr,
+> +	&hpage_pmd_size_attr.attr,
+>  #if defined(CONFIG_SHMEM) && defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE)
+>  	&shmem_enabled_attr.attr,
+>  #endif
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks, yes, that was my feeling: I prefer not to clutter /proc/meminfo
-with constants - especially not a unit, or granularity, as this is
-(too late to stop Hugepagesize of course, but I wish it weren't there,
-and those HugePages_ numbers in kB).
-
-On top of that, /proc/meminfo is the mm admin's "front page", whereas
-this is a low-level detail: it somewhat goes against our claim of
-"transparent" hugepages to post it up there, even though a few tests
-etc may find the value useful: I'd rather bury it among the tunables.
-(My guess is that Andrea felt rather the same, in choosing not to
-publish it six years ago.)
-
-But of course, that's just my/our opinion: any strong preferences?
-
-Hugh
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
