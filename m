@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CE66B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 09:52:32 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id t31so287730158ioi.4
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 06:52:32 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id v126si17550994ioe.252.2016.12.07.06.52.31
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8316B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 09:57:15 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id x23so97297952pgx.6
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 06:57:15 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id r82si24455280pfi.192.2016.12.07.06.57.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 06:52:31 -0800 (PST)
-Date: Wed, 7 Dec 2016 08:52:27 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-In-Reply-To: <20161207101228.8128-1-mgorman@techsingularity.net>
-Message-ID: <alpine.DEB.2.20.1612070849260.8398@east.gentwo.org>
-References: <20161207101228.8128-1-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Dec 2016 06:57:14 -0800 (PST)
+Message-ID: <1481122626.2354.14.camel@HansenPartnership.com>
+Subject: Re: LSF/MM 2017: Call for Proposals
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Wed, 07 Dec 2016 06:57:06 -0800
+In-Reply-To: <1480601506.2511.7.camel@poochiereds.net>
+References: <1480601506.2511.7.camel@poochiereds.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Jeff Layton <jlayton@poochiereds.net>, linux-block@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-scsi@vger.kernel.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, ceph-devel@vger.kernel.org, linux-nvme@lists.infradead.org
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On Wed, 7 Dec 2016, Mel Gorman wrote:
+On Thu, 2016-12-01 at 09:11 -0500, Jeff Layton wrote:
+> 1) Proposals for agenda topics should be sent before January 15th, 
+> 2016 to:
+> 
+>     lsf-pc@lists.linux-foundation.org
+> 
+> and cc the Linux list or lists that are relevant for the topic in
+> question:
+> 
+>     ATA:   linux-ide@vger.kernel.org
+>     Block: linux-block@vger.kernel.org
+>     FS:    linux-fsdevel@vger.kernel.org
+>     MM:    linux-mm@kvack.org
+>     SCSI:  linux-scsi@vger.kernel.org
+>     NVMe:  linux-nvme@lists.infradead.org
+> 
+> Please tag your proposal with [LSF/MM TOPIC] to make it easier to 
+> track.
 
-> SLUB has been the default small kernel object allocator for quite some time
-> but it is not universally used due to performance concerns and a reliance
-> on high-order pages. The high-order concerns has two major components --
+Just on this point, since there seems to be a lot of confusion: lsf-pc
+is the list for contacting the programme committee, so you cannot
+subscribe to it.
 
-SLUB does not rely on high order pages. It falls back to lower order if
-the higher orders are not available. Its a performance concern.
+There is no -discuss equivalent, like kernel summit has, because we
+expect you to cc the relevant existing mailing list and have the
+discussion there instead rather than expecting people to subscribe to a
+new list.
 
-This is also an issue for various other kernel subsystems that really
-would like to have larger contiguous memory area. We are often seeing
-performance constraints due to the high number of 4k segments when doing
-large scale block I/O f.e.
-
-Otherwise I really like what I am seeing here.
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
