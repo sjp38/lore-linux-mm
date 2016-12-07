@@ -1,163 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 40BEA6B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 10:29:29 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g186so98712643pgc.2
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 07:29:29 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p5si24504404pgn.170.2016.12.07.07.29.27
+	by kanga.kvack.org (Postfix) with ESMTP id 7835A6B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 10:34:26 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id y71so98753245pgd.0
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 07:34:26 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 63si24596278plf.32.2016.12.07.07.34.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 07 Dec 2016 07:29:27 -0800 (PST)
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20161207081555.GB17136@dhcp22.suse.cz>
-In-Reply-To: <20161207081555.GB17136@dhcp22.suse.cz>
-Message-Id: <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
-Date: Thu, 8 Dec 2016 00:29:26 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Dec 2016 07:34:25 -0800 (PST)
+Subject: Re: [PATCH kernel v5 0/5] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
+ <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <f7b47cc4-ee94-bacb-5a17-d049b402263e@intel.com>
+Date: Wed, 7 Dec 2016 07:34:23 -0800
+MIME-Version: 1.0
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: linux-mm@kvack.org
+To: "Li, Liang Z" <liang.z.li@intel.com>, David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
 
-Michal Hocko wrote:
-> On Tue 06-12-16 19:33:59, Tetsuo Handa wrote:
-> > If the OOM killer is invoked when many threads are looping inside the
-> > page allocator, it is possible that the OOM killer is preempted by other
-> > threads.
+On 12/07/2016 05:35 AM, Li, Liang Z wrote:
+>> Am 30.11.2016 um 09:43 schrieb Liang Li:
+>> IOW in real examples, do we have really large consecutive areas or are all
+>> pages just completely distributed over our memory?
 > 
-> Hmm, the only way I can see this would happen is when the task which
-> actually manages to take the lock is not invoking the OOM killer for
-> whatever reason. Is this what happens in your case? Are you able to
-> trigger this reliably?
+> The buddy system of Linux kernel memory management shows there should
+> be quite a lot of consecutive pages as long as there are a portion of
+> free memory in the guest.
+...
+> If all pages just completely distributed over our memory, it means
+> the memory fragmentation is very serious, the kernel has the
+> mechanism to avoid this happened.
 
-Regarding http://I-love.SAKURA.ne.jp/tmp/serial-20161206.txt.xz ,
-somebody called oom_kill_process() and reached
+While it is correct that the kernel has anti-fragmentation mechanisms, I
+don't think it invalidates the question as to whether a bitmap would be
+too sparse to be effective.
 
-  pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> In the other hand, the inflating should not happen at this time because the guest is almost
+> 'out of memory'.
 
-line but did not reach
+I don't think this is correct.  Most systems try to run with relatively
+little free memory all the time, using the bulk of it as page cache.  We
+have no reason to expect that ballooning will only occur when there is
+lots of actual free memory and that it will not occur when that same
+memory is in use as page cache.
 
-  pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+In these patches, you're effectively still sending pfns.  You're just
+sending one pfn per high-order page which is giving a really nice
+speedup.  IMNHO, you're avoiding doing a real bitmap because creating a
+bitmap means either have a really big bitmap, or you would have to do
+some sorting (or multiple passes) of the free lists before populating a
+smaller bitmap.
 
-line within tolerable delay.
-
-It is trivial to make the page allocator being spammed by uncontrolled
-warn_alloc() like http://I-love.SAKURA.ne.jp/tmp/serial-20161207-2.txt.xz
-and delayed by printk() using a stressor shown below. It seems to me that
-most of CPU time is spent for pointless direct reclaim and printk().
-
-----------
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <poll.h>
-
-int main(int argc, char *argv[])
-{
-        static char buffer[4096] = { };
-        char *buf = NULL;
-        unsigned long size;
-        int i;
-        for (i = 0; i < 1024; i++) {
-                if (fork() == 0) {
-                        int fd = open("/proc/self/oom_score_adj", O_WRONLY);
-                        write(fd, "1000", 4);
-                        close(fd);
-                        sleep(1);
-                        snprintf(buffer, sizeof(buffer), "/tmp/file.%u", getpid());
-                        //snprintf(buffer, sizeof(buffer), "/tmp/file");
-                        fd = open(buffer, O_WRONLY | O_CREAT | O_APPEND, 0600);
-                        while (write(fd, buffer, sizeof(buffer)) == sizeof(buffer)) {
-                                poll(NULL, 0, 10);
-                                fsync(fd);
-                        }
-                        _exit(0);
-                }
-        }
-        for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-                char *cp = realloc(buf, size);
-                if (!cp) {
-                        size >>= 1;
-                        break;
-                }
-                buf = cp;
-        }
-        sleep(2);
-        /* Will cause OOM due to overcommit */
-        for (i = 0; i < size; i += 4096) {
-                buf[i] = 0;
-                if (i >= 1800 * 1048576) /* This VM has 2048MB RAM */
-                        poll(NULL, 0, 10);
-        }
-        pause();
-        return 0;
-}
-----------
-
-> 
-> > As a result, the OOM killer is unable to send SIGKILL to OOM
-> > victims and/or wake up the OOM reaper by releasing oom_lock for minutes
-> > because other threads consume a lot of CPU time for pointless direct
-> > reclaim.
-> > 
-> > ----------
-> > [ 2802.635229] Killed process 7267 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-> > [ 2802.644296] oom_reaper: reaped process 7267 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> > [ 2802.650237] Out of memory: Kill process 7268 (a.out) score 999 or sacrifice child
-> > [ 2803.653052] Killed process 7268 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-> > [ 2804.426183] oom_reaper: reaped process 7268 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> > [ 2804.432524] Out of memory: Kill process 7269 (a.out) score 999 or sacrifice child
-> > [ 2805.349380] a.out: page allocation stalls for 10047ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-> > [ 2805.349383] CPU: 2 PID: 7243 Comm: a.out Not tainted 4.9.0-rc8 #62
-> > (...snipped...)
-> > [ 3540.977499]           a.out  7269     22716.893359      5272   120
-> > [ 3540.977499]         0.000000      1447.601063         0.000000
-> > [ 3540.977499]  0 0
-> > [ 3540.977500]  /autogroup-155
-> > ----------
-> > 
-> > This patch adds extra sleeps which is effectively equivalent to
-> > 
-> >   if (mutex_lock_killable(&oom_lock) == 0)
-> >     mutex_unlock(&oom_lock);
-> > 
-> > before retrying allocation at __alloc_pages_may_oom() so that the
-> > OOM killer is not preempted by other threads waiting for the OOM
-> > killer/reaper to reclaim memory. Since the OOM reaper grabs oom_lock
-> > due to commit e2fe14564d3316d1 ("oom_reaper: close race with exiting
-> > task"), waking up other threads before the OOM reaper is woken up by
-> > directly waiting for oom_lock might not help so much.
-> 
-> So, why don't you simply s@mutex_trylock@mutex_lock_killable@ then?
-> The trylock is simply an optimistic heuristic to retry while the memory
-> is being freed. Making this part sync might help for the case you are
-> seeing.
-
-May I? Something like below? With patch below, the OOM killer can send
-SIGKILL smoothly and printk() can report smoothly (the frequency of
-"** XXX printk messages dropped **" messages is significantly reduced).
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2c6d5f6..ee0105b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3075,7 +3075,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 	 * Acquire the oom lock.  If that fails, somebody else is
- 	 * making progress for us.
- 	 */
--	if (!mutex_trylock(&oom_lock)) {
-+	if (mutex_lock_killable(&oom_lock)) {
- 		*did_some_progress = 1;
- 		schedule_timeout_uninterruptible(1);
- 		return NULL;
+Like David, I would still like to see some data on whether the choice
+between bitmaps and pfn lists is ever clearly in favor of bitmaps.  You
+haven't convinced me, at least, that the data isn't even worth collecting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
