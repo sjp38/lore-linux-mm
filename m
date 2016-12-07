@@ -1,123 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F4526B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 15:28:28 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id x26so271703288qtb.6
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 12:28:28 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q70si6621754qke.113.2016.12.07.12.28.27
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B3E076B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 16:20:02 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id o2so81543379wje.5
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 13:20:02 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id m139si10035079wmb.129.2016.12.07.13.19.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 12:28:27 -0800 (PST)
-Date: Wed, 7 Dec 2016 21:28:24 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
- fast (de)inflating & fast live migration
-Message-ID: <20161207202824.GH28786@redhat.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
- <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
- <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
- <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
- <20161207183817.GE28786@redhat.com>
- <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
+        Wed, 07 Dec 2016 13:20:01 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 81B181C1D1D
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 21:19:59 +0000 (GMT)
+Date: Wed, 7 Dec 2016 21:19:58 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+References: <20161207101228.8128-1-mgorman@techsingularity.net>
+ <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207194801.krhonj7yggbedpba@techsingularity.net>
+ <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
+In-Reply-To: <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: David Hildenbrand <david@redhat.com>, "Li, Liang Z" <liang.z.li@intel.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 07, 2016 at 11:54:34AM -0800, Dave Hansen wrote:
-> We're talking about a bunch of different stuff which is all being
-> conflated.  There are 3 issues here that I can see.  I'll attempt to
-> summarize what I think is going on:
+On Wed, Dec 07, 2016 at 12:10:24PM -0800, Eric Dumazet wrote:
+> On Wed, 2016-12-07 at 19:48 +0000, Mel Gorman wrote:
+> >  
+> > 
+> > Interesting because it didn't match what I previous measured but then
+> > again, when I established that netperf on localhost was slab intensive,
+> > it was also an older kernel. Can you tell me if SLAB or SLUB was enabled
+> > in your test kernel?
+> > 
+> > Either that or the baseline I used has since been changed from what you
+> > are testing and we're not hitting the same paths.
 > 
-> 1. Current patches do a hypercall for each order in the allocator.
->    This is inefficient, but independent from the underlying data
->    structure in the ABI, unless bitmaps are in play, which they aren't.
-> 2. Should we have bitmaps in the ABI, even if they are not in use by the
->    guest implementation today?  Andrea says they have zero benefits
->    over a pfn/len scheme.  Dave doesn't think they have zero benefits
->    but isn't that attached to them.  QEMU's handling gets more
->    complicated when using a bitmap.
-> 3. Should the ABI contain records each with a pfn/len pair or a
->    pfn/order pair?
->    3a. 'len' is more flexible, but will always be a power-of-two anyway
-> 	for high-order pages (the common case)
-
-Len wouldn't be a power of two practically only if we detect adjacent
-pages of smaller order that may merge into larger orders we already
-allocated (or the other way around).
-
-[addr=2M, len=2M] allocated at order 9 pass
-[addr=4M, len=1M] allocated at order 8 pass -> merge as [addr=2M, len=3M]
-
-Not sure if it would be worth it, but that unless we do this, page-order or
-len won't make much difference.
-
->    3b. if we decide not to have a bitmap, then we basically have plenty
-> 	of space for 'len' and should just do it
->    3c. It's easiest for the hypervisor to turn pfn/len into the
->        madvise() calls that it needs.
 > 
-> Did I miss anything?
-
-I think you summarized fine all my arguments in your summary.
-
-> FWIW, I don't feel that strongly about the bitmap.  Li had one
-> originally, but I think the code thus far has demonstrated a huge
-> benefit without even having a bitmap.
+> lpaa6:~# uname -a
+> Linux lpaa6 4.9.0-smp-DEV #429 SMP @1481125332 x86_64 GNU/Linux
 > 
-> I've got no objections to ripping the bitmap out of the ABI.
-
-I think we need to see a statistic showing the number of bits set in
-each bitmap in average, after some uptime and lru churn, like running
-stresstest app for a while with I/O and then inflate the balloon and
-count:
-
-1) how many bits were set vs total number of bits used in bitmaps
-
-2) how many times bitmaps were used vs bitmap_len = 0 case of single
-   page
-
-My guess would be like very low percentage for both points.
-
-> Surely we can think of a few ways...
+> lpaa6:~# perf record -g ./netperf -t UDP_STREAM -l 3 -- -m 16384
+> MIGRATED UDP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to
+> localhost () port 0 AF_INET
+> Socket  Message  Elapsed      Messages                
+> Size    Size     Time         Okay Errors   Throughput
+> bytes   bytes    secs            #      #   10^6bits/sec
 > 
-> A bitmap is 64x more dense if the lists are unordered.  It means being
-> able to store ~32k*2M=64G worth of 2M pages in one data page vs. ~1G.
-> That's 64x fewer cachelines to touch, 64x fewer pages to move to the
-> hypervisor and lets us allocate 1/64th the memory.  Given a maximum
-> allocation that we're allowed, it lets us do 64x more per-pass.
+> 212992   16384   3.00       654644      0    28601.04
+> 212992           3.00       654592           28598.77
 > 
-> Now, are those benefits worth it?  Maybe not, but let's not pretend they
-> don't exist. ;)
 
-In the best case there are benefits obviously, the question is how
-common the best case is.
+I'm seeing parts of the disconnect. The load is slab intensive but not
+necessarily page allocator intensive depending on a variety of factors. While
+the motivation of the patch was initially SLUB, any path that is high-order
+page allocator intensive benefits so;
 
-The best case if I understand correctly is all high order not
-available, but plenty of order 0 pages available at phys address X,
-X+8k, X+16k, X+(8k*nr_bits_in_bitmap). How common is that 0 pages
-exist but they're not at an address < X or > X+(8k*nr_bits_in_bitmap)?
+1. If the workload is slab intensive and SLUB is used then it may benefit
+   if SLUB happens to frequently require new pages, particularly if there
+   is a pattern of growing/shrinking slabs frequently.
 
-> Yes, the current code sends one batch of pages up to the hypervisor per
-> order.  But, this has nothing to do with the underlying data structure,
-> or the choice to have an order vs. len in the ABI.
+2. If the workload is high-order page allocator intensive but bypassing
+   SLUB and SLAB, then it'll benefit anyway
+
+So you say you don't see much slab activity for some configuration and
+it's hitting the page allocator. For the purposes of this patch, that's
+fine albeit useless for a SLAB vs SLUB comparison.
+
+Anything else I saw for the moment is probably not surprising;
+
+At small packet sizes on localhost, I see relatively low page allocator
+activity except during the socket setup and other unrelated activity
+(khugepaged, irqbalance, some btrfs stuff) which is curious as it's
+less clear why the performance was improved in that case. I considered
+the possibility that it was cache hotness of pages but that's not a
+good fit. If it was true then the first test would be slow and the rest
+relatively fast and I'm not seeing that. The other side-effect is that
+all the high-order pages that are allocated at the start are physically
+close together but that shouldn't have that big an impact. So for now,
+the gain is unexplained even though it happens consistently.
+
+At larger message sizes to localhost, it's page allocator intensive through
+paths like this
+
+         netperf-3887  [032] ....   393.246420: mm_page_alloc: page=ffffea0021272200 pfn=8690824 order=3 migratetype=0 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_REPEAT|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_NOTRACK
+         netperf-3887  [032] ....   393.246421: <stack trace>
+ => kmalloc_large_node+0x60/0x8d <ffffffff812101c3>
+ => __kmalloc_node_track_caller+0x245/0x280 <ffffffff811f0415>
+ => __kmalloc_reserve.isra.35+0x31/0x90 <ffffffff81674b61>
+ => __alloc_skb+0x7e/0x280 <ffffffff81676bce>
+ => alloc_skb_with_frags+0x5a/0x1c0 <ffffffff81676e2a>
+ => sock_alloc_send_pskb+0x19e/0x200 <ffffffff816721fe>
+ => sock_alloc_send_skb+0x18/0x20 <ffffffff81672278>
+ => __ip_append_data.isra.46+0x61d/0xa00 <ffffffff816cf78d>
+ => ip_make_skb+0xc2/0x110 <ffffffff816d1c72>
+ => udp_sendmsg+0x2c0/0xa40 <ffffffff816f9930>
+ => inet_sendmsg+0x7f/0xb0 <ffffffff8170655f>
+ => sock_sendmsg+0x38/0x50 <ffffffff8166d9f8>
+ => SYSC_sendto+0x102/0x190 <ffffffff8166de92>
+ => SyS_sendto+0xe/0x10 <ffffffff8166e94e>
+ => do_syscall_64+0x5b/0xd0 <ffffffff8100293b>
+ => return_from_SYSCALL_64+0x0/0x6a <ffffffff8178e7af>
+
+It's going through the SLUB paths but finding the allocation is too large
+and hitting the page allocator instead. This is using 4.9-rc5 as a baseline
+so fixes might be missing.
+
+If using small messages to a remote host, I again see intense page
+allocator activity via
+
+         netperf-4326  [047] ....   994.978387: mm_page_alloc: page=ffffea0041413400 pfn=17106128 order=2 migratetype=0 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_REPEAT|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_NOTRACK
+         netperf-4326  [047] ....   994.978387: <stack trace>
+ => alloc_pages_current+0x88/0x120 <ffffffff811e1678>
+ => new_slab+0x33f/0x580 <ffffffff811eb77f>
+ => ___slab_alloc+0x352/0x4d0 <ffffffff811ec6a2>
+ => __slab_alloc.isra.73+0x43/0x5e <ffffffff812105d0>
+ => __kmalloc_node_track_caller+0xba/0x280 <ffffffff811f028a>
+ => __kmalloc_reserve.isra.35+0x31/0x90 <ffffffff81674b61>
+ => __alloc_skb+0x7e/0x280 <ffffffff81676bce>
+ => alloc_skb_with_frags+0x5a/0x1c0 <ffffffff81676e2a>
+ => sock_alloc_send_pskb+0x19e/0x200 <ffffffff816721fe>
+ => sock_alloc_send_skb+0x18/0x20 <ffffffff81672278>
+ => __ip_append_data.isra.46+0x61d/0xa00 <ffffffff816cf78d>
+ => ip_make_skb+0xc2/0x110 <ffffffff816d1c72>
+ => udp_sendmsg+0x2c0/0xa40 <ffffffff816f9930>
+ => inet_sendmsg+0x7f/0xb0 <ffffffff8170655f>
+ => sock_sendmsg+0x38/0x50 <ffffffff8166d9f8>
+ => SYSC_sendto+0x102/0x190 <ffffffff8166de92>
+ => SyS_sendto+0xe/0x10 <ffffffff8166e94e>
+ => do_syscall_64+0x5b/0xd0 <ffffffff8100293b>
+ => return_from_SYSCALL_64+0x0/0x6a <ffffffff8178e7af>
+
+This is a slab path, but at different orders.
+
+So while the patch was motivated by SLUB, the fact I'm getting intense
+page allocator activity still benefits.
+
+> Maybe one day we will avoid doing order-4 (or even order-5 in extreme
+> cases !) allocations for loopback as we did for af_unix :P
 > 
-> What you describe here is obviously more efficient.
+> I mean, maybe some applications are sending 64KB UDP messages over
+> loopback right now...
+> 
 
-And it isn't possible with the current ABI.
+Maybe but it's clear that even running "networking" workloads does not
+necessarily mean that paths interesting to this patch are hit. Not
+necessarily bad but it was always expected that the benefit of the patch
+would be workload and configuration dependant.
 
-So there is a connection with the MAX_ORDER..0 allocation loop and the
-ABI change, but I agree any of the ABI proposed would still allow for
-it this logic to be used. Bitmap or not bitmap, the loop would still
-work.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
