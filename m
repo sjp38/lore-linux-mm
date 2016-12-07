@@ -1,161 +1,333 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E076B0038
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 16:20:02 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id o2so81543379wje.5
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 13:20:02 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id m139si10035079wmb.129.2016.12.07.13.19.59
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C41D6B0038
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 17:15:29 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id j92so311605451ioi.2
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 14:15:29 -0800 (PST)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id v69si7119227itc.47.2016.12.07.14.15.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 13:20:01 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 81B181C1D1D
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 21:19:59 +0000 (GMT)
-Date: Wed, 7 Dec 2016 21:19:58 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-Message-ID: <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
-References: <20161207101228.8128-1-mgorman@techsingularity.net>
- <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
- <20161207194801.krhonj7yggbedpba@techsingularity.net>
- <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+        Wed, 07 Dec 2016 14:15:28 -0800 (PST)
+Received: by mail-io0-x22a.google.com with SMTP id a124so737540143ioe.2
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 14:15:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+In-Reply-To: <20161109170644.15821-1-dvlasenk@redhat.com>
+References: <20161109170644.15821-1-dvlasenk@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 7 Dec 2016 14:15:27 -0800
+Message-ID: <CAGXu5jLKFAAwgR=AoSdvhK-DtNrMk3SEOpoCHhMqrFWFiuBL5w@mail.gmail.com>
+Subject: Re: [PATCH v7] powerpc: Do not make the entire heap executable
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 07, 2016 at 12:10:24PM -0800, Eric Dumazet wrote:
-> On Wed, 2016-12-07 at 19:48 +0000, Mel Gorman wrote:
-> >  
-> > 
-> > Interesting because it didn't match what I previous measured but then
-> > again, when I established that netperf on localhost was slab intensive,
-> > it was also an older kernel. Can you tell me if SLAB or SLUB was enabled
-> > in your test kernel?
-> > 
-> > Either that or the baseline I used has since been changed from what you
-> > are testing and we're not hitting the same paths.
-> 
-> 
-> lpaa6:~# uname -a
-> Linux lpaa6 4.9.0-smp-DEV #429 SMP @1481125332 x86_64 GNU/Linux
-> 
-> lpaa6:~# perf record -g ./netperf -t UDP_STREAM -l 3 -- -m 16384
-> MIGRATED UDP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to
-> localhost () port 0 AF_INET
-> Socket  Message  Elapsed      Messages                
-> Size    Size     Time         Okay Errors   Throughput
-> bytes   bytes    secs            #      #   10^6bits/sec
-> 
-> 212992   16384   3.00       654644      0    28601.04
-> 212992           3.00       654592           28598.77
-> 
+On Wed, Nov 9, 2016 at 9:06 AM, Denys Vlasenko <dvlasenk@redhat.com> wrote:
+> On 32-bit powerpc the ELF PLT sections of binaries (built with --bss-plt,
+> or with a toolchain which defaults to it) look like this:
+>
+>   [17] .sbss             NOBITS          0002aff8 01aff8 000014 00  WA  0   0  4
+>   [18] .plt              NOBITS          0002b00c 01aff8 000084 00 WAX  0   0  4
+>   [19] .bss              NOBITS          0002b090 01aff8 0000a4 00  WA  0   0  4
+>
+> Which results in an ELF load header:
+>
+>   Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+>   LOAD           0x019c70 0x00029c70 0x00029c70 0x01388 0x014c4 RWE 0x10000
+>
+> This is all correct, the load region containing the PLT is marked as
+> executable. Note that the PLT starts at 0002b00c but the file mapping ends at
+> 0002aff8, so the PLT falls in the 0 fill section described by the load header,
+> and after a page boundary.
+>
+> Unfortunately the generic ELF loader ignores the X bit in the load headers
+> when it creates the 0 filled non-file backed mappings. It assumes all of these
+> mappings are RW BSS sections, which is not the case for PPC.
+>
+> gcc/ld has an option (--secure-plt) to not do this, this is said to incur
+> a small performance penalty.
+>
+> Currently, to support 32-bit binaries with PLT in BSS kernel maps *entire
+> brk area* with executable rights for all binaries, even --secure-plt ones.
 
-I'm seeing parts of the disconnect. The load is slab intensive but not
-necessarily page allocator intensive depending on a variety of factors. While
-the motivation of the patch was initially SLUB, any path that is high-order
-page allocator intensive benefits so;
+Can you resend this patch with /proc/$pid/maps output showing the
+before/after effects of this change also included here? Showing that
+reduction in executable mapping should illustrate the benefit of
+avoiding having the execute bit set on the brk area (which is a clear
+security weakness, having writable/executable code in the process's
+memory segment, especially when it was _not_ requested by the ELF
+headers).
 
-1. If the workload is slab intensive and SLUB is used then it may benefit
-   if SLUB happens to frequently require new pages, particularly if there
-   is a pattern of growing/shrinking slabs frequently.
+Thanks!
 
-2. If the workload is high-order page allocator intensive but bypassing
-   SLUB and SLAB, then it'll benefit anyway
+-Kees
 
-So you say you don't see much slab activity for some configuration and
-it's hitting the page allocator. For the purposes of this patch, that's
-fine albeit useless for a SLAB vs SLUB comparison.
+>
+> Stop doing that.
+>
+> Teach the ELF loader to check the X bit in the relevant load header
+> and create 0 filled anonymous mappings that are executable
+> if the load header requests that.
+>
+> The patch was originally posted in 2012 by Jason Gunthorpe
+> and apparently ignored:
+>
+> https://lkml.org/lkml/2012/9/30/138
+>
+> Lightly run-tested.
+>
+> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+> Acked-by: Kees Cook <keescook@chromium.org>
+> Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+> Tested-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> CC: Kees Cook <keescook@chromium.org>
+> CC: Oleg Nesterov <oleg@redhat.com>
+> CC: Michael Ellerman <mpe@ellerman.id.au>
+> CC: Florian Weimer <fweimer@redhat.com>
+> CC: linux-mm@kvack.org
+> CC: linuxppc-dev@lists.ozlabs.org
+> CC: linux-kernel@vger.kernel.org
+> ---
+> Changes since v6:
+> * rebased to current Linus tree
+> * sending to akpm
+>
+> Changes since v5:
+> * made do_brk_flags() error out if any bits other than VM_EXEC are set.
+>   (Kees Cook: "With this, I'd be happy to Ack.")
+>   See https://patchwork.ozlabs.org/patch/661595/
+>
+> Changes since v4:
+> * if (current->personality & READ_IMPLIES_EXEC), still use VM_EXEC
+>   for 32-bit executables.
+>
+> Changes since v3:
+> * typo fix in commit message
+> * rebased to current Linus tree
+>
+> Changes since v2:
+> * moved capability to map with VM_EXEC into vm_brk_flags()
+>
+> Changes since v1:
+> * wrapped lines to not exceed 79 chars
+> * improved comment
+> * expanded CC list
+>
+>  arch/powerpc/include/asm/page.h |  4 +++-
+>  fs/binfmt_elf.c                 | 30 ++++++++++++++++++++++--------
+>  include/linux/mm.h              |  1 +
+>  mm/mmap.c                       | 24 +++++++++++++++++++-----
+>  4 files changed, 45 insertions(+), 14 deletions(-)
+>
+> diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+> index 56398e7..17d3d2c 100644
+> --- a/arch/powerpc/include/asm/page.h
+> +++ b/arch/powerpc/include/asm/page.h
+> @@ -230,7 +230,9 @@ extern long long virt_phys_offset;
+>   * and needs to be executable.  This means the whole heap ends
+>   * up being executable.
+>   */
+> -#define VM_DATA_DEFAULT_FLAGS32        (VM_READ | VM_WRITE | VM_EXEC | \
+> +#define VM_DATA_DEFAULT_FLAGS32 \
+> +       (((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
+> +                                VM_READ | VM_WRITE | \
+>                                  VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+>
+>  #define VM_DATA_DEFAULT_FLAGS64        (VM_READ | VM_WRITE | \
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 2472af2..065134b 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -91,12 +91,18 @@ static struct linux_binfmt elf_format = {
+>
+>  #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
+>
+> -static int set_brk(unsigned long start, unsigned long end)
+> +static int set_brk(unsigned long start, unsigned long end, int prot)
+>  {
+>         start = ELF_PAGEALIGN(start);
+>         end = ELF_PAGEALIGN(end);
+>         if (end > start) {
+> -               int error = vm_brk(start, end - start);
+> +               /*
+> +                * Map the last of the bss segment.
+> +                * If the header is requesting these pages to be
+> +                * executable, honour that (ppc32 needs this).
+> +                */
+> +               int error = vm_brk_flags(start, end - start,
+> +                               prot & PROT_EXEC ? VM_EXEC : 0);
+>                 if (error)
+>                         return error;
+>         }
+> @@ -524,6 +530,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>         unsigned long load_addr = 0;
+>         int load_addr_set = 0;
+>         unsigned long last_bss = 0, elf_bss = 0;
+> +       int bss_prot = 0;
+>         unsigned long error = ~0UL;
+>         unsigned long total_size;
+>         int i;
+> @@ -606,8 +613,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>                          * elf_bss and last_bss is the bss section.
+>                          */
+>                         k = load_addr + eppnt->p_vaddr + eppnt->p_memsz;
+> -                       if (k > last_bss)
+> +                       if (k > last_bss) {
+>                                 last_bss = k;
+> +                               bss_prot = elf_prot;
+> +                       }
+>                 }
+>         }
+>
+> @@ -623,13 +632,14 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>         /*
+>          * Next, align both the file and mem bss up to the page size,
+>          * since this is where elf_bss was just zeroed up to, and where
+> -        * last_bss will end after the vm_brk() below.
+> +        * last_bss will end after the vm_brk_flags() below.
+>          */
+>         elf_bss = ELF_PAGEALIGN(elf_bss);
+>         last_bss = ELF_PAGEALIGN(last_bss);
+>         /* Finally, if there is still more bss to allocate, do it. */
+>         if (last_bss > elf_bss) {
+> -               error = vm_brk(elf_bss, last_bss - elf_bss);
+> +               error = vm_brk_flags(elf_bss, last_bss - elf_bss,
+> +                               bss_prot & PROT_EXEC ? VM_EXEC : 0);
+>                 if (error)
+>                         goto out;
+>         }
+> @@ -674,6 +684,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>         unsigned long error;
+>         struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
+>         unsigned long elf_bss, elf_brk;
+> +       int bss_prot = 0;
+>         int retval, i;
+>         unsigned long elf_entry;
+>         unsigned long interp_load_addr = 0;
+> @@ -882,7 +893,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>                            before this one. Map anonymous pages, if needed,
+>                            and clear the area.  */
+>                         retval = set_brk(elf_bss + load_bias,
+> -                                        elf_brk + load_bias);
+> +                                        elf_brk + load_bias,
+> +                                        bss_prot);
+>                         if (retval)
+>                                 goto out_free_dentry;
+>                         nbyte = ELF_PAGEOFFSET(elf_bss);
+> @@ -976,8 +988,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>                 if (end_data < k)
+>                         end_data = k;
+>                 k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
+> -               if (k > elf_brk)
+> +               if (k > elf_brk) {
+> +                       bss_prot = elf_prot;
+>                         elf_brk = k;
+> +               }
+>         }
+>
+>         loc->elf_ex.e_entry += load_bias;
+> @@ -993,7 +1007,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>          * mapping in the interpreter, to make sure it doesn't wind
+>          * up getting placed where the bss needs to go.
+>          */
+> -       retval = set_brk(elf_bss, elf_brk);
+> +       retval = set_brk(elf_bss, elf_brk, bss_prot);
+>         if (retval)
+>                 goto out_free_dentry;
+>         if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a92c8d7..2ac7e5e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2053,6 +2053,7 @@ static inline void mm_populate(unsigned long addr, unsigned long len) {}
+>
+>  /* These take the mm semaphore themselves */
+>  extern int __must_check vm_brk(unsigned long, unsigned long);
+> +extern int __must_check vm_brk_flags(unsigned long, unsigned long, unsigned long);
+>  extern int vm_munmap(unsigned long, size_t);
+>  extern unsigned long __must_check vm_mmap(struct file *, unsigned long,
+>          unsigned long, unsigned long,
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 1af87c1..4adcf2c 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2806,11 +2806,11 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
+>   *  anonymous maps.  eventually we may be able to do some
+>   *  brk-specific accounting here.
+>   */
+> -static int do_brk(unsigned long addr, unsigned long request)
+> +static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
+>  {
+>         struct mm_struct *mm = current->mm;
+>         struct vm_area_struct *vma, *prev;
+> -       unsigned long flags, len;
+> +       unsigned long len;
+>         struct rb_node **rb_link, *rb_parent;
+>         pgoff_t pgoff = addr >> PAGE_SHIFT;
+>         int error;
+> @@ -2821,7 +2821,10 @@ static int do_brk(unsigned long addr, unsigned long request)
+>         if (!len)
+>                 return 0;
+>
+> -       flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+> +       /* Until we need other flags, refuse anything except VM_EXEC. */
+> +       if ((flags & (~VM_EXEC)) != 0)
+> +               return -EINVAL;
+> +       flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+>
+>         error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
+>         if (offset_in_page(error))
+> @@ -2889,7 +2892,12 @@ static int do_brk(unsigned long addr, unsigned long request)
+>         return 0;
+>  }
+>
+> -int vm_brk(unsigned long addr, unsigned long len)
+> +static int do_brk(unsigned long addr, unsigned long len)
+> +{
+> +       return do_brk_flags(addr, len, 0);
+> +}
+> +
+> +int vm_brk_flags(unsigned long addr, unsigned long len, unsigned long flags)
+>  {
+>         struct mm_struct *mm = current->mm;
+>         int ret;
+> @@ -2898,13 +2906,19 @@ int vm_brk(unsigned long addr, unsigned long len)
+>         if (down_write_killable(&mm->mmap_sem))
+>                 return -EINTR;
+>
+> -       ret = do_brk(addr, len);
+> +       ret = do_brk_flags(addr, len, flags);
+>         populate = ((mm->def_flags & VM_LOCKED) != 0);
+>         up_write(&mm->mmap_sem);
+>         if (populate && !ret)
+>                 mm_populate(addr, len);
+>         return ret;
+>  }
+> +EXPORT_SYMBOL(vm_brk_flags);
+> +
+> +int vm_brk(unsigned long addr, unsigned long len)
+> +{
+> +       return vm_brk_flags(addr, len, 0);
+> +}
+>  EXPORT_SYMBOL(vm_brk);
+>
+>  /* Release all mmaps. */
+> --
+> 2.9.2
+>
 
-Anything else I saw for the moment is probably not surprising;
 
-At small packet sizes on localhost, I see relatively low page allocator
-activity except during the socket setup and other unrelated activity
-(khugepaged, irqbalance, some btrfs stuff) which is curious as it's
-less clear why the performance was improved in that case. I considered
-the possibility that it was cache hotness of pages but that's not a
-good fit. If it was true then the first test would be slow and the rest
-relatively fast and I'm not seeing that. The other side-effect is that
-all the high-order pages that are allocated at the start are physically
-close together but that shouldn't have that big an impact. So for now,
-the gain is unexplained even though it happens consistently.
-
-At larger message sizes to localhost, it's page allocator intensive through
-paths like this
-
-         netperf-3887  [032] ....   393.246420: mm_page_alloc: page=ffffea0021272200 pfn=8690824 order=3 migratetype=0 gfp_flags=GFP_KERNEL|__GFP_NOWARN|__GFP_REPEAT|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_NOTRACK
-         netperf-3887  [032] ....   393.246421: <stack trace>
- => kmalloc_large_node+0x60/0x8d <ffffffff812101c3>
- => __kmalloc_node_track_caller+0x245/0x280 <ffffffff811f0415>
- => __kmalloc_reserve.isra.35+0x31/0x90 <ffffffff81674b61>
- => __alloc_skb+0x7e/0x280 <ffffffff81676bce>
- => alloc_skb_with_frags+0x5a/0x1c0 <ffffffff81676e2a>
- => sock_alloc_send_pskb+0x19e/0x200 <ffffffff816721fe>
- => sock_alloc_send_skb+0x18/0x20 <ffffffff81672278>
- => __ip_append_data.isra.46+0x61d/0xa00 <ffffffff816cf78d>
- => ip_make_skb+0xc2/0x110 <ffffffff816d1c72>
- => udp_sendmsg+0x2c0/0xa40 <ffffffff816f9930>
- => inet_sendmsg+0x7f/0xb0 <ffffffff8170655f>
- => sock_sendmsg+0x38/0x50 <ffffffff8166d9f8>
- => SYSC_sendto+0x102/0x190 <ffffffff8166de92>
- => SyS_sendto+0xe/0x10 <ffffffff8166e94e>
- => do_syscall_64+0x5b/0xd0 <ffffffff8100293b>
- => return_from_SYSCALL_64+0x0/0x6a <ffffffff8178e7af>
-
-It's going through the SLUB paths but finding the allocation is too large
-and hitting the page allocator instead. This is using 4.9-rc5 as a baseline
-so fixes might be missing.
-
-If using small messages to a remote host, I again see intense page
-allocator activity via
-
-         netperf-4326  [047] ....   994.978387: mm_page_alloc: page=ffffea0041413400 pfn=17106128 order=2 migratetype=0 gfp_flags=__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_REPEAT|__GFP_NORETRY|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_NOTRACK
-         netperf-4326  [047] ....   994.978387: <stack trace>
- => alloc_pages_current+0x88/0x120 <ffffffff811e1678>
- => new_slab+0x33f/0x580 <ffffffff811eb77f>
- => ___slab_alloc+0x352/0x4d0 <ffffffff811ec6a2>
- => __slab_alloc.isra.73+0x43/0x5e <ffffffff812105d0>
- => __kmalloc_node_track_caller+0xba/0x280 <ffffffff811f028a>
- => __kmalloc_reserve.isra.35+0x31/0x90 <ffffffff81674b61>
- => __alloc_skb+0x7e/0x280 <ffffffff81676bce>
- => alloc_skb_with_frags+0x5a/0x1c0 <ffffffff81676e2a>
- => sock_alloc_send_pskb+0x19e/0x200 <ffffffff816721fe>
- => sock_alloc_send_skb+0x18/0x20 <ffffffff81672278>
- => __ip_append_data.isra.46+0x61d/0xa00 <ffffffff816cf78d>
- => ip_make_skb+0xc2/0x110 <ffffffff816d1c72>
- => udp_sendmsg+0x2c0/0xa40 <ffffffff816f9930>
- => inet_sendmsg+0x7f/0xb0 <ffffffff8170655f>
- => sock_sendmsg+0x38/0x50 <ffffffff8166d9f8>
- => SYSC_sendto+0x102/0x190 <ffffffff8166de92>
- => SyS_sendto+0xe/0x10 <ffffffff8166e94e>
- => do_syscall_64+0x5b/0xd0 <ffffffff8100293b>
- => return_from_SYSCALL_64+0x0/0x6a <ffffffff8178e7af>
-
-This is a slab path, but at different orders.
-
-So while the patch was motivated by SLUB, the fact I'm getting intense
-page allocator activity still benefits.
-
-> Maybe one day we will avoid doing order-4 (or even order-5 in extreme
-> cases !) allocations for loopback as we did for af_unix :P
-> 
-> I mean, maybe some applications are sending 64KB UDP messages over
-> loopback right now...
-> 
-
-Maybe but it's clear that even running "networking" workloads does not
-necessarily mean that paths interesting to this patch are hit. Not
-necessarily bad but it was always expected that the benefit of the patch
-would be workload and configuration dependant.
 
 -- 
-Mel Gorman
-SUSE Labs
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
