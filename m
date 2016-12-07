@@ -1,77 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2EA6B0253
-	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 17:16:58 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i131so41940036wmf.3
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 14:16:58 -0800 (PST)
-Received: from mail-wj0-x232.google.com (mail-wj0-x232.google.com. [2a00:1450:400c:c01::232])
-        by mx.google.com with ESMTPS id z3si26316130wjt.212.2016.12.07.14.16.57
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 39E536B0069
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 18:25:34 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xr1so89511413wjb.7
+        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 15:25:34 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id t10si10592761wmb.0.2016.12.07.15.25.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Dec 2016 14:16:57 -0800 (PST)
-Received: by mail-wj0-x232.google.com with SMTP id tg4so118505197wjb.1
-        for <linux-mm@kvack.org>; Wed, 07 Dec 2016 14:16:57 -0800 (PST)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [RFC PATCH v3] mm: use READ_ONCE in page_cpupid_xchg_last()
-References: <584523E4.9030600@huawei.com> <58461A0A.3070504@huawei.com>
-	<20161207084305.GA20350@dhcp22.suse.cz>
-	<7b74a021-e472-a21e-7936-6741e07906b5@suse.cz>
-	<20161207085809.GD17136@dhcp22.suse.cz>
-	<b3c3cff5-5d47-7a32-9def-9f42640c9211@suse.cz>
-	<ceb6c990-6d88-dc79-b494-432ed838f3c9@de.ibm.com>
-	<20161207095943.GF17136@dhcp22.suse.cz>
-	<5d4accd3-e26b-d23f-5417-debe9ad7148a@de.ibm.com>
-Date: Wed, 07 Dec 2016 23:16:55 +0100
-In-Reply-To: <5d4accd3-e26b-d23f-5417-debe9ad7148a@de.ibm.com> (Christian
-	Borntraeger's message of "Wed, 7 Dec 2016 11:03:29 +0100")
-Message-ID: <877f7bqt9k.fsf@rasmusvillemoes.dk>
+        Wed, 07 Dec 2016 15:25:32 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 7DF201C1D70
+	for <linux-mm@kvack.org>; Wed,  7 Dec 2016 23:25:32 +0000 (GMT)
+Date: Wed, 7 Dec 2016 23:25:31 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+References: <20161207101228.8128-1-mgorman@techsingularity.net>
+ <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207194801.krhonj7yggbedpba@techsingularity.net>
+ <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 07 2016, Christian Borntraeger <borntraeger@de.ibm.com> wrote:
+On Wed, Dec 07, 2016 at 09:19:58PM +0000, Mel Gorman wrote:
+> At small packet sizes on localhost, I see relatively low page allocator
+> activity except during the socket setup and other unrelated activity
+> (khugepaged, irqbalance, some btrfs stuff) which is curious as it's
+> less clear why the performance was improved in that case. I considered
+> the possibility that it was cache hotness of pages but that's not a
+> good fit. If it was true then the first test would be slow and the rest
+> relatively fast and I'm not seeing that. The other side-effect is that
+> all the high-order pages that are allocated at the start are physically
+> close together but that shouldn't have that big an impact. So for now,
+> the gain is unexplained even though it happens consistently.
+> 
 
-> On 12/07/2016 10:59 AM, Michal Hocko wrote:
->> On Wed 07-12-16 10:40:47, Christian Borntraeger wrote:
->>> On 12/07/2016 10:29 AM, Vlastimil Babka wrote:
->>>> On 12/07/2016 09:58 AM, Michal Hocko wrote:
->>>>> On Wed 07-12-16 09:48:52, Vlastimil Babka wrote:
->>>>> Anyway, this could be addressed easily by
->>>>
->>>> Yes, that way there should be no doubt.
->>>
->>> That change would make it clearer, but the code is correct anyway,
->>> as assignments in C are done from right to left, so 
->>> old_flags = flags = READ_ONCE(page->flags);
->>>
->>> is equivalent to 
->>>
->>> flags = READ_ONCE(page->flags);
->>> old_flags = flags;
->> 
->> OK, I guess you are right. For some reason I thought that the compiler
->> is free to bypass flags and split an assignment
->> a = b = c; into b = c; a = c
->> which would still follow from right to left rule. I guess I am over
->> speculating here though, so sorry for the noise.
->
-> Hmmm, just rereading C, I am no longer sure...
-> I cannot find anything right now, that adds a sequence point in here.
-> Still looking...
+Further investigation led me to conclude that the netperf automation on
+my side had some methodology errors that could account for an artifically
+low score in some cases. The netperf automation is years old and would
+have been developed against a much older and smaller machine which may be
+why I missed it until I went back looking at exactly what the automation
+was doing. Minimally in a server/client test on remote maching there was
+potentially higher packet loss than is acceptable. This would account why
+some machines "benefitted" while others did not -- there would be boot to
+boot variations that some machines happened to be "lucky". I believe I've
+corrected the errors, discarded all the old data and scheduled a rest to
+see what falls out.
 
-C99 6.5.16.3: ... An assignment expression has the value of the left
-operand after the assignment, ....
-
-So if the expression c can have side effects or is for any reason
-(e.g. volatile) not guaranteed to produce the same value if it's
-evaluated again, there's no way the compiler would be allowed to change
-a=b=c; into b=c; a=c;. (Also, this means that in "int a, c = 256;
-char b; a=b=c;", a ends up with the value 0.)
-
-Somewhat related: https://lwn.net/Articles/233902/
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
