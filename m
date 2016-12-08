@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4783D6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 15:07:05 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y71so184228156pgd.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 12:07:05 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 201si30186702pfc.120.2016.12.08.12.07.04
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CC386B025E
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 15:08:55 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id z187so18555201iod.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 12:08:55 -0800 (PST)
+Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
+        by mx.google.com with ESMTPS id c82si21767533iof.144.2016.12.08.12.08.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 12:07:04 -0800 (PST)
-Subject: Re: [HMM v14 05/16] mm/ZONE_DEVICE/unaddressable: add support for
- un-addressable device memory
-References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
- <1481215184-18551-6-git-send-email-jglisse@redhat.com>
- <be2861b4-d830-fbd7-e9eb-ebc8e4d913a2@intel.com>
- <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <7df66ace-ef29-c76b-d61c-88263a61c6d0@intel.com>
-Date: Thu, 8 Dec 2016 12:07:01 -0800
+        Thu, 08 Dec 2016 12:08:54 -0800 (PST)
+Received: by mail-io0-x241.google.com with SMTP id y124so2332726iof.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 12:08:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161208200505.c6xiy56oufg6d24m@pd.tnic>
+References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
+ <20161208162150.148763-17-kirill.shutemov@linux.intel.com> <20161208200505.c6xiy56oufg6d24m@pd.tnic>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 8 Dec 2016 12:08:53 -0800
+Message-ID: <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com>
+Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 12/08/2016 08:39 AM, Jerome Glisse wrote:
->> On 12/08/2016 08:39 AM, JA(C)rA'me Glisse wrote:
->>> > > Architecture that wish to support un-addressable device memory should make
->>> > > sure to never populate the kernel linar mapping for the physical range.
->> > 
->> > Does the platform somehow provide a range of physical addresses for this
->> > unaddressable area?  How do we know no memory will be hot-added in a
->> > range we're using for unaddressable device memory, for instance?
-> That's what one of the big issue. No platform does not reserve any range so
-> there is a possibility that some memory get hotpluged and assign this range.
-> 
-> I pushed the range decision to higher level (ie it is the device driver that
-> pick one) so right now for device driver using HMM (NVidia close driver as
-> we don't have nouveau ready for that yet) it goes from the highest physical
-> address and scan down until finding an empty range big enough.
+On Thu, Dec 8, 2016 at 12:05 PM, Borislav Petkov <bp@alien8.de> wrote:
+>
+> The cpuid() in cpuflags.c doesn't zero ecx which, if we have to be
+> pedantic, it should do. It calls CPUID now with the ptr value of its 4th
+> on 64-bit and 3rd arg on 32-bit, respectively, IINM.
 
-I don't think you should be stealing physical address space for things
-that don't and can't have physical addresses.  Delegating this to
-individual device drivers and hoping that they all get it right seems
-like a recipe for disaster.
+In fact, just do a single cpuid_count(), and then implement the
+traditional cpuid() as just
 
-Maybe worth adding to the changelog:
+   #define cpuid(x, a,b,c,d) cpuid_count(x, 0, a, b, c, d)
 
-	This feature potentially breaks memory hotplug unless every
-	driver using it magically predicts the future addresses of
-	where memory will be hotplugged.
+or something.
 
-BTW, how many more of these "big issues" does this set have?  I didn't
-see any mention of this in the changelogs.
+Especially since that's some of the ugliest inline asm ever due to the
+nasty BX handling.
+
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
