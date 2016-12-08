@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BFD46B027E
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:37 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id e9so173979184pgc.5
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:37 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE606B027F
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:39 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id p66so175485017pga.4
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:39 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id n11si29469613plg.334.2016.12.08.08.22.36
+        by mx.google.com with ESMTPS id n11si29469613plg.334.2016.12.08.08.22.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 08:22:36 -0800 (PST)
+        Thu, 08 Dec 2016 08:22:38 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv1 19/28] x86/mm: basic defines/helpers for CONFIG_X86_5LEVEL
-Date: Thu,  8 Dec 2016 19:21:41 +0300
-Message-Id: <20161208162150.148763-21-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCHv1 27/28] x86: enable la57 support
+Date: Thu,  8 Dec 2016 19:21:49 +0300
+Message-Id: <20161208162150.148763-29-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,165 +20,45 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Extends pagetable headers to support new paging mode.
+Most of things are in place and we can enable support of 5-level paging.
+Things that known to be broken marked as BROKEN.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Not-yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/pgtable_64.h       | 11 +++++++++++
- arch/x86/include/asm/pgtable_64_types.h | 20 +++++++++++++++++++
- arch/x86/include/asm/pgtable_types.h    | 10 +++++++++-
- arch/x86/mm/pgtable.c                   | 34 ++++++++++++++++++++++++++++++++-
- 4 files changed, 73 insertions(+), 2 deletions(-)
+ arch/x86/Kconfig | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index f14bbe95ca08..bfe276e9af1e 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -35,6 +35,13 @@ extern void paging_init(void);
- #define pud_ERROR(e)					\
- 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
- 	       __FILE__, __LINE__, &(e), pud_val(e))
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index df4f1d514ab0..83a4c22111b3 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -309,6 +309,7 @@ config DEBUG_RODATA
+ 
+ config PGTABLE_LEVELS
+ 	int
++	default 5 if X86_5LEVEL
+ 	default 4 if X86_64
+ 	default 3 if X86_PAE
+ 	default 2
+@@ -1340,6 +1341,10 @@ config X86_PAE
+ 	  has the cost of more pagetable lookup overhead, and also
+ 	  consumes more pagetable space per process.
+ 
++config X86_5LEVEL
++	bool "Enable 5-level page tables support"
++	depends on X86_64
 +
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+#define p4d_ERROR(e)					\
-+	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
-+	       __FILE__, __LINE__, &(e), p4d_val(e))
-+#endif
-+
- #define pgd_ERROR(e)					\
- 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
- 	       __FILE__, __LINE__, &(e), pgd_val(e))
-@@ -113,7 +120,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
- 
- static inline void native_p4d_clear(p4d_t *p4d)
- {
-+#ifdef CONFIG_X86_5LEVEL
-+	native_set_p4d(p4d, native_make_p4d(0));
-+#else
- 	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
-+#endif
- }
- 
- static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 034cbca37c91..677525f7d538 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -23,12 +23,32 @@ typedef struct { pteval_t pte; } pte_t;
- 
- #define SHARED_KERNEL_PMD	0
- 
-+#ifdef CONFIG_X86_5LEVEL
-+
-+/*
-+ * PGDIR_SHIFT determines what a top-level page table entry can map
-+ */
-+#define PGDIR_SHIFT	48
-+#define PTRS_PER_PGD	512
-+
-+/*
-+ * 4rd level page in 5-level paging case
-+ */
-+#define P4D_SHIFT	39
-+#define PTRS_PER_P4D	512
-+#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
-+#define P4D_MASK	(~(P4D_SIZE - 1))
-+
-+#else  /* CONFIG_X86_5LEVEL */
-+
- /*
-  * PGDIR_SHIFT determines what a top-level page table entry can map
-  */
- #define PGDIR_SHIFT	39
- #define PTRS_PER_PGD	512
- 
-+#endif  /* CONFIG_X86_5LEVEL */
-+
- /*
-  * 3rd level page
-  */
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 0af5650e118c..91cc929f27e6 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -273,9 +273,17 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
- }
- 
- #if CONFIG_PGTABLE_LEVELS > 4
-+typedef struct { p4dval_t p4d; } p4d_t;
- 
--#error FIXME
-+static inline p4d_t native_make_p4d(pudval_t val)
-+{
-+	return (p4d_t) { val };
-+}
- 
-+static inline p4dval_t native_p4d_val(p4d_t p4d)
-+{
-+	return p4d.p4d;
-+}
- #else
- #include <asm-generic/pgtable-nop4d.h>
- 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index cc6fcd4040e2..ec2dc0625480 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -81,6 +81,14 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
- 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
- 	tlb_remove_page(tlb, virt_to_page(pud));
- }
-+
-+#if CONFIG_PGTABLE_LEVELS > 4
-+void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d)
-+{
-+	paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
-+	tlb_remove_page(tlb, virt_to_page(p4d));
-+}
-+#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
- #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
- #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
- 
-@@ -120,7 +128,7 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
- 	   references from swapper_pg_dir. */
- 	if (CONFIG_PGTABLE_LEVELS == 2 ||
- 	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
--	    CONFIG_PGTABLE_LEVELS == 4) {
-+	    CONFIG_PGTABLE_LEVELS >= 4) {
- 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
- 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
- 				KERNEL_PGD_PTRS);
-@@ -551,6 +559,30 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
- }
- 
- #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-+#ifdef CONFIG_X86_5LEVEL
-+/**
-+ * p4d_set_huge - setup kernel P4D mapping
-+ *
-+ * No 512GB pages yet -- always return 0
-+ *
-+ * Returns 1 on success and 0 on failure.
-+ */
-+int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
-+{
-+	return 0;
-+}
-+
-+/**
-+ * p4d_clear_huge - clear kernel P4D mapping when it is set
-+ *
-+ * No 512GB pages yet -- always return 0
-+ */
-+int p4d_clear_huge(p4d_t *p4d)
-+{
-+	return 0;
-+}
-+#endif
-+
- /**
-  * pud_set_huge - setup kernel PUD mapping
-  *
+ config ARCH_PHYS_ADDR_T_64BIT
+ 	def_bool y
+ 	depends on X86_64 || X86_PAE
+@@ -1698,6 +1703,7 @@ config X86_SMAP
+ config X86_INTEL_MPX
+ 	prompt "Intel MPX (Memory Protection Extensions)"
+ 	def_bool n
++	depends on !X86_5LEVEL
+ 	depends on CPU_SUP_INTEL
+ 	---help---
+ 	  MPX provides hardware features that can be used in
 -- 
 2.10.2
 
