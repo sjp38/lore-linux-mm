@@ -1,95 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 500296B028B
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:49:06 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id b66so536981574ywh.2
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:49:06 -0800 (PST)
-Received: from sender163-mail.zoho.com (sender163-mail.zoho.com. [74.201.84.163])
-        by mx.google.com with ESMTPS id z75si9018469ywz.10.2016.12.08.08.49.04
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D0C6B0270
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 12:20:01 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id q128so350800751qkd.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 09:20:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i39si17776738qta.170.2016.12.08.09.19.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 08:49:04 -0800 (PST)
-Reply-To: <qemu-devel@nongnu.org>
-Subject: Re: [Qemu-devel] [QEMU, PATCH] x86: implement la57 paging mode
-Message-ID: <148121568933.154.2511467743008054585@5b492b8a941d>
-In-Reply-To: <20161208162150.148763-2-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Dec 2016 09:20:00 -0800 (PST)
+Date: Thu, 8 Dec 2016 18:19:51 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161208181951.6c06e559@redhat.com>
+In-Reply-To: <20161208151101.pigfrnqd5i4n45uv@techsingularity.net>
+References: <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207194801.krhonj7yggbedpba@techsingularity.net>
+	<1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+	<20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+	<20161208092231.55c7eacf@redhat.com>
+	<20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+	<20161208114308.1c6a424f@redhat.com>
+	<20161208110656.bnkvqg73qnjkehbc@techsingularity.net>
+	<20161208154813.5dafae7b@redhat.com>
+	<20161208151101.pigfrnqd5i4n45uv@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-From: no-reply@patchew.org
-Date: Thu, 8 Dec 2016 08:48:11 -0800 (PST)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com
-Cc: famz@redhat.com, torvalds@linux-foundation.org, akpm@linux-foundation.org, x86@kernel.org, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, hpa@zytor.com, linux-arch@vger.kernel.org, ak@linux.intel.com, linux-mm@kvack.org, qemu-devel@nongnu.org, linux-kernel@vger.kernel.org, luto@amacapital.net, dave.hansen@intel.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
 
-SGksCgpZb3VyIHNlcmllcyBzZWVtcyB0byBoYXZlIHNvbWUgY29kaW5nIHN0eWxlIHByb2JsZW1z
-LiBTZWUgb3V0cHV0IGJlbG93IGZvcgptb3JlIGluZm9ybWF0aW9uOgoKU3ViamVjdDogW1FlbXUt
-ZGV2ZWxdIFtRRU1VLCBQQVRDSF0geDg2OiBpbXBsZW1lbnQgbGE1NyBwYWdpbmcgbW9kZQpUeXBl
-OiBzZXJpZXMKTWVzc2FnZS1pZDogMjAxNjEyMDgxNjIxNTAuMTQ4NzYzLTIta2lyaWxsLnNodXRl
-bW92QGxpbnV4LmludGVsLmNvbQoKPT09IFRFU1QgU0NSSVBUIEJFR0lOID09PQojIS9iaW4vYmFz
-aAoKQkFTRT1iYXNlCm49MQp0b3RhbD0kKGdpdCBsb2cgLS1vbmVsaW5lICRCQVNFLi4gfCB3YyAt
-bCkKZmFpbGVkPTAKCiMgVXNlZnVsIGdpdCBvcHRpb25zCmdpdCBjb25maWcgLS1sb2NhbCBkaWZm
-LnJlbmFtZWxpbWl0IDAKZ2l0IGNvbmZpZyAtLWxvY2FsIGRpZmYucmVuYW1lcyBUcnVlCgpjb21t
-aXRzPSIkKGdpdCBsb2cgLS1mb3JtYXQ9JUggLS1yZXZlcnNlICRCQVNFLi4pIgpmb3IgYyBpbiAk
-Y29tbWl0czsgZG8KICAgIGVjaG8gIkNoZWNraW5nIFBBVENIICRuLyR0b3RhbDogJChnaXQgbG9n
-IC1uIDEgLS1mb3JtYXQ9JXMgJGMpLi4uIgogICAgaWYgISBnaXQgc2hvdyAkYyAtLWZvcm1hdD1l
-bWFpbCB8IC4vc2NyaXB0cy9jaGVja3BhdGNoLnBsIC0tbWFpbGJhY2sgLTsgdGhlbgogICAgICAg
-IGZhaWxlZD0xCiAgICAgICAgZWNobwogICAgZmkKICAgIG49JCgobisxKSkKZG9uZQoKZXhpdCAk
-ZmFpbGVkCj09PSBURVNUIFNDUklQVCBFTkQgPT09CgpVcGRhdGluZyAzYzhjZjVhOWMyMWZmODc4
-MjE2NGQxZGVmN2Y0NGJkODg4NzEzMzg0ClN3aXRjaGVkIHRvIGEgbmV3IGJyYW5jaCAndGVzdCcK
-NTA5ZTM4NyB4ODY6IGltcGxlbWVudCBsYTU3IHBhZ2luZyBtb2RlCgo9PT0gT1VUUFVUIEJFR0lO
-ID09PQpDaGVja2luZyBQQVRDSCAxLzE6IHg4NjogaW1wbGVtZW50IGxhNTcgcGFnaW5nIG1vZGUu
-Li4KRVJST1I6IHNwYWNlIHByb2hpYml0ZWQgYmVmb3JlIHRoYXQgY2xvc2UgcGFyZW50aGVzaXMg
-JyknCiMzMTE6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzoxMDg6CisgICAgICAgICAgICAg
-ICAgICAgICAgICBwcmludF9wdGUobW9uLCBlbnYsIChsMSA8PCAzMCApICsgKGwyIDw8IDIxKSwg
-cGRlLAoKRVJST1I6IHNwYWNlIHByb2hpYml0ZWQgYmVmb3JlIHRoYXQgY2xvc2UgcGFyZW50aGVz
-aXMgJyknCiMzMjA6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzoxMTY6CisgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgIHByaW50X3B0ZShtb24sIGVudiwgKGwxIDw8IDMwICkgKyAo
-bDIgPDwgMjEpCgpXQVJOSU5HOiBsaW5lIG92ZXIgODAgY2hhcmFjdGVycwojMzQ3OiBGSUxFOiB0
-YXJnZXQtaTM4Ni9tb25pdG9yLmM6MTQ4OgorICAgICAgICAgICAgICAgICAgICAgICAgcHJpbnRf
-cHRlKG1vbiwgZW52LCAobDAgPDwgNDgpICsgKGwxIDw8IDM5KSArIChsMiA8PCAzMCksCgpXQVJO
-SU5HOiBsaW5lIG92ZXIgODAgY2hhcmFjdGVycwojMzU5OiBGSUxFOiB0YXJnZXQtaTM4Ni9tb25p
-dG9yLmM6MTU4OgorICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcHJpbnRfcHRl
-KG1vbiwgZW52LCAobDAgPDwgNDgpICsgKGwxIDw8IDM5KSArCgpXQVJOSU5HOiBsaW5lIG92ZXIg
-ODAgY2hhcmFjdGVycwojNDY3OiBGSUxFOiB0YXJnZXQtaTM4Ni9tb25pdG9yLmM6NDY0OgorICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY3B1X3BoeXNpY2FsX21lbW9yeV9yZWFk
-KHBkX2FkZHIgKyBsMyAqIDgsICZwZGUsIDgpOwoKRVJST1I6IGxpbmUgb3ZlciA5MCBjaGFyYWN0
-ZXJzCiM0Njk6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzo0NjY6CisgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICBlbmQgPSAobDAgPDwgNDgpICsgKGwxIDw8IDM5KSArIChs
-MiA8PCAzMCkgKyAobDMgPDwgMjEpOwoKV0FSTklORzogbGluZSBvdmVyIDgwIGNoYXJhY3RlcnMK
-IzQ3MjogRklMRTogdGFyZ2V0LWkzODYvbW9uaXRvci5jOjQ2OToKKyAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgcHJvdCA9IHBkZSAmIChQR19VU0VSX01BU0sgfCBQ
-R19SV19NQVNLIHwKCldBUk5JTkc6IGxpbmUgb3ZlciA4MCBjaGFyYWN0ZXJzCiM0NzU6IEZJTEU6
-IHRhcmdldC1pMzg2L21vbml0b3IuYzo0NzI6CisgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgIG1lbV9wcmludChtb24sICZzdGFydCwgJmxhc3RfcHJvdCwgZW5kLCBw
-cm90KTsKCldBUk5JTkc6IGxpbmUgb3ZlciA4MCBjaGFyYWN0ZXJzCiM0ODA6IEZJTEU6IHRhcmdl
-dC1pMzg2L21vbml0b3IuYzo0Nzc6CisgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKyBsNCAqIDgsCgpXQVJOSU5H
-OiBsaW5lIG92ZXIgODAgY2hhcmFjdGVycwojNDgxOiBGSUxFOiB0YXJnZXQtaTM4Ni9tb25pdG9y
-LmM6NDc4OgorICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICZwdGUsIDgpOwoKRVJST1I6IGxpbmUgb3ZlciA5MCBj
-aGFyYWN0ZXJzCiM0ODM6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzo0ODA6CisgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBlbmQgPSAobDAgPDwgNDgp
-ICsgKGwxIDw8IDM5KSArIChsMiA8PCAzMCkgKwoKRVJST1I6IGxpbmUgb3ZlciA5MCBjaGFyYWN0
-ZXJzCiM0ODY6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzo0ODM6CisgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcHJvdCA9IHB0ZSAmIChQR19V
-U0VSX01BU0sgfCBQR19SV19NQVNLIHwKCldBUk5JTkc6IGxpbmUgb3ZlciA4MCBjaGFyYWN0ZXJz
-CiM0ODc6IEZJTEU6IHRhcmdldC1pMzg2L21vbml0b3IuYzo0ODQ6CisgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBQR19QUkVT
-RU5UX01BU0spOwoKRVJST1I6IGxpbmUgb3ZlciA5MCBjaGFyYWN0ZXJzCiM0OTI6IEZJTEU6IHRh
-cmdldC1pMzg2L21vbml0b3IuYzo0ODk6CisgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICBtZW1fcHJpbnQobW9uLCAmc3RhcnQsICZsYXN0X3Byb3QsIGVuZCwg
-cHJvdCk7CgpXQVJOSU5HOiBsaW5lIG92ZXIgODAgY2hhcmFjdGVycwojNDk3OiBGSUxFOiB0YXJn
-ZXQtaTM4Ni9tb25pdG9yLmM6NDk0OgorICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgIG1lbV9wcmludChtb24sICZzdGFydCwgJmxhc3RfcHJvdCwgZW5kLCBwcm90KTsKCnRv
-dGFsOiA2IGVycm9ycywgOSB3YXJuaW5ncywgNDgxIGxpbmVzIGNoZWNrZWQKCllvdXIgcGF0Y2gg
-aGFzIHN0eWxlIHByb2JsZW1zLCBwbGVhc2UgcmV2aWV3LiAgSWYgYW55IG9mIHRoZXNlIGVycm9y
-cwphcmUgZmFsc2UgcG9zaXRpdmVzIHJlcG9ydCB0aGVtIHRvIHRoZSBtYWludGFpbmVyLCBzZWUK
-Q0hFQ0tQQVRDSCBpbiBNQUlOVEFJTkVSUy4KCj09PSBPVVRQVVQgRU5EID09PQoKVGVzdCBjb21t
-YW5kIGV4aXRlZCB3aXRoIGNvZGU6IDEKCgotLS0KRW1haWwgZ2VuZXJhdGVkIGF1dG9tYXRpY2Fs
-bHkgYnkgUGF0Y2hldyBbaHR0cDovL3BhdGNoZXcub3JnL10uClBsZWFzZSBzZW5kIHlvdXIgZmVl
-ZGJhY2sgdG8gcGF0Y2hldy1kZXZlbEBmcmVlbGlzdHMub3Jn
+On Thu, 8 Dec 2016 15:11:01 +0000
+Mel Gorman <mgorman@techsingularity.net> wrote:
+
+> On Thu, Dec 08, 2016 at 03:48:13PM +0100, Jesper Dangaard Brouer wrote:
+> > On Thu, 8 Dec 2016 11:06:56 +0000
+> > Mel Gorman <mgorman@techsingularity.net> wrote:
+> >   
+> > > On Thu, Dec 08, 2016 at 11:43:08AM +0100, Jesper Dangaard Brouer wrote:  
+> > > > > That's expected. In the initial sniff-test, I saw negligible packet loss.
+> > > > > I'm waiting to see what the full set of network tests look like before
+> > > > > doing any further adjustments.    
+> > > > 
+> > > > For netperf I will not recommend adjusting the global default
+> > > > /proc/sys/net/core/rmem_default as netperf have means of adjusting this
+> > > > value from the application (which were the options you setup too low
+> > > > and just removed). I think you should keep this as the default for now
+> > > > (unless Eric says something else), as this should cover most users.
+> > > >     
+> > > 
+> > > Ok, the current state is that buffer sizes are only set for netperf
+> > > UDP_STREAM and only when running over a real network. The values selected
+> > > were specific to the network I had available so milage may vary.
+> > > localhost is left at the defaults.  
+> > 
+> > Looks like you made a mistake when re-implementing using buffer sizes
+> > for netperf.  
+> 
+> We appear to have a disconnect. This was reintroduced in response to your
+> comment "For netperf I will not recommend adjusting the global default
+> /proc/sys/net/core/rmem_default as netperf have means of adjusting this
+> value from the application".
+> 
+> My understanding was that netperfs means was the -s and -S switches for
+> send and recv buffers so I reintroduced them and avoided altering
+> [r|w]mem_default.
+> 
+> Leaving the defaults resulted in some UDP packet loss on a 10GbE network
+> so some upward adjustment.
+> 
+> From my perspective, either adjusting [r|w]mem_default or specifying -s
+> -S works for the UDP_STREAM issue but using the switches meant only this
+> is affected and other loads like sockperf and netpipe will need to be
+> evaluated separately which I don't mind doing.
+> 
+> > See patch below signature.
+> > 
+> > Besides I think you misunderstood me, you can adjust:
+> >  sysctl net.core.rmem_max
+> >  sysctl net.core.wmem_max
+> > 
+> > And you should if you plan to use/set 851968 as socket size for UDP
+> > remote tests, else you will be limited to the "max" values (212992 well
+> > actually 425984 2x default value, for reasons I cannot remember)
+> >   
+> 
+> The intent is to use the larger values to avoid packet loss on
+> UDP_STREAM.
+
+We do seem to misunderstand each-other.
+I was just pointing out two things:
+
+1. Notice the difference between "max" and "default" proc setting.
+   Only adjust the "max" setting.
+
+2. There was simple BASH-shell script error in your commit.
+   Patch below fix it.
+
+
+[PATCH] mmtests: actually use variable SOCKETSIZE_OPT
+
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+
+commit 7f16226577b2 ("netperf: Set remote and local socket max buffer
+sizes") removed netperf's setting of the socket buffer sizes and
+instead used global /proc/sys settings.
+
+commit de9f8cdb7146 ("netperf: Only adjust socket sizes for
+UDP_STREAM") re-added explicit netperf setting socket buffer sizes for
+remote-host testing (saved in SOCKETSIZE_OPT). Only problem is this
+variable is not used after commit 7f16226577b2.
+
+Simply use $SOCKETSIZE_OPT when invoking netperf command.
+
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+---
+ shellpack_src/src/netperf/netperf-bench |    2 +-
+ shellpacks/shellpack-bench-netperf      |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/shellpack_src/src/netperf/netperf-bench b/shellpack_src/src/netperf/netperf-bench
+index 8e7d02864c4a..b2820610936e 100755
+--- a/shellpack_src/src/netperf/netperf-bench
++++ b/shellpack_src/src/netperf/netperf-bench
+@@ -93,7 +93,7 @@ mmtests_server_ctl start --serverside-name $PROTOCOL-$SIZE
+ 		-t $PROTOCOL \
+ 		-i 3,3 -I 95,5 \
+ 		-H $SERVER_HOST \
+-		-- $MSGSIZE_OPT $EXTRA \
++		-- $SOCKETSIZE_OPT $MSGSIZE_OPT $EXTRA \
+ 			2>&1 | tee $LOGDIR_RESULTS/$PROTOCOL-${SIZE}.$ITERATION \
+ 			|| die Failed to run netperf
+ 	monitor_post_hook $LOGDIR_RESULTS $SIZE
+diff --git a/shellpacks/shellpack-bench-netperf b/shellpacks/shellpack-bench-netperf
+index 2ce26ba39f1b..7356082d5a78 100755
+--- a/shellpacks/shellpack-bench-netperf
++++ b/shellpacks/shellpack-bench-netperf
+@@ -190,7 +190,7 @@ for ITERATION in `seq 1 $ITERATIONS`; do
+ 		-t $PROTOCOL \
+ 		-i 3,3 -I 95,5 \
+ 		-H $SERVER_HOST \
+-		-- $MSGSIZE_OPT $EXTRA \
++		-- $SOCKETSIZE_OPT $MSGSIZE_OPT $EXTRA \
+ 			2>&1 | tee $LOGDIR_RESULTS/$PROTOCOL-${SIZE}.$ITERATION \
+ 			|| die Failed to run netperf
+ 	monitor_post_hook $LOGDIR_RESULTS $SIZE
+
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
