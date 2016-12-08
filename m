@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4956F6B026A
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:36 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id n6so291800036qtd.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:36 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDFB6B026B
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:37 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id q128so348392759qkd.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:37 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u50si17533855qta.227.2016.12.08.07.39.34
+        by mx.google.com with ESMTPS id 50si17555253qtp.278.2016.12.08.07.39.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 07:39:35 -0800 (PST)
+        Thu, 08 Dec 2016 07:39:36 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v14 08/16] mm/hmm/mirror: mirror process address space on device with HMM helpers
-Date: Thu,  8 Dec 2016 11:39:36 -0500
-Message-Id: <1481215184-18551-9-git-send-email-jglisse@redhat.com>
+Subject: [HMM v14 09/16] mm/hmm/mirror: helper to snapshot CPU page table
+Date: Thu,  8 Dec 2016 11:39:37 -0500
+Message-Id: <1481215184-18551-10-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
 References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -23,18 +23,8 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-This is a heterogeneous memory management (HMM) process address space
-mirroring. In a nutshell this provide an API to mirror process address
-space on a device. This boils down to keeping CPU and device page table
-synchronize (we assume that both device and CPU are cache coherent like
-PCIe device can be).
-
-This patch provide a simple API for device driver to achieve address
-space mirroring thus avoiding each device driver to grow its own CPU
-page table walker and its own CPU page table synchronization mechanism.
-
-This is useful for NVidia GPU >= Pascal, Mellanox IB >= mlx5 and more
-hardware in the future.
+This does not use existing page table walker because we want to share
+same code for our page fault handler.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
@@ -43,371 +33,387 @@ Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
 Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
 Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h | 101 ++++++++++++++++++++++++++++
- mm/Kconfig          |  15 +++++
- mm/hmm.c            | 185 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 301 insertions(+)
+ include/linux/hmm.h |  56 +++++++++++-
+ mm/hmm.c            | 257 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 311 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index f00d519..31e2c50 100644
+index 31e2c50..b5eafdc 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -76,6 +76,7 @@
+@@ -83,13 +83,28 @@ struct hmm;
+  *
+  * Flags:
+  * HMM_PFN_VALID: pfn is valid
++ * HMM_PFN_READ: read permission set
+  * HMM_PFN_WRITE: CPU page table have the write permission set
++ * HMM_PFN_ERROR: corresponding CPU page table entry point to poisonous memory
++ * HMM_PFN_EMPTY: corresponding CPU page table entry is none (pte_none() true)
++ * HMM_PFN_DEVICE: this is device memory (ie a ZONE_DEVICE page)
++ * HMM_PFN_SPECIAL: corresponding CPU page table entry is special ie result of
++ *      vm_insert_pfn() or vm_insert_page() and thus should not be mirror by a
++ *      device (the entry will never have HMM_PFN_VALID set and the pfn value
++ *      is undefine)
++ * HMM_PFN_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
+  */
+ typedef unsigned long hmm_pfn_t;
  
- #if IS_ENABLED(CONFIG_HMM)
- 
-+struct hmm;
+ #define HMM_PFN_VALID (1 << 0)
+-#define HMM_PFN_WRITE (1 << 1)
+-#define HMM_PFN_SHIFT 2
++#define HMM_PFN_READ (1 << 1)
++#define HMM_PFN_WRITE (1 << 2)
++#define HMM_PFN_ERROR (1 << 3)
++#define HMM_PFN_EMPTY (1 << 4)
++#define HMM_PFN_DEVICE (1 << 5)
++#define HMM_PFN_SPECIAL (1 << 6)
++#define HMM_PFN_UNADDRESSABLE (1 << 7)
++#define HMM_PFN_SHIFT 8
  
  /*
-  * hmm_pfn_t - HMM use its own pfn type to keep several flags per page
-@@ -138,6 +139,106 @@ static inline hmm_pfn_t hmm_pfn_from_pfn(unsigned long pfn)
- }
- 
- 
-+#if IS_ENABLED(CONFIG_HMM_MIRROR)
-+/*
-+ * Mirroring: how to use synchronize device page table with CPU page table ?
-+ *
-+ * Device driver must always synchronize with CPU page table update, for this
-+ * they can either directly use mmu_notifier API or they can use the hmm_mirror
-+ * API. Device driver can decide to register one mirror per device per process
-+ * or just one mirror per process for a group of device. Pattern is :
-+ *
-+ *      int device_bind_address_space(..., struct mm_struct *mm, ...)
-+ *      {
-+ *          struct device_address_space *das;
-+ *          int ret;
-+ *          // Device driver specific initialization, and allocation of das
-+ *          // which contain an hmm_mirror struct as one of its field.
-+ *          ret = hmm_mirror_register(&das->mirror, mm, &device_mirror_ops);
-+ *          if (ret) {
-+ *              // Cleanup on error
-+ *              return ret;
-+ *          }
-+ *          // Other device driver specific initialization
-+ *      }
-+ *
-+ * Device driver must not free the struct containing hmm_mirror struct before
-+ * calling hmm_mirror_unregister() expected usage is to do that when device
-+ * driver is unbinding from an address space.
-+ *
-+ *      void device_unbind_address_space(struct device_address_space *das)
-+ *      {
-+ *          // Device driver specific cleanup
-+ *          hmm_mirror_unregister(&das->mirror);
-+ *          // Other device driver specific cleanup and now das can be free
-+ *      }
-+ *
-+ * Once an hmm_mirror is register for an address space, device driver will get
-+ * callback through the update() operation (see hmm_mirror_ops struct).
-+ */
+  * hmm_pfn_to_page() - return struct page pointed to by a valid hmm_pfn_t
+@@ -236,6 +251,43 @@ int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
+ int hmm_mirror_register_locked(struct hmm_mirror *mirror,
+ 			       struct mm_struct *mm);
+ void hmm_mirror_unregister(struct hmm_mirror *mirror);
 +
-+struct hmm_mirror;
 +
 +/*
-+ * enum hmm_update - type of update
-+ * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
++ * struct hmm_range - track invalidation lock on virtual address range
++ *
++ * @list: all range lock are on a list
++ * @start: range virtual start address (inclusive)
++ * @end: range virtual end address (exclusive)
++ * @pfns: array of pfns (big enough for the range)
++ * @valid: pfns array did not change since it has been fill by an HMM function
 + */
-+enum hmm_update {
-+	HMM_UPDATE_INVALIDATE,
++struct hmm_range {
++	struct list_head	list;
++	unsigned long		start;
++	unsigned long		end;
++	hmm_pfn_t		*pfns;
++	bool			valid;
 +};
 +
 +/*
-+ * struct hmm_mirror_ops - HMM mirror device operations callback
++ * To snapshot CPU page table call hmm_vma_get_pfns() then take device driver
++ * lock that serialize device page table update and call hmm_vma_range_done()
++ * to check if snapshot is still valid. The device driver page table update
++ * lock must also be use in the HMM mirror update() callback so that CPU page
++ * table invalidation serialize on it.
 + *
-+ * @update: callback to update range on a device
++ * YOU MUST CALL hmm_vma_range_dond() ONCE AND ONLY ONCE EACH TIME YOU CALL
++ * hmm_vma_get_pfns() WITHOUT ERROR !
++ *
++ * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
 + */
-+struct hmm_mirror_ops {
-+	/* update() - update virtual address range of memory
-+	 *
-+	 * @mirror: pointer to struct hmm_mirror
-+	 * @update: update's type (turn read only, unmap, ...)
-+	 * @start: virtual start address of the range to update
-+	 * @end: virtual end address of the range to update
-+	 *
-+	 * This callback is call when the CPU page table is updated, the device
-+	 * driver must update device page table accordingly to update's action.
-+	 *
-+	 * Device driver callback must wait until device have fully updated its
-+	 * view for the range. Note we plan to make this asynchronous in later
-+	 * patches. So that multiple devices can schedule update to their page
-+	 * table and once all device have schedule the update then we wait for
-+	 * them to propagate.
-+	 */
-+	void (*update)(struct hmm_mirror *mirror,
-+		       enum hmm_update action,
-+		       unsigned long start,
-+		       unsigned long end);
-+};
-+
-+/*
-+ * struct hmm_mirror - mirror struct for a device driver
-+ *
-+ * @hmm: pointer to struct hmm (which is unique per mm_struct)
-+ * @ops: device driver callback for HMM mirror operations
-+ * @list: for list of mirrors of a given mm
-+ *
-+ * Each address space (mm_struct) being mirrored by a device must register one
-+ * of hmm_mirror struct with HMM. HMM will track list of all mirrors for each
-+ * mm_struct (or each process).
-+ */
-+struct hmm_mirror {
-+	struct hmm			*hmm;
-+	const struct hmm_mirror_ops	*ops;
-+	struct list_head		list;
-+};
-+
-+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
-+int hmm_mirror_register_locked(struct hmm_mirror *mirror,
-+			       struct mm_struct *mm);
-+void hmm_mirror_unregister(struct hmm_mirror *mirror);
-+#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-+
-+
- /* Below are for HMM internal use only ! Not to be used by device driver ! */
- void hmm_mm_destroy(struct mm_struct *mm);
++int hmm_vma_get_pfns(struct vm_area_struct *vma,
++		     struct hmm_range *range,
++		     unsigned long start,
++		     unsigned long end,
++		     hmm_pfn_t *pfns);
++bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
  
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 2f6a69f..7dd4ca3 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -293,6 +293,21 @@ config HMM
- 	bool
- 	depends on MMU
- 
-+config HMM_MIRROR
-+	bool "HMM mirror CPU page table into a device page table"
-+	select HMM
-+	select MMU_NOTIFIER
-+	help
-+	  HMM mirror is a set of helpers to mirror CPU page table into a device
-+	  page table. There is two side, first keep both page table synchronize
-+	  so that no virtual address can point to different page (but one page
-+	  table might lag ie onee might still point to page while the other is
-+	  is pointing to nothing).
-+
-+	  Second side of the equation is replicating CPU page table content for
-+	  range of virtual address. This require careful synchronization with
-+	  CPU page table update.
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
  
 diff --git a/mm/hmm.c b/mm/hmm.c
-index e891fdd..b725c6d 100644
+index b725c6d..0ef06df 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -21,14 +21,27 @@
+@@ -19,10 +19,15 @@
+  */
+ #include <linux/mm.h>
  #include <linux/hmm.h>
++#include <linux/rmap.h>
++#include <linux/swap.h>
  #include <linux/slab.h>
  #include <linux/sched.h>
-+#include <linux/mmu_notifier.h>
++#include <linux/swapops.h>
++#include <linux/hugetlb.h>
+ #include <linux/mmu_notifier.h>
  
++
  /*
   * struct hmm - HMM per mm struct
   *
-  * @mm: mm struct this HMM struct is bound to
-+ * @lock: lock protecting mirrors list
-+ * @mirrors: list of mirrors for this mm
-+ * @wait_queue: wait queue
-+ * @sequence: we track update to CPU page table with a sequence number
-+ * @mmu_notifier: mmu notifier to track update to CPU page table
-+ * @notifier_count: number of currently active notifier count
-  */
+@@ -37,6 +42,7 @@
  struct hmm {
  	struct mm_struct	*mm;
-+	spinlock_t		lock;
-+	struct list_head	mirrors;
-+	atomic_t		sequence;
-+	wait_queue_head_t	wait_queue;
-+	struct mmu_notifier	mmu_notifier;
-+	atomic_t		notifier_count;
- };
- 
- /*
-@@ -48,6 +61,12 @@ static struct hmm *hmm_register(struct mm_struct *mm)
- 		hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
- 		if (!hmm)
- 			return NULL;
-+		init_waitqueue_head(&hmm->wait_queue);
-+		atomic_set(&hmm->notifier_count, 0);
-+		INIT_LIST_HEAD(&hmm->mirrors);
-+		atomic_set(&hmm->sequence, 0);
-+		hmm->mmu_notifier.ops = NULL;
-+		spin_lock_init(&hmm->lock);
+ 	spinlock_t		lock;
++	struct list_head	ranges;
+ 	struct list_head	mirrors;
+ 	atomic_t		sequence;
+ 	wait_queue_head_t	wait_queue;
+@@ -66,6 +72,7 @@ static struct hmm *hmm_register(struct mm_struct *mm)
+ 		INIT_LIST_HEAD(&hmm->mirrors);
+ 		atomic_set(&hmm->sequence, 0);
+ 		hmm->mmu_notifier.ops = NULL;
++		INIT_LIST_HEAD(&hmm->ranges);
+ 		spin_lock_init(&hmm->lock);
  		hmm->mm = mm;
  
- 		spin_lock(&mm->page_table_lock);
-@@ -80,3 +99,169 @@ void hmm_mm_destroy(struct mm_struct *mm)
- 	spin_unlock(&mm->page_table_lock);
- 	kfree(hmm);
+@@ -108,6 +115,22 @@ static void hmm_invalidate_range(struct hmm *hmm,
+ 				 unsigned long end)
+ {
+ 	struct hmm_mirror *mirror;
++	struct hmm_range *range;
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(range, &hmm->ranges, list) {
++		unsigned long addr, idx, npages;
++
++		if (end < range->start || start >= range->end)
++			continue;
++
++		range->valid = false;
++		addr = max(start, range->start);
++		idx = (addr - range->start) >> PAGE_SHIFT;
++		npages = (min(range->end, end) - addr) >> PAGE_SHIFT;
++		memset(&range->pfns[idx], 0, sizeof(*range->pfns) * npages);
++	}
++	rcu_read_unlock();
+ 
+ 	/*
+ 	 * Mirror being added or remove is a rare event so list traversal isn't
+@@ -264,4 +287,238 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
+ 	wait_event(hmm->wait_queue, !atomic_read(&hmm->notifier_count));
  }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
 +
-+
-+#if IS_ENABLED(CONFIG_HMM_MIRROR)
-+static void hmm_invalidate_range(struct hmm *hmm,
-+				 enum hmm_update action,
-+				 unsigned long start,
-+				 unsigned long end)
++static void hmm_pfns_empty(hmm_pfn_t *pfns,
++			   unsigned long addr,
++			   unsigned long end)
 +{
-+	struct hmm_mirror *mirror;
-+
-+	/*
-+	 * Mirror being added or remove is a rare event so list traversal isn't
-+	 * protected by a lock, we rely on simple rules. All list modification
-+	 * are done using list_add_rcu() and list_del_rcu() under a spinlock to
-+	 * protect from concurrent addition or removal but not traversal.
-+	 *
-+	 * Because hmm_mirror_unregister() wait for all running invalidation to
-+	 * complete (and thus all list traversal to finish). None of the mirror
-+	 * struct can be freed from under us while traversing the list and thus
-+	 * it is safe to dereference their list pointer even if they were just
-+	 * remove.
-+	 */
-+	list_for_each_entry (mirror, &hmm->mirrors, list)
-+		mirror->ops->update(mirror, action, start, end);
++	for (; addr < end; addr += PAGE_SIZE, pfns++)
++		*pfns = HMM_PFN_EMPTY;
 +}
 +
-+static void hmm_invalidate_page(struct mmu_notifier *mn,
-+				struct mm_struct *mm,
-+				unsigned long addr)
++static void hmm_pfns_special(hmm_pfn_t *pfns,
++			     unsigned long addr,
++			     unsigned long end)
 +{
-+	unsigned long start = addr & PAGE_MASK;
-+	unsigned long end = start + PAGE_SIZE;
-+	struct hmm *hmm = mm->hmm;
-+
-+	VM_BUG_ON(!hmm);
-+
-+	atomic_inc(&hmm->notifier_count);
-+	atomic_inc(&hmm->sequence);
-+	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-+	atomic_dec(&hmm->notifier_count);
-+	wake_up(&hmm->wait_queue);
++	for (; addr < end; addr += PAGE_SIZE, pfns++)
++		*pfns = HMM_PFN_SPECIAL;
 +}
 +
-+static void hmm_invalidate_range_start(struct mmu_notifier *mn,
-+				       struct mm_struct *mm,
-+				       unsigned long start,
-+				       unsigned long end)
++static void hmm_vma_walk(struct vm_area_struct *vma,
++			 unsigned long start,
++			 unsigned long end,
++			 hmm_pfn_t *pfns)
 +{
-+	struct hmm *hmm = mm->hmm;
++	unsigned long addr, next;
++	hmm_pfn_t flag;
 +
-+	VM_BUG_ON(!hmm);
++	flag = vma->vm_flags & VM_READ ? HMM_PFN_READ : 0;
 +
-+	atomic_inc(&hmm->notifier_count);
-+	atomic_inc(&hmm->sequence);
-+	hmm_invalidate_range(mm->hmm, HMM_UPDATE_INVALIDATE, start, end);
-+}
++	for (addr = start; addr < end; addr = next) {
++		unsigned long i = (addr - start) >> PAGE_SHIFT;
++		pgd_t *pgdp;
++		pud_t *pudp;
++		pmd_t *pmdp;
++		pte_t *ptep;
++		pmd_t pmd;
 +
-+static void hmm_invalidate_range_end(struct mmu_notifier *mn,
-+				     struct mm_struct *mm,
-+				     unsigned long start,
-+				     unsigned long end)
-+{
-+	struct hmm *hmm = mm->hmm;
++		/*
++		 * We are accessing/faulting for a device from an unknown
++		 * thread that might be foreign to the mm we are faulting
++		 * against so do not call arch_vma_access_permitted() !
++		 */
 +
-+	VM_BUG_ON(!hmm);
++		next = pgd_addr_end(addr, end);
++		pgdp = pgd_offset(vma->vm_mm, addr);
++		if (pgd_none(*pgdp) || pgd_bad(*pgdp)) {
++			hmm_pfns_empty(&pfns[i], addr, next);
++			continue;
++		}
 +
-+	/* Reverse order here because we are getting out of invalidation */
-+	atomic_dec(&hmm->notifier_count);
-+	wake_up(&hmm->wait_queue);
-+}
++		next = pud_addr_end(addr, end);
++		pudp = pud_offset(pgdp, addr);
++		if (pud_none(*pudp) || pud_bad(*pudp)) {
++			hmm_pfns_empty(&pfns[i], addr, next);
++			continue;
++		}
 +
-+static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-+	.invalidate_page	= hmm_invalidate_page,
-+	.invalidate_range_start	= hmm_invalidate_range_start,
-+	.invalidate_range_end	= hmm_invalidate_range_end,
-+};
++		next = pmd_addr_end(addr, end);
++		pmdp = pmd_offset(pudp, addr);
++		pmd = pmd_read_atomic(pmdp);
++		barrier();
++		if (pmd_none(pmd) || pmd_bad(pmd)) {
++			hmm_pfns_empty(&pfns[i], addr, next);
++			continue;
++		}
++		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
++			unsigned long pfn = pmd_pfn(pmd) + pte_index(addr);
++			hmm_pfn_t flags = flag;
 +
-+static int hmm_mirror_do_register(struct hmm_mirror *mirror,
-+				  struct mm_struct *mm,
-+				  const bool locked)
-+{
-+	/* Sanity check */
-+	if (!mm || !mirror || !mirror->ops)
-+		return -EINVAL;
++			if (pmd_protnone(pmd)) {
++				hmm_pfns_clear(&pfns[i], addr, next);
++				continue;
++			}
++			flags |= pmd_write(*pmdp) ? HMM_PFN_WRITE : 0;
++			flags |= pmd_devmap(pmd) ? HMM_PFN_DEVICE : 0;
++			for (; addr < next; addr += PAGE_SIZE, i++, pfn++)
++				pfns[i] = hmm_pfn_from_pfn(pfn) | flags;
++			continue;
++		}
 +
-+	mirror->hmm = hmm_register(mm);
-+	if (!mirror->hmm)
-+		return -ENOMEM;
++		ptep = pte_offset_map(pmdp, addr);
++		for (; addr < next; addr += PAGE_SIZE, i++, ptep++) {
++			swp_entry_t entry;
++			pte_t pte = *ptep;
 +
-+	/* Register mmu_notifier if not already, use mmap_sem for locking */
-+	if (!mirror->hmm->mmu_notifier.ops) {
-+		struct hmm *hmm = mirror->hmm;
++			pfns[i] = 0;
 +
-+		if (!locked)
-+			down_write(&mm->mmap_sem);
-+		if (!hmm->mmu_notifier.ops) {
-+			hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
-+			if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
-+				hmm->mmu_notifier.ops = NULL;
-+				up_write(&mm->mmap_sem);
-+				return -ENOMEM;
++			if (pte_none(pte)) {
++				pfns[i] = HMM_PFN_EMPTY;
++				continue;
++			}
++
++			entry = pte_to_swp_entry(pte);
++			if (!pte_present(pte) && !non_swap_entry(entry)) {
++				continue;
++			}
++
++			if (pte_present(pte)) {
++				pfns[i] = hmm_pfn_from_pfn(pte_pfn(pte))|flag;
++				pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
++				continue;
++			}
++
++			/*
++			 * This is a special swap entry, ignore migration, use
++			 * device and report anything else as error.
++			*/
++			if (is_device_entry(entry)) {
++				pfns[i] = hmm_pfn_from_pfn(swp_offset(entry));
++				if (is_write_device_entry(entry))
++					pfns[i] |= HMM_PFN_WRITE;
++				pfns[i] |= HMM_PFN_DEVICE;
++				pfns[i] |= HMM_PFN_UNADDRESSABLE;
++				pfns[i] |= flag;
++			} else if (!is_migration_entry(entry)) {
++				pfns[i] = HMM_PFN_ERROR;
 +			}
 +		}
-+		if (!locked)
-+			up_write(&mm->mmap_sem);
++		pte_unmap(ptep - 1);
++	}
++}
++
++/*
++ * hmm_vma_get_pfns() - snapshot CPU page table for a range of virtual address
++ * @vma: virtual memory area containing the virtual address range
++ * @range: use to track snapshot validity
++ * @start: range virtual start address (inclusive)
++ * @end: range virtual end address (exclusive)
++ * @entries: array of hmm_pfn_t provided by caller fill by function
++ * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, 0 success
++ *
++ * This snapshot the CPU page table for a range of virtual address, snapshot
++ * validity is track by the range struct see hmm_vma_range_done() for further
++ * informations.
++ *
++ * The range struct is initialized and track CPU page table only if function
++ * returns success (0) then you must call hmm_vma_range_done() to stop range
++ * CPU page table update tracking.
++ *
++ * NOT CALLING hmm_vma_range_done() IF FUNCTION RETURNS 0 WILL LEAD TO SERIOUS
++ * MEMORY CORRUPTION ! YOU HAVE BEEN WARN !
++ */
++int hmm_vma_get_pfns(struct vm_area_struct *vma,
++		     struct hmm_range *range,
++		     unsigned long start,
++		     unsigned long end,
++		     hmm_pfn_t *pfns)
++{
++	struct hmm *hmm;
++
++	/* FIXME support hugetlb fs */
++	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
++		hmm_pfns_special(pfns, start, end);
++		return -EINVAL;
 +	}
 +
-+	spin_lock(&mirror->hmm->lock);
-+	list_add_rcu(&mirror->list, &mirror->hmm->mirrors);
-+	spin_unlock(&mirror->hmm->lock);
++	/* Sanity check, this really should not happen ! */
++	if (start < vma->vm_start || start >= vma->vm_end)
++		return -EINVAL;
++	if (end < vma->vm_start || end > vma->vm_end)
++		return -EINVAL;
 +
-+	return 0;
-+}
++	hmm = hmm_register(vma->vm_mm);
++	if (!hmm)
++		return -ENOMEM;
++	/* Caller must have register a mirror (with hmm_mirror_register()) ! */
++	if (!hmm->mmu_notifier.ops)
++		return -EINVAL;
 +
-+/*
-+ * hmm_mirror_register() - register a mirror against an mm
-+ *
-+ * @mirror: new mirror struct to register
-+ * @mm: mm to register against
-+ *
-+ * To start mirroring a process address space device driver must register an
-+ * HMM mirror struct.
-+ */
-+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
-+{
-+	return hmm_mirror_do_register(mirror, mm, false);
-+}
-+EXPORT_SYMBOL(hmm_mirror_register);
-+
-+/*
-+ * hmm_mirror_register_locked() - register a mirror against an mm
-+ *
-+ * @mirror: new mirror struct to register
-+ * @mm: mm to register against
-+ *
-+ * Same as hmm_mirror_register() except that mmap_sem must write locked !
-+ */
-+int hmm_mirror_register_locked(struct hmm_mirror *mirror, struct mm_struct *mm)
-+{
-+	return hmm_mirror_do_register(mirror, mm, true);
-+}
-+EXPORT_SYMBOL(hmm_mirror_register_locked);
-+
-+/*
-+ * hmm_mirror_unregister() - unregister a mirror
-+ *
-+ * @mirror: new mirror struct to register
-+ *
-+ * Stop mirroring a process address space and cleanup.
-+ */
-+void hmm_mirror_unregister(struct hmm_mirror *mirror)
-+{
-+	struct hmm *hmm = mirror->hmm;
-+
++	/* Initialize range to track CPU page table update */
++	range->start = start;
++	range->pfns = pfns;
++	range->end = end;
 +	spin_lock(&hmm->lock);
-+	list_del_rcu(&mirror->list);
++	range->valid = true;
++	list_add_rcu(&range->list, &hmm->ranges);
 +	spin_unlock(&hmm->lock);
 +
-+	/*
-+	 * Wait for all active notifier so that it is safe to traverse mirror
-+	 * list without any lock.
-+	 */
-+	wait_event(hmm->wait_queue, !atomic_read(&hmm->notifier_count));
++	hmm_vma_walk(vma, start, end, pfns);
++	return 0;
 +}
-+EXPORT_SYMBOL(hmm_mirror_unregister);
-+#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
++EXPORT_SYMBOL(hmm_vma_get_pfns);
++
++/*
++ * hmm_vma_range_done() - stop tracking change to CPU page table over a range
++ * @vma: virtual memory area containing the virtual address range
++ * @range: range being track
++ * Returns: false if range data have been invalidated, true otherwise
++ *
++ * Range struct is use to track update to CPU page table after call to
++ * hmm_vma_get_pfns(). Once device driver is done using or want to lock update
++ * to data it gots from this function it calls hmm_vma_range_done() which stop
++ * the tracking.
++ *
++ * There is 2 way to use this :
++ * again:
++ *   hmm_vma_get_pfns(vma, range, start, end, pfns);
++ *   trans = device_build_page_table_update_transaction(pfns);
++ *   device_page_table_lock();
++ *   if (!hmm_vma_range_done(vma, range)) {
++ *     device_page_table_unlock();
++ *     goto again;
++ *   }
++ *   device_commit_transaction(trans);
++ *   device_page_table_unlock();
++ *
++ * Or:
++ *   hmm_vma_get_pfns(vma, range, start, end, pfns);
++ *   device_page_table_lock();
++ *   hmm_vma_range_done(vma, range);
++ *   device_update_page_table(pfns);
++ *   device_page_table_unlock();
++ */
++bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range)
++{
++	unsigned long npages = (range->end - range->start) >> PAGE_SHIFT;
++	struct hmm *hmm;
++
++	if (range->end <= range->start) {
++		BUG();
++		return false;
++	}
++
++	hmm = hmm_register(vma->vm_mm);
++	if (!hmm) {
++		memset(range->pfns, 0, sizeof(*range->pfns) * npages);
++		return false;
++	}
++
++	spin_lock(&hmm->lock);
++	list_del_rcu(&range->list);
++	spin_unlock(&hmm->lock);
++
++	return range->valid;
++}
++EXPORT_SYMBOL(hmm_vma_range_done);
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 -- 
 2.4.3
 
