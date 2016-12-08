@@ -1,495 +1,581 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B19F26B026D
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:20 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 3so175149769pgd.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:20 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id q5si29411869pgj.243.2016.12.08.08.22.19
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4056B026E
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:23 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so173972608pgc.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:23 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 71si29425514pgb.147.2016.12.08.08.22.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 08:22:19 -0800 (PST)
+        Thu, 08 Dec 2016 08:22:21 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv1 03/28] arch, mm: convert all architectures to use 5level-fixup.h
-Date: Thu,  8 Dec 2016 19:21:25 +0300
-Message-Id: <20161208162150.148763-5-kirill.shutemov@linux.intel.com>
+Subject: [QEMU, PATCH] x86: implement la57 paging mode
+Date: Thu,  8 Dec 2016 19:21:22 +0300
+Message-Id: <20161208162150.148763-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, qemu-devel@nongnu.org
 
-If the architecture uses 4level-fixup.h we don't need to do anything as
-it includes 5level-fixup.h.
+The new paging more is extension of IA32e mode with more additional page
+table level.
 
-If the architecture uses pgtable-nop*d.h, define __ARCH_USE_5LEVEL_HACK
-before inclusion of the header. It makes asm-generic code to use
-5level-fixup.h.
+It brings support of 57-bit vitrual address space (128PB) and 52-bit
+physical address space (4PB).
 
-If the architecture has 4-level paging or folds levels on its own,
-include 5level-fixup.h directly.
+The structure of new page table level is identical to pml4.
+
+The feature is enumerated with CPUID.(EAX=07H, ECX=0):ECX[bit 16].
+
+CR4.LA57[bit 12] need to be set when pageing enables to activate 5-level
+paging mode.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: qemu-devel@nongnu.org
 ---
- arch/arc/include/asm/hugepage.h                  | 1 +
- arch/arc/include/asm/pgtable.h                   | 1 +
- arch/arm/include/asm/pgtable.h                   | 1 +
- arch/arm64/include/asm/pgtable-types.h           | 4 ++++
- arch/avr32/include/asm/pgtable-2level.h          | 1 +
- arch/cris/include/asm/pgtable.h                  | 1 +
- arch/frv/include/asm/pgtable.h                   | 1 +
- arch/h8300/include/asm/pgtable.h                 | 1 +
- arch/hexagon/include/asm/pgtable.h               | 1 +
- arch/ia64/include/asm/pgtable.h                  | 2 ++
- arch/metag/include/asm/pgtable.h                 | 1 +
- arch/mips/include/asm/pgtable-32.h               | 1 +
- arch/mips/include/asm/pgtable-64.h               | 1 +
- arch/mn10300/include/asm/page.h                  | 1 +
- arch/nios2/include/asm/pgtable.h                 | 1 +
- arch/openrisc/include/asm/pgtable.h              | 1 +
- arch/powerpc/include/asm/book3s/32/pgtable.h     | 1 +
- arch/powerpc/include/asm/book3s/64/pgtable.h     | 2 ++
- arch/powerpc/include/asm/nohash/32/pgtable.h     | 1 +
- arch/powerpc/include/asm/nohash/64/pgtable-4k.h  | 3 +++
- arch/powerpc/include/asm/nohash/64/pgtable-64k.h | 1 +
- arch/s390/include/asm/pgtable.h                  | 1 +
- arch/score/include/asm/pgtable.h                 | 1 +
- arch/sh/include/asm/pgtable-2level.h             | 1 +
- arch/sh/include/asm/pgtable-3level.h             | 1 +
- arch/sparc/include/asm/pgtable_64.h              | 1 +
- arch/tile/include/asm/pgtable_32.h               | 1 +
- arch/tile/include/asm/pgtable_64.h               | 1 +
- arch/um/include/asm/pgtable-2level.h             | 1 +
- arch/um/include/asm/pgtable-3level.h             | 1 +
- arch/unicore32/include/asm/pgtable.h             | 1 +
- arch/x86/include/asm/pgtable_types.h             | 4 ++++
- arch/xtensa/include/asm/pgtable.h                | 1 +
- 33 files changed, 43 insertions(+)
+ target-i386/arch_memory_mapping.c |  42 ++++++++--
+ target-i386/cpu.c                 |  16 ++--
+ target-i386/cpu.h                 |   2 +
+ target-i386/helper.c              |  54 ++++++++++--
+ target-i386/monitor.c             | 167 ++++++++++++++++++++++++++++++++------
+ target-i386/translate.c           |   2 +
+ 6 files changed, 238 insertions(+), 45 deletions(-)
 
-diff --git a/arch/arc/include/asm/hugepage.h b/arch/arc/include/asm/hugepage.h
-index 317ff773e1ca..b18fcb606908 100644
---- a/arch/arc/include/asm/hugepage.h
-+++ b/arch/arc/include/asm/hugepage.h
-@@ -11,6 +11,7 @@
- #define _ASM_ARC_HUGEPAGE_H
+diff --git a/target-i386/arch_memory_mapping.c b/target-i386/arch_memory_mapping.c
+index 88f341e1bbd0..826aee597b13 100644
+--- a/target-i386/arch_memory_mapping.c
++++ b/target-i386/arch_memory_mapping.c
+@@ -220,7 +220,8 @@ static void walk_pdpe(MemoryMappingList *list, AddressSpace *as,
  
- #include <linux/types.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
+ /* IA-32e Paging */
+ static void walk_pml4e(MemoryMappingList *list, AddressSpace *as,
+-                       hwaddr pml4e_start_addr, int32_t a20_mask)
++                       hwaddr pml4e_start_addr, int32_t a20_mask,
++                       target_ulong start_line_addr)
+ {
+     hwaddr pml4e_addr, pdpe_start_addr;
+     uint64_t pml4e;
+@@ -236,11 +237,34 @@ static void walk_pml4e(MemoryMappingList *list, AddressSpace *as,
+             continue;
+         }
  
- static inline pte_t pmd_pte(pmd_t pmd)
-diff --git a/arch/arc/include/asm/pgtable.h b/arch/arc/include/asm/pgtable.h
-index 89eeb3720051..233a92795c37 100644
---- a/arch/arc/include/asm/pgtable.h
-+++ b/arch/arc/include/asm/pgtable.h
-@@ -37,6 +37,7 @@
- 
- #include <asm/page.h>
- #include <asm/mmu.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- #include <linux/const.h>
- 
-diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-index a8d656d9aec7..1c462381c225 100644
---- a/arch/arm/include/asm/pgtable.h
-+++ b/arch/arm/include/asm/pgtable.h
-@@ -20,6 +20,7 @@
- 
- #else
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
- #include <asm/memory.h>
- #include <asm/pgtable-hwdef.h>
-diff --git a/arch/arm64/include/asm/pgtable-types.h b/arch/arm64/include/asm/pgtable-types.h
-index 69b2fd41503c..345a072b5856 100644
---- a/arch/arm64/include/asm/pgtable-types.h
-+++ b/arch/arm64/include/asm/pgtable-types.h
-@@ -55,9 +55,13 @@ typedef struct { pteval_t pgprot; } pgprot_t;
- #define __pgprot(x)	((pgprot_t) { (x) } )
- 
- #if CONFIG_PGTABLE_LEVELS == 2
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- #elif CONFIG_PGTABLE_LEVELS == 3
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
-+#elif CONFIG_PGTABLE_LEVELS == 4
-+#include <asm-generic/5level-fixup.h>
+-        line_addr = ((i & 0x1ffULL) << 39) | (0xffffULL << 48);
++        line_addr = start_line_addr | ((i & 0x1ffULL) << 39);
+         pdpe_start_addr = (pml4e & PLM4_ADDR_MASK) & a20_mask;
+         walk_pdpe(list, as, pdpe_start_addr, a20_mask, line_addr);
+     }
+ }
++
++static void walk_pml5e(MemoryMappingList *list, AddressSpace *as,
++                       hwaddr pml5e_start_addr, int32_t a20_mask)
++{
++    hwaddr pml5e_addr, pml4e_start_addr;
++    uint64_t pml5e;
++    target_ulong line_addr;
++    int i;
++
++    for (i = 0; i < 512; i++) {
++        pml5e_addr = (pml5e_start_addr + i * 8) & a20_mask;
++        pml5e = address_space_ldq(as, pml5e_addr, MEMTXATTRS_UNSPECIFIED,
++                                  NULL);
++        if (!(pml5e & PG_PRESENT_MASK)) {
++            /* not present */
++            continue;
++        }
++
++        line_addr = (0x7fULL << 57) | ((i & 0x1ffULL) << 48);
++        pml4e_start_addr = (pml5e & PLM4_ADDR_MASK) & a20_mask;
++        walk_pml4e(list, as, pml4e_start_addr, a20_mask, line_addr);
++    }
++}
  #endif
  
- #endif	/* __ASM_PGTABLE_TYPES_H */
-diff --git a/arch/avr32/include/asm/pgtable-2level.h b/arch/avr32/include/asm/pgtable-2level.h
-index 425dd567b5b9..d5b1c63993ec 100644
---- a/arch/avr32/include/asm/pgtable-2level.h
-+++ b/arch/avr32/include/asm/pgtable-2level.h
-@@ -8,6 +8,7 @@
- #ifndef __ASM_AVR32_PGTABLE_2LEVEL_H
- #define __ASM_AVR32_PGTABLE_2LEVEL_H
+ void x86_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
+@@ -257,10 +281,18 @@ void x86_cpu_get_memory_mapping(CPUState *cs, MemoryMappingList *list,
+     if (env->cr[4] & CR4_PAE_MASK) {
+ #ifdef TARGET_X86_64
+         if (env->hflags & HF_LMA_MASK) {
+-            hwaddr pml4e_addr;
++            if (env->cr[4] & CR4_LA57_MASK) {
++                hwaddr pml5e_addr;
++
++                pml5e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
++                walk_pml5e(list, cs->as, pml5e_addr, env->a20_mask);
++            } else {
++                hwaddr pml4e_addr;
  
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- /*
-diff --git a/arch/cris/include/asm/pgtable.h b/arch/cris/include/asm/pgtable.h
-index ceefc314d64d..5dcdb7d014e5 100644
---- a/arch/cris/include/asm/pgtable.h
-+++ b/arch/cris/include/asm/pgtable.h
-@@ -6,6 +6,7 @@
- #define _CRIS_PGTABLE_H
- 
- #include <asm/page.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #ifndef __ASSEMBLY__
-diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
-index 07d7a7ef8bd5..847bcb14bf66 100644
---- a/arch/frv/include/asm/pgtable.h
-+++ b/arch/frv/include/asm/pgtable.h
-@@ -16,6 +16,7 @@
- #ifndef _ASM_PGTABLE_H
- #define _ASM_PGTABLE_H
- 
-+#include <asm-generic/5level-fixup.h>
- #include <asm/mem-layout.h>
- #include <asm/setup.h>
- #include <asm/processor.h>
-diff --git a/arch/h8300/include/asm/pgtable.h b/arch/h8300/include/asm/pgtable.h
-index 8341db67821d..7d265d28ba5e 100644
---- a/arch/h8300/include/asm/pgtable.h
-+++ b/arch/h8300/include/asm/pgtable.h
-@@ -1,5 +1,6 @@
- #ifndef _H8300_PGTABLE_H
- #define _H8300_PGTABLE_H
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
- #include <asm-generic/pgtable.h>
- #define pgtable_cache_init()   do { } while (0)
-diff --git a/arch/hexagon/include/asm/pgtable.h b/arch/hexagon/include/asm/pgtable.h
-index 49eab8136ec3..24a9177fb897 100644
---- a/arch/hexagon/include/asm/pgtable.h
-+++ b/arch/hexagon/include/asm/pgtable.h
-@@ -26,6 +26,7 @@
-  */
- #include <linux/swap.h>
- #include <asm/page.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- /* A handy thing to have if one has the RAM. Declared in head.S */
-diff --git a/arch/ia64/include/asm/pgtable.h b/arch/ia64/include/asm/pgtable.h
-index 9f3ed9ee8f13..53d97cd5fab9 100644
---- a/arch/ia64/include/asm/pgtable.h
-+++ b/arch/ia64/include/asm/pgtable.h
-@@ -587,8 +587,10 @@ extern struct page *zero_page_memmap_ptr;
- 
- 
- #if CONFIG_PGTABLE_LEVELS == 3
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
+-            pml4e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
+-            walk_pml4e(list, cs->as, pml4e_addr, env->a20_mask);
++                pml4e_addr = (env->cr[3] & PLM4_ADDR_MASK) & env->a20_mask;
++                walk_pml4e(list, cs->as, pml4e_addr, env->a20_mask,
++                        0xffffULL << 48);
++            }
+         } else
  #endif
-+#include <asm-genenic/5level-fixup.h>
- #include <asm-generic/pgtable.h>
+         {
+diff --git a/target-i386/cpu.c b/target-i386/cpu.c
+index de1f30eeda63..a4b9832b5916 100644
+--- a/target-i386/cpu.c
++++ b/target-i386/cpu.c
+@@ -238,7 +238,8 @@ static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
+           CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
+           CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
+           CPUID_7_0_EBX_RDSEED */
+-#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE)
++#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE | \
++          CPUID_7_0_ECX_LA57)
+ #define TCG_7_0_EDX_FEATURES 0
+ #define TCG_APM_FEATURES 0
+ #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
+@@ -435,7 +436,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+             "ospke", NULL, NULL, NULL,
+             NULL, NULL, NULL, NULL,
+             NULL, NULL, NULL, NULL,
+-            NULL, NULL, NULL, NULL,
++            "la57", NULL, NULL, NULL,
+             NULL, NULL, "rdpid", NULL,
+             NULL, NULL, NULL, NULL,
+             NULL, NULL, NULL, NULL,
+@@ -2742,10 +2743,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
+     case 0x80000008:
+         /* virtual & phys address size in low 2 bytes. */
+         if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
+-            /* 64 bit processor, 48 bits virtual, configurable
+-             * physical bits.
+-             */
+-            *eax = 0x00003000 + cpu->phys_bits;
++            /* 64 bit processor */
++            *eax = cpu->phys_bits; /* configurable physical bits */
++            if  (env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_LA57) {
++                *eax |= 0x00003900; /* 57 bits virtual */
++            } else {
++                *eax |= 0x00003000; /* 48 bits virtual */
++            }
+         } else {
+             *eax = cpu->phys_bits;
+         }
+diff --git a/target-i386/cpu.h b/target-i386/cpu.h
+index c60572402272..0ba880fc2632 100644
+--- a/target-i386/cpu.h
++++ b/target-i386/cpu.h
+@@ -224,6 +224,7 @@
+ #define CR4_OSFXSR_SHIFT 9
+ #define CR4_OSFXSR_MASK (1U << CR4_OSFXSR_SHIFT)
+ #define CR4_OSXMMEXCPT_MASK  (1U << 10)
++#define CR4_LA57_MASK   (1U << 12)
+ #define CR4_VMXE_MASK   (1U << 13)
+ #define CR4_SMXE_MASK   (1U << 14)
+ #define CR4_FSGSBASE_MASK (1U << 16)
+@@ -628,6 +629,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
+ #define CPUID_7_0_ECX_UMIP     (1U << 2)
+ #define CPUID_7_0_ECX_PKU      (1U << 3)
+ #define CPUID_7_0_ECX_OSPKE    (1U << 4)
++#define CPUID_7_0_ECX_LA57     (1U << 16)
+ #define CPUID_7_0_ECX_RDPID    (1U << 22)
  
- #endif /* _ASM_IA64_PGTABLE_H */
-diff --git a/arch/metag/include/asm/pgtable.h b/arch/metag/include/asm/pgtable.h
-index ffa3a3a2ecad..0c151e5af079 100644
---- a/arch/metag/include/asm/pgtable.h
-+++ b/arch/metag/include/asm/pgtable.h
-@@ -6,6 +6,7 @@
- #define _METAG_PGTABLE_H
+ #define CPUID_7_0_EDX_AVX512_4VNNIW (1U << 2) /* AVX512 Neural Network Instructions */
+diff --git a/target-i386/helper.c b/target-i386/helper.c
+index 4ecc0912a48a..43e87ddba001 100644
+--- a/target-i386/helper.c
++++ b/target-i386/helper.c
+@@ -651,11 +651,11 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
+     uint32_t hflags;
  
- #include <asm/pgtable-bits.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
+ #if defined(DEBUG_MMU)
+-    printf("CR4 update: CR4=%08x\n", (uint32_t)env->cr[4]);
++    printf("CR4 update: %08x -> %08x\n", (uint32_t)env->cr[4], new_cr4);
+ #endif
+     if ((new_cr4 ^ env->cr[4]) &
+         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
+-         CR4_SMEP_MASK | CR4_SMAP_MASK)) {
++         CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK)) {
+         tlb_flush(CPU(cpu), 1);
+     }
  
- /* Invalid regions on Meta: 0x00000000-0x001FFFFF and 0xFFFF0000-0xFFFFFFFF */
-diff --git a/arch/mips/include/asm/pgtable-32.h b/arch/mips/include/asm/pgtable-32.h
-index d21f3da7bdb6..6f94bed571c4 100644
---- a/arch/mips/include/asm/pgtable-32.h
-+++ b/arch/mips/include/asm/pgtable-32.h
-@@ -16,6 +16,7 @@
- #include <asm/cachectl.h>
- #include <asm/fixmap.h>
+@@ -757,19 +757,41 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
  
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
+ #ifdef TARGET_X86_64
+         if (env->hflags & HF_LMA_MASK) {
++            bool la57 = env->cr[4] & CR4_LA57_MASK;
++            uint64_t pml5e_addr, pml5e;
+             uint64_t pml4e_addr, pml4e;
+             int32_t sext;
  
- extern int temp_tlb_entry;
-diff --git a/arch/mips/include/asm/pgtable-64.h b/arch/mips/include/asm/pgtable-64.h
-index 514cbc0a6a67..130a2a6c1531 100644
---- a/arch/mips/include/asm/pgtable-64.h
-+++ b/arch/mips/include/asm/pgtable-64.h
-@@ -17,6 +17,7 @@
- #include <asm/cachectl.h>
- #include <asm/fixmap.h>
+             /* test virtual address sign extension */
+-            sext = (int64_t)addr >> 47;
++            sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;
+             if (sext != 0 && sext != -1) {
+                 env->error_code = 0;
+                 cs->exception_index = EXCP0D_GPF;
+                 return 1;
+             }
  
-+#define __ARCH_USE_5LEVEL_HACK
- #if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
- #include <asm-generic/pgtable-nopmd.h>
- #else
-diff --git a/arch/mn10300/include/asm/page.h b/arch/mn10300/include/asm/page.h
-index 3810a6f740fd..dfe730a5ede0 100644
---- a/arch/mn10300/include/asm/page.h
-+++ b/arch/mn10300/include/asm/page.h
-@@ -57,6 +57,7 @@ typedef struct page *pgtable_t;
- #define __pgd(x)	((pgd_t) { (x) })
- #define __pgprot(x)	((pgprot_t) { (x) })
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #endif /* !__ASSEMBLY__ */
-diff --git a/arch/nios2/include/asm/pgtable.h b/arch/nios2/include/asm/pgtable.h
-index 298393c3cb42..db4f7d179220 100644
---- a/arch/nios2/include/asm/pgtable.h
-+++ b/arch/nios2/include/asm/pgtable.h
-@@ -22,6 +22,7 @@
- #include <asm/tlbflush.h>
- 
- #include <asm/pgtable-bits.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #define FIRST_USER_ADDRESS	0UL
-diff --git a/arch/openrisc/include/asm/pgtable.h b/arch/openrisc/include/asm/pgtable.h
-index 69c7df0e1420..2c98e6dabcfe 100644
---- a/arch/openrisc/include/asm/pgtable.h
-+++ b/arch/openrisc/include/asm/pgtable.h
-@@ -25,6 +25,7 @@
- #ifndef __ASM_OPENRISC_PGTABLE_H
- #define __ASM_OPENRISC_PGTABLE_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #ifndef __ASSEMBLY__
-diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
-index 38b33dcfcc9d..ac53e7182387 100644
---- a/arch/powerpc/include/asm/book3s/32/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
-@@ -1,6 +1,7 @@
- #ifndef _ASM_POWERPC_BOOK3S_32_PGTABLE_H
- #define _ASM_POWERPC_BOOK3S_32_PGTABLE_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #include <asm/book3s/32/hash.h>
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 263bf39ced40..e0be442aaacb 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -1,6 +1,8 @@
- #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
- #define _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
- 
-+#include <asm-generic/5level-fixup.h>
+-            pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
+-                env->a20_mask;
++            if (la57) {
++                pml5e_addr = ((env->cr[3] & ~0xfff) +
++                        (((addr >> 48) & 0x1ff) << 3)) & env->a20_mask;
++                pml5e = x86_ldq_phys(cs, pml5e_addr);
++                if (!(pml5e & PG_PRESENT_MASK)) {
++                    goto do_fault;
++                }
++                if (pml5e & (rsvd_mask | PG_PSE_MASK)) {
++                    goto do_fault_rsvd;
++                }
++                if (!(pml5e & PG_ACCESSED_MASK)) {
++                    pml5e |= PG_ACCESSED_MASK;
++                    x86_stl_phys_notdirty(cs, pml5e_addr, pml5e);
++                }
++                ptep = pml5e ^ PG_NX_MASK;
++            } else {
++                pml5e = env->cr[3];
++                ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
++            }
 +
- /*
-  * Common bits between hash and Radix page table
-  */
-diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
-index 780847597514..c4a3bd9e5c7f 100644
---- a/arch/powerpc/include/asm/nohash/32/pgtable.h
-+++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
-@@ -1,6 +1,7 @@
- #ifndef _ASM_POWERPC_NOHASH_32_PGTABLE_H
- #define _ASM_POWERPC_NOHASH_32_PGTABLE_H
++            pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
++                    (((addr >> 39) & 0x1ff) << 3)) & env->a20_mask;
+             pml4e = x86_ldq_phys(cs, pml4e_addr);
+             if (!(pml4e & PG_PRESENT_MASK)) {
+                 goto do_fault;
+@@ -781,7 +803,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr,
+                 pml4e |= PG_ACCESSED_MASK;
+                 x86_stl_phys_notdirty(cs, pml4e_addr, pml4e);
+             }
+-            ptep = pml4e ^ PG_NX_MASK;
++            ptep &= pml4e ^ PG_NX_MASK;
+             pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
+                 env->a20_mask;
+             pdpe = x86_ldq_phys(cs, pdpe_addr);
+@@ -1024,16 +1046,30 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
  
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
+ #ifdef TARGET_X86_64
+         if (env->hflags & HF_LMA_MASK) {
++            bool la57 = env->cr[4] & CR4_LA57_MASK;
++            uint64_t pml5e_addr, pml5e;
+             uint64_t pml4e_addr, pml4e;
+             int32_t sext;
  
- #ifndef __ASSEMBLY__
-diff --git a/arch/powerpc/include/asm/nohash/64/pgtable-4k.h b/arch/powerpc/include/asm/nohash/64/pgtable-4k.h
-index fc7d51753f81..2ab403514c07 100644
---- a/arch/powerpc/include/asm/nohash/64/pgtable-4k.h
-+++ b/arch/powerpc/include/asm/nohash/64/pgtable-4k.h
-@@ -1,5 +1,8 @@
- #ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
- #define _ASM_POWERPC_NOHASH_64_PGTABLE_4K_H
+             /* test virtual address sign extension */
+-            sext = (int64_t)addr >> 47;
++            sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;
+             if (sext != 0 && sext != -1) {
+                 return -1;
+             }
+-            pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
+-                env->a20_mask;
 +
-+#include <asm-generic/5level-fixup.h>
++            if (la57) {
++                pml5e_addr = ((env->cr[3] & ~0xfff) +
++                        (((addr >> 48) & 0x1ff) << 3)) & env->a20_mask;
++                pml5e = x86_ldq_phys(cs, pml5e_addr);
++                if (!(pml5e & PG_PRESENT_MASK)) {
++                    return -1;
++                }
++            } else {
++                pml5e = env->cr[3];
++            }
 +
- /*
-  * Entries per page directory level.  The PTE level must use a 64b record
-  * for each page table entry.  The PMD and PGD level use a 32b record for
-diff --git a/arch/powerpc/include/asm/nohash/64/pgtable-64k.h b/arch/powerpc/include/asm/nohash/64/pgtable-64k.h
-index 908324574f77..f18752da5965 100644
---- a/arch/powerpc/include/asm/nohash/64/pgtable-64k.h
-+++ b/arch/powerpc/include/asm/nohash/64/pgtable-64k.h
-@@ -1,6 +1,7 @@
- #ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
- #define _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
++            pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
++                    (((addr >> 39) & 0x1ff) << 3)) & env->a20_mask;
+             pml4e = x86_ldq_phys(cs, pml4e_addr);
+             if (!(pml4e & PG_PRESENT_MASK)) {
+                 return -1;
+diff --git a/target-i386/monitor.c b/target-i386/monitor.c
+index 9a3b4d746e8d..ae2d2f66b6fa 100644
+--- a/target-i386/monitor.c
++++ b/target-i386/monitor.c
+@@ -30,13 +30,18 @@
+ #include "hmp.h"
  
  
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 72c7f60bfe83..738a49934fc0 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -24,6 +24,7 @@
-  * the S390 page table tree.
-  */
- #ifndef __ASSEMBLY__
-+#include <asm-generic/5level-fixup.h>
- #include <linux/sched.h>
- #include <linux/mm_types.h>
- #include <linux/page-flags.h>
-diff --git a/arch/score/include/asm/pgtable.h b/arch/score/include/asm/pgtable.h
-index 0553e5cd5985..46ff8fd678a7 100644
---- a/arch/score/include/asm/pgtable.h
-+++ b/arch/score/include/asm/pgtable.h
-@@ -2,6 +2,7 @@
- #define _ASM_SCORE_PGTABLE_H
- 
- #include <linux/const.h>
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- #include <asm/fixmap.h>
-diff --git a/arch/sh/include/asm/pgtable-2level.h b/arch/sh/include/asm/pgtable-2level.h
-index 19bd89db17e7..f75cf4387257 100644
---- a/arch/sh/include/asm/pgtable-2level.h
-+++ b/arch/sh/include/asm/pgtable-2level.h
-@@ -1,6 +1,7 @@
- #ifndef __ASM_SH_PGTABLE_2LEVEL_H
- #define __ASM_SH_PGTABLE_2LEVEL_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- /*
-diff --git a/arch/sh/include/asm/pgtable-3level.h b/arch/sh/include/asm/pgtable-3level.h
-index 249a985d9648..9b1e776eca31 100644
---- a/arch/sh/include/asm/pgtable-3level.h
-+++ b/arch/sh/include/asm/pgtable-3level.h
-@@ -1,6 +1,7 @@
- #ifndef __ASM_SH_PGTABLE_3LEVEL_H
- #define __ASM_SH_PGTABLE_3LEVEL_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
- 
- /*
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 1fb317fbc0b3..4a0ae4b542fd 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -12,6 +12,7 @@
-  * the SpitFire page tables.
-  */
- 
-+#include <asm-generic/5level-fixup.h>
- #include <linux/compiler.h>
- #include <linux/const.h>
- #include <asm/types.h>
-diff --git a/arch/tile/include/asm/pgtable_32.h b/arch/tile/include/asm/pgtable_32.h
-index d26a42279036..5f8c615cb5e9 100644
---- a/arch/tile/include/asm/pgtable_32.h
-+++ b/arch/tile/include/asm/pgtable_32.h
-@@ -74,6 +74,7 @@ extern unsigned long VMALLOC_RESERVE /* = CONFIG_VMALLOC_RESERVE */;
- #define MAXMEM		(_VMALLOC_START - PAGE_OFFSET)
- 
- /* We have no pmd or pud since we are strictly a two-level page table */
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- static inline int pud_huge_page(pud_t pud)	{ return 0; }
-diff --git a/arch/tile/include/asm/pgtable_64.h b/arch/tile/include/asm/pgtable_64.h
-index e96cec52f6d8..96fe58b45118 100644
---- a/arch/tile/include/asm/pgtable_64.h
-+++ b/arch/tile/include/asm/pgtable_64.h
-@@ -59,6 +59,7 @@
- #ifndef __ASSEMBLY__
- 
- /* We have no pud since we are a three-level page table. */
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
- 
- /*
-diff --git a/arch/um/include/asm/pgtable-2level.h b/arch/um/include/asm/pgtable-2level.h
-index cfbe59752469..179c0ea87a0c 100644
---- a/arch/um/include/asm/pgtable-2level.h
-+++ b/arch/um/include/asm/pgtable-2level.h
-@@ -8,6 +8,7 @@
- #ifndef __UM_PGTABLE_2LEVEL_H
- #define __UM_PGTABLE_2LEVEL_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- 
- /* PGDIR_SHIFT determines what a third-level page table entry can map */
-diff --git a/arch/um/include/asm/pgtable-3level.h b/arch/um/include/asm/pgtable-3level.h
-index bae8523a162f..c4d876dfb9ac 100644
---- a/arch/um/include/asm/pgtable-3level.h
-+++ b/arch/um/include/asm/pgtable-3level.h
-@@ -7,6 +7,7 @@
- #ifndef __UM_PGTABLE_3LEVEL_H
- #define __UM_PGTABLE_3LEVEL_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
- 
- /* PGDIR_SHIFT determines what a third-level page table entry can map */
-diff --git a/arch/unicore32/include/asm/pgtable.h b/arch/unicore32/include/asm/pgtable.h
-index 818d0f5598e3..a4f2bef37e70 100644
---- a/arch/unicore32/include/asm/pgtable.h
-+++ b/arch/unicore32/include/asm/pgtable.h
-@@ -12,6 +12,7 @@
- #ifndef __UNICORE_PGTABLE_H__
- #define __UNICORE_PGTABLE_H__
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- #include <asm/cpu-single.h>
- 
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index f1218f512f62..3187bec1b79a 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -273,6 +273,8 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
+-static void print_pte(Monitor *mon, hwaddr addr,
+-                      hwaddr pte,
+-                      hwaddr mask)
++static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
++                      hwaddr pte, hwaddr mask)
+ {
+ #ifdef TARGET_X86_64
+-    if (addr & (1ULL << 47)) {
+-        addr |= -1LL << 48;
++    if (env->cr[4] & CR4_LA57_MASK) {
++        if (addr & (1ULL << 56)) {
++            addr |= -1LL << 57;
++        }
++    } else {
++        if (addr & (1ULL << 47)) {
++            addr |= -1LL << 48;
++        }
+     }
+ #endif
+     monitor_printf(mon, TARGET_FMT_plx ": " TARGET_FMT_plx
+@@ -66,13 +71,13 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env)
+         if (pde & PG_PRESENT_MASK) {
+             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+                 /* 4M pages */
+-                print_pte(mon, (l1 << 22), pde, ~((1 << 21) - 1));
++                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1));
+             } else {
+                 for(l2 = 0; l2 < 1024; l2++) {
+                     cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, &pte, 4);
+                     pte = le32_to_cpu(pte);
+                     if (pte & PG_PRESENT_MASK) {
+-                        print_pte(mon, (l1 << 22) + (l2 << 12),
++                        print_pte(mon, env, (l1 << 22) + (l2 << 12),
+                                   pte & ~PG_PSE_MASK,
+                                   ~0xfff);
+                     }
+@@ -100,7 +105,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
+                 if (pde & PG_PRESENT_MASK) {
+                     if (pde & PG_PSE_MASK) {
+                         /* 2M pages with PAE, CR4.PSE is ignored */
+-                        print_pte(mon, (l1 << 30 ) + (l2 << 21), pde,
++                        print_pte(mon, env, (l1 << 30 ) + (l2 << 21), pde,
+                                   ~((hwaddr)(1 << 20) - 1));
+                     } else {
+                         pt_addr = pde & 0x3fffffffff000ULL;
+@@ -108,7 +113,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
+                             cpu_physical_memory_read(pt_addr + l3 * 8, &pte, 8);
+                             pte = le64_to_cpu(pte);
+                             if (pte & PG_PRESENT_MASK) {
+-                                print_pte(mon, (l1 << 30 ) + (l2 << 21)
++                                print_pte(mon, env, (l1 << 30 ) + (l2 << 21)
+                                           + (l3 << 12),
+                                           pte & ~PG_PSE_MASK,
+                                           ~(hwaddr)0xfff);
+@@ -122,13 +127,13 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
  }
  
- #if CONFIG_PGTABLE_LEVELS > 3
-+#include <asm-generic/5level-fixup.h>
+ #ifdef TARGET_X86_64
+-static void tlb_info_64(Monitor *mon, CPUArchState *env)
++static void tlb_info_la48(Monitor *mon, CPUArchState *env,
++        uint64_t l0, uint64_t pml4_addr)
+ {
+     uint64_t l1, l2, l3, l4;
+     uint64_t pml4e, pdpe, pde, pte;
+-    uint64_t pml4_addr, pdp_addr, pd_addr, pt_addr;
++    uint64_t pdp_addr, pd_addr, pt_addr;
+ 
+-    pml4_addr = env->cr[3] & 0x3fffffffff000ULL;
+     for (l1 = 0; l1 < 512; l1++) {
+         cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
+         pml4e = le64_to_cpu(pml4e);
+@@ -140,8 +145,8 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
+                 if (pdpe & PG_PRESENT_MASK) {
+                     if (pdpe & PG_PSE_MASK) {
+                         /* 1G pages, CR4.PSE is ignored */
+-                        print_pte(mon, (l1 << 39) + (l2 << 30), pdpe,
+-                                  0x3ffffc0000000ULL);
++                        print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
++                                pdpe, 0x3ffffc0000000ULL);
+                     } else {
+                         pd_addr = pdpe & 0x3fffffffff000ULL;
+                         for (l3 = 0; l3 < 512; l3++) {
+@@ -150,9 +155,9 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
+                             if (pde & PG_PRESENT_MASK) {
+                                 if (pde & PG_PSE_MASK) {
+                                     /* 2M pages, CR4.PSE is ignored */
+-                                    print_pte(mon, (l1 << 39) + (l2 << 30) +
+-                                              (l3 << 21), pde,
+-                                              0x3ffffffe00000ULL);
++                                    print_pte(mon, env, (l0 << 48) + (l1 << 39) +
++                                            (l2 << 30) + (l3 << 21), pde,
++                                            0x3ffffffe00000ULL);
+                                 } else {
+                                     pt_addr = pde & 0x3fffffffff000ULL;
+                                     for (l4 = 0; l4 < 512; l4++) {
+@@ -161,11 +166,11 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
+                                                                  &pte, 8);
+                                         pte = le64_to_cpu(pte);
+                                         if (pte & PG_PRESENT_MASK) {
+-                                            print_pte(mon, (l1 << 39) +
+-                                                      (l2 << 30) +
+-                                                      (l3 << 21) + (l4 << 12),
+-                                                      pte & ~PG_PSE_MASK,
+-                                                      0x3fffffffff000ULL);
++                                            print_pte(mon, env, (l0 << 48) +
++                                                    (l1 << 39) + (l2 << 30) +
++                                                    (l3 << 21) + (l4 << 12),
++                                                    pte & ~PG_PSE_MASK,
++                                                    0x3fffffffff000ULL);
+                                         }
+                                     }
+                                 }
+@@ -177,6 +182,22 @@ static void tlb_info_64(Monitor *mon, CPUArchState *env)
+         }
+     }
+ }
 +
- typedef struct { pudval_t pud; } pud_t;
++static void tlb_info_la57(Monitor *mon, CPUArchState *env)
++{
++    uint64_t l0;
++    uint64_t pml5e;
++    uint64_t pml5_addr;
++
++    pml5_addr = env->cr[3] & 0x3fffffffff000ULL;
++    for (l0 = 0; l0 < 512; l0++) {
++        cpu_physical_memory_read(pml5_addr + l0 * 8, &pml5e, 8);
++        pml5e = le64_to_cpu(pml5e);
++        if (pml5e & PG_PRESENT_MASK) {
++            tlb_info_la48(mon, env, l0, pml5e & 0x3fffffffff000ULL);
++        }
++    }
++}
+ #endif /* TARGET_X86_64 */
  
- static inline pud_t native_make_pud(pmdval_t val)
-@@ -285,6 +287,7 @@ static inline pudval_t native_pud_val(pud_t pud)
- 	return pud.pud;
+ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+@@ -192,7 +213,11 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+     if (env->cr[4] & CR4_PAE_MASK) {
+ #ifdef TARGET_X86_64
+         if (env->hflags & HF_LMA_MASK) {
+-            tlb_info_64(mon, env);
++            if (env->cr[4] & CR4_LA57_MASK) {
++                tlb_info_la57(mon, env);
++            } else {
++                tlb_info_la48(mon, env, 0, env->cr[3] & 0x3fffffffff000ULL);
++            }
+         } else
+ #endif
+         {
+@@ -324,7 +349,7 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
+ 
+ 
+ #ifdef TARGET_X86_64
+-static void mem_info_64(Monitor *mon, CPUArchState *env)
++static void mem_info_la48(Monitor *mon, CPUArchState *env)
+ {
+     int prot, last_prot;
+     uint64_t l1, l2, l3, l4;
+@@ -400,6 +425,94 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
+     /* Flush last range */
+     mem_print(mon, &start, &last_prot, (hwaddr)1 << 48, 0);
  }
- #else
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopud.h>
++
++static void mem_info_la57(Monitor *mon, CPUArchState *env)
++{
++    int prot, last_prot;
++    uint64_t l0, l1, l2, l3, l4;
++    uint64_t pml5e, pml4e, pdpe, pde, pte;
++    uint64_t pml5_addr, pml4_addr, pdp_addr, pd_addr, pt_addr, start, end;
++
++    pml5_addr = env->cr[3] & 0x3fffffffff000ULL;
++    last_prot = 0;
++    start = -1;
++    for (l0 = 0; l0 < 512; l0++) {
++        cpu_physical_memory_read(pml5_addr + l0 * 8, &pml5e, 8);
++        pml4e = le64_to_cpu(pml5e);
++        end = l0 << 48;
++        if (pml5e & PG_PRESENT_MASK) {
++            pml4_addr = pml5e & 0x3fffffffff000ULL;
++            for (l1 = 0; l1 < 512; l1++) {
++                cpu_physical_memory_read(pml4_addr + l1 * 8, &pml4e, 8);
++                pml4e = le64_to_cpu(pml4e);
++                end = (l0 << 48) + (l1 << 39);
++                if (pml4e & PG_PRESENT_MASK) {
++                    pdp_addr = pml4e & 0x3fffffffff000ULL;
++                    for (l2 = 0; l2 < 512; l2++) {
++                        cpu_physical_memory_read(pdp_addr + l2 * 8, &pdpe, 8);
++                        pdpe = le64_to_cpu(pdpe);
++                        end = (l0 << 48) + (l1 << 39) + (l2 << 30);
++                        if (pdpe & PG_PRESENT_MASK) {
++                            if (pdpe & PG_PSE_MASK) {
++                                prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
++                                               PG_PRESENT_MASK);
++                                prot &= pml4e;
++                                mem_print(mon, &start, &last_prot, end, prot);
++                            } else {
++                                pd_addr = pdpe & 0x3fffffffff000ULL;
++                                for (l3 = 0; l3 < 512; l3++) {
++                                    cpu_physical_memory_read(pd_addr + l3 * 8, &pde, 8);
++                                    pde = le64_to_cpu(pde);
++                                    end = (l0 << 48) + (l1 << 39) + (l2 << 30) + (l3 << 21);
++                                    if (pde & PG_PRESENT_MASK) {
++                                        if (pde & PG_PSE_MASK) {
++                                            prot = pde & (PG_USER_MASK | PG_RW_MASK |
++                                                          PG_PRESENT_MASK);
++                                            prot &= pml4e & pdpe;
++                                            mem_print(mon, &start, &last_prot, end, prot);
++                                        } else {
++                                            pt_addr = pde & 0x3fffffffff000ULL;
++                                            for (l4 = 0; l4 < 512; l4++) {
++                                                cpu_physical_memory_read(pt_addr
++                                                                         + l4 * 8,
++                                                                         &pte, 8);
++                                                pte = le64_to_cpu(pte);
++                                                end = (l0 << 48) + (l1 << 39) + (l2 << 30) +
++                                                    (l3 << 21) + (l4 << 12);
++                                                if (pte & PG_PRESENT_MASK) {
++                                                    prot = pte & (PG_USER_MASK | PG_RW_MASK |
++                                                                  PG_PRESENT_MASK);
++                                                    prot &= pml4e & pdpe & pde;
++                                                } else {
++                                                    prot = 0;
++                                                }
++                                                mem_print(mon, &start, &last_prot, end, prot);
++                                            }
++                                        }
++                                    } else {
++                                        prot = 0;
++                                        mem_print(mon, &start, &last_prot, end, prot);
++                                    }
++                                }
++                            }
++                        } else {
++                            prot = 0;
++                            mem_print(mon, &start, &last_prot, end, prot);
++                        }
++                    }
++                } else {
++                    prot = 0;
++                    mem_print(mon, &start, &last_prot, end, prot);
++                }
++            }
++        } else {
++            prot = 0;
++            mem_print(mon, &start, &last_prot, end, prot);
++        }
++    }
++    /* Flush last range */
++    mem_print(mon, &start, &last_prot, (hwaddr)1 << 57, 0);
++}
+ #endif /* TARGET_X86_64 */
  
- static inline pudval_t native_pud_val(pud_t pud)
-@@ -306,6 +309,7 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
- 	return pmd.pmd;
- }
- #else
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
+ void hmp_info_mem(Monitor *mon, const QDict *qdict)
+@@ -415,7 +528,11 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
+     if (env->cr[4] & CR4_PAE_MASK) {
+ #ifdef TARGET_X86_64
+         if (env->hflags & HF_LMA_MASK) {
+-            mem_info_64(mon, env);
++            if (env->cr[4] & CR4_LA57_MASK) {
++                mem_info_la57(mon, env);
++            } else {
++                mem_info_la48(mon, env);
++            }
+         } else
+ #endif
+         {
+diff --git a/target-i386/translate.c b/target-i386/translate.c
+index 324103c88521..d2aec5c9bf06 100644
+--- a/target-i386/translate.c
++++ b/target-i386/translate.c
+@@ -137,6 +137,7 @@ typedef struct DisasContext {
+     int cpuid_ext2_features;
+     int cpuid_ext3_features;
+     int cpuid_7_0_ebx_features;
++    int cpuid_7_0_ecx_features;
+     int cpuid_xsave_features;
+ } DisasContext;
  
- static inline pmdval_t native_pmd_val(pmd_t pmd)
-diff --git a/arch/xtensa/include/asm/pgtable.h b/arch/xtensa/include/asm/pgtable.h
-index fb02fdc5ecee..91c530761f1e 100644
---- a/arch/xtensa/include/asm/pgtable.h
-+++ b/arch/xtensa/include/asm/pgtable.h
-@@ -11,6 +11,7 @@
- #ifndef _XTENSA_PGTABLE_H
- #define _XTENSA_PGTABLE_H
- 
-+#define __ARCH_USE_5LEVEL_HACK
- #include <asm-generic/pgtable-nopmd.h>
- #include <asm/page.h>
- 
+@@ -8350,6 +8351,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
+     dc->cpuid_ext2_features = env->features[FEAT_8000_0001_EDX];
+     dc->cpuid_ext3_features = env->features[FEAT_8000_0001_ECX];
+     dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
++    dc->cpuid_7_0_ecx_features = env->features[FEAT_7_0_ECX];
+     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
+ #ifdef TARGET_X86_64
+     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
 -- 
 2.10.2
 
