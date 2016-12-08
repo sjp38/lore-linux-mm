@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A917C6B0261
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:31 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id q128so348391331qkd.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:31 -0800 (PST)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 26FF36B0267
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:32 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id h201so347762886qke.7
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:32 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p88si17564936qtd.154.2016.12.08.07.39.30
+        by mx.google.com with ESMTPS id u63si17566272qkb.79.2016.12.08.07.39.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 07:39:30 -0800 (PST)
+        Thu, 08 Dec 2016 07:39:31 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v14 02/16] mm/memory/hotplug: convert device bool to int to allow for more flags v2
-Date: Thu,  8 Dec 2016 11:39:30 -0500
-Message-Id: <1481215184-18551-3-git-send-email-jglisse@redhat.com>
+Subject: [HMM v14 04/16] mm/ZONE_DEVICE/free-page: callback when page is freed
+Date: Thu,  8 Dec 2016 11:39:32 -0500
+Message-Id: <1481215184-18551-5-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
 References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,510 +21,170 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-When hotpluging memory we want more informations on the type of memory and
-its properties. Replace the device boolean flag by an int and define a set
-of flags.
-
-New property for device memory is an opt-in flag to allow page migration
-from and to a ZONE_DEVICE. Existing user of ZONE_DEVICE are not expecting
-page migration to work for their pages. New changes to page migration i
-changing that and we now need a flag to explicitly opt-in page migration.
-
-Changes since v1:
-  - Improved commit message
-  - Improved define name
-  - Improved comments
-  - Typos
+When a ZONE_DEVICE page refcount reach 1 it means it is free and nobody
+is holding a reference on it (only device to which the memory belong do).
+Add a callback and call it when that happen so device driver can implement
+their own free page management.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: Rich Felker <dalias@libc.org>
-Cc: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- arch/ia64/mm/init.c            | 23 ++++++++++++++++++++---
- arch/powerpc/mm/mem.c          | 22 +++++++++++++++++++---
- arch/s390/mm/init.c            | 10 ++++++++--
- arch/sh/mm/init.c              | 22 +++++++++++++++++++---
- arch/tile/mm/init.c            | 10 ++++++++--
- arch/x86/mm/init_32.c          | 23 ++++++++++++++++++++---
- arch/x86/mm/init_64.c          | 23 ++++++++++++++++++++---
- include/linux/memory_hotplug.h | 24 ++++++++++++++++++++++--
- include/linux/memremap.h       | 11 +++++++++++
- kernel/memremap.c              |  4 ++--
- mm/memory_hotplug.c            |  4 ++--
- 11 files changed, 151 insertions(+), 25 deletions(-)
+ drivers/dax/pmem.c                |  3 ++-
+ drivers/nvdimm/pmem.c             |  5 +++--
+ include/linux/memremap.h          | 17 ++++++++++++++---
+ kernel/memremap.c                 | 14 +++++++++++++-
+ tools/testing/nvdimm/test/iomap.c |  2 +-
+ 5 files changed, 33 insertions(+), 8 deletions(-)
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index 1841ef6..303027e 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -645,18 +645,27 @@ mem_init (void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	pg_data_t *pgdat;
- 	struct zone *zone;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	pgdat = NODE_DATA(nid);
- 
- 	zone = pgdat->node_zones +
--		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
-+		zone_for_memory(nid, start, size, ZONE_NORMAL,
-+				flags & MEMORY_DEVICE);
- 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
- 
- 	if (ret)
-@@ -667,13 +676,21 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	if (ret)
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 5f84433..6e877d3 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -126,14 +126,22 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
- 	return -ENODEV;
- }
- 
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	struct pglist_data *pgdata;
- 	struct zone *zone;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int rc;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	pgdata = NODE_DATA(nid);
- 
- 	start = (unsigned long)__va(start);
-@@ -147,19 +155,27 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
- 
- 	/* this should work for most non-highmem platforms */
- 	zone = pgdata->node_zones +
--		zone_for_memory(nid, start, size, 0, for_device);
-+		zone_for_memory(nid, start, size, 0, flags & MEMORY_DEVICE);
- 
- 	return __add_pages(nid, zone, start_pfn, nr_pages);
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	if (ret)
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index f56a39b..00bae81 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -149,7 +149,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
- 	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
- 	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);
-@@ -158,6 +158,12 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
- 	unsigned long nr_pages;
- 	int rc, zone_enum;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	rc = vmem_add_mapping(start, size);
+diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
+index 1f01e98..52ff674 100644
+--- a/drivers/dax/pmem.c
++++ b/drivers/dax/pmem.c
+@@ -107,7 +107,8 @@ static int dax_pmem_probe(struct device *dev)
  	if (rc)
  		return rc;
-@@ -197,7 +203,7 @@ unsigned long memory_block_size_bytes(void)
- }
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
- 	/*
- 	 * There is no hardware or firmware interface which could trigger a
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 7549186..0ca69ac 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -485,19 +485,27 @@ void free_initrd_mem(unsigned long start, unsigned long end)
- #endif
+-	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap);
++	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref,
++				   altmap, NULL, NULL);
+ 	if (IS_ERR(addr))
+ 		return PTR_ERR(addr);
  
- #ifdef CONFIG_MEMORY_HOTPLUG
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	pg_data_t *pgdat;
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	pgdat = NODE_DATA(nid);
- 
- 	/* We only have ZONE_NORMAL, so this is easy.. */
- 	ret = __add_pages(nid, pgdat->node_zones +
- 			zone_for_memory(nid, start, size, ZONE_NORMAL,
--			for_device),
-+					flags & MEMORY_DEVICE),
- 			start_pfn, nr_pages);
- 	if (unlikely(ret))
- 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
-@@ -516,13 +524,21 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	if (unlikely(ret))
-diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
-index adce254..ba001b1 100644
---- a/arch/tile/mm/init.c
-+++ b/arch/tile/mm/init.c
-@@ -863,13 +863,19 @@ void __init mem_init(void)
-  * memory to the highmem for now.
-  */
- #ifndef CONFIG_NEED_MULTIPLE_NODES
--int arch_add_memory(u64 start, u64 size, bool for_device)
-+int arch_add_memory(u64 start, u64 size, int flags)
- {
- 	struct pglist_data *pgdata = &contig_page_data;
- 	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	return __add_pages(zone, start_pfn, nr_pages);
- }
- 
-@@ -879,7 +885,7 @@ int remove_memory(u64 start, u64 size)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
- 	/* TODO */
- 	return -EBUSY;
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index cf80590..8287a4b 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -816,24 +816,41 @@ void __init mem_init(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	struct pglist_data *pgdata = NODE_DATA(nid);
- 	struct zone *zone = pgdata->node_zones +
--		zone_for_memory(nid, start, size, ZONE_HIGHMEM, for_device);
-+		zone_for_memory(nid, start, size, ZONE_HIGHMEM,
-+				flags & MEMORY_DEVICE);
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	return __add_pages(nid, zone, start_pfn, nr_pages);
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(u64 start, u64 size)
-+int arch_remove_memory(u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	zone = page_zone(pfn_to_page(start_pfn));
- 	return __remove_pages(zone, start_pfn, nr_pages);
- }
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 14b9dd7..442ac86 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -651,15 +651,24 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
-  * Memory is added always to NORMAL zone. This means you will never get
-  * additional DMA/DMA32 memory.
-  */
--int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-+int arch_add_memory(int nid, u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	struct zone *zone = pgdat->node_zones +
--		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
-+		zone_for_memory(nid, start, size, ZONE_NORMAL,
-+				flags & MEMORY_DEVICE);
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	init_memory_mapping(start, start + size);
- 
- 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
-@@ -956,8 +965,10 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- 	remove_pagetable(start, end, true);
- }
- 
--int __ref arch_remove_memory(u64 start, u64 size)
-+int __ref arch_remove_memory(u64 start, u64 size, int flags)
- {
-+	const int supported_flags = MEMORY_DEVICE |
-+				    MEMORY_DEVICE_ALLOW_MIGRATE;
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct page *page = pfn_to_page(start_pfn);
-@@ -965,6 +976,12 @@ int __ref arch_remove_memory(u64 start, u64 size)
- 	struct zone *zone;
- 	int ret;
- 
-+	/* Each flag need special handling so error out on un-supported flag */
-+	if (flags & (~supported_flags)) {
-+		BUG();
-+		return -EINVAL;
-+	}
-+
- 	/* With altmap the first mapped page is offset from @start */
- 	altmap = to_vmem_altmap((unsigned long) page);
- 	if (altmap)
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 01033fa..3f50eb8 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -103,7 +103,7 @@ extern bool memhp_auto_online;
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
--extern int arch_remove_memory(u64 start, u64 size);
-+extern int arch_remove_memory(u64 start, u64 size, int flags);
- extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- 	unsigned long nr_pages);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
-@@ -275,7 +275,27 @@ extern int add_memory(int nid, u64 start, u64 size);
- extern int add_memory_resource(int nid, struct resource *resource, bool online);
- extern int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
- 		bool for_device);
--extern int arch_add_memory(int nid, u64 start, u64 size, bool for_device);
-+
-+/*
-+ * When hotpluging memory with arch_add_memory() we want more informations on
-+ * the type of memory and its properties. The flags parameter allow to provide
-+ * more informations on the memory which is being addedd.
-+ *
-+ * Provide an opt-in flag for struct page migration. Persistent device memory
-+ * never relied on struct page migration so far and new user of might also
-+ * prefer avoiding struct page migration.
-+ *
-+ * New non device memory specific flags can be added if ever needed.
-+ *
-+ * MEMORY_REGULAR: regular system memory
-+ * DEVICE_MEMORY: device memory create a ZONE_DEVICE zone for it
-+ * DEVICE_MEMORY_ALLOW_MIGRATE: page in that device memory ca be migrated
-+ */
-+#define MEMORY_NORMAL 0
-+#define MEMORY_DEVICE (1 << 0)
-+#define MEMORY_DEVICE_ALLOW_MIGRATE (1 << 1)
-+
-+extern int arch_add_memory(int nid, u64 start, u64 size, int flags);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
- extern bool is_memblock_offlined(struct memory_block *mem);
- extern void remove_memory(int nid, u64 start, u64 size);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 571a6c7..c261d12 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -260,7 +260,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	pmem->pfn_flags = PFN_DEV;
+ 	if (is_nd_pfn(dev)) {
+ 		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
+-				altmap);
++					   altmap, NULL, NULL);
+ 		pfn_sb = nd_pfn->pfn_sb;
+ 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
+ 		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
+@@ -269,7 +269,8 @@ static int pmem_attach_disk(struct device *dev,
+ 		res->start += pmem->data_offset;
+ 	} else if (pmem_should_map_pages(dev)) {
+ 		addr = devm_memremap_pages(dev, &nsio->res,
+-				&q->q_usage_counter, NULL);
++					   &q->q_usage_counter,
++					   NULL, NULL, NULL);
+ 		pmem->pfn_flags |= PFN_MAP;
+ 	} else
+ 		addr = devm_memremap(dev, pmem->phys_addr,
 diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 9341619..f7e0609 100644
+index 32314d2..7845f2e 100644
 --- a/include/linux/memremap.h
 +++ b/include/linux/memremap.h
-@@ -53,6 +53,12 @@ struct dev_pagemap {
- void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
-+
-+static inline bool dev_page_allow_migrate(const struct page *page)
-+{
-+	return ((page_zonenum(page) == ZONE_DEVICE) &&
-+		(page->pgmap->flags & MEMORY_DEVICE_ALLOW_MIGRATE));
-+}
- #else
- static inline void *devm_memremap_pages(struct device *dev,
- 		struct resource *res, struct percpu_ref *ref,
-@@ -71,6 +77,11 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- {
- 	return NULL;
+@@ -35,23 +35,31 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
  }
-+
-+static inline bool dev_page_allow_migrate(const struct page *page)
-+{
-+	return false;
-+}
  #endif
  
++typedef void (*dev_page_free_t)(struct page *page, void *data);
++
  /**
+  * struct dev_pagemap - metadata for ZONE_DEVICE mappings
++ * @page_free: free page callback when page refcount reach 1
+  * @altmap: pre-allocated/reserved memory for vmemmap allocations
+  * @res: physical address range covered by @ref
+  * @ref: reference count that pins the devm_memremap_pages() mapping
+  * @dev: host device of the mapping for debug
++ * @data: privata data pointer for page_free
+  */
+ struct dev_pagemap {
++	dev_page_free_t page_free;
+ 	struct vmem_altmap *altmap;
+ 	const struct resource *res;
+ 	struct percpu_ref *ref;
+ 	struct device *dev;
++	void *data;
+ };
+ 
+ #ifdef CONFIG_ZONE_DEVICE
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap);
++			  struct percpu_ref *ref, struct vmem_altmap *altmap,
++			  dev_page_free_t page_free,
++			  void *data);
+ struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
+ int devm_memremap_pages_remove(struct device *dev, struct dev_pagemap *pgmap);
+ 
+@@ -62,8 +70,11 @@ static inline bool dev_page_allow_migrate(const struct page *page)
+ }
+ #else
+ static inline void *devm_memremap_pages(struct device *dev,
+-		struct resource *res, struct percpu_ref *ref,
+-		struct vmem_altmap *altmap)
++					struct resource *res,
++					struct percpu_ref *ref,
++					struct vmem_altmap *altmap,
++					dev_page_free_t page_free,
++					void *data)
+ {
+ 	/*
+ 	 * Fail attempts to call devm_memremap_pages() without
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index b501e39..07665eb 100644
+index 250ef25..bc1e400 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -246,7 +246,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
--	arch_remove_memory(align_start, align_size);
-+	arch_remove_memory(align_start, align_size, MEMORY_DEVICE);
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
- 	pgmap_radix_release(res);
- 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
-@@ -358,7 +358,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	if (error)
- 		goto err_pfn_remap;
+@@ -190,6 +190,12 @@ EXPORT_SYMBOL(get_zone_device_page);
  
--	error = arch_add_memory(nid, align_start, align_size, true);
-+	error = arch_add_memory(nid, align_start, align_size, MEMORY_DEVICE);
- 	if (error)
- 		goto err_add_memory;
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9629273..9e588b2 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1386,7 +1386,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+ void put_zone_device_page(struct page *page)
+ {
++	/*
++	 * If refcount is 1 then page is freed and refcount is stable as nobody
++	 * holds a reference on the page.
++	 */
++	if (page->pgmap->page_free && page_count(page) == 1)
++		page->pgmap->page_free(page, page->pgmap->data);
+ 	put_dev_pagemap(page->pgmap);
+ }
+ EXPORT_SYMBOL(put_zone_device_page);
+@@ -270,6 +276,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+  * @res: "host memory" address range
+  * @ref: a live per-cpu reference count
+  * @altmap: optional descriptor for allocating the memmap from @res
++ * @page_free: callback call when page refcount reach 1 ie it is free
++ * @data: privata data pointer for page_free
+  *
+  * Notes:
+  * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+@@ -280,7 +288,9 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+  *    this is not enforced.
+  */
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap)
++			  struct percpu_ref *ref, struct vmem_altmap *altmap,
++			  dev_page_free_t page_free,
++			  void *data)
+ {
+ 	resource_size_t key, align_start, align_size, align_end;
+ 	pgprot_t pgprot = PAGE_KERNEL;
+@@ -322,6 +332,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
  	}
+ 	pgmap->ref = ref;
+ 	pgmap->res = &page_map->res;
++	pgmap->page_free = page_free;
++	pgmap->data = data;
  
- 	/* call arch's memory hotadd */
--	ret = arch_add_memory(nid, start, size, false);
-+	ret = arch_add_memory(nid, start, size, MEMORY_NORMAL);
+ 	mutex_lock(&pgmap_lock);
+ 	error = 0;
+diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
+index c29f8dc..6505a87 100644
+--- a/tools/testing/nvdimm/test/iomap.c
++++ b/tools/testing/nvdimm/test/iomap.c
+@@ -108,7 +108,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
  
- 	if (ret < 0)
- 		goto error;
-@@ -2205,7 +2205,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
- 	memblock_free(start, size);
- 	memblock_remove(start, size);
- 
--	arch_remove_memory(start, size);
-+	arch_remove_memory(start, size, MEMORY_NORMAL);
- 
- 	try_offline_node(nid);
+ 	if (nfit_res)
+ 		return nfit_res->buf + offset - nfit_res->res->start;
+-	return devm_memremap_pages(dev, res, ref, altmap);
++	return devm_memremap_pages(dev, res, ref, altmap, NULL, NULL);
+ }
+ EXPORT_SYMBOL(__wrap_devm_memremap_pages);
  
 -- 
 2.4.3
