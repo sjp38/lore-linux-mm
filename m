@@ -1,65 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7246D6B0253
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 07:35:25 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xy5so95430668wjc.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:35:25 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id 203si13032712wms.92.2016.12.08.04.35.23
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A5CC16B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 07:53:59 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id j65so23962113iof.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:53:59 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t6si9253337itb.13.2016.12.08.04.53.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 04:35:24 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id j10so26937590wjb.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:35:23 -0800 (PST)
-Date: Thu, 8 Dec 2016 13:35:22 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, compaction: add vmstats for kcompactd work
-Message-ID: <20161208123521.GB26535@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1612071749390.69852@chino.kir.corp.google.com>
- <f25f8fb9-47a9-ebd9-5a7a-95ca6dc324c9@suse.cz>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Dec 2016 04:53:58 -0800 (PST)
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL automatically
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161201152517.27698-3-mhocko@kernel.org>
+	<201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
+	<20161205141009.GJ30758@dhcp22.suse.cz>
+	<201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
+	<20161206192242.GA10273@dhcp22.suse.cz>
+In-Reply-To: <20161206192242.GA10273@dhcp22.suse.cz>
+Message-Id: <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
+Date: Thu, 8 Dec 2016 21:53:44 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f25f8fb9-47a9-ebd9-5a7a-95ca6dc324c9@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 08-12-16 09:04:12, Vlastimil Babka wrote:
-> On 12/08/2016 02:50 AM, David Rientjes wrote:
-> > A "compact_daemon_wake" vmstat exists that represents the number of times
-> > kcompactd has woken up.  This doesn't represent how much work it actually
-> > did, though.
-> > 
-> > It's useful to understand how much compaction work is being done by
-> > kcompactd versus other methods such as direct compaction and explicitly
-> > triggered per-node (or system) compaction.
-> > 
-> > This adds two new vmstats: "compact_daemon_migrate_scanned" and
-> > "compact_daemon_free_scanned" to represent the number of pages kcompactd
-> > has scanned as part of its migration scanner and freeing scanner,
-> > respectively.
-> > 
-> > These values are still accounted for in the general
-> > "compact_migrate_scanned" and "compact_free_scanned" for compatibility.
-> > 
-> > It could be argued that explicitly triggered compaction could also be
-> > tracked separately, and that could be added if others find it useful.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
+Michal Hocko wrote:
+> On Tue 06-12-16 19:38:38, Tetsuo Handa wrote:
+> > You are trying to increase possible locations of lockups by changing
+> > default behavior of __GFP_NOFAIL.
 > 
-> A bit of downside is that stats are only updated when compaction finishes,
-> but I guess it's acceptable.
+> I disagree. I have tried to explain that it is much more important to
+> have fewer silent side effects than optimize for the very worst case.  I
+> simply do not see __GFP_NOFAIL lockups so common to even care or tweak
+> their semantic in a weird way. It seems you prefer to optimize for the
+> absolute worst case and even for that case you cannot offer anything
+> better than randomly OOM killing random processes until the system
+> somehow resurrects or panics. I consider this a very bad design. So
+> let's agree to disagree here.
 
-Is this really unavoidable though? THe most common usecase for
-/proc/vmstat is to collect data over time and perform some statistics to
-see how things are going on. Doing this batched accounting will make
-these kind of analysis less precise. Cannot we just do the accounting
-the same way how we count the reclaim counters?
--- 
-Michal Hocko
-SUSE Labs
+You think that invoking the OOM killer with __GFP_NOFAIL is worse than
+locking up with __GFP_NOFAIL. But I think that locking up with __GFP_NOFAIL
+is worse than invoking the OOM killer with __GFP_NOFAIL. If we could agree
+with calling __alloc_pages_nowmark() before out_of_memory() if __GFP_NOFAIL
+is given, we can avoid locking up while minimizing possibility of invoking
+the OOM killer...
+
+I suggest "when you change something, ask users who are affected by
+your change" because patch 2 has values-based conflict.
+
+> > "[PATCH 1/2] mm: consolidate GFP_NOFAIL checks in the allocator slowpath"
+> > silently changes __GFP_NOFAIL vs. __GFP_NORETRY priority.
+> > 
+> > Currently, __GFP_NORETRY is stronger than __GFP_NOFAIL; __GFP_NOFAIL
+> > allocation requests fail without invoking the OOM killer when both
+> > __GFP_NORETRY and __GFP_NOFAIL are given.
+> 
+> Sigh... __GFP_NORETRY | __GFP_NOFAIL _doesn't_ make _any_ sense what so
+> ever.
+> 
+> > With [PATCH 1/2], __GFP_NOFAIL becomes stronger than __GFP_NORETRY;
+> > __GFP_NOFAIL allocation requests will loop forever without invoking
+> > the OOM killer when both __GFP_NORETRY and __GFP_NOFAIL are given.
+> 
+> So what? Strictly speaking __GFP_NOFAIL should be always stronger but I
+> really fail to see why we should even consider __GFP_NORETRY in that
+> context. I definitely do not want to complicate the page fault path for
+> a nonsense combination of flags.
+> 
+> > Those callers which prefer lockup over panic can specify both
+> > __GFP_NORETRY and __GFP_NOFAIL.
+> 
+> No! This combination just doesn't make any sense. The same way how
+> __GFP_REPEAT | GFP_NOWAIT or __GFP_REPEAT | __GFP_NORETRY make no sense
+> as well. Please use a common sense!
+
+I wonder why I'm accused so much. I mentioned that patch 2 might be a
+garbage because patch 1 alone unexpectedly provided a mean to retry forever
+without invoking the OOM killer. You are not describing that fact in the
+description. You are not describing what combinations are valid and
+which flag is stronger requirement in gfp.h (e.g. __GFP_NOFAIL v.s.
+__GFP_NORETRY).
+
+> Invoking or not invoking the oom killer is the page allocator internal
+> business. No code outside of the MM is to talk about those decisions.
+> The fact that we provide a lightweight allocation mode which doesn't
+> invoke the OOM killer is a mere implementation detail.
+
+__GFP_NOFAIL allocation requests for e.g. fs writeback is considered as
+code inside the MM because they are operations for reclaiming memory.
+Such __GFP_NOFAIL allocation requests should be given a chance to choose
+which one (possibility of lockup by not invoking the OOM killer or
+possibility of panic by invoking the OOM killer) they prefer.
+
+Therefore,
+
+> If you believe that my argumentation is incorrect then you are free to
+> nak the patch with your reasoning. But please stop this nit picking on
+> nonsense combination of flags.
+
+Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+
+on patch 2 unless "you explain these patches to __GFP_NOFAIL users and
+provide a mean to invoke the OOM killer if someone chose possibility of
+panic" or "you accept kmallocwd".
+
+> > > Full stop. There is no guaranteed way to make a forward progress with
+> > > the current page allocator implementation.
+> > 
+> > Then, will you accept kmallocwd until page allocator implementation
+> > can provide a guaranteed way to make a forward progress?
+> 
+> No, I find your kmallocwd too complex for the advantage it provides.
+
+My kmallocwd provides us two advantages.
+
+One is that, if the cause of lockup is not memory allocation request,
+kmallocwd gives us a proof that you are doing well. You seriously tend to
+ignore corner cases with your wish that the absolute worst case won't
+happen; that makes me seriously explorer corner cases as a secure coder
+for proactive protection; that irritates you further.
+You say that I constantly push to the extreme with very strong statements
+without any actual data point, but I say that you constantly reject
+without any proof just because you have never heard. The reality is that
+we can hardly expect people to have knowledge/skills for reporting corner
+cases.
+
+The other is that, synchronous mechanism (like warn_alloc()) is prone to
+corner cases. We won't be able to catch all corner cases before people
+are trapped by them. If the cause of lockup is memory allocation request,
+kmallocwd gives us a trigger to take actions. This keeps me away from
+exploring corner cases which you think unlikely happen. This helps you
+to choose whatever semantic/logic you prefer.
+
+Since I'm not a __GFP_NOFAIL user, I don't care as long as lockups are
+detected and reported using a catch-all approach (i.e. asynchronous
+mechanism). Instead of cruelly rejecting kmallocwd with "too complex",
+will you explain why you feel complex (as a reply to kmallocwd thread)?
+I have my goal for written as such, but there would be room for reducing
+complexity if you explain details.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
