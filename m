@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78E946B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 13:26:59 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y68so655799980pfb.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:26:59 -0800 (PST)
-Received: from mail.zytor.com (torg.zytor.com. [2001:1868:205::12])
-        by mx.google.com with ESMTPS id 34si29978638pln.78.2016.12.08.10.26.58
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 025616B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 13:40:22 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id 51so445640537uai.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:40:21 -0800 (PST)
+Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
+        by mx.google.com with ESMTPS id c91si7476518uac.122.2016.12.08.10.40.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 10:26:58 -0800 (PST)
-In-Reply-To: <CA+55aFz+-8RmOMqyqQOWSjJ82byy7BpJ791-gj=xO2rPKG6KFA@mail.gmail.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com> <CA+55aFz+-8RmOMqyqQOWSjJ82byy7BpJ791-gj=xO2rPKG6KFA@mail.gmail.com>
+        Thu, 08 Dec 2016 10:40:21 -0800 (PST)
+Received: by mail-vk0-x230.google.com with SMTP id 137so233897088vkl.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:40:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
-From: hpa@zytor.com
-Date: Thu, 08 Dec 2016 10:26:38 -0800
-Message-ID: <6D8D56F4-6056-4533-BCFE-5FE292195D34@zytor.com>
+In-Reply-To: <20161208162150.148763-18-kirill.shutemov@linux.intel.com>
+References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com> <20161208162150.148763-18-kirill.shutemov@linux.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 8 Dec 2016 10:39:57 -0800
+Message-ID: <CALCETrWQagC=D87GiM+PT_j=e+Cva7FSxvmMK4hmC3AMF5t-2Q@mail.gmail.com>
+Subject: Re: [RFC, PATCHv1 16/28] x86/asm: remove __VIRTUAL_MASK_SHIFT==47 assert
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On December 8, 2016 10:16:07 AM PST, Linus Torvalds <torvalds@linux-foundation.org> wrote:
->On Thu, Dec 8, 2016 at 8:21 AM, Kirill A. Shutemov
-><kirill.shutemov@linux.intel.com> wrote:
->>
->> This patchset is still very early. There are a number of things
->missing
->> that we have to do before asking anyone to merge it (listed below).
->> It would be great if folks can start testing applications now (in
->QEMU) to
->> look for breakage.
->> Any early comments on the design or the patches would be appreciated
->as
->> well.
->
->Looks ok to me. Starting off with a compile-time config option seems
->fine.
->
->I do think that the x86 cpuid part should (patch 15) should be the
->first patch, so that we see "la57" as a capability in /proc/cpuinfo
->whether it's being enabled or not? We should merge that part
->regardless of any mm patches, I think.
->
->               Linus
+On Thu, Dec 8, 2016 at 8:21 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> We don't need it anymore. 17be0aec74fb ("x86/asm/entry/64: Implement
+> better check for canonical addresses") made canonical address check
+> generic wrt. address width.
 
-Definitely.
--- 
-Sent from my Android device with K-9 Mail. Please excuse my brevity.
+This code existed in part to remind us that this needs very careful
+adjustment when the paging size becomes dynamic.  If you want to
+remove it, please add test cases to tools/testing/selftests/x86 that
+verify:
+
+a. Either mmap(2^47-4096, ..., MAP_FIXED, ...) fails or that, if it
+succeeds and you put a syscall instruction at the very end, that
+invoking the syscall instruction there works.  The easiest way to do
+this may be to have the selftest literally have a page of text that
+has 4094 0xcc bytes and a syscall and to map that page or perhaps move
+it into place with mremap.  That will avoid annoying W^X userspace
+stuff from messing up the test.  You'll need to handle the signal when
+you fall off the end of the world after the syscall.
+
+b. Ditto for the new highest possible userspace page.
+
+c. Ditto for one page earlier to make sure that your test actually works.
+
+d. For each possible maximum address, call raise(SIGUSR1) and, in the
+signal handler, change RIP to point to the first noncanonical address
+and RCX to match RIP.  Return and catch the resulting exception.  This
+may be easy to integrate into the sigreturn tests, and I can help with
+that.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
