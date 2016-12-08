@@ -1,138 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD66F6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:47:21 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y16so6353410wmd.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:47:21 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id i189si13327004wmi.6.2016.12.08.05.47.20
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3614D6B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:51:49 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id hb5so96253699wjc.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:51:49 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id 203si13319364wmh.55.2016.12.08.05.51.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 05:47:20 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id u144so3681023wmu.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:47:20 -0800 (PST)
-Date: Thu, 8 Dec 2016 14:47:18 +0100
+        Thu, 08 Dec 2016 05:51:48 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id he10so40402398wjc.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:51:47 -0800 (PST)
+Date: Thu, 8 Dec 2016 14:51:46 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-Message-ID: <20161208134718.GC26530@dhcp22.suse.cz>
-References: <20161201152517.27698-3-mhocko@kernel.org>
- <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
- <20161205141009.GJ30758@dhcp22.suse.cz>
- <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
- <20161206192242.GA10273@dhcp22.suse.cz>
- <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
+Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
+Message-ID: <20161208135145.GD26530@dhcp22.suse.cz>
+References: <20161208103300.23217-1-mhocko@kernel.org>
+ <86cabb7a-1756-4d12-7ba4-776f66f6bb86@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <86cabb7a-1756-4d12-7ba4-776f66f6bb86@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org
 
-On Thu 08-12-16 21:53:44, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 06-12-16 19:38:38, Tetsuo Handa wrote:
-> > > You are trying to increase possible locations of lockups by changing
-> > > default behavior of __GFP_NOFAIL.
+On Thu 08-12-16 14:00:20, David Hildenbrand wrote:
+> Am 08.12.2016 um 11:33 schrieb Michal Hocko:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > I disagree. I have tried to explain that it is much more important to
-> > have fewer silent side effects than optimize for the very worst case.  I
-> > simply do not see __GFP_NOFAIL lockups so common to even care or tweak
-> > their semantic in a weird way. It seems you prefer to optimize for the
-> > absolute worst case and even for that case you cannot offer anything
-> > better than randomly OOM killing random processes until the system
-> > somehow resurrects or panics. I consider this a very bad design. So
-> > let's agree to disagree here.
-> 
-> You think that invoking the OOM killer with __GFP_NOFAIL is worse than
-> locking up with __GFP_NOFAIL.
-
-Yes and I have explained why.
-
-> But I think that locking up with __GFP_NOFAIL
-> is worse than invoking the OOM killer with __GFP_NOFAIL.
-
-Without any actual arguments based just on handwaving.
-
-> If we could agree
-> with calling __alloc_pages_nowmark() before out_of_memory() if __GFP_NOFAIL
-> is given, we can avoid locking up while minimizing possibility of invoking
-> the OOM killer...
-
-I do not understand. We do __alloc_pages_nowmark even when oom is called
-for GFP_NOFAIL.
-
-> I suggest "when you change something, ask users who are affected by
-> your change" because patch 2 has values-based conflict.
-> 
-[...]
-> > > Those callers which prefer lockup over panic can specify both
-> > > __GFP_NORETRY and __GFP_NOFAIL.
+> > Using kmalloc with the vmalloc fallback for larger allocations is a
+> > common pattern in the kernel code. Yet we do not have any common helper
+> > for that and so users have invented their own helpers. Some of them are
+> > really creative when doing so. Let's just add kv[mz]alloc and make sure
+> > it is implemented properly. This implementation makes sure to not make
+> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
+> > to not warn about allocation failures. This also rules out the OOM
+> > killer as the vmalloc is a more approapriate fallback than a disruptive
+> > user visible action.
 > > 
-> > No! This combination just doesn't make any sense. The same way how
-> > __GFP_REPEAT | GFP_NOWAIT or __GFP_REPEAT | __GFP_NORETRY make no sense
-> > as well. Please use a common sense!
+> > This patch also changes some existing users and removes helpers which
+> > are specific for them. In some cases this is not possible (e.g.
+> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
+> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
+> > in general (note that the page table allocation is GFP_KERNEL). Those
+> > need to be fixed separately.
+> > 
+> > apparmor has already claimed kv[mz]alloc so remove those and use
+> > __aa_kvmalloc instead to prevent from the naming clashes.
+> > 
+> > Cc: Paolo Bonzini <pbonzini@redhat.com>
+> > Cc: Mike Snitzer <snitzer@redhat.com>
+> > Cc: dm-devel@redhat.com
+> > Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> > Cc: "Theodore Ts'o" <tytso@mit.edu>
+> > Cc: kvm@vger.kernel.org
+> > Cc: linux-ext4@vger.kernel.org
+> > Cc: linux-f2fs-devel@lists.sourceforge.net
+> > Cc: linux-security-module@vger.kernel.org
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> I wonder why I'm accused so much. I mentioned that patch 2 might be a
-> garbage because patch 1 alone unexpectedly provided a mean to retry forever
-> without invoking the OOM killer.
-
-Which is the whole point of the patch and the changelog is vocal about
-that. Even explaining why it is desirable to not override decisions when
-the oom killer is not invoked. Please reread that and object if the
-argument is not correct.
-
-> You are not describing that fact in the
-> description. You are not describing what combinations are valid and
-> which flag is stronger requirement in gfp.h (e.g. __GFP_NOFAIL v.s.
-> __GFP_NORETRY).
-
-Sigh... I really fail to see why I should describe an impossible gfp
-mask combination which is _not_ used in the kernel. Please stop this
-strawman, I am really tired of it.
- 
-> > Invoking or not invoking the oom killer is the page allocator internal
-> > business. No code outside of the MM is to talk about those decisions.
-> > The fact that we provide a lightweight allocation mode which doesn't
-> > invoke the OOM killer is a mere implementation detail.
+> I remember yet another similar user in arch/s390/kvm/kvm-s390.c
+> -> kvm_s390_set_skeys()
 > 
-> __GFP_NOFAIL allocation requests for e.g. fs writeback is considered as
-> code inside the MM because they are operations for reclaiming memory.
-> Such __GFP_NOFAIL allocation requests should be given a chance to choose
-> which one (possibility of lockup by not invoking the OOM killer or
-> possibility of panic by invoking the OOM killer) they prefer.
-
-Please be more specific. How and why they should choose that. Which
-allocation are we talking about and why do you believe that the current
-implementation with access to memory reserves is not sufficient.
-
-> Therefore,
+> ...
+> keys = kmalloc_array(args->count, sizeof(uint8_t),
+>                      GFP_KERNEL | __GFP_NOWARN);
+> if (!keys)
+>         vmalloc(sizeof(uint8_t) * args->count);
+> ...
 > 
-> > If you believe that my argumentation is incorrect then you are free to
-> > nak the patch with your reasoning. But please stop this nit picking on
-> > nonsense combination of flags.
-> 
-> Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> 
-> on patch 2 unless "you explain these patches to __GFP_NOFAIL users and
-> provide a mean to invoke the OOM killer if someone chose possibility of
-> panic"
+> would kvmalloc_array make sense? (it would even make the code here
+> less error prone and better to read)
 
-I believe that the changelog contains my reasonining and so far I
-haven't heard any _argument_ from you why they are wrong. You just
-managed to nitpick on an impossible and pointless gfp_mask combination
-and some handwaving on possible lockups without any backing arguments.
-This is not something I would consider as a basis for a serious nack. So
-if you really hate this patch then do please start being reasonable and
-put some real arguments into your review without any off topics and/or
-strawman arguments without any relevance.
-
-> or "you accept kmallocwd".
-
-Are you serious? Are you really suggesting that your patch has to be
-accepted in order to have this one in?
+Well, if there are more users like that then why not. I just do not want
+to duplicate the whole kmalloc API right now. The above could be
+trivially changed to kvmalloc(args->count * sizeof(uint8_t), GFP_KERNEL)
+so a special API might not be really needed. 
 
 -- 
 Michal Hocko
