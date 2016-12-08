@@ -1,67 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 00F556B0253
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 518156B0260
 	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 16:52:32 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id y124so22709780iof.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 13:52:31 -0800 (PST)
-Received: from secvs02.rockwellcollins.com (secvs02.rockwellcollins.com. [205.175.225.241])
-        by mx.google.com with ESMTPS id i31si21917230ioo.48.2016.12.08.13.52.31
+Received: by mail-io0-f200.google.com with SMTP id b194so22004979ioa.6
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 13:52:32 -0800 (PST)
+Received: from ch3vs02.rockwellcollins.com (ch3vs02.rockwellcollins.com. [205.175.226.29])
+        by mx.google.com with ESMTPS id q7si10462828itb.45.2016.12.08.13.52.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 08 Dec 2016 13:52:31 -0800 (PST)
 From: David Graziano <david.graziano@rockwellcollins.com>
-Subject: [PATCH RFC v3 0/3] initxattr callback update for mqueue xattr support
-Date: Thu,  8 Dec 2016 15:52:25 -0600
-Message-Id: <1481233948-53350-1-git-send-email-david.graziano@rockwellcollins.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH RFC v3 1/3] xattr: add simple initxattrs function
+Date: Thu,  8 Dec 2016 15:52:26 -0600
+Message-Id: <1481233948-53350-2-git-send-email-david.graziano@rockwellcollins.com>
+In-Reply-To: <1481233948-53350-1-git-send-email-david.graziano@rockwellcollins.com>
+References: <1481233948-53350-1-git-send-email-david.graziano@rockwellcollins.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-security-module@vger.kernel.org
 Cc: paul@paul-moore.com, agruenba@redhat.com, hch@infradead.org, linux-mm@kvack.org, David Graziano <david.graziano@rockwellcollins.com>
 
-This patchset is for implementing extended attribute support within the 
-POSIX message queue (mqueue) file system. This is needed so that the 
-security.selinux extended attribute can be set via a SELinux named type 
-transition on file inodes created within the filesystem. I needed to 
-write a selinux policy for a set of custom applications that use mqueues 
-for their IPC. The mqueues are created by one application and we needed 
-a way for selinux to enforce which of the other application are able to 
-read/write to each individual queue. Uniquely labelling them based on the 
-application that created them and the filename seemed to be our best 
-solution as ita??s an embedded system and we dona??t have restorecond to 
-handle any relabeling.
+Adds new simple_xattr_initxattrs() initialization function for
+initializing the extended attributes via LSM callback. Based
+on callback function used by tmpfs/shmem. This is allows for
+consolidation and avoiding code duplication when other filesystem
+need to implement a simple initxattrs LSM callback function.
 
-This series is a result of feedback from the v2 mqueue patch which 
-duplicated the shmem_initxattrs() function for the mqueue file system. 
-This patcheset creates a common simple_xattr_initxattrs() function that 
-can be used by multiple virtual file systems to handle extended attribute 
-initialization via LSM callback. simple_xattr_initxattrs() is an updated 
-version of shmem_initxattrs(). As part of the this series both shmem and 
-mqueue are updated to use the new common initxattrs function. 
-
-Changes v2 -> v3:
- - creates new simple_xattr_initxattrs() function
- - updates shmem to use new callback function
- - updates mqueue to use new callback function
-
-Changes v1 -> v2:
- - formatting/commit message
-
-
-
-David Graziano (3):
-  xattr: add simple initxattrs function
-  shmem: use simple initxattrs callback
-  mqueue: Implement generic xattr support
-
- fs/xattr.c            | 39 +++++++++++++++++++++++++++++++++++++
+Signed-off-by: David Graziano <david.graziano@rockwellcollins.com>
+---
+ fs/xattr.c            | 39 +++++++++++++++++++++++++++++++++++++++
  include/linux/xattr.h |  3 +++
- ipc/mqueue.c          | 16 ++++++++++++++++
- mm/shmem.c            | 53 ++++++++++++---------------------------------------
- 4 files changed, 70 insertions(+), 41 deletions(-)
+ 2 files changed, 42 insertions(+)
 
+diff --git a/fs/xattr.c b/fs/xattr.c
+index c243905..69dd142 100644
+--- a/fs/xattr.c
++++ b/fs/xattr.c
+@@ -994,3 +994,42 @@ void simple_xattr_list_add(struct simple_xattrs *xattrs,
+ 	list_add(&new_xattr->list, &xattrs->head);
+ 	spin_unlock(&xattrs->lock);
+ }
++
++/*
++ * Callback for security_inode_init_security() for acquiring xattrs.
++ */
++int simple_xattr_initxattrs(struct inode *inode,
++			    const struct xattr *xattr_array,
++			    void *fs_info)
++{
++	struct simple_xattrs *xattrs;
++	const struct xattr *xattr;
++	struct simple_xattr *new_xattr;
++	size_t len;
++
++	if (!fs_info)
++		return -ENOMEM;
++	xattrs = (struct simple_xattrs *) fs_info;
++
++	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
++		new_xattr = simple_xattr_alloc(xattr->value, xattr->value_len);
++		if (!new_xattr)
++			return -ENOMEM;
++		len = strlen(xattr->name) + 1;
++		new_xattr->name = kmalloc(XATTR_SECURITY_PREFIX_LEN + len,
++					  GFP_KERNEL);
++		if (!new_xattr->name) {
++			kfree(new_xattr);
++			return -ENOMEM;
++		}
++
++		memcpy(new_xattr->name, XATTR_SECURITY_PREFIX,
++		       XATTR_SECURITY_PREFIX_LEN);
++		memcpy(new_xattr->name + XATTR_SECURITY_PREFIX_LEN,
++		       xattr->name, len);
++
++		simple_xattr_list_add(xattrs, new_xattr);
++	}
++
++	return 0;
++}
+diff --git a/include/linux/xattr.h b/include/linux/xattr.h
+index 94079ba..a787d1a 100644
+--- a/include/linux/xattr.h
++++ b/include/linux/xattr.h
+@@ -108,5 +108,8 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, cha
+ 			  size_t size);
+ void simple_xattr_list_add(struct simple_xattrs *xattrs,
+ 			   struct simple_xattr *new_xattr);
++int simple_xattr_initxattrs(struct inode *inode,
++			    const struct xattr *xattr_array,
++			    void *fs_info);
+ 
+ #endif	/* _LINUX_XATTR_H */
 -- 
 1.9.1
 
