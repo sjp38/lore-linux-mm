@@ -1,96 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD4B6B025E
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:32:33 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id a20so6295828wme.5
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:32:33 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z2si29343099wjz.7.2016.12.08.05.32.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AD66F6B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:47:21 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id y16so6353410wmd.6
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:47:21 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id i189si13327004wmi.6.2016.12.08.05.47.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 05:32:32 -0800 (PST)
-Date: Thu, 8 Dec 2016 14:32:30 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161208133229.GB26530@dhcp22.suse.cz>
-References: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20161207081555.GB17136@dhcp22.suse.cz>
- <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
- <5c3ddf50-ca19-2cae-a3ce-b10eafe8363c@suse.cz>
- <201612082000.FBB00003.FFMQSVHJOFLOtO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Dec 2016 05:47:20 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id u144so3681023wmu.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:47:20 -0800 (PST)
+Date: Thu, 8 Dec 2016 14:47:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161208134718.GC26530@dhcp22.suse.cz>
+References: <20161201152517.27698-3-mhocko@kernel.org>
+ <201612052245.HDB21880.OHJMOOQFFSVLtF@I-love.SAKURA.ne.jp>
+ <20161205141009.GJ30758@dhcp22.suse.cz>
+ <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
+ <20161206192242.GA10273@dhcp22.suse.cz>
+ <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612082000.FBB00003.FFMQSVHJOFLOtO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: vbabka@suse.cz, linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, aarcange@redhat.com, david@fromorbit.com, sergey.senozhatsky@gmail.com, akpm@linux-foundation.org
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 08-12-16 20:00:39, Tetsuo Handa wrote:
-> Cc'ing people involved in commit dc56401fc9f25e8f ("mm: oom_kill: simplify
-> OOM killer locking") and Sergey as printk() expert. Topic started from
-> http://lkml.kernel.org/r/1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
-> 
-> Vlastimil Babka wrote:
-> > > May I? Something like below? With patch below, the OOM killer can send
-> > > SIGKILL smoothly and printk() can report smoothly (the frequency of
-> > > "** XXX printk messages dropped **" messages is significantly reduced).
-> > >
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 2c6d5f6..ee0105b 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -3075,7 +3075,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
-> > >  	 * Acquire the oom lock.  If that fails, somebody else is
-> > >  	 * making progress for us.
-> > >  	 */
+On Thu 08-12-16 21:53:44, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 06-12-16 19:38:38, Tetsuo Handa wrote:
+> > > You are trying to increase possible locations of lockups by changing
+> > > default behavior of __GFP_NOFAIL.
 > > 
-> > The comment above could use some updating then. Although maybe "somebody 
-> > killed us" is also technically "making progress for us" :)
+> > I disagree. I have tried to explain that it is much more important to
+> > have fewer silent side effects than optimize for the very worst case.  I
+> > simply do not see __GFP_NOFAIL lockups so common to even care or tweak
+> > their semantic in a weird way. It seems you prefer to optimize for the
+> > absolute worst case and even for that case you cannot offer anything
+> > better than randomly OOM killing random processes until the system
+> > somehow resurrects or panics. I consider this a very bad design. So
+> > let's agree to disagree here.
 > 
-> I think we can update the comment. But since __GFP_KILLABLE does not exist,
-> SIGKILL is pending does not imply that current thread will make progress by
-> leaving the retry loop immediately. Therefore,
+> You think that invoking the OOM killer with __GFP_NOFAIL is worse than
+> locking up with __GFP_NOFAIL.
 
-Although this is true I do not think that cluttering the code with this
-case is anyhow useful. In the vast majority of cases SIGKILL pending
-will be a result of the oom killer.
+Yes and I have explained why.
 
+> But I think that locking up with __GFP_NOFAIL
+> is worse than invoking the OOM killer with __GFP_NOFAIL.
+
+Without any actual arguments based just on handwaving.
+
+> If we could agree
+> with calling __alloc_pages_nowmark() before out_of_memory() if __GFP_NOFAIL
+> is given, we can avoid locking up while minimizing possibility of invoking
+> the OOM killer...
+
+I do not understand. We do __alloc_pages_nowmark even when oom is called
+for GFP_NOFAIL.
+
+> I suggest "when you change something, ask users who are affected by
+> your change" because patch 2 has values-based conflict.
+> 
 [...]
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6de9440..6c43d8e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3037,12 +3037,16 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
->  	*did_some_progress = 0;
->  
->  	/*
-> -	 * Acquire the oom lock.  If that fails, somebody else is
-> -	 * making progress for us.
-> +	 * Give the OOM killer enough CPU time for sending SIGKILL.
-> +	 * Do not return without a short sleep unless TIF_MEMDIE is set, for
-> +	 * currently tsk_is_oom_victim(current) == true does not make
-> +	 * gfp_pfmemalloc_allowed() == true via TIF_MEMDIE until
-> +	 * mark_oom_victim(current) is called.
->  	 */
-> -	if (!mutex_trylock(&oom_lock)) {
-> +	if (mutex_lock_killable(&oom_lock)) {
->  		*did_some_progress = 1;
-> -		schedule_timeout_uninterruptible(1);
-> +		if (!test_thread_flag(TIF_MEMDIE))
-> +			schedule_timeout_uninterruptible(1);
+> > > Those callers which prefer lockup over panic can specify both
+> > > __GFP_NORETRY and __GFP_NOFAIL.
+> > 
+> > No! This combination just doesn't make any sense. The same way how
+> > __GFP_REPEAT | GFP_NOWAIT or __GFP_REPEAT | __GFP_NORETRY make no sense
+> > as well. Please use a common sense!
+> 
+> I wonder why I'm accused so much. I mentioned that patch 2 might be a
+> garbage because patch 1 alone unexpectedly provided a mean to retry forever
+> without invoking the OOM killer.
 
-I am not really sure this is necessary. Just return outside and for
-those unlikely cases where the current task was killed before entering
-the page allocator simply do not matter imho. I would rather go with
-simplicity here.
+Which is the whole point of the patch and the changelog is vocal about
+that. Even explaining why it is desirable to not override decisions when
+the oom killer is not invoked. Please reread that and object if the
+argument is not correct.
 
->  		return NULL;
->  	}
->  
-> -- 
-> 1.8.3.1
+> You are not describing that fact in the
+> description. You are not describing what combinations are valid and
+> which flag is stronger requirement in gfp.h (e.g. __GFP_NOFAIL v.s.
+> __GFP_NORETRY).
+
+Sigh... I really fail to see why I should describe an impossible gfp
+mask combination which is _not_ used in the kernel. Please stop this
+strawman, I am really tired of it.
+ 
+> > Invoking or not invoking the oom killer is the page allocator internal
+> > business. No code outside of the MM is to talk about those decisions.
+> > The fact that we provide a lightweight allocation mode which doesn't
+> > invoke the OOM killer is a mere implementation detail.
+> 
+> __GFP_NOFAIL allocation requests for e.g. fs writeback is considered as
+> code inside the MM because they are operations for reclaiming memory.
+> Such __GFP_NOFAIL allocation requests should be given a chance to choose
+> which one (possibility of lockup by not invoking the OOM killer or
+> possibility of panic by invoking the OOM killer) they prefer.
+
+Please be more specific. How and why they should choose that. Which
+allocation are we talking about and why do you believe that the current
+implementation with access to memory reserves is not sufficient.
+
+> Therefore,
+> 
+> > If you believe that my argumentation is incorrect then you are free to
+> > nak the patch with your reasoning. But please stop this nit picking on
+> > nonsense combination of flags.
+> 
+> Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> 
+> on patch 2 unless "you explain these patches to __GFP_NOFAIL users and
+> provide a mean to invoke the OOM killer if someone chose possibility of
+> panic"
+
+I believe that the changelog contains my reasonining and so far I
+haven't heard any _argument_ from you why they are wrong. You just
+managed to nitpick on an impossible and pointless gfp_mask combination
+and some handwaving on possible lockups without any backing arguments.
+This is not something I would consider as a basis for a serious nack. So
+if you really hate this patch then do please start being reasonable and
+put some real arguments into your review without any off topics and/or
+strawman arguments without any relevance.
+
+> or "you accept kmallocwd".
+
+Are you serious? Are you really suggesting that your patch has to be
+accepted in order to have this one in?
 
 -- 
 Michal Hocko
