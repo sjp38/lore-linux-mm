@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FF96B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 14:33:28 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id bk3so99346470wjc.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 11:33:28 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id o134si14609502wmd.69.2016.12.08.11.33.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4783D6B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 15:07:05 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so184228156pgd.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 12:07:05 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id 201si30186702pfc.120.2016.12.08.12.07.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 11:33:26 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id m203so5594183wma.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 11:33:26 -0800 (PST)
-Date: Thu, 8 Dec 2016 22:33:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC, PATCHv1 24/28] x86/mm: add sync_global_pgds() for
- configuration with 5-level paging
-Message-ID: <20161208193324.GD30380@node.shutemov.name>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161208162150.148763-26-kirill.shutemov@linux.intel.com>
- <CALCETrWE2WSUe-m9MKmKEK44zNQuuECJ_2agnTv=AkLdOFgR=A@mail.gmail.com>
+        Thu, 08 Dec 2016 12:07:04 -0800 (PST)
+Subject: Re: [HMM v14 05/16] mm/ZONE_DEVICE/unaddressable: add support for
+ un-addressable device memory
+References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
+ <1481215184-18551-6-git-send-email-jglisse@redhat.com>
+ <be2861b4-d830-fbd7-e9eb-ebc8e4d913a2@intel.com>
+ <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <7df66ace-ef29-c76b-d61c-88263a61c6d0@intel.com>
+Date: Thu, 8 Dec 2016 12:07:01 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWE2WSUe-m9MKmKEK44zNQuuECJ_2agnTv=AkLdOFgR=A@mail.gmail.com>
+In-Reply-To: <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Thu, Dec 08, 2016 at 10:42:19AM -0800, Andy Lutomirski wrote:
-> On Thu, Dec 8, 2016 at 8:21 AM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > This basically restores slightly modified version of original
-> > sync_global_pgds() which we had before foldedl p4d was introduced.
-> >
-> > The only modification is protection against 'address' overflow.
-> >
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  arch/x86/mm/init_64.c | 47 +++++++++++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 47 insertions(+)
-> >
-> > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> > index a991f5c4c2c4..d637893ac8c2 100644
-> > --- a/arch/x86/mm/init_64.c
-> > +++ b/arch/x86/mm/init_64.c
-> > @@ -92,6 +92,52 @@ __setup("noexec32=", nonx32_setup);
-> >   * When memory was added/removed make sure all the processes MM have
-> >   * suitable PGD entries in the local PGD level page.
-> >   */
-> > +#ifdef CONFIG_X86_5LEVEL
-> > +void sync_global_pgds(unsigned long start, unsigned long end, int removed)
-> > +{
-> > +        unsigned long address;
-> > +
-> > +       for (address = start; address <= end && address >= start;
-> > +                       address += PGDIR_SIZE) {
-> > +                const pgd_t *pgd_ref = pgd_offset_k(address);
-> > +                struct page *page;
-> > +
-> > +                /*
-> > +                 * When it is called after memory hot remove, pgd_none()
-> > +                 * returns true. In this case (removed == 1), we must clear
-> > +                 * the PGD entries in the local PGD level page.
-> > +                 */
-> > +                if (pgd_none(*pgd_ref) && !removed)
-> > +                        continue;
+On 12/08/2016 08:39 AM, Jerome Glisse wrote:
+>> On 12/08/2016 08:39 AM, JA(C)rA'me Glisse wrote:
+>>> > > Architecture that wish to support un-addressable device memory should make
+>>> > > sure to never populate the kernel linar mapping for the physical range.
+>> > 
+>> > Does the platform somehow provide a range of physical addresses for this
+>> > unaddressable area?  How do we know no memory will be hot-added in a
+>> > range we're using for unaddressable device memory, for instance?
+> That's what one of the big issue. No platform does not reserve any range so
+> there is a possibility that some memory get hotpluged and assign this range.
 > 
-> This isn't quite specific to your patch, but can we assert that, if
-> removed=1, then we're not operating on the vmalloc range?  Because if
-> we do, this will be racy is nasty ways.
+> I pushed the range decision to higher level (ie it is the device driver that
+> pick one) so right now for device driver using HMM (NVidia close driver as
+> we don't have nouveau ready for that yet) it goes from the highest physical
+> address and scan down until finding an empty range big enough.
 
-Looks like there's no users of removed=1. The last user is gone with
-af2cf278ef4f ("x86/mm/hotplug: Don't remove PGD entries in
-remove_pagetable()")
+I don't think you should be stealing physical address space for things
+that don't and can't have physical addresses.  Delegating this to
+individual device drivers and hoping that they all get it right seems
+like a recipe for disaster.
 
-I'll just drop it (with separate patch).
+Maybe worth adding to the changelog:
 
--- 
- Kirill A. Shutemov
+	This feature potentially breaks memory hotplug unless every
+	driver using it magically predicts the future addresses of
+	where memory will be hotplugged.
+
+BTW, how many more of these "big issues" does this set have?  I didn't
+see any mention of this in the changelogs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
