@@ -1,87 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3614D6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:51:49 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so96253699wjc.2
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:51:49 -0800 (PST)
-Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
-        by mx.google.com with ESMTPS id 203si13319364wmh.55.2016.12.08.05.51.47
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 32D716B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 09:48:22 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id q128so347201608qkd.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 06:48:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o22si17453093qta.236.2016.12.08.06.48.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 05:51:48 -0800 (PST)
-Received: by mail-wj0-f196.google.com with SMTP id he10so40402398wjc.2
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:51:47 -0800 (PST)
-Date: Thu, 8 Dec 2016 14:51:46 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-Message-ID: <20161208135145.GD26530@dhcp22.suse.cz>
-References: <20161208103300.23217-1-mhocko@kernel.org>
- <86cabb7a-1756-4d12-7ba4-776f66f6bb86@redhat.com>
+        Thu, 08 Dec 2016 06:48:21 -0800 (PST)
+Date: Thu, 8 Dec 2016 15:48:13 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161208154813.5dafae7b@redhat.com>
+In-Reply-To: <20161208110656.bnkvqg73qnjkehbc@techsingularity.net>
+References: <20161207101228.8128-1-mgorman@techsingularity.net>
+	<1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207194801.krhonj7yggbedpba@techsingularity.net>
+	<1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+	<20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+	<20161208092231.55c7eacf@redhat.com>
+	<20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+	<20161208114308.1c6a424f@redhat.com>
+	<20161208110656.bnkvqg73qnjkehbc@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <86cabb7a-1756-4d12-7ba4-776f66f6bb86@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
 
-On Thu 08-12-16 14:00:20, David Hildenbrand wrote:
-> Am 08.12.2016 um 11:33 schrieb Michal Hocko:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Using kmalloc with the vmalloc fallback for larger allocations is a
-> > common pattern in the kernel code. Yet we do not have any common helper
-> > for that and so users have invented their own helpers. Some of them are
-> > really creative when doing so. Let's just add kv[mz]alloc and make sure
-> > it is implemented properly. This implementation makes sure to not make
-> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
-> > to not warn about allocation failures. This also rules out the OOM
-> > killer as the vmalloc is a more approapriate fallback than a disruptive
-> > user visible action.
-> > 
-> > This patch also changes some existing users and removes helpers which
-> > are specific for them. In some cases this is not possible (e.g.
-> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
-> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
-> > in general (note that the page table allocation is GFP_KERNEL). Those
-> > need to be fixed separately.
-> > 
-> > apparmor has already claimed kv[mz]alloc so remove those and use
-> > __aa_kvmalloc instead to prevent from the naming clashes.
-> > 
-> > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > Cc: Mike Snitzer <snitzer@redhat.com>
-> > Cc: dm-devel@redhat.com
-> > Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> > Cc: "Theodore Ts'o" <tytso@mit.edu>
-> > Cc: kvm@vger.kernel.org
-> > Cc: linux-ext4@vger.kernel.org
-> > Cc: linux-f2fs-devel@lists.sourceforge.net
-> > Cc: linux-security-module@vger.kernel.org
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> I remember yet another similar user in arch/s390/kvm/kvm-s390.c
-> -> kvm_s390_set_skeys()
-> 
-> ...
-> keys = kmalloc_array(args->count, sizeof(uint8_t),
->                      GFP_KERNEL | __GFP_NOWARN);
-> if (!keys)
->         vmalloc(sizeof(uint8_t) * args->count);
-> ...
-> 
-> would kvmalloc_array make sense? (it would even make the code here
-> less error prone and better to read)
+On Thu, 8 Dec 2016 11:06:56 +0000
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
-Well, if there are more users like that then why not. I just do not want
-to duplicate the whole kmalloc API right now. The above could be
-trivially changed to kvmalloc(args->count * sizeof(uint8_t), GFP_KERNEL)
-so a special API might not be really needed. 
+> On Thu, Dec 08, 2016 at 11:43:08AM +0100, Jesper Dangaard Brouer wrote:
+> > > That's expected. In the initial sniff-test, I saw negligible packet loss.
+> > > I'm waiting to see what the full set of network tests look like before
+> > > doing any further adjustments.  
+> > 
+> > For netperf I will not recommend adjusting the global default
+> > /proc/sys/net/core/rmem_default as netperf have means of adjusting this
+> > value from the application (which were the options you setup too low
+> > and just removed). I think you should keep this as the default for now
+> > (unless Eric says something else), as this should cover most users.
+> >   
+> 
+> Ok, the current state is that buffer sizes are only set for netperf
+> UDP_STREAM and only when running over a real network. The values selected
+> were specific to the network I had available so milage may vary.
+> localhost is left at the defaults.
 
+Looks like you made a mistake when re-implementing using buffer sizes
+for netperf. See patch below signature.
+
+Besides I think you misunderstood me, you can adjust:
+ sysctl net.core.rmem_max
+ sysctl net.core.wmem_max
+
+And you should if you plan to use/set 851968 as socket size for UDP
+remote tests, else you will be limited to the "max" values (212992 well
+actually 425984 2x default value, for reasons I cannot remember)
+
+
+https://github.com/gormanm/mmtests/commit/de9f8cdb7146021
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
+
+[PATCH] mmtests: actually use variable SOCKETSIZE_OPT
+
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+
+commit 7f16226577b2 ("netperf: Set remote and local socket max buffer
+sizes") removed netperf's setting of the socket buffer sizes and
+instead used global /proc/sys settings.
+
+commit de9f8cdb7146 ("netperf: Only adjust socket sizes for
+UDP_STREAM") re-added explicit netperf setting socket buffer sizes for
+remote-host testing (saved in SOCKETSIZE_OPT). Only problem is this
+variable is not used after commit 7f16226577b2.
+
+Simply use $SOCKETSIZE_OPT when invoking netperf command.
+
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+---
+ shellpack_src/src/netperf/netperf-bench |    2 +-
+ shellpacks/shellpack-bench-netperf      |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/shellpack_src/src/netperf/netperf-bench b/shellpack_src/src/netperf/netperf-bench
+index 8e7d02864c4a..b2820610936e 100755
+--- a/shellpack_src/src/netperf/netperf-bench
++++ b/shellpack_src/src/netperf/netperf-bench
+@@ -93,7 +93,7 @@ mmtests_server_ctl start --serverside-name $PROTOCOL-$SIZE
+ 		-t $PROTOCOL \
+ 		-i 3,3 -I 95,5 \
+ 		-H $SERVER_HOST \
+-		-- $MSGSIZE_OPT $EXTRA \
++		-- $SOCKETSIZE_OPT $MSGSIZE_OPT $EXTRA \
+ 			2>&1 | tee $LOGDIR_RESULTS/$PROTOCOL-${SIZE}.$ITERATION \
+ 			|| die Failed to run netperf
+ 	monitor_post_hook $LOGDIR_RESULTS $SIZE
+diff --git a/shellpacks/shellpack-bench-netperf b/shellpacks/shellpack-bench-netperf
+index 2ce26ba39f1b..7356082d5a78 100755
+--- a/shellpacks/shellpack-bench-netperf
++++ b/shellpacks/shellpack-bench-netperf
+@@ -190,7 +190,7 @@ for ITERATION in `seq 1 $ITERATIONS`; do
+ 		-t $PROTOCOL \
+ 		-i 3,3 -I 95,5 \
+ 		-H $SERVER_HOST \
+-		-- $MSGSIZE_OPT $EXTRA \
++		-- $SOCKETSIZE_OPT $MSGSIZE_OPT $EXTRA \
+ 			2>&1 | tee $LOGDIR_RESULTS/$PROTOCOL-${SIZE}.$ITERATION \
+ 			|| die Failed to run netperf
+ 	monitor_post_hook $LOGDIR_RESULTS $SIZE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
