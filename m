@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 40DA76B0281
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:50 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id p66so175492664pga.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:50 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 64si29501881ply.163.2016.12.08.08.22.47
+	by kanga.kvack.org (Postfix) with ESMTP id AA37F6B0282
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:55 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y71so173671990pgd.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:55 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id m6si29492031pli.218.2016.12.08.08.22.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 08:22:48 -0800 (PST)
+        Thu, 08 Dec 2016 08:22:54 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv1 18/28] x86/paravirt: make paravirt code support 5-level paging
-Date: Thu,  8 Dec 2016 19:21:40 +0300
-Message-Id: <20161208162150.148763-20-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCHv1 01/28] asm-generic: introduce 5level-fixup.h
+Date: Thu,  8 Dec 2016 19:21:23 +0300
+Message-Id: <20161208162150.148763-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,160 +20,109 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Add operations to allocate/release p4ds.
+We are going to switch core MM to 5-level paging abstraction.
 
-TODO: cover XEN.
+This is preparation step which adds <asm-generic/5level-fixup.h>
+As with 4level-fixup.h, the new header allows quickly make all
+architectures compatible with 5-level paging in core MM.
 
-Not-yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+In long run we would like to switch architectures to properly folded p4d
+level by using <asm-generic/pgtable-nop4d.h>, but it requires more
+changes to arch-specific code.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/paravirt.h       | 43 +++++++++++++++++++++++++++++++----
- arch/x86/include/asm/paravirt_types.h |  7 +++++-
- arch/x86/include/asm/pgalloc.h        |  1 +
- arch/x86/kernel/paravirt.c            |  9 ++++++--
- 4 files changed, 53 insertions(+), 7 deletions(-)
+ include/asm-generic/4level-fixup.h |  3 ++-
+ include/asm-generic/5level-fixup.h | 41 ++++++++++++++++++++++++++++++++++++++
+ include/linux/mm.h                 |  3 +++
+ 3 files changed, 46 insertions(+), 1 deletion(-)
+ create mode 100644 include/asm-generic/5level-fixup.h
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index 2196ec33063e..ccbb88bb7681 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -366,6 +366,15 @@ static inline void paravirt_release_pud(unsigned long pfn)
- 	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
- }
+diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+index 5bdab6bffd23..928fd66b1271 100644
+--- a/include/asm-generic/4level-fixup.h
++++ b/include/asm-generic/4level-fixup.h
+@@ -15,7 +15,6 @@
+ 	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
+  		NULL: pmd_offset(pud, address))
  
-+static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)
-+{
-+	PVOP_VCALL2(pv_mmu_ops.alloc_p4d, mm, pfn);
-+}
-+static inline void paravirt_release_p4d(unsigned long pfn)
-+{
-+	PVOP_VCALL1(pv_mmu_ops.release_p4d, pfn);
-+}
+-#define pud_alloc(mm, pgd, address)	(pgd)
+ #define pud_offset(pgd, start)		(pgd)
+ #define pud_none(pud)			0
+ #define pud_bad(pud)			0
+@@ -35,4 +34,6 @@
+ #undef  pud_addr_end
+ #define pud_addr_end(addr, end)		(end)
+ 
++#include <asm-generic/5level-fixup.h>
 +
- static inline void pte_update(struct mm_struct *mm, unsigned long addr,
- 			      pte_t *ptep)
+ #endif
+diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+new file mode 100644
+index 000000000000..02a71804d9fa
+--- /dev/null
++++ b/include/asm-generic/5level-fixup.h
+@@ -0,0 +1,41 @@
++#ifndef _5LEVEL_FIXUP_H
++#define _5LEVEL_FIXUP_H
++
++#define __ARCH_HAS_5LEVEL_HACK
++#define __PAGETABLE_P4D_FOLDED
++
++#define P4D_SHIFT			PGDIR_SHIFT
++#define P4D_SIZE			PGDIR_SIZE
++#define P4D_MASK			PGDIR_MASK
++#define PTRS_PER_P4D			1
++
++#define p4d_t				pgd_t
++
++#define pud_alloc(mm, p4d, address) \
++	((unlikely(pgd_none(*(p4d))) && __pud_alloc(mm, p4d, address))? \
++		NULL: pud_offset(p4d, address))
++
++#define p4d_alloc(mm, pgd, address)	(pgd)
++#define p4d_offset(pgd, start)		(pgd)
++#define p4d_none(p4d)			0
++#define p4d_bad(p4d)			0
++#define p4d_present(p4d)		1
++#define p4d_ERROR(p4d)			do { } while (0)
++#define p4d_clear(p4d)			pgd_clear(p4d)
++#define p4d_val(p4d)			pgd_val(p4d)
++#define p4d_populate(mm, p4d, pud)	pgd_populate(mm, p4d, pud)
++#define p4d_page(p4d)			pgd_page(p4d)
++#define p4d_page_vaddr(p4d)		pgd_page_vaddr(p4d)
++
++#define __p4d(x)			__pgd(x)
++#define set_p4d(p4dp, p4d)		set_pgd(p4dp, p4d)
++
++#undef p4d_free_tlb
++#define p4d_free_tlb(tlb, x, addr)	do { } while (0)
++#define p4d_free(mm, x)			do { } while (0)
++#define __p4d_free_tlb(tlb, x, addr)	do { } while (0)
++
++#undef  p4d_addr_end
++#define p4d_addr_end(addr, end)		(end)
++
++#endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ef815b9cd426..9a4dfd7c3515 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1600,11 +1600,14 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
+  * Remove it when 4level-fixup.h has been removed.
+  */
+ #if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
++
++#ifndef __ARCH_HAS_5LEVEL_HACK
+ static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
  {
-@@ -580,14 +589,35 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
- 			    val);
+ 	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
+ 		NULL: pud_offset(pgd, address);
  }
++#endif /* !__ARCH_HAS_5LEVEL_HACK */
  
--static inline void p4d_clear(p4d_t *p4dp)
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+
-+static inline p4d_t __p4d(p4dval_t val)
+ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
  {
--	set_p4d(p4dp, __p4d(0));
-+	p4dval_t ret;
-+
-+	if (sizeof(p4dval_t) > sizeof(long))
-+		ret = PVOP_CALLEE2(p4dval_t, pv_mmu_ops.make_p4d,
-+				   val, (u64)val >> 32);
-+	else
-+		ret = PVOP_CALLEE1(p4dval_t, pv_mmu_ops.make_p4d,
-+				   val);
-+
-+	return (p4d_t) { ret };
- }
- 
--#if CONFIG_PGTABLE_LEVELS >= 5
-+static inline p4dval_t p4d_val(p4d_t p4d)
-+{
-+	p4dval_t ret;
- 
--#error FIXME
-+	if (sizeof(p4dval_t) > sizeof(long))
-+		ret =  PVOP_CALLEE2(p4dval_t, pv_mmu_ops.p4d_val,
-+				    p4d.p4d, (u64)p4d.p4d >> 32);
-+	else
-+		ret =  PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val,
-+				    p4d.p4d);
-+
-+	return ret;
-+}
- 
- static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
- {
-@@ -608,6 +638,11 @@ static inline void pgd_clear(pgd_t *pgdp)
- 
- #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
- 
-+static inline void p4d_clear(p4d_t *p4dp)
-+{
-+	set_p4d(p4dp, __p4d(0));
-+}
-+
- #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
- 
- #endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
-index cdfa758ce7de..d1933e40cf4b 100644
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -241,9 +241,11 @@ struct pv_mmu_ops {
- 	void (*alloc_pte)(struct mm_struct *mm, unsigned long pfn);
- 	void (*alloc_pmd)(struct mm_struct *mm, unsigned long pfn);
- 	void (*alloc_pud)(struct mm_struct *mm, unsigned long pfn);
-+	void (*alloc_p4d)(struct mm_struct *mm, unsigned long pfn);
- 	void (*release_pte)(unsigned long pfn);
- 	void (*release_pmd)(unsigned long pfn);
- 	void (*release_pud)(unsigned long pfn);
-+	void (*release_p4d)(unsigned long pfn);
- 
- 	/* Pagetable manipulation functions */
- 	void (*set_pte)(pte_t *ptep, pte_t pteval);
-@@ -287,7 +289,10 @@ struct pv_mmu_ops {
- 	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
- 
- #if CONFIG_PGTABLE_LEVELS >= 5
--#error FIXME
-+	struct paravirt_callee_save p4d_val;
-+	struct paravirt_callee_save make_p4d;
-+
-+	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
- #endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
- 
- #endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index 2f585054c63c..8408511dbdd1 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -17,6 +17,7 @@ static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{
- static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
- 					    unsigned long start, unsigned long count) {}
- static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned long pfn)	{}
-+static inline void paravirt_alloc_p4d(struct mm_struct *mm, unsigned long pfn)	{}
- static inline void paravirt_release_pte(unsigned long pfn) {}
- static inline void paravirt_release_pmd(unsigned long pfn) {}
- static inline void paravirt_release_pud(unsigned long pfn) {}
-diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
-index d81c0c4e6bcf..ca61a7d566cc 100644
---- a/arch/x86/kernel/paravirt.c
-+++ b/arch/x86/kernel/paravirt.c
-@@ -407,9 +407,11 @@ struct pv_mmu_ops pv_mmu_ops = {
- 	.alloc_pte = paravirt_nop,
- 	.alloc_pmd = paravirt_nop,
- 	.alloc_pud = paravirt_nop,
-+	.alloc_p4d = paravirt_nop,
- 	.release_pte = paravirt_nop,
- 	.release_pmd = paravirt_nop,
- 	.release_pud = paravirt_nop,
-+	.release_p4d = paravirt_nop,
- 
- 	.set_pte = native_set_pte,
- 	.set_pte_at = native_set_pte_at,
-@@ -438,8 +440,11 @@ struct pv_mmu_ops pv_mmu_ops = {
- 	.set_p4d = native_set_p4d,
- 
- #if CONFIG_PGTABLE_LEVELS >= 5
--#error FIXME
--#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
-+	.p4d_val = PTE_IDENT,
-+	.make_p4d = PTE_IDENT,
-+
-+	.set_pgd = native_set_pgd,
-+#endif /* CONFIG_PGTABLE_LEVELS >= 5 */
- #endif /* CONFIG_PGTABLE_LEVELS >= 4 */
- #endif /* CONFIG_PGTABLE_LEVELS >= 3 */
- 
 -- 
 2.10.2
 
