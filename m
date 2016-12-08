@@ -1,62 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B5BC6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:26 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id k201so348028973qke.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:26 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 6FE516B0260
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 10:39:27 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id g193so348275261qke.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 07:39:27 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o33si17547492qkh.193.2016.12.08.07.39.25
+        by mx.google.com with ESMTPS id h38si17576970qtc.9.2016.12.08.07.39.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 07:39:25 -0800 (PST)
+        Thu, 08 Dec 2016 07:39:24 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v14 01/16] mm/free_hot_cold_page: catch ZONE_DEVICE pages
-Date: Thu,  8 Dec 2016 11:39:29 -0500
-Message-Id: <1481215184-18551-2-git-send-email-jglisse@redhat.com>
-In-Reply-To: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
-References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
+Subject: [HMM v14 00/16] HMM (Heterogeneous Memory Management) v14
+Date: Thu,  8 Dec 2016 11:39:28 -0500
+Message-Id: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Catch page from ZONE_DEVICE in free_hot_cold_page(). This should never
-happen as ZONE_DEVICE page must always have an elevated refcount.
+Cliff note: HMM offers 2 things (each standing on its own). First
+it allows to use device memory transparently inside any process
+without any modifications to process program code. Second it allows
+to mirror process address space on a device.
 
-This is safety-net to catch any refcounting issues in a sane way for any
-ZONE_DEVICE pages.
+Change since v13 are small, it was about including everyone remarks
+into the patchset (splitting each features into its own kernel config,
+adding better comment, splitting optimization from base implementation,
+improved comments, ...).
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- mm/page_alloc.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0fbfead..09b2630 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2435,6 +2435,16 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	unsigned long pfn = page_to_pfn(page);
- 	int migratetype;
- 
-+	/*
-+	 * This should never happen ! Page from ZONE_DEVICE always must have an
-+	 * active refcount. Complain about it and try to restore the refcount.
-+	 */
-+	if (is_zone_device_page(page)) {
-+		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
-+		page_ref_inc(page);
-+		return;
-+	}
-+
- 	if (!free_pcp_prepare(page))
- 		return;
- 
+Patchset is divided into 3 features that can each be use independently
+from one another. First is changes to ZONE_DEVICE so we can have struct
+page for device un-addressable memory (patch 2-6). Second is process
+address space mirroring (patch 8 to 10), this allow to snapshot CPU
+page table and to keep the device page table synchronize with the CPU
+one.
+
+Last is a new page migration helper which allow migration for range of
+virtual address using hardware copy engine (patch 11-14).
+
+Other patches just introduce common definitions or add safety net to
+catch wrong use of some of the features.
+
+
+Andrew do you want anyone specific to review any specific part of the
+patchset before considering it for inclusion ? At this point i want
+to know if there is ever a chance of getting this upstream or do we
+decide that we don't want to support this kind of hardware ?
+
+
+In this patchset i restricted myself to set of core features what
+is missing:
+  - force read only on CPU for memory duplication and GPU atomic
+  - changes to mmu_notifier for optimization purposes
+  - migration of file back page to device memory
+
+I plan to submit a couple more patchset to implement those features
+once core HMM is upstream.
+
+
+Previous patchset posting :
+    v1 http://lwn.net/Articles/597289/
+    v2 https://lkml.org/lkml/2014/6/12/559
+    v3 https://lkml.org/lkml/2014/6/13/633
+    v4 https://lkml.org/lkml/2014/8/29/423
+    v5 https://lkml.org/lkml/2014/11/3/759
+    v6 http://lwn.net/Articles/619737/
+    v7 http://lwn.net/Articles/627316/
+    v8 https://lwn.net/Articles/645515/
+    v9 https://lwn.net/Articles/651553/
+    v10 https://lwn.net/Articles/654430/
+    v11 http://www.gossamer-threads.com/lists/linux/kernel/2286424
+    v12 http://www.kernelhub.org/?msg=972982&p=2
+    v13 https://lwn.net/Articles/706856/
+
+Cheers,
+JA(C)rA'me
+
+JA(C)rA'me Glisse (16):
+  mm/free_hot_cold_page: catch ZONE_DEVICE pages
+  mm/memory/hotplug: convert device bool to int to allow for more flags
+    v2
+  mm/ZONE_DEVICE/devmem_pages_remove: allow early removal of device
+    memory
+  mm/ZONE_DEVICE/free-page: callback when page is freed
+  mm/ZONE_DEVICE/unaddressable: add support for un-addressable device
+    memory
+  mm/ZONE_DEVICE/x86: add support for un-addressable device memory
+  mm/hmm: heterogeneous memory management (HMM for short)
+  mm/hmm/mirror: mirror process address space on device with HMM helpers
+  mm/hmm/mirror: helper to snapshot CPU page table
+  mm/hmm/mirror: device page fault handler
+  mm/hmm/migrate: support un-addressable ZONE_DEVICE page in migration
+  mm/hmm/migrate: add new boolean copy flag to migratepage() callback
+  mm/hmm/migrate: new memory migration helper for use with device memory
+    v2
+  mm/hmm/migrate: optimize page map once in vma being migrated
+  mm/hmm/devmem: device driver helper to hotplug ZONE_DEVICE memory
+  mm/hmm/devmem: dummy HMM device as an helper for ZONE_DEVICE memory
+
+ MAINTAINERS                                |    7 +
+ arch/ia64/mm/init.c                        |   23 +-
+ arch/powerpc/mm/mem.c                      |   22 +-
+ arch/s390/mm/init.c                        |   10 +-
+ arch/sh/mm/init.c                          |   22 +-
+ arch/tile/mm/init.c                        |   10 +-
+ arch/x86/mm/init_32.c                      |   23 +-
+ arch/x86/mm/init_64.c                      |   41 +-
+ drivers/dax/pmem.c                         |    3 +-
+ drivers/nvdimm/pmem.c                      |    7 +-
+ drivers/staging/lustre/lustre/llite/rw26.c |    8 +-
+ fs/aio.c                                   |    7 +-
+ fs/btrfs/disk-io.c                         |   11 +-
+ fs/hugetlbfs/inode.c                       |    9 +-
+ fs/nfs/internal.h                          |    5 +-
+ fs/nfs/write.c                             |    9 +-
+ fs/proc/task_mmu.c                         |   10 +-
+ fs/ubifs/file.c                            |    8 +-
+ include/linux/balloon_compaction.h         |    3 +-
+ include/linux/fs.h                         |   13 +-
+ include/linux/hmm.h                        |  525 ++++++++++++++
+ include/linux/memory_hotplug.h             |   31 +-
+ include/linux/memremap.h                   |   60 +-
+ include/linux/migrate.h                    |    7 +-
+ include/linux/mm_types.h                   |    5 +
+ include/linux/swap.h                       |   18 +-
+ include/linux/swapops.h                    |   67 ++
+ kernel/fork.c                              |    2 +
+ kernel/memremap.c                          |   69 +-
+ mm/Kconfig                                 |   51 ++
+ mm/Makefile                                |    1 +
+ mm/balloon_compaction.c                    |    2 +-
+ mm/hmm.c                                   | 1082 ++++++++++++++++++++++++++++
+ mm/memory.c                                |   62 ++
+ mm/memory_hotplug.c                        |    4 +-
+ mm/migrate.c                               |  687 +++++++++++++++++-
+ mm/mprotect.c                              |   12 +
+ mm/page_alloc.c                            |   10 +
+ mm/rmap.c                                  |   47 ++
+ mm/zsmalloc.c                              |   12 +-
+ tools/testing/nvdimm/test/iomap.c          |    3 +-
+ 41 files changed, 2924 insertions(+), 84 deletions(-)
+ create mode 100644 include/linux/hmm.h
+ create mode 100644 mm/hmm.c
+
 -- 
 2.4.3
 
