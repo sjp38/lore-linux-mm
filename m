@@ -1,71 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A936B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 13:42:42 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 20so447613336uak.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:42:42 -0800 (PST)
-Received: from mail-ua0-x22e.google.com (mail-ua0-x22e.google.com. [2607:f8b0:400c:c08::22e])
-        by mx.google.com with ESMTPS id 4si7455291uay.138.2016.12.08.10.42.42
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CFCA6B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 13:56:14 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id 81so13528192iog.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:56:14 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id y7si21570938iod.33.2016.12.08.10.56.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 10:42:42 -0800 (PST)
-Received: by mail-ua0-x22e.google.com with SMTP id b35so455737716uaa.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 10:42:42 -0800 (PST)
+        Thu, 08 Dec 2016 10:56:13 -0800 (PST)
+Subject: Re: [RFC, PATCHv1 17/28] x86/mm: define virtual memory map for
+ 5-level paging
+References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
+ <20161208162150.148763-19-kirill.shutemov@linux.intel.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <24bebd32-2056-dd5a-8b77-d2a9572dc512@infradead.org>
+Date: Thu, 8 Dec 2016 10:56:04 -0800
 MIME-Version: 1.0
-In-Reply-To: <20161208162150.148763-26-kirill.shutemov@linux.intel.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com> <20161208162150.148763-26-kirill.shutemov@linux.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 8 Dec 2016 10:42:19 -0800
-Message-ID: <CALCETrWE2WSUe-m9MKmKEK44zNQuuECJ_2agnTv=AkLdOFgR=A@mail.gmail.com>
-Subject: Re: [RFC, PATCHv1 24/28] x86/mm: add sync_global_pgds() for
- configuration with 5-level paging
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20161208162150.148763-19-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 8, 2016 at 8:21 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> This basically restores slightly modified version of original
-> sync_global_pgds() which we had before foldedl p4d was introduced.
->
-> The only modification is protection against 'address' overflow.
->
+On 12/08/16 08:21, Kirill A. Shutemov wrote:
+> The first part of memory map (up to %esp fixup) simply scales existing
+> map for 4-level paging by factor of 9 -- number of bits addressed by
+> additional page table level.
+> 
+> The rest of the map is uncahnged.
+
+                         unchanged.
+
+(more fixes below)
+
+
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  arch/x86/mm/init_64.c | 47 +++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 47 insertions(+)
->
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index a991f5c4c2c4..d637893ac8c2 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -92,6 +92,52 @@ __setup("noexec32=", nonx32_setup);
->   * When memory was added/removed make sure all the processes MM have
->   * suitable PGD entries in the local PGD level page.
->   */
-> +#ifdef CONFIG_X86_5LEVEL
-> +void sync_global_pgds(unsigned long start, unsigned long end, int removed)
-> +{
-> +        unsigned long address;
+>  Documentation/x86/x86_64/mm.txt         | 23 ++++++++++++++++++++++-
+>  arch/x86/Kconfig                        |  1 +
+>  arch/x86/include/asm/kasan.h            |  9 ++++++---
+>  arch/x86/include/asm/page_64_types.h    | 10 ++++++++++
+>  arch/x86/include/asm/pgtable_64_types.h |  6 ++++++
+>  arch/x86/include/asm/sparsemem.h        |  9 +++++++--
+>  6 files changed, 52 insertions(+), 6 deletions(-)
+> 
+> diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+> index 8c7dd5957ae1..d33fb0799b3d 100644
+> --- a/Documentation/x86/x86_64/mm.txt
+> +++ b/Documentation/x86/x86_64/mm.txt
+> @@ -12,7 +12,7 @@ ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+>  ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
+>  ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
+>  ... unused hole ...
+> -ffffec0000000000 - fffffc0000000000 (=44 bits) kasan shadow memory (16TB)
+> +ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
+>  ... unused hole ...
+>  ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
+>  ... unused hole ...
+> @@ -23,6 +23,27 @@ ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
+>  ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+>  ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+>  
+> +Virtual memory map with 5 level page tables:
 > +
-> +       for (address = start; address <= end && address >= start;
-> +                       address += PGDIR_SIZE) {
-> +                const pgd_t *pgd_ref = pgd_offset_k(address);
-> +                struct page *page;
-> +
-> +                /*
-> +                 * When it is called after memory hot remove, pgd_none()
-> +                 * returns true. In this case (removed == 1), we must clear
-> +                 * the PGD entries in the local PGD level page.
-> +                 */
-> +                if (pgd_none(*pgd_ref) && !removed)
-> +                        continue;
+> +0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
+> +hole caused by [57:63] sign extension
 
-This isn't quite specific to your patch, but can we assert that, if
-removed=1, then we're not operating on the vmalloc range?  Because if
-we do, this will be racy is nasty ways.
+Can you briefly explain the sign extension?
+Should that be [56:63]?
+
+> +ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
+> +ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
+> +ff90000000000000 - ff91ffffffffffff (=49 bits) hole
+> +ff92000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space
+> +ffd2000000000000 - ff93ffffffffffff (=49 bits) virtual memory map (512TB)
+> +... unused hole ...
+> +ff96000000000000 - ffb5ffffffffffff (=53 bits) kasan shadow memory (8PB)
+> +... unused hole ...
+> +fffe000000000000 - fffeffffffffffff (=49 bits) %esp fixup stacks
+> +... unused hole ...
+> +ffffffef00000000 - ffffffff00000000 (=64 GB) EFI region mapping space
+
+                    - fffffffeffffffff
+
+> +... unused hole ...
+> +ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+
+                    - ffffffff9fffffff
+
+> +ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
+> +ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+> +ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+> +
+>  The direct mapping covers all memory in the system up to the highest
+>  memory address (this means in some cases it can also include PCI memory
+>  holes).
+
+> diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+> index 1410b567ecde..2587c6bd89be 100644
+> --- a/arch/x86/include/asm/kasan.h
+> +++ b/arch/x86/include/asm/kasan.h
+> @@ -11,9 +11,12 @@
+>   * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
+>   */
+>  #define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
+> -					(0xffff800000000000ULL >> 3))
+> -/* 47 bits for kernel address -> (47 - 3) bits for shadow */
+> -#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (47 - 3)))
+> +					((-1UL << __VIRTUAL_MASK_SHIFT) >> 3))
+> +/*
+> + * 47 bits for kernel address -> (47 - 3) bits for shadow
+> + * 56 bits for kernel address -> (56 - 3) bits fro shadow
+
+typo: s/fro/for/
+
+> + */
+> +#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (__VIRTUAL_MASK_SHIFT - 3)))
+>  
+>  #ifndef __ASSEMBLY__
+>  
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
