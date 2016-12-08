@@ -1,120 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7356B0261
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 03:45:29 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id he10so52732424wjc.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 00:45:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tl17si28326992wjb.28.2016.12.08.00.45.28
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9D26B0253
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 04:18:09 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id o2so86642082wje.5
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 01:18:09 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id t65si12433142wmf.30.2016.12.08.01.18.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 00:45:28 -0800 (PST)
-Date: Thu, 8 Dec 2016 09:45:25 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm: use vmalloc fallback path for certain memcg
- allocations
-Message-ID: <20161208084525.GA8330@dhcp22.suse.cz>
-References: <1480554981-195198-1-git-send-email-astepanov@cloudlinux.com>
- <03a17767-1322-3466-a1f1-dba2c6862be4@suse.cz>
- <20161202091933.GD6830@dhcp22.suse.cz>
- <20161202065417.GB358195@stepanov.centos7>
- <20161205052325.GA30758@dhcp22.suse.cz>
- <20161202220913.GA536156@stepanov.centos7>
- <20161206084734.GC18664@dhcp22.suse.cz>
- <20161203155522.GA648490@stepanov.centos7>
+        Thu, 08 Dec 2016 01:18:07 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 469A798624
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 09:18:07 +0000 (UTC)
+Date: Thu, 8 Dec 2016 09:18:06 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+References: <20161207101228.8128-1-mgorman@techsingularity.net>
+ <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207194801.krhonj7yggbedpba@techsingularity.net>
+ <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+ <20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+ <20161208092231.55c7eacf@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20161203155522.GA648490@stepanov.centos7>
+In-Reply-To: <20161208092231.55c7eacf@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anatoly Stepanov <astepanov@cloudlinux.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, vdavydov.dev@gmail.com, umka@cloudlinux.com, panda@cloudlinux.com, vmeshkov@cloudlinux.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Sat 03-12-16 18:55:22, Anatoly Stepanov wrote:
-> On Tue, Dec 06, 2016 at 09:47:35AM +0100, Michal Hocko wrote:
-> > On Sat 03-12-16 01:09:13, Anatoly Stepanov wrote:
-> > > On Mon, Dec 05, 2016 at 06:23:26AM +0100, Michal Hocko wrote:
-> > > > On Fri 02-12-16 09:54:17, Anatoly Stepanov wrote:
-> > > > > Alex, Vlasimil, Michal, thanks for your responses!
-> > > > > 
-> > > > > On Fri, Dec 02, 2016 at 10:19:33AM +0100, Michal Hocko wrote:
-> > > > > > Thanks for CCing me Vlastimil
-> > > > > > 
-> > > > > > On Fri 02-12-16 09:44:23, Vlastimil Babka wrote:
-> > > > > > > On 12/01/2016 02:16 AM, Anatoly Stepanov wrote:
-> > > > > > > > As memcg array size can be up to:
-> > > > > > > > sizeof(struct memcg_cache_array) + kmemcg_id * sizeof(void *);
-> > > > > > > > 
-> > > > > > > > where kmemcg_id can be up to MEMCG_CACHES_MAX_SIZE.
-> > > > > > > > 
-> > > > > > > > When a memcg instance count is large enough it can lead
-> > > > > > > > to high order allocations up to order 7.
-> > > > > > 
-> > > > > > This is definitely not nice and worth fixing! I am just wondering
-> > > > > > whether this is something you have encountered in the real life. Having
-> > > > > > thousands of memcgs sounds quite crazy^Wscary to me. I am not at all
-> > > > > > sure we are prepared for that and some controllers would have real
-> > > > > > issues with it AFAIR.
-> > > > > 
-> > > > > In our company we use custom-made lightweight container technology, the thing is
-> > > > > we can have up to several thousands of them on a server.
-> > > > > So those high-order allocations were observed on a real production workload.
-> > > > 
-> > > > OK, this is interesting. Definitely worth mentioning in the changelog!
-> > > > 
-> > > > [...]
-> > > > > > 	/*
-> > > > > > 	 * Do not invoke OOM killer for larger requests as we can fall
-> > > > > > 	 * back to the vmalloc
-> > > > > > 	 */
-> > > > > > 	if (size > PAGE_SIZE)
-> > > > > > 		gfp_mask |= __GFP_NORETRY | __GFP_NOWARN;
-> > > > > 
-> > > > > I think we should check against PAGE_ALLOC_COSTLY_ORDER anyway, as
-> > > > > there's no big need to allocate large contiguous chunks here, at the
-> > > > > same time someone in the kernel might really need them.
-> > > > 
-> > > > PAGE_ALLOC_COSTLY_ORDER is and should remain the page allocator internal
-> > > > implementation detail and shouldn't spread out much outside. GFP_NORETRY
-> > > > will already make sure we do not push hard here.
-> > > 
-> > > May be i didn't put my thoughts well, so let's discuss in more detail:
-> > > 
-> > > 1. Yes, we don't try that hard to allocate high-order blocks with
-> > > __GFP_NORETRY, but we still can do compaction and direct reclaim,
-> > > which can be heavy for large chunk.  In the worst case we can even
-> > > fail to find the chunk, after all reclaim/compaction steps were made.
+On Thu, Dec 08, 2016 at 09:22:31AM +0100, Jesper Dangaard Brouer wrote:
+> On Wed, 7 Dec 2016 23:25:31 +0000
+> Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > On Wed, Dec 07, 2016 at 09:19:58PM +0000, Mel Gorman wrote:
+> > > At small packet sizes on localhost, I see relatively low page allocator
+> > > activity except during the socket setup and other unrelated activity
+> > > (khugepaged, irqbalance, some btrfs stuff) which is curious as it's
+> > > less clear why the performance was improved in that case. I considered
+> > > the possibility that it was cache hotness of pages but that's not a
+> > > good fit. If it was true then the first test would be slow and the rest
+> > > relatively fast and I'm not seeing that. The other side-effect is that
+> > > all the high-order pages that are allocated at the start are physically
+> > > close together but that shouldn't have that big an impact. So for now,
+> > > the gain is unexplained even though it happens consistently.
+> > >   
 > > 
-> > Yes this is correct. But I am not sure what you are trying to tell
-> > by that. Highorder requests are a bit of a problem. That's why
-> > __GFP_NORETRY is implicit here. It also guarantees that we won't hit
-> > the OOM killer because we do have a reasonable fallback. I do not see a
-> > point to play with COSTLY_ORDER though. The page allocator knows how to
-> > handle those and we are trying hard that those requests are not too
-> > disruptive. Or am I still missing your point?
+> > Further investigation led me to conclude that the netperf automation on
+> > my side had some methodology errors that could account for an artifically
+> > low score in some cases. The netperf automation is years old and would
+> > have been developed against a much older and smaller machine which may be
+> > why I missed it until I went back looking at exactly what the automation
+> > was doing. Minimally in a server/client test on remote maching there was
+> > potentially higher packet loss than is acceptable. This would account why
+> > some machines "benefitted" while others did not -- there would be boot to
+> > boot variations that some machines happened to be "lucky". I believe I've
+> > corrected the errors, discarded all the old data and scheduled a rest to
+> > see what falls out.
 > 
-> My point is, while we're trying to get a pretty big contig. chunk
-> (let's say of COSTLY_SIZE), the reclaim can induce a lot of disk I/O
+> I guess you are talking about setting the netperf socket queue low
+> (+256 bytes above msg size), that I pointed out in[1]. 
 
-Not really, as I've tried to explain above. The page allocator really
-doesn't try hard for costly orders and bail out early after the first
-round of reclaim compaction.
+Primarily, yes.
 
-> which can be crucial for overall system performance, at the same time
-> we don't need that contig. chunk.
+> From the same commit[2] I can see you explicitly set (local+remote):
 > 
-> So, for COSTLY_SIZE chunks, vmalloc should perform better, as it's
-> obviosly more likely to find order-0 blocks w/o reclaim.
+>   sysctl net.core.rmem_max=16777216
+>   sysctl net.core.wmem_max=16777216
+> 
 
-Again, vmalloc is not free either and a problem especially on 32b
-arches.
+Yes, I set it for higher speed networks as a starting point to remind me
+to examine rmem_default or socket configurations if any significant packet
+loss is observed.
 
-Anyway, I think we are going in circles here and repeating the same
-arguments. Let me post what I think is the right implementation of
-kvmalloc and you can build on top of that.
+> Eric do you have any advice on this setting?
+> 
+> And later[4] you further increase this to 32MiB.  Notice that the
+> netperf UDP_STREAM test will still use the default value from:
+> net.core.rmem_default = 212992.
+> 
+
+That's expected. In the initial sniff-test, I saw negligible packet loss.
+I'm waiting to see what the full set of network tests look like before
+doing any further adjustments.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
