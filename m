@@ -1,102 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A40586B025E
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 03:20:04 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id he10so52491475wjc.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 00:20:04 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c133si12252517wme.54.2016.12.08.00.20.02
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4D16B0260
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 03:22:40 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id w39so284602870qtw.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 00:22:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a97si16707418qkh.90.2016.12.08.00.22.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 00:20:03 -0800 (PST)
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-References: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20161207081555.GB17136@dhcp22.suse.cz>
- <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5c3ddf50-ca19-2cae-a3ce-b10eafe8363c@suse.cz>
-Date: Thu, 8 Dec 2016 09:20:01 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Dec 2016 00:22:39 -0800 (PST)
+Date: Thu, 8 Dec 2016 09:22:31 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
+Message-ID: <20161208092231.55c7eacf@redhat.com>
+In-Reply-To: <20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+References: <20161207101228.8128-1-mgorman@techsingularity.net>
+	<1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207194801.krhonj7yggbedpba@techsingularity.net>
+	<1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+	<20161207232531.fxqdgrweilej5gs6@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com
-Cc: linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
 
-On 12/07/2016 04:29 PM, Tetsuo Handa wrote:
->>> As a result, the OOM killer is unable to send SIGKILL to OOM
->>> victims and/or wake up the OOM reaper by releasing oom_lock for minutes
->>> because other threads consume a lot of CPU time for pointless direct
->>> reclaim.
->>>
->>> ----------
->>> [ 2802.635229] Killed process 7267 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
->>> [ 2802.644296] oom_reaper: reaped process 7267 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
->>> [ 2802.650237] Out of memory: Kill process 7268 (a.out) score 999 or sacrifice child
->>> [ 2803.653052] Killed process 7268 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
->>> [ 2804.426183] oom_reaper: reaped process 7268 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
->>> [ 2804.432524] Out of memory: Kill process 7269 (a.out) score 999 or sacrifice child
->>> [ 2805.349380] a.out: page allocation stalls for 10047ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
->>> [ 2805.349383] CPU: 2 PID: 7243 Comm: a.out Not tainted 4.9.0-rc8 #62
->>> (...snipped...)
->>> [ 3540.977499]           a.out  7269     22716.893359      5272   120
->>> [ 3540.977499]         0.000000      1447.601063         0.000000
->>> [ 3540.977499]  0 0
->>> [ 3540.977500]  /autogroup-155
->>> ----------
->>>
->>> This patch adds extra sleeps which is effectively equivalent to
->>>
->>>   if (mutex_lock_killable(&oom_lock) == 0)
->>>     mutex_unlock(&oom_lock);
->>>
->>> before retrying allocation at __alloc_pages_may_oom() so that the
->>> OOM killer is not preempted by other threads waiting for the OOM
->>> killer/reaper to reclaim memory. Since the OOM reaper grabs oom_lock
->>> due to commit e2fe14564d3316d1 ("oom_reaper: close race with exiting
->>> task"), waking up other threads before the OOM reaper is woken up by
->>> directly waiting for oom_lock might not help so much.
->>
->> So, why don't you simply s@mutex_trylock@mutex_lock_killable@ then?
->> The trylock is simply an optimistic heuristic to retry while the memory
->> is being freed. Making this part sync might help for the case you are
->> seeing.
->
-> May I? Something like below? With patch below, the OOM killer can send
-> SIGKILL smoothly and printk() can report smoothly (the frequency of
-> "** XXX printk messages dropped **" messages is significantly reduced).
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2c6d5f6..ee0105b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3075,7 +3075,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
->  	 * Acquire the oom lock.  If that fails, somebody else is
->  	 * making progress for us.
->  	 */
+On Wed, 7 Dec 2016 23:25:31 +0000
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
-The comment above could use some updating then. Although maybe "somebody 
-killed us" is also technically "making progress for us" :)
+> On Wed, Dec 07, 2016 at 09:19:58PM +0000, Mel Gorman wrote:
+> > At small packet sizes on localhost, I see relatively low page allocator
+> > activity except during the socket setup and other unrelated activity
+> > (khugepaged, irqbalance, some btrfs stuff) which is curious as it's
+> > less clear why the performance was improved in that case. I considered
+> > the possibility that it was cache hotness of pages but that's not a
+> > good fit. If it was true then the first test would be slow and the rest
+> > relatively fast and I'm not seeing that. The other side-effect is that
+> > all the high-order pages that are allocated at the start are physically
+> > close together but that shouldn't have that big an impact. So for now,
+> > the gain is unexplained even though it happens consistently.
+> >  =20
+>=20
+> Further investigation led me to conclude that the netperf automation on
+> my side had some methodology errors that could account for an artifically
+> low score in some cases. The netperf automation is years old and would
+> have been developed against a much older and smaller machine which may be
+> why I missed it until I went back looking at exactly what the automation
+> was doing. Minimally in a server/client test on remote maching there was
+> potentially higher packet loss than is acceptable. This would account why
+> some machines "benefitted" while others did not -- there would be boot to
+> boot variations that some machines happened to be "lucky". I believe I've
+> corrected the errors, discarded all the old data and scheduled a rest to
+> see what falls out.
 
-> -	if (!mutex_trylock(&oom_lock)) {
-> +	if (mutex_lock_killable(&oom_lock)) {
->  		*did_some_progress = 1;
->  		schedule_timeout_uninterruptible(1);
+I guess you are talking about setting the netperf socket queue low
+(+256 bytes above msg size), that I pointed out in[1].  I can see from
+GitHub-mmtests-commit[2] "netperf: Set remote and local socket max
+buffer sizes", that you have removed that, good! :-)
 
-I think if we get here, it means somebody killed us, so we should not do 
-this uninterruptible sleep anymore? (maybe also the caller could need 
-some check to expedite the kill?).
+=46rom the same commit[2] I can see you explicitly set (local+remote):
 
->  		return NULL;
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+  sysctl net.core.rmem_max=3D16777216
+  sysctl net.core.wmem_max=3D16777216
+
+Eric do you have any advice on this setting?
+
+And later[4] you further increase this to 32MiB.  Notice that the
+netperf UDP_STREAM test will still use the default value from:
+net.core.rmem_default =3D 212992.
+
+(To Eric) Mel's small UDP queues also interacted badly with Eric and
+Paolo's UDP improvements, which was fixed in net-next commit[3]
+363dc73acacb ("udp: be less conservative with sock rmem accounting").
+
+
+[1] http://lkml.kernel.org/r/20161201183402.2fbb8c5b@redhat.com
+[2] https://github.com/gormanm/mmtests/commit/7f16226577b
+[3] https://git.kernel.org/davem/net-next/c/363dc73acacb
+[4] https://github.com/gormanm/mmtests/commit/777d1f5cd08
+--=20
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
