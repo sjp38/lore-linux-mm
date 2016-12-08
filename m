@@ -1,95 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F9D26B0253
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 04:18:09 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id o2so86642082wje.5
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 01:18:09 -0800 (PST)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id t65si12433142wmf.30.2016.12.08.01.18.07
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C8516B0069
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 04:36:41 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y71so153051743pgd.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 01:36:41 -0800 (PST)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30051.outbound.protection.outlook.com. [40.107.3.51])
+        by mx.google.com with ESMTPS id 67si28020334pgb.337.2016.12.08.01.36.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 01:18:07 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 469A798624
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 09:18:07 +0000 (UTC)
-Date: Thu, 8 Dec 2016 09:18:06 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-Message-ID: <20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
-References: <20161207101228.8128-1-mgorman@techsingularity.net>
- <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
- <20161207194801.krhonj7yggbedpba@techsingularity.net>
- <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
- <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
- <20161207232531.fxqdgrweilej5gs6@techsingularity.net>
- <20161208092231.55c7eacf@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 08 Dec 2016 01:36:40 -0800 (PST)
+Date: Thu, 8 Dec 2016 17:36:24 +0800
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: Re: [PATCH v3 0/4]  mm: fix the "counter.sh" failure for libhugetlbfs
+Message-ID: <20161208093623.GA4551@sha-win-210.asiapac.arm.com>
+References: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
+ <20161205093100.GF30758@dhcp22.suse.cz>
+ <20161206100358.GA4619@sha-win-210.asiapac.arm.com>
+ <20161207150237.GC31797@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20161208092231.55c7eacf@redhat.com>
+In-Reply-To: <20161207150237.GC31797@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will
+ Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, Kaly Xin <Kaly.Xin@arm.com>, nd <nd@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "vbabka@suze.cz" <vbabka@suze.cz>
 
-On Thu, Dec 08, 2016 at 09:22:31AM +0100, Jesper Dangaard Brouer wrote:
-> On Wed, 7 Dec 2016 23:25:31 +0000
-> Mel Gorman <mgorman@techsingularity.net> wrote:
+On Wed, Dec 07, 2016 at 11:02:38PM +0800, Michal Hocko wrote:
+> On Tue 06-12-16 18:03:59, Huang Shijie wrote:
+> > On Mon, Dec 05, 2016 at 05:31:01PM +0800, Michal Hocko wrote:
+> > > On Mon 05-12-16 17:17:07, Huang Shijie wrote:
+> > > [...]
+> > > >    The failure is caused by:
+> > > >     1) kernel fails to allocate a gigantic page for the surplus case.
+> > > >        And the gather_surplus_pages() will return NULL in the end.
+> > > > 
+> > > >     2) The condition checks for some functions are wrong:
+> > > >         return_unused_surplus_pages()
+> > > >         nr_overcommit_hugepages_store()
+> > > >         hugetlb_overcommit_handler()
+>add the  > > 
+> > > OK, so how is this any different from gigantic (1G) hugetlb pages on
+> > I think there is no different from gigantic (1G) hugetlb pages on
+> > x86_64. Do anyone ever tested the 1G hugetlb pages in x86_64 with the "counter.sh"
+> > before? 
 > 
-> > On Wed, Dec 07, 2016 at 09:19:58PM +0000, Mel Gorman wrote:
-> > > At small packet sizes on localhost, I see relatively low page allocator
-> > > activity except during the socket setup and other unrelated activity
-> > > (khugepaged, irqbalance, some btrfs stuff) which is curious as it's
-> > > less clear why the performance was improved in that case. I considered
-> > > the possibility that it was cache hotness of pages but that's not a
-> > > good fit. If it was true then the first test would be slow and the rest
-> > > relatively fast and I'm not seeing that. The other side-effect is that
-> > > all the high-order pages that are allocated at the start are physically
-> > > close together but that shouldn't have that big an impact. So for now,
-> > > the gain is unexplained even though it happens consistently.
-> > >   
-> > 
-> > Further investigation led me to conclude that the netperf automation on
-> > my side had some methodology errors that could account for an artifically
-> > low score in some cases. The netperf automation is years old and would
-> > have been developed against a much older and smaller machine which may be
-> > why I missed it until I went back looking at exactly what the automation
-> > was doing. Minimally in a server/client test on remote maching there was
-> > potentially higher packet loss than is acceptable. This would account why
-> > some machines "benefitted" while others did not -- there would be boot to
-> > boot variations that some machines happened to be "lucky". I believe I've
-> > corrected the errors, discarded all the old data and scheduled a rest to
-> > see what falls out.
+> I suspect nobody has because the gigantic page support is still somehow
+> coarse and from a quick look into the code we only support pre-allocated
+Yes, the x86_64 even does not support the gigantic page.
+The default x86_64_defconfig does not enable the CONFIG_CMA.
+
+I enabled the CONFIG_CMA, and did the test for gigantic page in x86_64.
+(I appended "hugepagesz=1G hugepages=4" in the kernel cmdline.)
+The result is got with my 16G x86_64 desktop:
+
+   -------------------------------------------------
+	counters.sh (1024M: 32):        FAIL mmap failed: Cannot allocate memory
+	counters.sh (1024M: 64):        PASS
+	********** TEST SUMMARY
+	*                      1024M         
+	*                      32-bit 64-bit 
+	*     Total testcases:     1      1   
+	*             Skipped:     0      0   
+	*                PASS:     0      1   
+	*                FAIL:     1      0   
+	*    Killed by signal:     0      0   
+	*   Bad configuration:     0      0   
+	*       Expected FAIL:     0      0   
+	*     Unexpected PASS:     0      0   
+	*    Test not present:     0      0   
+	* Strange test result:     0      0   
+	**********
+   -------------------------------------------------
+
+The test passes for 64bit, but fails for 32bit (but I think it's okay,
+since 1G hugetlb page is too large for the 32bit).				 
+
+> giga pages. In other words surplus pages and their accounting is not
+> supported at all.
+Yes.
+
 > 
-> I guess you are talking about setting the netperf socket queue low
-> (+256 bytes above msg size), that I pointed out in[1]. 
+> I haven't yet checked your patchset but I can tell you one thing.
+Could you please review the patch set when you have time? Thanks a lot.
 
-Primarily, yes.
+> Surplus and subpool pages code is tricky as hell. And it is not just a
+Agree. 
 
-> From the same commit[2] I can see you explicitly set (local+remote):
+Do we really need so many accountings? such as reserve/ovorcommit/surplus.
+
+> matter of teaching the huge page allocation code to do the right thing.
+> There are subtle details all over the place. E.g. we currently
+> do not free giga pages AFAICS. In fact I believe that the giga pages are
+Please correct me if I am wrong. :)
+
+I think the free-giga-pages can work well.
+Please see the code in update_and_free_page(). 
+
+Could you please list all the subtle details you think the code is wrong?
+I can check them one by one.
+
+
+> kind of implanted to the existing code without any higher level
+> consistency. This should change long term. But I am worried it is much
+What's type of the "higher level consistency" we should care about?
+
+Thanks
+Huang Shijie
+> more work.
 > 
->   sysctl net.core.rmem_max=16777216
->   sysctl net.core.wmem_max=16777216
+> Now I might be wrong because I might misremember things which might have
+> been changed recently but please make sure you describe the current
+> state and changes of giga pages when touching this area much better if
+> you want to pursue this route...
 > 
-
-Yes, I set it for higher speed networks as a starting point to remind me
-to examine rmem_default or socket configurations if any significant packet
-loss is observed.
-
-> Eric do you have any advice on this setting?
-> 
-> And later[4] you further increase this to 32MiB.  Notice that the
-> netperf UDP_STREAM test will still use the default value from:
-> net.core.rmem_default = 212992.
-> 
-
-That's expected. In the initial sniff-test, I saw negligible packet loss.
-I'm waiting to see what the full set of network tests look like before
-doing any further adjustments.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
