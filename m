@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FEB06B0278
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:34 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id c4so652060667pfb.7
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:34 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id n11si29469613plg.334.2016.12.08.08.22.32
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F2FA6B0278
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:35 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id i88so637796513pfk.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:35 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f17si29419981pge.120.2016.12.08.08.22.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 08:22:33 -0800 (PST)
+        Thu, 08 Dec 2016 08:22:34 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
-Date: Thu,  8 Dec 2016 19:21:37 +0300
-Message-Id: <20161208162150.148763-17-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCHv1 17/28] x86/mm: define virtual memory map for 5-level paging
+Date: Thu,  8 Dec 2016 19:21:39 +0300
+Message-Id: <20161208162150.148763-19-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,136 +20,166 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-5-level paging support is required from hardware when compiled with
-CONFIG_X86_5LEVEL=y. We may implement runtime switch support later.
+The first part of memory map (up to %esp fixup) simply scales existing
+map for 4-level paging by factor of 9 -- number of bits addressed by
+additional page table level.
+
+The rest of the map is uncahnged.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/cpucheck.c                 |  9 +++++++++
- arch/x86/boot/cpuflags.c                 | 16 ++++++++++++++++
- arch/x86/include/asm/cpufeatures.h       |  1 +
- arch/x86/include/asm/disabled-features.h |  8 +++++++-
- arch/x86/include/asm/required-features.h |  8 +++++++-
- 5 files changed, 40 insertions(+), 2 deletions(-)
+ Documentation/x86/x86_64/mm.txt         | 23 ++++++++++++++++++++++-
+ arch/x86/Kconfig                        |  1 +
+ arch/x86/include/asm/kasan.h            |  9 ++++++---
+ arch/x86/include/asm/page_64_types.h    | 10 ++++++++++
+ arch/x86/include/asm/pgtable_64_types.h |  6 ++++++
+ arch/x86/include/asm/sparsemem.h        |  9 +++++++--
+ 6 files changed, 52 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/boot/cpucheck.c b/arch/x86/boot/cpucheck.c
-index 4ad7d70e8739..8f0c4c9fc904 100644
---- a/arch/x86/boot/cpucheck.c
-+++ b/arch/x86/boot/cpucheck.c
-@@ -44,6 +44,15 @@ static const u32 req_flags[NCAPINTS] =
- 	0, /* REQUIRED_MASK5 not implemented in this file */
- 	REQUIRED_MASK6,
- 	0, /* REQUIRED_MASK7 not implemented in this file */
-+	0, /* REQUIRED_MASK8 not implemented in this file */
-+	0, /* REQUIRED_MASK9 not implemented in this file */
-+	0, /* REQUIRED_MASK10 not implemented in this file */
-+	0, /* REQUIRED_MASK11 not implemented in this file */
-+	0, /* REQUIRED_MASK12 not implemented in this file */
-+	0, /* REQUIRED_MASK13 not implemented in this file */
-+	0, /* REQUIRED_MASK14 not implemented in this file */
-+	0, /* REQUIRED_MASK15 not implemented in this file */
-+	REQUIRED_MASK16,
- };
+diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+index 8c7dd5957ae1..d33fb0799b3d 100644
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -12,7 +12,7 @@ ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+ ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
+ ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
+ ... unused hole ...
+-ffffec0000000000 - fffffc0000000000 (=44 bits) kasan shadow memory (16TB)
++ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
+ ... unused hole ...
+ ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
+ ... unused hole ...
+@@ -23,6 +23,27 @@ ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
+ ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
+ ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
  
- #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
-diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
-index 6687ab953257..26e9a287805f 100644
---- a/arch/x86/boot/cpuflags.c
-+++ b/arch/x86/boot/cpuflags.c
-@@ -80,6 +80,17 @@ static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
- 	);
- }
- 
-+static inline void cpuid_count(u32 id, u32 count,
-+		u32 *a, u32 *b, u32 *c, u32 *d)
-+{
-+	asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif	\n\t"
-+		     "cpuid					\n\t"
-+		     ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif	\n\t"
-+		    : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
-+		    : "a" (id), "c" (count)
-+	);
-+}
++Virtual memory map with 5 level page tables:
 +
- void get_cpuflags(void)
- {
- 	u32 max_intel_level, max_amd_level;
-@@ -108,6 +119,11 @@ void get_cpuflags(void)
- 				cpu.model += ((tfms >> 16) & 0xf) << 4;
- 		}
- 
-+		if (max_intel_level >= 0x00000007) {
-+			cpuid_count(0x00000007, 0, &ignored, &ignored,
-+					&cpu.flags[16], &ignored);
-+		}
++0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
++hole caused by [57:63] sign extension
++ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
++ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
++ff90000000000000 - ff91ffffffffffff (=49 bits) hole
++ff92000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space
++ffd2000000000000 - ff93ffffffffffff (=49 bits) virtual memory map (512TB)
++... unused hole ...
++ff96000000000000 - ffb5ffffffffffff (=53 bits) kasan shadow memory (8PB)
++... unused hole ...
++fffe000000000000 - fffeffffffffffff (=49 bits) %esp fixup stacks
++... unused hole ...
++ffffffef00000000 - ffffffff00000000 (=64 GB) EFI region mapping space
++... unused hole ...
++ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
++ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
++ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
++ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
 +
- 		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
- 		      &ignored);
+ The direct mapping covers all memory in the system up to the highest
+ memory address (this means in some cases it can also include PCI memory
+ holes).
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 2a1f0ce7c59a..df4f1d514ab0 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -279,6 +279,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
++	default 0xdfb6000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
  
-diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index 92a8308b96f6..388f1277880f 100644
---- a/arch/x86/include/asm/cpufeatures.h
-+++ b/arch/x86/include/asm/cpufeatures.h
-@@ -280,6 +280,7 @@
- /* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx), word 16 */
- #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
- #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
-+#define X86_FEATURE_LA57	(16*32+16) /* 5-level page tables */
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+index 1410b567ecde..2587c6bd89be 100644
+--- a/arch/x86/include/asm/kasan.h
++++ b/arch/x86/include/asm/kasan.h
+@@ -11,9 +11,12 @@
+  * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
+  */
+ #define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
+-					(0xffff800000000000ULL >> 3))
+-/* 47 bits for kernel address -> (47 - 3) bits for shadow */
+-#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (47 - 3)))
++					((-1UL << __VIRTUAL_MASK_SHIFT) >> 3))
++/*
++ * 47 bits for kernel address -> (47 - 3) bits for shadow
++ * 56 bits for kernel address -> (56 - 3) bits fro shadow
++ */
++#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (__VIRTUAL_MASK_SHIFT - 3)))
  
- /* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
- #define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
-diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
-index 85599ad4d024..fc0960236fc3 100644
---- a/arch/x86/include/asm/disabled-features.h
-+++ b/arch/x86/include/asm/disabled-features.h
-@@ -36,6 +36,12 @@
- # define DISABLE_OSPKE		(1<<(X86_FEATURE_OSPKE & 31))
- #endif /* CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS */
+ #ifndef __ASSEMBLY__
  
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 9215e0527647..3f5f08b010d0 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -36,7 +36,12 @@
+  * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it's
+  * what Xen requires.
+  */
 +#ifdef CONFIG_X86_5LEVEL
-+#define DISABLE_LA57	0
++#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)
 +#else
-+#define DISABLE_LA57	(1<<(X86_FEATURE_LA57 & 31))
+ #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
 +#endif
 +
- /*
-  * Make sure to add features to the correct mask
-  */
-@@ -55,7 +61,7 @@
- #define DISABLED_MASK13	0
- #define DISABLED_MASK14	0
- #define DISABLED_MASK15	0
--#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE)
-+#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57)
- #define DISABLED_MASK17	0
- #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define __PAGE_OFFSET           page_offset_base
+ #else
+@@ -46,8 +51,13 @@
+ #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
  
-diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
-index fac9a5c0abe9..d91ba04dd007 100644
---- a/arch/x86/include/asm/required-features.h
-+++ b/arch/x86/include/asm/required-features.h
-@@ -53,6 +53,12 @@
- # define NEED_MOVBE	0
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
++#ifdef CONFIG_X86_5LEVEL
++#define __PHYSICAL_MASK_SHIFT	52
++#define __VIRTUAL_MASK_SHIFT	56
++#else
+ #define __PHYSICAL_MASK_SHIFT	46
+ #define __VIRTUAL_MASK_SHIFT	47
++#endif
+ 
+ /*
+  * Kernel image size is limited to 1GiB due to the fixmap living in the
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index d15ca53bd462..034cbca37c91 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -56,9 +56,15 @@ typedef struct { pteval_t pte; } pte_t;
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+ #define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
++#ifdef CONFIG_X86_5LEVEL
++#define VMALLOC_SIZE_TB _AC(16384, UL)
++#define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
++#define VMEMMAP_START	_AC(0xffd2000000000000, UL)
++#else
+ #define VMALLOC_SIZE_TB	_AC(32, UL)
+ #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
+ #define VMEMMAP_START	_AC(0xffffea0000000000, UL)
++#endif
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+ #define VMALLOC_START	vmalloc_base
+ #else
+diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
+index 4517d6b93188..1f5bee2c202f 100644
+--- a/arch/x86/include/asm/sparsemem.h
++++ b/arch/x86/include/asm/sparsemem.h
+@@ -26,8 +26,13 @@
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+-# define MAX_PHYSADDR_BITS	44
+-# define MAX_PHYSMEM_BITS	46
++# ifdef CONFIG_X86_5LEVEL
++#  define MAX_PHYSADDR_BITS	52
++#  define MAX_PHYSMEM_BITS	52
++# else
++#  define MAX_PHYSADDR_BITS	44
++#  define MAX_PHYSMEM_BITS	46
++# endif
  #endif
  
-+#ifdef CONFIG_X86_5LEVEL
-+# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
-+#else
-+# define NEED_LA57	0
-+#endif
-+
- #ifdef CONFIG_X86_64
- #ifdef CONFIG_PARAVIRT
- /* Paravirtualized systems may not have PSE or PGE available */
-@@ -98,7 +104,7 @@
- #define REQUIRED_MASK13	0
- #define REQUIRED_MASK14	0
- #define REQUIRED_MASK15	0
--#define REQUIRED_MASK16	0
-+#define REQUIRED_MASK16	(NEED_LA57)
- #define REQUIRED_MASK17	0
- #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
- 
+ #endif /* CONFIG_SPARSEMEM */
 -- 
 2.10.2
 
