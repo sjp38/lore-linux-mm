@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B29C96B0266
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 16:52:32 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id y124so22710116iof.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 13:52:32 -0800 (PST)
-Received: from secvs02.rockwellcollins.com (secvs02.rockwellcollins.com. [205.175.225.241])
-        by mx.google.com with ESMTPS id i31si21917230ioo.48.2016.12.08.13.52.31
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C90216B0267
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 16:52:43 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id f73so22561878ioe.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 13:52:43 -0800 (PST)
+Received: from ch3vs01.rockwellcollins.com (ch3vs01.rockwellcollins.com. [205.175.226.27])
+        by mx.google.com with ESMTPS id e124si10513766ite.4.2016.12.08.13.52.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 13:52:31 -0800 (PST)
+        Thu, 08 Dec 2016 13:52:43 -0800 (PST)
 From: David Graziano <david.graziano@rockwellcollins.com>
-Subject: [PATCH RFC v3 2/3] shmem: use simple initxattrs callback
-Date: Thu,  8 Dec 2016 15:52:27 -0600
-Message-Id: <1481233948-53350-3-git-send-email-david.graziano@rockwellcollins.com>
+Subject: [PATCH RFC v3 3/3] mqueue: Implement generic xattr support
+Date: Thu,  8 Dec 2016 15:52:28 -0600
+Message-Id: <1481233948-53350-4-git-send-email-david.graziano@rockwellcollins.com>
 In-Reply-To: <1481233948-53350-1-git-send-email-david.graziano@rockwellcollins.com>
 References: <1481233948-53350-1-git-send-email-david.graziano@rockwellcollins.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,137 +20,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux-security-module@vger.kernel.org
 Cc: paul@paul-moore.com, agruenba@redhat.com, hch@infradead.org, linux-mm@kvack.org, David Graziano <david.graziano@rockwellcollins.com>
 
-Updates shmem to use the newly created simple_xattr_initxattrs()
-function to minimize code duplication with other LSM callback
-functions.
+Adds support for generic extended attributes within the POSIX message
+queues filesystem and setting them by consulting the LSM. This is
+needed so that the security.selinux extended attribute can be set via
+a SELinux named type transition on file inodes created within the
+filesystem. It allows a selinux policy to be created  for a set of
+custom applications that use POSIX message queues for their IPC and
+uniquely labeling them based on the application that creates the mqueue
+eliminating the need for relabeling after the mqueue file is created.
+The implementation is based on tmpfs/shmem and uses the newly created
+simple_xattr_initxattrs() LSM callback function.
 
 Signed-off-by: David Graziano <david.graziano@rockwellcollins.com>
 ---
- mm/shmem.c | 53 ++++++++++++-----------------------------------------
- 1 file changed, 12 insertions(+), 41 deletions(-)
+ ipc/mqueue.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 971fc83..ef4bd52 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -33,6 +33,7 @@
- #include <linux/swap.h>
- #include <linux/uio.h>
- #include <linux/khugepaged.h>
+diff --git a/ipc/mqueue.c b/ipc/mqueue.c
+index 0b13ace..ae11be3 100644
+--- a/ipc/mqueue.c
++++ b/ipc/mqueue.c
+@@ -35,6 +35,7 @@
+ #include <linux/ipc_namespace.h>
+ #include <linux/user_namespace.h>
+ #include <linux/slab.h>
 +#include <linux/xattr.h>
  
- static struct vfsmount *shm_mnt;
+ #include <net/sock.h>
+ #include "util.h"
+@@ -70,6 +71,7 @@ struct mqueue_inode_info {
+ 	struct rb_root msg_tree;
+ 	struct posix_msg_tree_node *node_cache;
+ 	struct mq_attr attr;
++	struct simple_xattrs xattrs;	/* list of xattrs */
  
-@@ -2140,7 +2141,7 @@ static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_short_symlink_operations;
- 
- #ifdef CONFIG_TMPFS_XATTR
--static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
-+#define shmem_initxattrs simple_xattr_initxattrs
- #else
- #define shmem_initxattrs NULL
- #endif
-@@ -2892,6 +2893,7 @@ static int
- shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+ 	struct sigevent notify;
+ 	struct pid *notify_owner;
+@@ -254,6 +256,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
+ 			info->attr.mq_maxmsg = attr->mq_maxmsg;
+ 			info->attr.mq_msgsize = attr->mq_msgsize;
+ 		}
++		simple_xattrs_init(&info->xattrs);
+ 		/*
+ 		 * We used to allocate a static array of pointers and account
+ 		 * the size of that array as well as one msg_msg struct per
+@@ -418,6 +421,7 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
  {
  	struct inode *inode;
-+	struct shmem_inode_info *info;
- 	int error = -ENOSPC;
+ 	struct mq_attr *attr = dentry->d_fsdata;
++	struct mqueue_inode_info *info;
+ 	int error;
+ 	struct ipc_namespace *ipc_ns;
  
- 	inode = shmem_get_inode(dir->i_sb, dir, mode, dev, VM_NORESERVE);
-@@ -2899,9 +2901,11 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
- 		error = simple_acl_create(dir, inode);
- 		if (error)
- 			goto out_iput;
-+		info = SHMEM_I(inode);
- 		error = security_inode_init_security(inode, dir,
- 						     &dentry->d_name,
--						     shmem_initxattrs, NULL);
-+						     shmem_initxattrs,
-+						     &info->xattrs);
- 		if (error && error != -EOPNOTSUPP)
- 			goto out_iput;
- 
-@@ -2921,13 +2925,16 @@ static int
- shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
- {
- 	struct inode *inode;
-+	struct shmem_inode_info *info;
- 	int error = -ENOSPC;
- 
- 	inode = shmem_get_inode(dir->i_sb, dir, mode, 0, VM_NORESERVE);
- 	if (inode) {
-+		info = SHMEM_I(inode);
- 		error = security_inode_init_security(inode, dir,
- 						     NULL,
--						     shmem_initxattrs, NULL);
-+						     shmem_initxattrs,
-+						     &info->xattrs);
- 		if (error && error != -EOPNOTSUPP)
- 			goto out_iput;
- 		error = simple_acl_create(dir, inode);
-@@ -3119,8 +3126,9 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
- 	if (!inode)
- 		return -ENOSPC;
- 
-+	info = SHMEM_I(inode);
- 	error = security_inode_init_security(inode, dir, &dentry->d_name,
--					     shmem_initxattrs, NULL);
-+					     shmem_initxattrs, &info->xattrs);
- 	if (error) {
- 		if (error != -EOPNOTSUPP) {
- 			iput(inode);
-@@ -3129,7 +3137,6 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
- 		error = 0;
+@@ -443,6 +447,18 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
+ 		ipc_ns->mq_queues_count--;
+ 		goto out_unlock;
  	}
++	info = MQUEUE_I(inode);
++	if (info) {
++		error = security_inode_init_security(inode, dir,
++						     &dentry->d_name,
++						     simple_xattr_initxattrs,
++						     &info->xattrs);
++	}
++	if (error && error != -EOPNOTSUPP) {
++		spin_lock(&mq_lock);
++		ipc_ns->mq_queues_count--;
++		goto out_unlock;
++	}
  
--	info = SHMEM_I(inode);
- 	inode->i_size = len-1;
- 	if (len <= SHORT_SYMLINK_LEN) {
- 		inode->i_link = kmemdup(symname, len, GFP_KERNEL);
-@@ -3198,42 +3205,6 @@ static const char *shmem_get_link(struct dentry *dentry,
-  * filesystem level, though.
-  */
- 
--/*
-- * Callback for security_inode_init_security() for acquiring xattrs.
-- */
--static int shmem_initxattrs(struct inode *inode,
--			    const struct xattr *xattr_array,
--			    void *fs_info)
--{
--	struct shmem_inode_info *info = SHMEM_I(inode);
--	const struct xattr *xattr;
--	struct simple_xattr *new_xattr;
--	size_t len;
--
--	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
--		new_xattr = simple_xattr_alloc(xattr->value, xattr->value_len);
--		if (!new_xattr)
--			return -ENOMEM;
--
--		len = strlen(xattr->name) + 1;
--		new_xattr->name = kmalloc(XATTR_SECURITY_PREFIX_LEN + len,
--					  GFP_KERNEL);
--		if (!new_xattr->name) {
--			kfree(new_xattr);
--			return -ENOMEM;
--		}
--
--		memcpy(new_xattr->name, XATTR_SECURITY_PREFIX,
--		       XATTR_SECURITY_PREFIX_LEN);
--		memcpy(new_xattr->name + XATTR_SECURITY_PREFIX_LEN,
--		       xattr->name, len);
--
--		simple_xattr_list_add(&info->xattrs, new_xattr);
--	}
--
--	return 0;
--}
--
- static int shmem_xattr_handler_get(const struct xattr_handler *handler,
- 				   struct dentry *unused, struct inode *inode,
- 				   const char *name, void *buffer, size_t size)
+ 	put_ipc_ns(ipc_ns);
+ 	dir->i_size += DIRENT_SIZE;
 -- 
 1.9.1
 
