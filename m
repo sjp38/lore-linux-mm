@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 756536B027C
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:36 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 3so175162612pgd.3
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:36 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y3si29494730pfa.215.2016.12.08.08.22.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 129E16B027D
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:22:37 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 144so650316767pfv.5
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 08:22:37 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d2si29475052pli.315.2016.12.08.08.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 08:22:35 -0800 (PST)
+        Thu, 08 Dec 2016 08:22:36 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv1 22/28] x86/espfix: support 5-level paging
-Date: Thu,  8 Dec 2016 19:21:44 +0300
-Message-Id: <20161208162150.148763-24-kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCHv1 24/28] x86/mm: add sync_global_pgds() for configuration with 5-level paging
+Date: Thu,  8 Dec 2016 19:21:46 +0300
+Message-Id: <20161208162150.148763-26-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,97 +20,81 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-XXX: how to test this?
+This basically restores slightly modified version of original
+sync_global_pgds() which we had before foldedl p4d was introduced.
 
-Not-yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+The only modification is protection against 'address' overflow.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/kernel/espfix_64.c | 41 ++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 38 insertions(+), 3 deletions(-)
+ arch/x86/mm/init_64.c | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
 
-diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
-index 04f89caef9c4..f0afa0af4237 100644
---- a/arch/x86/kernel/espfix_64.c
-+++ b/arch/x86/kernel/espfix_64.c
-@@ -70,8 +70,15 @@ static DEFINE_MUTEX(espfix_init_mutex);
- #define ESPFIX_MAX_PAGES  DIV_ROUND_UP(CONFIG_NR_CPUS, ESPFIX_STACKS_PER_PAGE)
- static void *espfix_pages[ESPFIX_MAX_PAGES];
- 
--static __page_aligned_bss pud_t espfix_pud_page[PTRS_PER_PUD]
-+#if CONFIG_PGTABLE_LEVELS == 5
-+static __page_aligned_bss pud_t espfix_pgtable_page[PTRS_PER_PUD]
- 	__aligned(PAGE_SIZE);
-+#elif CONFIG_PGTABLE_LEVELS == 4
-+static __page_aligned_bss pud_t espfix_pgtable_page[PTRS_PER_PUD]
-+	__aligned(PAGE_SIZE);
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index a991f5c4c2c4..d637893ac8c2 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -92,6 +92,52 @@ __setup("noexec32=", nonx32_setup);
+  * When memory was added/removed make sure all the processes MM have
+  * suitable PGD entries in the local PGD level page.
+  */
++#ifdef CONFIG_X86_5LEVEL
++void sync_global_pgds(unsigned long start, unsigned long end, int removed)
++{
++        unsigned long address;
++
++	for (address = start; address <= end && address >= start;
++			address += PGDIR_SIZE) {
++                const pgd_t *pgd_ref = pgd_offset_k(address);
++                struct page *page;
++
++                /*
++                 * When it is called after memory hot remove, pgd_none()
++                 * returns true. In this case (removed == 1), we must clear
++                 * the PGD entries in the local PGD level page.
++                 */
++                if (pgd_none(*pgd_ref) && !removed)
++                        continue;
++
++                spin_lock(&pgd_lock);
++                list_for_each_entry(page, &pgd_list, lru) {
++                        pgd_t *pgd;
++                        spinlock_t *pgt_lock;
++
++                        pgd = (pgd_t *)page_address(page) + pgd_index(address);
++                        /* the pgt_lock only for Xen */
++                        pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
++                        spin_lock(pgt_lock);
++
++                        if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
++                                BUG_ON(pgd_page_vaddr(*pgd)
++                                       != pgd_page_vaddr(*pgd_ref));
++
++                        if (removed) {
++                                if (pgd_none(*pgd_ref) && !pgd_none(*pgd))
++                                        pgd_clear(pgd);
++                        } else {
++                                if (pgd_none(*pgd))
++                                        set_pgd(pgd, *pgd_ref);
++                        }
++
++                        spin_unlock(pgt_lock);
++                }
++                spin_unlock(&pgd_lock);
++        }
++}
 +#else
-+#error Unexpected CONFIG_PGTABLE_LEVELS
+ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
+ {
+ 	unsigned long address;
+@@ -145,6 +191,7 @@ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
+ 		spin_unlock(&pgd_lock);
+ 	}
+ }
 +#endif
  
- static unsigned int page_random, slot_random;
- 
-@@ -97,6 +104,8 @@ static inline unsigned long espfix_base_addr(unsigned int cpu)
- #define ESPFIX_PTE_CLONES (PTRS_PER_PTE/PTE_STRIDE)
- #define ESPFIX_PMD_CLONES PTRS_PER_PMD
- #define ESPFIX_PUD_CLONES (65536/(ESPFIX_PTE_CLONES*ESPFIX_PMD_CLONES))
-+/* XXX: what should it be? */
-+#define ESPFIX_P4D_CLONES PTRS_PER_P4D
- 
- #define PGTABLE_PROT	  ((_KERNPG_TABLE & ~_PAGE_RW) | _PAGE_NX)
- 
-@@ -122,10 +131,21 @@ static void init_espfix_random(void)
- void __init init_espfix_bsp(void)
- {
- 	pgd_t *pgd_p;
-+	p4d_t *p4d;
- 
- 	/* Install the espfix pud into the kernel page directory */
- 	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
--	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
-+	switch (CONFIG_PGTABLE_LEVELS) {
-+	case 4:
-+		p4d = p4d_offset(pgd_p, ESPFIX_BASE_ADDR);
-+		p4d_populate(&init_mm, p4d, (pud_t *)espfix_pgtable_page);
-+		break;
-+	case 5:
-+		pgd_populate(&init_mm, pgd_p, (p4d_t *)espfix_pgtable_page);
-+		break;
-+	default:
-+		BUILD_BUG();
-+	}
- 
- 	/* Randomize the locations */
- 	init_espfix_random();
-@@ -138,6 +158,7 @@ void init_espfix_ap(int cpu)
- {
- 	unsigned int page;
- 	unsigned long addr;
-+	p4d_t p4d, *p4d_p;
- 	pud_t pud, *pud_p;
- 	pmd_t pmd, *pmd_p;
- 	pte_t pte, *pte_p;
-@@ -167,7 +188,21 @@ void init_espfix_ap(int cpu)
- 	node = cpu_to_node(cpu);
- 	ptemask = __supported_pte_mask;
- 
--	pud_p = &espfix_pud_page[pud_index(addr)];
-+	if (CONFIG_PGTABLE_LEVELS == 5) {
-+		p4d_p = (p4d_t *)espfix_pgtable_page + p4d_index(addr);
-+		p4d = *p4d_p;
-+		if (!p4d_present(p4d)) {
-+			struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
-+
-+			pud_p = (pud_t *)page_address(page);
-+			p4d = __p4d(__pa(pud_p) | (PGTABLE_PROT & ptemask));
-+			paravirt_alloc_pud(&init_mm, __pa(pud_p) >> PAGE_SHIFT);
-+			for (n = 0; n < ESPFIX_P4D_CLONES; n++)
-+				set_p4d(&p4d_p[n], p4d);
-+		}
-+	} else {
-+		pud_p = (pud_t *)espfix_pgtable_page + pud_index(addr);
-+	}
- 	pud = *pud_p;
- 	if (!pud_present(pud)) {
- 		struct page *page = alloc_pages_node(node, PGALLOC_GFP, 0);
+ /*
+  * NOTE: This function is marked __ref because it calls __init function
 -- 
 2.10.2
 
