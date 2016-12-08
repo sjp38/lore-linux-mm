@@ -1,78 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5FB6B0253
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:00:29 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j49so287776081qta.1
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:00:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q37si17184078qte.225.2016.12.08.05.00.28
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E18C76B025E
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 08:27:17 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id s63so6140662wms.7
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 05:27:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h194si13213055wmd.115.2016.12.08.05.27.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 05:00:28 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-References: <20161208103300.23217-1-mhocko@kernel.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <86cabb7a-1756-4d12-7ba4-776f66f6bb86@redhat.com>
-Date: Thu, 8 Dec 2016 14:00:20 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Dec 2016 05:27:16 -0800 (PST)
+Date: Thu, 8 Dec 2016 14:27:15 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20161208132714.GA26530@dhcp22.suse.cz>
+References: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20161207081555.GB17136@dhcp22.suse.cz>
+ <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20161208103300.23217-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org
 
-Am 08.12.2016 um 11:33 schrieb Michal Hocko:
-> From: Michal Hocko <mhocko@suse.com>
->
-> Using kmalloc with the vmalloc fallback for larger allocations is a
-> common pattern in the kernel code. Yet we do not have any common helper
-> for that and so users have invented their own helpers. Some of them are
-> really creative when doing so. Let's just add kv[mz]alloc and make sure
-> it is implemented properly. This implementation makes sure to not make
-> a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
-> to not warn about allocation failures. This also rules out the OOM
-> killer as the vmalloc is a more approapriate fallback than a disruptive
-> user visible action.
->
-> This patch also changes some existing users and removes helpers which
-> are specific for them. In some cases this is not possible (e.g.
-> ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
-> broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
-> in general (note that the page table allocation is GFP_KERNEL). Those
-> need to be fixed separately.
->
-> apparmor has already claimed kv[mz]alloc so remove those and use
-> __aa_kvmalloc instead to prevent from the naming clashes.
->
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Mike Snitzer <snitzer@redhat.com>
-> Cc: dm-devel@redhat.com
-> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> Cc: "Theodore Ts'o" <tytso@mit.edu>
-> Cc: kvm@vger.kernel.org
-> Cc: linux-ext4@vger.kernel.org
-> Cc: linux-f2fs-devel@lists.sourceforge.net
-> Cc: linux-security-module@vger.kernel.org
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Thu 08-12-16 00:29:26, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 06-12-16 19:33:59, Tetsuo Handa wrote:
+> > > If the OOM killer is invoked when many threads are looping inside the
+> > > page allocator, it is possible that the OOM killer is preempted by other
+> > > threads.
+> > 
+> > Hmm, the only way I can see this would happen is when the task which
+> > actually manages to take the lock is not invoking the OOM killer for
+> > whatever reason. Is this what happens in your case? Are you able to
+> > trigger this reliably?
+> 
+> Regarding http://I-love.SAKURA.ne.jp/tmp/serial-20161206.txt.xz ,
+> somebody called oom_kill_process() and reached
+> 
+>   pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> 
+> line but did not reach
+> 
+>   pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> 
+> line within tolerable delay.
 
-I remember yet another similar user in arch/s390/kvm/kvm-s390.c
--> kvm_s390_set_skeys()
+I would be really interested in that. This can happen only if
+find_lock_task_mm fails. This would mean that either we are selecting a
+child without mm or the selected victim has no mm anymore. Both cases
+should be ephemeral because oom_badness will rule those tasks on the
+next round. So the primary question here is why no other task has hit
+out_of_memory. Have you tried to instrument the kernel and see whether
+GFP_NOFS contexts simply preempted any other attempt to get there?
+I would find it quite unlikely but not impossible. If that is the case
+we should really think how to move forward. One way is to make the oom
+path fully synchronous as suggested below. Other is to tweak GFP_NOFS
+some more and do not take the lock while we are evaluating that. This
+sounds quite messy though.
 
-...
-keys = kmalloc_array(args->count, sizeof(uint8_t),
-                      GFP_KERNEL | __GFP_NOWARN);
-if (!keys)
-         vmalloc(sizeof(uint8_t) * args->count);
-...
+[...]
 
-would kvmalloc_array make sense? (it would even make the code here
-less error prone and better to read)
+> > So, why don't you simply s@mutex_trylock@mutex_lock_killable@ then?
+> > The trylock is simply an optimistic heuristic to retry while the memory
+> > is being freed. Making this part sync might help for the case you are
+> > seeing.
+> 
+> May I? Something like below? With patch below, the OOM killer can send
+> SIGKILL smoothly and printk() can report smoothly (the frequency of
+> "** XXX printk messages dropped **" messages is significantly reduced).
+
+Well, this has to be properly evaluated. The fact that
+__oom_reap_task_mm requires the oom_lock makes it more complicated. We
+definitely do not want to starve it. On the other hand the oom
+invocation path shouldn't stall for too long and even when we have
+hundreds of tasks blocked on the lock and blocking the oom reaper then
+the reaper should run _eventually_. It might take some time but this a
+glacial slow path so it should be acceptable.
+
+That being said, this should be OK. But please make sure to mention all
+these details in the changelog. Also make sure to document the actual
+failure mode as mentioned above.
+
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2c6d5f6..ee0105b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3075,7 +3075,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+>  	 * Acquire the oom lock.  If that fails, somebody else is
+>  	 * making progress for us.
+>  	 */
+> -	if (!mutex_trylock(&oom_lock)) {
+> +	if (mutex_lock_killable(&oom_lock)) {
+>  		*did_some_progress = 1;
+>  		schedule_timeout_uninterruptible(1);
+>  		return NULL;
 
 -- 
-
-David
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
