@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B63866B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 07:35:00 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id o2so88493715wje.5
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:35:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a17si13046209wma.103.2016.12.08.04.34.58
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7246D6B0253
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 07:35:25 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xy5so95430668wjc.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:35:25 -0800 (PST)
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id 203si13032712wms.92.2016.12.08.04.35.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 04:34:58 -0800 (PST)
-Date: Thu, 8 Dec 2016 13:34:55 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] LSF/MM 2017: Call for Proposals
-Message-ID: <20161208123455.GC4049@quack2.suse.cz>
-References: <1480601506.2511.7.camel@poochiereds.net>
- <1481122626.2354.14.camel@HansenPartnership.com>
- <20161208122619.GA26535@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Dec 2016 04:35:24 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id j10so26937590wjb.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 04:35:23 -0800 (PST)
+Date: Thu, 8 Dec 2016 13:35:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, compaction: add vmstats for kcompactd work
+Message-ID: <20161208123521.GB26535@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1612071749390.69852@chino.kir.corp.google.com>
+ <f25f8fb9-47a9-ebd9-5a7a-95ca6dc324c9@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161208122619.GA26535@dhcp22.suse.cz>
+In-Reply-To: <f25f8fb9-47a9-ebd9-5a7a-95ca6dc324c9@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, linux-scsi@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nvme@lists.infradead.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, linux-block@vger.kernel.org, linux-ide@vger.kernel.org, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, linux-ext4@vger.kernel.org, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 08-12-16 13:26:19, Michal Hocko wrote:
-> On Wed 07-12-16 06:57:06, James Bottomley wrote:
-> [...]
-> > Just on this point, since there seems to be a lot of confusion: lsf-pc
-> > is the list for contacting the programme committee, so you cannot
-> > subscribe to it.
+On Thu 08-12-16 09:04:12, Vlastimil Babka wrote:
+> On 12/08/2016 02:50 AM, David Rientjes wrote:
+> > A "compact_daemon_wake" vmstat exists that represents the number of times
+> > kcompactd has woken up.  This doesn't represent how much work it actually
+> > did, though.
 > > 
-> > There is no -discuss equivalent, like kernel summit has, because we
-> > expect you to cc the relevant existing mailing list and have the
-> > discussion there instead rather than expecting people to subscribe to a
-> > new list.
+> > It's useful to understand how much compaction work is being done by
+> > kcompactd versus other methods such as direct compaction and explicitly
+> > triggered per-node (or system) compaction.
+> > 
+> > This adds two new vmstats: "compact_daemon_migrate_scanned" and
+> > "compact_daemon_free_scanned" to represent the number of pages kcompactd
+> > has scanned as part of its migration scanner and freeing scanner,
+> > respectively.
+> > 
+> > These values are still accounted for in the general
+> > "compact_migrate_scanned" and "compact_free_scanned" for compatibility.
+> > 
+> > It could be argued that explicitly triggered compaction could also be
+> > tracked separately, and that could be added if others find it useful.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
 > 
-> There used to be lsf@lists.linux-foundation.org. Is it not active
-> anymore?
+> A bit of downside is that stats are only updated when compaction finishes,
+> but I guess it's acceptable.
 
-No sure about the current state but usually it gets populated by the
-selected attendees each year.
-
-								Honza
+Is this really unavoidable though? THe most common usecase for
+/proc/vmstat is to collect data over time and perform some statistics to
+see how things are going on. Doing this batched accounting will make
+these kind of analysis less precise. Cannot we just do the accounting
+the same way how we count the reclaim counters?
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
