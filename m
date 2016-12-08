@@ -1,104 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8907A6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 05:43:17 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id h201so342133184qke.7
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 02:43:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o8si16921792qkh.138.2016.12.08.02.43.16
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23F166B025E
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 06:06:59 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id y16so4894223wmd.6
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 03:06:59 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id d81si12702526wmc.164.2016.12.08.03.06.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 02:43:16 -0800 (PST)
-Date: Thu, 8 Dec 2016 11:43:08 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
+        Thu, 08 Dec 2016 03:06:57 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 41C391C203D
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 11:06:57 +0000 (GMT)
+Date: Thu, 8 Dec 2016 11:06:56 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
 Subject: Re: [PATCH] mm: page_alloc: High-order per-cpu page allocator v7
-Message-ID: <20161208114308.1c6a424f@redhat.com>
-In-Reply-To: <20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+Message-ID: <20161208110656.bnkvqg73qnjkehbc@techsingularity.net>
 References: <20161207101228.8128-1-mgorman@techsingularity.net>
-	<1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
-	<20161207194801.krhonj7yggbedpba@techsingularity.net>
-	<1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
-	<20161207211958.s3ymjva54wgakpkm@techsingularity.net>
-	<20161207232531.fxqdgrweilej5gs6@techsingularity.net>
-	<20161208092231.55c7eacf@redhat.com>
-	<20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+ <1481137249.4930.59.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207194801.krhonj7yggbedpba@techsingularity.net>
+ <1481141424.4930.71.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20161207211958.s3ymjva54wgakpkm@techsingularity.net>
+ <20161207232531.fxqdgrweilej5gs6@techsingularity.net>
+ <20161208092231.55c7eacf@redhat.com>
+ <20161208091806.gzcxlerxprcjvt3l@techsingularity.net>
+ <20161208114308.1c6a424f@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20161208114308.1c6a424f@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, 8 Dec 2016 09:18:06 +0000
-Mel Gorman <mgorman@techsingularity.net> wrote:
+On Thu, Dec 08, 2016 at 11:43:08AM +0100, Jesper Dangaard Brouer wrote:
+> > That's expected. In the initial sniff-test, I saw negligible packet loss.
+> > I'm waiting to see what the full set of network tests look like before
+> > doing any further adjustments.
+> 
+> For netperf I will not recommend adjusting the global default
+> /proc/sys/net/core/rmem_default as netperf have means of adjusting this
+> value from the application (which were the options you setup too low
+> and just removed). I think you should keep this as the default for now
+> (unless Eric says something else), as this should cover most users.
+> 
 
-> On Thu, Dec 08, 2016 at 09:22:31AM +0100, Jesper Dangaard Brouer wrote:
-> > On Wed, 7 Dec 2016 23:25:31 +0000
-> > Mel Gorman <mgorman@techsingularity.net> wrote:
-> >   
-> > > On Wed, Dec 07, 2016 at 09:19:58PM +0000, Mel Gorman wrote:  
-> > > > At small packet sizes on localhost, I see relatively low page allocator
-> > > > activity except during the socket setup and other unrelated activity
-> > > > (khugepaged, irqbalance, some btrfs stuff) which is curious as it's
-> > > > less clear why the performance was improved in that case. I considered
-> > > > the possibility that it was cache hotness of pages but that's not a
-> > > > good fit. If it was true then the first test would be slow and the rest
-> > > > relatively fast and I'm not seeing that. The other side-effect is that
-> > > > all the high-order pages that are allocated at the start are physically
-> > > > close together but that shouldn't have that big an impact. So for now,
-> > > > the gain is unexplained even though it happens consistently.
-> > > >     
-> > > 
-> > > Further investigation led me to conclude that the netperf automation on
-> > > my side had some methodology errors that could account for an artifically
-> > > low score in some cases. The netperf automation is years old and would
-> > > have been developed against a much older and smaller machine which may be
-> > > why I missed it until I went back looking at exactly what the automation
-> > > was doing. Minimally in a server/client test on remote maching there was
-> > > potentially higher packet loss than is acceptable. This would account why
-> > > some machines "benefitted" while others did not -- there would be boot to
-> > > boot variations that some machines happened to be "lucky". I believe I've
-> > > corrected the errors, discarded all the old data and scheduled a rest to
-> > > see what falls out.  
-> > 
-> > I guess you are talking about setting the netperf socket queue low
-> > (+256 bytes above msg size), that I pointed out in[1].   
-> 
-> Primarily, yes.
-> 
-> > From the same commit[2] I can see you explicitly set (local+remote):
-> > 
-> >   sysctl net.core.rmem_max=16777216
-> >   sysctl net.core.wmem_max=16777216
-> >   
-> 
-> Yes, I set it for higher speed networks as a starting point to remind me
-> to examine rmem_default or socket configurations if any significant packet
-> loss is observed.
-> 
-> > Eric do you have any advice on this setting?
-> > 
-> > And later[4] you further increase this to 32MiB.  Notice that the
-> > netperf UDP_STREAM test will still use the default value from:
-> > net.core.rmem_default = 212992.
-> >   
-> 
-> That's expected. In the initial sniff-test, I saw negligible packet loss.
-> I'm waiting to see what the full set of network tests look like before
-> doing any further adjustments.
-
-For netperf I will not recommend adjusting the global default
-/proc/sys/net/core/rmem_default as netperf have means of adjusting this
-value from the application (which were the options you setup too low
-and just removed). I think you should keep this as the default for now
-(unless Eric says something else), as this should cover most users.
+Ok, the current state is that buffer sizes are only set for netperf
+UDP_STREAM and only when running over a real network. The values selected
+were specific to the network I had available so milage may vary.
+localhost is left at the defaults.
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
