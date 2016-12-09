@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 81D596B0268
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 16:09:05 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e9so63922655pgc.5
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 13:09:05 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 53FDE6B0269
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 16:09:06 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g186so64055519pgc.2
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 13:09:06 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 75si35260400pfv.196.2016.12.09.13.09.04
+        by mx.google.com with ESMTPS id 75si35260400pfv.196.2016.12.09.13.09.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Dec 2016 13:09:04 -0800 (PST)
+        Fri, 09 Dec 2016 13:09:05 -0800 (PST)
 From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: [PATCH v4 4/9] mm/swap: skip read ahead for unreferenced swap slots
-Date: Fri,  9 Dec 2016 13:09:17 -0800
-Message-Id: <e2b0d8f78c5da53bf8e59fe36a417a836aa2900b.1481317367.git.tim.c.chen@linux.intel.com>
+Subject: [PATCH v4 5/9] mm/swap: Allocate swap slots in batches
+Date: Fri,  9 Dec 2016 13:09:18 -0800
+Message-Id: <ea20de122a8b6025820922ffc81e6c628b6e272e.1481317367.git.tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1481317367.git.tim.c.chen@linux.intel.com>
 References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1481317367.git.tim.c.chen@linux.intel.com>
@@ -22,138 +22,280 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-We can avoid needlessly allocating page for swap slots that
-are not used by anyone. No pages have to be read in for
-these slots.
+Currently, the swap slots are allocated one page at a time,
+causing contention to the swap_info lock protecting the swap partition
+on every page being swapped.
+
+This patch adds new functions get_swap_pages and scan_swap_map_slots
+to request multiple swap slots at once. This will reduces the lock
+contention on the swap_info lock. Also scan_swap_map_slots can operate
+more efficiently as swap slots often occurs in clusters close to each
+other on a swap device and it is quicker to allocate them together.
 
 Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 Co-developed-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/swap.h |  6 ++++++
- mm/swap_state.c      |  4 ++++
- mm/swapfile.c        | 47 +++++++++++++++++++++++++++++++++++++++++------
- 3 files changed, 51 insertions(+), 6 deletions(-)
+ include/linux/swap.h |   2 +
+ mm/swapfile.c        | 138 +++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 115 insertions(+), 25 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 5f66c84..6b7a48b 100644
+index 6b7a48b..68d2ea5 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -424,6 +424,7 @@ extern unsigned int count_swap_pages(int, int);
- extern sector_t map_swap_page(struct page *, struct block_device **);
- extern sector_t swapdev_block(int, pgoff_t);
- extern int page_swapcount(struct page *);
-+extern int __swp_swapcount(swp_entry_t entry);
- extern int swp_swapcount(swp_entry_t entry);
- extern struct swap_info_struct *page_swap_info(struct page *);
- extern bool reuse_swap_page(struct page *, int *);
-@@ -518,6 +519,11 @@ static inline int page_swapcount(struct page *page)
- 	return 0;
- }
+@@ -27,6 +27,7 @@ struct bio;
+ #define SWAP_FLAGS_VALID	(SWAP_FLAG_PRIO_MASK | SWAP_FLAG_PREFER | \
+ 				 SWAP_FLAG_DISCARD | SWAP_FLAG_DISCARD_ONCE | \
+ 				 SWAP_FLAG_DISCARD_PAGES)
++#define SWAP_BATCH 64
  
-+static inline int __swp_swapcount(swp_entry_t entry)
-+{
-+	return 0;
-+}
-+
- static inline int swp_swapcount(swp_entry_t entry)
+ static inline int current_is_kswapd(void)
  {
- 	return 0;
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 3863acd..3d76d80 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -323,6 +323,10 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		if (found_page)
- 			break;
- 
-+		/* Just skip read ahead for unused swap slot */
-+		if (!__swp_swapcount(entry))
-+			return NULL;
-+
- 		/*
- 		 * Get a new page to read into from swap.
- 		 */
+@@ -412,6 +413,7 @@ static inline long get_nr_swap_pages(void)
+ extern void si_swapinfo(struct sysinfo *);
+ extern swp_entry_t get_swap_page(void);
+ extern swp_entry_t get_swap_page_of_type(int);
++extern int get_swap_pages(int n, swp_entry_t swp_entries[]);
+ extern int add_swap_count_continuation(swp_entry_t, gfp_t);
+ extern void swap_shmem_alloc(swp_entry_t);
+ extern int swap_duplicate(swp_entry_t);
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index eb6cba7..136c9dd 100644
+index 136c9dd..8b2a97e 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -803,7 +803,7 @@ swp_entry_t get_swap_page_of_type(int type)
- 	return (swp_entry_t) {0};
- }
- 
--static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
-+static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
- {
- 	struct swap_info_struct *p;
- 	unsigned long offset, type;
-@@ -819,13 +819,8 @@ static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
- 	offset = swp_offset(entry);
- 	if (offset >= p->max)
- 		goto bad_offset;
--	if (!p->swap_map[offset])
--		goto bad_free;
- 	return p;
- 
--bad_free:
--	pr_err("swap_info_get: %s%08lx\n", Unused_offset, entry.val);
--	goto out;
- bad_offset:
- 	pr_err("swap_info_get: %s%08lx\n", Bad_offset, entry.val);
- 	goto out;
-@@ -838,6 +833,24 @@ static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
- 	return NULL;
- }
- 
-+static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
-+{
-+	struct swap_info_struct *p;
-+
-+	p = __swap_info_get(entry);
-+	if (!p)
-+		goto out;
-+	if (!p->swap_map[swp_offset(entry)])
-+		goto bad_free;
-+	return p;
-+
-+bad_free:
-+	pr_err("swap_info_get: %s%08lx\n", Unused_offset, entry.val);
-+	goto out;
-+out:
-+	return NULL;
-+}
-+
- static struct swap_info_struct *swap_info_get(swp_entry_t entry)
- {
- 	struct swap_info_struct *p;
-@@ -993,6 +1006,28 @@ int page_swapcount(struct page *page)
- 
- /*
-  * How many references to @entry are currently swapped out?
-+ * This does not give an exact answer when swap count is continued,
-+ * but does include the high COUNT_CONTINUED flag to allow for that.
-+ */
-+int __swp_swapcount(swp_entry_t entry)
-+{
-+	int count = 0;
-+	pgoff_t offset;
-+	struct swap_info_struct *si;
-+	struct swap_cluster_info *ci;
-+
-+	si = __swap_info_get(entry);
-+	if (si) {
-+		offset = swp_offset(entry);
-+		ci = lock_cluster_or_swap_info(si, offset);
-+		count = swap_count(si->swap_map[offset]);
-+		unlock_cluster_or_swap_info(si, ci);
-+	}
-+	return count;
-+}
-+
-+/*
-+ * How many references to @entry are currently swapped out?
-  * This considers COUNT_CONTINUED so it returns exact answer.
+@@ -501,7 +501,7 @@ scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
+  * Try to get a swap entry from current cpu's swap entry pool (a cluster). This
+  * might involve allocating a new cluster for current CPU too.
   */
- int swp_swapcount(swp_entry_t entry)
+-static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
++static bool scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
+ 	unsigned long *offset, unsigned long *scan_base)
+ {
+ 	struct percpu_cluster *cluster;
+@@ -525,7 +525,7 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
+ 			*scan_base = *offset = si->cluster_next;
+ 			goto new_cluster;
+ 		} else
+-			return;
++			return false;
+ 	}
+ 
+ 	found_free = false;
+@@ -557,16 +557,22 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
+ 	cluster->next = tmp + 1;
+ 	*offset = tmp;
+ 	*scan_base = tmp;
++	return found_free;
+ }
+ 
+-static unsigned long scan_swap_map(struct swap_info_struct *si,
+-				   unsigned char usage)
++static int scan_swap_map_slots(struct swap_info_struct *si,
++			       unsigned char usage, int nr,
++			       swp_entry_t slots[])
+ {
+ 	struct swap_cluster_info *ci;
+ 	unsigned long offset;
+ 	unsigned long scan_base;
+ 	unsigned long last_in_cluster = 0;
+ 	int latency_ration = LATENCY_LIMIT;
++	int n_ret = 0;
++
++	if (nr > SWAP_BATCH)
++		nr = SWAP_BATCH;
+ 
+ 	/*
+ 	 * We try to cluster swap pages by allocating them sequentially
+@@ -584,8 +590,10 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 
+ 	/* SSD algorithm */
+ 	if (si->cluster_info) {
+-		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
+-		goto checks;
++		if (scan_swap_map_try_ssd_cluster(si, &offset, &scan_base))
++			goto checks;
++		else
++			goto scan;
+ 	}
+ 
+ 	if (unlikely(!si->cluster_nr--)) {
+@@ -629,8 +637,14 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 
+ checks:
+ 	if (si->cluster_info) {
+-		while (scan_swap_map_ssd_cluster_conflict(si, offset))
+-			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
++		while (scan_swap_map_ssd_cluster_conflict(si, offset)) {
++		/* take a break if we already got some slots */
++			if (n_ret)
++				goto done;
++			if (!scan_swap_map_try_ssd_cluster(si, &offset,
++							&scan_base))
++				goto scan;
++		}
+ 	}
+ 	if (!(si->flags & SWP_WRITEOK))
+ 		goto no_page;
+@@ -655,7 +669,10 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 
+ 	if (si->swap_map[offset]) {
+ 		unlock_cluster(ci);
+-		goto scan;
++		if (!n_ret)
++			goto scan;
++		else
++			goto done;
+ 	}
+ 
+ 	if (offset == si->lowest_bit)
+@@ -674,9 +691,43 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 	inc_cluster_info_page(si, si->cluster_info, offset);
+ 	unlock_cluster(ci);
+ 	si->cluster_next = offset + 1;
+-	si->flags -= SWP_SCANNING;
++	slots[n_ret++] = swp_entry(si->type, offset);
++
++	/* got enough slots or reach max slots? */
++	if ((n_ret == nr) || (offset >= si->highest_bit))
++		goto done;
+ 
+-	return offset;
++	/* search for next available slot */
++
++	/* time to take a break? */
++	if (unlikely(--latency_ration < 0)) {
++		if (n_ret)
++			goto done;
++		spin_unlock(&si->lock);
++		cond_resched();
++		spin_lock(&si->lock);
++		latency_ration = LATENCY_LIMIT;
++	}
++
++	/* try to get more slots in cluster */
++	if (si->cluster_info) {
++		if (scan_swap_map_try_ssd_cluster(si, &offset, &scan_base))
++			goto checks;
++		else
++			goto done;
++	}
++	/* non-ssd case */
++	++offset;
++
++	/* non-ssd case, still more slots in cluster? */
++	if (si->cluster_nr && !si->swap_map[offset]) {
++		--si->cluster_nr;
++		goto checks;
++	}
++
++done:
++	si->flags -= SWP_SCANNING;
++	return n_ret;
+ 
+ scan:
+ 	spin_unlock(&si->lock);
+@@ -714,17 +765,43 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 
+ no_page:
+ 	si->flags -= SWP_SCANNING;
+-	return 0;
++	return n_ret;
+ }
+ 
+-swp_entry_t get_swap_page(void)
++static unsigned long scan_swap_map(struct swap_info_struct *si,
++				   unsigned char usage)
++{
++	swp_entry_t entry;
++	int n_ret;
++
++	n_ret = scan_swap_map_slots(si, usage, 1, &entry);
++
++	if (n_ret)
++		return swp_offset(entry);
++	else
++		return 0;
++
++}
++
++int get_swap_pages(int n_goal, swp_entry_t swp_entries[])
+ {
+ 	struct swap_info_struct *si, *next;
+-	pgoff_t offset;
++	long avail_pgs;
++	int n_ret = 0;
+ 
+-	if (atomic_long_read(&nr_swap_pages) <= 0)
++	avail_pgs = atomic_long_read(&nr_swap_pages);
++	if (avail_pgs <= 0)
+ 		goto noswap;
+-	atomic_long_dec(&nr_swap_pages);
++
++	swp_entries[0] = (swp_entry_t) {0};
++
++	if (n_goal > SWAP_BATCH)
++		n_goal = SWAP_BATCH;
++
++	if (n_goal > avail_pgs)
++		n_goal = avail_pgs;
++
++	atomic_long_sub(n_goal, &nr_swap_pages);
+ 
+ 	spin_lock(&swap_avail_lock);
+ 
+@@ -750,14 +827,14 @@ swp_entry_t get_swap_page(void)
+ 			spin_unlock(&si->lock);
+ 			goto nextsi;
+ 		}
+-
+-		/* This is called for allocating swap entry for cache */
+-		offset = scan_swap_map(si, SWAP_HAS_CACHE);
++		n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
++					    n_goal, swp_entries);
+ 		spin_unlock(&si->lock);
+-		if (offset)
+-			return swp_entry(si->type, offset);
++		if (n_ret)
++			goto check_out;
+ 		pr_debug("scan_swap_map of si %d failed to find offset\n",
+-		       si->type);
++			si->type);
++
+ 		spin_lock(&swap_avail_lock);
+ nextsi:
+ 		/*
+@@ -768,7 +845,8 @@ swp_entry_t get_swap_page(void)
+ 		 * up between us dropping swap_avail_lock and taking si->lock.
+ 		 * Since we dropped the swap_avail_lock, the swap_avail_head
+ 		 * list may have been modified; so if next is still in the
+-		 * swap_avail_head list then try it, otherwise start over.
++		 * swap_avail_head list then try it, otherwise start over
++		 * if we have not gotten any slots.
+ 		 */
+ 		if (plist_node_empty(&next->avail_list))
+ 			goto start_over;
+@@ -776,9 +854,19 @@ swp_entry_t get_swap_page(void)
+ 
+ 	spin_unlock(&swap_avail_lock);
+ 
+-	atomic_long_inc(&nr_swap_pages);
++check_out:
++	if (n_ret < n_goal)
++		atomic_long_add((long) (n_goal-n_ret), &nr_swap_pages);
+ noswap:
+-	return (swp_entry_t) {0};
++	return n_ret;
++}
++
++swp_entry_t get_swap_page(void)
++{
++	swp_entry_t entry;
++
++	get_swap_pages(1, &entry);
++	return entry;
+ }
+ 
+ /* The only caller of this function is now suspend routine */
 -- 
 2.5.5
 
