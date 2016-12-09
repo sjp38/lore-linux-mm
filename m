@@ -1,73 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4EC6B026A
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:06:10 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id p66so16690356pga.4
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:06:10 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id s5si31951267pfj.271.2016.12.08.21.06.09
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Dec 2016 21:06:09 -0800 (PST)
-Received: from epcpsbgm2new.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OHW009BVJI8QV50@mailout4.samsung.com> for linux-mm@kvack.org;
- Fri, 09 Dec 2016 14:06:08 +0900 (KST)
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Subject: [PATCH] staging: android: ion: return -ENOMEM in ion_cma_heap
- allocation failure
-Date: Fri, 09 Dec 2016 14:05:30 +0900
-Message-id: <1481259930-4620-2-git-send-email-jaewon31.kim@samsung.com>
-In-reply-to: <1481259930-4620-1-git-send-email-jaewon31.kim@samsung.com>
-References: <1481259930-4620-1-git-send-email-jaewon31.kim@samsung.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C19056B0069
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:16:35 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 83so8671074pfx.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:16:35 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id m5si31929238pgj.182.2016.12.08.21.16.34
+        for <linux-mm@kvack.org>;
+        Thu, 08 Dec 2016 21:16:34 -0800 (PST)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH v4 01/15] x86/dumpstack: Optimize save_stack_trace
+Date: Fri,  9 Dec 2016 14:11:57 +0900
+Message-Id: <1481260331-360-2-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: labbott@redhat.com, sumit.semwal@linaro.org, tixy@linaro.org, prime.zeng@huawei.com, tranmanphong@gmail.com, fabio.estevam@freescale.com, ccross@android.com, rebecca@android.com, benjamin.gaignard@linaro.org, arve@android.com, riandrews@android.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-Initial Commit 349c9e138551 ("gpu: ion: add CMA heap") returns -1 in allocation
-failure. The returned value is passed up to userspace through ioctl. So user can
-misunderstand error reason as -EPERM(1) rather than -ENOMEM(12).
+Currently, x86 implementation of save_stack_trace() is walking all stack
+region word by word regardless of what the trace->max_entries is.
+However, it's unnecessary to walk after already fulfilling caller's
+requirement, say, if trace->nr_entries >= trace->max_entries is true.
 
-This patch simply changed this to return -ENOMEM.
+I measured its overhead and printed its difference of sched_clock() with
+my QEMU x86 machine. The latency was improved over 70% when
+trace->max_entries = 5.
 
-Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+Before this patch:
+
+[    2.329573] save_stack_trace() takes 76820 ns
+[    2.329863] save_stack_trace() takes 62131 ns
+[    2.330000] save_stack_trace() takes 99476 ns
+[    2.329846] save_stack_trace() takes 62419 ns
+[    2.330000] save_stack_trace() takes 88918 ns
+[    2.330253] save_stack_trace() takes 73669 ns
+[    2.330520] save_stack_trace() takes 67876 ns
+[    2.330671] save_stack_trace() takes 75963 ns
+[    2.330983] save_stack_trace() takes 95079 ns
+[    2.330451] save_stack_trace() takes 62352 ns
+
+After this patch:
+
+[    2.795000] save_stack_trace() takes 21147 ns
+[    2.795397] save_stack_trace() takes 20230 ns
+[    2.795397] save_stack_trace() takes 31274 ns
+[    2.795739] save_stack_trace() takes 19706 ns
+[    2.796484] save_stack_trace() takes 20266 ns
+[    2.796484] save_stack_trace() takes 20902 ns
+[    2.797000] save_stack_trace() takes 38110 ns
+[    2.797510] save_stack_trace() takes 20224 ns
+[    2.798181] save_stack_trace() takes 20172 ns
+[    2.798837] save_stack_trace() takes 20824 ns
+
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- drivers/staging/android/ion/ion_cma_heap.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/stacktrace.h | 1 +
+ arch/x86/kernel/dumpstack.c       | 4 ++++
+ arch/x86/kernel/dumpstack_32.c    | 2 ++
+ arch/x86/kernel/stacktrace.c      | 7 +++++++
+ 4 files changed, 14 insertions(+)
 
-diff --git a/drivers/staging/android/ion/ion_cma_heap.c b/drivers/staging/android/ion/ion_cma_heap.c
-index 6c7de74..22b9582 100644
---- a/drivers/staging/android/ion/ion_cma_heap.c
-+++ b/drivers/staging/android/ion/ion_cma_heap.c
-@@ -24,8 +24,6 @@
- #include "ion.h"
- #include "ion_priv.h"
+diff --git a/arch/x86/include/asm/stacktrace.h b/arch/x86/include/asm/stacktrace.h
+index 0944218..f6d0694 100644
+--- a/arch/x86/include/asm/stacktrace.h
++++ b/arch/x86/include/asm/stacktrace.h
+@@ -41,6 +41,7 @@ struct stacktrace_ops {
+ 	/* On negative return stop dumping */
+ 	int (*stack)(void *data, char *name);
+ 	walk_stack_t	walk_stack;
++	int (*end_walk)(void *data);
+ };
  
--#define ION_CMA_ALLOCATE_FAILED -1
--
- struct ion_cma_heap {
- 	struct ion_heap heap;
- 	struct device *dev;
-@@ -59,7 +57,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
+ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index ef8017c..274d42a 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -113,6 +113,8 @@ print_context_stack(struct task_struct *task,
+ 			print_ftrace_graph_addr(addr, data, ops, task, graph);
+ 		}
+ 		stack++;
++		if (ops->end_walk && ops->end_walk(data))
++			break;
+ 	}
+ 	return bp;
+ }
+@@ -138,6 +140,8 @@ print_context_stack_bp(struct task_struct *task,
+ 		frame = frame->next_frame;
+ 		ret_addr = &frame->return_address;
+ 		print_ftrace_graph_addr(addr, data, ops, task, graph);
++		if (ops->end_walk && ops->end_walk(data))
++			break;
+ 	}
  
- 	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
- 	if (!info)
--		return ION_CMA_ALLOCATE_FAILED;
-+		return -ENOMEM;
+ 	return (unsigned long)frame;
+diff --git a/arch/x86/kernel/dumpstack_32.c b/arch/x86/kernel/dumpstack_32.c
+index fef917e..762d1fd 100644
+--- a/arch/x86/kernel/dumpstack_32.c
++++ b/arch/x86/kernel/dumpstack_32.c
+@@ -69,6 +69,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
  
- 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
- 						GFP_HIGHUSER | __GFP_ZERO);
-@@ -88,7 +86,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
- 	dma_free_coherent(dev, len, info->cpu_addr, info->handle);
- err:
- 	kfree(info);
--	return ION_CMA_ALLOCATE_FAILED;
-+	return -ENOMEM;
+ 		bp = ops->walk_stack(task, stack, bp, ops, data,
+ 				     end_stack, &graph);
++		if (ops->end_walk && ops->end_walk(data))
++			break;
+ 
+ 		/* Stop if not on irq stack */
+ 		if (!end_stack)
+diff --git a/arch/x86/kernel/stacktrace.c b/arch/x86/kernel/stacktrace.c
+index 9ee98ee..a44de4d 100644
+--- a/arch/x86/kernel/stacktrace.c
++++ b/arch/x86/kernel/stacktrace.c
+@@ -47,10 +47,17 @@ save_stack_address_nosched(void *data, unsigned long addr, int reliable)
+ 	return __save_stack_address(data, addr, reliable, true);
  }
  
- static void ion_cma_free(struct ion_buffer *buffer)
++static int save_stack_end(void *data)
++{
++	struct stack_trace *trace = data;
++	return trace->nr_entries >= trace->max_entries;
++}
++
+ static const struct stacktrace_ops save_stack_ops = {
+ 	.stack		= save_stack_stack,
+ 	.address	= save_stack_address,
+ 	.walk_stack	= print_context_stack,
++	.end_walk	= save_stack_end,
+ };
+ 
+ static const struct stacktrace_ops save_stack_ops_nosched = {
 -- 
 1.9.1
 
