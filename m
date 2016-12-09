@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CADB26B0261
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 12:21:21 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id o3so8580541wjo.1
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 09:21:21 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id 203si18879107wms.92.2016.12.09.09.21.20
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 018076B0261
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 12:27:01 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i131so8069397wmf.3
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 09:27:00 -0800 (PST)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id aj4si34912585wjd.196.2016.12.09.09.26.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Dec 2016 09:21:20 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id m203so5029318wma.3
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 09:21:20 -0800 (PST)
-Date: Fri, 9 Dec 2016 20:21:18 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
-Message-ID: <20161209172118.GB8932@node.shutemov.name>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161209050130.GC2595@gmail.com>
- <20161209103722.GE30380@node.shutemov.name>
- <20161209164011.GL8388@tassilo.jf.intel.com>
+        Fri, 09 Dec 2016 09:26:59 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 3E75B1C2C59
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 17:26:59 +0000 (GMT)
+Date: Fri, 9 Dec 2016 17:26:58 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/2] mm, page_alloc: don't convert pfn to idx when merging
+Message-ID: <20161209172658.uebsgt5ju6gtz2bu@techsingularity.net>
+References: <20161209093754.3515-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20161209164011.GL8388@tassilo.jf.intel.com>
+In-Reply-To: <20161209093754.3515-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, Dec 09, 2016 at 08:40:11AM -0800, Andi Kleen wrote:
-> > On other hand, large virtual address space would put more pressure on
-> > cache -- at least one more page table per process, if we make 56-bit VA
-> > default.
+On Fri, Dec 09, 2016 at 10:37:53AM +0100, Vlastimil Babka wrote:
+> In __free_one_page() we do the buddy merging arithmetics on "page/buddy index",
+> which is just the lower MAX_ORDER bits of pfn. The operations we do that affect
+> the higher bits are bitwise AND and subtraction (in that order), where the
+> final result will be the same with the higher bits left unmasked, as long as
+> these bits are equal for both buddies - which must be true by the definition of
+> a buddy.
+
+Ok, other than the kbuild warning, both patchs look ok. I expect the
+benefit is marginal but every little bit helps.
+
 > 
-> The top level page always has to be there unless you disable it at boot time
-> (unless you go for a scheme where some processes share top level pages, and
-> others do not, which would likely be very complicated)
+> We can therefore use pfn's directly instead of "index" and skip the zeroing of
+> >MAX_ORDER bits. This can help a bit by itself, although compiler might be
+> smart enough already. It also helps the next patch to avoid page_to_pfn() for
+> memory hole checks.
 > 
-> But even with that it is more than one: A typical set up has at least two extra
-> 4K pages overhead, one for the bottom and one for the top mappings. Could easily be
-> more.
 
-So, right, one page for pgd, which we can't easily avoid.
+I expect this benefit only applies to a few archiectures and won't be
+visible on x86 but it still makes sense so for both patches;
 
-If we limit VA to 47-bits by default, we would have one p4d page as the
-range will be covered by one entry in pgd.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-If we go to 56-bits VA by default, we would have at least two p4d pages
-even for small processes. This where mine "at least one more page table
-per process" comes from.
-
-That's waste of memory and potentially cache. I don't think it's
-justified.
+As a slight aside, I recently spotted that one of the largest overhead
+in the bulk free path was in the page_is_buddy() checks so pretty much
+anything that helps that is welcome.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
