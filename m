@@ -1,212 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB4E6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 13:02:16 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id o3so8770785wjo.1
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 10:02:16 -0800 (PST)
-Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
-        by mx.google.com with ESMTPS id ya10si35116505wjb.40.2016.12.09.10.02.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BE3226B025E
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 13:11:21 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x23so53323958pgx.6
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 10:11:21 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0076.outbound.protection.outlook.com. [104.47.34.76])
+        by mx.google.com with ESMTPS id g6si34757718pgp.201.2016.12.09.10.11.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Dec 2016 10:02:13 -0800 (PST)
-Subject: Re: Still OOM problems with 4.9er kernels
-References: <aa4a3217-f94c-0477-b573-796c84255d1e@wiesinger.com>
- <c4ddfc91-7c84-19ed-b69a-18403e7590f9@wiesinger.com>
- <b3d7a0f3-caa4-91f9-4148-b62cf5e23886@wiesinger.com>
- <20161209134025.GB4342@dhcp22.suse.cz>
- <a0bf765f-d5dd-7a51-1a6b-39cbda56bd58@wiesinger.com>
- <20161209160946.GE4334@dhcp22.suse.cz>
- <fd029311-f0fe-3d1f-26d2-1f87576b14da@wiesinger.com>
- <20161209173018.GA31809@dhcp22.suse.cz>
-From: Gerhard Wiesinger <lists@wiesinger.com>
-Message-ID: <a7ebcdbe-9feb-a88f-594c-161e7daa5818@wiesinger.com>
-Date: Fri, 9 Dec 2016 19:01:17 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Dec 2016 10:11:20 -0800 (PST)
+From: Robert Richter <rrichter@cavium.com>
+Subject: [PATCH] arm64: mm: Fix NOMAP page initialization
+Date: Fri, 9 Dec 2016 19:10:41 +0100
+Message-ID: <1481307042-29773-1-git-send-email-rrichter@cavium.com>
 MIME-Version: 1.0
-In-Reply-To: <20161209173018.GA31809@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, Robert Richter <rrichter@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09.12.2016 18:30, Michal Hocko wrote:
-> On Fri 09-12-16 17:58:14, Gerhard Wiesinger wrote:
->> On 09.12.2016 17:09, Michal Hocko wrote:
-> [...]
->>>> [97883.882611] Mem-Info:
->>>> [97883.883747] active_anon:2915 inactive_anon:3376 isolated_anon:0
->>>>                   active_file:3902 inactive_file:3639 isolated_file:0
->>>>                   unevictable:0 dirty:205 writeback:0 unstable:0
->>>>                   slab_reclaimable:9856 slab_unreclaimable:9682
->>>>                   mapped:3722 shmem:59 pagetables:2080 bounce:0
->>>>                   free:748 free_pcp:15 free_cma:0
->>> there is still some page cache which doesn't seem to be neither dirty
->>> nor under writeback. So it should be theoretically reclaimable but for
->>> some reason we cannot seem to reclaim that memory.
->>> There is still some anonymous memory and free swap so we could reclaim
->>> it as well but it all seems pretty down and the memory pressure is
->>> really large
->> Yes, it might be large on the update situation, but that should be handled
->> by a virtual memory system by the kernel, right?
-> Well this is what we try and call it memory reclaim. But if we are not
-> able to reclaim anything then we eventually have to give up and trigger
-> the OOM killer.
+On ThunderX systems with certain memory configurations we see the
+following BUG_ON():
 
-I'm not familiar with the Linux implementation of the VM system in 
-detail. But can't you reserve as much memory for the kernel (non 
-pageable) at least that you can swap everything out (even without 
-killing a process at least as long there is enough swap available, which 
-should be in all of my cases)?
+ kernel BUG at mm/page_alloc.c:1848!
 
+This happens for some configs with 64k page size enabled. The BUG_ON()
+checks if start and end page of a memmap range belongs to the same
+zone.
 
->   Now the information that 4.4 made a difference is
-> interesting. I do not really see any major differences in the reclaim
-> between 4.3 and 4.4 kernels. The reason might be somewhere else as well.
-> E.g. some of the subsystem consumes much more memory than before.
->
-> Just curious, what kind of filesystem are you using?
+The BUG_ON() check fails if a memory zone contains NOMAP regions. In
+this case the node information of those pages is not initialized. This
+causes an inconsistency of the page links with wrong zone and node
+information for that pages. NOMAP pages from node 1 still point to the
+mem zone from node 0 and have the wrong nid assigned.
 
-I'm using ext4 only with virt-* drivers (storage, network). But it is 
-definitly a virtual memory allocation/swap usage issue.
+The reason for the mis-configuration is a change in pfn_valid() which
+reports pages marked NOMAP as invalid:
 
->   Could you try some
-> additional debugging. Enabling reclaim related tracepoints might tell us
-> more. The following should tell us more
-> mount -t tracefs none /trace
-> echo 1 > /trace/events/vmscan/enable
-> echo 1 > /trace/events/writeback/writeback_congestion_wait/enable
-> cat /trace/trace_pipe > trace.log
->
-> Collecting /proc/vmstat over time might be helpful as well
-> mkdir logs
-> while true
-> do
-> 	cp /proc/vmstat vmstat.$(date +%s)
-> 	sleep 1s
-> done
+ 68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
 
-Activated it. But I think it should be very easy to trigger also on your 
-side. A very small configured VM with a program running RAM 
-allocations/writes (I guess you have some testing programs already) 
-should be sufficient to trigger it. You can also use the attached 
-program which I used to trigger such situations some years ago. If it 
-doesn't help try to reduce the available CPU for the VM and also I/O 
-(e.g. use all CPU/IO on the host or other VMs).
+This causes pages marked as nomap being no longer reassigned to the
+new zone in memmap_init_zone() by calling __init_single_pfn().
 
-BTW: Don't know if you have seen also my original message on the kernel 
-mailinglist only:
+Fixing this by implementing an arm64 specific early_pfn_valid(). This
+causes the whole mem range including NOMAP memory to be initialized by
+__init_single_page() and ensures consistency of page links to zone,
+node and section.
 
-Linus had also OOM problems with 1kB RAM requests and a lot of free RAM 
-(use a translation service for the german page):
-https://lkml.org/lkml/2016/11/30/64
-https://marius.bloggt-in-braunschweig.de/2016/11/17/linuxkernel-4-74-8-und-der-oom-killer/
-https://www.spinics.net/lists/linux-mm/msg113661.html
+The HAVE_ARCH_PFN_VALID config option now requires an explicit
+definiton of early_pfn_valid() in the same way as pfn_valid(). This
+allows a customized implementation of early_pfn_valid() which
+redirects to memblock_is_memory() for arm64.
 
-Thnx.
+Signed-off-by: Robert Richter <rrichter@cavium.com>
+---
+ arch/arm/include/asm/page.h   |  1 +
+ arch/arm64/include/asm/page.h |  2 ++
+ arch/arm64/mm/init.c          | 12 ++++++++++++
+ include/linux/mmzone.h        |  5 ++++-
+ 4 files changed, 19 insertions(+), 1 deletion(-)
 
-Ciao,
-Gerhard
-
-// mallocsleep.c
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
-typedef unsigned int BOOL;
-typedef char* PCHAR;
-typedef unsigned int DWORD;
-typedef unsigned long DDWORD;
-
-#define FALSE 0
-#define TRUE 1
-
-BOOL getlong(PCHAR s, DDWORD* retvalue)
-{
-   char *eptr;
-   long value;
-
-   value=strtoll(s,&eptr,0);
-   if ((eptr == s)||(*eptr != '\0')) return FALSE;
-   if (value < 0) return FALSE;
-   *retvalue = value;
-   return TRUE;
-}
-
-int main(int argc, char* argv[])
-{
-   unsigned long* p;
-   unsigned long size = 16*1024*1024;
-   unsigned long size_of = sizeof(*p);
-   unsigned long i;
-   unsigned long sleep_allocated = 3600;
-   unsigned long sleep_freed = 3600;
-
-   if (argc > 1)
-   {
-     if (!getlong(argv[1], &size))
-     {
-       printf("Wrong memsize!\n");
-       exit(1);
-     }
-   }
-
-   if (argc > 2)
-   {
-     if (!getlong(argv[2], &sleep_allocated))
-     {
-       printf("Wrong sleep_allocated time!\n");
-       exit(1);
-     }
-   }
-
-   if (argc > 3)
-   {
-     if (!getlong(argv[3], &sleep_freed))
-     {
-       printf("Wrong sleep_freed time!\n");
-       exit(1);
-     }
-   }
-
-   printf("size=%lu, size_of=%lu\n", size, size_of);
-   fflush(stdout);
-
-   p = malloc(size);
-   if (!p)
-   {
-     printf("Could not allocate memory!\n");
-     exit(2);
-   }
-
-   printf("malloc done, writing to memory, p=%p ...\n", (void*)p);
-   fflush(stdout);
-
-   for(i = 0;i < (size/size_of);i++) p[i]=i;
-
-   printf("writing to memory done, sleeping for %lu seconds ...\n", 
-sleep_allocated);
-   fflush(stdout);
-
-   sleep(sleep_allocated);
-
-   printf("sleeping done, freeing ...\n");
-   fflush(stdout);
-
-   free(p);
-
-   printf("freeing done, sleeping for %lu seconds ...\n", sleep_freed);
-   fflush(stdout);
-
-   sleep(sleep_freed);
-
-   printf("sleeping done, exitiing ...\n");
-   fflush(stdout);
-
-   exit(0);
-   return 0;
-}
-
+diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+index 4355f0ec44d6..79761bd55f94 100644
+--- a/arch/arm/include/asm/page.h
++++ b/arch/arm/include/asm/page.h
+@@ -158,6 +158,7 @@ typedef struct page *pgtable_t;
+ 
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern int pfn_valid(unsigned long);
++#define early_pfn_valid(pfn)	pfn_valid(pfn)
+ #endif
+ 
+ #include <asm/memory.h>
+diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
+index 8472c6def5ef..17ceb7435ded 100644
+--- a/arch/arm64/include/asm/page.h
++++ b/arch/arm64/include/asm/page.h
+@@ -49,6 +49,8 @@ typedef struct page *pgtable_t;
+ 
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern int pfn_valid(unsigned long);
++extern int early_pfn_valid(unsigned long);
++#define early_pfn_valid early_pfn_valid
+ #endif
+ 
+ #include <asm/memory.h>
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 212c4d1e2f26..fbc136533472 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -145,11 +145,23 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
+ #endif /* CONFIG_NUMA */
+ 
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
++
+ int pfn_valid(unsigned long pfn)
+ {
+ 	return memblock_is_map_memory(pfn << PAGE_SHIFT);
+ }
+ EXPORT_SYMBOL(pfn_valid);
++
++/*
++ * We use memblock_is_memory() here to make sure all pages including
++ * NOMAP ranges are initialized with __init_single_page().
++ */
++int early_pfn_valid(unsigned long pfn)
++{
++	return memblock_is_memory(pfn << PAGE_SHIFT);
++}
++EXPORT_SYMBOL(early_pfn_valid);
++
+ #endif
+ 
+ #ifndef CONFIG_SPARSEMEM
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 0f088f3a2fed..bedcf8a95881 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1170,12 +1170,16 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+ }
+ 
+ #ifndef CONFIG_HAVE_ARCH_PFN_VALID
++
+ static inline int pfn_valid(unsigned long pfn)
+ {
+ 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+ 		return 0;
+ 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+ }
++
++#define early_pfn_valid(pfn)	pfn_valid(pfn)
++
+ #endif
+ 
+ static inline int pfn_present(unsigned long pfn)
+@@ -1200,7 +1204,6 @@ static inline int pfn_present(unsigned long pfn)
+ #define pfn_to_nid(pfn)		(0)
+ #endif
+ 
+-#define early_pfn_valid(pfn)	pfn_valid(pfn)
+ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
