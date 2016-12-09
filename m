@@ -1,123 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E41346B0267
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:01:34 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so2428402wms.7
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:01:34 -0800 (PST)
-Received: from mail-wj0-x241.google.com (mail-wj0-x241.google.com. [2a00:1450:400c:c01::241])
-        by mx.google.com with ESMTPS id k8si32364429wjv.25.2016.12.08.21.01.33
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9331D6B0269
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:05:37 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f188so16666038pgc.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:05:37 -0800 (PST)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id t27si31934088pfa.146.2016.12.08.21.05.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 21:01:33 -0800 (PST)
-Received: by mail-wj0-x241.google.com with SMTP id he10so736150wjc.2
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:01:33 -0800 (PST)
-Date: Fri, 9 Dec 2016 06:01:30 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
-Message-ID: <20161209050130.GC2595@gmail.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Dec 2016 21:05:36 -0800 (PST)
+Received: from epcpsbgm1new.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OHW02SNAJHBYM40@mailout3.samsung.com> for linux-mm@kvack.org;
+ Fri, 09 Dec 2016 14:05:35 +0900 (KST)
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Subject: [PATCH] [RFC] drivers: dma-coherent: pass struct dma_attrs to
+ dma_alloc_from_coherent
+Date: Fri, 09 Dec 2016 14:05:29 +0900
+Message-id: <1481259930-4620-1-git-send-email-jaewon31.kim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: gregkh@linuxfoundation.org
+Cc: labbott@redhat.com, sumit.semwal@linaro.org, tixy@linaro.org, prime.zeng@huawei.com, tranmanphong@gmail.com, fabio.estevam@freescale.com, ccross@android.com, rebecca@android.com, benjamin.gaignard@linaro.org, arve@android.com, riandrews@android.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
 
+dma_alloc_from_coherent does not get struct dma_attrs information.
+If dma_attrs information is passed to dma_alloc_from_coherent,
+dma_alloc_from_coherent can do more jobs accodring to the information.
+As a example I added DMA_ATTR_SKIP_ZEROING to skip zeroing. Accoring
+to driver implementation ZEROING could be skipped or could be done later.
 
-* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+---
+ drivers/base/dma-coherent.c | 6 +++++-
+ include/linux/dma-mapping.h | 7 ++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)
 
-> x86-64 is currently limited to 256 TiB of virtual address space and 64 TiB
-> of physical address space. We are already bumping into this limit: some
-> vendors offers servers with 64 TiB of memory today.
-> 
-> To overcome the limitation upcoming hardware will introduce support for
-> 5-level paging[1]. It is a straight-forward extension of the current page
-> table structure adding one more layer of translation.
-> 
-> It bumps the limits to 128 PiB of virtual address space and 4 PiB of
-> physical address space. This "ought to be enough for anybody" A(C).
-> 
-> This patchset is still very early. There are a number of things missing
-> that we have to do before asking anyone to merge it (listed below).
-> It would be great if folks can start testing applications now (in QEMU) to
-> look for breakage.
-> Any early comments on the design or the patches would be appreciated as
-> well.
-> 
-> More details on the design and whata??s left to implement are below.
-
-The patches don't look too painful, so no big complaints from me - kudos!
-
-> There is still work to do:
-> 
->   - Boot-time switch between 4- and 5-level paging.
-> 
->     We assume that distributions will be keen to avoid returning to the
->     i386 days where we shipped one kernel binary for each page table
->     layout.
-
-Absolutely.
-
->     As page table format is the same for 4- and 5-level paging it should
->     be possible to have single kernel binary and switch between them at
->     boot-time without too much hassle.
-> 
->     For now I only implemented compile-time switch.
-> 
->     I hoped to bring this feature with separate patchset once basic
->     enabling is in upstream.
-> 
->     Is it okay?
-
-LGTM, but we would eventually want to convert this kind of crazy open coding:
-
-        pgd_t *pgd, *pgd_ref;
-        p4d_t *p4d, *p4d_ref;
-        pud_t *pud, *pud_ref;
-        pmd_t *pmd, *pmd_ref;
-        pte_t *pte, *pte_ref;
-
-To something saner that iterates and navigates the page table hierarchy in an 
-extensible fashion. That would also make it (much) easier to make the paging depth 
-boot time switchable.
-
-Somehow I'm quite certain we'll see requests for more than 4 PiB memory in our 
-lifetimes.
-
-In a decade or two once global warming really gets going, especially after Trump & 
-Republicans & Old Energy implement their billionaire welfare policies to mine, 
-sell and burn even more coal & oil without paying for the damage caused, the U.S. 
-meteorology clusters tracking Category 6 hurricanes in the Atlantic (capable of 1+ 
-trillion dollars damage) in near real time at 1 meter resolution will have to run 
-on something capable, right?
-
->   - Handle opt-in wider address space for userspace.
-> 
->     Not all userspace is ready to handle addresses wider than current
->     47-bits. At least some JIT compiler make use of upper bits to encode
->     their info.
-> 
->     We need to have an interface to opt-in wider addresses from userspace
->     to avoid regressions.
-> 
->     For now, I've included testing-only patch which bumps TASK_SIZE to
->     56-bits. This can be handy for testing to see what breaks if we max-out
->     size of virtual address space.
-
-So this is just a detail - but it sounds a bit limiting to me to provide an 'opt 
-in' flag for something that will work just fine on the vast majority of 64-bit 
-software.
-
-Please make this an opt out compatibility flag instead: similar to how we handle 
-address space layout limitations/quirks ABI details, such as ADDR_LIMIT_32BIT, 
-ADDR_LIMIT_3GB, ADDR_COMPAT_LAYOUT, READ_IMPLIES_EXEC, etc.
-
-Thanks,
-
-	Ingo
+diff --git a/drivers/base/dma-coherent.c b/drivers/base/dma-coherent.c
+index 640a7e6..428eced 100644
+--- a/drivers/base/dma-coherent.c
++++ b/drivers/base/dma-coherent.c
+@@ -151,6 +151,7 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
+  * @dma_handle:	This will be filled with the correct dma handle
+  * @ret:	This pointer will be filled with the virtual address
+  *		to allocated area.
++ * @attrs:	dma_attrs to pass additional information
+  *
+  * This function should be only called from per-arch dma_alloc_coherent()
+  * to support allocation from per-device coherent memory pools.
+@@ -159,7 +160,8 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
+  * generic memory areas, or !0 if dma_alloc_coherent should return @ret.
+  */
+ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
+-				       dma_addr_t *dma_handle, void **ret)
++				       dma_addr_t *dma_handle, void **ret,
++				       struct dma_attrs *attrs)
+ {
+ 	struct dma_coherent_mem *mem;
+ 	int order = get_order(size);
+@@ -190,6 +192,8 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
+ 	*ret = mem->virt_base + (pageno << PAGE_SHIFT);
+ 	dma_memory_map = (mem->flags & DMA_MEMORY_MAP);
+ 	spin_unlock_irqrestore(&mem->spinlock, flags);
++	if (dma_get_attr(DMA_ATTR_SKIP_ZEROING, attrs))
++		return 1;
+ 	if (dma_memory_map)
+ 		memset(*ret, 0, size);
+ 	else
+diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+index 08528af..737fd71 100644
+--- a/include/linux/dma-mapping.h
++++ b/include/linux/dma-mapping.h
+@@ -151,13 +151,14 @@ static inline int is_device_dma_capable(struct device *dev)
+  * Don't use them in device drivers.
+  */
+ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
+-				       dma_addr_t *dma_handle, void **ret);
++				       dma_addr_t *dma_handle, void **ret,
++				       struct dma_attrs *attrs);
+ int dma_release_from_coherent(struct device *dev, int order, void *vaddr);
+ 
+ int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
+ 			    void *cpu_addr, size_t size, int *ret);
+ #else
+-#define dma_alloc_from_coherent(dev, size, handle, ret) (0)
++#define dma_alloc_from_coherent(dev, size, handle, ret, attrs) (0)
+ #define dma_release_from_coherent(dev, order, vaddr) (0)
+ #define dma_mmap_from_coherent(dev, vma, vaddr, order, ret) (0)
+ #endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
+@@ -456,7 +457,7 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
+ 
+ 	BUG_ON(!ops);
+ 
+-	if (dma_alloc_from_coherent(dev, size, dma_handle, &cpu_addr))
++	if (dma_alloc_from_coherent(dev, size, dma_handle, &cpu_addr, attrs))
+ 		return cpu_addr;
+ 
+ 	if (!arch_dma_alloc_attrs(&dev, &flag))
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
