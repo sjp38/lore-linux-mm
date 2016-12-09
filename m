@@ -1,68 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A5576B0261
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 13:32:45 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id he10so8845105wjc.6
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 10:32:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ww1si35158788wjb.147.2016.12.09.10.32.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 661556B0253
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 14:08:03 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id i131so8471317wmf.3
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 11:08:03 -0800 (PST)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id 199si19170110wmm.166.2016.12.09.11.08.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Dec 2016 10:32:43 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm, page_alloc: don't convert pfn to idx when merging
-References: <20161209093754.3515-1-vbabka@suse.cz>
- <20161209172658.uebsgt5ju6gtz2bu@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e6f7ee3c-75ae-63a8-cde0-1d00e65cb973@suse.cz>
-Date: Fri, 9 Dec 2016 19:32:22 +0100
+        Fri, 09 Dec 2016 11:08:01 -0800 (PST)
+Date: Fri, 9 Dec 2016 19:07:37 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20161209190737.GM14217@n2100.armlinux.org.uk>
+References: <1481307042-29773-1-git-send-email-rrichter@cavium.com>
 MIME-Version: 1.0
-In-Reply-To: <20161209172658.uebsgt5ju6gtz2bu@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1481307042-29773-1-git-send-email-rrichter@cavium.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Robert Richter <rrichter@cavium.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 12/09/2016 06:26 PM, Mel Gorman wrote:
-> On Fri, Dec 09, 2016 at 10:37:53AM +0100, Vlastimil Babka wrote:
->> In __free_one_page() we do the buddy merging arithmetics on "page/buddy index",
->> which is just the lower MAX_ORDER bits of pfn. The operations we do that affect
->> the higher bits are bitwise AND and subtraction (in that order), where the
->> final result will be the same with the higher bits left unmasked, as long as
->> these bits are equal for both buddies - which must be true by the definition of
->> a buddy.
+On Fri, Dec 09, 2016 at 07:10:41PM +0100, Robert Richter wrote:
+> On ThunderX systems with certain memory configurations we see the
+> following BUG_ON():
 > 
-> Ok, other than the kbuild warning, both patchs look ok. I expect the
-> benefit is marginal but every little bit helps.
+>  kernel BUG at mm/page_alloc.c:1848!
 > 
->>
->> We can therefore use pfn's directly instead of "index" and skip the zeroing of
->>> MAX_ORDER bits. This can help a bit by itself, although compiler might be
->> smart enough already. It also helps the next patch to avoid page_to_pfn() for
->> memory hole checks.
->>
+> This happens for some configs with 64k page size enabled. The BUG_ON()
+> checks if start and end page of a memmap range belongs to the same
+> zone.
 > 
-> I expect this benefit only applies to a few archiectures and won't be
-> visible on x86 but it still makes sense so for both patches;
+> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
+> this case the node information of those pages is not initialized. This
+> causes an inconsistency of the page links with wrong zone and node
+> information for that pages. NOMAP pages from node 1 still point to the
+> mem zone from node 0 and have the wrong nid assigned.
 > 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> The reason for the mis-configuration is a change in pfn_valid() which
+> reports pages marked NOMAP as invalid:
+> 
+>  68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
+> 
+> This causes pages marked as nomap being no longer reassigned to the
+> new zone in memmap_init_zone() by calling __init_single_pfn().
+> 
+> Fixing this by implementing an arm64 specific early_pfn_valid(). This
+> causes the whole mem range including NOMAP memory to be initialized by
+> __init_single_page() and ensures consistency of page links to zone,
+> node and section.
+> 
+> The HAVE_ARCH_PFN_VALID config option now requires an explicit
+> definiton of early_pfn_valid() in the same way as pfn_valid(). This
+> allows a customized implementation of early_pfn_valid() which
+> redirects to memblock_is_memory() for arm64.
+> 
+> Signed-off-by: Robert Richter <rrichter@cavium.com>
 
-Thanks!
+Acked-by: Russell King <rmk+kernel@armlinux.org.uk>
 
-> As a slight aside, I recently spotted that one of the largest overhead
-> in the bulk free path was in the page_is_buddy() checks so pretty much
-> anything that helps that is welcome.
+Thanks.
 
-Interesting, the function shouldn't be doing really much on x86 without
-debug config options? We might try further optimize the zone equivalence
-checks, perhaps?
-- try caching page_zone_id(page) through whole merging, and only obtain
-it freshly
-  for buddy candidate
-- mark arches/configurations sane enough that they have no zone boundary
-within MAX_ORDER, and skip these checks there. I assume most, if not all
-x86 would fall here? Somewhat analogically to page_valid_within().
+> ---
+>  arch/arm/include/asm/page.h   |  1 +
+>  arch/arm64/include/asm/page.h |  2 ++
+>  arch/arm64/mm/init.c          | 12 ++++++++++++
+>  include/linux/mmzone.h        |  5 ++++-
+>  4 files changed, 19 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+> index 4355f0ec44d6..79761bd55f94 100644
+> --- a/arch/arm/include/asm/page.h
+> +++ b/arch/arm/include/asm/page.h
+> @@ -158,6 +158,7 @@ typedef struct page *pgtable_t;
+>  
+>  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>  extern int pfn_valid(unsigned long);
+> +#define early_pfn_valid(pfn)	pfn_valid(pfn)
+>  #endif
+>  
+>  #include <asm/memory.h>
+> diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
+> index 8472c6def5ef..17ceb7435ded 100644
+> --- a/arch/arm64/include/asm/page.h
+> +++ b/arch/arm64/include/asm/page.h
+> @@ -49,6 +49,8 @@ typedef struct page *pgtable_t;
+>  
+>  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+>  extern int pfn_valid(unsigned long);
+> +extern int early_pfn_valid(unsigned long);
+> +#define early_pfn_valid early_pfn_valid
+>  #endif
+>  
+>  #include <asm/memory.h>
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index 212c4d1e2f26..fbc136533472 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -145,11 +145,23 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
+>  #endif /* CONFIG_NUMA */
+>  
+>  #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+> +
+>  int pfn_valid(unsigned long pfn)
+>  {
+>  	return memblock_is_map_memory(pfn << PAGE_SHIFT);
+>  }
+>  EXPORT_SYMBOL(pfn_valid);
+> +
+> +/*
+> + * We use memblock_is_memory() here to make sure all pages including
+> + * NOMAP ranges are initialized with __init_single_page().
+> + */
+> +int early_pfn_valid(unsigned long pfn)
+> +{
+> +	return memblock_is_memory(pfn << PAGE_SHIFT);
+> +}
+> +EXPORT_SYMBOL(early_pfn_valid);
+> +
+>  #endif
+>  
+>  #ifndef CONFIG_SPARSEMEM
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 0f088f3a2fed..bedcf8a95881 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1170,12 +1170,16 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+>  }
+>  
+>  #ifndef CONFIG_HAVE_ARCH_PFN_VALID
+> +
+>  static inline int pfn_valid(unsigned long pfn)
+>  {
+>  	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+>  		return 0;
+>  	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+>  }
+> +
+> +#define early_pfn_valid(pfn)	pfn_valid(pfn)
+> +
+>  #endif
+>  
+>  static inline int pfn_present(unsigned long pfn)
+> @@ -1200,7 +1204,6 @@ static inline int pfn_present(unsigned long pfn)
+>  #define pfn_to_nid(pfn)		(0)
+>  #endif
+>  
+> -#define early_pfn_valid(pfn)	pfn_valid(pfn)
+>  void sparse_init(void);
+>  #else
+>  #define sparse_init()	do {} while (0)
+> -- 
+> 2.1.4
+> 
+
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
