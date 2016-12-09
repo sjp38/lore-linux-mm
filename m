@@ -1,54 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 978096B025E
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 23:53:03 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a8so8163476pfg.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 20:53:03 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id o10si31950437pli.35.2016.12.08.20.53.01
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E41346B0267
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:01:34 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id s63so2428402wms.7
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:01:34 -0800 (PST)
+Received: from mail-wj0-x241.google.com (mail-wj0-x241.google.com. [2a00:1450:400c:c01::241])
+        by mx.google.com with ESMTPS id k8si32364429wjv.25.2016.12.08.21.01.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 20:53:02 -0800 (PST)
-Subject: Re: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for fast
- (de)inflating & fast live migration
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
- <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
- <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
- <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
- <20161207183817.GE28786@redhat.com>
- <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
- <20161207202824.GH28786@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
-Date: Thu, 8 Dec 2016 20:53:00 -0800
+        Thu, 08 Dec 2016 21:01:33 -0800 (PST)
+Received: by mail-wj0-x241.google.com with SMTP id he10so736150wjc.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:01:33 -0800 (PST)
+Date: Fri, 9 Dec 2016 06:01:30 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
+Message-ID: <20161209050130.GC2595@gmail.com>
+References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
-
-On 12/08/2016 08:45 PM, Li, Liang Z wrote:
-> What's the conclusion of your discussion? It seems you want some
-> statistic before deciding whether to  ripping the bitmap from the
-> ABI, am I right?
-
-I think Andrea and David feel pretty strongly that we should remove the
-bitmap, unless we have some data to support keeping it.  I don't feel as
-strongly about it, but I think their critique of it is pretty valid.  I
-think the consensus is that the bitmap needs to go.
-
-The only real question IMNHO is whether we should do a power-of-2 or a
-length.  But, if we have 12 bits, then the argument for doing length is
-pretty strong.  We don't need anywhere near 12 bits if doing power-of-2.
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
+* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+
+> x86-64 is currently limited to 256 TiB of virtual address space and 64 TiB
+> of physical address space. We are already bumping into this limit: some
+> vendors offers servers with 64 TiB of memory today.
+> 
+> To overcome the limitation upcoming hardware will introduce support for
+> 5-level paging[1]. It is a straight-forward extension of the current page
+> table structure adding one more layer of translation.
+> 
+> It bumps the limits to 128 PiB of virtual address space and 4 PiB of
+> physical address space. This "ought to be enough for anybody" A(C).
+> 
+> This patchset is still very early. There are a number of things missing
+> that we have to do before asking anyone to merge it (listed below).
+> It would be great if folks can start testing applications now (in QEMU) to
+> look for breakage.
+> Any early comments on the design or the patches would be appreciated as
+> well.
+> 
+> More details on the design and whata??s left to implement are below.
+
+The patches don't look too painful, so no big complaints from me - kudos!
+
+> There is still work to do:
+> 
+>   - Boot-time switch between 4- and 5-level paging.
+> 
+>     We assume that distributions will be keen to avoid returning to the
+>     i386 days where we shipped one kernel binary for each page table
+>     layout.
+
+Absolutely.
+
+>     As page table format is the same for 4- and 5-level paging it should
+>     be possible to have single kernel binary and switch between them at
+>     boot-time without too much hassle.
+> 
+>     For now I only implemented compile-time switch.
+> 
+>     I hoped to bring this feature with separate patchset once basic
+>     enabling is in upstream.
+> 
+>     Is it okay?
+
+LGTM, but we would eventually want to convert this kind of crazy open coding:
+
+        pgd_t *pgd, *pgd_ref;
+        p4d_t *p4d, *p4d_ref;
+        pud_t *pud, *pud_ref;
+        pmd_t *pmd, *pmd_ref;
+        pte_t *pte, *pte_ref;
+
+To something saner that iterates and navigates the page table hierarchy in an 
+extensible fashion. That would also make it (much) easier to make the paging depth 
+boot time switchable.
+
+Somehow I'm quite certain we'll see requests for more than 4 PiB memory in our 
+lifetimes.
+
+In a decade or two once global warming really gets going, especially after Trump & 
+Republicans & Old Energy implement their billionaire welfare policies to mine, 
+sell and burn even more coal & oil without paying for the damage caused, the U.S. 
+meteorology clusters tracking Category 6 hurricanes in the Atlantic (capable of 1+ 
+trillion dollars damage) in near real time at 1 meter resolution will have to run 
+on something capable, right?
+
+>   - Handle opt-in wider address space for userspace.
+> 
+>     Not all userspace is ready to handle addresses wider than current
+>     47-bits. At least some JIT compiler make use of upper bits to encode
+>     their info.
+> 
+>     We need to have an interface to opt-in wider addresses from userspace
+>     to avoid regressions.
+> 
+>     For now, I've included testing-only patch which bumps TASK_SIZE to
+>     56-bits. This can be handy for testing to see what breaks if we max-out
+>     size of virtual address space.
+
+So this is just a detail - but it sounds a bit limiting to me to provide an 'opt 
+in' flag for something that will work just fine on the vast majority of 64-bit 
+software.
+
+Please make this an opt out compatibility flag instead: similar to how we handle 
+address space layout limitations/quirks ABI details, such as ADDR_LIMIT_32BIT, 
+ADDR_LIMIT_3GB, ADDR_COMPAT_LAYOUT, READ_IMPLIES_EXEC, etc.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
