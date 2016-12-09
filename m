@@ -1,74 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 06DD46B0069
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 05:51:28 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g186so30802371pgc.2
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 02:51:27 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r1si33280586pfd.81.2016.12.09.02.51.26
-        for <linux-mm@kvack.org>;
-        Fri, 09 Dec 2016 02:51:26 -0800 (PST)
-Date: Fri, 9 Dec 2016 10:51:20 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
-Message-ID: <20161209105120.GA3705@e104818-lin.cambridge.arm.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161209050130.GC2595@gmail.com>
- <13962749.Q2mLWEctkQ@wuerfel>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC1206B0069
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 06:33:16 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id i88so16459084pfk.3
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 03:33:16 -0800 (PST)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30137.outbound.protection.outlook.com. [40.107.3.137])
+        by mx.google.com with ESMTPS id n3si33452320plb.230.2016.12.09.03.33.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Dec 2016 03:33:15 -0800 (PST)
+Subject: Re: [PATCH] x86/coredump: always use user_regs_struct for
+ compat_elf_gregset_t
+References: <20161123181330.10705-1-dsafonov@virtuozzo.com>
+ <CALCETrUQDBX_QqHGeozQ3Q+9pF3SeyE9XyPqX4M6k3XOV8Zd=Q@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <eed6e3e2-f825-2ad8-9175-0c69c52809d9@virtuozzo.com>
+Date: Fri, 9 Dec 2016 14:29:55 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <13962749.Q2mLWEctkQ@wuerfel>
+In-Reply-To: <CALCETrUQDBX_QqHGeozQ3Q+9pF3SeyE9XyPqX4M6k3XOV8Zd=Q@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, maxim.kuvyrkov@linaro.org, Will Deacon <will.deacon@arm.com>, broonie@kernel.org, schwidefsky@de.ibm.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Dmitry Safonov <0x7f454c46@gmail.com>, Ingo Molnar <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Fri, Dec 09, 2016 at 11:24:12AM +0100, Arnd Bergmann wrote:
-> On Friday, December 9, 2016 6:01:30 AM CET Ingo Molnar wrote:
-> > >   - Handle opt-in wider address space for userspace.
-> > > 
-> > >     Not all userspace is ready to handle addresses wider than current
-> > >     47-bits. At least some JIT compiler make use of upper bits to encode
-> > >     their info.
-> > > 
-> > >     We need to have an interface to opt-in wider addresses from userspace
-> > >     to avoid regressions.
-> > > 
-> > >     For now, I've included testing-only patch which bumps TASK_SIZE to
-> > >     56-bits. This can be handy for testing to see what breaks if we max-out
-> > >     size of virtual address space.
-> > 
-> > So this is just a detail - but it sounds a bit limiting to me to provide an 'opt 
-> > in' flag for something that will work just fine on the vast majority of 64-bit 
-> > software.
-> > 
-> > Please make this an opt out compatibility flag instead: similar to how we handle 
-> > address space layout limitations/quirks ABI details, such as ADDR_LIMIT_32BIT, 
-> > ADDR_LIMIT_3GB, ADDR_COMPAT_LAYOUT, READ_IMPLIES_EXEC, etc.
-> 
-> We've had a similar discussion about JIT software on ARM64, which has a wide
-> range of supported page table layouts and some software wants to limit that
-> to a specific number.
-> 
-> I don't remember the outcome of that discussion, but I'm adding a few people
-> to Cc that might remember.
+On 12/09/2016 02:14 AM, Andy Lutomirski wrote:
+> On Nov 23, 2016 10:16 AM, "Dmitry Safonov" <dsafonov@virtuozzo.com> wrote:
+>>
+>> From commit 90954e7b9407 ("x86/coredump: Use pr_reg size, rather that
+>> TIF_IA32 flag") elf coredump file is constructed according to register
+>> set size - and that's good: if binary crashes with 32-bit code selector,
+>> generate 32-bit ELF core, otherwise - 64-bit core.
+>> That was made for restoring 32-bit applications on x86_64: we want
+>> 32-bit application after restore to generate 32-bit ELF dump on crash.
+>> All was quite good and recently I started reworking 32-bit applications
+>> dumping part of CRIU: now it has two parasites (32 and 64) for seizing
+>> compat/native tasks, after rework it'll have one parasite, working in
+>> 64-bit mode, to which 32-bit prologue long-jumps during infection.
+>>
+>> And while it has worked for my work machine, in VM with
+>> !CONFIG_X86_X32_ABI during reworking I faced that segfault in 32-bit
+>> binary, that has long-jumped to 64-bit mode results in dereference
+>> of garbage:
+>
+> Can you point to the actual line that's crashing?  I'm wondering if we
+> have code that should be made more robust.
 
-The arm64 kernel supports several user VA space configurations (though
-commonly 39 and 48-bit) and has had these from the initial port. We
-realised that certain JITs (e.g.
-https://bugzilla.mozilla.org/show_bug.cgi?id=1143022) and IIRC LLVM
-assume a 47-bit user VA but AFAICT, most have been fixed.
+Hi Andy,
 
-ARMv8.1 also supports 52-bit VA (though only with 64K pages and we
-haven't added support for it yet). However, it's likely that if we make
-a 52-bit TASK_SIZE this the default, we will break some user
-assumptions. While arguably that's not necessarily ABI, if user relies
-on a 47 or 48-bit VA the kernel shouldn't break it. So I'm strongly
-inclined to make the 52-bit TASK_SIZE an opt-in on arm64.
+Here it is:
+
+ > static int fill_thread_core_info(struct elf_thread_core_info *t,
+ > 				 const struct user_regset_view *view,
+ > 				 long signr, size_t *total)
+ > {
+ > 	unsigned int i;
+ > 	unsigned int regset_size = view->regsets[0].n * view->regsets[0].size;
+
+For now the regset_size is 64-bit registers set's size if 32-bit ELF
+crashed with 64-bit CS.
+
+ >
+ > 	/*
+ > 	 * NT_PRSTATUS is the one special case, because the regset data
+ > 	 * goes into the pr_reg field inside the note contents, rather
+ > 	 * than being the whole note contents.  We fill the reset in here.
+ > 	 * We assume that regset 0 is NT_PRSTATUS.
+ > 	 */
+ > 	fill_prstatus(&t->prstatus, t->task, signr);
+ > 	(void) view->regsets[0].get(t->task, &view->regsets[0], 0, regset_size,
+ > 				    &t->prstatus.pr_reg, NULL);
+
+And here is writing to elf_thread_core_info::prstatus::pr_reg,
+prstatus member is typed compat_elf_prstatus as binfmt_elf
+interpreter that was used to load the program is from
+fs/compat_binfmt_elf.c:
+ > #define elf_prstatus	compat_elf_prstatus
+ > #define elf_prpsinfo	compat_elf_prpsinfo
+
+So, we're overwriting elf_thread_core_info structure's content by
+writing bigger regset than it can hold.
+(.get() method is genregs_get() from arch/x86/kernel/ptrace.c)
+
+The crash happens afterwards, when we're trying to dereference some
+fields of elf_thread_core_info - for me it was as you can see in
+writenote():
+   [<ffffffff811d6929>] ? writenote+0x19/0xa0
+   [<ffffffff811d9479>] elf_core_dump+0x11a9/0x1480
+   [<ffffffff811dc70b>] do_coredump+0xa6b/0xe60
+   [<ffffffff81065820>] ? signal_wake_up_state+0x20/0x30
+   [<ffffffff81065941>] ? complete_signal+0xf1/0x1f0
+   [<ffffffff810679e8>] get_signal+0x1a8/0x5c0
+   [<ffffffff8101b1a3>] do_signal+0x23/0x660
+
+In my point of view 64-bit regset is generated rightly - otherwise
+I couldn't see x86_64 registers in gdb for that kind of crashes.
+So, I fixed it as simple as possible - by having one size for
+compat_elf_gregset_t independent of CONFIG_X86_X32_ABI option.
 
 -- 
-Catalin
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
