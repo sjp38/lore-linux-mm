@@ -1,163 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E23CA6B0253
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E9E676B025E
 	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:16:35 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id e9so16839517pgc.5
+Received: by mail-pf0-f197.google.com with SMTP id i88so8377616pfk.3
         for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:16:35 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id y133si32062965pfb.72.2016.12.08.21.16.34
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id b34si32032263pld.128.2016.12.08.21.16.34
         for <linux-mm@kvack.org>;
-        Thu, 08 Dec 2016 21:16:34 -0800 (PST)
+        Thu, 08 Dec 2016 21:16:35 -0800 (PST)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v4 00/15] lockdep: Implement crossrelease feature
-Date: Fri,  9 Dec 2016 14:11:56 +0900
-Message-Id: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v4 02/15] x86/dumpstack: Add save_stack_trace()_fast()
+Date: Fri,  9 Dec 2016 14:11:58 +0900
+Message-Id: <1481260331-360-3-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-I checked if crossrelease feature works well on my qemu-i386 machine.
-There's no problem at all to work on mine. But I wonder if it's also
-true even on other machines. Especially, on large system. Could you
-let me know if it doesn't work on yours? Or Could you let me know if
-crossrelease feature is useful? Please let me know if you need to
-backport it to another version but it's not easy. Then I can provide
-the backported version after working it.
+In non-oops case, it's usually not necessary to check all words of stack
+area to extract backtrace. Instead, we can achieve it by tracking frame
+pointer. So made it possible to save stack trace lightly in normal case.
 
-I added output text of 'cat /proc/lockdep' on my machine applying
-crossrelease feature, showing dependencies of lockdep. You can check
-what kind of dependencies are added by crossrelease feature. Please
-use '(complete)' or '(PG_locked)' as a keyword to find dependencies
-added by this patch set.
+I measured its ovehead and printed its difference of sched_clock() with
+my QEMU x86 machine. The latency was improved over 80% when
+trace->max_entries = 5.
 
-And I still keep the base unchanged (v4.7). I will rebase it on the
-latest once you have a consensus on it. Your opinions?
+Before this patch:
 
------8<-----
+[    2.795000] save_stack_trace() takes 21147 ns
+[    2.795397] save_stack_trace() takes 20230 ns
+[    2.795397] save_stack_trace() takes 31274 ns
+[    2.795739] save_stack_trace() takes 19706 ns
+[    2.796484] save_stack_trace() takes 20266 ns
+[    2.796484] save_stack_trace() takes 20902 ns
+[    2.797000] save_stack_trace() takes 38110 ns
+[    2.797510] save_stack_trace() takes 20224 ns
+[    2.798181] save_stack_trace() takes 20172 ns
+[    2.798837] save_stack_trace() takes 20824 ns
 
-Change from v3
-	- reviced document
+After this patch:
 
-Change from v2
-	- rebase on vanilla v4.7 tag
-	- move lockdep data for page lock from struct page to page_ext
-	- allocate plocks buffer via vmalloc instead of in struct task
-	- enhanced comments and document
-	- optimize performance
-	- make reporting function crossrelease-aware
+[    3.133807] save_stack_trace() takes 3297 ns
+[    3.133954] save_stack_trace() takes 3330 ns
+[    3.134235] save_stack_trace() takes 3517 ns
+[    3.134711] save_stack_trace() takes 3773 ns
+[    3.135000] save_stack_trace() takes 3685 ns
+[    3.135541] save_stack_trace() takes 4757 ns
+[    3.135865] save_stack_trace() takes 3420 ns
+[    3.136000] save_stack_trace() takes 3329 ns
+[    3.137000] save_stack_trace() takes 4058 ns
+[    3.137000] save_stack_trace() takes 3499 ns
 
-Change from v1
-	- enhanced the document
-	- removed save_stack_trace() optimizing patch
-	- made this based on the seperated save_stack_trace patchset
-	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ arch/x86/kernel/stacktrace.c | 25 +++++++++++++++++++++++++
+ include/linux/stacktrace.h   |  2 ++
+ 2 files changed, 27 insertions(+)
 
-Can we detect deadlocks below with original lockdep?
-
-Example 1)
-
-	PROCESS X	PROCESS Y
-	--------------	--------------
-	mutext_lock A
-			lock_page B
-	lock_page B
-			mutext_lock A // DEADLOCK
-	unlock_page B
-			mutext_unlock A
-	mutex_unlock A
-			unlock_page B
-
-where A and B are different lock classes.
-
-No, we cannot.
-
-Example 2)
-
-	PROCESS X	PROCESS Y	PROCESS Z
-	--------------	--------------	--------------
-			mutex_lock A
-	lock_page B
-			lock_page B
-					mutext_lock A // DEADLOCK
-					mutext_unlock A
-					unlock_page B
-					(B was held by PROCESS X)
-			unlock_page B
-			mutex_unlock A
-
-where A and B are different lock classes.
-
-No, we cannot.
-
-Example 3)
-
-	PROCESS X	PROCESS Y
-	--------------	--------------
-			mutex_lock A
-	mutex_lock A
-	mutex_unlock A
-			wait_for_complete B // DEADLOCK
-	complete B
-			mutex_unlock A
-
-where A is a lock class and B is a completion variable.
-
-No, we cannot.
-
-Not only lock operations, but also any operations causing to wait or
-spin for something can cause deadlock unless it's eventually *released*
-by someone. The important point here is that the waiting or spinning
-must be *released* by someone.
-
-Using crossrelease feature, we can check dependency and detect deadlock
-possibility not only for typical lock, but also for lock_page(),
-wait_for_xxx() and so on, which might be released in any context.
-
-See the last patch including the document for more information.
-
-Byungchul Park (15):
-  x86/dumpstack: Optimize save_stack_trace
-  x86/dumpstack: Add save_stack_trace()_fast()
-  lockdep: Refactor lookup_chain_cache()
-  lockdep: Add a function building a chain between two classes
-  lockdep: Make check_prev_add can use a separate stack_trace
-  lockdep: Make save_trace can skip stack tracing of the current
-  lockdep: Implement crossrelease feature
-  lockdep: Make crossrelease use save_stack_trace_fast()
-  lockdep: Make print_circular_bug() crosslock-aware
-  lockdep: Apply crossrelease to completion operation
-  pagemap.h: Remove trailing white space
-  lockdep: Apply crossrelease to PG_locked lock
-  lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
-  lockdep: Move data used in CONFIG_LOCKDEP_PAGELOCK from page to
-    page_ext
-  lockdep: Crossrelease feature documentation
-
- Documentation/locking/crossrelease.txt | 1053 ++++++++++++++++++++++++++++++++
- arch/x86/include/asm/stacktrace.h      |    1 +
- arch/x86/kernel/dumpstack.c            |    4 +
- arch/x86/kernel/dumpstack_32.c         |    2 +
- arch/x86/kernel/stacktrace.c           |   32 +
- include/linux/completion.h             |  121 +++-
- include/linux/irqflags.h               |   12 +-
- include/linux/lockdep.h                |  122 ++++
- include/linux/mm_types.h               |    4 +
- include/linux/page-flags.h             |   43 +-
- include/linux/page_ext.h               |    5 +
- include/linux/pagemap.h                |  124 +++-
- include/linux/sched.h                  |    5 +
- include/linux/stacktrace.h             |    2 +
- kernel/exit.c                          |    9 +
- kernel/fork.c                          |   20 +
- kernel/locking/lockdep.c               |  804 +++++++++++++++++++++---
- kernel/sched/completion.c              |   54 +-
- lib/Kconfig.debug                      |   30 +
- mm/filemap.c                           |   76 ++-
- mm/page_ext.c                          |    4 +
- 21 files changed, 2392 insertions(+), 135 deletions(-)
- create mode 100644 Documentation/locking/crossrelease.txt
-
+diff --git a/arch/x86/kernel/stacktrace.c b/arch/x86/kernel/stacktrace.c
+index a44de4d..d8da90f 100644
+--- a/arch/x86/kernel/stacktrace.c
++++ b/arch/x86/kernel/stacktrace.c
+@@ -53,6 +53,10 @@ static int save_stack_end(void *data)
+ 	return trace->nr_entries >= trace->max_entries;
+ }
+ 
++/*
++ * This operation should be used in the oops case where
++ * stack might be broken.
++ */
+ static const struct stacktrace_ops save_stack_ops = {
+ 	.stack		= save_stack_stack,
+ 	.address	= save_stack_address,
+@@ -60,6 +64,13 @@ static const struct stacktrace_ops save_stack_ops = {
+ 	.end_walk	= save_stack_end,
+ };
+ 
++static const struct stacktrace_ops save_stack_ops_fast = {
++	.stack		= save_stack_stack,
++	.address	= save_stack_address,
++	.walk_stack	= print_context_stack_bp,
++	.end_walk	= save_stack_end,
++};
++
+ static const struct stacktrace_ops save_stack_ops_nosched = {
+ 	.stack		= save_stack_stack,
+ 	.address	= save_stack_address_nosched,
+@@ -68,6 +79,7 @@ static const struct stacktrace_ops save_stack_ops_nosched = {
+ 
+ /*
+  * Save stack-backtrace addresses into a stack_trace buffer.
++ * It works even in oops.
+  */
+ void save_stack_trace(struct stack_trace *trace)
+ {
+@@ -77,6 +89,19 @@ void save_stack_trace(struct stack_trace *trace)
+ }
+ EXPORT_SYMBOL_GPL(save_stack_trace);
+ 
++/*
++ * Save stack-backtrace addresses into a stack_trace buffer.
++ * This is perfered in normal case where we expect the stack is
++ * reliable.
++ */
++void save_stack_trace_fast(struct stack_trace *trace)
++{
++	dump_trace(current, NULL, NULL, 0, &save_stack_ops_fast, trace);
++	if (trace->nr_entries < trace->max_entries)
++		trace->entries[trace->nr_entries++] = ULONG_MAX;
++}
++EXPORT_SYMBOL_GPL(save_stack_trace_fast);
++
+ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
+ {
+ 	dump_trace(current, regs, NULL, 0, &save_stack_ops, trace);
+diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
+index 0a34489..ddef1d0 100644
+--- a/include/linux/stacktrace.h
++++ b/include/linux/stacktrace.h
+@@ -14,6 +14,7 @@ struct stack_trace {
+ };
+ 
+ extern void save_stack_trace(struct stack_trace *trace);
++extern void save_stack_trace_fast(struct stack_trace *trace);
+ extern void save_stack_trace_regs(struct pt_regs *regs,
+ 				  struct stack_trace *trace);
+ extern void save_stack_trace_tsk(struct task_struct *tsk,
+@@ -31,6 +32,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
+ 
+ #else
+ # define save_stack_trace(trace)			do { } while (0)
++# define save_stack_trace_fast(trace)			do { } while (0)
+ # define save_stack_trace_tsk(tsk, trace)		do { } while (0)
+ # define save_stack_trace_user(trace)			do { } while (0)
+ # define print_stack_trace(trace, spaces)		do { } while (0)
 -- 
 1.9.1
 
