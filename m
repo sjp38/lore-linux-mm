@@ -1,33 +1,82 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
-Date: Thu, 8 Dec 2016 21:20:13 +0100
-Message-ID: <20161208202013.uutsny6avn5gimwq@pd.tnic>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161208162150.148763-17-kirill.shutemov@linux.intel.com>
- <20161208200505.c6xiy56oufg6d24m@pd.tnic>
- <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com>
+From: Gerhard Wiesinger <lists@wiesinger.com>
+Subject: Re: Still OOM problems with 4.9er kernels
+Date: Fri, 9 Dec 2016 08:06:25 +0100
+Message-ID: <b3d7a0f3-caa4-91f9-4148-b62cf5e23886@wiesinger.com>
+References: <aa4a3217-f94c-0477-b573-796c84255d1e@wiesinger.com>
+ <c4ddfc91-7c84-19ed-b69a-18403e7590f9@wiesinger.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-arch-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com>
-Sender: linux-arch-owner@vger.kernel.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <c4ddfc91-7c84-19ed-b69a-18403e7590f9@wiesinger.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 List-Id: linux-mm.kvack.org
 
-On Thu, Dec 08, 2016 at 12:08:53PM -0800, Linus Torvalds wrote:
-> Especially since that's some of the ugliest inline asm ever due to the
-> nasty BX handling.
+Hello,
 
-Yeah, about that: why doesn't gcc handle that for us like it would
-handle a clobbered register? I mean, it *should* know that BX is live
-when building with -fPIC... The .ifnc thing looks really silly.
+same with latest kernel rc, dnf still killed with OOM (but sometimes 
+better).
 
-Hmmm.
+./update.sh: line 40:  1591 Killed                  ${EXE} update ${PARAMS}
+(does dnf clean all;dnf update)
+Linux database.intern 4.9.0-0.rc8.git2.1.fc26.x86_64 #1 SMP Wed Dec 7 
+17:53:29 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
 
--- 
-Regards/Gruss,
-    Boris.
+Updated bug report:
+https://bugzilla.redhat.com/show_bug.cgi?id=1314697
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Any chance to get it fixed in 4.9.0 release?
+
+Ciao,
+Gerhard
+
+
+On 30.11.2016 08:20, Gerhard Wiesinger wrote:
+> Hello,
+>
+> See also:
+> Bug 1314697 - Kernel 4.4.3-300.fc23.x86_64 is not stable inside a KVM VM
+> https://bugzilla.redhat.com/show_bug.cgi?id=1314697
+>
+> Ciao,
+> Gerhard
+>
+>
+> On 30.11.2016 08:10, Gerhard Wiesinger wrote:
+>> Hello,
+>>
+>> I'm having out of memory situations with my "low memory" VMs in KVM 
+>> under Fedora (Kernel 4.7, 4.8 and also before). They started to get 
+>> more and more sensitive to OOM. I recently found the following info:
+>>
+>> https://marius.bloggt-in-braunschweig.de/2016/11/17/linuxkernel-4-74-8-und-der-oom-killer/ 
+>>
+>> https://www.spinics.net/lists/linux-mm/msg113661.html
+>>
+>> Therefore I tried the latest Fedora kernels: 
+>> 4.9.0-0.rc6.git2.1.fc26.x86_64
+>>
+>> But OOM situation is still very easy to reproduce:
+>>
+>> 1.) VM with 128-384MB under Fedora 25
+>>
+>> 2.) Having some processes run without any load (e.g. Apache)
+>>
+>> 3.) run an update with: dnf clean all; dnf update
+>>
+>> 4.) dnf python process get's killed
+>>
+>>
+>> Please make the VM system working again in Kernel 4.9 and to use swap 
+>> again correctly.
+>>
+>> Thnx.
+>>
+>> Ciao,
+>>
+>> Gerhard
+>>
+>>
+>
