@@ -1,91 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E07F36B0069
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 22:09:51 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so11875711pgq.7
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 19:09:51 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 129si31531510pfx.1.2016.12.08.19.09.50
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 425706B0253
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 22:52:51 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xy5so2288236wjc.0
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 19:52:51 -0800 (PST)
+Received: from mail-wj0-x244.google.com (mail-wj0-x244.google.com. [2a00:1450:400c:c01::244])
+        by mx.google.com with ESMTPS id xw2si32198769wjc.22.2016.12.08.19.52.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 19:09:50 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH kernel v5 0/5] Extend virtio-balloon for fast
- (de)inflating & fast live migration
-Date: Fri, 9 Dec 2016 03:09:47 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A14D246@SHSMSX104.ccr.corp.intel.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <f7b47cc4-ee94-bacb-5a17-d049b402263e@intel.com>
-In-Reply-To: <f7b47cc4-ee94-bacb-5a17-d049b402263e@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 08 Dec 2016 19:52:49 -0800 (PST)
+Received: by mail-wj0-x244.google.com with SMTP id j10so613800wjb.3
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 19:52:49 -0800 (PST)
+Date: Fri, 9 Dec 2016 04:52:46 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] x86/coredump: always use user_regs_struct for
+ compat_elf_gregset_t
+Message-ID: <20161209035246.GB30637@gmail.com>
+References: <20161123181330.10705-1-dsafonov@virtuozzo.com>
+ <CALCETrUQDBX_QqHGeozQ3Q+9pF3SeyE9XyPqX4M6k3XOV8Zd=Q@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUQDBX_QqHGeozQ3Q+9pF3SeyE9XyPqX4M6k3XOV8Zd=Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Safonov <0x7f454c46@gmail.com>, Ingo Molnar <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-> Subject: Re: [PATCH kernel v5 0/5] Extend virtio-balloon for fast (de)inf=
-lating
-> & fast live migration
->=20
-> On 12/07/2016 05:35 AM, Li, Liang Z wrote:
-> >> Am 30.11.2016 um 09:43 schrieb Liang Li:
-> >> IOW in real examples, do we have really large consecutive areas or
-> >> are all pages just completely distributed over our memory?
+
+* Andy Lutomirski <luto@amacapital.net> wrote:
+
+> On Nov 23, 2016 10:16 AM, "Dmitry Safonov" <dsafonov@virtuozzo.com> wrote:
 > >
-> > The buddy system of Linux kernel memory management shows there
-> should
-> > be quite a lot of consecutive pages as long as there are a portion of
-> > free memory in the guest.
-> ...
-> > If all pages just completely distributed over our memory, it means the
-> > memory fragmentation is very serious, the kernel has the mechanism to
-> > avoid this happened.
->=20
-> While it is correct that the kernel has anti-fragmentation mechanisms, I =
-don't
-> think it invalidates the question as to whether a bitmap would be too spa=
-rse
-> to be effective.
->=20
-> > In the other hand, the inflating should not happen at this time
-> > because the guest is almost 'out of memory'.
->=20
-> I don't think this is correct.  Most systems try to run with relatively l=
-ittle free
-> memory all the time, using the bulk of it as page cache.  We have no reas=
-on
-> to expect that ballooning will only occur when there is lots of actual fr=
-ee
-> memory and that it will not occur when that same memory is in use as page
-> cache.
->=20
+> > From commit 90954e7b9407 ("x86/coredump: Use pr_reg size, rather that
+> > TIF_IA32 flag") elf coredump file is constructed according to register
+> > set size - and that's good: if binary crashes with 32-bit code selector,
+> > generate 32-bit ELF core, otherwise - 64-bit core.
+> > That was made for restoring 32-bit applications on x86_64: we want
+> > 32-bit application after restore to generate 32-bit ELF dump on crash.
+> > All was quite good and recently I started reworking 32-bit applications
+> > dumping part of CRIU: now it has two parasites (32 and 64) for seizing
+> > compat/native tasks, after rework it'll have one parasite, working in
+> > 64-bit mode, to which 32-bit prologue long-jumps during infection.
+> >
+> > And while it has worked for my work machine, in VM with
+> > !CONFIG_X86_X32_ABI during reworking I faced that segfault in 32-bit
+> > binary, that has long-jumped to 64-bit mode results in dereference
+> > of garbage:
+> 
+> Can you point to the actual line that's crashing?  I'm wondering if we
+> have code that should be made more robust.
 
-Yes.
-> In these patches, you're effectively still sending pfns.  You're just sen=
-ding
-> one pfn per high-order page which is giving a really nice speedup.  IMNHO=
-,
-> you're avoiding doing a real bitmap because creating a bitmap means eithe=
-r
-> have a really big bitmap, or you would have to do some sorting (or multip=
-le
-> passes) of the free lists before populating a smaller bitmap.
->=20
-> Like David, I would still like to see some data on whether the choice bet=
-ween
-> bitmaps and pfn lists is ever clearly in favor of bitmaps.  You haven't
-> convinced me, at least, that the data isn't even worth collecting.
+Agreed. Note that because it fixes a crash this fix is now upstream:
 
-I will try to get some data with the real workload and share it with your g=
-uys.
+ Commit-ID:  7b2dd3682896bcf1abbbbe870885728db2832a3c
+ Gitweb:     http://git.kernel.org/tip/7b2dd3682896bcf1abbbbe870885728db2832a3c
+ Author:     Dmitry Safonov <dsafonov@virtuozzo.com>
+ AuthorDate: Wed, 23 Nov 2016 21:13:30 +0300
+ Committer:  Ingo Molnar <mingo@kernel.org>
+ CommitDate: Thu, 24 Nov 2016 06:01:05 +0100
 
-Thanks!
-Liang
+ x86/coredump: Always use user_regs_struct for compat_elf_gregset_t
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
