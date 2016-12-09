@@ -1,222 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A38FF6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 09:23:17 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c4so20771449pfb.7
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 06:23:17 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h38si34153915plb.115.2016.12.09.06.23.15
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C07866B0069
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 09:26:57 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id y205so16708927qkb.4
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 06:26:57 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0040.outbound.protection.outlook.com. [104.47.33.40])
+        by mx.google.com with ESMTPS id d39si20158054qtf.148.2016.12.09.06.26.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Dec 2016 06:23:15 -0800 (PST)
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1481020439-5867-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20161207081555.GB17136@dhcp22.suse.cz>
-	<201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
-	<20161208132714.GA26530@dhcp22.suse.cz>
-In-Reply-To: <20161208132714.GA26530@dhcp22.suse.cz>
-Message-Id: <201612092323.BGC65668.QJFVLtFFOOMOSH@I-love.SAKURA.ne.jp>
-Date: Fri, 9 Dec 2016 23:23:10 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Dec 2016 06:26:56 -0800 (PST)
+Subject: Re: [RFC PATCH v3 10/20] Add support to access boot related data in
+ the clear
+References: <20161110003426.3280.2999.stgit@tlendack-t1.amdoffice.net>
+ <20161110003631.3280.73292.stgit@tlendack-t1.amdoffice.net>
+ <20161207131903.GU20785@codeblueprint.co.uk>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <8aebb166-12ae-64aa-bf1a-3f46fe8b52dd@amd.com>
+Date: Fri, 9 Dec 2016 08:26:40 -0600
+MIME-Version: 1.0
+In-Reply-To: <20161207131903.GU20785@codeblueprint.co.uk>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: linux-mm@kvack.org
+To: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-Michal Hocko wrote:
-> On Thu 08-12-16 00:29:26, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 06-12-16 19:33:59, Tetsuo Handa wrote:
-> > > > If the OOM killer is invoked when many threads are looping inside the
-> > > > page allocator, it is possible that the OOM killer is preempted by other
-> > > > threads.
-> > > 
-> > > Hmm, the only way I can see this would happen is when the task which
-> > > actually manages to take the lock is not invoking the OOM killer for
-> > > whatever reason. Is this what happens in your case? Are you able to
-> > > trigger this reliably?
-> > 
-> > Regarding http://I-love.SAKURA.ne.jp/tmp/serial-20161206.txt.xz ,
-> > somebody called oom_kill_process() and reached
-> > 
-> >   pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
-> > 
-> > line but did not reach
-> > 
-> >   pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-> > 
-> > line within tolerable delay.
-> 
-> I would be really interested in that. This can happen only if
-> find_lock_task_mm fails. This would mean that either we are selecting a
-> child without mm or the selected victim has no mm anymore. Both cases
-> should be ephemeral because oom_badness will rule those tasks on the
-> next round. So the primary question here is why no other task has hit
-> out_of_memory.
-
-This can also happen due to AB-BA livelock (oom_lock v.s. console_sem).
-
->                Have you tried to instrument the kernel and see whether
-> GFP_NOFS contexts simply preempted any other attempt to get there?
-> I would find it quite unlikely but not impossible. If that is the case
-> we should really think how to move forward. One way is to make the oom
-> path fully synchronous as suggested below. Other is to tweak GFP_NOFS
-> some more and do not take the lock while we are evaluating that. This
-> sounds quite messy though.
-
-Do you mean "tweak GFP_NOFS" as something like below patch?
-
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3036,6 +3036,17 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- 
- 	*did_some_progress = 0;
- 
-+	if (!(gfp_mask & (__GFP_FS | __GFP_NOFAIL))) {
-+		if ((current->flags & PF_DUMPCORE) ||
-+		    (order > PAGE_ALLOC_COSTLY_ORDER) ||
-+		    (ac->high_zoneidx < ZONE_NORMAL) ||
-+		    (pm_suspended_storage()) ||
-+		    (gfp_mask & __GFP_THISNODE))
-+			return NULL;
-+		*did_some_progress = 1;
-+		return NULL;
-+	}
-+
- 	/*
- 	 * Acquire the oom lock.  If that fails, somebody else is
- 	 * making progress for us.
-
-Then, serial-20161209-gfp.txt in http://I-love.SAKURA.ne.jp/tmp/20161209.tar.xz is
-console log with above patch applied. Spinning without invoking the OOM killer.
-It did not avoid locking up.
-
-[  879.772089] Killed process 14529 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  884.746246] Killed process 14530 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  885.162475] Killed process 14531 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  885.399802] Killed process 14532 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  889.497044] a.out: page allocation stalls for 10001ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.507193] a.out: page allocation stalls for 10016ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.560741] systemd-journal: page allocation stalls for 10020ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  889.590231] a.out: page allocation stalls for 10079ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.600207] a.out: page allocation stalls for 10091ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.607186] a.out: page allocation stalls for 10105ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.611057] a.out: page allocation stalls for 10001ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.646180] a.out: page allocation stalls for 10065ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  889.655083] tuned: page allocation stalls for 10001ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-(...snipped...)
-[ 1139.516867] a.out: page allocation stalls for 260007ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[ 1139.530790] a.out: page allocation stalls for 260034ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[ 1139.555816] a.out: page allocation stalls for 260038ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[ 1142.097226] NetworkManager: page allocation stalls for 210003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1142.747370] systemd-journal: page allocation stalls for 220003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1142.747443] page allocation stalls for 220003ms, order:0 [<ffffffff81226c20>] __do_fault+0x80/0x130
-[ 1142.750326] irqbalance: page allocation stalls for 220001ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1142.763366] postgres: page allocation stalls for 220003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1143.139489] master: page allocation stalls for 220003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1143.292492] mysqld: page allocation stalls for 260001ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1143.313282] mysqld: page allocation stalls for 260002ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1143.543551] mysqld: page allocation stalls for 250003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1143.726339] postgres: page allocation stalls for 260003ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[ 1147.408614] smbd: page allocation stalls for 220001ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-
+On 12/7/2016 7:19 AM, Matt Fleming wrote:
+> On Wed, 09 Nov, at 06:36:31PM, Tom Lendacky wrote:
+>> Boot data (such as EFI related data) is not encrypted when the system is
+>> booted and needs to be accessed unencrypted.  Add support to apply the
+>> proper attributes to the EFI page tables and to the early_memremap and
+>> memremap APIs to identify the type of data being accessed so that the
+>> proper encryption attribute can be applied.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/include/asm/e820.h    |    1 
+>>  arch/x86/kernel/e820.c         |   16 +++++++
+>>  arch/x86/mm/ioremap.c          |   89 ++++++++++++++++++++++++++++++++++++++++
+>>  arch/x86/platform/efi/efi_64.c |   12 ++++-
+>>  drivers/firmware/efi/efi.c     |   33 +++++++++++++++
+>>  include/linux/efi.h            |    2 +
+>>  kernel/memremap.c              |    8 +++-
+>>  mm/early_ioremap.c             |   18 +++++++-
+>>  8 files changed, 172 insertions(+), 7 deletions(-)
+>  
+> FWIW, I think this version is an improvement over all the previous
+> ones.
 > 
 > [...]
 > 
-> > > So, why don't you simply s@mutex_trylock@mutex_lock_killable@ then?
-> > > The trylock is simply an optimistic heuristic to retry while the memory
-> > > is being freed. Making this part sync might help for the case you are
-> > > seeing.
-> > 
-> > May I? Something like below? With patch below, the OOM killer can send
-> > SIGKILL smoothly and printk() can report smoothly (the frequency of
-> > "** XXX printk messages dropped **" messages is significantly reduced).
+>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+>> index ff542cd..ee347c2 100644
+>> --- a/arch/x86/mm/ioremap.c
+>> +++ b/arch/x86/mm/ioremap.c
+>> @@ -20,6 +20,9 @@
+>>  #include <asm/tlbflush.h>
+>>  #include <asm/pgalloc.h>
+>>  #include <asm/pat.h>
+>> +#include <asm/e820.h>
+>> +#include <asm/setup.h>
+>> +#include <linux/efi.h>
+>>  
+>>  #include "physaddr.h"
+>>  
+>> @@ -418,6 +421,92 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+>>  	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
+>>  }
+>>  
+>> +static bool memremap_setup_data(resource_size_t phys_addr,
+>> +				unsigned long size)
+>> +{
+>> +	u64 paddr;
+>> +
+>> +	if (phys_addr == boot_params.hdr.setup_data)
+>> +		return true;
+>> +
 > 
-> Well, this has to be properly evaluated. The fact that
-> __oom_reap_task_mm requires the oom_lock makes it more complicated. We
-> definitely do not want to starve it. On the other hand the oom
-> invocation path shouldn't stall for too long and even when we have
-> hundreds of tasks blocked on the lock and blocking the oom reaper then
-> the reaper should run _eventually_. It might take some time but this a
-> glacial slow path so it should be acceptable.
-> 
-> That being said, this should be OK. But please make sure to mention all
-> these details in the changelog. Also make sure to document the actual
-> failure mode as mentioned above.
+> Why is the setup_data linked list not traversed when checking for
+> matching addresses? Am I reading this incorrectly? I don't see how
+> this can work.
 
-stall-20161209-1.png and stall-20161209-2.png in 20161209.tar.xz are
-screen shots and serial-20161209-stall.txt is console log without any patch.
-We can see that console log is unreadably dropped and all CPUs are spinning
-without invoking the OOM killer.
-
-[  130.084200] Killed process 2613 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  130.297981] Killed process 2614 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  130.509444] Killed process 2615 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  130.725497] Killed process 2616 (a.out) total-vm:4176kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-[  140.886508] a.out: page allocation stalls for 10004ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  140.888637] a.out: page allocation stalls for 10006ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-[  140.890348] a.out: page allocation stalls for 10008ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-** 49 printk messages dropped ** [  140.892119]  [<ffffffff81293685>] __vfs_write+0xe5/0x140
-** 45 printk messages dropped ** [  140.892994]  [<ffffffff81306f10>] ? iomap_write_end+0x80/0x80
-** 93 printk messages dropped ** [  140.898500]  [<ffffffff811e802d>] __page_cache_alloc+0x15d/0x1a0
-** 45 printk messages dropped ** [  140.900144]  [<ffffffff811f58e9>] warn_alloc+0x149/0x180
-** 94 printk messages dropped ** [  140.900785] CPU: 1 PID: 3372 Comm: a.out Not tainted 4.9.0-rc8+ #70
-** 89 printk messages dropped ** [  147.049875] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-** 96 printk messages dropped ** [  150.110000] Node 0 DMA32: 9*4kB (H) 4*8kB (UH) 8*16kB (UEH) 187*32kB (UMEH) 75*64kB (UEH) 108*128kB (UME) 49*256kB (UME) 12*512kB (UME) 1*1024kB (U) 0*2048kB 0*4096kB = 44516kB
-** 303 printk messages dropped ** [  150.893480] lowmem_reserve[]: 0 0 0 0
-** 148 printk messages dropped ** [  153.480652] Node 0 DMA free:6700kB min:440kB low:548kB high:656kB active_anon:9144kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:28kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-** 191 printk messages dropped ** [  160.110155] Node 0 DMA free:6700kB min:440kB low:548kB high:656kB active_anon:9144kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:28kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-** 1551 printk messages dropped ** [  178.654905] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-** 43 printk messages dropped ** [  179.057226]  ffffc90003377a08 ffffffff813c9d4d ffffffff81a29518 0000000000000001
-** 95 printk messages dropped ** [  180.109388]  ffffc90002283a08 ffffffff813c9d4d ffffffff81a29518 0000000000000001
-** 94 printk messages dropped ** [  180.889628] 0 pages hwpoisoned
-[  180.895764] a.out: page allocation stalls for 50013ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
-** 240 printk messages dropped ** [  183.318598] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
-(...snipped...)
-** 188 printk messages dropped ** [  452.747159] 0 pages HighMem/MovableOnly
-** 44 printk messages dropped ** [  452.773748] 4366 total pagecache pages
-** 48 printk messages dropped ** [  452.803376] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
-** 537 printk messages dropped ** [  460.107887] lowmem_reserve[]: 0 0 0 0
+Yeah, I caught that too after I sent this out. I think the best way to
+handle this would be to create a list/array of setup data addresses in
+the parse_setup_data() routine and then check the address against that
+list in this routine.
 
 > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 2c6d5f6..ee0105b 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3075,7 +3075,7 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
-> >  	 * Acquire the oom lock.  If that fails, somebody else is
-> >  	 * making progress for us.
-> >  	 */
-> > -	if (!mutex_trylock(&oom_lock)) {
-> > +	if (mutex_lock_killable(&oom_lock)) {
-> >  		*did_some_progress = 1;
-> >  		schedule_timeout_uninterruptible(1);
-> >  		return NULL;
+>> +	paddr = boot_params.efi_info.efi_memmap_hi;
+>> +	paddr <<= 32;
+>> +	paddr |= boot_params.efi_info.efi_memmap;
+>> +	if (phys_addr == paddr)
+>> +		return true;
+>> +
+>> +	paddr = boot_params.efi_info.efi_systab_hi;
+>> +	paddr <<= 32;
+>> +	paddr |= boot_params.efi_info.efi_systab;
+>> +	if (phys_addr == paddr)
+>> +		return true;
+>> +
+>> +	if (efi_table_address_match(phys_addr))
+>> +		return true;
+>> +
+>> +	return false;
+>> +}
+>> +
+>> +static bool memremap_apply_encryption(resource_size_t phys_addr,
+>> +				      unsigned long size)
+>> +{
+>> +	/* SME is not active, just return true */
+>> +	if (!sme_me_mask)
+>> +		return true;
+>> +
+>> +	/* Check if the address is part of the setup data */
+>> +	if (memremap_setup_data(phys_addr, size))
+>> +		return false;
+>> +
+>> +	/* Check if the address is part of EFI boot/runtime data */
+>> +	switch (efi_mem_type(phys_addr)) {
+>> +	case EFI_BOOT_SERVICES_DATA:
+>> +	case EFI_RUNTIME_SERVICES_DATA:
+>> +		return false;
+>> +	}
 > 
+> EFI_LOADER_DATA is notable by its absence.
+> 
+> We use that memory type for allocations inside of the EFI boot stub
+> that are than used while the kernel is running. One use that comes to
+> mind is for initrd files, see handle_cmdline_files().
+> 
+> Oh I see you handle that in PATCH 9, never mind.
+> 
+>> diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+>> index 58b0f80..3f89179 100644
+>> --- a/arch/x86/platform/efi/efi_64.c
+>> +++ b/arch/x86/platform/efi/efi_64.c
+>> @@ -221,7 +221,13 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+>>  	if (efi_enabled(EFI_OLD_MEMMAP))
+>>  		return 0;
+>>  
+>> -	efi_scratch.efi_pgt = (pgd_t *)__pa(efi_pgd);
+>> +	/*
+>> +	 * Since the PGD is encrypted, set the encryption mask so that when
+>> +	 * this value is loaded into cr3 the PGD will be decrypted during
+>> +	 * the pagetable walk.
+>> +	 */
+>> +	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
+>> +
+>>  	pgd = efi_pgd;
+>>  
+>>  	/*
+> 
+> Do all callers of __pa() in arch/x86 need fixing up like this?
 
-nostall-20161209-1.png and nostall-20161209-2.png are screen shots and
-serial-20161209-nostall.txt is console log with mutex_lock_killable() patch applied.
-We can see that console log is less dropped and only 1 CPU is spinning with
-invoking the OOM killer.
+No, currently this is only be needed when we're dealing with values that
+will be used in the cr3 register.
 
-[  421.630240] Killed process 4568 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  421.643236] Killed process 4569 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  421.842463] Killed process 4570 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  421.899778] postgres: page allocation stalls for 11376ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  421.900569] Killed process 4571 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  421.900792] postgres: page allocation stalls for 185751ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  421.900920] systemd-logind: page allocation stalls for 162980ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  421.901027] master: page allocation stalls for 86144ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  421.912876] pickup: page allocation stalls for 18360ms, order:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-[  422.007323] Killed process 4572 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  422.011580] Killed process 4573 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  422.017043] Killed process 4574 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  422.027035] Killed process 4575 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
+Thanks,
+Tom
 
-So, I think serializing with mutex_lock_killable() is preferable for avoiding lockups
-even if it might defer !__GFP_FS && !__GFP_NOFAIL allocations or the OOM reaper.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
