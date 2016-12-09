@@ -1,138 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0E26B0253
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 04:38:17 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id s63so4606857wms.7
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 01:38:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f1si33185336wjl.229.2016.12.09.01.38.15
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AA8236B0069
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 04:58:29 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id p66so28592528pga.4
+        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 01:58:29 -0800 (PST)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50084.outbound.protection.outlook.com. [40.107.5.84])
+        by mx.google.com with ESMTPS id b128si32969294pgc.336.2016.12.09.01.58.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Dec 2016 01:38:15 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/2] mm, page_alloc: don't convert pfn to idx when merging
-Date: Fri,  9 Dec 2016 10:37:53 +0100
-Message-Id: <20161209093754.3515-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Dec 2016 01:58:28 -0800 (PST)
+Date: Fri, 9 Dec 2016 17:58:03 +0800
+From: Huang Shijie <shijie.huang@arm.com>
+Subject: Re: [PATCH v3 0/4]  mm: fix the "counter.sh" failure for libhugetlbfs
+Message-ID: <20161209095801.GA4405@sha-win-210.asiapac.arm.com>
+References: <1480929431-22348-1-git-send-email-shijie.huang@arm.com>
+ <20161205093100.GF30758@dhcp22.suse.cz>
+ <20161206100358.GA4619@sha-win-210.asiapac.arm.com>
+ <20161207150237.GC31797@dhcp22.suse.cz>
+ <20161208093623.GA4551@sha-win-210.asiapac.arm.com>
+ <20161208095253.GB8330@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20161208095253.GB8330@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@suse.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will
+ Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, Kaly Xin <Kaly.Xin@arm.com>, nd <nd@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "vbabka@suze.cz" <vbabka@suze.cz>
 
-In __free_one_page() we do the buddy merging arithmetics on "page/buddy index",
-which is just the lower MAX_ORDER bits of pfn. The operations we do that affect
-the higher bits are bitwise AND and subtraction (in that order), where the
-final result will be the same with the higher bits left unmasked, as long as
-these bits are equal for both buddies - which must be true by the definition of
-a buddy.
+On Thu, Dec 08, 2016 at 10:52:54AM +0100, Michal Hocko wrote:
+> On Thu 08-12-16 17:36:24, Huang Shijie wrote:
+> > On Wed, Dec 07, 2016 at 11:02:38PM +0800, Michal Hocko wrote:
+> [...]
+> > > I haven't yet checked your patchset but I can tell you one thing.
+> >
+> > Could you please review the patch set when you have time? Thanks a lot.
+> 
+> From a quick glance you do not handle the reservation code at all. You
+Thanks, I will study the code again, and try to find What we need to do
+with the reservation code.
 
-We can therefore use pfn's directly instead of "index" and skip the zeroing of
->MAX_ORDER bits. This can help a bit by itself, although compiler might be
-smart enough already. It also helps the next patch to avoid page_to_pfn() for
-memory hole checks.
+> just make sure that the allocation doesn't fail unconditionally. I might
+> be wrong here and Naoya resp. Mike will know much better but this seems
+> far from enough to me.
+> 
+> Well, this would take me quite some time and basically restudy the whole
+> hugetlb code again. What you are trying to achieve is not a simple "fix
+> a test case" thing. You are trying to implement full featured giga pages
+> suport. And as I've said this requires a deeper understanding of the
+> current code and clean it up considerably wrt. giga pages. This is
+> definitely desirable plan longterm and I would like to encourage you for
+> that but it is not a simple project at the same time. 
+Okay, I will try to implement the full featured giga pages support. :)
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/internal.h   |  4 ++--
- mm/page_alloc.c | 33 +++++++++++++++------------------
- 2 files changed, 17 insertions(+), 20 deletions(-)
+But I feel confused at the "full featured". If the patch set can pass
+all the giga pages tests in the libhugetlbfs, can we say it is "full
+featured"? Or some one reviews this patch set, and say it is full
+featured support for the giga pages.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 537ac9951f5f..6d20f0e52b74 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -131,9 +131,9 @@ struct alloc_context {
-  * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
-  */
- static inline unsigned long
--__find_buddy_index(unsigned long page_idx, unsigned int order)
-+__find_buddy_pfn(unsigned long page_pfn, unsigned int order)
- {
--	return page_idx ^ (1 << order);
-+	return page_pfn ^ (1 << order);
- }
- 
- extern struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6de9440e3ae2..812475bff8f3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -783,13 +783,12 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
-  */
- 
- static inline void __free_one_page(struct page *page,
--		unsigned long pfn,
-+		unsigned long page_pfn,
- 		struct zone *zone, unsigned int order,
- 		int migratetype)
- {
--	unsigned long page_idx;
--	unsigned long combined_idx;
--	unsigned long uninitialized_var(buddy_idx);
-+	unsigned long combined_pfn;
-+	unsigned long uninitialized_var(buddy_pfn);
- 	struct page *buddy;
- 	unsigned int max_order;
- 
-@@ -802,15 +801,13 @@ static inline void __free_one_page(struct page *page,
- 	if (likely(!is_migrate_isolate(migratetype)))
- 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
- 
--	page_idx = pfn & ((1 << MAX_ORDER) - 1);
--
--	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
-+	VM_BUG_ON_PAGE(page_pfn & ((1 << order) - 1), page);
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
- 
- continue_merging:
- 	while (order < max_order - 1) {
--		buddy_idx = __find_buddy_index(page_idx, order);
--		buddy = page + (buddy_idx - page_idx);
-+		buddy_pfn = __find_buddy_pfn(page_pfn, order);
-+		buddy = page + (buddy_pfn - page_pfn);
- 		if (!page_is_buddy(page, buddy, order))
- 			goto done_merging;
- 		/*
-@@ -824,9 +821,9 @@ static inline void __free_one_page(struct page *page,
- 			zone->free_area[order].nr_free--;
- 			rmv_page_order(buddy);
- 		}
--		combined_idx = buddy_idx & page_idx;
--		page = page + (combined_idx - page_idx);
--		page_idx = combined_idx;
-+		combined_pfn = buddy_pfn & page_pfn;
-+		page = page + (combined_pfn - page_pfn);
-+		page_pfn = combined_pfn;
- 		order++;
- 	}
- 	if (max_order < MAX_ORDER) {
-@@ -841,8 +838,8 @@ static inline void __free_one_page(struct page *page,
- 		if (unlikely(has_isolate_pageblock(zone))) {
- 			int buddy_mt;
- 
--			buddy_idx = __find_buddy_index(page_idx, order);
--			buddy = page + (buddy_idx - page_idx);
-+			buddy_pfn = __find_buddy_pfn(page_pfn, order);
-+			buddy = page + (buddy_pfn - page_pfn);
- 			buddy_mt = get_pageblock_migratetype(buddy);
- 
- 			if (migratetype != buddy_mt
-@@ -867,10 +864,10 @@ static inline void __free_one_page(struct page *page,
- 	 */
- 	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
- 		struct page *higher_page, *higher_buddy;
--		combined_idx = buddy_idx & page_idx;
--		higher_page = page + (combined_idx - page_idx);
--		buddy_idx = __find_buddy_index(combined_idx, order + 1);
--		higher_buddy = higher_page + (buddy_idx - combined_idx);
-+		combined_pfn = buddy_pfn & page_pfn;
-+		higher_page = page + (combined_pfn - page_pfn);
-+		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-+		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
- 		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
- 			list_add_tail(&page->lru,
- 				&zone->free_area[order].free_list[migratetype]);
--- 
-2.11.0
+Thanks
+Huang Shijie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
