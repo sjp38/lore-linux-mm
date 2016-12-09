@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 395156B0267
-	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 00:35:50 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a8so8985562pfg.0
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 21:35:50 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id v4si32024713pgb.232.2016.12.08.21.35.49
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7D76B0267
+	for <linux-mm@kvack.org>; Fri,  9 Dec 2016 01:18:03 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id o2so3170736wje.5
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 22:18:03 -0800 (PST)
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id w133si16546997wma.138.2016.12.08.22.18.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 21:35:49 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
- fast (de)inflating & fast live migration
-Date: Fri, 9 Dec 2016 05:35:45 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A14E339@SHSMSX104.ccr.corp.intel.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
- <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
- <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
- <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
- <20161207183817.GE28786@redhat.com>
- <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
- <20161207202824.GH28786@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
- <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
-In-Reply-To: <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 08 Dec 2016 22:18:02 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id he10so888266wjc.2
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 22:18:02 -0800 (PST)
+Date: Fri, 9 Dec 2016 07:18:00 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
+Message-ID: <20161209061759.GA12012@dhcp22.suse.cz>
+References: <20161208103300.23217-1-mhocko@kernel.org>
+ <20161209014417.GN4326@dastard>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161209014417.GN4326@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org
 
-> On 12/08/2016 08:45 PM, Li, Liang Z wrote:
-> > What's the conclusion of your discussion? It seems you want some
-> > statistic before deciding whether to  ripping the bitmap from the ABI,
-> > am I right?
->=20
-> I think Andrea and David feel pretty strongly that we should remove the
-> bitmap, unless we have some data to support keeping it.  I don't feel as
-> strongly about it, but I think their critique of it is pretty valid.  I t=
-hink the
-> consensus is that the bitmap needs to go.
->=20
+On Fri 09-12-16 12:44:17, Dave Chinner wrote:
+> On Thu, Dec 08, 2016 at 11:33:00AM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Using kmalloc with the vmalloc fallback for larger allocations is a
+> > common pattern in the kernel code. Yet we do not have any common helper
+> > for that and so users have invented their own helpers. Some of them are
+> > really creative when doing so. Let's just add kv[mz]alloc and make sure
+> > it is implemented properly. This implementation makes sure to not make
+> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
+> > to not warn about allocation failures. This also rules out the OOM
+> > killer as the vmalloc is a more approapriate fallback than a disruptive
+> > user visible action.
+> > 
+> > This patch also changes some existing users and removes helpers which
+> > are specific for them. In some cases this is not possible (e.g.
+> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
+> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
+> > in general (note that the page table allocation is GFP_KERNEL). Those
+> > need to be fixed separately.
+> 
+> See fs/xfs/kmem.c::kmem_zalloc_large(), which is XFS's version of
+> kvmalloc() that is GFP_NOFS/GFP_NOIO safe. Any generic API for this
+> functionality will have to play these memalloc_noio_save/
+> memalloc_noio_restore games to ensure they are GFP_NOFS safe....
 
-Thanks for you clarification.
+Well, I didn't want to play this games in the generic kvmalloc, at least
+not now, because all the converted users didn't really need it so far
+and I believe that the existing users need a) inspection to check
+whether NO{FS,IO} context is really needed and b) I still believe that
+the scope nofs api should be used longterm rather than an explicit
+GFP_NOFS. I am already working on ext[34] code.
 
-> The only real question IMNHO is whether we should do a power-of-2 or a
-> length.  But, if we have 12 bits, then the argument for doing length is p=
-retty
-> strong.  We don't need anywhere near 12 bits if doing power-of-2.
->=20
-So each item can max represent 16MB Bytes, seems not big enough,
-but enough for most case.
-Things became much more simple without the bitmap, and I like simple soluti=
-on too. :)
-
-I will prepare the v6 and remove all the bitmap related stuffs. Thank you a=
-ll!
-
-Liang
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
