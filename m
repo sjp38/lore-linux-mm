@@ -1,58 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 833566B025E
-	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 21:00:22 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id he10so1478207wjc.6
-        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 18:00:22 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id j13si15779656wmf.109.2016.12.08.18.00.21
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 879256B0253
+	for <linux-mm@kvack.org>; Thu,  8 Dec 2016 21:45:09 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f188so11209737pgc.1
+        for <linux-mm@kvack.org>; Thu, 08 Dec 2016 18:45:09 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 6si31302652pfl.234.2016.12.08.18.45.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Dec 2016 18:00:21 -0800 (PST)
-Date: Fri, 9 Dec 2016 02:00:17 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-Message-ID: <20161209020016.GX1555@ZenIV.linux.org.uk>
-References: <20161208103300.23217-1-mhocko@kernel.org>
- <20161209014417.GN4326@dastard>
+        Thu, 08 Dec 2016 18:45:05 -0800 (PST)
+Subject: [PATCH v2 00/11] mm: sub-section memory hotplug support
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 08 Dec 2016 18:40:54 -0800
+Message-ID: <148125125407.13512.1253904589564772668.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161209014417.GN4326@dastard>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: toshi.kani@hpe.com, Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Dec 09, 2016 at 12:44:17PM +1100, Dave Chinner wrote:
-> On Thu, Dec 08, 2016 at 11:33:00AM +0100, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Using kmalloc with the vmalloc fallback for larger allocations is a
-> > common pattern in the kernel code. Yet we do not have any common helper
-> > for that and so users have invented their own helpers. Some of them are
-> > really creative when doing so. Let's just add kv[mz]alloc and make sure
-> > it is implemented properly. This implementation makes sure to not make
-> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
-> > to not warn about allocation failures. This also rules out the OOM
-> > killer as the vmalloc is a more approapriate fallback than a disruptive
-> > user visible action.
-> > 
-> > This patch also changes some existing users and removes helpers which
-> > are specific for them. In some cases this is not possible (e.g.
-> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
-> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
-> > in general (note that the page table allocation is GFP_KERNEL). Those
-> > need to be fixed separately.
-> 
-> See fs/xfs/kmem.c::kmem_zalloc_large(), which is XFS's version of
-> kvmalloc() that is GFP_NOFS/GFP_NOIO safe. Any generic API for this
-> functionality will have to play these memalloc_noio_save/
-> memalloc_noio_restore games to ensure they are GFP_NOFS safe....
+Changes since v1 [1]:
 
-Easier to handle those in vmalloc() itself.  The problem I have with these
-helpers is that different places have different cutoff thresholds for
-switch from kmalloc to vmalloc; has anyone done an analysis of those?
+1/ fixed the pgmap_radix to index pfns instead of full physical
+   addresses
+
+2/ reflowed the follow-on patches and fixed a conflict in patch 10, but
+   no other functional changes.
+
+[1]: https://lkml.org/lkml/2016/12/1/740
+
+---
+
+Same cover letter from v1:
+
+Quoting "[PATCH 09/11] mm: support section-unaligned ZONE_DEVICE memory
+ranges":
+
+---
+
+The initial motivation for this change is persistent memory platforms
+that, unfortunately, align the pmem range on a boundary less than a full
+section (64M vs 128M), and may change the alignment from one boot to the
+next. A secondary motivation is the arrival of prospective ZONE_DEVICE
+users that want devm_memremap_pages() to map PCI-E device memory ranges
+to enable peer-to-peer DMA.
+
+Currently the nvdimm core injects padding when 'pfn' (struct page
+mapping configuration) instances are created. However, not all users of
+devm_memremap_pages() have the opportunity to inject such padding. Users
+of the memmap=ss!nn kernel command line option can trigger the following
+failure with unaligned parameters like "memmap=0xfc000000!8G":
+
+ WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
+ devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
+ [..]
+ Call Trace:
+  [<ffffffff814c0393>] dump_stack+0x86/0xc3
+  [<ffffffff810b173b>] __warn+0xcb/0xf0
+  [<ffffffff810b17bf>] warn_slowpath_fmt+0x5f/0x80
+  [<ffffffff811eb105>] devm_memremap_pages+0x3b5/0x4c0
+  [<ffffffffa006f308>] __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
+  [<ffffffffa00e231a>] pmem_attach_disk+0x19a/0x440 [nd_pmem]
+
+Without this change a user could inadvertently lose access to nvdimm
+namespaces by adding/removing other DIMMs in the platform leading to the
+BIOS changing the base alignment of the namespace in an incompatible
+fashion. With this support we can accommodate a BIOS changing the
+namespace to any alignment provided it is >= SECTION_ACTIVE_SIZE.
+
+---
+
+Andrew, yes, this is rather late for 4.10, but it is ostensibly a fix
+for devm_memremap_pages(). Both the memmap=ss!nn and qemu-kvm methods of
+defining persistent memory can generate the misaligned configuration.
+However, in those cases the existing devm_memremap_pages() would have
+failed so no one could be relying on that.
+
+The greater concern is new misalignment injected by the BIOS after the
+libnvdimm sub-system already recorded that the namespace does not need
+alignment padding. In that case the user would need to figure out how to
+undo the BIOS change to regain access to their nvdimm device.
+
+The patches have received a build success notification from the
+0day-kbuild robot across 177 configs and pass the ndctl unit test suite.
+They merge cleanly on top of current -next (test merge with
+next-20161201).
+
+---
+
+New diffstat:
+
+Dan Williams (11):
+      mm, devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups
+      mm: introduce struct mem_section_usage to track partial population of a section
+      mm: introduce common definitions for the size and mask of a section
+      mm: cleanup sparse_init_one_section() return value
+      mm: track active portions of a section at boot
+      mm: fix register_new_memory() zone type detection
+      mm: convert kmalloc_section_memmap() to populate_section_memmap()
+      mm: prepare for hot-{add,remove} of sub-section ranges
+      mm: support section-unaligned ZONE_DEVICE memory ranges
+      mm: enable section-unaligned devm_memremap_pages()
+      libnvdimm, pfn, dax: stop padding pmem namespaces to section alignment
+
+
+ arch/x86/mm/init_64.c          |   15 +
+ drivers/base/memory.c          |   26 +-
+ drivers/nvdimm/pfn_devs.c      |   42 +---
+ include/linux/memory.h         |    4 
+ include/linux/memory_hotplug.h |    6 -
+ include/linux/mm.h             |    3 
+ include/linux/mmzone.h         |   26 ++
+ kernel/memremap.c              |   75 ++++---
+ mm/Kconfig                     |    1 
+ mm/memory_hotplug.c            |   95 ++++----
+ mm/page_alloc.c                |    6 -
+ mm/sparse-vmemmap.c            |   24 +-
+ mm/sparse.c                    |  454 +++++++++++++++++++++++++++++-----------
+ 13 files changed, 510 insertions(+), 267 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
