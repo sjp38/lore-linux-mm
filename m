@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 974B86B0038
-	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 01:30:43 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f188so89591651pgc.1
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 22:30:43 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id r7si36581017ple.282.2016.12.09.22.30.42
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D47B56B0038
+	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 03:17:06 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id x23so94919248pgx.6
+        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 00:17:06 -0800 (PST)
+Received: from helcar.apana.org.au (helcar.hengli.com.au. [209.40.204.226])
+        by mx.google.com with ESMTPS id u17si36787769pgo.250.2016.12.10.00.17.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Dec 2016 22:30:42 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id e9so4508363pgc.1
-        for <linux-mm@kvack.org>; Fri, 09 Dec 2016 22:30:42 -0800 (PST)
-Date: Fri, 9 Dec 2016 22:30:39 -0800
-From: Eric Biggers <ebiggers3@gmail.com>
+        Sat, 10 Dec 2016 00:17:05 -0800 (PST)
+Date: Sat, 10 Dec 2016 16:16:43 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
 Subject: Re: [kernel-hardening] Re: Remaining crypto API regressions with
  CONFIG_VMAP_STACK
-Message-ID: <20161210063039.GA8630@zzz>
-References: <20161209230851.GB64048@google.com>
- <CALCETrW=+3u3P8Xva+0ck9=fr-mD6azPtTkOQ3uQO+GoOA6FcQ@mail.gmail.com>
- <20161210053711.GB27951@gondor.apana.org.au>
+Message-ID: <20161210081643.GA384@gondor.apana.org.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161210053711.GB27951@gondor.apana.org.au>
+In-Reply-To: <20161210060316.GC6846@zzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: Andy Lutomirski <luto@amacapital.net>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Stephan Mueller <smueller@chronox.de>
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: kernel-hardening@lists.openwall.com, luto@amacapital.net, linux-crypto@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, smueller@chronox.de
 
-On Sat, Dec 10, 2016 at 01:37:12PM +0800, Herbert Xu wrote:
-> On Fri, Dec 09, 2016 at 09:25:38PM -0800, Andy Lutomirski wrote:
-> >
-> > Herbert, how hard would it be to teach the crypto code to use a more
-> > sensible data structure than scatterlist and to use coccinelle fix
-> > this stuff for real?
-> 
-> First of all we already have a sync non-SG hash interface, it's
-> called shash.
-> 
-> If we had enough sync-only users of skcipher then I'll consider
-> adding an interface for it.  However, at this point in time it
-> appears to more sense to convert such users over to the async
-> interface rather than the other way around.
-> 
-> As for AEAD we never had a sync interface to begin with and I
-> don't think I'm going to add one.
-> 
+Why did you drop me from the CC list when you were replying to
+my email?
 
-Isn't the question of "should the API use physical or virtual addresses"
-independent of the question of "should the API support asynchronous requests"?
-You can already choose, via the flags and mask arguments when allocating a
-crypto transform, whether you want it to be synchronous or asynchronous or
-whether you don't care.  I don't see what that says about whether the API should
-take in physical memory (e.g. scatterlists or struct pages) or virtual memory
-(e.g. iov_iters or just regular pointers).
+Eric Biggers <ebiggers3@gmail.com> wrote:
+> On Sat, Dec 10, 2016 at 01:32:08PM +0800, Herbert Xu wrote:
+>
+>> Are you sure? Any instance of *_ON_STACK must only be used with
+>> sync algorithms and most drivers under drivers/crypto declare
+>> themselves as async.
+> 
+> Why exactly is that?  Obviously, it wouldn't work if you returned from the stack
+> frame before the request completed, but does anything stop someone from using an
+> *_ON_STACK() request and then waiting for the request to complete before
+> returning from the stack frame?
 
-And while it's true that asynchronous algorithms are often provided by hardware
-drivers that operate on physical memory, it's not always the case.  For example
-some of the AES-NI algorithms are asynchronous only because they use the SSE
-registers which can't always available to kernel code, so the request may need
-to be processed by another thread.
+The *_ON_STACK variants (except SHASH of course) were simply hacks
+to help legacy crypto API users to cope with the new async interface.
+In general we should avoid using the sync interface when possible.
 
-Eric
+It's a bad idea for the obvious reason that most of our async
+algorithms want to DMA and that doesn't work very well when you're
+using memory from the stack.
+
+Cheers,
+-- 
+Email: Herbert Xu <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
