@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 352C36B025E
-	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 09:46:05 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id l20so34838704qta.3
-        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 06:46:05 -0800 (PST)
-Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
-        by mx.google.com with ESMTPS id 18si22577788qtq.221.2016.12.10.06.46.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 378916B0069
+	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 12:27:07 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so2285372wme.4
+        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 09:27:07 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id x6si38437317wjk.170.2016.12.10.09.27.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 10 Dec 2016 06:46:04 -0800 (PST)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id 4ceb36ba
-	for <linux-mm@kvack.org>;
-	Sat, 10 Dec 2016 14:40:13 +0000 (UTC)
-Received: 
-	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id 2717b1ab (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
-	for <linux-mm@kvack.org>;
-	Sat, 10 Dec 2016 14:40:11 +0000 (UTC)
-Received: by mail-lf0-f52.google.com with SMTP id t196so18449898lff.3
-        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 06:45:59 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161210053711.GB27951@gondor.apana.org.au>
-References: <20161209230851.GB64048@google.com> <CALCETrW=+3u3P8Xva+0ck9=fr-mD6azPtTkOQ3uQO+GoOA6FcQ@mail.gmail.com>
- <20161210053711.GB27951@gondor.apana.org.au>
-From: "Jason A. Donenfeld" <Jason@zx2c4.com>
-Date: Sat, 10 Dec 2016 15:45:56 +0100
-Message-ID: <CAHmME9pzT=bxuEVVGDOJkm2PaEAVjbo=8na7URy=g-1sKvv0yw@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: Remaining crypto API regressions with CONFIG_VMAP_STACK
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Dec 2016 09:27:05 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: fadvise: avoid expensive remote LRU cache draining after FADV_DONTNEED
+Date: Sat, 10 Dec 2016 12:26:58 -0500
+Message-Id: <20161210172658.5182-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com
-Cc: Andy Lutomirski <luto@amacapital.net>, Eric Biggers <ebiggers3@gmail.com>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Lutomirski <luto@kernel.org>, Stephan Mueller <smueller@chronox.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi Herbert,
+When FADV_DONTNEED cannot drop all pages in the range, it observes
+that some pages might still be on per-cpu LRU caches after recent
+instantiation and so initiates remote calls to all CPUs to flush their
+local caches. However, in most cases, the fadvise happens from the
+same context that instantiated the pages, and any pre-LRU pages in the
+specified range are most likely sitting on the local CPU's LRU cache,
+and so in many cases this results in unnecessary remote calls, which,
+in a loaded system, can hold up the fadvise() call significantly.
 
-On Sat, Dec 10, 2016 at 6:37 AM, Herbert Xu <herbert@gondor.apana.org.au> wrote:
-> As for AEAD we never had a sync interface to begin with and I
-> don't think I'm going to add one.
+Try to avoid the remote call by flushing the local LRU cache before
+even attempting to invalidate anything. It's a cheap operation, and
+the local LRU cache is the most likely to hold any pre-LRU pages in
+the specified fadvise range.
 
-That's too bad to hear. I hope you'll reconsider. Modern cryptographic
-design is heading more and more in the direction of using AEADs for
-interesting things, and having a sync interface would be a lot easier
-for implementing these protocols. In the same way many protocols need
-a hash of some data, now protocols often want some particular data
-encrypted with an AEAD using a particular key and nonce and AD. One
-protocol that comes to mind is Noise [1].
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/fadvise.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
 
-I know that in my own [currently external to the tree] kernel code, I
-just forego the use of the crypto API all together, and one of the
-primary reasons for that is lack of a sync interface for AEADs. When I
-eventually send this upstream, presumably everyone will want me to use
-the crypto API, and having a sync AEAD interface would be personally
-helpful for that. I guess I could always write the sync interface
-myself, but I imagine you'd prefer having the design control etc.
-
-Jason
-
-
-[1] http://noiseprotocol.org/
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index 6c707bfe02fd..a43013112581 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -139,7 +139,20 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+ 		}
+ 
+ 		if (end_index >= start_index) {
+-			unsigned long count = invalidate_mapping_pages(mapping,
++			unsigned long count;
++
++			/*
++			 * It's common to FADV_DONTNEED right after
++			 * the read or write that instantiates the
++			 * pages, in which case there will be some
++			 * sitting on the local LRU cache. Try to
++			 * avoid the expensive remote drain and the
++			 * second cache tree walk below by flushing
++			 * them out right away.
++			 */
++			lru_add_drain();
++
++			count = invalidate_mapping_pages(mapping,
+ 						start_index, end_index);
+ 
+ 			/*
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
