@@ -1,69 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F20796B025E
-	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 03:39:27 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 3so96276119pgd.3
-        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 00:39:27 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id r11si36828736pgn.300.2016.12.10.00.39.26
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8203D6B0038
+	for <linux-mm@kvack.org>; Sat, 10 Dec 2016 06:25:05 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y68so53691977pfb.6
+        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 03:25:05 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p125si37355100pfp.119.2016.12.10.03.25.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Dec 2016 00:39:27 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id e9so4784818pgc.1
-        for <linux-mm@kvack.org>; Sat, 10 Dec 2016 00:39:26 -0800 (PST)
-Date: Sat, 10 Dec 2016 00:39:23 -0800
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: Remaining crypto API regressions with CONFIG_VMAP_STACK
-Message-ID: <20161210083923.GB8630@zzz>
-References: <20161210060316.GC6846@zzz>
- <20161210081643.GA384@gondor.apana.org.au>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 10 Dec 2016 03:25:03 -0800 (PST)
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161207081555.GB17136@dhcp22.suse.cz>
+	<201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
+	<20161208132714.GA26530@dhcp22.suse.cz>
+	<201612092323.BGC65668.QJFVLtFFOOMOSH@I-love.SAKURA.ne.jp>
+	<20161209144624.GB4334@dhcp22.suse.cz>
+In-Reply-To: <20161209144624.GB4334@dhcp22.suse.cz>
+Message-Id: <201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
+Date: Sat, 10 Dec 2016 20:24:57 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161210081643.GA384@gondor.apana.org.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: kernel-hardening@lists.openwall.com, luto@amacapital.net, linux-crypto@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, smueller@chronox.de
+To: mhocko@suse.com
+Cc: linux-mm@kvack.org
 
-On Sat, Dec 10, 2016 at 04:16:43PM +0800, Herbert Xu wrote:
-> Why did you drop me from the CC list when you were replying to
-> my email?
-> 
-
-Sorry --- this thread is Cc'ed to the kernel-hardening mailing list (which was
-somewhat recently revived), and I replied to the email that reached me from
-there.  It looks like it currently behaves a little differently from the vger
-mailing lists, in that it replaces "Reply-To" with the address of the mailing
-list itself rather than the sender.  So that's how you got dropped.  It also
-seems to add a prefix to the subject...
-
-I
-> >> Are you sure? Any instance of *_ON_STACK must only be used with
-> >> sync algorithms and most drivers under drivers/crypto declare
-> >> themselves as async.
+Michal Hocko wrote:
+> On Fri 09-12-16 23:23:10, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Thu 08-12-16 00:29:26, Tetsuo Handa wrote:
+> > > > Michal Hocko wrote:
+> > > > > On Tue 06-12-16 19:33:59, Tetsuo Handa wrote:
+> > > > > > If the OOM killer is invoked when many threads are looping inside the
+> > > > > > page allocator, it is possible that the OOM killer is preempted by other
+> > > > > > threads.
+> > > > > 
+> > > > > Hmm, the only way I can see this would happen is when the task which
+> > > > > actually manages to take the lock is not invoking the OOM killer for
+> > > > > whatever reason. Is this what happens in your case? Are you able to
+> > > > > trigger this reliably?
+> > > > 
+> > > > Regarding http://I-love.SAKURA.ne.jp/tmp/serial-20161206.txt.xz ,
+> > > > somebody called oom_kill_process() and reached
+> > > > 
+> > > >   pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> > > > 
+> > > > line but did not reach
+> > > > 
+> > > >   pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> > > > 
+> > > > line within tolerable delay.
+> > > 
+> > > I would be really interested in that. This can happen only if
+> > > find_lock_task_mm fails. This would mean that either we are selecting a
+> > > child without mm or the selected victim has no mm anymore. Both cases
+> > > should be ephemeral because oom_badness will rule those tasks on the
+> > > next round. So the primary question here is why no other task has hit
+> > > out_of_memory.
 > > 
-> > Why exactly is that?  Obviously, it wouldn't work if you returned from the stack
-> > frame before the request completed, but does anything stop someone from using an
-> > *_ON_STACK() request and then waiting for the request to complete before
-> > returning from the stack frame?
+> > This can also happen due to AB-BA livelock (oom_lock v.s. console_sem).
 > 
-> The *_ON_STACK variants (except SHASH of course) were simply hacks
-> to help legacy crypto API users to cope with the new async interface.
-> In general we should avoid using the sync interface when possible.
+> Care to explain how would that livelock look like?
+
+Two types of threads (Thread-1 which is holding oom_lock, Thread-2 which is not
+holding oom_lock) are doing memory allocation. Since oom_lock is a mutex, there
+can be only 1 instance for Thread-1. But there can be multiple instances for
+Thread-2.
+
+(1) Thread-1 enters out_of_memory() because it is holding oom_lock.
+(2) Thread-1 enters printk() due to
+
+    pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n", ...);
+
+    in oom_kill_process().
+
+(3) vprintk_func() is mapped to vprintk_default() because Thread-1 is not
+    inside NMI handler.
+
+(4) In vprintk_emit(), in_sched == false because loglevel for pr_err()
+    is not LOGLEVEL_SCHED.
+
+(5) Thread-1 calls log_store() via log_output() from vprintk_emit().
+
+(6) Thread-1 calls console_trylock() because in_sched == false.
+
+(7) Thread-1 acquires console_sem via down_trylock_console_sem().
+
+(8) In console_trylock(), console_may_schedule is set to true because
+    Thread-1 is in sleepable context.
+
+(9) Thread-1 calls console_unlock() because console_trylock() succeeded.
+
+(9) In console_unlock(), pending data stored by log_store() are printed
+    to consoles. Since there may be slow consoles, cond_resched() is called
+    if possible. And since console_may_schedule == true because Thread-1 is
+    in sleepable context, Thread-1 may be scheduled at console_unlock().
+
+(10) Thread-2 tries to acquire oom_lock but it fails because Thread-1 is
+     holding oom_lock.
+
+(11) Thread-2 enters warn_alloc() because it is waiting for Thread-1 to
+     return from oom_kill_process().
+
+(12) Thread-2 enters printk() due to
+
+     warn_alloc(gfp_mask, "page allocation stalls for %ums, order:%u", ...);
+
+     in __alloc_pages_slowpath().
+
+(13) vprintk_func() is mapped to vprintk_default() because Thread-2 is not
+     inside NMI handler.
+
+(14) In vprintk_emit(), in_sched == false because loglevel for pr_err()
+     is not LOGLEVEL_SCHED.
+
+(15) Thread-2 calls log_store() via log_output() from vprintk_emit().
+
+(16) Thread-2 calls console_trylock() because in_sched == false.
+
+(17) Thread-2 fails to acquire console_sem via down_trylock_console_sem().
+
+(18) Thread-2 returns from vprintk_emit().
+
+(19) Thread-2 leaves warn_alloc().
+
+(20) When Thread-1 is waken up, it finds new data appended by Thread-2.
+
+(21) Thread-1 remains inside console_unlock() with oom_lock still held
+     because there is data which should be printed to consoles.
+
+(22) Thread-2 remains failing to acquire oom_lock, periodically appending
+     new data via warn_alloc(), and failing to acquire oom_lock.
+
+(23) The user visible result is that Thread-1 is unable to return from
+
+     pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n", ...);
+
+     in oom_kill_process().
+
+The introduction of uncontrolled
+
+  warn_alloc(gfp_mask, "page allocation stalls for %ums, order:%u", ...);
+
+in __alloc_pages_slowpath() increased the possibility for Thread-1 to remain
+inside console_unlock(). Although Sergey is working on this problem by
+offloading printing to consoles, we might still see "** XXX printk messages
+dropped **" messages if we let Thread-2 call printk() uncontrolledly, for
+
+  /*
+   * Give the killed process a good chance to exit before trying
+   * to allocate memory again.
+   */
+  schedule_timeout_killable(1);
+
+which is called after Thread-1 returned from oom_kill_process() allows
+Thread-2 and other threads to consume long duration before the OOM reaper
+can start reaping by taking oom_lock.
+
 > 
-> It's a bad idea for the obvious reason that most of our async
-> algorithms want to DMA and that doesn't work very well when you're
-> using memory from the stack.
+> > >                Have you tried to instrument the kernel and see whether
+> > > GFP_NOFS contexts simply preempted any other attempt to get there?
+> > > I would find it quite unlikely but not impossible. If that is the case
+> > > we should really think how to move forward. One way is to make the oom
+> > > path fully synchronous as suggested below. Other is to tweak GFP_NOFS
+> > > some more and do not take the lock while we are evaluating that. This
+> > > sounds quite messy though.
+> > 
+> > Do you mean "tweak GFP_NOFS" as something like below patch?
+> > 
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3036,6 +3036,17 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+> >  
+> >  	*did_some_progress = 0;
+> >  
+> > +	if (!(gfp_mask & (__GFP_FS | __GFP_NOFAIL))) {
+> > +		if ((current->flags & PF_DUMPCORE) ||
+> > +		    (order > PAGE_ALLOC_COSTLY_ORDER) ||
+> > +		    (ac->high_zoneidx < ZONE_NORMAL) ||
+> > +		    (pm_suspended_storage()) ||
+> > +		    (gfp_mask & __GFP_THISNODE))
+> > +			return NULL;
+> > +		*did_some_progress = 1;
+> > +		return NULL;
+> > +	}
+> > +
+> >  	/*
+> >  	 * Acquire the oom lock.  If that fails, somebody else is
+> >  	 * making progress for us.
+> > 
+> > Then, serial-20161209-gfp.txt in http://I-love.SAKURA.ne.jp/tmp/20161209.tar.xz is
+> > console log with above patch applied. Spinning without invoking the OOM killer.
+> > It did not avoid locking up.
+> 
+> OK, so the reason of the lock up must be something different. If we are
+> really {dead,live}locking on the printk because of warn_alloc then that
+> path should be tweaked instead. Something like below should rule this
+> out:
 
-Sure, I just feel that the idea of "is this algorithm asynchronous?" is being
-conflated with the idea of "does this algorithm operate on physical memory?".
-Also, if *_ON_STACK are really not allowed with asynchronous algorithms can
-there at least be a comment or a WARN_ON() to express this?
+Last year I proposed disabling preemption at
+http://lkml.kernel.org/r/201509191605.CAF13520.QVSFHLtFJOMOOF@I-love.SAKURA.ne.jp
+but it was not accepted. "while (1);" in userspace corresponds with
+pointless "direct reclaim and warn_alloc()" in kernel space. This time,
+I'm proposing serialization by oom_lock and replace warn_alloc() with kmallocwd
+in order to make printk() not to flood.
 
-Thanks,
+> ---
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ed65d7df72d5..c2ba51cec93d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3024,11 +3024,14 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+>  	unsigned int filter = SHOW_MEM_FILTER_NODES;
+>  	struct va_format vaf;
+>  	va_list args;
+> +	static DEFINE_MUTEX(warn_lock);
+>  
+>  	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
+>  	    debug_guardpage_minorder() > 0)
+>  		return;
+>  
 
-Eric
+if (gfp_mask & __GFP_DIRECT_RECLAIM)
+
+> +	mutex_lock(&warn_lock);
+> +
+>  	/*
+>  	 * This documents exceptions given to allocations in certain
+>  	 * contexts that are allowed to allocate outside current's set
+> @@ -3054,6 +3057,8 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+>  	dump_stack();
+>  	if (!should_suppress_show_mem())
+>  		show_mem(filter);
+> +
+
+if (gfp_mask & __GFP_DIRECT_RECLAIM)
+
+> +	mutex_unlock(&warn_lock);
+>  }
+>  
+>  static inline struct page *
+
+and I think "s/warn_lock/oom_lock/" because out_of_memory() might
+call show_mem() concurrently.
+
+I think this warn_alloc() is too much noise. When something went
+wrong, multiple instances of Thread-2 tend to call warn_alloc()
+concurrently. We don't need to report similar memory information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
