@@ -1,41 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 127AF6B0069
-	for <linux-mm@kvack.org>; Sun, 11 Dec 2016 14:14:17 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 12so83083056uas.5
-        for <linux-mm@kvack.org>; Sun, 11 Dec 2016 11:14:17 -0800 (PST)
-Received: from mail-ua0-x236.google.com (mail-ua0-x236.google.com. [2607:f8b0:400c:c08::236])
-        by mx.google.com with ESMTPS id w35si10292190uaw.238.2016.12.11.11.14.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E54C76B0038
+	for <linux-mm@kvack.org>; Sun, 11 Dec 2016 18:31:34 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id a8so99674026pfg.0
+        for <linux-mm@kvack.org>; Sun, 11 Dec 2016 15:31:34 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id b61si41465800plc.299.2016.12.11.15.31.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Dec 2016 11:14:16 -0800 (PST)
-Received: by mail-ua0-x236.google.com with SMTP id 12so63989712uas.2
-        for <linux-mm@kvack.org>; Sun, 11 Dec 2016 11:14:16 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161209230851.GB64048@google.com>
-References: <20161209230851.GB64048@google.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Sun, 11 Dec 2016 11:13:55 -0800
-Message-ID: <CALCETrVBGPijiacbY-trdbgRPYC8grNrGA7TVu0xvxUaqud08w@mail.gmail.com>
+        Sun, 11 Dec 2016 15:31:33 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id e9so8915162pgc.1
+        for <linux-mm@kvack.org>; Sun, 11 Dec 2016 15:31:33 -0800 (PST)
+Date: Sun, 11 Dec 2016 15:31:31 -0800
+From: Eric Biggers <ebiggers3@gmail.com>
 Subject: Re: Remaining crypto API regressions with CONFIG_VMAP_STACK
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20161211233131.GA1210@zzz>
+References: <20161209230851.GB64048@google.com>
+ <CALCETrVBGPijiacbY-trdbgRPYC8grNrGA7TVu0xvxUaqud08w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrVBGPijiacbY-trdbgRPYC8grNrGA7TVu0xvxUaqud08w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
 Cc: linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Herbert Xu <herbert@gondor.apana.org.au>, Andrew Lutomirski <luto@kernel.org>, Stephan Mueller <smueller@chronox.de>
 
-On Fri, Dec 9, 2016 at 3:08 PM, Eric Biggers <ebiggers3@gmail.com> wrote:
-> In the 4.9 kernel, virtually-mapped stacks will be supported and enabled by
-> default on x86_64.  This has been exposing a number of problems in which
-> on-stack buffers are being passed into the crypto API, which to support crypto
-> accelerators operates on 'struct page' rather than on virtual memory.
->
+On Sun, Dec 11, 2016 at 11:13:55AM -0800, Andy Lutomirski wrote:
+> On Fri, Dec 9, 2016 at 3:08 PM, Eric Biggers <ebiggers3@gmail.com> wrote:
+> > In the 4.9 kernel, virtually-mapped stacks will be supported and enabled by
+> > default on x86_64.  This has been exposing a number of problems in which
+> > on-stack buffers are being passed into the crypto API, which to support crypto
+> > accelerators operates on 'struct page' rather than on virtual memory.
+> >
+> 
+> >         fs/cifs/smbencrypt.c:96
+> 
+> This should use crypto_cipher_encrypt_one(), I think.
+> 
+> --Andy
 
->         fs/cifs/smbencrypt.c:96
+Yes, I believe that's correct.  It encrypts 8 bytes with ecb(des) which is
+equivalent to simply encrypting one block with DES.  Maybe try the following
+(untested):
 
-This should use crypto_cipher_encrypt_one(), I think.
+static int
+smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
+{
+	unsigned char key2[8];
+	struct crypto_cipher *cipher;
 
---Andy
+	str_to_key(key, key2);
+
+	cipher = crypto_alloc_cipher("des", 0, 0);
+	if (IS_ERR(cipher)) {
+		cifs_dbg(VFS, "could not allocate des cipher\n");
+		return PTR_ERR(cipher);
+	}
+
+	crypto_cipher_setkey(cipher, key2, 8);
+
+	crypto_cipher_encrypt_one(cipher, out, in);
+
+	crypto_free_cipher(cipher);
+	return 0;
+}
+
+- Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
