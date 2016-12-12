@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F29C16B0260
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 10:56:01 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so14831423wmf.3
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:56:01 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id kb9si44872599wjc.139.2016.12.12.07.55.59
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D4E46B0038
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 11:34:44 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id 51so106468695uai.3
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 08:34:44 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n65si11236506vkc.227.2016.12.12.08.34.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Dec 2016 07:56:00 -0800 (PST)
-Date: Mon, 12 Dec 2016 10:55:52 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: fadvise: avoid expensive remote LRU cache draining
- after FADV_DONTNEED
-Message-ID: <20161212155552.GA7148@cmpxchg.org>
-References: <20161210172658.5182-1-hannes@cmpxchg.org>
- <5cc0eb6f-bede-a34a-522b-e30d06723ffa@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5cc0eb6f-bede-a34a-522b-e30d06723ffa@suse.cz>
+        Mon, 12 Dec 2016 08:34:43 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBCGYJju044631
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 11:34:41 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 279t0x7h7a-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 11:34:41 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 12 Dec 2016 09:34:40 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 1/2] mm/thp/pagecache: Only withdraw page table after a successful deposit
+Date: Mon, 12 Dec 2016 22:04:27 +0530
+Message-Id: <20161212163428.6780-1-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, Dec 12, 2016 at 10:21:24AM +0100, Vlastimil Babka wrote:
-> On 12/10/2016 06:26 PM, Johannes Weiner wrote:
-> > When FADV_DONTNEED cannot drop all pages in the range, it observes
-> > that some pages might still be on per-cpu LRU caches after recent
-> > instantiation and so initiates remote calls to all CPUs to flush their
-> > local caches. However, in most cases, the fadvise happens from the
-> > same context that instantiated the pages, and any pre-LRU pages in the
-> > specified range are most likely sitting on the local CPU's LRU cache,
-> > and so in many cases this results in unnecessary remote calls, which,
-> > in a loaded system, can hold up the fadvise() call significantly.
-> 
-> Got any numbers for this part?
+The current code wrongly called withdraw in the error path. But we
+haven't depoisted the page table yet in the only error path in that
+function. So for now remove that withdraw completely. If we take
+that "out:" branch, we should have vmf->prealloc_pte already pointing
+to the allocated page table.
 
-I didn't record it in the extreme case we observed, unfortunately. We
-had a slow-to-respond system and noticed it spending seconds in
-lru_add_drain_all() after fadvise calls, and this patch came out of
-thinking about the code and how we commonly call FADV_DONTNEED.
+Fixes: "mm: THP page cache support for ppc64"
 
-FWIW, I wrote a silly directory tree walker/searcher that recurses
-through /usr to read and FADV_DONTNEED each file it finds. On a 2
-socket 40 ht machine, over 1% is spent in lru_add_drain_all(). With
-the patch, that cost is gone; the local drain cost shows at 0.09%.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/memory.c | 7 -------
+ 1 file changed, 7 deletions(-)
 
-> > Try to avoid the remote call by flushing the local LRU cache before
-> > even attempting to invalidate anything. It's a cheap operation, and
-> > the local LRU cache is the most likely to hold any pre-LRU pages in
-> > the specified fadvise range.
-> 
-> Anyway it looks like things can't be worse after this patch, so...
-> 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
+diff --git a/mm/memory.c b/mm/memory.c
+index 455c3e628d52..36c774f9259e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3008,13 +3008,6 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
+ 	ret = 0;
+ 	count_vm_event(THP_FILE_MAPPED);
+ out:
+-	/*
+-	 * If we are going to fallback to pte mapping, do a
+-	 * withdraw with pmd lock held.
+-	 */
+-	if (arch_needs_pgtable_deposit() && ret == VM_FAULT_FALLBACK)
+-		vmf->prealloc_pte = pgtable_trans_huge_withdraw(vma->vm_mm,
+-								vmf->pmd);
+ 	spin_unlock(vmf->ptl);
+ 	return ret;
+ }
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
