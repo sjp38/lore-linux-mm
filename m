@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A40E6B0261
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 11:47:24 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so26990770wjb.3
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 08:47:24 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B84116B0267
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 11:47:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id y16so15348879wmd.6
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 08:47:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g2si29078722wmc.50.2016.12.12.08.47.22
+        by mx.google.com with ESMTPS id k24si29091907wmi.156.2016.12.12.08.47.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 12 Dec 2016 08:47:22 -0800 (PST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/6] mm: Invalidate DAX radix tree entries only if appropriate
-Date: Mon, 12 Dec 2016 17:47:04 +0100
-Message-Id: <20161212164708.23244-3-jack@suse.cz>
+Subject: [PATCH 5/6] dax: Call ->iomap_begin without entry lock during dax fault
+Date: Mon, 12 Dec 2016 17:47:07 +0100
+Message-Id: <20161212164708.23244-6-jack@suse.cz>
 In-Reply-To: <20161212164708.23244-1-jack@suse.cz>
 References: <20161212164708.23244-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,265 +20,238 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>
 
-Currently invalidate_inode_pages2_range() and invalidate_mapping_pages()
-just delete all exceptional radix tree entries they find. For DAX this
-is not desirable as we track cache dirtiness in these entries and when
-they are evicted, we may not flush caches although it is necessary. This
-can for example manifest when we write to the same block both via mmap
-and via write(2) (to different offsets) and fsync(2) then does not
-properly flush CPU caches when modification via write(2) was the last
-one.
+Currently ->iomap_begin() handler is called with entry lock held. If the
+filesystem held any locks between ->iomap_begin() and ->iomap_end()
+(such as ext4 which will want to hold transaction open), this would cause
+lock inversion with the iomap_apply() from standard IO path which first
+calls ->iomap_begin() and only then calls ->actor() callback which grabs
+entry locks for DAX (if it faults when copying from/to user provided
+buffers).
 
-Create appropriate DAX functions to handle invalidation of DAX entries
-for invalidate_inode_pages2_range() and invalidate_mapping_pages() and
-wire them up into the corresponding mm functions.
+Fix the problem by nesting grabbing of entry lock inside ->iomap_begin()
+- ->iomap_end() pair.
 
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c            | 71 +++++++++++++++++++++++++++++++++++++++++++-------
- include/linux/dax.h |  3 +++
- mm/truncate.c       | 75 +++++++++++++++++++++++++++++++++++++++++++----------
- 3 files changed, 125 insertions(+), 24 deletions(-)
+ fs/dax.c | 121 ++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 66 insertions(+), 55 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index b1fe228cd609..71863f0d51f7 100644
+index e186bba0a642..51b03e91d3e2 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -452,16 +452,37 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+@@ -1079,6 +1079,15 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
  }
+ EXPORT_SYMBOL_GPL(dax_iomap_rw);
  
-+static int __dax_invalidate_mapping_entry(struct address_space *mapping,
-+					  pgoff_t index, bool trunc)
++static int dax_fault_return(int error)
 +{
-+	int ret = 0;
-+	void *entry;
-+	struct radix_tree_root *page_tree = &mapping->page_tree;
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-+	if (!entry || !radix_tree_exceptional_entry(entry))
-+		goto out;
-+	if (!trunc &&
-+	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
-+	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
-+		goto out;
-+	radix_tree_delete(page_tree, index);
-+	mapping->nrexceptional--;
-+	ret = 1;
-+out:
-+	put_unlocked_mapping_entry(mapping, index, entry);
-+	spin_unlock_irq(&mapping->tree_lock);
-+	return ret;
-+}
- /*
-  * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
-  * entry to get unlocked before deleting it.
-  */
- int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
- {
--	void *entry;
-+	int ret = __dax_invalidate_mapping_entry(mapping, index, true);
- 
--	spin_lock_irq(&mapping->tree_lock);
--	entry = get_unlocked_mapping_entry(mapping, index, NULL);
- 	/*
- 	 * This gets called from truncate / punch_hole path. As such, the caller
- 	 * must hold locks protecting against concurrent modifications of the
-@@ -469,16 +490,46 @@ int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
- 	 * caller has seen exceptional entry for this index, we better find it
- 	 * at that index as well...
- 	 */
--	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry))) {
--		spin_unlock_irq(&mapping->tree_lock);
--		return 0;
--	}
--	radix_tree_delete(&mapping->page_tree, index);
-+	WARN_ON_ONCE(!ret);
-+	return ret;
-+}
-+
-+/*
-+ * Invalidate exceptional DAX entry if easily possible. This handles DAX
-+ * entries for invalidate_inode_pages() so we evict the entry only if we can
-+ * do so without blocking.
-+ */
-+int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index)
-+{
-+	int ret = 0;
-+	void *entry, **slot;
-+	struct radix_tree_root *page_tree = &mapping->page_tree;
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+	entry = __radix_tree_lookup(page_tree, index, NULL, &slot);
-+	if (!entry || !radix_tree_exceptional_entry(entry) ||
-+	    slot_locked(mapping, slot))
-+		goto out;
-+	if (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
-+	    radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-+		goto out;
-+	radix_tree_delete(page_tree, index);
- 	mapping->nrexceptional--;
-+	ret = 1;
-+out:
- 	spin_unlock_irq(&mapping->tree_lock);
--	dax_wake_mapping_entry_waiter(mapping, index, entry, true);
-+	if (ret)
-+		dax_wake_mapping_entry_waiter(mapping, index, entry, true);
-+	return ret;
-+}
- 
--	return 1;
-+/*
-+ * Invalidate exceptional DAX entry if it is clean.
-+ */
-+int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
-+				      pgoff_t index)
-+{
-+	return __dax_invalidate_mapping_entry(mapping, index, false);
- }
- 
- /*
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index f97bcfe79472..24ad71173995 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -41,6 +41,9 @@ ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
- int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			struct iomap_ops *ops);
- int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
-+int dax_invalidate_mapping_entry(struct address_space *mapping, pgoff_t index);
-+int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
-+				      pgoff_t index);
- void dax_wake_mapping_entry_waiter(struct address_space *mapping,
- 		pgoff_t index, void *entry, bool wake_all);
- 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index fd97f1dbce29..dd7b24e083c5 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -24,20 +24,12 @@
- #include <linux/rmap.h>
- #include "internal.h"
- 
--static void clear_exceptional_entry(struct address_space *mapping,
--				    pgoff_t index, void *entry)
-+static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
-+			       void *entry)
- {
- 	struct radix_tree_node *node;
- 	void **slot;
- 
--	/* Handled by shmem itself */
--	if (shmem_mapping(mapping))
--		return;
--
--	if (dax_mapping(mapping)) {
--		dax_delete_mapping_entry(mapping, index);
--		return;
--	}
- 	spin_lock_irq(&mapping->tree_lock);
- 	/*
- 	 * Regular page slots are stabilized by the page lock even
-@@ -55,6 +47,56 @@ static void clear_exceptional_entry(struct address_space *mapping,
- 	spin_unlock_irq(&mapping->tree_lock);
- }
- 
-+/*
-+ * Unconditionally remove exceptional entry. Usually called from truncate path.
-+ */
-+static void truncate_exceptional_entry(struct address_space *mapping,
-+				       pgoff_t index, void *entry)
-+{
-+	/* Handled by shmem itself */
-+	if (shmem_mapping(mapping))
-+		return;
-+
-+	if (dax_mapping(mapping)) {
-+		dax_delete_mapping_entry(mapping, index);
-+		return;
-+	}
-+	clear_shadow_entry(mapping, index, entry);
-+}
-+
-+/*
-+ * Invalidate exceptional entry if easily possible. This handles exceptional
-+ * entries for invalidate_inode_pages() so for DAX it evicts only unlocked and
-+ * clean entries.
-+ */
-+static int invalidate_exceptional_entry(struct address_space *mapping,
-+					pgoff_t index, void *entry)
-+{
-+	/* Handled by shmem itself */
-+	if (shmem_mapping(mapping))
-+		return 1;
-+	if (dax_mapping(mapping))
-+		return dax_invalidate_mapping_entry(mapping, index);
-+	clear_shadow_entry(mapping, index, entry);
-+	return 1;
-+}
-+
-+/*
-+ * Invalidate exceptional entry if clean. This handles exceptional entries for
-+ * invalidate_inode_pages2() so for DAX it evicts only clean entries.
-+ */
-+static int invalidate_exceptional_entry2(struct address_space *mapping,
-+					 pgoff_t index, void *entry)
-+{
-+	/* Handled by shmem itself */
-+	if (shmem_mapping(mapping))
-+		return 1;
-+	if (dax_mapping(mapping))
-+		return dax_invalidate_mapping_entry_sync(mapping, index);
-+	clear_shadow_entry(mapping, index, entry);
-+	return 1;
++	if (error == 0)
++		return VM_FAULT_NOPAGE;
++	if (error == -ENOMEM)
++		return VM_FAULT_OOM;
++	return VM_FAULT_SIGBUS;
 +}
 +
  /**
-  * do_invalidatepage - invalidate part or all of a page
-  * @page: the page which is affected
-@@ -262,7 +304,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 				break;
+  * dax_iomap_fault - handle a page fault on a DAX file
+  * @vma: The virtual memory area where the fault occurred
+@@ -1111,12 +1120,6 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	if (pos >= i_size_read(inode))
+ 		return VM_FAULT_SIGBUS;
  
- 			if (radix_tree_exceptional_entry(page)) {
--				clear_exceptional_entry(mapping, index, page);
-+				truncate_exceptional_entry(mapping, index,
-+							   page);
- 				continue;
- 			}
+-	entry = grab_mapping_entry(mapping, vmf->pgoff, 0);
+-	if (IS_ERR(entry)) {
+-		error = PTR_ERR(entry);
+-		goto out;
+-	}
+-
+ 	if ((vmf->flags & FAULT_FLAG_WRITE) && !vmf->cow_page)
+ 		flags |= IOMAP_WRITE;
  
-@@ -351,7 +394,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			}
+@@ -1127,9 +1130,15 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	 */
+ 	error = ops->iomap_begin(inode, pos, PAGE_SIZE, flags, &iomap);
+ 	if (error)
+-		goto unlock_entry;
++		return dax_fault_return(error);
+ 	if (WARN_ON_ONCE(iomap.offset + iomap.length < pos + PAGE_SIZE)) {
+-		error = -EIO;		/* fs corruption? */
++		vmf_ret = dax_fault_return(-EIO);	/* fs corruption? */
++		goto finish_iomap;
++	}
++
++	entry = grab_mapping_entry(mapping, vmf->pgoff, 0);
++	if (IS_ERR(entry)) {
++		vmf_ret = dax_fault_return(PTR_ERR(entry));
+ 		goto finish_iomap;
+ 	}
  
- 			if (radix_tree_exceptional_entry(page)) {
--				clear_exceptional_entry(mapping, index, page);
-+				truncate_exceptional_entry(mapping, index,
-+							   page);
- 				continue;
- 			}
+@@ -1152,13 +1161,13 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		}
  
-@@ -470,7 +514,8 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 				break;
+ 		if (error)
+-			goto finish_iomap;
++			goto error_unlock_entry;
  
- 			if (radix_tree_exceptional_entry(page)) {
--				clear_exceptional_entry(mapping, index, page);
-+				invalidate_exceptional_entry(mapping, index,
-+							     page);
- 				continue;
- 			}
+ 		__SetPageUptodate(vmf->cow_page);
+ 		vmf_ret = finish_fault(vmf);
+ 		if (!vmf_ret)
+ 			vmf_ret = VM_FAULT_DONE_COW;
+-		goto finish_iomap;
++		goto unlock_entry;
+ 	}
  
-@@ -592,7 +637,9 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
- 				break;
+ 	switch (iomap.type) {
+@@ -1170,12 +1179,15 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		}
+ 		error = dax_insert_mapping(mapping, iomap.bdev, sector,
+ 				PAGE_SIZE, &entry, vma, vmf);
++		/* -EBUSY is fine, somebody else faulted on the same PTE */
++		if (error == -EBUSY)
++			error = 0;
+ 		break;
+ 	case IOMAP_UNWRITTEN:
+ 	case IOMAP_HOLE:
+ 		if (!(vmf->flags & FAULT_FLAG_WRITE)) {
+ 			vmf_ret = dax_load_hole(mapping, &entry, vmf);
+-			goto finish_iomap;
++			goto unlock_entry;
+ 		}
+ 		/*FALLTHRU*/
+ 	default:
+@@ -1184,30 +1196,25 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		break;
+ 	}
  
- 			if (radix_tree_exceptional_entry(page)) {
--				clear_exceptional_entry(mapping, index, page);
-+				if (!invalidate_exceptional_entry2(mapping,
-+								   index, page))
-+					ret = -EBUSY;
- 				continue;
- 			}
+- finish_iomap:
+-	if (ops->iomap_end) {
+-		if (error || (vmf_ret & VM_FAULT_ERROR)) {
+-			/* keep previous error */
+-			ops->iomap_end(inode, pos, PAGE_SIZE, 0, flags,
+-					&iomap);
+-		} else {
+-			error = ops->iomap_end(inode, pos, PAGE_SIZE,
+-					PAGE_SIZE, flags, &iomap);
+-		}
+-	}
++ error_unlock_entry:
++	vmf_ret = dax_fault_return(error) | major;
+  unlock_entry:
+ 	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+- out:
+-	if (error == -ENOMEM)
+-		return VM_FAULT_OOM | major;
+-	/* -EBUSY is fine, somebody else faulted on the same PTE */
+-	if (error < 0 && error != -EBUSY)
+-		return VM_FAULT_SIGBUS | major;
+-	if (vmf_ret) {
+-		WARN_ON_ONCE(error); /* -EBUSY from ops->iomap_end? */
+-		return vmf_ret;
++ finish_iomap:
++	if (ops->iomap_end) {
++		int copied = PAGE_SIZE;
++
++		if (vmf_ret & VM_FAULT_ERROR)
++			copied = 0;
++		/*
++		 * The fault is done by now and there's no way back (other
++		 * thread may be already happily using PTE we have installed).
++		 * Just ignore error from ->iomap_end since we cannot do much
++		 * with it.
++		 */
++		ops->iomap_end(inode, pos, PAGE_SIZE, copied, flags, &iomap);
+ 	}
+-	return VM_FAULT_NOPAGE | major;
++	return vmf_ret;
+ }
+ EXPORT_SYMBOL_GPL(dax_iomap_fault);
  
+@@ -1332,16 +1339,6 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		goto fallback;
+ 
+ 	/*
+-	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
+-	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
+-	 * the tree, for instance), it will return -EEXIST and we just fall
+-	 * back to 4k entries.
+-	 */
+-	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
+-	if (IS_ERR(entry))
+-		goto fallback;
+-
+-	/*
+ 	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+ 	 * setting up a mapping, so really we're using iomap_begin() as a way
+ 	 * to look up our filesystem block.
+@@ -1349,10 +1346,21 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	pos = (loff_t)pgoff << PAGE_SHIFT;
+ 	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
+ 	if (error)
+-		goto unlock_entry;
++		goto fallback;
++
+ 	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+ 		goto finish_iomap;
+ 
++	/*
++	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
++	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
++	 * the tree, for instance), it will return -EEXIST and we just fall
++	 * back to 4k entries.
++	 */
++	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
++	if (IS_ERR(entry))
++		goto finish_iomap;
++
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+ 	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
+@@ -1365,7 +1373,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	case IOMAP_UNWRITTEN:
+ 	case IOMAP_HOLE:
+ 		if (WARN_ON_ONCE(write))
+-			goto finish_iomap;
++			goto unlock_entry;
+ 		result = dax_pmd_load_hole(vma, pmd, &vmf, address, &iomap,
+ 				&entry);
+ 		break;
+@@ -1374,20 +1382,23 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		break;
+ 	}
+ 
++ unlock_entry:
++	put_locked_mapping_entry(mapping, pgoff, entry);
+  finish_iomap:
+ 	if (ops->iomap_end) {
+-		if (result == VM_FAULT_FALLBACK) {
+-			ops->iomap_end(inode, pos, PMD_SIZE, 0, iomap_flags,
+-					&iomap);
+-		} else {
+-			error = ops->iomap_end(inode, pos, PMD_SIZE, PMD_SIZE,
+-					iomap_flags, &iomap);
+-			if (error)
+-				result = VM_FAULT_FALLBACK;
+-		}
++		int copied = PMD_SIZE;
++
++		if (result == VM_FAULT_FALLBACK)
++			copied = 0;
++		/*
++		 * The fault is done by now and there's no way back (other
++		 * thread may be already happily using PMD we have installed).
++		 * Just ignore error from ->iomap_end since we cannot do much
++		 * with it.
++		 */
++		ops->iomap_end(inode, pos, PMD_SIZE, copied, iomap_flags,
++				&iomap);
+ 	}
+- unlock_entry:
+-	put_locked_mapping_entry(mapping, pgoff, entry);
+  fallback:
+ 	if (result == VM_FAULT_FALLBACK) {
+ 		split_huge_pmd(vma, pmd, address);
 -- 
 2.10.2
 
