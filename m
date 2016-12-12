@@ -1,88 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BEE376B025E
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 03:38:29 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id he10so22055363wjc.6
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 00:38:29 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id up6si43520992wjc.5.2016.12.12.00.38.27
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CCD46B025E
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 03:48:42 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id xy5so22200681wjc.0
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 00:48:42 -0800 (PST)
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id q2si27451690wmg.152.2016.12.12.00.48.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Dec 2016 00:38:28 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBC8XWoa122279
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 03:38:26 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 279nkk62bd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 03:38:26 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 12 Dec 2016 08:38:24 -0000
-Date: Mon, 12 Dec 2016 10:38:13 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-References: <20161205153132.283fcb0e@redhat.com>
+        Mon, 12 Dec 2016 00:48:41 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id he10so10287656wjc.2
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 00:48:40 -0800 (PST)
+Date: Mon, 12 Dec 2016 09:48:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161212084837.GB18163@dhcp22.suse.cz>
+References: <20161205141009.GJ30758@dhcp22.suse.cz>
+ <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
+ <20161206192242.GA10273@dhcp22.suse.cz>
+ <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
+ <20161208134718.GC26530@dhcp22.suse.cz>
+ <201612112023.HBB57332.QOFFtJLOOMFSVH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161205153132.283fcb0e@redhat.com>
-Message-Id: <20161212083812.GA19987@rapoport-lnx>
+In-Reply-To: <201612112023.HBB57332.QOFFtJLOOMFSVH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Fastabend <john.fastabend@gmail.com>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Jesper,
+On Sun 11-12-16 20:23:47, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 08-12-16 21:53:44, Tetsuo Handa wrote:
+[...]
+> > > > If you believe that my argumentation is incorrect then you are free to
+> > > > nak the patch with your reasoning. But please stop this nit picking on
+> > > > nonsense combination of flags.
+> > >
+> > > Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > >
+> > > on patch 2 unless "you explain these patches to __GFP_NOFAIL users and
+> > > provide a mean to invoke the OOM killer if someone chose possibility of
+> > > panic"
+> >
+> > I believe that the changelog contains my reasoning and so far I
+> > haven't heard any _argument_ from you why they are wrong. You just
+> > managed to nitpick on an impossible and pointless gfp_mask combination
+> > and some handwaving on possible lockups without any backing arguments.
+> > This is not something I would consider as a basis for a serious nack. So
+> > if you really hate this patch then do please start being reasonable and
+> > put some real arguments into your review without any off topics and/or
+> > strawman arguments without any relevance.
+> >
+> 
+> Are you aware that I'm not objecting to "change __GFP_NOFAIL not to invoke
+> the OOM killer". What I'm objecting is that you are trying to change
+> !__GFP_FS && !__GFP_NOFAIL allocation requests without offering transition
+> plan like below.
+> 
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
+>       * make sure exclude 0 mask - all other users should have at least
+>       * ___GFP_DIRECT_RECLAIM to get here.
+>       */
+> -    if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
+> +    if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_WANT_OOM_KILLER))
+>          return true;
 
-On Mon, Dec 05, 2016 at 03:31:32PM +0100, Jesper Dangaard Brouer wrote:
-> Hi all,
-> 
-> This is my design for how to safely handle RX zero-copy in the network
-> stack, by using page_pool[1] and modifying NIC drivers.  Safely means
-> not leaking kernel info in pages mapped to userspace and resilience
-> so a malicious userspace app cannot crash the kernel.
-> 
-> Design target
-> =============
-> 
-> Allow the NIC to function as a normal Linux NIC and be shared in a
-> safe manor, between the kernel network stack and an accelerated
-> userspace application using RX zero-copy delivery.
-> 
-> Target is to provide the basis for building RX zero-copy solutions in
-> a memory safe manor.  An efficient communication channel for userspace
-> delivery is out of scope for this document, but OOM considerations are
-> discussed below (`Userspace delivery and OOM`_).
+I have already asked that but let me ask again. _Who_ would use this
+flag and not risk the pre-mature OOM killer invocation?
 
-Sorry, if this reply is a bit off-topic.
+[...]
 
-I'm working on implementation of RX zero-copy for virtio and I've dedicated
-some thought about making guest memory available for physical NIC DMAs.
-I believe this is quite related to your page_pool proposal, at least from
-the NIC driver perspective, so I'd like to share some thoughts here.
-The idea is to dedicate one (or more) of the NIC's queues to a VM, e.g.
-using macvtap, and then propagate guest RX memory allocations to the NIC
-using something like new .ndo_set_rx_buffers method.
+>   I believe that __GFP_NOFAIL should not imply invocation of the OOM killer.
+>   Therefore, I want to change __GFP_NOFAIL not to invoke the OOM killer.
+>   But since currently the OOM killer is not invoked unless either __GFP_FS or
+>   __GFP_NOFAIL is specified, changing __GFP_NOFAIL not to invoke the OOM
+>   killer introduces e.g. GFP_NOFS | __GFP_NOFAIL users a risk of livelocking
+>   by not invoking the OOM killer. Although I can't prove that this change
+>   never causes livelock, I don't want to provide an alternative flag like
+>   __GFP_WANT_OOM_KILLER. Therefore, all existing __GFP_NOFAIL users must
+>   agree with accepting the risk introduced by this change.
 
-What is your view about interface between the page_pool and the NIC
-drivers?
-Have you considered using "push" model for setting the NIC's RX memory?
+I think you are seriously misled here. First of all, I have gone through
+GFP_NOFS | GFP_NOFAIL users and _none_ of them have added the nofail
+flag to enforce the OOM killer. Those users just want to express that an
+allocation failure is simply not acceptable. Most of them were simply
+conversions from the open-conded
+	do { } while (! (page = page_alloc(GFP_NOFS));
+loops. Which _does_ not invoke the OOM killer. And that is the most
+importatnt point here. Why the above open coded (and as you say lockup
+prone) loop is OK while GFP_NOFAIL varian should behave any differently?
 
+> and confirm that all existing __GFP_NOFAIL users are willing to accept
+> the risk of livelocking by not invoking the OOM killer.
 > 
-> --
->   Jesper Dangaard Brouer
->   MSc.CS, Principal Kernel Engineer at Red Hat
->   LinkedIn: http://www.linkedin.com/in/brouer
+> Unless you do this procedure, I continue:
 > 
-> Above document is taken at GitHub commit 47fa7c844f48fab8b
->  https://github.com/netoptimizer/prototype-kernel/commit/47fa7c844f48fab8b
-> 
+> Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
---
-Sincerely yours,
-Mike.
+I was hoping for some actual arguments but I am afraid this is circling
+in a loop. You are still handwaving with theoretical lockups without any
+actual proof they are real. While I am not saying the risk is not there
+I also say that there are other aspects to consider
+	- lockups will happen only if there are no other GFP_FS requests
+	  which trigger the OOM which is quite unlikely in most
+	  situations
+	- triggering oom for GFP_NOFS | GFP_NOFAIL has a non negligible
+	  risk of pre-mature OOM killer invocation for the same reason
+	  we do not trigger oom for GFP_NOFS. Even worse metadata heavy
+	  workloads are much harder to contain so this might be used as
+	  a DoS vector.
+	- one of the primary point of GFP_NOFAIL existence is to prevent
+	  from open coding endless loops in the code because the page
+	  allocator can handle most situations more gracefully (e.g.
+	  grant access to memory reserves). Having a completely
+	  different OOM killer behavior is both confusing and encourages
+	  abuse. If we have users who definitely need to control the OOM
+	  behavior then we should add a gfp flag for them. But this
+	  needs a strong use case and consider whether there are other
+	  options to go around that.
+
+I can add the above to the changelog if you think this is helpful but I
+still maintain my position that your "this might cause lockups
+theoretically" is unfounded and not justified to block the patch. I will
+of course retract this patch if you can demonstrate the issue is real or
+that any of my argumentation in the changelog is not correct.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
