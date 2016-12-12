@@ -1,87 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 08F0F6B0038
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 10:00:04 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id x23so252959213pgx.6
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:00:04 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h63si43649119pge.110.2016.12.12.07.00.02
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 114726B025E
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 10:10:37 -0500 (EST)
+Received: by mail-vk0-f70.google.com with SMTP id w194so38928095vkw.2
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:10:37 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e1si11028740uab.220.2016.12.12.07.10.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Dec 2016 07:00:02 -0800 (PST)
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20161209144624.GB4334@dhcp22.suse.cz>
-	<201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
-	<20161212090702.GD18163@dhcp22.suse.cz>
-	<201612122112.IBI64512.FOVOFQFLMJHOtS@I-love.SAKURA.ne.jp>
-	<20161212125535.GA3185@dhcp22.suse.cz>
-In-Reply-To: <20161212125535.GA3185@dhcp22.suse.cz>
-Message-Id: <201612122359.BDJ39539.HtVOQOJFFOLFSM@I-love.SAKURA.ne.jp>
-Date: Mon, 12 Dec 2016 23:59:55 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Dec 2016 07:10:36 -0800 (PST)
+Date: Mon, 12 Dec 2016 16:10:26 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
+Message-ID: <20161212161026.0dfd2e13@redhat.com>
+In-Reply-To: <20161212141433.GB19987@rapoport-lnx>
+References: <20161205153132.283fcb0e@redhat.com>
+	<20161212083812.GA19987@rapoport-lnx>
+	<20161212104042.0a011212@redhat.com>
+	<20161212141433.GB19987@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Fastabend <john.fastabend@gmail.com>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>, brouer@redhat.com
 
-Michal Hocko wrote:
-> On Mon 12-12-16 21:12:06, Tetsuo Handa wrote:
-> > > I would rather not mix the two. Even if both use show_mem then there is
-> > > no reason to abuse the oom_lock.
+On Mon, 12 Dec 2016 16:14:33 +0200
+Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+
+> On Mon, Dec 12, 2016 at 10:40:42AM +0100, Jesper Dangaard Brouer wrote:
+> > 
+> > On Mon, 12 Dec 2016 10:38:13 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> >   
+> > > Hello Jesper,
 > > > 
-> > > Maybe I've missed that but you haven't responded to the question whether
-> > > the warn_lock actually resolves the problem you are seeing.
+> > > On Mon, Dec 05, 2016 at 03:31:32PM +0100, Jesper Dangaard Brouer wrote:  
+> > > > Hi all,
+> > > > 
+> > > > This is my design for how to safely handle RX zero-copy in the network
+> > > > stack, by using page_pool[1] and modifying NIC drivers.  Safely means
+> > > > not leaking kernel info in pages mapped to userspace and resilience
+> > > > so a malicious userspace app cannot crash the kernel.
+> > > > 
+> > > > Design target
+> > > > =============
+> > > > 
+> > > > Allow the NIC to function as a normal Linux NIC and be shared in a
+> > > > safe manor, between the kernel network stack and an accelerated
+> > > > userspace application using RX zero-copy delivery.
+> > > > 
+> > > > Target is to provide the basis for building RX zero-copy solutions in
+> > > > a memory safe manor.  An efficient communication channel for userspace
+> > > > delivery is out of scope for this document, but OOM considerations are
+> > > > discussed below (`Userspace delivery and OOM`_).    
+> > > 
+> > > Sorry, if this reply is a bit off-topic.  
 > > 
-> > I haven't tried warn_lock, but is warn_lock in warn_alloc() better than
-> > serializing oom_lock in __alloc_pages_may_oom() ? I think we don't need to
-> > waste CPU cycles before the OOM killer sends SIGKILL.
-> 
-> Yes, I find a separate lock better because there is no real reason to
-> abuse an unrelated lock.
-
-Using separate lock for warn_alloc() is fine for me. I can still consider
-serialization of oom_lock independent with warn_alloc(). But
-
-> > Maybe more, but no need to enumerate in this thread.
-> > How many of these precautions can be achieved by tuning warn_alloc() ?
-> > printk() tries to solve unbounded delay problem by using (I guess) a
-> > dedicated kernel thread. I don't think we can achieve these precautions
-> > without a centralized state tracking which can sleep and synchronize as
-> > needed.
+> > It is very much on topic IMHO :-)
+> >   
+> > > I'm working on implementation of RX zero-copy for virtio and I've dedicated
+> > > some thought about making guest memory available for physical NIC DMAs.
+> > > I believe this is quite related to your page_pool proposal, at least from
+> > > the NIC driver perspective, so I'd like to share some thoughts here.  
 > > 
-> > Quite few people are responding to discussions regarding almost
-> > OOM situation. I beg for your joining to discussions.
+> > Seems quite related. I'm very interested in cooperating with you! I'm
+> > not very familiar with virtio, and how packets/pages gets channeled
+> > into virtio.  
 > 
-> I have already stated my position. I do not think that the code this
-> patch introduces is really justified for the advantages it provides over
-> a simple warn_alloc approach. Additional debugging information might be
-> nice but not necessary in 99% cases. If there are definciences in
-> warn_alloc (which I agree there are if there are thousands of contexts
-> hitting the path) then let's try to address them.
+> They are copied :-)
+> Presuming we are dealing only with vhost backend, the received skb
+> eventually gets converted to IOVs, which in turn are copied to the guest
+> memory. The IOVs point to the guest memory that is allocated by virtio-net
+> running in the guest.
 
-I'm not happy with keeping kmallocwd out-of-tree.
+Thanks for explaining that. It seems like a lot of overhead. I have to
+wrap my head around this... so, the hardware NIC is receiving the
+packet/page, in the RX ring, and after converting it to IOVs, it is
+conceptually transmitted into the guest, and then the guest-side have a
+RX-function to handle this packet. Correctly understood?
 
-http://I-love.SAKURA.ne.jp/tmp/serial-20161212.txt.xz is a console log
-which I've just captured using stock 4.9 kernel (as a preparation step for
-trying http://lkml.kernel.org/r/20161212131910.GC3185@dhcp22.suse.cz ) using
-http://lkml.kernel.org/r/201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp .
-Only warn_alloc() by GFP_NOIO allocation request was reported (uptime > 148).
-Guessing from
+ 
+> > > The idea is to dedicate one (or more) of the NIC's queues to a VM, e.g.
+> > > using macvtap, and then propagate guest RX memory allocations to the NIC
+> > > using something like new .ndo_set_rx_buffers method.  
+> > 
+> > I believe the page_pool API/design aligns with this idea/use-case.
+> >   
+> > > What is your view about interface between the page_pool and the NIC
+> > > drivers?  
+> > 
+> > In my Prove-of-Concept implementation, the NIC driver (mlx5) register
+> > a page_pool per RX queue.  This is done for two reasons (1) performance
+> > and (2) for supporting use-cases where only one single RX-ring queue is
+> > (re)configured to support RX-zero-copy.  There are some associated
+> > extra cost of enabling this mode, thus it makes sense to only enable it
+> > when needed.
+> > 
+> > I've not decided how this gets enabled, maybe some new driver NDO.  It
+> > could also happen when a XDP program gets loaded, which request this
+> > feature.
+> > 
+> > The macvtap solution is nice and we should support it, but it requires
+> > VM to have their MAC-addr registered on the physical switch.  This
+> > design is about adding flexibility. Registering an XDP eBPF filter
+> > provides the maximum flexibility for matching the destination VM.  
+> 
+> I'm not very familiar with XDP eBPF, and it's difficult for me to estimate
+> what needs to be done in BPF program to do proper conversion of skb to the
+> virtio descriptors.
 
-  INFO: task kswapd0:60 blocked for more than 60 seconds.
+XDP is a step _before_ the SKB is allocated.  The XDP eBPF program can
+modify the packet-page data, but I don't think it is needed for your
+use-case.  View XDP (primarily) as an early (demux) filter.
 
-message, I hit kswapd v.s. shrink_inactive_list() trap. But there are
-no other hints which would have been reported if kmallocwd is available.
-This is one of unsolvable definciences in warn_alloc() (or any synchronous
-watchdog).
+XDP is missing a feature your need, which is TX packet into another
+net_device (I actually imagine a port mapping table, that point to a
+net_device).  This require a new "TX-raw" NDO that takes a page (+
+offset and length). 
 
-It is administrators who decide whether to utilize debugging capability
-with state tracking. Let's give administrators a choice and a chance.
+I imagine, the virtio driver (virtio_net or a new driver?) getting
+extended with this new "TX-raw" NDO, that takes "raw" packet-pages.
+ Whether zero-copy is possible is determined by checking if page
+originates from a page_pool that have enabled zero-copy (and likely
+matching against a "protection domain" id number).
 
-Although you think most users won't need kmallcwd, there is no objection
-for asynchronous watchdog, isn't it?
+
+> We were not considered using XDP yet, so we've decided to limit the initial
+> implementation to macvtap because we can ensure correspondence between a
+> NIC queue and virtual NIC, which is not the case with more generic tap
+> device. It could be that use of XDP will allow for a generic solution for
+> virtio case as well.
+
+You don't need an XDP filter, if you can make the HW do the early demux
+binding into a queue.  The check for if memory is zero-copy enabled
+would be the same.
+
+> >   
+> > > Have you considered using "push" model for setting the NIC's RX memory?  
+> > 
+> > I don't understand what you mean by a "push" model?  
+> 
+> Currently, memory allocation in NIC drivers boils down to alloc_page with
+> some wrapping code. I see two possible ways to make NIC use of some
+> preallocated pages: either NIC driver will call an API (probably different
+> from alloc_page) to obtain that memory, or there will be NDO API that
+> allows to set the NIC's RX buffers. I named the later case "push".
+
+As you might have guessed, I'm not into the "push" model, because this
+means I cannot share the queue with the normal network stack.  Which I
+believe is possible as outlined (in email and [2]) and can be done with
+out HW filter features (like macvlan).
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
+
+[1] https://prototype-kernel.readthedocs.io/en/latest/networking/XDP/index.html
+[2] https://prototype-kernel.readthedocs.io/en/latest/vm/page_pool/design/memory_model_nic.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
