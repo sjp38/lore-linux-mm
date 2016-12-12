@@ -1,149 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 132CF6B0038
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 06:59:22 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a20so12563583wme.5
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 03:59:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c62si27997246wmc.109.2016.12.12.03.59.20
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CBDDB6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:12:12 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 144so117881588pfv.5
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 04:12:12 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id c19si21138590pgk.317.2016.12.12.04.12.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Dec 2016 03:59:20 -0800 (PST)
-Date: Mon, 12 Dec 2016 12:59:18 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, oom_reaper: Move oom_lock from __oom_reap_task_mm()
- to oom_reap_task().
-Message-ID: <20161212115918.GI18163@dhcp22.suse.cz>
-References: <1481540152-7599-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
+        Mon, 12 Dec 2016 04:12:11 -0800 (PST)
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161208132714.GA26530@dhcp22.suse.cz>
+	<201612092323.BGC65668.QJFVLtFFOOMOSH@I-love.SAKURA.ne.jp>
+	<20161209144624.GB4334@dhcp22.suse.cz>
+	<201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
+	<20161212090702.GD18163@dhcp22.suse.cz>
+In-Reply-To: <20161212090702.GD18163@dhcp22.suse.cz>
+Message-Id: <201612122112.IBI64512.FOVOFQFLMJHOtS@I-love.SAKURA.ne.jp>
+Date: Mon, 12 Dec 2016 21:12:06 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1481540152-7599-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: mhocko@suse.com
+Cc: linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
 
-On Mon 12-12-16 19:55:52, Tetsuo Handa wrote:
-> Since commit 862e3073b3eed13f
-> ("mm, oom: get rid of signal_struct::oom_victims")
-> changed to wait until MMF_OOM_SKIP is set rather than wait while
-> TIF_MEMDIE is set, rationale comment for commit e2fe14564d3316d1
-> ("oom_reaper: close race with exiting task") needs to be updated.
-
-True.
-
-> While holding oom_lock can make sure that other threads waiting for
-> oom_lock at __alloc_pages_may_oom() are given a chance to call
-> get_page_from_freelist() after the OOM reaper called unmap_page_range()
-> via __oom_reap_task_mm(), it can defer calling of __oom_reap_task_mm().
+Michal Hocko wrote:
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index ed65d7df72d5..c2ba51cec93d 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -3024,11 +3024,14 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+> > >  	unsigned int filter = SHOW_MEM_FILTER_NODES;
+> > >  	struct va_format vaf;
+> > >  	va_list args;
+> > > +	static DEFINE_MUTEX(warn_lock);
+> > >  
+> > >  	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
+> > >  	    debug_guardpage_minorder() > 0)
+> > >  		return;
+> > >  
+> > 
+> > if (gfp_mask & __GFP_DIRECT_RECLAIM)
 > 
-> Therefore, this patch moves oom_lock from __oom_reap_task_mm() to
-> oom_reap_task() (without any functional change). By doing so, the OOM
-> killer can call __oom_reap_task_mm() if we don't want to defer calling
-> of __oom_reap_task_mm() (e.g. when oom_evaluate_task() aborted by
-> finding existing OOM victim's mm without MMF_OOM_SKIP).
+> Why?
 
-But I fail to understand this part of the changelog. It sounds like a
-preparatory for other changes. There doesn't seem to be any other user
-of __oom_reap_task_mm in the current tree.
+Because warn_alloc() is also called by !__GFP_DIRECT_RECLAIM allocation
+requests when allocation failed. We are not allowed to sleep in that case.
 
-Please send a patch which removes the comment which is no longer true
-on its own and feel free to add
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-but do not make other changes if you do not have any follow up patch
-which would benefit from that.
-
-Thanks!
-
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/oom_kill.c | 39 +++++++++++++--------------------------
->  1 file changed, 13 insertions(+), 26 deletions(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ec9f11d..53b6e0c 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -467,28 +467,9 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  	struct vm_area_struct *vma;
->  	struct zap_details details = {.check_swap_entries = true,
->  				      .ignore_dirty = true};
-> -	bool ret = true;
-> -
-> -	/*
-> -	 * We have to make sure to not race with the victim exit path
-> -	 * and cause premature new oom victim selection:
-> -	 * __oom_reap_task_mm		exit_mm
-> -	 *   mmget_not_zero
-> -	 *				  mmput
-> -	 *				    atomic_dec_and_test
-> -	 *				  exit_oom_victim
-> -	 *				[...]
-> -	 *				out_of_memory
-> -	 *				  select_bad_process
-> -	 *				    # no TIF_MEMDIE task selects new victim
-> -	 *  unmap_page_range # frees some memory
-> -	 */
-> -	mutex_lock(&oom_lock);
->  
-> -	if (!down_read_trylock(&mm->mmap_sem)) {
-> -		ret = false;
-> -		goto unlock_oom;
-> -	}
-> +	if (!down_read_trylock(&mm->mmap_sem))
-> +		return false;
->  
->  	/*
->  	 * increase mm_users only after we know we will reap something so
-> @@ -497,7 +478,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  	 */
->  	if (!mmget_not_zero(mm)) {
->  		up_read(&mm->mmap_sem);
-> -		goto unlock_oom;
-> +		return true;
->  	}
->  
->  	/*
-> @@ -548,9 +529,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  	 * put the oom_reaper out of the way.
->  	 */
->  	mmput_async(mm);
-> -unlock_oom:
-> -	mutex_unlock(&oom_lock);
-> -	return ret;
-> +	return true;
->  }
->  
->  #define MAX_OOM_REAP_RETRIES 10
-> @@ -560,8 +539,16 @@ static void oom_reap_task(struct task_struct *tsk)
->  	struct mm_struct *mm = tsk->signal->oom_mm;
->  
->  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> -	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
-> +	while (attempts++ < MAX_OOM_REAP_RETRIES) {
-> +		bool ret;
-> +
-> +		mutex_lock(&oom_lock);
-> +		ret = __oom_reap_task_mm(tsk, mm);
-> +		mutex_unlock(&oom_lock);
-> +		if (ret)
-> +			break;
->  		schedule_timeout_idle(HZ/10);
-> +	}
->  
->  	if (attempts <= MAX_OOM_REAP_RETRIES)
->  		goto done;
-> -- 
-> 1.8.3.1
+> > > +	mutex_lock(&warn_lock);
+> > > +
+> > >  	/*
+> > >  	 * This documents exceptions given to allocations in certain
+> > >  	 * contexts that are allowed to allocate outside current's set
+> > > @@ -3054,6 +3057,8 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+> > >  	dump_stack();
+> > >  	if (!should_suppress_show_mem())
+> > >  		show_mem(filter);
+> > > +
+> > 
+> > if (gfp_mask & __GFP_DIRECT_RECLAIM)
+> > 
+> > > +	mutex_unlock(&warn_lock);
+> > >  }
+> > >  
+> > >  static inline struct page *
+> > 
+> > and I think "s/warn_lock/oom_lock/" because out_of_memory() might
+> > call show_mem() concurrently.
 > 
+> I would rather not mix the two. Even if both use show_mem then there is
+> no reason to abuse the oom_lock.
+> 
+> Maybe I've missed that but you haven't responded to the question whether
+> the warn_lock actually resolves the problem you are seeing.
 
--- 
-Michal Hocko
-SUSE Labs
+I haven't tried warn_lock, but is warn_lock in warn_alloc() better than
+serializing oom_lock in __alloc_pages_may_oom() ? I think we don't need to
+waste CPU cycles before the OOM killer sends SIGKILL.
+
+> 
+> > I think this warn_alloc() is too much noise. When something went
+> > wrong, multiple instances of Thread-2 tend to call warn_alloc()
+> > concurrently. We don't need to report similar memory information.
+> 
+> That is why we have ratelimitting. It is needs a better tunning then
+> just let's do it.
+
+I think that calling show_mem() once per a series of warn_alloc() threads is
+sufficient. Since the amount of output by dump_stack() and that by show_mem()
+are nearly equals, we can save nearly 50% of output if we manage to avoid
+the same show_mem() calls.
+
+> > > OK, so the reason of the lock up must be something different. If we are
+> > > really {dead,live}locking on the printk because of warn_alloc then that
+> > > path should be tweaked instead. Something like below should rule this
+> > > out:
+> > 
+> > Last year I proposed disabling preemption at
+> > http://lkml.kernel.org/r/201509191605.CAF13520.QVSFHLtFJOMOOF@I-love.SAKURA.ne.jp
+> > but it was not accepted. "while (1);" in userspace corresponds with
+> > pointless "direct reclaim and warn_alloc()" in kernel space. This time,
+> > I'm proposing serialization by oom_lock and replace warn_alloc() with kmallocwd
+> > in order to make printk() not to flood.
+> 
+> The way how you are trying to push your kmallocwd on any occasion is
+> quite annoying to be honest. If that approach would be so much better
+> than I am pretty sure you wouldn't have such a problem to have it
+> merged. warn_alloc is a simple and straightforward approach. If it can
+> cause floods of messages then we should tune it not replace by a big
+> hammer.
+
+I wrote kmallocwd ( https://lkml.org/lkml/2016/11/6/7 )
+with the following precautions in mind.
+
+ (1) Can trigger even if the allocating tasks got stuck before reaching
+     warn_alloc(), as shown by kswapd v.s. shrink_inactive_list() example.
+     Will trigger even if new bugs are unexpectedly added in the future.
+
+ (2) Do not printk() too much at once. There are enterprise servers which
+     cannot print to serial console faster than 9600bps. By waiting as
+     needed, we can reduce the risk of hitting stall warnings and dropping
+     messages. Although currently there is no API which waits until
+     specified amounts are printed to console, kmallocwd can call such API
+     when such API is added.
+
+ (3) Report memory information only once per a series of reports.
+     Printing memory information for each thread generates too much
+     output.
+
+ (4) Report kswapd threads which might be relevant with memory allocation
+     stalls.
+
+ (5) Report workqueues status if debug is enabled, for in many cases
+     workqueues being unable to make progress is observed when stalling.
+
+ (6) Allow administrators to capture vmcore (i.e. panic if stall detected)
+     without adding sysctl tunables for triggering panic, for administrators
+     can install a trigger for calling panic() using SystemTap. One sysctl
+     tunable that controls timeout if kmallocwd is enabled is enough.
+
+ (7) Allow technical staff at support centers to analyze vmcore based on
+     last minutes memory allocation behavior.
+
+ (8) Allow kernel developers to implement and call functions such as
+     /proc/*stat which are currently mostly available for only file
+     interface.
+
+Maybe more, but no need to enumerate in this thread.
+How many of these precautions can be achieved by tuning warn_alloc() ?
+printk() tries to solve unbounded delay problem by using (I guess) a
+dedicated kernel thread. I don't think we can achieve these precautions
+without a centralized state tracking which can sleep and synchronize as
+needed.
+
+Quite few people are responding to discussions regarding almost
+OOM situation. I beg for your joining to discussions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
