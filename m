@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CB6756B025E
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 10:56:00 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so14814775wmu.1
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:56:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qe14si44967597wjb.66.2016.12.12.07.55.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F29C16B0260
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 10:56:01 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i131so14831423wmf.3
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 07:56:01 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id kb9si44872599wjc.139.2016.12.12.07.55.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Dec 2016 07:55:59 -0800 (PST)
-Date: Mon, 12 Dec 2016 16:55:57 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161212155557.GD3185@dhcp22.suse.cz>
-References: <20161209144624.GB4334@dhcp22.suse.cz>
- <201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
- <20161212090702.GD18163@dhcp22.suse.cz>
- <201612122112.IBI64512.FOVOFQFLMJHOtS@I-love.SAKURA.ne.jp>
- <20161212125535.GA3185@dhcp22.suse.cz>
- <201612122359.BDJ39539.HtVOQOJFFOLFSM@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Dec 2016 07:56:00 -0800 (PST)
+Date: Mon, 12 Dec 2016 10:55:52 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: fadvise: avoid expensive remote LRU cache draining
+ after FADV_DONTNEED
+Message-ID: <20161212155552.GA7148@cmpxchg.org>
+References: <20161210172658.5182-1-hannes@cmpxchg.org>
+ <5cc0eb6f-bede-a34a-522b-e30d06723ffa@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612122359.BDJ39539.HtVOQOJFFOLFSM@I-love.SAKURA.ne.jp>
+In-Reply-To: <5cc0eb6f-bede-a34a-522b-e30d06723ffa@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon 12-12-16 23:59:55, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Mon 12-12-16 21:12:06, Tetsuo Handa wrote:
-> > > > I would rather not mix the two. Even if both use show_mem then there is
-> > > > no reason to abuse the oom_lock.
-> > > > 
-> > > > Maybe I've missed that but you haven't responded to the question whether
-> > > > the warn_lock actually resolves the problem you are seeing.
-> > > 
-> > > I haven't tried warn_lock, but is warn_lock in warn_alloc() better than
-> > > serializing oom_lock in __alloc_pages_may_oom() ? I think we don't need to
-> > > waste CPU cycles before the OOM killer sends SIGKILL.
-> > 
-> > Yes, I find a separate lock better because there is no real reason to
-> > abuse an unrelated lock.
+On Mon, Dec 12, 2016 at 10:21:24AM +0100, Vlastimil Babka wrote:
+> On 12/10/2016 06:26 PM, Johannes Weiner wrote:
+> > When FADV_DONTNEED cannot drop all pages in the range, it observes
+> > that some pages might still be on per-cpu LRU caches after recent
+> > instantiation and so initiates remote calls to all CPUs to flush their
+> > local caches. However, in most cases, the fadvise happens from the
+> > same context that instantiated the pages, and any pre-LRU pages in the
+> > specified range are most likely sitting on the local CPU's LRU cache,
+> > and so in many cases this results in unnecessary remote calls, which,
+> > in a loaded system, can hold up the fadvise() call significantly.
 > 
-> Using separate lock for warn_alloc() is fine for me. I can still consider
-> serialization of oom_lock independent with warn_alloc().
+> Got any numbers for this part?
 
-Could you try the ratelimit update as well? Maybe it will be sufficient
-on its own.
+I didn't record it in the extreme case we observed, unfortunately. We
+had a slow-to-respond system and noticed it spending seconds in
+lru_add_drain_all() after fadvise calls, and this patch came out of
+thinking about the code and how we commonly call FADV_DONTNEED.
 
-> But
+FWIW, I wrote a silly directory tree walker/searcher that recurses
+through /usr to read and FADV_DONTNEED each file it finds. On a 2
+socket 40 ht machine, over 1% is spent in lru_add_drain_all(). With
+the patch, that cost is gone; the local drain cost shows at 0.09%.
+
+> > Try to avoid the remote call by flushing the local LRU cache before
+> > even attempting to invalidate anything. It's a cheap operation, and
+> > the local LRU cache is the most likely to hold any pre-LRU pages in
+> > the specified fadvise range.
 > 
-> > > Maybe more, but no need to enumerate in this thread.
-> > > How many of these precautions can be achieved by tuning warn_alloc() ?
-> > > printk() tries to solve unbounded delay problem by using (I guess) a
-> > > dedicated kernel thread. I don't think we can achieve these precautions
-> > > without a centralized state tracking which can sleep and synchronize as
-> > > needed.
-> > > 
-> > > Quite few people are responding to discussions regarding almost
-> > > OOM situation. I beg for your joining to discussions.
-> > 
-> > I have already stated my position. I do not think that the code this
-> > patch introduces is really justified for the advantages it provides over
-> > a simple warn_alloc approach. Additional debugging information might be
-> > nice but not necessary in 99% cases. If there are definciences in
-> > warn_alloc (which I agree there are if there are thousands of contexts
-> > hitting the path) then let's try to address them.
+> Anyway it looks like things can't be worse after this patch, so...
 > 
-> I'm not happy with keeping kmallocwd out-of-tree.
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-I completely fail why you are still bringing this up. I will repeat it
-for the last time and won't reply to any further note about kmallocwd
-here or anywhere else where it is not directly discussed. If you think
-your code is valuable document that in the patch description and post
-your patch.
--- 
-Michal Hocko
-SUSE Labs
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
