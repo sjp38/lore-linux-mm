@@ -1,60 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A7BFA6B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 16:06:37 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id y71so351989839pgd.0
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:06:37 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 8si49421804pfu.111.2016.12.13.13.06.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 13:06:36 -0800 (PST)
-Subject: Re: [RFC, PATCHv1 00/28] 5-level paging
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161209050130.GC2595@gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <a2f86495-b55f-fda0-40d2-242c45d3c1f3@intel.com>
-Date: Tue, 13 Dec 2016 13:06:35 -0800
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 487096B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 16:10:46 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c4so182920441pfb.7
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:10:46 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id p26si49392537pfk.183.2016.12.13.13.10.44
+        for <linux-mm@kvack.org>;
+        Tue, 13 Dec 2016 13:10:45 -0800 (PST)
+Date: Wed, 14 Dec 2016 08:10:41 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
+ implications
+Message-ID: <20161213211041.GC4326@dastard>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161209050130.GC2595@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161213203112.GE2305@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On 12/08/2016 09:01 PM, Ingo Molnar wrote:
->> >   - Handle opt-in wider address space for userspace.
->> > 
->> >     Not all userspace is ready to handle addresses wider than current
->> >     47-bits. At least some JIT compiler make use of upper bits to encode
->> >     their info.
->> > 
->> >     We need to have an interface to opt-in wider addresses from userspace
->> >     to avoid regressions.
->> > 
->> >     For now, I've included testing-only patch which bumps TASK_SIZE to
->> >     56-bits. This can be handy for testing to see what breaks if we max-out
->> >     size of virtual address space.
-> So this is just a detail - but it sounds a bit limiting to me to provide an 'opt 
-> in' flag for something that will work just fine on the vast majority of 64-bit 
-> software.
+On Tue, Dec 13, 2016 at 03:31:13PM -0500, Jerome Glisse wrote:
+> On Wed, Dec 14, 2016 at 07:15:15AM +1100, Dave Chinner wrote:
+> > On Tue, Dec 13, 2016 at 01:15:11PM -0500, Jerome Glisse wrote:
+> > > I would like to discuss un-addressable device memory in the context of
+> > > filesystem and block device. Specificaly how to handle write-back, read,
+> > > ... when a filesystem page is migrated to device memory that CPU can not
+> > > access.
+> > 
+> > You mean pmem that is DAX-capable that suddenly, without warning,
+> > becomes non-DAX capable?
+> > 
+> > If you are not talking about pmem and DAX, then exactly what does
+> > "when a filesystem page is migrated to device memory that CPU can
+> > not access" mean? What "filesystem page" are we talking about that
+> > can get migrated from main RAM to something the CPU can't access?
+> 
+> I am talking about GPU, FPGA, ... any PCIE device that have fast on
+> board memory that can not be expose transparently to the CPU. I am
+> reusing ZONE_DEVICE for this, you can see HMM patchset on linux-mm
+> https://lwn.net/Articles/706856/
 
-MPX is going to be a real pain here.  It is relatively transparent to
-applications that use it, and old MPX binaries are entirely incompatible
-with the new address space size, so an opt-out wouldn't be friendly.
+So ZONE_DEVICE memory that is a DMA target but not CPU addressable?
 
-Because the top-level MPX bounds table is indexed by the virtual
-address, a growth in vaddr space is going to require the table to grow
-(or change somehow).  The solution baked into the hardware spec is to
-just make the top-level table 512x larger to accommodate the 512x
-increase in vaddr space.  (This behavior is controlled by a new MSR, btw...)
+> So in my case i am only considering non DAX/PMEM filesystem ie any
+> "regular" filesystem back by a "regular" block device. I want to be
+> able to migrate mmaped area of such filesystem to device memory while
+> the device is actively using that memory.
 
-So, either we disable MPX on all old MPX binaries by returning an error
-when the prctl() tries to enable MPX and 5-level paging is on, or we go
-with some form of an opt-in.  New MPX binaries will opt-in to the larger
-address space since they know to allocate the new, larger table.
+"migrate mmapped area of such filesystem" means what, exactly?
+
+Are you talking about file data contents that have been copied into
+the page cache and mmapped into a user process address space?
+IOWs, migrating ZONE_NORMAL page cache page content and state
+to a new ZONE_DEVICE page, and then migrating back again somehow?
+
+> From kernel point of view such memory is almost like any other, it
+> has a struct page and most of the mm code is non the wiser, nor need
+> to be about it. CPU access trigger a migration back to regular CPU
+> accessible page.
+
+That sounds ... complex. Page migration on page cache access inside
+the filesytem IO path locking during read()/write() sounds like
+a great way to cause deadlocks....
+
+> But for thing like writeback i want to be able to do writeback with-
+> out having to migrate page back first. So that data can stay on the
+> device while writeback is happening.
+
+Why can't you do writeback before migration, so only clean pages get
+moved?
+
+Cheers,
+
+Dave.
+
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
