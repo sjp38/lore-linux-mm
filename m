@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A8A036B0069
-	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 20:06:45 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y68so144620503pfb.6
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 17:06:45 -0800 (PST)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id 88si45725045pla.48.2016.12.12.17.06.44
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 548D76B0038
+	for <linux-mm@kvack.org>; Mon, 12 Dec 2016 22:39:46 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 3so296583258pgd.3
+        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 19:39:46 -0800 (PST)
+Received: from helcar.apana.org.au (helcar.hengli.com.au. [209.40.204.226])
+        by mx.google.com with ESMTPS id f12si46325355plm.169.2016.12.12.19.39.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Dec 2016 17:06:44 -0800 (PST)
-Received: by mail-pg0-x244.google.com with SMTP id 3so2623654pgd.0
-        for <linux-mm@kvack.org>; Mon, 12 Dec 2016 17:06:44 -0800 (PST)
-Date: Tue, 13 Dec 2016 10:06:51 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161213010651.GB415@jagdpanzerIV.localdomain>
-References: <20161207081555.GB17136@dhcp22.suse.cz>
- <201612080029.IBD55588.OSOFOtHVMLQFFJ@I-love.SAKURA.ne.jp>
- <20161208132714.GA26530@dhcp22.suse.cz>
- <201612092323.BGC65668.QJFVLtFFOOMOSH@I-love.SAKURA.ne.jp>
- <20161209144624.GB4334@dhcp22.suse.cz>
- <201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
- <20161212090702.GD18163@dhcp22.suse.cz>
- <20161212114903.GM3506@pathway.suse.cz>
+        Mon, 12 Dec 2016 19:39:45 -0800 (PST)
+Date: Tue, 13 Dec 2016 11:39:28 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+Subject: Re: Remaining crypto API regressions with CONFIG_VMAP_STACK
+Message-ID: <20161213033928.GB5601@gondor.apana.org.au>
+References: <20161209230851.GB64048@google.com>
+ <CALCETrWfa5VJQNu3XjeFhF0cDFWF+M-dPwsT_7dzO5YSxsneGg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161212114903.GM3506@pathway.suse.cz>
+In-Reply-To: <CALCETrWfa5VJQNu3XjeFhF0cDFWF+M-dPwsT_7dzO5YSxsneGg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Eric Biggers <ebiggers3@gmail.com>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Lutomirski <luto@kernel.org>, Stephan Mueller <smueller@chronox.de>
 
-On (12/12/16 12:49), Petr Mladek wrote:
-[..]
-> > OK, I see. This is not a new problem though and people are trying to
-> > solve it in the printk proper. CCed some people, I do not have links
-> > to those threads handy. And if this is really the problem here then we
-> > definitely shouldn't put hacks into the page allocator path to handle
-> > it because there might be other sources of the printk flood might be
-> > arbitrary.
+On Mon, Dec 12, 2016 at 10:34:10AM -0800, Andy Lutomirski wrote:
+>
+> Here's my status.
 > 
-> Yup, this is exactly the type of the problem that we want to solve
-> by the async printk.
-
-yes, I think async printk will help here.
-
-> > > The introduction of uncontrolled
-> > > 
-> > >   warn_alloc(gfp_mask, "page allocation stalls for %ums, order:%u", ...);
+> >         drivers/crypto/bfin_crc.c:351
+> >         drivers/crypto/qce/sha.c:299
+> >         drivers/crypto/sahara.c:973,988
+> >         drivers/crypto/talitos.c:1910
+> >         drivers/crypto/qce/sha.c:325
 > 
-> I am just curious that there would be so many messages.
-> If I get it correctly, this warning is printed
-> once every 10 second. Or am I wrong?
-> 
-> Well, you might want to consider using
-> 
-> 		stall_timeout *= 2;
-> 
-> instead of adding the constant 10 * HZ.
-> 
-> Of course, a better would be some global throttling of
-> this message.
+> I have a patch to make these depend on !VMAP_STACK.
 
-yeah. rate limiting is still a good thing to have.
+Why? They're all marked as ASYNC AFAIK.
 
-somewhat unrelated, but somehow related. just some thoughts.
+> I have a patch to convert this to, drumroll please:
+> 
+>     priv->tx_tfm_mic = crypto_alloc_shash("michael_mic", 0,
+>                           CRYPTO_ALG_ASYNC);
+> 
+> Herbert, I'm at a loss as what a "shash" that's "ASYNC" even means.
 
-with async printk, in some cases, I suspect (and I haven't thought
-of it long enought), messages rate limiting can have an even bigger,
-to some extent, necessity than with the current printk. the thing
-is that in current scheme CPU that does printk-s can *sometimes*
-go to console_unlock() and spins there printing the messages that
-it appended to the logbuf. which naturally throttles that CPU and
-it can't execte more printk-s for awhile. with async printk that
-CPU is detached from console_unlock() printing loop, so the CPU is
-free to append new messages to the logbuf as fast as it wants to.
-it should not cause any lockups or something, but we can lost some
-messages.
+Having 0 as type and CRYPTO_ALG_ASYNC as mask in general means
+that we're requesting a sync algorithm (i.e., ASYNC bit off).
 
-	-ss
+However, it is completely unnecessary for shash as they can never
+be async.  So this could be changed to just ("michael_mic", 0, 0).
+
+> >         net/ceph/crypto.c:182
+> 
+> This:
+> 
+> size_t zero_padding = (0x10 - (src_len & 0x0f));
+> 
+> is an amazing line of code...
+> 
+> But this driver uses cbc and wants to do synchronous crypto, and I
+> don't think that the crypto API supports real synchronous crypto using
+> CBC, so I'm going to let someone else fix this.
+
+It does through skcipher if you allocate with (0, CRYPTO_ALG_ASYNC).
+
+I'll try to fix this.
+
+> >         net/rxrpc/rxkad.c:737,1000
+> 
+> Herbert, can you fix this?
+
+Sure I'll take a look.
+
+Thanks,
+-- 
+Email: Herbert Xu <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
