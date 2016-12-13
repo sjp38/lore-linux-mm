@@ -1,113 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C02E6B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 16:24:37 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id 192so68267026vkh.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:24:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 44si14052267uau.231.2016.12.13.13.24.36
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3B66B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:07:43 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id z187so7499771iod.3
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:07:43 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0097.hostedemail.com. [216.40.44.97])
+        by mx.google.com with ESMTPS id m76si35460023iod.253.2016.12.13.14.07.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 13:24:36 -0800 (PST)
-Date: Tue, 13 Dec 2016 16:24:33 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
- implications
-Message-ID: <20161213212433.GF2305@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
- <20161213201515.GB4326@dastard>
- <20161213203112.GE2305@redhat.com>
- <20161213211041.GC4326@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161213211041.GC4326@dastard>
+        Tue, 13 Dec 2016 14:07:42 -0800 (PST)
+Message-ID: <1481666853.29291.33.camel@perches.com>
+Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
+From: Joe Perches <joe@perches.com>
+Date: Tue, 13 Dec 2016 14:07:33 -0800
+In-Reply-To: <20161213101451.GB10492@dhcp22.suse.cz>
+References: <20161208103300.23217-1-mhocko@kernel.org>
+	 <20161213101451.GB10492@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>
 
-On Wed, Dec 14, 2016 at 08:10:41AM +1100, Dave Chinner wrote:
-> On Tue, Dec 13, 2016 at 03:31:13PM -0500, Jerome Glisse wrote:
-> > On Wed, Dec 14, 2016 at 07:15:15AM +1100, Dave Chinner wrote:
-> > > On Tue, Dec 13, 2016 at 01:15:11PM -0500, Jerome Glisse wrote:
-> > > > I would like to discuss un-addressable device memory in the context of
-> > > > filesystem and block device. Specificaly how to handle write-back, read,
-> > > > ... when a filesystem page is migrated to device memory that CPU can not
-> > > > access.
-> > > 
-> > > You mean pmem that is DAX-capable that suddenly, without warning,
-> > > becomes non-DAX capable?
-> > > 
-> > > If you are not talking about pmem and DAX, then exactly what does
-> > > "when a filesystem page is migrated to device memory that CPU can
-> > > not access" mean? What "filesystem page" are we talking about that
-> > > can get migrated from main RAM to something the CPU can't access?
-> > 
-> > I am talking about GPU, FPGA, ... any PCIE device that have fast on
-> > board memory that can not be expose transparently to the CPU. I am
-> > reusing ZONE_DEVICE for this, you can see HMM patchset on linux-mm
-> > https://lwn.net/Articles/706856/
-> 
-> So ZONE_DEVICE memory that is a DMA target but not CPU addressable?
+On Tue, 2016-12-13 at 11:14 +0100, Michal Hocko wrote:
+> Are there any more comments or objections to this patch? Is this a good
+> start or kv[mz]alloc has to provide a way to cover GFP_NOFS users as
+> well in the initial version.
 
-Well not only target, it can be source too. But the device can read
-and write any system memory and dma to/from that memory to its on
-board memory.
+Did Andrew Morton ever comment on this?
+I believe he was the primary objector in the past.
 
-> 
-> > So in my case i am only considering non DAX/PMEM filesystem ie any
-> > "regular" filesystem back by a "regular" block device. I want to be
-> > able to migrate mmaped area of such filesystem to device memory while
-> > the device is actively using that memory.
-> 
-> "migrate mmapped area of such filesystem" means what, exactly?
+Last I recollect was over a year ago:
 
-fd = open("/path/to/some/file")
-ptr = mmap(fd, ...);
-gpu_compute_something(ptr);
+https://lkml.org/lkml/2015/7/7/1050
 
-> 
-> Are you talking about file data contents that have been copied into
-> the page cache and mmapped into a user process address space?
-> IOWs, migrating ZONE_NORMAL page cache page content and state
-> to a new ZONE_DEVICE page, and then migrating back again somehow?
-
-Take any existing application that mmap a file and allow to migrate
-chunk of that mmaped file to device memory without the application
-even knowing about it. So nothing special in respect to that mmaped
-file. It is a regular file on your filesystem.
-
-
-> > From kernel point of view such memory is almost like any other, it
-> > has a struct page and most of the mm code is non the wiser, nor need
-> > to be about it. CPU access trigger a migration back to regular CPU
-> > accessible page.
-> 
-> That sounds ... complex. Page migration on page cache access inside
-> the filesytem IO path locking during read()/write() sounds like
-> a great way to cause deadlocks....
-
-There are few restriction on device page, no one can do GUP on them and
-thus no one can pin them. Hence they can always be migrated back. Yes
-each fs need modification, most of it (if not all) is isolated in common
-filemap helpers.
-
-
-> > But for thing like writeback i want to be able to do writeback with-
-> > out having to migrate page back first. So that data can stay on the
-> > device while writeback is happening.
-> 
-> Why can't you do writeback before migration, so only clean pages get
-> moved?
-
-Because device can write to the page while the page is inside the device
-memory and we might want to writeback to disk while page stays in device
-memory and computation continues.
-
-Cheers,
-Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
