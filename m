@@ -1,62 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D22D6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 15:02:45 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 17so180303128pfy.2
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:02:45 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id m5si49045434pgj.182.2016.12.13.12.02.43
-        for <linux-mm@kvack.org>;
-        Tue, 13 Dec 2016 12:02:44 -0800 (PST)
-Date: Wed, 14 Dec 2016 07:01:57 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
-Message-ID: <20161213200157.GA4326@dastard>
-References: <20161212164708.23244-1-jack@suse.cz>
- <20161213115209.GG15362@quack2.suse.cz>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 741316B0253
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 15:08:49 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p66so349887228pga.4
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:08:49 -0800 (PST)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id q2si49216323plh.215.2016.12.13.12.08.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Dec 2016 12:08:48 -0800 (PST)
+Received: by mail-pf0-x244.google.com with SMTP id 144so6438171pfv.0
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:08:48 -0800 (PST)
+Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
+References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
+ <20161213171028.24dbf519@redhat.com> <5850335F.6090000@gmail.com>
+ <20161213.145333.514056260418695987.davem@davemloft.net>
+From: John Fastabend <john.fastabend@gmail.com>
+Message-ID: <58505535.1080908@gmail.com>
+Date: Tue, 13 Dec 2016 12:08:21 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161213115209.GG15362@quack2.suse.cz>
+In-Reply-To: <20161213.145333.514056260418695987.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org
+To: David Miller <davem@davemloft.net>
+Cc: brouer@redhat.com, cl@linux.com, rppt@linux.vnet.ibm.com, netdev@vger.kernel.org, linux-mm@kvack.org, willemdebruijn.kernel@gmail.com, bjorn.topel@intel.com, magnus.karlsson@intel.com, alexander.duyck@gmail.com, mgorman@techsingularity.net, tom@herbertland.com, bblanco@plumgrid.com, tariqt@mellanox.com, saeedm@mellanox.com, jesse.brandeburg@intel.com, METH@il.ibm.com, vyasevich@gmail.com
 
-On Tue, Dec 13, 2016 at 12:52:09PM +0100, Jan Kara wrote:
-> On Mon 12-12-16 17:47:02, Jan Kara wrote:
-> > Hello,
-> > 
-> > this is the third revision of my fixes of races when invalidating hole pages in
-> > DAX mappings. See changelogs for details. The series is based on my patches to
-> > write-protect DAX PTEs which are currently carried in mm tree. This is a hard
-> > dependency because we really need to closely track dirtiness (and cleanness!)
-> > of radix tree entries in DAX mappings in order to avoid discarding valid dirty
-> > bits leading to missed cache flushes on fsync(2).
-> > 
-> > The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
-> > 
-> > Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
-> > patches to some tree once DAX write-protection patches are merged.  I'm hoping
-> > to get at least first three patches merged for 4.10-rc2... Thanks!
+On 16-12-13 11:53 AM, David Miller wrote:
+> From: John Fastabend <john.fastabend@gmail.com>
+> Date: Tue, 13 Dec 2016 09:43:59 -0800
 > 
-> OK, with the final ack from Johannes and since this is mostly DAX stuff,
-> can we take this through NVDIMM tree and push to Linus either late in the
-> merge window or for -rc2? These patches require my DAX patches sitting in mm
-> tree so they can be included in any git tree only once those patches land
-> in Linus' tree (which may happen only once Dave and Ted push out their
-> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
+>> What does "zero-copy send packet-pages to the application/socket that
+>> requested this" mean? At the moment on x86 page-flipping appears to be
+>> more expensive than memcpy (I can post some data shortly) and shared
+>> memory was proposed and rejected for security reasons when we were
+>> working on bifurcated driver.
+> 
+> The whole idea is that we map all the active RX ring pages into
+> userspace from the start.
+> 
+> And just how Jesper's page pool work will avoid DMA map/unmap,
+> it will also avoid changing the userspace mapping of the pages
+> as well.
+> 
+> Thus avoiding the TLB/VM overhead altogether.
+> 
 
-And I'm waiting on Jens and the block tree before I send Linus
-a pulllreq for all the stuff I have queued because of the conflicts
-in the iomap-direct IO patches I've also got in the XFS tree... :/
+I get this but it requires applications to be isolated. The pages from
+a queue can not be shared between multiple applications in different
+trust domains. And the application has to be cooperative meaning it
+can't "look" at data that has not been marked by the stack as OK. In
+these schemes we tend to end up with something like virtio/vhost or
+af_packet.
 
-Cheers,
+Any ACLs/filtering/switching/headers need to be done in hardware or
+the application trust boundaries are broken.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+If the above can not be met then a copy is needed. What I am trying
+to tease out is the above comment along with other statements like
+this "can be done with out HW filter features".
+
+.John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
