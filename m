@@ -1,81 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D5F06B0253
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:50:53 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e9so4041759pgc.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:50:53 -0800 (PST)
-Received: from mail.zytor.com (torg.zytor.com. [2001:1868:205::12])
-        by mx.google.com with ESMTPS id 1si49592890pgy.294.2016.12.13.14.50.52
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DCDED6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:55:28 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id j49so1406176qta.1
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:55:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c6si26680347qka.141.2016.12.13.14.55.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 14:50:52 -0800 (PST)
-Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161208162150.148763-17-kirill.shutemov@linux.intel.com>
- <20161208200505.c6xiy56oufg6d24m@pd.tnic>
- <20161209153233.GA8932@node.shutemov.name>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <6bfc923e-baa6-7743-8da8-57d1ddf0f390@zytor.com>
-Date: Tue, 13 Dec 2016 14:50:21 -0800
+        Tue, 13 Dec 2016 14:55:28 -0800 (PST)
+Date: Tue, 13 Dec 2016 17:55:24 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
+ implications
+Message-ID: <20161213225523.GG2305@redhat.com>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
+ <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+ <20161213221322.GD4326@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20161209153233.GA8932@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161213221322.GD4326@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Borislav Petkov <bp@alien8.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On 12/09/16 07:32, Kirill A. Shutemov wrote:
+On Wed, Dec 14, 2016 at 09:13:22AM +1100, Dave Chinner wrote:
+> On Tue, Dec 13, 2016 at 04:24:33PM -0500, Jerome Glisse wrote:
+> > On Wed, Dec 14, 2016 at 08:10:41AM +1100, Dave Chinner wrote:
+> > > On Tue, Dec 13, 2016 at 03:31:13PM -0500, Jerome Glisse wrote:
+> > > > On Wed, Dec 14, 2016 at 07:15:15AM +1100, Dave Chinner wrote:
+> > > > > On Tue, Dec 13, 2016 at 01:15:11PM -0500, Jerome Glisse wrote:
+> > > > > > I would like to discuss un-addressable device memory in the context of
+> > > > > > filesystem and block device. Specificaly how to handle write-back, read,
+> > > > > > ... when a filesystem page is migrated to device memory that CPU can not
+> > > > > > access.
+> > > > > 
+> > > > > You mean pmem that is DAX-capable that suddenly, without warning,
+> > > > > becomes non-DAX capable?
+> > > > > 
+> > > > > If you are not talking about pmem and DAX, then exactly what does
+> > > > > "when a filesystem page is migrated to device memory that CPU can
+> > > > > not access" mean? What "filesystem page" are we talking about that
+> > > > > can get migrated from main RAM to something the CPU can't access?
+> > > > 
+> > > > I am talking about GPU, FPGA, ... any PCIE device that have fast on
+> > > > board memory that can not be expose transparently to the CPU. I am
+> > > > reusing ZONE_DEVICE for this, you can see HMM patchset on linux-mm
+> > > > https://lwn.net/Articles/706856/
+> > > 
+> > > So ZONE_DEVICE memory that is a DMA target but not CPU addressable?
+> > 
+> > Well not only target, it can be source too. But the device can read
+> > and write any system memory and dma to/from that memory to its on
+> > board memory.
 > 
-> Something like this?
+> So you want the device to be able to dirty mmapped pages that the
+> CPU can't access?
+
+Yes, correct.
+
+
+> > > > So in my case i am only considering non DAX/PMEM filesystem ie any
+> > > > "regular" filesystem back by a "regular" block device. I want to be
+> > > > able to migrate mmaped area of such filesystem to device memory while
+> > > > the device is actively using that memory.
+> > > 
+> > > "migrate mmapped area of such filesystem" means what, exactly?
+> > 
+> > fd = open("/path/to/some/file")
+> > ptr = mmap(fd, ...);
+> > gpu_compute_something(ptr);
 > 
-> diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
-> index 6687ab953257..366aad972025 100644
-> --- a/arch/x86/boot/cpuflags.c
-> +++ b/arch/x86/boot/cpuflags.c
-> @@ -70,16 +70,22 @@ int has_eflag(unsigned long mask)
->  # define EBX_REG "=b"
->  #endif
+> Thought so. Lots of problems with this.
 > 
-> -static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
-> +static inline void cpuid_count(u32 id, u32 count,
-> +               u32 *a, u32 *b, u32 *c, u32 *d)
->  {
-> +       *a = id;
-> +       *c = count;
-
-These two lines are wrong, remove them.
-
->         asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif  \n\t"
->                      "cpuid                                     \n\t"
->                      ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif  \n\t"
->                     : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
-> -                   : "a" (id)
-> +                   : "a" (id), "c" (count)
->         );
->  }
+> > > Are you talking about file data contents that have been copied into
+> > > the page cache and mmapped into a user process address space?
+> > > IOWs, migrating ZONE_NORMAL page cache page content and state
+> > > to a new ZONE_DEVICE page, and then migrating back again somehow?
+> > 
+> > Take any existing application that mmap a file and allow to migrate
+> > chunk of that mmaped file to device memory without the application
+> > even knowing about it. So nothing special in respect to that mmaped
+> > file.
 > 
-> +#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
-> +
+> From the application point of view. Filesystem, page cache, etc
+> there's substantial problems here...
+> 
+> > It is a regular file on your filesystem.
+> 
+> ... because of this.
+> 
+> > > > From kernel point of view such memory is almost like any other, it
+> > > > has a struct page and most of the mm code is non the wiser, nor need
+> > > > to be about it. CPU access trigger a migration back to regular CPU
+> > > > accessible page.
+> > > 
+> > > That sounds ... complex. Page migration on page cache access inside
+> > > the filesytem IO path locking during read()/write() sounds like
+> > > a great way to cause deadlocks....
+> > 
+> > There are few restriction on device page, no one can do GUP on them and
+> > thus no one can pin them. Hence they can always be migrated back. Yes
+> > each fs need modification, most of it (if not all) is isolated in common
+> > filemap helpers.
+> 
+> Sure, but you haven't answered my question: how do you propose we
+> address the issue of placing all the mm locks required for migration
+> under the filesystem IO path locks?
 
-Other than that, it's correct.
+Two different plans (which are non exclusive of each other). First is to use
+workqueue and have read/write wait on the workqueue to be done migrating the
+page back.
 
-That being said, the claim that ECX ought to be zeroed on a
-non-subleaf-equipped CPUID leaf is spurious, in my opinion.  That being
-said, it also doesn't do any harm and might avoid problems in the
-opposite direction, e.g. someone thinking that leaf 7 doesn't have
-subleaves.
+Second solution is to use a bounce page during I/O so that there is no need
+for migration.
 
-It might also be better to have something like:
 
-#define SAVE_EBX(x) ".ifnc %%ebx," x "; movl %%ebx," x "; .endif"
-#define SWAP_EBX(x) ".ifnc %%ebx," x "; xchgl %%ebx," x "; .endif"
+> > > > But for thing like writeback i want to be able to do writeback with-
+> > > > out having to migrate page back first. So that data can stay on the
+> > > > device while writeback is happening.
+> > > 
+> > > Why can't you do writeback before migration, so only clean pages get
+> > > moved?
+> > 
+> > Because device can write to the page while the page is inside the device
+> > memory and we might want to writeback to disk while page stays in device
+> > memory and computation continues.
+> 
+> Ok. So how does the device trigger ->page_mkwrite on a clean page to
+> tell the filesystem that the page has been dirtied? So that, for
+> example, if the page covers a hole because the file is sparse the
+> filesytem can do the required block allocation and data
+> initialisation (i.e. zero the cached page) before it gets marked
+> dirty and any data gets written to it?
+> 
+> And if zeroing the page during such a fault requires CPU access to
+> the data, how do you propose we handle page migration in the middle
+> of the page fault to allow the CPU to zero the page? Seems like more
+> lock order/inversion problems there, too...
 
-... but if it is only used once it might just be more confusion.
 
-	-hpa
+File back page are never allocated on device, at least we have no incentive
+for usecase we care about today to do so. So a regular page is first use
+and initialize (to zero for hole) before being migrated to device. So i do
+not believe there should be any major concern on ->page_mkwrite. At least
+this was my impression when i look at generic filemap one, but for some
+filesystem this might need be problematic. I intend to enable this kind of
+migration on fs basis and allowing control by userspace to block such
+migration for given fs.
 
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
