@@ -1,49 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EA7F6B0253
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:44:44 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 3so3996225pgd.3
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:44:44 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5F06B0253
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:50:53 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id e9so4041759pgc.5
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:50:53 -0800 (PST)
 Received: from mail.zytor.com (torg.zytor.com. [2001:1868:205::12])
-        by mx.google.com with ESMTPS id m136si49593420pga.237.2016.12.13.14.44.43
+        by mx.google.com with ESMTPS id 1si49592890pgy.294.2016.12.13.14.50.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 14:44:43 -0800 (PST)
+        Tue, 13 Dec 2016 14:50:52 -0800 (PST)
 Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
 References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
  <20161208162150.148763-17-kirill.shutemov@linux.intel.com>
  <20161208200505.c6xiy56oufg6d24m@pd.tnic>
- <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com>
- <20161208202013.uutsny6avn5gimwq@pd.tnic>
+ <20161209153233.GA8932@node.shutemov.name>
 From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <b393a48a-6e8b-6427-373c-2825641fea99@zytor.com>
-Date: Tue, 13 Dec 2016 14:44:06 -0800
+Message-ID: <6bfc923e-baa6-7743-8da8-57d1ddf0f390@zytor.com>
+Date: Tue, 13 Dec 2016 14:50:21 -0800
 MIME-Version: 1.0
-In-Reply-To: <20161208202013.uutsny6avn5gimwq@pd.tnic>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20161209153233.GA8932@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Borislav Petkov <bp@alien8.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/08/16 12:20, Borislav Petkov wrote:
-> On Thu, Dec 08, 2016 at 12:08:53PM -0800, Linus Torvalds wrote:
->> Especially since that's some of the ugliest inline asm ever due to the
->> nasty BX handling.
+On 12/09/16 07:32, Kirill A. Shutemov wrote:
 > 
-> Yeah, about that: why doesn't gcc handle that for us like it would
-> handle a clobbered register? I mean, it *should* know that BX is live
-> when building with -fPIC... The .ifnc thing looks really silly.
+> Something like this?
 > 
+> diff --git a/arch/x86/boot/cpuflags.c b/arch/x86/boot/cpuflags.c
+> index 6687ab953257..366aad972025 100644
+> --- a/arch/x86/boot/cpuflags.c
+> +++ b/arch/x86/boot/cpuflags.c
+> @@ -70,16 +70,22 @@ int has_eflag(unsigned long mask)
+>  # define EBX_REG "=b"
+>  #endif
+> 
+> -static inline void cpuid(u32 id, u32 *a, u32 *b, u32 *c, u32 *d)
+> +static inline void cpuid_count(u32 id, u32 count,
+> +               u32 *a, u32 *b, u32 *c, u32 *d)
+>  {
+> +       *a = id;
+> +       *c = count;
 
-When compiling with -fPIC gcc treats ebx as a "fixed register".  A fixed
-register can't be spilled, and so a clobber of a fixed register is a
-fatal error.
+These two lines are wrong, remove them.
 
-Like it or not, it's how it works.
+>         asm volatile(".ifnc %%ebx,%3 ; movl  %%ebx,%3 ; .endif  \n\t"
+>                      "cpuid                                     \n\t"
+>                      ".ifnc %%ebx,%3 ; xchgl %%ebx,%3 ; .endif  \n\t"
+>                     : "=a" (*a), "=c" (*c), "=d" (*d), EBX_REG (*b)
+> -                   : "a" (id)
+> +                   : "a" (id), "c" (count)
+>         );
+>  }
+> 
+> +#define cpuid(id, a, b, c, d) cpuid_count(id, 0, a, b, c, d)
+> +
+
+Other than that, it's correct.
+
+That being said, the claim that ECX ought to be zeroed on a
+non-subleaf-equipped CPUID leaf is spurious, in my opinion.  That being
+said, it also doesn't do any harm and might avoid problems in the
+opposite direction, e.g. someone thinking that leaf 7 doesn't have
+subleaves.
+
+It might also be better to have something like:
+
+#define SAVE_EBX(x) ".ifnc %%ebx," x "; movl %%ebx," x "; .endif"
+#define SWAP_EBX(x) ".ifnc %%ebx," x "; xchgl %%ebx," x "; .endif"
+
+... but if it is only used once it might just be more confusion.
 
 	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
