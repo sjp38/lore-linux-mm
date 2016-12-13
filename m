@@ -1,61 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 99CC96B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:20:56 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 144so176630581pfv.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 10:20:56 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id 33si48907606ply.89.2016.12.13.10.20.55
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 31B376B0069
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:30:12 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p66so344155834pga.4
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 10:30:12 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id m5si48773054pgj.182.2016.12.13.10.30.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Dec 2016 10:20:55 -0800 (PST)
-Message-ID: <1481653252.2473.51.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
- implications
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Tue, 13 Dec 2016 10:20:52 -0800
-In-Reply-To: <20161213181511.GB2305@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Dec 2016 10:30:11 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm, dax: make pmd_fault() and friends to be the same
+ as fault()
+References: <148123286127.108913.2695398781030517780.stgit@djiang5-desk3.ch.intel.com>
+ <20161213121535.GI15362@quack2.suse.cz>
+From: Dave Jiang <dave.jiang@intel.com>
+Message-ID: <e41d16fb-672d-1d61-b60d-6fd3a2201e41@intel.com>
+Date: Tue, 13 Dec 2016 11:29:54 -0700
+MIME-Version: 1.0
+In-Reply-To: <20161213121535.GI15362@quack2.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: akpm@linux-foundation.org, linux-nvdimm@lists.01.org, david@fromorbit.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com, dan.j.williams@intel.com, hch@lst.de
 
-On Tue, 2016-12-13 at 13:15 -0500, Jerome Glisse wrote:
-> I would like to discuss un-addressable device memory in the context 
-> of filesystem and block device. Specificaly how to handle write-back,
-> read, ... when a filesystem page is migrated to device memory that 
-> CPU can not access.
+
+
+On 12/13/2016 05:15 AM, Jan Kara wrote:
+> On Thu 08-12-16 14:34:21, Dave Jiang wrote:
+>> Instead of passing in multiple parameters in the pmd_fault() handler,
+>> a vmf can be passed in just like a fault() handler. This will simplify
+>> code and remove the need for the actual pmd fault handlers to allocate a
+>> vmf. Related functions are also modified to do the same.
+>>
+>> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+>> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 > 
-> I intend to post a patchset leveraging the same idea as the existing
-> block bounce helper (block/bounce.c) to handle this. I believe this 
-> is worth discussing during summit see how people feels about such 
-> plan and if they have better ideas.
-
-Isn't this pretty much what the transcendent memory interfaces we
-currently have are for?  It's current use cases seem to be compressed
-swap and distributed memory, but there doesn't seem to be any reason in
-principle why you can't use the interface as well.
-
-James
-
-
-> I also like to join discussions on:
->   - Peer-to-Peer DMAs between PCIe devices
->   - CDM coherent device memory
->   - PMEM
->   - overall mm discussions
+> I like the idea however see below:
 > 
-> Cheers,
-> JA(C)rA'me
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux
-> -fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> @@ -1377,21 +1376,20 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+>>  	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+>>  		goto unlock_entry;
+>>  
+>> -	vmf.pgoff = pgoff;
+>> -	vmf.flags = flags;
+>> -	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
+>> +	vmf->pgoff = pgoff;
+>> +	vmf->gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
 > 
+> But now it's really unexpected that you change pgoff and gfp_mask because
+> that will propagate back to the caller and if we return VM_FAULT_FALLBACK
+> we may fault in wrong PTE because of this. So dax_iomap_pmd_fault() should
+> not modify the passed gfp_mask, just make its callers clear __GFP_FS from
+> it because *they* are responsible for acquiring locks / transactions that
+> block __GFP_FS allocations. They are also responsible for restoring
+> original gfp_mask once dax_iomap_pmd_fault() returns.
+
+Ok will fix.
+
+> 
+> dax_iomap_pmd_fault() needs to modify pgoff however it must restore it to
+> the original value before it returns.
+
+Need clarification here. Do you mean "If" dax_iomap_pmd_fault() needs to
+modify.... and right now it doesn't appear to need to modify pgoff so
+nothing needs to be done? Thanks.
+
+> 
+> Otherwise the patch looks good to me.
+> 
+> 								Honza
+> 
+>>  
+>>  	switch (iomap.type) {
+>>  	case IOMAP_MAPPED:
+>> -		result = dax_pmd_insert_mapping(vma, pmd, &vmf, address,
+>> -				&iomap, pos, write, &entry);
+>> +		result = dax_pmd_insert_mapping(vma, vmf->pmd, vmf,
+>> +				vmf->address, &iomap, pos, write, &entry);
+>>  		break;
+>>  	case IOMAP_UNWRITTEN:
+>>  	case IOMAP_HOLE:
+>>  		if (WARN_ON_ONCE(write))
+>>  			goto unlock_entry;
+>> -		result = dax_pmd_load_hole(vma, pmd, &vmf, address, &iomap,
+>> -				&entry);
+>> +		result = dax_pmd_load_hole(vma, vmf->pmd, vmf, vmf->address,
+>> +				&iomap, &entry);
+>>  		break;
+>>  	default:
+>>  		WARN_ON_ONCE(1);
+>> @@ -1417,12 +1415,11 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+>>  	}
+>>   fallback:
+>>  	if (result == VM_FAULT_FALLBACK) {
+>> -		split_huge_pmd(vma, pmd, address);
+>> +		split_huge_pmd(vma, vmf->pmd, vmf->address);
+>>  		count_vm_event(THP_FAULT_FALLBACK);
+>>  	}
+>>  out:
+>> -	trace_dax_pmd_fault_done(inode, vma, address, flags, pgoff, max_pgoff,
+>> -			result);
+>> +	trace_dax_pmd_fault_done(inode, vma, vmf, max_pgoff, result);
+>>  	return result;
+>>  }
+>>  EXPORT_SYMBOL_GPL(dax_iomap_pmd_fault);
+>> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+>> index d663d3d..10b64ba 100644
+>> --- a/fs/ext4/file.c
+>> +++ b/fs/ext4/file.c
+>> @@ -275,21 +275,20 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>>  	return result;
+>>  }
+>>  
+>> -static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+>> -						pmd_t *pmd, unsigned int flags)
+>> +static int
+>> +ext4_dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>>  {
+>>  	int result;
+>>  	struct inode *inode = file_inode(vma->vm_file);
+>>  	struct super_block *sb = inode->i_sb;
+>> -	bool write = flags & FAULT_FLAG_WRITE;
+>> +	bool write = vmf->flags & FAULT_FLAG_WRITE;
+>>  
+>>  	if (write) {
+>>  		sb_start_pagefault(sb);
+>>  		file_update_time(vma->vm_file);
+>>  	}
+>>  	down_read(&EXT4_I(inode)->i_mmap_sem);
+>> -	result = dax_iomap_pmd_fault(vma, addr, pmd, flags,
+>> -				     &ext4_iomap_ops);
+>> +	result = dax_iomap_pmd_fault(vma, vmf, &ext4_iomap_ops);
+>>  	up_read(&EXT4_I(inode)->i_mmap_sem);
+>>  	if (write)
+>>  		sb_end_pagefault(sb);
+>> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+>> index d818c16..df0009f 100644
+>> --- a/fs/xfs/xfs_file.c
+>> +++ b/fs/xfs/xfs_file.c
+>> @@ -1526,9 +1526,7 @@ xfs_filemap_fault(
+>>  STATIC int
+>>  xfs_filemap_pmd_fault(
+>>  	struct vm_area_struct	*vma,
+>> -	unsigned long		addr,
+>> -	pmd_t			*pmd,
+>> -	unsigned int		flags)
+>> +	struct vm_fault *vmf)
+>>  {
+>>  	struct inode		*inode = file_inode(vma->vm_file);
+>>  	struct xfs_inode	*ip = XFS_I(inode);
+>> @@ -1539,16 +1537,16 @@ xfs_filemap_pmd_fault(
+>>  
+>>  	trace_xfs_filemap_pmd_fault(ip);
+>>  
+>> -	if (flags & FAULT_FLAG_WRITE) {
+>> +	if (vmf->flags & FAULT_FLAG_WRITE) {
+>>  		sb_start_pagefault(inode->i_sb);
+>>  		file_update_time(vma->vm_file);
+>>  	}
+>>  
+>>  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+>> -	ret = dax_iomap_pmd_fault(vma, addr, pmd, flags, &xfs_iomap_ops);
+>> +	ret = dax_iomap_pmd_fault(vma, vmf, &xfs_iomap_ops);
+>>  	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+>>  
+>> -	if (flags & FAULT_FLAG_WRITE)
+>> +	if (vmf->flags & FAULT_FLAG_WRITE)
+>>  		sb_end_pagefault(inode->i_sb);
+>>  
+>>  	return ret;
+>> diff --git a/include/linux/dax.h b/include/linux/dax.h
+>> index 6e36b11..9761c90 100644
+>> --- a/include/linux/dax.h
+>> +++ b/include/linux/dax.h
+>> @@ -71,16 +71,15 @@ static inline unsigned int dax_radix_order(void *entry)
+>>  		return PMD_SHIFT - PAGE_SHIFT;
+>>  	return 0;
+>>  }
+>> -int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+>> -		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops);
+>> +int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+>> +		struct iomap_ops *ops);
+>>  #else
+>>  static inline unsigned int dax_radix_order(void *entry)
+>>  {
+>>  	return 0;
+>>  }
+>>  static inline int dax_iomap_pmd_fault(struct vm_area_struct *vma,
+>> -		unsigned long address, pmd_t *pmd, unsigned int flags,
+>> -		struct iomap_ops *ops)
+>> +		struct vm_fault *vmf, struct iomap_ops *ops)
+>>  {
+>>  	return VM_FAULT_FALLBACK;
+>>  }
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 30f416a..aef645b 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -347,8 +347,7 @@ struct vm_operations_struct {
+>>  	void (*close)(struct vm_area_struct * area);
+>>  	int (*mremap)(struct vm_area_struct * area);
+>>  	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+>> -	int (*pmd_fault)(struct vm_area_struct *, unsigned long address,
+>> -						pmd_t *, unsigned int flags);
+>> +	int (*pmd_fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+>>  	void (*map_pages)(struct vm_fault *vmf,
+>>  			pgoff_t start_pgoff, pgoff_t end_pgoff);
+>>  
+>> diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
+>> index c3b0aae..a98665b 100644
+>> --- a/include/trace/events/fs_dax.h
+>> +++ b/include/trace/events/fs_dax.h
+>> @@ -8,9 +8,8 @@
+>>  
+>>  DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+>>  	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
+>> -		unsigned long address, unsigned int flags, pgoff_t pgoff,
+>> -		pgoff_t max_pgoff, int result),
+>> -	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result),
+>> +		struct vm_fault *vmf, pgoff_t max_pgoff, int result),
+>> +	TP_ARGS(inode, vma, vmf, max_pgoff, result),
+>>  	TP_STRUCT__entry(
+>>  		__field(unsigned long, ino)
+>>  		__field(unsigned long, vm_start)
+>> @@ -29,9 +28,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+>>  		__entry->vm_start = vma->vm_start;
+>>  		__entry->vm_end = vma->vm_end;
+>>  		__entry->vm_flags = vma->vm_flags;
+>> -		__entry->address = address;
+>> -		__entry->flags = flags;
+>> -		__entry->pgoff = pgoff;
+>> +		__entry->address = vmf->address;
+>> +		__entry->flags = vmf->flags;
+>> +		__entry->pgoff = vmf->pgoff;
+>>  		__entry->max_pgoff = max_pgoff;
+>>  		__entry->result = result;
+>>  	),
+>> @@ -54,9 +53,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+>>  #define DEFINE_PMD_FAULT_EVENT(name) \
+>>  DEFINE_EVENT(dax_pmd_fault_class, name, \
+>>  	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
+>> -		unsigned long address, unsigned int flags, pgoff_t pgoff, \
+>> +		struct vm_fault *vmf, \
+>>  		pgoff_t max_pgoff, int result), \
+>> -	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result))
+>> +	TP_ARGS(inode, vma, vmf, max_pgoff, result))
+>>  
+>>  DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
+>>  DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index e37250f..8ec36cf 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -3447,8 +3447,7 @@ static int create_huge_pmd(struct vm_fault *vmf)
+>>  	if (vma_is_anonymous(vma))
+>>  		return do_huge_pmd_anonymous_page(vmf);
+>>  	if (vma->vm_ops->pmd_fault)
+>> -		return vma->vm_ops->pmd_fault(vma, vmf->address, vmf->pmd,
+>> -				vmf->flags);
+>> +		return vma->vm_ops->pmd_fault(vma, vmf);
+>>  	return VM_FAULT_FALLBACK;
+>>  }
+>>  
+>> @@ -3457,8 +3456,7 @@ static int wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
+>>  	if (vma_is_anonymous(vmf->vma))
+>>  		return do_huge_pmd_wp_page(vmf, orig_pmd);
+>>  	if (vmf->vma->vm_ops->pmd_fault)
+>> -		return vmf->vma->vm_ops->pmd_fault(vmf->vma, vmf->address,
+>> -				vmf->pmd, vmf->flags);
+>> +		return vmf->vma->vm_ops->pmd_fault(vmf->vma, vmf);
+>>  
+>>  	/* COW handled on pte level: split pmd */
+>>  	VM_BUG_ON_VMA(vmf->vma->vm_flags & VM_SHARED, vmf->vma);
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
