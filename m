@@ -1,46 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AAED86B0069
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:53:43 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a8so178781834pfg.0
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 11:53:43 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id 33si49190197pli.217.2016.12.13.11.53.42
-        for <linux-mm@kvack.org>;
-        Tue, 13 Dec 2016 11:53:42 -0800 (PST)
-Date: Tue, 13 Dec 2016 14:53:33 -0500 (EST)
-Message-Id: <20161213.145333.514056260418695987.davem@davemloft.net>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <5850335F.6090000@gmail.com>
-References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
-	<20161213171028.24dbf519@redhat.com>
-	<5850335F.6090000@gmail.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E799E6B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 15:01:07 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id e9so347121193pgc.5
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:01:07 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id i27si49099235pgn.68.2016.12.13.12.01.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 13 Dec 2016 12:01:06 -0800 (PST)
+Message-ID: <1481659264.2473.59.camel@HansenPartnership.com>
+Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
+ implications
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Tue, 13 Dec 2016 12:01:04 -0800
+In-Reply-To: <20161213185545.GC2305@redhat.com>
+References: <20161213181511.GB2305@redhat.com>
+	 <1481653252.2473.51.camel@HansenPartnership.com>
+	 <20161213185545.GC2305@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.fastabend@gmail.com
-Cc: brouer@redhat.com, cl@linux.com, rppt@linux.vnet.ibm.com, netdev@vger.kernel.org, linux-mm@kvack.org, willemdebruijn.kernel@gmail.com, bjorn.topel@intel.com, magnus.karlsson@intel.com, alexander.duyck@gmail.com, mgorman@techsingularity.net, tom@herbertland.com, bblanco@plumgrid.com, tariqt@mellanox.com, saeedm@mellanox.com, jesse.brandeburg@intel.com, METH@il.ibm.com, vyasevich@gmail.com
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-From: John Fastabend <john.fastabend@gmail.com>
-Date: Tue, 13 Dec 2016 09:43:59 -0800
+On Tue, 2016-12-13 at 13:55 -0500, Jerome Glisse wrote:
+> On Tue, Dec 13, 2016 at 10:20:52AM -0800, James Bottomley wrote:
+> > On Tue, 2016-12-13 at 13:15 -0500, Jerome Glisse wrote:
+> > > I would like to discuss un-addressable device memory in the
+> > > context 
+> > > of filesystem and block device. Specificaly how to handle write
+> > > -back,
+> > > read, ... when a filesystem page is migrated to device memory
+> > > that 
+> > > CPU can not access.
+> > > 
+> > > I intend to post a patchset leveraging the same idea as the
+> > > existing
+> > > block bounce helper (block/bounce.c) to handle this. I believe
+> > > this 
+> > > is worth discussing during summit see how people feels about such
+> > > plan and if they have better ideas.
+> > 
+> > Isn't this pretty much what the transcendent memory interfaces we
+> > currently have are for?  It's current use cases seem to be
+> > compressed
+> > swap and distributed memory, but there doesn't seem to be any
+> > reason in
+> > principle why you can't use the interface as well.
+> > 
+> 
+> I am not a specialist of tmem or cleancache
 
-> What does "zero-copy send packet-pages to the application/socket that
-> requested this" mean? At the moment on x86 page-flipping appears to be
-> more expensive than memcpy (I can post some data shortly) and shared
-> memory was proposed and rejected for security reasons when we were
-> working on bifurcated driver.
+Well, that makes two of us; I just got to sit through Dan Magenheimer's
+talks and some stuff stuck.
 
-The whole idea is that we map all the active RX ring pages into
-userspace from the start.
+>  but my understand is that there is no way to allow for file back 
+> page to be dirtied while being in this special memory.
 
-And just how Jesper's page pool work will avoid DMA map/unmap,
-it will also avoid changing the userspace mapping of the pages
-as well.
+Unless you have some other definition of dirtied, I believe that's what
+an exclusive tmem get in frontswap actually does.  It marks the page
+dirty when it comes back because it may have been modified.
 
-Thus avoiding the TLB/VM overhead altogether.
+> In my case when you migrate a page to the device it might very well 
+> be so that the device can write something in it (results of some sort 
+> of computation). So page might migrate to device memory as clean but
+> return from it in dirty state.
+> 
+> Second aspect is that even if memory i am dealing with is un
+> -addressable i still have struct page for it and i want to be able to 
+> use regular page migration.
+
+Tmem keeps a struct page ... what's the problem with page migration?
+the fact that tmem locks the page when it's not addressable and you
+want to be able to migrate the page even when it's not addressable?
+
+> So given my requirement i didn't thought that cleancache was the way
+> to address them. Maybe i am wrong.
+
+I'm not saying it is, I just asked if you'd considered it, since the
+requirements look similar.
+
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
