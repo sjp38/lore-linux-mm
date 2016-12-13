@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 846BD6B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:55:50 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id x186so63739568vkd.1
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 10:55:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e10si13677100uaa.209.2016.12.13.10.55.49
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 211A56B0069
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 13:57:25 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id u15so256154696oie.6
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 10:57:25 -0800 (PST)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id b13si24234602ote.252.2016.12.13.10.57.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 10:55:49 -0800 (PST)
-Date: Tue, 13 Dec 2016 13:55:46 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
- implications
-Message-ID: <20161213185545.GC2305@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
- <1481653252.2473.51.camel@HansenPartnership.com>
+        Tue, 13 Dec 2016 10:57:24 -0800 (PST)
+Received: by mail-oi0-x22f.google.com with SMTP id v84so132917473oie.3
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 10:57:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1481653252.2473.51.camel@HansenPartnership.com>
+In-Reply-To: <20161213115209.GG15362@quack2.suse.cz>
+References: <20161212164708.23244-1-jack@suse.cz> <20161213115209.GG15362@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 13 Dec 2016 10:57:23 -0800
+Message-ID: <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
+Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Tue, Dec 13, 2016 at 10:20:52AM -0800, James Bottomley wrote:
-> On Tue, 2016-12-13 at 13:15 -0500, Jerome Glisse wrote:
-> > I would like to discuss un-addressable device memory in the context 
-> > of filesystem and block device. Specificaly how to handle write-back,
-> > read, ... when a filesystem page is migrated to device memory that 
-> > CPU can not access.
-> > 
-> > I intend to post a patchset leveraging the same idea as the existing
-> > block bounce helper (block/bounce.c) to handle this. I believe this 
-> > is worth discussing during summit see how people feels about such 
-> > plan and if they have better ideas.
-> 
-> Isn't this pretty much what the transcendent memory interfaces we
-> currently have are for?  It's current use cases seem to be compressed
-> swap and distributed memory, but there doesn't seem to be any reason in
-> principle why you can't use the interface as well.
-> 
+On Tue, Dec 13, 2016 at 3:52 AM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 12-12-16 17:47:02, Jan Kara wrote:
+>> Hello,
+>>
+>> this is the third revision of my fixes of races when invalidating hole pages in
+>> DAX mappings. See changelogs for details. The series is based on my patches to
+>> write-protect DAX PTEs which are currently carried in mm tree. This is a hard
+>> dependency because we really need to closely track dirtiness (and cleanness!)
+>> of radix tree entries in DAX mappings in order to avoid discarding valid dirty
+>> bits leading to missed cache flushes on fsync(2).
+>>
+>> The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
+>>
+>> Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
+>> patches to some tree once DAX write-protection patches are merged.  I'm hoping
+>> to get at least first three patches merged for 4.10-rc2... Thanks!
+>
+> OK, with the final ack from Johannes and since this is mostly DAX stuff,
+> can we take this through NVDIMM tree and push to Linus either late in the
+> merge window or for -rc2? These patches require my DAX patches sitting in mm
+> tree so they can be included in any git tree only once those patches land
+> in Linus' tree (which may happen only once Dave and Ted push out their
+> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
+> Dan?
+>
 
-I am not a specialist of tmem or cleancache but my understand is that
-there is no way to allow for file back page to be dirtied while being
-in this special memory.
-
-In my case when you migrate a page to the device it might very well be
-so that the device can write something in it (results of some sort of
-computation). So page might migrate to device memory as clean but
-return from it in dirty state.
-
-Second aspect is that even if memory i am dealing with is un-addressable
-i still have struct page for it and i want to be able to use regular
-page migration.
-
-So given my requirement i didn't thought that cleancache was the way
-to address them. Maybe i am wrong.
-
-Cheers,
-Jerome
+I like the -rc2 plan better than sending a pull request based on some
+random point in the middle of the merge window. I can give Linus a
+heads up in my initial nvdimm pull request for -rc1 that for
+coordination purposes we'll be sending this set of follow-on DAX
+cleanups for -rc2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
