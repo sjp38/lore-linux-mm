@@ -1,98 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 408246B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 11:37:01 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id p127so255731905iop.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 08:37:01 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id k22si2192437iti.69.2016.12.13.08.37.00
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B7E9F6B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 11:47:09 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id l20so94284423qta.3
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 08:47:09 -0800 (PST)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id n66si18330757qkc.25.2016.12.13.08.47.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 08:37:00 -0800 (PST)
-Date: Tue, 13 Dec 2016 10:36:55 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-In-Reply-To: <20161213171028.24dbf519@redhat.com>
-Message-ID: <alpine.DEB.2.20.1612131030310.32350@east.gentwo.org>
-References: <20161205153132.283fcb0e@redhat.com> <20161212083812.GA19987@rapoport-lnx> <20161212104042.0a011212@redhat.com> <20161212141433.GB19987@rapoport-lnx> <584EB8DF.8000308@gmail.com> <20161212181344.3ddfa9c3@redhat.com> <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com>
-Content-Type: multipart/mixed; BOUNDARY="8323329-637687599-1481647015=:32350"
+        Tue, 13 Dec 2016 08:47:08 -0800 (PST)
+Received: by mail-qk0-x243.google.com with SMTP id n204so15350584qke.2
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 08:47:08 -0800 (PST)
+Subject: Re: memory_hotplug: zone_can_shift() returns boolean value
+References: <8f85e530-4cc9-164b-ab44-6ebd78389c7b@gmail.com>
+ <20161213155435.fs4n44gt6g2u2f2e@arbab-laptop>
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Message-ID: <598c13a6-81d8-e591-0239-ab403306e382@gmail.com>
+Date: Tue, 13 Dec 2016 11:47:04 -0500
+MIME-Version: 1.0
+In-Reply-To: <20161213155435.fs4n44gt6g2u2f2e@arbab-laptop>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: John Fastabend <john.fastabend@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?ISO-8859-15?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>, Vladislav Yasevich <vyasevich@gmail.com>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, isimatu.yasuaki@jp.fujitsu.com, linux-kernel@vger.kernel.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Hi Reza,
 
---8323329-637687599-1481647015=:32350
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+Thank you for your review.
 
-On Tue, 13 Dec 2016, Jesper Dangaard Brouer wrote:
-
-> This is the early demux problem.  With the push-mode of registering
-> memory, you need hardware steering support, for zero-copy support, as
-> the software step happens after DMA engine have written into the memory.
-
-Right. But we could fall back to software. Transfer to a kernel buffer and
-then move stuff over. Not much of an improvment but it will make things
-work.
-
-> > The discussion here is a bit amusing since these issues have been
-> > resolved a long time ago with the design of the RDMA subsystem. Zero
-> > copy is already in wide use. Memory registration is used to pin down
-> > memory areas. Work requests can be filed with the RDMA subsystem that
-> > then send and receive packets from the registered memory regions.
-> > This is not strictly remote memory access but this is a basic mode of
-> > operations supported  by the RDMA subsystem. The mlx5 driver quoted
-> > here supports all of that.
+On 12/13/2016 10:54 AM, Reza Arbab wrote:
+> On Mon, Dec 12, 2016 at 03:29:04PM -0500, Yasuaki Ishimatsu wrote:
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -410,15 +410,13 @@ static ssize_t show_valid_zones(struct device *dev,
+>>     sprintf(buf, "%s", zone->name);
+>>
+>>     /* MMOP_ONLINE_KERNEL */
+>> -    zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_NORMAL);
+>> -    if (zone_shift) {
+>> +    if (zone_can_shift(start_pfn, nr_pages, ZONE_NORMAL, &zone_shift)) {
+>>         strcat(buf, " ");
+>>         strcat(buf, (zone + zone_shift)->name);
+>>     }
+>>
+>>     /* MMOP_ONLINE_MOVABLE */
+>> -    zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_MOVABLE);
+>> -    if (zone_shift) {
+>> +    if (zone_can_shift(start_pfn, nr_pages, ZONE_MOVABLE, &zone_shift)) {
+>>         strcat(buf, " ");
+>>         strcat(buf, (zone + zone_shift)->name);
+>>     }
 >
-> I hear what you are saying.  I will look into a push-model, as it might
-> be a better solution.
->  I will read up on RDMA + verbs and learn more about their API model.  I
-> even plan to write a small sample program to get a feeling for the API,
-> and maybe we can use that as a baseline for the performance target we
-> can obtain on the same HW. (Thanks to BjA?rn for already giving me some
-> pointer here)
-
-Great.
-
-> > What is bad about RDMA is that it is a separate kernel subsystem.
-> > What I would like to see is a deeper integration with the network
-> > stack so that memory regions can be registred with a network socket
-> > and work requests then can be submitted and processed that directly
-> > read and write in these regions. The network stack should provide the
-> > services that the hardware of the NIC does not suppport as usual.
+> You still need to check zone_shift != 0, otherwise you may get duplicate output:
 >
-> Interesting.  So you even imagine sockets registering memory regions
-> with the NIC.  If we had a proper NIC HW filter API across the drivers,
-> to register the steering rule (like ibv_create_flow), this would be
-> doable, but we don't (DPDK actually have an interesting proposal[1])
+> $ cat /sys/devices/system/node/node1/memory256/valid_zones
+> Movable Normal Movable
+> $ cat /sys/devices/system/node/node1/memory257/valid_zones
+> Movable Movable
 
-Well doing this would mean adding some features and that also would at
-best allow general support for zero copy direct to user space with a
-fallback to software if the hardware is missing some feature.
+I'll update it.
 
-> > The RX/TX ring in user space should be an additional mode of
-> > operation of the socket layer. Once that is in place the "Remote
-> > memory acces" can be trivially implemented on top of that and the
-> > ugly RDMA sidecar subsystem can go away.
 >
-> I cannot follow that 100%, but I guess you are saying we also need a
-> more efficient mode of handing over pages/packet to userspace (than
-> going through the normal socket API calls).
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1033,8 +1033,8 @@ static void node_states_set_node(int node, struct memory_notify *arg)
+>>     node_set_state(node, N_MEMORY);
+>> }
+>>
+>> -int zone_can_shift(unsigned long pfn, unsigned long nr_pages,
+>> -           enum zone_type target)
+>> +bool zone_can_shift(unsigned long pfn, unsigned long nr_pages,
+>> +           enum zone_type target, int *zone_shift)
+>> {
+>>     struct zone *zone = page_zone(pfn_to_page(pfn));
+>>     enum zone_type idx = zone_idx(zone);
+>
+> I think you should initialize zone_shift here. It should be 0 if the function returns false.
+>
+>     *zone_shift = 0;
 
-A work request contains the user space address of the data to be sent
-and/or received. The address must be in a registered memory region. This
-is different from copying the packet into kernel data structures.
+I'll update it.
 
-I think this can easily be generalized. We need support for registering
-memory regions, submissions of work request and the processing of
-completion requets. QP (queue-pair) processing is probably the basis for
-the whole scheme that is used in multiple context these days.
+Thanks,
+Yasuaki Ishimatsu
 
---8323329-637687599-1481647015=:32350--
+>> @@ -1043,26 +1043,27 @@ int zone_can_shift(unsigned long pfn, unsigned long nr_pages,
+>>     if (idx < target) {
+>>         /* pages must be at end of current zone */
+>>         if (pfn + nr_pages != zone_end_pfn(zone))
+>> -            return 0;
+>> +            return false;
+>>
+>>         /* no zones in use between current zone and target */
+>>         for (i = idx + 1; i < target; i++)
+>>             if (zone_is_initialized(zone - idx + i))
+>> -                return 0;
+>> +                return false;
+>>     }
+>>
+>>     if (target < idx) {
+>>         /* pages must be at beginning of current zone */
+>>         if (pfn != zone->zone_start_pfn)
+>> -            return 0;
+>> +            return false;
+>>
+>>         /* no zones in use between current zone and target */
+>>         for (i = target + 1; i < idx; i++)
+>>             if (zone_is_initialized(zone - idx + i))
+>> -                return 0;
+>> +                return false;
+>>     }
+>>
+>> -    return target - idx;
+>> +    *zone_shift = target - idx;
+>> +    return true;
+>> }
+>>
+>> /* Must be protected by mem_hotplug_begin() */
+>> @@ -1089,10 +1090,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>>         !can_online_high_movable(zone))
+>>         return -EINVAL;
+>>
+>> -    if (online_type == MMOP_ONLINE_KERNEL)
+>> -        zone_shift = zone_can_shift(pfn, nr_pages, ZONE_NORMAL);
+>> -    else if (online_type == MMOP_ONLINE_MOVABLE)
+>> -        zone_shift = zone_can_shift(pfn, nr_pages, ZONE_MOVABLE);
+>> +    if (online_type == MMOP_ONLINE_KERNEL) {
+>> +        if (!zone_can_shift(pfn, nr_pages, ZONE_NORMAL, &zone_shift))
+>> +            return -EINVAL;
+>> +    } else if (online_type == MMOP_ONLINE_MOVABLE) {
+>> +        if (!zone_can_shift(pfn, nr_pages, ZONE_MOVABLE, &zone_shift))
+>> +            return -EINVAL;
+>> +    }
+>>
+>>     zone = move_pfn_range(zone_shift, pfn, pfn + nr_pages);
+>>     if (!zone)
+>> --
+>> 1.8.3.1
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
