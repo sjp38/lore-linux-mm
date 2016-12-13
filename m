@@ -1,67 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 247E56B0069
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:06:53 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id 192so60787859vkh.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 09:06:53 -0800 (PST)
-Received: from mail-vk0-x234.google.com (mail-vk0-x234.google.com. [2607:f8b0:400c:c05::234])
-        by mx.google.com with ESMTPS id v129si5236903vkb.152.2016.12.13.09.06.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C93C16B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:16:06 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id i88so170861703pfk.3
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 09:16:06 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k76si48584066pgc.153.2016.12.13.09.16.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 09:06:52 -0800 (PST)
-Received: by mail-vk0-x234.google.com with SMTP id 137so71092676vkl.0
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 09:06:52 -0800 (PST)
+        Tue, 13 Dec 2016 09:16:05 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 15/16] hotplug: Make register and unregister notifier API symmetric
+Date: Tue, 13 Dec 2016 09:16:01 -0800
+Message-Id: <20161213171519.624992520@linuxfoundation.org>
+In-Reply-To: <20161213171518.862135257@linuxfoundation.org>
+References: <20161213171518.862135257@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20161213033928.GB5601@gondor.apana.org.au>
-References: <20161209230851.GB64048@google.com> <CALCETrWfa5VJQNu3XjeFhF0cDFWF+M-dPwsT_7dzO5YSxsneGg@mail.gmail.com>
- <20161213033928.GB5601@gondor.apana.org.au>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 13 Dec 2016 09:06:31 -0800
-Message-ID: <CALCETrVz4B2rthaKPJAOpiHm1kCh-mD2C5kKti0q8iBQ0QEzuA@mail.gmail.com>
-Subject: Re: Remaining crypto API regressions with CONFIG_VMAP_STACK
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: Eric Biggers <ebiggers3@gmail.com>, linux-crypto@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Lutomirski <luto@kernel.org>, Stephan Mueller <smueller@chronox.de>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Dec 12, 2016 at 7:39 PM, Herbert Xu <herbert@gondor.apana.org.au> wrote:
-> On Mon, Dec 12, 2016 at 10:34:10AM -0800, Andy Lutomirski wrote:
->>
->> Here's my status.
->>
->> >         drivers/crypto/bfin_crc.c:351
->> >         drivers/crypto/qce/sha.c:299
->> >         drivers/crypto/sahara.c:973,988
->> >         drivers/crypto/talitos.c:1910
->> >         drivers/crypto/qce/sha.c:325
->>
->> I have a patch to make these depend on !VMAP_STACK.
->
-> Why? They're all marked as ASYNC AFAIK.
->
->> I have a patch to convert this to, drumroll please:
->>
->>     priv->tx_tfm_mic = crypto_alloc_shash("michael_mic", 0,
->>                           CRYPTO_ALG_ASYNC);
->>
->> Herbert, I'm at a loss as what a "shash" that's "ASYNC" even means.
->
-> Having 0 as type and CRYPTO_ALG_ASYNC as mask in general means
-> that we're requesting a sync algorithm (i.e., ASYNC bit off).
->
-> However, it is completely unnecessary for shash as they can never
-> be async.  So this could be changed to just ("michael_mic", 0, 0).
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-I'm confused by a bunch of this.
+------------------
 
-1. Is it really the case that crypto_alloc_xyz(..., CRYPTO_ALG_ASYNC)
-means to allocate a *synchronous* transform?  That's not what I
-expected.
+From: Michal Hocko <mhocko@suse.com>
 
-2. What guarantees that an async request is never allocated on the
-stack?  If it's just convention, could an assertion be added
-somewhere?
+commit 777c6e0daebb3fcefbbd6f620410a946b07ef6d0 upstream.
+
+Yu Zhao has noticed that __unregister_cpu_notifier only unregisters its
+notifiers when HOTPLUG_CPU=y while the registration might succeed even
+when HOTPLUG_CPU=n if MODULE is enabled. This means that e.g. zswap
+might keep a stale notifier on the list on the manual clean up during
+the pool tear down and thus corrupt the list. Resulting in the following
+
+[  144.964346] BUG: unable to handle kernel paging request at ffff880658a2be78
+[  144.971337] IP: [<ffffffffa290b00b>] raw_notifier_chain_register+0x1b/0x40
+<snipped>
+[  145.122628] Call Trace:
+[  145.125086]  [<ffffffffa28e5cf8>] __register_cpu_notifier+0x18/0x20
+[  145.131350]  [<ffffffffa2a5dd73>] zswap_pool_create+0x273/0x400
+[  145.137268]  [<ffffffffa2a5e0fc>] __zswap_param_set+0x1fc/0x300
+[  145.143188]  [<ffffffffa2944c1d>] ? trace_hardirqs_on+0xd/0x10
+[  145.149018]  [<ffffffffa2908798>] ? kernel_param_lock+0x28/0x30
+[  145.154940]  [<ffffffffa2a3e8cf>] ? __might_fault+0x4f/0xa0
+[  145.160511]  [<ffffffffa2a5e237>] zswap_compressor_param_set+0x17/0x20
+[  145.167035]  [<ffffffffa2908d3c>] param_attr_store+0x5c/0xb0
+[  145.172694]  [<ffffffffa290848d>] module_attr_store+0x1d/0x30
+[  145.178443]  [<ffffffffa2b2b41f>] sysfs_kf_write+0x4f/0x70
+[  145.183925]  [<ffffffffa2b2a5b9>] kernfs_fop_write+0x149/0x180
+[  145.189761]  [<ffffffffa2a99248>] __vfs_write+0x18/0x40
+[  145.194982]  [<ffffffffa2a9a412>] vfs_write+0xb2/0x1a0
+[  145.200122]  [<ffffffffa2a9a732>] SyS_write+0x52/0xa0
+[  145.205177]  [<ffffffffa2ff4d97>] entry_SYSCALL_64_fastpath+0x12/0x17
+
+This can be even triggered manually by changing
+/sys/module/zswap/parameters/compressor multiple times.
+
+Fix this issue by making unregister APIs symmetric to the register so
+there are no surprises.
+
+Fixes: 47e627bc8c9a ("[PATCH] hotplug: Allow modules to use the cpu hotplug notifiers even if !CONFIG_HOTPLUG_CPU")
+Reported-and-tested-by: Yu Zhao <yuzhao@google.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Streetman <ddstreet@ieee.org>
+Link: http://lkml.kernel.org/r/20161207135438.4310-1-mhocko@kernel.org
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ include/linux/cpu.h |   15 ++++-----------
+ kernel/cpu.c        |    3 +--
+ 2 files changed, 5 insertions(+), 13 deletions(-)
+
+--- a/include/linux/cpu.h
++++ b/include/linux/cpu.h
+@@ -131,22 +131,16 @@ enum {
+ 		{ .notifier_call = fn, .priority = pri };	\
+ 	__register_cpu_notifier(&fn##_nb);			\
+ }
+-#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
+-#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+-#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+-#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
+ 
+-#ifdef CONFIG_HOTPLUG_CPU
+ extern int register_cpu_notifier(struct notifier_block *nb);
+ extern int __register_cpu_notifier(struct notifier_block *nb);
+ extern void unregister_cpu_notifier(struct notifier_block *nb);
+ extern void __unregister_cpu_notifier(struct notifier_block *nb);
+-#else
+ 
+-#ifndef MODULE
+-extern int register_cpu_notifier(struct notifier_block *nb);
+-extern int __register_cpu_notifier(struct notifier_block *nb);
+-#else
++#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
++#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
++#define __cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
++
+ static inline int register_cpu_notifier(struct notifier_block *nb)
+ {
+ 	return 0;
+@@ -156,7 +150,6 @@ static inline int __register_cpu_notifie
+ {
+ 	return 0;
+ }
+-#endif
+ 
+ static inline void unregister_cpu_notifier(struct notifier_block *nb)
+ {
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -223,8 +223,6 @@ static int cpu_notify(unsigned long val,
+ 	return __cpu_notify(val, v, -1, NULL);
+ }
+ 
+-#ifdef CONFIG_HOTPLUG_CPU
+-
+ static void cpu_notify_nofail(unsigned long val, void *v)
+ {
+ 	BUG_ON(cpu_notify(val, v));
+@@ -246,6 +244,7 @@ void __unregister_cpu_notifier(struct no
+ }
+ EXPORT_SYMBOL(__unregister_cpu_notifier);
+ 
++#ifdef CONFIG_HOTPLUG_CPU
+ /**
+  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
+  * @cpu: a CPU id
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
