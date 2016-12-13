@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C93C16B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:16:06 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i88so170861703pfk.3
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 09:16:06 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 859356B0069
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:16:52 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f188so336213021pgc.1
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 09:16:52 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k76si48584066pgc.153.2016.12.13.09.16.05
+        by mx.google.com with ESMTPS id z15si48669065pfj.14.2016.12.13.09.16.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 09:16:05 -0800 (PST)
+        Tue, 13 Dec 2016 09:16:51 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 15/16] hotplug: Make register and unregister notifier API symmetric
-Date: Tue, 13 Dec 2016 09:16:01 -0800
-Message-Id: <20161213171519.624992520@linuxfoundation.org>
-In-Reply-To: <20161213171518.862135257@linuxfoundation.org>
-References: <20161213171518.862135257@linuxfoundation.org>
+Subject: [PATCH 4.8 32/33] hotplug: Make register and unregister notifier API symmetric
+Date: Tue, 13 Dec 2016 09:16:33 -0800
+Message-Id: <20161213171536.472127466@linuxfoundation.org>
+In-Reply-To: <20161213171534.171564506@linuxfoundation.org>
+References: <20161213171534.171564506@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Thomas Gleixner <tglx@linutronix.de>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.8-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -74,12 +74,12 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
  include/linux/cpu.h |   15 ++++-----------
- kernel/cpu.c        |    3 +--
- 2 files changed, 5 insertions(+), 13 deletions(-)
+ kernel/cpu.c        |    2 +-
+ 2 files changed, 5 insertions(+), 12 deletions(-)
 
 --- a/include/linux/cpu.h
 +++ b/include/linux/cpu.h
-@@ -131,22 +131,16 @@ enum {
+@@ -105,22 +105,16 @@ extern bool cpuhp_tasks_frozen;
  		{ .notifier_call = fn, .priority = pri };	\
  	__register_cpu_notifier(&fn##_nb);			\
  }
@@ -106,7 +106,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  static inline int register_cpu_notifier(struct notifier_block *nb)
  {
  	return 0;
-@@ -156,7 +150,6 @@ static inline int __register_cpu_notifie
+@@ -130,7 +124,6 @@ static inline int __register_cpu_notifie
  {
  	return 0;
  }
@@ -116,16 +116,15 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  {
 --- a/kernel/cpu.c
 +++ b/kernel/cpu.c
-@@ -223,8 +223,6 @@ static int cpu_notify(unsigned long val,
- 	return __cpu_notify(val, v, -1, NULL);
+@@ -578,7 +578,6 @@ void __init cpuhp_threads_init(void)
+ 	kthread_unpark(this_cpu_read(cpuhp_state.thread));
  }
  
 -#ifdef CONFIG_HOTPLUG_CPU
--
- static void cpu_notify_nofail(unsigned long val, void *v)
- {
- 	BUG_ON(cpu_notify(val, v));
-@@ -246,6 +244,7 @@ void __unregister_cpu_notifier(struct no
+ EXPORT_SYMBOL(register_cpu_notifier);
+ EXPORT_SYMBOL(__register_cpu_notifier);
+ void unregister_cpu_notifier(struct notifier_block *nb)
+@@ -595,6 +594,7 @@ void __unregister_cpu_notifier(struct no
  }
  EXPORT_SYMBOL(__unregister_cpu_notifier);
  
