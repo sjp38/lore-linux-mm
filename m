@@ -1,41 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3B66B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:07:43 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id z187so7499771iod.3
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:07:43 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0097.hostedemail.com. [216.40.44.97])
-        by mx.google.com with ESMTPS id m76si35460023iod.253.2016.12.13.14.07.42
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E481F6B0069
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 17:08:40 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e9so1756505pgc.5
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 14:08:40 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id f15si49570483plm.7.2016.12.13.14.08.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Dec 2016 14:07:42 -0800 (PST)
-Message-ID: <1481666853.29291.33.camel@perches.com>
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-From: Joe Perches <joe@perches.com>
-Date: Tue, 13 Dec 2016 14:07:33 -0800
-In-Reply-To: <20161213101451.GB10492@dhcp22.suse.cz>
-References: <20161208103300.23217-1-mhocko@kernel.org>
-	 <20161213101451.GB10492@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
+        Tue, 13 Dec 2016 14:08:40 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
+ implications
+References: <20161213181511.GB2305@redhat.com> <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com> <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <4accd272-7214-c702-aed3-fb131f178162@intel.com>
+Date: Tue, 13 Dec 2016 14:08:22 -0800
+MIME-Version: 1.0
+In-Reply-To: <20161213212433.GF2305@redhat.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>
+To: Jerome Glisse <jglisse@redhat.com>, Dave Chinner <david@fromorbit.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, "Williams, Dan J" <dan.j.williams@intel.com>
 
-On Tue, 2016-12-13 at 11:14 +0100, Michal Hocko wrote:
-> Are there any more comments or objections to this patch? Is this a good
-> start or kv[mz]alloc has to provide a way to cover GFP_NOFS users as
-> well in the initial version.
+On 12/13/2016 01:24 PM, Jerome Glisse wrote:
+> 
+>>> > > From kernel point of view such memory is almost like any other, it
+>>> > > has a struct page and most of the mm code is non the wiser, nor need
+>>> > > to be about it. CPU access trigger a migration back to regular CPU
+>>> > > accessible page.
+>> > 
+>> > That sounds ... complex. Page migration on page cache access inside
+>> > the filesytem IO path locking during read()/write() sounds like
+>> > a great way to cause deadlocks....
+> There are few restriction on device page, no one can do GUP on them and
+> thus no one can pin them. Hence they can always be migrated back. Yes
+> each fs need modification, most of it (if not all) is isolated in common
+> filemap helpers.
 
-Did Andrew Morton ever comment on this?
-I believe he was the primary objector in the past.
+Huh, that's pretty different from the other ZONE_DEVICE uses.  For
+those, you *can* do get_user_pages().
 
-Last I recollect was over a year ago:
+I'd be really interested to see the feature set that these pages have
+and how it differs from regular memory and the ZONE_DEVICE memory that
+have have in-kernel today.
 
-https://lkml.org/lkml/2015/7/7/1050
+BTW, how is this restriction implemented?  I would have expected to see
+follow_page_pte() or vm_normal_page() getting modified.  I don't see a
+single reference to get_user_pages or "GUP" in any of the latest HMM
+patch set or the changelogs.
 
+As best I can tell, the slow GUP path will get stuck in a loop inside
+follow_page_pte(), while the fast GUP path will allow you to acquire a
+reference to the page.  But, maybe I'm reading the code wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
