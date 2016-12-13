@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E799E6B0038
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 15:01:07 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e9so347121193pgc.5
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:01:07 -0800 (PST)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id i27si49099235pgn.68.2016.12.13.12.01.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Dec 2016 12:01:06 -0800 (PST)
-Message-ID: <1481659264.2473.59.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
- implications
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Tue, 13 Dec 2016 12:01:04 -0800
-In-Reply-To: <20161213185545.GC2305@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
-	 <1481653252.2473.51.camel@HansenPartnership.com>
-	 <20161213185545.GC2305@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D22D6B0253
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 15:02:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 17so180303128pfy.2
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 12:02:45 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id m5si49045434pgj.182.2016.12.13.12.02.43
+        for <linux-mm@kvack.org>;
+        Tue, 13 Dec 2016 12:02:44 -0800 (PST)
+Date: Wed, 14 Dec 2016 07:01:57 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
+Message-ID: <20161213200157.GA4326@dastard>
+References: <20161212164708.23244-1-jack@suse.cz>
+ <20161213115209.GG15362@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161213115209.GG15362@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org
 
-On Tue, 2016-12-13 at 13:55 -0500, Jerome Glisse wrote:
-> On Tue, Dec 13, 2016 at 10:20:52AM -0800, James Bottomley wrote:
-> > On Tue, 2016-12-13 at 13:15 -0500, Jerome Glisse wrote:
-> > > I would like to discuss un-addressable device memory in the
-> > > context 
-> > > of filesystem and block device. Specificaly how to handle write
-> > > -back,
-> > > read, ... when a filesystem page is migrated to device memory
-> > > that 
-> > > CPU can not access.
-> > > 
-> > > I intend to post a patchset leveraging the same idea as the
-> > > existing
-> > > block bounce helper (block/bounce.c) to handle this. I believe
-> > > this 
-> > > is worth discussing during summit see how people feels about such
-> > > plan and if they have better ideas.
+On Tue, Dec 13, 2016 at 12:52:09PM +0100, Jan Kara wrote:
+> On Mon 12-12-16 17:47:02, Jan Kara wrote:
+> > Hello,
 > > 
-> > Isn't this pretty much what the transcendent memory interfaces we
-> > currently have are for?  It's current use cases seem to be
-> > compressed
-> > swap and distributed memory, but there doesn't seem to be any
-> > reason in
-> > principle why you can't use the interface as well.
+> > this is the third revision of my fixes of races when invalidating hole pages in
+> > DAX mappings. See changelogs for details. The series is based on my patches to
+> > write-protect DAX PTEs which are currently carried in mm tree. This is a hard
+> > dependency because we really need to closely track dirtiness (and cleanness!)
+> > of radix tree entries in DAX mappings in order to avoid discarding valid dirty
+> > bits leading to missed cache flushes on fsync(2).
 > > 
+> > The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
+> > 
+> > Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
+> > patches to some tree once DAX write-protection patches are merged.  I'm hoping
+> > to get at least first three patches merged for 4.10-rc2... Thanks!
 > 
-> I am not a specialist of tmem or cleancache
+> OK, with the final ack from Johannes and since this is mostly DAX stuff,
+> can we take this through NVDIMM tree and push to Linus either late in the
+> merge window or for -rc2? These patches require my DAX patches sitting in mm
+> tree so they can be included in any git tree only once those patches land
+> in Linus' tree (which may happen only once Dave and Ted push out their
+> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
 
-Well, that makes two of us; I just got to sit through Dan Magenheimer's
-talks and some stuff stuck.
+And I'm waiting on Jens and the block tree before I send Linus
+a pulllreq for all the stuff I have queued because of the conflicts
+in the iomap-direct IO patches I've also got in the XFS tree... :/
 
->  but my understand is that there is no way to allow for file back 
-> page to be dirtied while being in this special memory.
+Cheers,
 
-Unless you have some other definition of dirtied, I believe that's what
-an exclusive tmem get in frontswap actually does.  It marks the page
-dirty when it comes back because it may have been modified.
-
-> In my case when you migrate a page to the device it might very well 
-> be so that the device can write something in it (results of some sort 
-> of computation). So page might migrate to device memory as clean but
-> return from it in dirty state.
-> 
-> Second aspect is that even if memory i am dealing with is un
-> -addressable i still have struct page for it and i want to be able to 
-> use regular page migration.
-
-Tmem keeps a struct page ... what's the problem with page migration?
-the fact that tmem locks the page when it's not addressable and you
-want to be able to migrate the page even when it's not addressable?
-
-> So given my requirement i didn't thought that cleancache was the way
-> to address them. Maybe i am wrong.
-
-I'm not saying it is, I just asked if you'd considered it, since the
-requirements look similar.
-
-James
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
