@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 22B156B0260
-	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 07:33:02 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id j10so36483972wjb.3
-        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 04:33:02 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6si2124008wmq.165.2016.12.13.04.33.00
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Dec 2016 04:33:01 -0800 (PST)
-Subject: Re: [PATCH] mm: fadvise: avoid expensive remote LRU cache draining
- after FADV_DONTNEED
-References: <20161210172658.5182-1-hannes@cmpxchg.org>
- <5cc0eb6f-bede-a34a-522b-e30d06723ffa@suse.cz>
- <20161212155552.GA7148@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d52c53fc-60c7-21ca-08ab-f58cd4b403f1@suse.cz>
-Date: Tue, 13 Dec 2016 13:32:58 +0100
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DCDE46B0038
+	for <linux-mm@kvack.org>; Tue, 13 Dec 2016 08:51:09 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 83so166888494pfx.1
+        for <linux-mm@kvack.org>; Tue, 13 Dec 2016 05:51:09 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z30si48079059plh.291.2016.12.13.05.51.08
+        for <linux-mm@kvack.org>;
+        Tue, 13 Dec 2016 05:51:08 -0800 (PST)
+Date: Tue, 13 Dec 2016 13:50:16 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCHv5 00/11] CONFIG_DEBUG_VIRTUAL for arm64
+Message-ID: <20161213135015.GC24607@leverpostej>
+References: <1481068257-6367-1-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161212155552.GA7148@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1481068257-6367-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Laura Abbott <labbott@redhat.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
 
-On 12/12/2016 04:55 PM, Johannes Weiner wrote:
-> On Mon, Dec 12, 2016 at 10:21:24AM +0100, Vlastimil Babka wrote:
->> On 12/10/2016 06:26 PM, Johannes Weiner wrote:
->>> When FADV_DONTNEED cannot drop all pages in the range, it observes
->>> that some pages might still be on per-cpu LRU caches after recent
->>> instantiation and so initiates remote calls to all CPUs to flush their
->>> local caches. However, in most cases, the fadvise happens from the
->>> same context that instantiated the pages, and any pre-LRU pages in the
->>> specified range are most likely sitting on the local CPU's LRU cache,
->>> and so in many cases this results in unnecessary remote calls, which,
->>> in a loaded system, can hold up the fadvise() call significantly.
->>
->> Got any numbers for this part?
->
-> I didn't record it in the extreme case we observed, unfortunately. We
-> had a slow-to-respond system and noticed it spending seconds in
-> lru_add_drain_all() after fadvise calls, and this patch came out of
-> thinking about the code and how we commonly call FADV_DONTNEED.
->
-> FWIW, I wrote a silly directory tree walker/searcher that recurses
-> through /usr to read and FADV_DONTNEED each file it finds. On a 2
-> socket 40 ht machine, over 1% is spent in lru_add_drain_all(). With
-> the patch, that cost is gone; the local drain cost shows at 0.09%.
+On Tue, Dec 06, 2016 at 03:50:46PM -0800, Laura Abbott wrote:
+> Hi,
+> 
+> This is v5 of the series to add CONFIG_DEBUG_VIRTUAL for arm64. This mostly
+> contains minor fixups including adding a few extra headers around and splitting
+> things out into a few more sub-patches.
+> 
+> With a few more acks I think this should be ready to go. More testing is
+> always appreciated though.
 
-Thanks, worth adding to changelog :)
+I've given the whole series a go with kasan, kexec, and hibernate (using
+test_resume with the disk target), and everything looks happy. So FWIW,
+for the series:
 
-Vlastimil
+Reviewed-by: Mark Rutland <mark.rutland@arm.com>
+Tested-by: Mark Rutland <mark.rutland@arm.com>
+
+Hopefully this can be queued soon for v4.11!
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
