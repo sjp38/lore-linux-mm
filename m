@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EEAF6B0069
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 12:37:48 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id x190so20220132qkb.5
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 09:37:48 -0800 (PST)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.189])
-        by mx.google.com with ESMTPS id 89si26048036lfw.25.2016.12.14.09.37.46
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 03AE66B0260
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 12:39:28 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id u144so1316275wmu.1
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 09:39:27 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id e6si46698039wjc.228.2016.12.14.09.39.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 09:37:47 -0800 (PST)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: Designing a safe RX-zero-copy Memory Model for Networking
-Date: Wed, 14 Dec 2016 17:37:37 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6DB023FA6E@AcuExch.aculab.com>
-References: <20161205153132.283fcb0e@redhat.com>
- <20161212083812.GA19987@rapoport-lnx> <20161212104042.0a011212@redhat.com>
- <20161212141433.GB19987@rapoport-lnx> <584EB8DF.8000308@gmail.com>
- <20161212181344.3ddfa9c3@redhat.com>
- <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com>
- <8aea213f-2739-9bd3-3a6a-668b759336ae@stressinduktion.org>
- <alpine.DEB.2.20.1612141059020.20959@east.gentwo.org>
-In-Reply-To: <alpine.DEB.2.20.1612141059020.20959@east.gentwo.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 14 Dec 2016 09:39:26 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id kp2so6046197wjc.0
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 09:39:26 -0800 (PST)
+Date: Wed, 14 Dec 2016 18:39:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Fw: [lkp-developer] [sched,rcu]  cf7a2dca60: [No primary change]
+ +186% will-it-scale.time.involuntary_context_switches
+Message-ID: <20161214173923.GA16763@dhcp22.suse.cz>
+References: <20161213151408.GC3924@linux.vnet.ibm.com>
+ <20161214095425.GE25573@dhcp22.suse.cz>
+ <20161214110609.GK3924@linux.vnet.ibm.com>
+ <20161214161540.GP25573@dhcp22.suse.cz>
+ <20161214164827.GL3924@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161214164827.GL3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Christoph Lameter' <cl@linux.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, John Fastabend <john.fastabend@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?Windows-1252?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, "Karlsson,
- Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom
- Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>, Vladislav Yasevich <vyasevich@gmail.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org
 
-From: Christoph Lameter
-> Sent: 14 December 2016 17:00
-> On Tue, 13 Dec 2016, Hannes Frederic Sowa wrote:
->=20
-> > > Interesting.  So you even imagine sockets registering memory regions
-> > > with the NIC.  If we had a proper NIC HW filter API across the driver=
-s,
-> > > to register the steering rule (like ibv_create_flow), this would be
-> > > doable, but we don't (DPDK actually have an interesting proposal[1])
-> >
-> > On a side note, this is what windows does with RIO ("registered I/O").
-> > Maybe you want to look at the API to get some ideas: allocating and
-> > pinning down memory in user space and registering that with sockets to
-> > get zero-copy IO.
->=20
-> Yup that is also what I think. Regarding the memory registration and flow
-> steering for user space RX/TX ring please look at the qpair model
-> implemented by the RDMA subsystem in the kernel. The memory semantics are
-> clearly established there and have been in use for more than a decade.
+On Wed 14-12-16 08:48:27, Paul E. McKenney wrote:
+> On Wed, Dec 14, 2016 at 05:15:41PM +0100, Michal Hocko wrote:
+> > On Wed 14-12-16 03:06:09, Paul E. McKenney wrote:
+> > > On Wed, Dec 14, 2016 at 10:54:25AM +0100, Michal Hocko wrote:
+> > > > On Tue 13-12-16 07:14:08, Paul E. McKenney wrote:
+> > > > > Just FYI for the moment...
+> > > > > 
+> > > > > So even with the slowed-down checking, making cond_resched() do what
+> > > > > cond_resched_rcu_qs() does results in a smallish but quite measurable
+> > > > > degradation according to 0day.
+> > > > 
+> > > > So if I understand those results properly, the reason seems to be the
+> > > > increased involuntary context switches, right? Or am I misreading the
+> > > > data?
+> > > > I am looking at your "sched,rcu: Make cond_resched() provide RCU
+> > > > quiescent state" in linux-next and I am wondering whether rcu_all_qs has
+> > > > to be called unconditionally and not only when should_resched failed few
+> > > > times? I guess you have discussed that with Peter already but do not
+> > > > remember the outcome.
+> > > 
+> > > My first thought is to wait for the grace period to age further before
+> > > checking, the idea being to avoid increasing cond_resched() overhead
+> > > any further.  But if that doesn't work, then yes, I may have to look at
+> > > adding more checks to cond_resched().
+> > 
+> > This might be really naive but would something like the following work?
+> > The overhead should be pretty much negligible, I guess. Ideally the pcp
+> > variable could be set somewhere from check_cpu_stall() but I couldn't
+> > wrap my head around that code to see how exactly.
+> 
+> My concern (perhaps misplaced) with this approach is that there are
+> quite a few tight loops containing cond_resched().  So I would still
+> need to throttle the resulting grace-period acceleration to keep the
+> context switches down to a dull roar.
 
-Isn't there a bigger problem for transmit?
-If the kernel is doing ANY validation on the frames it must copy the
-data to memory the application cannot modify before doing the validation.
-Otherwise the application could change the data afterwards.
-
-	David
-
+Yes, I see your point. Something based on the stall timeout would be
+much better of course. I just failed to come up with something that
+would make sense. This was more my lack of familiarity with the code so
+I hope you will be more successful ;)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
