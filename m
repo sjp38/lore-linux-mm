@@ -1,298 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 205166B0260
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:35:31 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id t7so46726374yba.2
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:35:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h68si16149642ywe.89.2016.12.14.08.35.29
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C78AC6B0266
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:36:14 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c4so33490408pfb.7
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:36:14 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 201si53497062pgd.162.2016.12.14.08.36.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 08:35:29 -0800 (PST)
-Date: Wed, 14 Dec 2016 11:35:26 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
- implications
-Message-ID: <20161214163525.GA14755@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
- <20161213201515.GB4326@dastard>
- <20161213203112.GE2305@redhat.com>
- <20161213211041.GC4326@dastard>
- <20161213212433.GF2305@redhat.com>
- <20161213221322.GD4326@dastard>
- <20161213225523.GG2305@redhat.com>
- <20161214001422.GE4326@dastard>
- <20161214010755.GA2182@redhat.com>
- <20161214042313.GF4326@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161214042313.GF4326@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Dec 2016 08:36:13 -0800 (PST)
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20161212131910.GC3185@dhcp22.suse.cz>
+	<201612132106.IJH12421.LJStOQMVHFOFOF@I-love.SAKURA.ne.jp>
+	<20161213170628.GC18362@dhcp22.suse.cz>
+	<201612142037.AAC60483.HVOSOJFLMOFtQF@I-love.SAKURA.ne.jp>
+	<20161214124231.GI25573@dhcp22.suse.cz>
+In-Reply-To: <20161214124231.GI25573@dhcp22.suse.cz>
+Message-Id: <201612150136.GBC13980.FHQFLSOJOFOtVM@I-love.SAKURA.ne.jp>
+Date: Thu, 15 Dec 2016 01:36:07 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: mhocko@suse.com
+Cc: linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
 
-On Wed, Dec 14, 2016 at 03:23:13PM +1100, Dave Chinner wrote:
-> On Tue, Dec 13, 2016 at 08:07:58PM -0500, Jerome Glisse wrote:
-> > On Wed, Dec 14, 2016 at 11:14:22AM +1100, Dave Chinner wrote:
-> > > On Tue, Dec 13, 2016 at 05:55:24PM -0500, Jerome Glisse wrote:
-> > > > On Wed, Dec 14, 2016 at 09:13:22AM +1100, Dave Chinner wrote:
-> > > > > On Tue, Dec 13, 2016 at 04:24:33PM -0500, Jerome Glisse wrote:
-> > > > > > On Wed, Dec 14, 2016 at 08:10:41AM +1100, Dave Chinner wrote:
-> > > > > > > > From kernel point of view such memory is almost like any other, it
-> > > > > > > > has a struct page and most of the mm code is non the wiser, nor need
-> > > > > > > > to be about it. CPU access trigger a migration back to regular CPU
-> > > > > > > > accessible page.
-> > > > > > > 
-> > > > > > > That sounds ... complex. Page migration on page cache access inside
-> > > > > > > the filesytem IO path locking during read()/write() sounds like
-> > > > > > > a great way to cause deadlocks....
-> > > > > > 
-> > > > > > There are few restriction on device page, no one can do GUP on them and
-> > > > > > thus no one can pin them. Hence they can always be migrated back. Yes
-> > > > > > each fs need modification, most of it (if not all) is isolated in common
-> > > > > > filemap helpers.
-> > > > > 
-> > > > > Sure, but you haven't answered my question: how do you propose we
-> > > > > address the issue of placing all the mm locks required for migration
-> > > > > under the filesystem IO path locks?
+Michal Hocko wrote:
+> On Wed 14-12-16 20:37:07, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 13-12-16 21:06:57, Tetsuo Handa wrote:
+> > > > http://I-love.SAKURA.ne.jp/tmp/serial-20161213.txt.xz is a console log with
+> > > > this patch applied. Due to hung task warnings disabled, amount of messages
+> > > > are significantly reduced.
 > > > > 
-> > > > Two different plans (which are non exclusive of each other). First is to use
-> > > > workqueue and have read/write wait on the workqueue to be done migrating the
-> > > > page back.
+> > > > Uptime > 400 are testcases where the stresser was invoked via "taskset -c 0".
+> > > > Since there are some "** XXX printk messages dropped **" messages, I can't
+> > > > tell whether the OOM killer was able to make forward progress. But guessing
+> > > >  from the result that there is no corresponding "Killed process" line for
+> > > > "Out of memory: " line at uptime = 450 and the duration of PID 14622 stalled,
+> > > > I think it is OK to say that the system got stuck because the OOM killer was
+> > > > not able to make forward progress.
 > > > 
-> > > Pushing something to a workqueue and then waiting on the workqueue
-> > > to complete the work doesn't change lock ordering problems - it
-> > > just hides them away and makes them harder to debug.
-> > 
-> > Migration doesn't need many lock below is a list and i don't see any lock issue
-> > in respect to ->read or ->write.
-> > 
-> >  lock_page(page);
-> >  spin_lock_irq(&mapping->tree_lock);
-> >  lock_buffer(bh); // if page has buffer_head
-> >  i_mmap_lock_read(mapping);
-> >  vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-> >     // page table lock for each entry
-> >  }
-> 
-> We can't take the page or mapping tree locks that while we hold
-> various filesystem locks.
-> 
-> e.g. The IO path lock order is, in places:
-> 
-> inode->i_rwsem
->   get page from page cache
->   lock_page(page)
->   inode->allocation lock
->     zero page data
-> 
-> Filesystems are allowed to do this, because the IO path has
-> guaranteed them access to the page cache data on the page that is
-> locked. Your ZONE_DEVICE proposal breaks this guarantee - we might
-> have a locked page, but we don't have access to it's data.
-> 
-> Further, in various filesystems once the allocation lock is taken
-> (e.g. the i_lock in XFS) we're not allowed to lock pages or the
-> mapping tree as that leads to deadlocks with truncate, hole punch,
-> etc. Hence if the "zero page data" operation occurs on a ZONE_DEVICE page that
-> requires migration before the zeroing can occur, we can't perform
-> migration here.
-> 
-> Why are we even considering migration in situations where we already
-> hold the ZONE_DEVICE page locked, hold other filesystem locks inside
-> the page lock, and have an open dirty filesystem transaction as well?
-> 
-> Even if migration si possible and succeeds, the struct page in the
-> mapping tree for the file offset we are operating on is going to be
-> different after migration. That implies we need to completely
-> restart the operation. But given that we've already made changes,
-> backing out at this point is ...  complex and may not even be
-> possible.
-
-So i skim through xfs code and i still think this is doable. So in the
-above sequence:
-
-  inode->i_rwsem
-  page = find_get_page();
-  if (device_unaddressable(page)) {
-     page = migratepage();
-  }
-  ...
-
-Now there is thing like filemap_write_and_wait...() but thus can be
-handled by the bio bounce buffer like i said ie a the block layer we
-allocate temporary page, page are already read only on the device as
-device obey regular thing like page_mkclean(). So page content is
-stable.
-
-The migrate page is using buffer_migrate_page() and i don't see any
-deadlock there. So i am not seeing any problem in doing migrate early
-on right after page lookup.
-
-
-> 
-> i.e. we have an architectural assumption that page contents are
-> always accessable when we have a locked struct page, and your
-> proposal would appear to violate that assumption...
-
-And it is, data might be in device memory but you can use bounce
-page to access it and you can write protect it on the device so
-that it doesn't change.
-
-Looking at xfs, it never does a kmap() directly, only through some
-of the generic code and thus are place where we can use bounce page.
-
-
- 
-> > > > Second solution is to use a bounce page during I/O so that there is no need
-> > > > for migration.
+> > > The oom situation certainly didn't get resolved. I would be really
+> > > curious whether we can rule out the printk out of the picture, though. I
+> > > am still not sure we can rule out some obscure OOM killer bug at this
+> > > stage.
 > > > 
-> > > Which means the page in the device is left with out-of-date
-> > > contents, right?
-> > >
-> > > If so, how do you prevent data corruption/loss when the device
-> > > has modified the page out of sight of the CPU and the bounce page
-> > > doesn't contain those modifications? Or if the dirty device page is
-> > > written back directly without containing the changes made in the
-> > > bounce page?
+> > > What if we lower the loglevel as much as possible to only see KERN_ERR
+> > > should be sufficient to see few oom killer messages while suppressing
+> > > most of the other noise. Unfortunatelly, even messages with level >
+> > > loglevel get stored into the ringbuffer (as I've just learned) so
+> > > console_unlock() has to crawl through them just to drop them (Meh) but
+> > > at least it doesn't have to go to the serial console drivers and spend
+> > > even more time there. An alternative would be to tweak printk to not
+> > > even store those messaes. Something like the below
 > > 
-> > There is no issue here, if bounce page is use then the page is mark as read
-> > only on the device until write is done and device copy is updated with what
-> > we have been ask to write. So no coherency issue between the 2 copy.
+> > Changing loglevel is not a option for me. Under OOM, syslog cannot work.
+> > Only messages sent to serial console / netconsole are available for
+> > understanding something went wrong. And serial consoles may be very slow.
+> > We need to try to avoid uncontrolled printk().
 > 
-> What if the page is already dirty on the device? You can't just
-> "mark it read only" because then you lose any data the device had
-> written that was not directly overwritten by the IO that needed
-> bouncing.
+> That is definitely true I just wanted the above for the sake of testing
+> and rulling out a different problem because currently it is not clear to
+> me that this is the printk livelock issue. Evidences are quite
+> convincing but not 100% sure. So...
 > 
-> Partial page overwrites do occur...
-
-I should have been more explicit you:
-  - write protect page on device
-  - alloc bounce page
-  - dma device data to bounce page
-  - perform write on bounce page
-  - dma bounce page back to device data
-  - write io end
-
-It is just like it would be on CPU. There is no data hazard, no loss
-of data or incoherency here.
-
-> > > > > And if zeroing the page during such a fault requires CPU access to
-> > > > > the data, how do you propose we handle page migration in the middle
-> > > > > of the page fault to allow the CPU to zero the page? Seems like more
-> > > > > lock order/inversion problems there, too...
-> > > > 
-> > > > File back page are never allocated on device, at least we have no incentive
-> > > > for usecase we care about today to do so. So a regular page is first use
-> > > > and initialize (to zero for hole) before being migrated to device.
-> > > > So i do not believe there should be any major concern on ->page_mkwrite.
+> > > So it would be really great if you could
+> > > 	1) test with the fixed throttling
+> > > 	2) loglevel=4 on the kernel command line
+> > > 	3) try the above with the same loglevel
 > > > 
-> > > Such deja vu - inodes are not static objects as modern filesystems
-> > > are highly dynamic. If you want to have safe, reliable non-coherent
-> > > mmap-based file data offload to devices, then I suspect that we're
-> > > going to need pretty much all of the same restrictions the pmem
-> > > programming model requires for userspace data flushing. i.e.:
-> > > 
-> > > https://lkml.org/lkml/2016/9/15/33
+> > > ideally 1) would be sufficient and that would make the most sense from
+> > > the warn_alloc point of view. If this is 2 or 3 then we are hitting a
+> > > more generic problem and I would be quite careful to hack it around.
 > > 
-> > I don't see any of the issues in that email applying to my case. Like i said
-> > from fs/mm point of view my page are _exactly_ like regular page.
+> > Thus, I don't think I can do these.
 > 
-> Except they aren't...
-> 
-> > Only thing
-> > is no CPU access.
-> 
-> ... because filesystems need direct CPU access to the data the page
-> points at when migration does not appear to be possible.
+> i think this would be really valuable.
 
-And it can, the data is always accessible, it is just a matter of using
-a bounce page. I did a grep on kmap() and 99% of call site are about
-meta-data page which i don't want to migrate. Then there is some in
-generic helper for read/write/aio ... this are place where bounce page
-can be use if the page is not migrated earlier in the i/o process.
+OK. I tried 1) and 2). I didn't try 3) because printk() did not work as expected.
 
-> 
-> FWIW, another nasty corner case I just realised: the file data
-> requires some kind of data transformation on writeback. e.g.
-> compression, encryption, parity calculations for RAID, etc. IOWs, it
-> could be the block device underneath the filesystem that requires
-> ZONE_DEVICE->ZONE_NORMAL migration to occur. And to make matters
-> worse, that can occur in code paths that operate in a "must
-> guarantee forwards progress" memory allocation context...
+Regarding 1), it did not help. I can still see "** XXX printk messages dropped **"
+( http://I-love.SAKURA.ne.jp/tmp/serial-20161215-1.txt.xz ).
 
-Well my proposal is about using the bio bounce code, which was done for
-ISA block device and i don't see any issue there. We allocate bounce page
-copy data from device into bounce page, the block layer does its thing
-(compress, encrypt, ...) on the bounce page. It is non the wiser. There
-is no migration happening. Note that at this point the page is already
-write protected on the device like it would be on the CPU.
+Regarding 2), I can't tell whether it helped
+( http://I-love.SAKURA.ne.jp/tmp/serial-20161215-2.txt.xz ).
+I can no longer see "** XXX printk messages dropped **", but sometimes they stalled.
+In most cases, "Out of memory: " and "Killed process" lines are printed within 0.1
+second. But sometimes it took a few seconds. Less often it took longer than a minute.
+There was one big stall which lasted for minutes. I changed loglevel to 7 and checked
+memory information. Seems that watermark was low enough to call out_of_memory().
 
-
-> > > At which point I have to ask: why is mmap considered to be the right
-> > > model for transfering data in and out of devices that are not
-> > > directly CPU addressable? 
-> > 
-> > That is where the industry is going, OpenCL 2.0/3.0, C++ concurrency and
-> > parallelism, OpenACC, OpenMP, HSA, Cuda ... all those API require unified
-> > address space and transparent use of device memory.
-> 
-> Sure, but that doesn't mean you can just map random files into the
-> user address space and then hand it off to random hardware and
-> expect the filesystem to be perfectly happy with that. 
-
-I am not expecting filesystem will be happy as it is but i am expecting
-there is way to make it happy :)
-
-
-> > > > migration for given fs.
-> > > 
-> > > How do you propose doing that?
-> > 
-> > As a mount flag option is my first idea but i have no strong opinion here.
-> 
-> No, absolutely not. Mount options are not for controlling random
-> special interest behaviours in filesystems. That makes it impossible
-> to mix "incompatible" technologies in the same filesystem.
-
-I don't have strong opinion here. I just would like to allow sys-admin
-to decide somehow if they don't want to allow some fs to be migrated
-to device. I don't have good knowledge on what interface would be
-appropriate for this.
-
-> 
-> > It might make sense for finer granularity but i don't believe so.
-> 
-> Then you're just not thinking about complex computation engines the
-> right way, are you?
-> 
-> e.g. you have a pmem filesystem as the central high-speed data store
-> for you computation engine. Some apps in the pipeline use DAX for
-> their data access because it's 10x faster than using traditional
-> buffered mmap access, so the filesystem is mounted "-o dax". But
-> then you want to add a hardware accelerator to speed up a different
-> stage of the pipeline by 10x, but it requires page based ZONE_DEVICE
-> management.
-> 
-> Unfortuantely the "-o zone_device" mount option is incompatible with
-> "-o dax" and because "it doesn't make sense for DAX to be a fine
-> grained option" you can't combine the two technologies into the one
-> pipeline....
-> 
-> That'd really suck, wouldn't it?
-
-Well i don't to allow migration for dax fs because dax is a different
-problem. I think it is only use with pmem and i don't think i want to
-allow pmem migration. It would break some assumption people have about
-pmem. People using both technology would have to do extra work in there
-program to leverage both.
-
-Cheers,
-Jerome
+[  371.077952] Out of memory: Kill process 5092 (a.out) score 999 or sacrifice child
+[  371.080486] Killed process 5092 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  371.087651] Out of memory: Kill process 5093 (a.out) score 999 or sacrifice child
+[  371.090130] Killed process 5093 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  371.096977] Out of memory: Kill process 5094 (a.out) score 999 or sacrifice child
+[  371.099452] Killed process 5094 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  609.565043] sysrq: SysRq : Show Memory
+[  617.645805] sysrq: SysRq : Changing Loglevel
+[  617.647667] sysrq: Loglevel set to 7
+[  619.493984] sysrq: SysRq : Show Memory
+[  619.495721] Mem-Info:
+[  619.497065] active_anon:356034 inactive_anon:2961 isolated_anon:0
+[  619.497065]  active_file:57 inactive_file:133 isolated_file:32
+[  619.497065]  unevictable:0 dirty:14 writeback:0 unstable:0
+[  619.497065]  slab_reclaimable:3654 slab_unreclaimable:29434
+[  619.497065]  mapped:718 shmem:4209 pagetables:9032 bounce:0
+[  619.497065]  free:12922 free_pcp:89 free_cma:0
+[  619.508579] Node 0 active_anon:1424136kB inactive_anon:11844kB active_file:228kB inactive_file:532kB unevictable:0kB isolated(anon):0kB isolated(file):128kB mapped:2872kB dirty:56kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 1161216kB anon_thp: 16836kB writeback_tmp:0kB unstable:0kB pages_scanned:1347 all_unreclaimable? yes
+[  619.516992] Node 0 DMA free:7120kB min:412kB low:512kB high:612kB active_anon:8752kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[  619.525582] lowmem_reserve[]: 0 1677 1677 1677
+[  619.527519] Node 0 DMA32 free:44568kB min:44640kB low:55800kB high:66960kB active_anon:1415384kB inactive_anon:11844kB active_file:228kB inactive_file:532kB unevictable:0kB writepending:56kB present:2080640kB managed:1717740kB mlocked:0kB slab_reclaimable:14616kB slab_unreclaimable:117704kB kernel_stack:18816kB pagetables:36128kB bounce:0kB free_pcp:356kB local_pcp:0kB free_cma:0kB
+[  619.536967] lowmem_reserve[]: 0 0 0 0
+[  619.538808] Node 0 DMA: 0*4kB 0*8kB 1*16kB (M) 0*32kB 3*64kB (UM) 2*128kB (UM) 2*256kB (UM) 0*512kB 2*1024kB (UM) 0*2048kB 1*4096kB (M) = 7120kB
+[  619.542971] Node 0 DMA32: 2*4kB (UH) 248*8kB (MEH) 59*16kB (UMEH) 135*32kB (UMEH) 47*64kB (UMEH) 8*128kB (UEH) 4*256kB (UEH) 31*512kB (M) 16*1024kB (UM) 0*2048kB 0*4096kB = 44568kB
+[  619.548827] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[  619.551524] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[  619.554147] 4441 total pagecache pages
+[  619.555838] 0 pages in swap cache
+[  619.557421] Swap cache stats: add 0, delete 0, find 0/0
+[  619.559359] Free swap  = 0kB
+[  619.560827] Total swap = 0kB
+[  619.562312] 524157 pages RAM
+[  619.563779] 0 pages HighMem/MovableOnly
+[  619.565418] 90746 pages reserved
+[  619.566897] 0 pages hwpoisoned
+[  624.638061] a.out: page allocation stalls for 140001ms, order:0[  624.646725] a.out: 
+[  624.646727] page allocation stalls for 140026ms, order:0, mode:0x342004a(GFP_NOFS|__GFP_HIGHMEM|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_WRITE)
+[  624.646731] CPU: 0 PID: 5167 Comm: a.out Tainted: G        W       4.9.0+ #102
+[  624.646732] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
+[  624.646733]  ffff880060dab930
+[  624.646734]  ffffffff8134b0af ffffffff8198ce88 0000000000000001 ffff880060dab9b8
+[  624.646735]  ffffffff8115489b 0342004a5fa93740 ffffffff8198ce88 ffff880060dab958
+[  624.646737]  ffff880000000010 ffff880060dab9c8 ffff880060dab978Call Trace:
+[  624.646744]  [<ffffffff8134b0af>] dump_stack+0x67/0x98
+[  624.646747]  [<ffffffff8115489b>] warn_alloc+0x12b/0x170
+[  624.646748]  [<ffffffff8115526b>] __alloc_pages_nodemask+0x91b/0xf20
+[  624.646751]  [<ffffffff811a71e6>] alloc_pages_current+0x96/0x190
+[  624.646754]  [<ffffffff811488f2>] __page_cache_alloc+0x142/0x180
+[  624.646755]  [<ffffffff81149208>] ? find_get_entry+0x198/0x270
+[  624.646756]  [<ffffffff81149070>] ? page_cache_prev_hole+0x50/0x50
+[  624.646758]  [<ffffffff8114949b>] pagecache_get_page+0x8b/0x2a0
+[  624.646759]  [<ffffffff8114a92e>] grab_cache_page_write_begin+0x1e/0x40
+[  624.646761]  [<ffffffff81244adb>] iomap_write_begin+0x4b/0x100
+[  624.646762]  [<ffffffff81244d60>] iomap_write_actor+0xb0/0x190
+[  624.646764]  [<ffffffff812cb28b>] ? xfs_trans_commit+0xb/0x10
+[  624.646765]  [<ffffffff81244cb0>] ? iomap_write_end+0x70/0x70
+[  624.646766]  [<ffffffff812453ae>] iomap_apply+0xae/0x130
+[  624.646767]  [<ffffffff81245493>] iomap_file_buffered_write+0x63/0xa0
+[  624.646768]  [<ffffffff81244cb0>] ? iomap_write_end+0x70/0x70
+[  624.646770]  [<ffffffff812b03af>] xfs_file_buffered_aio_write+0xcf/0x1f0
+[  624.646772]  [<ffffffff812b0555>] xfs_file_write_iter+0x85/0x120
+[  624.646773]  [<ffffffff811dc770>] __vfs_write+0xe0/0x140
+[  624.646774]  [<ffffffff811dd440>] vfs_write+0xb0/0x1b0
+[  624.646776]  [<ffffffff81002240>] ? syscall_trace_enter+0x1b0/0x240
+[  624.646778]  [<ffffffff811de8e3>] SyS_write+0x53/0xc0
+[  624.646781]  [<ffffffff81367963>] ? __this_cpu_preempt_check+0x13/0x20
+[  624.646781]  [<ffffffff81002511>] do_syscall_64+0x61/0x1d0
+[  624.646784]  [<ffffffff816b9d64>] entry_SYSCALL64_slow_path+0x25/0x25
+[  624.646786] Mem-Info:
+[  624.646788] active_anon:356034 inactive_anon:2961 isolated_anon:0
+[  624.646788]  active_file:57 inactive_file:133 isolated_file:32
+[  624.646788]  unevictable:0 dirty:14 writeback:0 unstable:0
+[  624.646788]  slab_reclaimable:3654 slab_unreclaimable:29434
+[  624.646788]  mapped:718 shmem:4209 pagetables:9032 bounce:0
+[  624.646788]  free:12922 free_pcp:89 free_cma:0
+[  624.646791] Node 0 active_anon:1424136kB inactive_anon:11844kB active_file:228kB inactive_file:532kB unevictable:0kB isolated(anon):0kB isolated(file):128kB mapped:2872kB dirty:56kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 1161216kB anon_thp: 16836kB writeback_tmp:0kB unstable:0kB pages_scanned:1347 all_unreclaimable? yes
+[  624.646792] Node 0 
+[  624.646794] DMA free:7120kB min:412kB low:512kB high:612kB active_anon:8752kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+lowmem_reserve[]:
+[  624.646795]  0 1677 1677 1677Node 0 
+[  624.646799] DMA32 free:44568kB min:44640kB low:55800kB high:66960kB active_anon:1415384kB inactive_anon:11844kB active_file:228kB inactive_file:532kB unevictable:0kB writepending:56kB present:2080640kB managed:1717740kB mlocked:0kB slab_reclaimable:14616kB slab_unreclaimable:117704kB kernel_stack:18816kB pagetables:36128kB bounce:0kB free_pcp:356kB local_pcp:120kB free_cma:0kB
+lowmem_reserve[]:
+[  624.646800]  0 0 0 0Node 0 
+[  624.646801] DMA: 0*4kB 0*8kB 1*16kB (M) 0*32kB 3*64kB (UM) 2*128kB (UM) 2*256kB (UM) 0*512kB 2*1024kB (UM) 0*2048kB 1*4096kB (M) = 7120kB
+Node 0 
+[  624.646810] DMA32: 2*4kB (UH) 248*8kB (MEH) 59*16kB (UMEH) 135*32kB (UMEH) 47*64kB (UMEH) 8*128kB (UEH) 4*256kB (UEH) 31*512kB (M) 16*1024kB (UM) 0*2048kB 0*4096kB = 44568kB
+[  624.646819] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[  624.646820] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[  624.646821] 4441 total pagecache pages
+[  624.646822] 0 pages in swap cache
+[  624.646822] Swap cache stats: add 0, delete 0, find 0/0
+[  624.646823] Free swap  = 0kB
+[  624.646823] Total swap = 0kB
+[  624.646824] 524157 pages RAM
+[  624.646825] 0 pages HighMem/MovableOnly
+[  624.646825] 90746 pages reserved
+[  624.646825] 0 pages hwpoisoned
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
