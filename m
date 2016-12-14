@@ -1,76 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A0DD06B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 13:18:54 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id he10so13354760wjc.6
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 10:18:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hm2si55566245wjb.167.2016.12.14.10.18.53
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C892C6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 14:02:18 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id j10so13836243wjb.3
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:02:18 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id lh9si55809732wjc.83.2016.12.14.11.02.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Dec 2016 10:18:53 -0800 (PST)
-Date: Wed, 14 Dec 2016 19:18:50 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161214181850.GC16763@dhcp22.suse.cz>
-References: <20161212131910.GC3185@dhcp22.suse.cz>
- <201612132106.IJH12421.LJStOQMVHFOFOF@I-love.SAKURA.ne.jp>
- <20161213170628.GC18362@dhcp22.suse.cz>
- <201612142037.AAC60483.HVOSOJFLMOFtQF@I-love.SAKURA.ne.jp>
- <20161214124231.GI25573@dhcp22.suse.cz>
- <201612150136.GBC13980.FHQFLSOJOFOtVM@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Dec 2016 11:02:17 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id g23so1126271wme.1
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:02:17 -0800 (PST)
+Date: Wed, 14 Dec 2016 20:02:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm, trace: extract COMPACTION_STATUS and ZONE_TYPE
+ to a common header
+Message-ID: <20161214190215.GE16763@dhcp22.suse.cz>
+References: <20161214145324.26261-2-mhocko@kernel.org>
+ <201612150127.1D06IAf6%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612150136.GBC13980.FHQFLSOJOFOtVM@I-love.SAKURA.ne.jp>
+In-Reply-To: <201612150127.1D06IAf6%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 15-12-16 01:36:07, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 14-12-16 20:37:07, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-[...]
-> > > > So it would be really great if you could
-> > > > 	1) test with the fixed throttling
-> > > > 	2) loglevel=4 on the kernel command line
-> > > > 	3) try the above with the same loglevel
-> > > > 
-> > > > ideally 1) would be sufficient and that would make the most sense from
-> > > > the warn_alloc point of view. If this is 2 or 3 then we are hitting a
-> > > > more generic problem and I would be quite careful to hack it around.
-> > > 
-> > > Thus, I don't think I can do these.
-> > 
-> > i think this would be really valuable.
+On Thu 15-12-16 01:32:06, kbuild test robot wrote:
+> Hi Michal,
 > 
-> OK. I tried 1) and 2). I didn't try 3) because printk() did not work as expected.
+> [auto build test ERROR on tip/perf/core]
+> [also build test ERROR on v4.9 next-20161214]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 > 
-> Regarding 1), it did not help. I can still see "** XXX printk messages dropped **"
-> ( http://I-love.SAKURA.ne.jp/tmp/serial-20161215-1.txt.xz ).
+> url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/mm-oom-add-oom-detection-tracepoints/20161214-231225
+> config: x86_64-randconfig-s2-12142134 (attached as .config)
+> compiler: gcc-4.4 (Debian 4.4.7-8) 4.4.7
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    In file included from include/trace/trace_events.h:361,
+>                     from include/trace/define_trace.h:95,
+>                     from include/trace/events/compaction.h:356,
+>                     from mm/compaction.c:43:
+>    include/trace/events/compaction.h: In function 'trace_raw_output_mm_compaction_end':
+> >> include/trace/events/compaction.h:134: error: expected expression before ',' token
+>    include/trace/events/compaction.h: In function 'trace_raw_output_mm_compaction_suitable_template':
+>    include/trace/events/compaction.h:195: error: expected expression before ',' token
+> >> include/trace/events/compaction.h:195: warning: missing braces around initializer
+>    include/trace/events/compaction.h:195: warning: (near initialization for 'symbols[0]')
+> >> include/trace/events/compaction.h:195: error: initializer element is not constant
+>    include/trace/events/compaction.h:195: error: (near initialization for 'symbols[0].mask')
 
-So we still manage to swamp the logbuffer. The question is whether you
-can still see the lockup. This is not obvious from the output to me.
-
-> Regarding 2), I can't tell whether it helped
-> ( http://I-love.SAKURA.ne.jp/tmp/serial-20161215-2.txt.xz ).
-> I can no longer see "** XXX printk messages dropped **", but sometimes they stalled.
-> In most cases, "Out of memory: " and "Killed process" lines are printed within 0.1
-> second. But sometimes it took a few seconds. Less often it took longer than a minute.
-> There was one big stall which lasted for minutes. I changed loglevel to 7 and checked
-> memory information. Seems that watermark was low enough to call out_of_memory().
-
-Isn't that what your test case essentially does though? Keep the system
-in OOM continually? Some stalls are to be expected I guess, the main
-question is whether there is a point with no progress at all.
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Interesting. I am pretty sure that my config battery has
+CONFIG_COMPACTION=n. Not sure which part of your config made a change.
+Anyway, I've added to my collection. And with the below diff it passes
+all my configs.
+---
