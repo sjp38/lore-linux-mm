@@ -1,174 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8616B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 10:07:15 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id bk3so11113972wjc.4
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 07:07:15 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id us1si9575719wjc.102.2016.12.14.07.07.13
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D32C06B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:15:44 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id s63so406860wms.7
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:15:44 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id j13si7912350wmf.109.2016.12.14.08.15.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 07:07:13 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id j10so5282672wjb.3
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 07:07:13 -0800 (PST)
+        Wed, 14 Dec 2016 08:15:43 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id g23so199279wme.1
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:15:43 -0800 (PST)
+Date: Wed, 14 Dec 2016 17:15:41 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm: consolidate GFP_NOFAIL checks in the allocator slowpath
-Date: Wed, 14 Dec 2016 16:07:06 +0100
-Message-Id: <20161214150706.27412-1-mhocko@kernel.org>
+Subject: Re: Fw: [lkp-developer] [sched,rcu]  cf7a2dca60: [No primary change]
+ +186% will-it-scale.time.involuntary_context_switches
+Message-ID: <20161214161540.GP25573@dhcp22.suse.cz>
+References: <20161213151408.GC3924@linux.vnet.ibm.com>
+ <20161214095425.GE25573@dhcp22.suse.cz>
+ <20161214110609.GK3924@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161214110609.GK3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 14-12-16 03:06:09, Paul E. McKenney wrote:
+> On Wed, Dec 14, 2016 at 10:54:25AM +0100, Michal Hocko wrote:
+> > On Tue 13-12-16 07:14:08, Paul E. McKenney wrote:
+> > > Just FYI for the moment...
+> > > 
+> > > So even with the slowed-down checking, making cond_resched() do what
+> > > cond_resched_rcu_qs() does results in a smallish but quite measurable
+> > > degradation according to 0day.
+> > 
+> > So if I understand those results properly, the reason seems to be the
+> > increased involuntary context switches, right? Or am I misreading the
+> > data?
+> > I am looking at your "sched,rcu: Make cond_resched() provide RCU
+> > quiescent state" in linux-next and I am wondering whether rcu_all_qs has
+> > to be called unconditionally and not only when should_resched failed few
+> > times? I guess you have discussed that with Peter already but do not
+> > remember the outcome.
+> 
+> My first thought is to wait for the grace period to age further before
+> checking, the idea being to avoid increasing cond_resched() overhead
+> any further.  But if that doesn't work, then yes, I may have to look at
+> adding more checks to cond_resched().
 
-Tetsuo Handa has pointed out that 0a0337e0d1d1 ("mm, oom: rework oom
-detection") has subtly changed semantic for costly high order requests
-with __GFP_NOFAIL and withtout __GFP_REPEAT and those can fail right now.
-My code inspection didn't reveal any such users in the tree but it is
-true that this might lead to unexpected allocation failures and
-subsequent OOPs.
-
-__alloc_pages_slowpath wrt. GFP_NOFAIL is hard to follow currently.
-There are few special cases but we are lacking a catch all place to be
-sure we will not miss any case where the non failing allocation might
-fail. This patch reorganizes the code a bit and puts all those special
-cases under nopage label which is the generic go-to-fail path. Non
-failing allocations are retried or those that cannot retry like
-non-sleeping allocation go to the failure point directly. This should
-make the code flow much easier to follow and make it less error prone
-for future changes.
-
-While we are there we have to move the stall check up to catch
-potentially looping non-failing allocations.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
----
-Hi Andrew,
-this has been posted previously as a 2 patch series [1]. This is the first patch.
-The second one has generated a lot of discussion and Tetsuo has naked it based
-because he is worried about a potential lockups. I have argued [2] that there
-are other aspects to consider but then later realized that there is a different
-risk in place which hasn't been considered before. There are some users who are
-performing a lot of __GFP_NOFAIL|GFP_NOFS requests and we certainly do not want to
-give them full access to memory reserves without invoking the OOM killer [3].
-
-For that reason I have dropped the second patch for now and think about
-this some more. The first patch still makes some sense and I find it as
-a useful cleanup so I would ask you to merge it before I find a better
-solution for the other issue. There was no opposition this this patch so I guess
-it should be good to go.
-
-[1] http://lkml.kernel.org/r/20161201152517.27698-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20161212084837.GB18163@dhcp22.suse.cz
-[3] http://lkml.kernel.org/r/20161214103418.GH25573@dhcp22.suse.cz
-
- mm/page_alloc.c | 68 ++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 41 insertions(+), 27 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3f2c9e535f7f..79b327d9c9a6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3640,32 +3640,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto got_pg;
+This might be really naive but would something like the following work?
+The overhead should be pretty much negligible, I guess. Ideally the pcp
+variable could be set somewhere from check_cpu_stall() but I couldn't
+wrap my head around that code to see how exactly.
+--- 
+diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
+index ac81e4063b40..1c005c5304a3 100644
+--- a/include/linux/rcutiny.h
++++ b/include/linux/rcutiny.h
+@@ -243,6 +243,10 @@ static inline void rcu_all_qs(void)
+ 	barrier(); /* Avoid RCU read-side critical sections leaking across. */
+ }
  
- 	/* Caller is not willing to reclaim, we can't balance anything */
--	if (!can_direct_reclaim) {
--		/*
--		 * All existing users of the __GFP_NOFAIL are blockable, so warn
--		 * of any new users that actually allow this type of allocation
--		 * to fail.
--		 */
--		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-+	if (!can_direct_reclaim)
- 		goto nopage;
++static inline void cond_resched_rcu_check(void)
++{
++}
 +
-+	/* Make sure we know about allocations which stall for too long */
-+	if (time_after(jiffies, alloc_start + stall_timeout)) {
-+		warn_alloc(gfp_mask,
-+			"page alloction stalls for %ums, order:%u",
-+			jiffies_to_msecs(jiffies-alloc_start), order);
-+		stall_timeout += 10 * HZ;
- 	}
+ /* RCUtree hotplug events */
+ #define rcutree_prepare_cpu      NULL
+ #define rcutree_online_cpu       NULL
+diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
+index 63a4e4cf40a5..176f6e386379 100644
+--- a/include/linux/rcutree.h
++++ b/include/linux/rcutree.h
+@@ -110,6 +110,18 @@ extern int rcu_scheduler_active __read_mostly;
+ bool rcu_is_watching(void);
  
- 	/* Avoid recursion of direct reclaim */
--	if (current->flags & PF_MEMALLOC) {
--		/*
--		 * __GFP_NOFAIL request from this context is rather bizarre
--		 * because we cannot reclaim anything and only can loop waiting
--		 * for somebody to do a work for us.
--		 */
--		if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
--			cond_resched();
--			goto retry;
--		}
-+	if (current->flags & PF_MEMALLOC)
- 		goto nopage;
--	}
- 
- 	/* Avoid allocations with no watermarks from looping endlessly */
--	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-+	if (test_thread_flag(TIF_MEMDIE))
- 		goto nopage;
- 
- 
-@@ -3692,14 +3683,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
- 		goto nopage;
- 
--	/* Make sure we know about allocations which stall for too long */
--	if (time_after(jiffies, alloc_start + stall_timeout)) {
--		warn_alloc(gfp_mask,
--			"page allocation stalls for %ums, order:%u",
--			jiffies_to_msecs(jiffies-alloc_start), order);
--		stall_timeout += 10 * HZ;
--	}
--
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
- 				 did_some_progress > 0, &no_progress_loops))
- 		goto retry;
-@@ -3728,6 +3711,37 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	}
- 
- nopage:
-+	/*
-+	 * Make sure that __GFP_NOFAIL request doesn't leak out and make sure
-+	 * we always retry
-+	 */
-+	if (gfp_mask & __GFP_NOFAIL) {
-+		/*
-+		 * All existing users of the __GFP_NOFAIL are blockable, so warn
-+		 * of any new users that actually require GFP_NOWAIT
-+		 */
-+		if (WARN_ON_ONCE(!can_direct_reclaim))
-+			goto fail;
+ void rcu_all_qs(void);
++#ifndef CONFIG_PREEMPT
++DECLARE_PER_CPU(int, rcu_needs_qs);
 +
-+		/*
-+		 * PF_MEMALLOC request from this context is rather bizarre
-+		 * because we cannot reclaim anything and only can loop waiting
-+		 * for somebody to do a work for us
-+		 */
-+		WARN_ON_ONCE(current->flags & PF_MEMALLOC);
-+
-+		/*
-+		 * non failing costly orders are a hard requirement which we
-+		 * are not prepared for much so let's warn about these users
-+		 * so that we can identify them and convert them to something
-+		 * else.
-+		 */
-+		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
-+
-+		cond_resched();
-+		goto retry;
++static inline void cond_resched_rcu_check(void)
++{
++	/* Make sure we do not miss rcu_all_qs at least every now and then */
++	if (this_cpu_inc_return(rcu_needs_qs) > 10) {
++		this_cpu_write(rcu_needs_qs, 0);
++		rcu_all_qs();
 +	}
-+fail:
- 	warn_alloc(gfp_mask,
- 			"page allocation failure: order:%u", order);
- got_pg:
++}
++#endif
+ 
+ /* RCUtree hotplug events */
+ int rcutree_prepare_cpu(unsigned int cpu);
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 69a5611a7e7c..783c74ae9930 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -268,6 +268,9 @@ void rcu_bh_qs(void)
+ }
+ 
+ static DEFINE_PER_CPU(int, rcu_sched_qs_mask);
++#ifndef CONFIG_PREEMPT
++DEFINE_PER_CPU(int, rcu_needs_qs);
++#endif
+ 
+ static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
+ 	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 154fd689fe02..a58844be2ef1 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4905,6 +4905,8 @@ int __sched _cond_resched(void)
+ 	if (should_resched(0)) {
+ 		preempt_schedule_common();
+ 		return 1;
++	} else {
++		cond_resched_rcu_check();
+ 	}
+ 	return 0;
+ }
 -- 
-2.10.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
