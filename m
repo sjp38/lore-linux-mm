@@ -1,164 +1,298 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A6D26B0253
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:32:40 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 144so33399724pfv.5
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:32:40 -0800 (PST)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id g9si53579087pli.125.2016.12.14.08.32.38
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 205166B0260
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:35:31 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id t7so46726374yba.2
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:35:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h68si16149642ywe.89.2016.12.14.08.35.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 08:32:38 -0800 (PST)
-Received: by mail-pg0-x244.google.com with SMTP id p66so2924072pga.2
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:32:38 -0800 (PST)
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com> <5850335F.6090000@gmail.com>
- <20161213.145333.514056260418695987.davem@davemloft.net>
- <58505535.1080908@gmail.com> <20161214103914.3a9ebbbf@redhat.com>
-From: John Fastabend <john.fastabend@gmail.com>
-Message-ID: <5851740A.2080806@gmail.com>
-Date: Wed, 14 Dec 2016 08:32:10 -0800
+        Wed, 14 Dec 2016 08:35:29 -0800 (PST)
+Date: Wed, 14 Dec 2016 11:35:26 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Un-addressable device memory and block/fs
+ implications
+Message-ID: <20161214163525.GA14755@redhat.com>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
+ <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+ <20161213221322.GD4326@dastard>
+ <20161213225523.GG2305@redhat.com>
+ <20161214001422.GE4326@dastard>
+ <20161214010755.GA2182@redhat.com>
+ <20161214042313.GF4326@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20161214103914.3a9ebbbf@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161214042313.GF4326@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: David Miller <davem@davemloft.net>, cl@linux.com, rppt@linux.vnet.ibm.com, netdev@vger.kernel.org, linux-mm@kvack.org, willemdebruijn.kernel@gmail.com, bjorn.topel@intel.com, magnus.karlsson@intel.com, alexander.duyck@gmail.com, mgorman@techsingularity.net, tom@herbertland.com, bblanco@plumgrid.com, tariqt@mellanox.com, saeedm@mellanox.com, jesse.brandeburg@intel.com, METH@il.ibm.com, vyasevich@gmail.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On 16-12-14 01:39 AM, Jesper Dangaard Brouer wrote:
-> On Tue, 13 Dec 2016 12:08:21 -0800
-> John Fastabend <john.fastabend@gmail.com> wrote:
+On Wed, Dec 14, 2016 at 03:23:13PM +1100, Dave Chinner wrote:
+> On Tue, Dec 13, 2016 at 08:07:58PM -0500, Jerome Glisse wrote:
+> > On Wed, Dec 14, 2016 at 11:14:22AM +1100, Dave Chinner wrote:
+> > > On Tue, Dec 13, 2016 at 05:55:24PM -0500, Jerome Glisse wrote:
+> > > > On Wed, Dec 14, 2016 at 09:13:22AM +1100, Dave Chinner wrote:
+> > > > > On Tue, Dec 13, 2016 at 04:24:33PM -0500, Jerome Glisse wrote:
+> > > > > > On Wed, Dec 14, 2016 at 08:10:41AM +1100, Dave Chinner wrote:
+> > > > > > > > From kernel point of view such memory is almost like any other, it
+> > > > > > > > has a struct page and most of the mm code is non the wiser, nor need
+> > > > > > > > to be about it. CPU access trigger a migration back to regular CPU
+> > > > > > > > accessible page.
+> > > > > > > 
+> > > > > > > That sounds ... complex. Page migration on page cache access inside
+> > > > > > > the filesytem IO path locking during read()/write() sounds like
+> > > > > > > a great way to cause deadlocks....
+> > > > > > 
+> > > > > > There are few restriction on device page, no one can do GUP on them and
+> > > > > > thus no one can pin them. Hence they can always be migrated back. Yes
+> > > > > > each fs need modification, most of it (if not all) is isolated in common
+> > > > > > filemap helpers.
+> > > > > 
+> > > > > Sure, but you haven't answered my question: how do you propose we
+> > > > > address the issue of placing all the mm locks required for migration
+> > > > > under the filesystem IO path locks?
+> > > > 
+> > > > Two different plans (which are non exclusive of each other). First is to use
+> > > > workqueue and have read/write wait on the workqueue to be done migrating the
+> > > > page back.
+> > > 
+> > > Pushing something to a workqueue and then waiting on the workqueue
+> > > to complete the work doesn't change lock ordering problems - it
+> > > just hides them away and makes them harder to debug.
+> > 
+> > Migration doesn't need many lock below is a list and i don't see any lock issue
+> > in respect to ->read or ->write.
+> > 
+> >  lock_page(page);
+> >  spin_lock_irq(&mapping->tree_lock);
+> >  lock_buffer(bh); // if page has buffer_head
+> >  i_mmap_lock_read(mapping);
+> >  vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+> >     // page table lock for each entry
+> >  }
 > 
->> On 16-12-13 11:53 AM, David Miller wrote:
->>> From: John Fastabend <john.fastabend@gmail.com>
->>> Date: Tue, 13 Dec 2016 09:43:59 -0800
->>>   
->>>> What does "zero-copy send packet-pages to the application/socket that
->>>> requested this" mean? At the moment on x86 page-flipping appears to be
->>>> more expensive than memcpy (I can post some data shortly) and shared
->>>> memory was proposed and rejected for security reasons when we were
->>>> working on bifurcated driver.  
->>>
->>> The whole idea is that we map all the active RX ring pages into
->>> userspace from the start.
->>>
->>> And just how Jesper's page pool work will avoid DMA map/unmap,
->>> it will also avoid changing the userspace mapping of the pages
->>> as well.
->>>
->>> Thus avoiding the TLB/VM overhead altogether.
->>>   
+> We can't take the page or mapping tree locks that while we hold
+> various filesystem locks.
 > 
-> Exactly.  It is worth mentioning that pages entering the page pool need
-> to be cleared (measured cost 143 cycles), in order to not leak any
-> kernel info.  The primary focus of this design is to make sure not to
-> leak kernel info to userspace, but with an "exclusive" mode also
-> support isolation between applications.
+> e.g. The IO path lock order is, in places:
 > 
+> inode->i_rwsem
+>   get page from page cache
+>   lock_page(page)
+>   inode->allocation lock
+>     zero page data
 > 
->> I get this but it requires applications to be isolated. The pages from
->> a queue can not be shared between multiple applications in different
->> trust domains. And the application has to be cooperative meaning it
->> can't "look" at data that has not been marked by the stack as OK. In
->> these schemes we tend to end up with something like virtio/vhost or
->> af_packet.
+> Filesystems are allowed to do this, because the IO path has
+> guaranteed them access to the page cache data on the page that is
+> locked. Your ZONE_DEVICE proposal breaks this guarantee - we might
+> have a locked page, but we don't have access to it's data.
 > 
-> I expect 3 modes, when enabling RX-zero-copy on a page_pool. The first
-> two would require CAP_NET_ADMIN privileges.  All modes have a trust
-> domain id, that need to match e.g. when page reach the socket.
-
-Even mode 3 should required cap_net_admin we don't want userspace to
-grab queues off the nic without it IMO.
-
+> Further, in various filesystems once the allocation lock is taken
+> (e.g. the i_lock in XFS) we're not allowed to lock pages or the
+> mapping tree as that leads to deadlocks with truncate, hole punch,
+> etc. Hence if the "zero page data" operation occurs on a ZONE_DEVICE page that
+> requires migration before the zeroing can occur, we can't perform
+> migration here.
 > 
-> Mode-1 "Shared": Application choose lowest isolation level, allowing
->  multiple application to mmap VMA area.
+> Why are we even considering migration in situations where we already
+> hold the ZONE_DEVICE page locked, hold other filesystem locks inside
+> the page lock, and have an open dirty filesystem transaction as well?
+> 
+> Even if migration si possible and succeeds, the struct page in the
+> mapping tree for the file offset we are operating on is going to be
+> different after migration. That implies we need to completely
+> restart the operation. But given that we've already made changes,
+> backing out at this point is ...  complex and may not even be
+> possible.
 
-My only point here is applications can read each others data and all
-applications need to cooperate for example one app could try to write
-continuously to read only pages causing faults and what not. This is
-all non standard and doesn't play well with cgroups and "normal"
-applications. It requires a new orchestration model.
+So i skim through xfs code and i still think this is doable. So in the
+above sequence:
 
-I'm a bit skeptical of the use case but I know of a handful of reasons
-to use this model. Maybe take a look at the ivshmem implementation in
-DPDK.
+  inode->i_rwsem
+  page = find_get_page();
+  if (device_unaddressable(page)) {
+     page = migratepage();
+  }
+  ...
 
-Also this still requires a hardware filter to push "application" traffic
-onto reserved queues/pages as far as I can tell.
+Now there is thing like filemap_write_and_wait...() but thus can be
+handled by the bio bounce buffer like i said ie a the block layer we
+allocate temporary page, page are already read only on the device as
+device obey regular thing like page_mkclean(). So page content is
+stable.
+
+The migrate page is using buffer_migrate_page() and i don't see any
+deadlock there. So i am not seeing any problem in doing migrate early
+on right after page lookup.
+
 
 > 
-> Mode-2 "Single-user": Application request it want to be the only user
->  of the RX queue.  This blocks other application to mmap VMA area.
+> i.e. we have an architectural assumption that page contents are
+> always accessable when we have a locked struct page, and your
+> proposal would appear to violate that assumption...
+
+And it is, data might be in device memory but you can use bounce
+page to access it and you can write protect it on the device so
+that it doesn't change.
+
+Looking at xfs, it never does a kmap() directly, only through some
+of the generic code and thus are place where we can use bounce page.
+
+
+ 
+> > > > Second solution is to use a bounce page during I/O so that there is no need
+> > > > for migration.
+> > > 
+> > > Which means the page in the device is left with out-of-date
+> > > contents, right?
+> > >
+> > > If so, how do you prevent data corruption/loss when the device
+> > > has modified the page out of sight of the CPU and the bounce page
+> > > doesn't contain those modifications? Or if the dirty device page is
+> > > written back directly without containing the changes made in the
+> > > bounce page?
+> > 
+> > There is no issue here, if bounce page is use then the page is mark as read
+> > only on the device until write is done and device copy is updated with what
+> > we have been ask to write. So no coherency issue between the 2 copy.
 > 
-
-Assuming data is read-only sharing with the stack is possibly OK :/. I
-guess you would need to pools of memory for data and skb so you don't
-leak skb into user space.
-
-The devils in the details here. There are lots of hooks in the kernel
-that can for example push the packet with a 'redirect' tc action for
-example. And letting an app "read" data or impact performance of an
-unrelated application is wrong IMO. Stacked devices also provide another
-set of details that are a bit difficult to track down see all the
-hardware offload efforts.
-
-I assume all these concerns are shared between mode-1 and mode-2
-
-> Mode-3 "Exclusive": Application request to own RX queue.  Packets are
->  no longer allowed for normal netstack delivery.
+> What if the page is already dirty on the device? You can't just
+> "mark it read only" because then you lose any data the device had
+> written that was not directly overwritten by the IO that needed
+> bouncing.
 > 
+> Partial page overwrites do occur...
 
-I have patches for this mode already but haven't pushed them due to
-an alternative solution using VFIO.
+I should have been more explicit you:
+  - write protect page on device
+  - alloc bounce page
+  - dma device data to bounce page
+  - perform write on bounce page
+  - dma bounce page back to device data
+  - write io end
 
-> Notice mode-2 still requires CAP_NET_ADMIN, because packets/pages are
-> still allowed to travel netstack and thus can contain packet data from
-> other normal applications.  This is part of the design, to share the
-> NIC between netstack and an accelerated userspace application using RX
-> zero-copy delivery.
+It is just like it would be on CPU. There is no data hazard, no loss
+of data or incoherency here.
+
+> > > > > And if zeroing the page during such a fault requires CPU access to
+> > > > > the data, how do you propose we handle page migration in the middle
+> > > > > of the page fault to allow the CPU to zero the page? Seems like more
+> > > > > lock order/inversion problems there, too...
+> > > > 
+> > > > File back page are never allocated on device, at least we have no incentive
+> > > > for usecase we care about today to do so. So a regular page is first use
+> > > > and initialize (to zero for hole) before being migrated to device.
+> > > > So i do not believe there should be any major concern on ->page_mkwrite.
+> > > 
+> > > Such deja vu - inodes are not static objects as modern filesystems
+> > > are highly dynamic. If you want to have safe, reliable non-coherent
+> > > mmap-based file data offload to devices, then I suspect that we're
+> > > going to need pretty much all of the same restrictions the pmem
+> > > programming model requires for userspace data flushing. i.e.:
+> > > 
+> > > https://lkml.org/lkml/2016/9/15/33
+> > 
+> > I don't see any of the issues in that email applying to my case. Like i said
+> > from fs/mm point of view my page are _exactly_ like regular page.
 > 
+> Except they aren't...
+> 
+> > Only thing
+> > is no CPU access.
+> 
+> ... because filesystems need direct CPU access to the data the page
+> points at when migration does not appear to be possible.
 
-I don't think this is acceptable to be honest. Letting an application
-potentially read/impact other arbitrary applications on the system
-seems like a non-starter even with CAP_NET_ADMIN. At least this was
-the conclusion from bifurcated driver work some time ago.
+And it can, the data is always accessible, it is just a matter of using
+a bounce page. I did a grep on kmap() and 99% of call site are about
+meta-data page which i don't want to migrate. Then there is some in
+generic helper for read/write/aio ... this are place where bounce page
+can be use if the page is not migrated earlier in the i/o process.
 
 > 
->> Any ACLs/filtering/switching/headers need to be done in hardware or
->> the application trust boundaries are broken.
-> 
-> The software solution outlined allow the application to make the choice
-> of what trust boundary it wants.
-> 
-> The "exclusive" mode-3 make most sense together with HW filters.
-> Already today, we support creating a new RX queue based on ethtool
-> ntuple HW filter and then you simply attach your application that queue
-> in mode-3, and have full isolation.
-> 
+> FWIW, another nasty corner case I just realised: the file data
+> requires some kind of data transformation on writeback. e.g.
+> compression, encryption, parity calculations for RAID, etc. IOWs, it
+> could be the block device underneath the filesystem that requires
+> ZONE_DEVICE->ZONE_NORMAL migration to occur. And to make matters
+> worse, that can occur in code paths that operate in a "must
+> guarantee forwards progress" memory allocation context...
 
-Still pretty fuzzy on why mode-1 and mode-2 do not need hw filters?
-Without hardware filters we have no way of knowing who/what data is
-put in the page.
+Well my proposal is about using the bio bounce code, which was done for
+ISA block device and i don't see any issue there. We allocate bounce page
+copy data from device into bounce page, the block layer does its thing
+(compress, encrypt, ...) on the bounce page. It is non the wiser. There
+is no migration happening. Note that at this point the page is already
+write protected on the device like it would be on the CPU.
 
->  
->> If the above can not be met then a copy is needed. What I am trying
->> to tease out is the above comment along with other statements like
->> this "can be done with out HW filter features".
+
+> > > At which point I have to ask: why is mmap considered to be the right
+> > > model for transfering data in and out of devices that are not
+> > > directly CPU addressable? 
+> > 
+> > That is where the industry is going, OpenCL 2.0/3.0, C++ concurrency and
+> > parallelism, OpenACC, OpenMP, HSA, Cuda ... all those API require unified
+> > address space and transparent use of device memory.
 > 
-> Does this address your concerns?
+> Sure, but that doesn't mean you can just map random files into the
+> user address space and then hand it off to random hardware and
+> expect the filesystem to be perfectly happy with that. 
+
+I am not expecting filesystem will be happy as it is but i am expecting
+there is way to make it happy :)
+
+
+> > > > migration for given fs.
+> > > 
+> > > How do you propose doing that?
+> > 
+> > As a mount flag option is my first idea but i have no strong opinion here.
 > 
+> No, absolutely not. Mount options are not for controlling random
+> special interest behaviours in filesystems. That makes it impossible
+> to mix "incompatible" technologies in the same filesystem.
 
-I think we need to enforce strong isolation. An application should not
-be able to read data or impact other applications. I gather this is
-the case per comment about normal applications in mode-2. A slightly
-weaker statement would be to say applications can only impace/read data
-of other applications in their domain. This might be OK as well.
+I don't have strong opinion here. I just would like to allow sys-admin
+to decide somehow if they don't want to allow some fs to be migrated
+to device. I don't have good knowledge on what interface would be
+appropriate for this.
 
-.John
+> 
+> > It might make sense for finer granularity but i don't believe so.
+> 
+> Then you're just not thinking about complex computation engines the
+> right way, are you?
+> 
+> e.g. you have a pmem filesystem as the central high-speed data store
+> for you computation engine. Some apps in the pipeline use DAX for
+> their data access because it's 10x faster than using traditional
+> buffered mmap access, so the filesystem is mounted "-o dax". But
+> then you want to add a hardware accelerator to speed up a different
+> stage of the pipeline by 10x, but it requires page based ZONE_DEVICE
+> management.
+> 
+> Unfortuantely the "-o zone_device" mount option is incompatible with
+> "-o dax" and because "it doesn't make sense for DAX to be a fine
+> grained option" you can't combine the two technologies into the one
+> pipeline....
+> 
+> That'd really suck, wouldn't it?
+
+Well i don't to allow migration for dax fs because dax is a different
+problem. I think it is only use with pmem and i don't think i want to
+allow pmem migration. It would break some assumption people have about
+pmem. People using both technology would have to do extra work in there
+program to leverage both.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
