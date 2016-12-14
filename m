@@ -1,106 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D83D6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 05:34:21 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id o2so6261448wje.5
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 02:34:21 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id p21si6551549wma.116.2016.12.14.02.34.20
+	by kanga.kvack.org (Postfix) with ESMTP id 42A7F6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 06:01:32 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id he10so6700547wjc.6
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 03:01:32 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b197si6645583wmb.95.2016.12.14.03.01.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 02:34:20 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id kp2so3704625wjc.0
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 02:34:20 -0800 (PST)
-Date: Wed, 14 Dec 2016 11:34:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-Message-ID: <20161214103418.GH25573@dhcp22.suse.cz>
-References: <20161205141009.GJ30758@dhcp22.suse.cz>
- <201612061938.DDD73970.QFHOFJStFOLVOM@I-love.SAKURA.ne.jp>
- <20161206192242.GA10273@dhcp22.suse.cz>
- <201612082153.BHC81241.VtMFFHOLJOOFSQ@I-love.SAKURA.ne.jp>
- <20161208134718.GC26530@dhcp22.suse.cz>
- <201612112023.HBB57332.QOFFtJLOOMFSVH@I-love.SAKURA.ne.jp>
- <20161212084837.GB18163@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Dec 2016 03:01:30 -0800 (PST)
+Date: Wed, 14 Dec 2016 12:01:27 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20161214110127.GD16064@pathway.suse.cz>
+References: <201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
+ <20161212090702.GD18163@dhcp22.suse.cz>
+ <201612122112.IBI64512.FOVOFQFLMJHOtS@I-love.SAKURA.ne.jp>
+ <20161212125535.GA3185@dhcp22.suse.cz>
+ <20161212131910.GC3185@dhcp22.suse.cz>
+ <201612132106.IJH12421.LJStOQMVHFOFOF@I-love.SAKURA.ne.jp>
+ <20161214093706.GA16064@pathway.suse.cz>
+ <20161214102028.GA2462@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161212084837.GB18163@dhcp22.suse.cz>
+In-Reply-To: <20161214102028.GA2462@jagdpanzerIV.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com, linux-mm@kvack.org, sergey.senozhatsky@gmail.com
 
-On Mon 12-12-16 09:48:37, Michal Hocko wrote:
-> On Sun 11-12-16 20:23:47, Tetsuo Handa wrote:
-[...]
-> >   I believe that __GFP_NOFAIL should not imply invocation of the OOM killer.
-> >   Therefore, I want to change __GFP_NOFAIL not to invoke the OOM killer.
-> >   But since currently the OOM killer is not invoked unless either __GFP_FS or
-> >   __GFP_NOFAIL is specified, changing __GFP_NOFAIL not to invoke the OOM
-> >   killer introduces e.g. GFP_NOFS | __GFP_NOFAIL users a risk of livelocking
-> >   by not invoking the OOM killer. Although I can't prove that this change
-> >   never causes livelock, I don't want to provide an alternative flag like
-> >   __GFP_WANT_OOM_KILLER. Therefore, all existing __GFP_NOFAIL users must
-> >   agree with accepting the risk introduced by this change.
-> 
-> I think you are seriously misled here. First of all, I have gone through
-> GFP_NOFS | GFP_NOFAIL users and _none_ of them have added the nofail
-> flag to enforce the OOM killer. Those users just want to express that an
-> allocation failure is simply not acceptable. Most of them were simply
-> conversions from the open-conded
-> 	do { } while (! (page = page_alloc(GFP_NOFS));
-> loops. Which _does_ not invoke the OOM killer. And that is the most
-> importatnt point here. Why the above open coded (and as you say lockup
-> prone) loop is OK while GFP_NOFAIL varian should behave any differently?
-> 
-> > and confirm that all existing __GFP_NOFAIL users are willing to accept
-> > the risk of livelocking by not invoking the OOM killer.
+On Wed 2016-12-14 19:20:28, Sergey Senozhatsky wrote:
+> On (12/14/16 10:37), Petr Mladek wrote:
+> [..]
+> > > ----------
+> > > [  450.767693] Out of memory: Kill process 14642 (a.out) score 999 or sacrifice child
+> > > [  450.769974] Killed process 14642 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+> > > [  450.776538] oom_reaper: reaped process 14642 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> > > [  450.781170] Out of memory: Kill process 14643 (a.out) score 999 or sacrifice child
+> > > [  450.783469] Killed process 14643 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+> > > [  450.787912] oom_reaper: reaped process 14643 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> > > [  450.792630] Out of memory: Kill process 14644 (a.out) score 999 or sacrifice child
+> > > [  450.964031] a.out: page allocation stalls for 10014ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
+> > > [  450.964033] CPU: 0 PID: 14622 Comm: a.out Tainted: G        W       4.9.0+ #99
+> > > (...snipped...)
+> > > [  740.984902] a.out: page allocation stalls for 300003ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
+> > > [  740.984905] CPU: 0 PID: 14622 Comm: a.out Tainted: G        W       4.9.0+ #99
+> > > ----------
+> > > 
+> > > Although it is fine to make warn_alloc() less verbose, this is not
+> > > a problem which can be avoided by simply reducing printk(). Unless
+> > > we give enough CPU time to the OOM killer and OOM victims, it is
+> > > trivial to lockup the system.
 > > 
-> > Unless you do this procedure, I continue:
-> > 
-> > Nacked-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > You could try to use printk_deferred() in warn_alloc(). It will not
+> > handle console. It will help to be sure that the blocked printk()
+> > is the main problem.
 > 
-> I was hoping for some actual arguments but I am afraid this is circling
-> in a loop. You are still handwaving with theoretical lockups without any
-> actual proof they are real. While I am not saying the risk is not there
-> I also say that there are other aspects to consider
-> 	- lockups will happen only if there are no other GFP_FS requests
-> 	  which trigger the OOM which is quite unlikely in most
-> 	  situations
-> 	- triggering oom for GFP_NOFS | GFP_NOFAIL has a non negligible
-> 	  risk of pre-mature OOM killer invocation for the same reason
-> 	  we do not trigger oom for GFP_NOFS. Even worse metadata heavy
-> 	  workloads are much harder to contain so this might be used as
-> 	  a DoS vector.
-> 	- one of the primary point of GFP_NOFAIL existence is to prevent
-> 	  from open coding endless loops in the code because the page
-> 	  allocator can handle most situations more gracefully (e.g.
-> 	  grant access to memory reserves). Having a completely
-> 	  different OOM killer behavior is both confusing and encourages
-> 	  abuse. If we have users who definitely need to control the OOM
-> 	  behavior then we should add a gfp flag for them. But this
-> 	  needs a strong use case and consider whether there are other
-> 	  options to go around that.
-> 
-> I can add the above to the changelog if you think this is helpful but I
-> still maintain my position that your "this might cause lockups
-> theoretically" is unfounded and not justified to block the patch. I will
-> of course retract this patch if you can demonstrate the issue is real or
-> that any of my argumentation in the changelog is not correct.
+> I thought about deferred printk, but I'm afraid in the given
+> conditions this has great chances to badly lockup the system.
 
-I was thinking about this some more and realized that there is a
-different risk which this patch would introduce and have to be
-considered. Heavy GFP_NOFS | __GFP_NOFAIL users might actually deplete
-memory reserves. This was less of a problem with the current code
-because we invoke the oom killer and so at least _some_ memory might be
-freed. I will think about it some more but I guess I will just allow a
-partial access in the no-oom case. I will post the patch 1 in the
-meantime because I believe this is a reasonable cleanup.
--- 
-Michal Hocko
-SUSE Labs
+I am just curious. Do you have any particular scenario in mind?
+
+AFAIK, the current problem is the classic softlockup in
+console_unlock(). Other CPUs are producing a flood of printk
+messages and the victim is blocked in console_unlock() "forever".
+I do not see any deadlock with logbuf_lock.
+
+This is where async printk should help. And printk_deferred()
+is the way to use async printk for a particular printk call.
+
+Did I miss something, please?
+
+Best regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
