@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EFD256B0253
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 12:01:15 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id j198so42547234oih.5
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 09:01:15 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [69.252.207.41])
-        by mx.google.com with ESMTPS id c201si26763709oih.316.2016.12.14.09.01.15
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 189E16B0253
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 12:14:23 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id o3so12797540wjo.1
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 09:14:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 199si8165546wmm.166.2016.12.14.09.14.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 09:01:15 -0800 (PST)
-Date: Wed, 14 Dec 2016 11:00:12 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-In-Reply-To: <8aea213f-2739-9bd3-3a6a-668b759336ae@stressinduktion.org>
-Message-ID: <alpine.DEB.2.20.1612141059020.20959@east.gentwo.org>
-References: <20161205153132.283fcb0e@redhat.com> <20161212083812.GA19987@rapoport-lnx> <20161212104042.0a011212@redhat.com> <20161212141433.GB19987@rapoport-lnx> <584EB8DF.8000308@gmail.com> <20161212181344.3ddfa9c3@redhat.com> <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com> <8aea213f-2739-9bd3-3a6a-668b759336ae@stressinduktion.org>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Dec 2016 09:14:21 -0800 (PST)
+Subject: Re: [PATCH 1/3] mm, trace: extract COMPACTION_STATUS and ZONE_TYPE to
+ a common header
+References: <20161214145324.26261-1-mhocko@kernel.org>
+ <20161214145324.26261-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1a4894b1-4caf-97c5-9e75-018b89307103@suse.cz>
+Date: Wed, 14 Dec 2016 18:14:20 +0100
+MIME-Version: 1.0
+In-Reply-To: <20161214145324.26261-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hannes Frederic Sowa <hannes@stressinduktion.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, John Fastabend <john.fastabend@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?ISO-8859-15?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>, Vladislav Yasevich <vyasevich@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, 13 Dec 2016, Hannes Frederic Sowa wrote:
-
-> > Interesting.  So you even imagine sockets registering memory regions
-> > with the NIC.  If we had a proper NIC HW filter API across the drivers,
-> > to register the steering rule (like ibv_create_flow), this would be
-> > doable, but we don't (DPDK actually have an interesting proposal[1])
+On 12/14/2016 03:53 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> On a side note, this is what windows does with RIO ("registered I/O").
-> Maybe you want to look at the API to get some ideas: allocating and
-> pinning down memory in user space and registering that with sockets to
-> get zero-copy IO.
+> COMPACTION_STATUS resp. ZONE_TYPE are currently used to translate enum
+> compact_result resp. struct zone index into their symbolic names for
+> an easier post processing. The follow up patch would like to reuse
+> this as well. The code involves some preprocessor black magic which is
+> better not duplicated elsewhere so move it to a common mm tracing relate
+> header.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Yup that is also what I think. Regarding the memory registration and flow
-steering for user space RX/TX ring please look at the qpair model
-implemented by the RDMA subsystem in the kernel. The memory semantics are
-clearly established there and have been in use for more than a decade.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
