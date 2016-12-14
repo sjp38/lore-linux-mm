@@ -1,155 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 725226B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:43:43 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id x23so17170137pgx.6
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:43:43 -0800 (PST)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0080.outbound.protection.outlook.com. [104.47.40.80])
-        by mx.google.com with ESMTPS id 123si51931461pgb.134.2016.12.14.01.43.42
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B6A06B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:46:19 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id p127so29173409iop.5
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:46:19 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0079.outbound.protection.outlook.com. [104.47.33.79])
+        by mx.google.com with ESMTPS id u23si4666137ite.36.2016.12.14.01.46.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 14 Dec 2016 01:43:42 -0800 (PST)
-From: Robert Richter <rrichter@cavium.com>
-Subject: [PATCH v2] arm64: mm: Fix NOMAP page initialization
-Date: Wed, 14 Dec 2016 10:42:30 +0100
-Message-ID: <1481708550-1809-1-git-send-email-rrichter@cavium.com>
+        Wed, 14 Dec 2016 01:46:18 -0800 (PST)
+Date: Wed, 14 Dec 2016 10:45:42 +0100
+From: Robert Richter <robert.richter@cavium.com>
+Subject: Re: [PATCH] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20161214094542.GE5588@rric.localdomain>
+References: <1481307042-29773-1-git-send-email-rrichter@cavium.com>
+ <83d6e6d0-cfb3-ec8b-241b-ec6a50dc2aa9@huawei.com>
+ <9168b603-04aa-4302-3197-00f17fb336bd@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <9168b603-04aa-4302-3197-00f17fb336bd@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, Robert Richter <rrichter@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
 
-On ThunderX systems with certain memory configurations we see the
-following BUG_ON():
+On 12.12.16 17:53:02, Yisheng Xie wrote:
+> It seems that memblock_is_memory() is also too strict for early_pfn_valid,
+> so what about this patch, which use common pfn_valid as early_pfn_valid
+> when CONFIG_HAVE_ARCH_PFN_VALID=y:
+> ------------
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 0f088f3..9d596f3 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1200,7 +1200,17 @@ static inline int pfn_present(unsigned long pfn)
+>  #define pfn_to_nid(pfn)                (0)
+>  #endif
+> 
+> +#ifdef CONFIG_HAVE_ARCH_PFN_VALID
+> +static inline int early_pfn_valid(unsigned long pfn)
+> +{
+> +       if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+> +               return 0;
+> +       return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+> +}
 
- kernel BUG at mm/page_alloc.c:1848!
+I sent a V2 patch that uses pfn_present(). This only initilizes
+sections with memory.
 
-This happens for some configs with 64k page size enabled. The BUG_ON()
-checks if start and end page of a memmap range belongs to the same
-zone.
+-Robert
 
-The BUG_ON() check fails if a memory zone contains NOMAP regions. In
-this case the node information of those pages is not initialized. This
-causes an inconsistency of the page links with wrong zone and node
-information for that pages. NOMAP pages from node 1 still point to the
-mem zone from node 0 and have the wrong nid assigned.
-
-The reason for the mis-configuration is a change in pfn_valid() which
-reports pages marked NOMAP as invalid:
-
- 68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
-
-This causes pages marked as nomap being no longer reassigned to the
-new zone in memmap_init_zone() by calling __init_single_pfn().
-
-Fixing this by implementing an arm64 specific early_pfn_valid(). This
-causes all pages of sections with memory including NOMAP ranges to be
-initialized by __init_single_page() and ensures consistency of page
-links to zone, node and section.
-
-The HAVE_ARCH_PFN_VALID config option now requires an explicit
-definiton of early_pfn_valid() in the same way as pfn_valid(). This
-allows a customized implementation of early_pfn_valid() which
-redirects to pfn_present() for arm64.
-
-v2:
-
- * Use pfn_present() instead of memblock_is_memory() to support also
-   non-memory NOMAP holes
-
-Signed-off-by: Robert Richter <rrichter@cavium.com>
----
- arch/arm/include/asm/page.h   |  1 +
- arch/arm64/include/asm/page.h |  2 ++
- arch/arm64/mm/init.c          | 12 ++++++++++++
- include/linux/mmzone.h        |  5 ++++-
- 4 files changed, 19 insertions(+), 1 deletion(-)
-
-diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
-index 4355f0ec44d6..79761bd55f94 100644
---- a/arch/arm/include/asm/page.h
-+++ b/arch/arm/include/asm/page.h
-@@ -158,6 +158,7 @@ typedef struct page *pgtable_t;
- 
- #ifdef CONFIG_HAVE_ARCH_PFN_VALID
- extern int pfn_valid(unsigned long);
-+#define early_pfn_valid(pfn)	pfn_valid(pfn)
- #endif
- 
- #include <asm/memory.h>
-diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
-index 8472c6def5ef..17ceb7435ded 100644
---- a/arch/arm64/include/asm/page.h
-+++ b/arch/arm64/include/asm/page.h
-@@ -49,6 +49,8 @@ typedef struct page *pgtable_t;
- 
- #ifdef CONFIG_HAVE_ARCH_PFN_VALID
- extern int pfn_valid(unsigned long);
-+extern int early_pfn_valid(unsigned long);
-+#define early_pfn_valid early_pfn_valid
- #endif
- 
- #include <asm/memory.h>
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 212c4d1e2f26..bf1f5db11428 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -145,11 +145,23 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
- #endif /* CONFIG_NUMA */
- 
- #ifdef CONFIG_HAVE_ARCH_PFN_VALID
-+
- int pfn_valid(unsigned long pfn)
- {
- 	return memblock_is_map_memory(pfn << PAGE_SHIFT);
- }
- EXPORT_SYMBOL(pfn_valid);
-+
-+/*
-+ * We use pfn_present() here to make sure all pages of a section
-+ * including NOMAP pages are initialized with __init_single_page().
-+ */
-+int early_pfn_valid(unsigned long pfn)
-+{
-+	return pfn_present(pfn);
-+}
-+EXPORT_SYMBOL(early_pfn_valid);
-+
- #endif
- 
- #ifndef CONFIG_SPARSEMEM
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 0f088f3a2fed..bedcf8a95881 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1170,12 +1170,16 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
- }
- 
- #ifndef CONFIG_HAVE_ARCH_PFN_VALID
-+
- static inline int pfn_valid(unsigned long pfn)
- {
- 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
- 		return 0;
- 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
- }
-+
-+#define early_pfn_valid(pfn)	pfn_valid(pfn)
-+
- #endif
- 
- static inline int pfn_present(unsigned long pfn)
-@@ -1200,7 +1204,6 @@ static inline int pfn_present(unsigned long pfn)
- #define pfn_to_nid(pfn)		(0)
- #endif
- 
--#define early_pfn_valid(pfn)	pfn_valid(pfn)
- void sparse_init(void);
- #else
- #define sparse_init()	do {} while (0)
--- 
-2.1.4
+> +#define early_pfn_valid early_pfn_valid
+> +#else
+>  #define early_pfn_valid(pfn)   pfn_valid(pfn)
+> +#endif
+>  void sparse_init(void);
+>  #else
+>  #define sparse_init()  do {} while (0)
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
