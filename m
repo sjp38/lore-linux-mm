@@ -1,39 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F3A6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 14:44:47 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f73so46479116ioe.1
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:44:47 -0800 (PST)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [69.252.207.35])
-        by mx.google.com with ESMTPS id w14si6246214ite.110.2016.12.14.11.44.47
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 576356B0253
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 14:55:26 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g186so52104818pgc.2
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:55:26 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id b88si54350040pfl.136.2016.12.14.11.55.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 11:44:47 -0800 (PST)
-Date: Wed, 14 Dec 2016 13:43:43 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: RE: Designing a safe RX-zero-copy Memory Model for Networking
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DB023FA6E@AcuExch.aculab.com>
-Message-ID: <alpine.DEB.2.20.1612141342080.23516@east.gentwo.org>
-References: <20161205153132.283fcb0e@redhat.com> <20161212083812.GA19987@rapoport-lnx> <20161212104042.0a011212@redhat.com> <20161212141433.GB19987@rapoport-lnx> <584EB8DF.8000308@gmail.com> <20161212181344.3ddfa9c3@redhat.com> <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com> <8aea213f-2739-9bd3-3a6a-668b759336ae@stressinduktion.org> <alpine.DEB.2.20.1612141059020.20959@east.gentwo.org> <063D6719AE5E284EB5DD2968C1650D6DB023FA6E@AcuExch.aculab.com>
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 14 Dec 2016 11:55:25 -0800 (PST)
+Subject: [PATCH v2 1/3] dax: masking off __GFP_FS in fs DAX handlers
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Wed, 14 Dec 2016 12:55:23 -0700
+Message-ID: <148174532372.194339.4875475197715168429.stgit@djiang5-desk3.ch.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: Hannes Frederic Sowa <hannes@stressinduktion.org>, Jesper Dangaard Brouer <brouer@redhat.com>, John Fastabend <john.fastabend@gmail.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Willem de Bruijn <willemdebruijn.kernel@gmail.com>, =?ISO-8859-15?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, "Karlsson, Magnus" <magnus.karlsson@intel.com>, Alexander Duyck <alexander.duyck@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Kalman Meth <METH@il.ibm.com>, Vladislav Yasevich <vyasevich@gmail.com>
+To: akpm@linux-foundation.org
+Cc: jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
 
-On Wed, 14 Dec 2016, David Laight wrote:
+The callers into dax needs to clear __GFP_FS since they are responsible
+for acquiring locks / transactions that block __GFP_FS allocation. They
+will restore the lag when dax function return.
 
-> If the kernel is doing ANY validation on the frames it must copy the
-> data to memory the application cannot modify before doing the validation.
-> Otherwise the application could change the data afterwards.
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+---
+ fs/dax.c          |    1 +
+ fs/ext2/file.c    |    9 ++++++++-
+ fs/ext4/file.c    |   10 +++++++++-
+ fs/xfs/xfs_file.c |   14 +++++++++++++-
+ 4 files changed, 31 insertions(+), 3 deletions(-)
 
-The application is not allowed to change the data after a work request has
-been submitted to send the frame. Changes are possible after the
-completion request has been received.
-
-The kernel can enforce that by making the frame(s) readonly and thus
-getting a page fault if the app would do such a thing.
+diff --git a/fs/dax.c b/fs/dax.c
+index d3fe880..6395bc6 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1380,6 +1380,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+ 	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
++	vmf.gfp_mask &= ~__GFP_FS;
+ 
+ 	switch (iomap.type) {
+ 	case IOMAP_MAPPED:
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index b0f2415..8422d5f 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -92,16 +92,19 @@ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	int ret;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	if (vmf->flags & FAULT_FLAG_WRITE) {
+ 		sb_start_pagefault(inode->i_sb);
+ 		file_update_time(vma->vm_file);
+ 	}
++	vmf->gfp_mask &= ~__GFP_FS;
+ 	down_read(&ei->dax_sem);
+ 
+ 	ret = dax_iomap_fault(vma, vmf, &ext2_iomap_ops);
+ 
+ 	up_read(&ei->dax_sem);
++	vmf->gfp_mask = old_gfp;
+ 	if (vmf->flags & FAULT_FLAG_WRITE)
+ 		sb_end_pagefault(inode->i_sb);
+ 	return ret;
+@@ -114,6 +117,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	loff_t size;
+ 	int ret;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	sb_start_pagefault(inode->i_sb);
+ 	file_update_time(vma->vm_file);
+@@ -123,8 +127,11 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else
++	else {
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 
+ 	up_read(&ei->dax_sem);
+ 	sb_end_pagefault(inode->i_sb);
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index d663d3d..a3f2bf0 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -261,14 +261,17 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct super_block *sb = inode->i_sb;
+ 	bool write = vmf->flags & FAULT_FLAG_WRITE;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	if (write) {
+ 		sb_start_pagefault(sb);
+ 		file_update_time(vma->vm_file);
+ 	}
++	vmf->gfp_mask &= ~__GFP_FS;
+ 	down_read(&EXT4_I(inode)->i_mmap_sem);
+ 	result = dax_iomap_fault(vma, vmf, &ext4_iomap_ops);
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
++	vmf->gfp_mask = old_gfp;
+ 	if (write)
+ 		sb_end_pagefault(sb);
+ 
+@@ -320,8 +323,13 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else
++	else {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
+ 	sb_end_pagefault(sb);
+ 
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index d818c16..52202b4 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1474,7 +1474,11 @@ xfs_filemap_page_mkwrite(
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 
+ 	if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
++		vmf->gfp_mask = old_gfp;
+ 	} else {
+ 		ret = iomap_page_mkwrite(vma, vmf, &xfs_iomap_ops);
+ 		ret = block_page_mkwrite_return(ret);
+@@ -1502,13 +1506,16 @@ xfs_filemap_fault(
+ 
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 	if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
+ 		/*
+ 		 * we do not want to trigger unwritten extent conversion on read
+ 		 * faults - that is unnecessary overhead and would also require
+ 		 * changes to xfs_get_blocks_direct() to map unwritten extent
+ 		 * ioend for conversion on read-only mappings.
+ 		 */
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
++		vmf->gfp_mask = old_gfp;
+ 	} else
+ 		ret = filemap_fault(vma, vmf);
+ 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+@@ -1581,8 +1588,13 @@ xfs_filemap_pfn_mkwrite(
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else if (IS_DAX(inode))
++	else if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+ 	sb_end_pagefault(inode->i_sb);
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
