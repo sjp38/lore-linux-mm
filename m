@@ -1,110 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 88DA36B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:37:10 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so5266606wjc.2
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:37:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k64si6412399wme.23.2016.12.14.01.37.08
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A89CC6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:39:24 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id m67so10212855qkf.0
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:39:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p25si29754468qte.81.2016.12.14.01.39.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Dec 2016 01:37:09 -0800 (PST)
-Date: Wed, 14 Dec 2016 10:37:06 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161214093706.GA16064@pathway.suse.cz>
-References: <201612102024.CBB26549.SJFOOtOVMFFQHL@I-love.SAKURA.ne.jp>
- <20161212090702.GD18163@dhcp22.suse.cz>
- <201612122112.IBI64512.FOVOFQFLMJHOtS@I-love.SAKURA.ne.jp>
- <20161212125535.GA3185@dhcp22.suse.cz>
- <20161212131910.GC3185@dhcp22.suse.cz>
- <201612132106.IJH12421.LJStOQMVHFOFOF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Dec 2016 01:39:23 -0800 (PST)
+Date: Wed, 14 Dec 2016 10:39:14 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
+Message-ID: <20161214103914.3a9ebbbf@redhat.com>
+In-Reply-To: <58505535.1080908@gmail.com>
+References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
+	<20161213171028.24dbf519@redhat.com>
+	<5850335F.6090000@gmail.com>
+	<20161213.145333.514056260418695987.davem@davemloft.net>
+	<58505535.1080908@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201612132106.IJH12421.LJStOQMVHFOFOF@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.com, linux-mm@kvack.org, sergey.senozhatsky@gmail.com
+To: John Fastabend <john.fastabend@gmail.com>
+Cc: David Miller <davem@davemloft.net>, cl@linux.com, rppt@linux.vnet.ibm.com, netdev@vger.kernel.org, linux-mm@kvack.org, willemdebruijn.kernel@gmail.com, bjorn.topel@intel.com, magnus.karlsson@intel.com, alexander.duyck@gmail.com, mgorman@techsingularity.net, tom@herbertland.com, bblanco@plumgrid.com, tariqt@mellanox.com, saeedm@mellanox.com, jesse.brandeburg@intel.com, METH@il.ibm.com, vyasevich@gmail.com, brouer@redhat.com
 
-On Tue 2016-12-13 21:06:57, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Mon 12-12-16 13:55:35, Michal Hocko wrote:
-> > > On Mon 12-12-16 21:12:06, Tetsuo Handa wrote:
-> > > > Michal Hocko wrote:
-> > [...]
-> > > > > > I think this warn_alloc() is too much noise. When something went
-> > > > > > wrong, multiple instances of Thread-2 tend to call warn_alloc()
-> > > > > > concurrently. We don't need to report similar memory information.
-> > > > > 
-> > > > > That is why we have ratelimitting. It is needs a better tunning then
-> > > > > just let's do it.
-> > > > 
-> > > > I think that calling show_mem() once per a series of warn_alloc() threads is
-> > > > sufficient. Since the amount of output by dump_stack() and that by show_mem()
-> > > > are nearly equals, we can save nearly 50% of output if we manage to avoid
-> > > > the same show_mem() calls.
-> > > 
-> > > I do not mind such an update. Again, that is what we have the
-> > > ratelimitting for. The fact that it doesn't throttle properly means that
-> > > we should tune its parameters.
+On Tue, 13 Dec 2016 12:08:21 -0800
+John Fastabend <john.fastabend@gmail.com> wrote:
+
+> On 16-12-13 11:53 AM, David Miller wrote:
+> > From: John Fastabend <john.fastabend@gmail.com>
+> > Date: Tue, 13 Dec 2016 09:43:59 -0800
+> >   
+> >> What does "zero-copy send packet-pages to the application/socket that
+> >> requested this" mean? At the moment on x86 page-flipping appears to be
+> >> more expensive than memcpy (I can post some data shortly) and shared
+> >> memory was proposed and rejected for security reasons when we were
+> >> working on bifurcated driver.  
 > > 
-> > What about the following? Does this help?
-> 
-> I don't think it made much difference.
-> 
-> I noticed that one of triggers which cause a lot of
-> "** XXX printk messages dropped **" is show_all_locks() added by
-> commit b2d4c2edb2e4f89a ("locking/hung_task: Show all locks"). When there are
-> a lot of threads being blocked on fs locks, show_all_locks() on each blocked
-> thread generates incredible amount of messages periodically. Therefore,
-> I temporarily set /proc/sys/kernel/hung_task_timeout_secs to 0 to disable
-> hung task warnings for testing this patch.
-> 
-> http://I-love.SAKURA.ne.jp/tmp/serial-20161213.txt.xz is a console log with
-> this patch applied. Due to hung task warnings disabled, amount of messages
-> are significantly reduced.
-> 
-> Uptime > 400 are testcases where the stresser was invoked via "taskset -c 0".
-> Since there are some "** XXX printk messages dropped **" messages, I can't
-> tell whether the OOM killer was able to make forward progress. But guessing
->  from the result that there is no corresponding "Killed process" line for
-> "Out of memory: " line at uptime = 450 and the duration of PID 14622 stalled,
-> I think it is OK to say that the system got stuck because the OOM killer was
-> not able to make forward progress.
+> > The whole idea is that we map all the active RX ring pages into
+> > userspace from the start.
+> > 
+> > And just how Jesper's page pool work will avoid DMA map/unmap,
+> > it will also avoid changing the userspace mapping of the pages
+> > as well.
+> > 
+> > Thus avoiding the TLB/VM overhead altogether.
+> >   
 
-I am afraid that as long as you see "** XXX printk messages dropped
-**" then there is something that is able to keep warn_alloc() busy,
-never leave the printk()/console_unlock() and and block OOM killer
-progress.
+Exactly.  It is worth mentioning that pages entering the page pool need
+to be cleared (measured cost 143 cycles), in order to not leak any
+kernel info.  The primary focus of this design is to make sure not to
+leak kernel info to userspace, but with an "exclusive" mode also
+support isolation between applications.
 
-> ----------
-> [  450.767693] Out of memory: Kill process 14642 (a.out) score 999 or sacrifice child
-> [  450.769974] Killed process 14642 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-> [  450.776538] oom_reaper: reaped process 14642 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> [  450.781170] Out of memory: Kill process 14643 (a.out) score 999 or sacrifice child
-> [  450.783469] Killed process 14643 (a.out) total-vm:4168kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
-> [  450.787912] oom_reaper: reaped process 14643 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> [  450.792630] Out of memory: Kill process 14644 (a.out) score 999 or sacrifice child
-> [  450.964031] a.out: page allocation stalls for 10014ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-> [  450.964033] CPU: 0 PID: 14622 Comm: a.out Tainted: G        W       4.9.0+ #99
-> (...snipped...)
-> [  740.984902] a.out: page allocation stalls for 300003ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-> [  740.984905] CPU: 0 PID: 14622 Comm: a.out Tainted: G        W       4.9.0+ #99
-> ----------
-> 
-> Although it is fine to make warn_alloc() less verbose, this is not
-> a problem which can be avoided by simply reducing printk(). Unless
-> we give enough CPU time to the OOM killer and OOM victims, it is
-> trivial to lockup the system.
 
-You could try to use printk_deferred() in warn_alloc(). It will not
-handle console. It will help to be sure that the blocked printk()
-is the main problem.
+> I get this but it requires applications to be isolated. The pages from
+> a queue can not be shared between multiple applications in different
+> trust domains. And the application has to be cooperative meaning it
+> can't "look" at data that has not been marked by the stack as OK. In
+> these schemes we tend to end up with something like virtio/vhost or
+> af_packet.
 
-Best Regards,
-Petr
+I expect 3 modes, when enabling RX-zero-copy on a page_pool. The first
+two would require CAP_NET_ADMIN privileges.  All modes have a trust
+domain id, that need to match e.g. when page reach the socket.
+
+Mode-1 "Shared": Application choose lowest isolation level, allowing
+ multiple application to mmap VMA area.
+
+Mode-2 "Single-user": Application request it want to be the only user
+ of the RX queue.  This blocks other application to mmap VMA area.
+
+Mode-3 "Exclusive": Application request to own RX queue.  Packets are
+ no longer allowed for normal netstack delivery.
+
+Notice mode-2 still requires CAP_NET_ADMIN, because packets/pages are
+still allowed to travel netstack and thus can contain packet data from
+other normal applications.  This is part of the design, to share the
+NIC between netstack and an accelerated userspace application using RX
+zero-copy delivery.
+
+
+> Any ACLs/filtering/switching/headers need to be done in hardware or
+> the application trust boundaries are broken.
+
+The software solution outlined allow the application to make the choice
+of what trust boundary it wants.
+
+The "exclusive" mode-3 make most sense together with HW filters.
+Already today, we support creating a new RX queue based on ethtool
+ntuple HW filter and then you simply attach your application that queue
+in mode-3, and have full isolation.
+
+ 
+> If the above can not be met then a copy is needed. What I am trying
+> to tease out is the above comment along with other statements like
+> this "can be done with out HW filter features".
+
+Does this address your concerns?
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
