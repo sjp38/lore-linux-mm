@@ -1,128 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E366B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:54:27 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id l20so9102960qta.3
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:54:27 -0800 (PST)
-Received: from mail-qk0-f194.google.com (mail-qk0-f194.google.com. [209.85.220.194])
-        by mx.google.com with ESMTPS id i138si18422623qke.214.2016.12.14.01.54.27
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EA18C6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:57:25 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id he10so5543075wjc.6
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:57:25 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fh2si53511693wjb.52.2016.12.14.01.57.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 01:54:27 -0800 (PST)
-Received: by mail-qk0-f194.google.com with SMTP id x190so1723438qkb.0
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:54:27 -0800 (PST)
-Date: Wed, 14 Dec 2016 10:54:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Fw: [lkp-developer] [sched,rcu]  cf7a2dca60: [No primary change]
- +186% will-it-scale.time.involuntary_context_switches
-Message-ID: <20161214095425.GE25573@dhcp22.suse.cz>
-References: <20161213151408.GC3924@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Dec 2016 01:57:24 -0800 (PST)
+Date: Wed, 14 Dec 2016 10:57:19 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/2] mm, dax: make pmd_fault() and friends to be the same
+ as fault()
+Message-ID: <20161214095719.GA18624@quack2.suse.cz>
+References: <148123286127.108913.2695398781030517780.stgit@djiang5-desk3.ch.intel.com>
+ <20161213121535.GI15362@quack2.suse.cz>
+ <e41d16fb-672d-1d61-b60d-6fd3a2201e41@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161213151408.GC3924@linux.vnet.ibm.com>
+In-Reply-To: <e41d16fb-672d-1d61-b60d-6fd3a2201e41@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, linux-nvdimm@lists.01.org, david@fromorbit.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com, dan.j.williams@intel.com, hch@lst.de
 
-On Tue 13-12-16 07:14:08, Paul E. McKenney wrote:
-> Just FYI for the moment...
+On Tue 13-12-16 11:29:54, Dave Jiang wrote:
 > 
-> So even with the slowed-down checking, making cond_resched() do what
-> cond_resched_rcu_qs() does results in a smallish but quite measurable
-> degradation according to 0day.
+> 
+> On 12/13/2016 05:15 AM, Jan Kara wrote:
+> > On Thu 08-12-16 14:34:21, Dave Jiang wrote:
+> >> Instead of passing in multiple parameters in the pmd_fault() handler,
+> >> a vmf can be passed in just like a fault() handler. This will simplify
+> >> code and remove the need for the actual pmd fault handlers to allocate a
+> >> vmf. Related functions are also modified to do the same.
+> >>
+> >> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> >> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > 
+> > I like the idea however see below:
+> > 
+> >> @@ -1377,21 +1376,20 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+> >>  	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+> >>  		goto unlock_entry;
+> >>  
+> >> -	vmf.pgoff = pgoff;
+> >> -	vmf.flags = flags;
+> >> -	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
+> >> +	vmf->pgoff = pgoff;
+> >> +	vmf->gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
+> > 
+> > But now it's really unexpected that you change pgoff and gfp_mask because
+> > that will propagate back to the caller and if we return VM_FAULT_FALLBACK
+> > we may fault in wrong PTE because of this. So dax_iomap_pmd_fault() should
+> > not modify the passed gfp_mask, just make its callers clear __GFP_FS from
+> > it because *they* are responsible for acquiring locks / transactions that
+> > block __GFP_FS allocations. They are also responsible for restoring
+> > original gfp_mask once dax_iomap_pmd_fault() returns.
+> 
+> Ok will fix.
+> 
+> > 
+> > dax_iomap_pmd_fault() needs to modify pgoff however it must restore it to
+> > the original value before it returns.
+> 
+> Need clarification here. Do you mean "If" dax_iomap_pmd_fault() needs to
+> modify.... and right now it doesn't appear to need to modify pgoff so
+> nothing needs to be done? Thanks.
 
-So if I understand those results properly, the reason seems to be the
-increased involuntary context switches, right? Or am I misreading the
-data?
-I am looking at your "sched,rcu: Make cond_resched() provide RCU
-quiescent state" in linux-next and I am wondering whether rcu_all_qs has
-to be called unconditionally and not only when should_resched failed few
-times? I guess you have discussed that with Peter already but do not
-remember the outcome.
+How come? I can see:
 
-Thanks for letting my know! 
+	pgoff = linear_page_index(vma, pmd_addr);
 
-> I will try some things to reduce the
-> impact, but it is quite possible that we will need to live with both
-> interfaces.
+a few lines above - we need to modify pgoff to contain huge page aligned
+file index instead of only page aligned...
 
-Thanks a lot for your time!
- 
-> 							Thanx, Paul
-> 
-> ----- Forwarded message from kernel test robot <ying.huang@linux.intel.com> -----
-> 
-> Date: Mon, 12 Dec 2016 13:52:28 +0800
-> From: kernel test robot <ying.huang@linux.intel.com>
-> TO: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-> Cc: lkp@01.org
-> Subject: [lkp-developer] [sched,rcu]  cf7a2dca60: [No primary change] +186%
-> 	will-it-scale.time.involuntary_context_switches
-> 
-> Greeting,
-> 
-> There is no primary kpi change in this test, below is the data collected through multiple monitors running background just for your information.
-> 
-> 
-> commit: cf7a2dca6056544bb04a8f819fbbdb415bdb2933 ("sched,rcu: Make cond_resched() provide RCU quiescent state")
-> https://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git dev.2016.12.05c
-> 
-> in testcase: will-it-scale
-> on test machine: 32 threads Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz with 64G memory
-> with following parameters:
-> 
-> 	test: unlink2
-> 	cpufreq_governor: performance
-> 
-> test-description: Will It Scale takes a testcase and runs it from 1 through to n parallel copies to see if the testcase will scale. It builds both a process and threads based test in order to see any differences between the two.
-> test-url: https://github.com/antonblanchard/will-it-scale
-> 
-> 
-> 
-> Details are as below:
-> -------------------------------------------------------------------------------------------------->
-> 
-> 
-> To reproduce:
-> 
->         git clone git://git.kernel.org/pub/scm/linux/kernel/git/wfg/lkp-tests.git
->         cd lkp-tests
->         bin/lkp install job.yaml  # job file is attached in this email
->         bin/lkp run     job.yaml
-> 
-> testcase/path_params/tbox_group/run: will-it-scale/unlink2-performance/lkp-sb03
-> 
-> 15705d6709cb6ba6  cf7a2dca6056544bb04a8f819f  
-> ----------------  --------------------------  
->          %stddev      change         %stddev
->              \          |                \  
->     116286                      114432        will-it-scale.per_process_ops
->      20902 +-  5%       186%      59731 +-  5%  will-it-scale.time.involuntary_context_switches
->       2694 +-  8%        61%       4344        vmstat.system.cs
->      10903 +- 99%     -1e+04        148 +-  5%  latency_stats.max.wait_on_page_bit.__migration_entry_wait.migration_entry_wait.do_swap_page.handle_mm_fault.__do_page_fault.do_page_fault.page_fault
->       3583 +- 38%      1e+04      14010 +- 51%  latency_stats.sum.ep_poll.SyS_epoll_wait.entry_SYSCALL_64_fastpath
->       4143 +- 24%      1e+04      14549 +- 51%  latency_stats.sum.ep_poll.SyS_epoll_wait.do_syscall_64.return_from_SYSCALL_64
->     271108 +- 71%     -2e+05      66364 +- 32%  latency_stats.sum.wait_on_page_bit.__migration_entry_wait.migration_entry_wait.do_swap_page.handle_mm_fault.__do_page_fault.do_page_fault.page_fault
->     834637 +-  8%        62%    1351381        perf-stat.context-switches
->      16449 +-  3%        54%      25349 +-  3%  perf-stat.cpu-migrations
->      25.94              35%      35.02        perf-stat.node-store-miss-rate%
->  2.534e+09              32%  3.335e+09        perf-stat.node-store-misses
->  1.002e+12               4%  1.043e+12        perf-stat.dTLB-stores
->   50923913               3%   52692115        perf-stat.iTLB-loads
->  1.696e+12                   1.745e+12        perf-stat.dTLB-loads
->  1.258e+12                   1.291e+12        perf-stat.branch-instructions
->  6.132e+12                   6.274e+12        perf-stat.instructions
->       0.37                        0.38        perf-stat.ipc
->       0.37              -3%       0.35        perf-stat.branch-miss-rate%
->      29.83              -4%      28.66        perf-stat.cache-miss-rate%
->  1.117e+10              -4%  1.071e+10        perf-stat.cache-misses
->  7.232e+09             -14%  6.187e+09        perf-stat.node-stores
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
