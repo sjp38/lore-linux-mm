@@ -1,83 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4626B0069
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 03:59:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g186so14924788pgc.2
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 00:59:52 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id f1si51880039plm.190.2016.12.14.00.59.51
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 53AE46B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:05:07 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id o2so4699655wje.5
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:05:07 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id g66si6275939wmf.113.2016.12.14.01.05.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 00:59:51 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
- fast (de)inflating & fast live migration
-Date: Wed, 14 Dec 2016 08:59:47 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C31D0E6@SHSMSX104.ccr.corp.intel.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
- <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
- <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
- <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
- <20161207183817.GE28786@redhat.com>
- <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
- <20161207202824.GH28786@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
- <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
-In-Reply-To: <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 14 Dec 2016 01:05:05 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id kp2so3160556wjc.0
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:05:05 -0800 (PST)
+Date: Wed, 14 Dec 2016 10:05:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
+Message-ID: <20161214090502.GC25573@dhcp22.suse.cz>
+References: <20161208103300.23217-1-mhocko@kernel.org>
+ <20161213101451.GB10492@dhcp22.suse.cz>
+ <C2C892CD-BAF7-4E72-927D-B79D95A9B7FA@dilger.ca>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <C2C892CD-BAF7-4E72-927D-B79D95A9B7FA@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-> Subject: Re: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
-> fast (de)inflating & fast live migration
->=20
-> On 12/08/2016 08:45 PM, Li, Liang Z wrote:
-> > What's the conclusion of your discussion? It seems you want some
-> > statistic before deciding whether to  ripping the bitmap from the ABI,
-> > am I right?
->=20
-> I think Andrea and David feel pretty strongly that we should remove the
-> bitmap, unless we have some data to support keeping it.  I don't feel as
-> strongly about it, but I think their critique of it is pretty valid.  I t=
-hink the
-> consensus is that the bitmap needs to go.
->=20
-> The only real question IMNHO is whether we should do a power-of-2 or a
-> length.  But, if we have 12 bits, then the argument for doing length is p=
-retty
-> strong.  We don't need anywhere near 12 bits if doing power-of-2.
+On Tue 13-12-16 13:55:46, Andreas Dilger wrote:
+> On Dec 13, 2016, at 3:14 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > Are there any more comments or objections to this patch? Is this a good
+> > start or kv[mz]alloc has to provide a way to cover GFP_NOFS users as
+> > well in the initial version.
+> 
+> I'm in favour of this cleanup as a starting point.  I definitely agree
+> that this same functionality is in use in a number of places and should
+> be consolidated.
+> 
+> The vmalloc() from GFP_NOFS can be addressed separately in later patches.
+> That is an issue for several filesystems, and while XFS works around this,
+> it would be better to lift that out of the filesystem code into the VM.
 
-Just found the MAX_ORDER should be limited to 12 if use length instead of o=
-rder,
-If the MAX_ORDER is configured to a value bigger than 12, it will make thin=
-gs more
-complex to handle this case.=20
+Well, my longer term plan is to change how GFP_NOFS is used from the fs
+code rather than tweak the VM layer. The current situation with the nofs
+is messy and confusing. In many contexts it is used without a good
+reason - just to be sure that nothing will break. I strongly believe
+that we should use a scope api [1] which marks whole regions of
+potentially reclaim dangerous code paths and all the allocations within
+that region will inherit the nofs protection automatically. That would
+solve the vmalloc(GFP_NOFS) problem as well. The route to get there is
+no short or easy. I am planning to repost the scope patchset hopefully
+soon with ext4 converted.
 
-If use order, we need to break a large memory range whose length is not the=
- power of 2 into several
-small ranges, it also make the code complex.
+[1] http://lkml.kernel.org/r/1461671772-1269-1-git-send-email-mhocko@kernel.org
 
-It seems we leave too many bit  for the pfn, and the bits leave for length =
-is not enough,
-How about keep 45 bits for the pfn and 19 bits for length, 45 bits for pfn =
-can cover 57 bits
-physical address, that should be enough in the near feature.=20
-
-What's your opinion?
-
+> Really, there are several of things about vmalloc() that could improve
+> if we decided to move it out of the dog house and allow it to become a
+> first class citizen, but that needs a larger discussion, and you can
+> already do a lot of cleanup with just the introduction of kvmalloc().
+> 
+> Since this is changing the ext4 code, you can add my:
+> 
+> Reviewed-by: Andreas Dilger <adilger@dilger.ca>
 
 thanks!
-Liang
-
-=20
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
