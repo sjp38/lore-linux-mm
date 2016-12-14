@@ -1,112 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A89CC6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:39:24 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id m67so10212855qkf.0
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:39:24 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p25si29754468qte.81.2016.12.14.01.39.23
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 725226B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 04:43:43 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x23so17170137pgx.6
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 01:43:43 -0800 (PST)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0080.outbound.protection.outlook.com. [104.47.40.80])
+        by mx.google.com with ESMTPS id 123si51931461pgb.134.2016.12.14.01.43.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 01:39:23 -0800 (PST)
-Date: Wed, 14 Dec 2016 10:39:14 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-Message-ID: <20161214103914.3a9ebbbf@redhat.com>
-In-Reply-To: <58505535.1080908@gmail.com>
-References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
-	<20161213171028.24dbf519@redhat.com>
-	<5850335F.6090000@gmail.com>
-	<20161213.145333.514056260418695987.davem@davemloft.net>
-	<58505535.1080908@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 14 Dec 2016 01:43:42 -0800 (PST)
+From: Robert Richter <rrichter@cavium.com>
+Subject: [PATCH v2] arm64: mm: Fix NOMAP page initialization
+Date: Wed, 14 Dec 2016 10:42:30 +0100
+Message-ID: <1481708550-1809-1-git-send-email-rrichter@cavium.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Fastabend <john.fastabend@gmail.com>
-Cc: David Miller <davem@davemloft.net>, cl@linux.com, rppt@linux.vnet.ibm.com, netdev@vger.kernel.org, linux-mm@kvack.org, willemdebruijn.kernel@gmail.com, bjorn.topel@intel.com, magnus.karlsson@intel.com, alexander.duyck@gmail.com, mgorman@techsingularity.net, tom@herbertland.com, bblanco@plumgrid.com, tariqt@mellanox.com, saeedm@mellanox.com, jesse.brandeburg@intel.com, METH@il.ibm.com, vyasevich@gmail.com, brouer@redhat.com
+To: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, Robert Richter <rrichter@cavium.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 13 Dec 2016 12:08:21 -0800
-John Fastabend <john.fastabend@gmail.com> wrote:
+On ThunderX systems with certain memory configurations we see the
+following BUG_ON():
 
-> On 16-12-13 11:53 AM, David Miller wrote:
-> > From: John Fastabend <john.fastabend@gmail.com>
-> > Date: Tue, 13 Dec 2016 09:43:59 -0800
-> >   
-> >> What does "zero-copy send packet-pages to the application/socket that
-> >> requested this" mean? At the moment on x86 page-flipping appears to be
-> >> more expensive than memcpy (I can post some data shortly) and shared
-> >> memory was proposed and rejected for security reasons when we were
-> >> working on bifurcated driver.  
-> > 
-> > The whole idea is that we map all the active RX ring pages into
-> > userspace from the start.
-> > 
-> > And just how Jesper's page pool work will avoid DMA map/unmap,
-> > it will also avoid changing the userspace mapping of the pages
-> > as well.
-> > 
-> > Thus avoiding the TLB/VM overhead altogether.
-> >   
+ kernel BUG at mm/page_alloc.c:1848!
 
-Exactly.  It is worth mentioning that pages entering the page pool need
-to be cleared (measured cost 143 cycles), in order to not leak any
-kernel info.  The primary focus of this design is to make sure not to
-leak kernel info to userspace, but with an "exclusive" mode also
-support isolation between applications.
+This happens for some configs with 64k page size enabled. The BUG_ON()
+checks if start and end page of a memmap range belongs to the same
+zone.
 
+The BUG_ON() check fails if a memory zone contains NOMAP regions. In
+this case the node information of those pages is not initialized. This
+causes an inconsistency of the page links with wrong zone and node
+information for that pages. NOMAP pages from node 1 still point to the
+mem zone from node 0 and have the wrong nid assigned.
 
-> I get this but it requires applications to be isolated. The pages from
-> a queue can not be shared between multiple applications in different
-> trust domains. And the application has to be cooperative meaning it
-> can't "look" at data that has not been marked by the stack as OK. In
-> these schemes we tend to end up with something like virtio/vhost or
-> af_packet.
+The reason for the mis-configuration is a change in pfn_valid() which
+reports pages marked NOMAP as invalid:
 
-I expect 3 modes, when enabling RX-zero-copy on a page_pool. The first
-two would require CAP_NET_ADMIN privileges.  All modes have a trust
-domain id, that need to match e.g. when page reach the socket.
+ 68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
 
-Mode-1 "Shared": Application choose lowest isolation level, allowing
- multiple application to mmap VMA area.
+This causes pages marked as nomap being no longer reassigned to the
+new zone in memmap_init_zone() by calling __init_single_pfn().
 
-Mode-2 "Single-user": Application request it want to be the only user
- of the RX queue.  This blocks other application to mmap VMA area.
+Fixing this by implementing an arm64 specific early_pfn_valid(). This
+causes all pages of sections with memory including NOMAP ranges to be
+initialized by __init_single_page() and ensures consistency of page
+links to zone, node and section.
 
-Mode-3 "Exclusive": Application request to own RX queue.  Packets are
- no longer allowed for normal netstack delivery.
+The HAVE_ARCH_PFN_VALID config option now requires an explicit
+definiton of early_pfn_valid() in the same way as pfn_valid(). This
+allows a customized implementation of early_pfn_valid() which
+redirects to pfn_present() for arm64.
 
-Notice mode-2 still requires CAP_NET_ADMIN, because packets/pages are
-still allowed to travel netstack and thus can contain packet data from
-other normal applications.  This is part of the design, to share the
-NIC between netstack and an accelerated userspace application using RX
-zero-copy delivery.
+v2:
 
+ * Use pfn_present() instead of memblock_is_memory() to support also
+   non-memory NOMAP holes
 
-> Any ACLs/filtering/switching/headers need to be done in hardware or
-> the application trust boundaries are broken.
+Signed-off-by: Robert Richter <rrichter@cavium.com>
+---
+ arch/arm/include/asm/page.h   |  1 +
+ arch/arm64/include/asm/page.h |  2 ++
+ arch/arm64/mm/init.c          | 12 ++++++++++++
+ include/linux/mmzone.h        |  5 ++++-
+ 4 files changed, 19 insertions(+), 1 deletion(-)
 
-The software solution outlined allow the application to make the choice
-of what trust boundary it wants.
-
-The "exclusive" mode-3 make most sense together with HW filters.
-Already today, we support creating a new RX queue based on ethtool
-ntuple HW filter and then you simply attach your application that queue
-in mode-3, and have full isolation.
-
+diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+index 4355f0ec44d6..79761bd55f94 100644
+--- a/arch/arm/include/asm/page.h
++++ b/arch/arm/include/asm/page.h
+@@ -158,6 +158,7 @@ typedef struct page *pgtable_t;
  
-> If the above can not be met then a copy is needed. What I am trying
-> to tease out is the above comment along with other statements like
-> this "can be done with out HW filter features".
-
-Does this address your concerns?
-
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern int pfn_valid(unsigned long);
++#define early_pfn_valid(pfn)	pfn_valid(pfn)
+ #endif
+ 
+ #include <asm/memory.h>
+diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
+index 8472c6def5ef..17ceb7435ded 100644
+--- a/arch/arm64/include/asm/page.h
++++ b/arch/arm64/include/asm/page.h
+@@ -49,6 +49,8 @@ typedef struct page *pgtable_t;
+ 
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
+ extern int pfn_valid(unsigned long);
++extern int early_pfn_valid(unsigned long);
++#define early_pfn_valid early_pfn_valid
+ #endif
+ 
+ #include <asm/memory.h>
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 212c4d1e2f26..bf1f5db11428 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -145,11 +145,23 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
+ #endif /* CONFIG_NUMA */
+ 
+ #ifdef CONFIG_HAVE_ARCH_PFN_VALID
++
+ int pfn_valid(unsigned long pfn)
+ {
+ 	return memblock_is_map_memory(pfn << PAGE_SHIFT);
+ }
+ EXPORT_SYMBOL(pfn_valid);
++
++/*
++ * We use pfn_present() here to make sure all pages of a section
++ * including NOMAP pages are initialized with __init_single_page().
++ */
++int early_pfn_valid(unsigned long pfn)
++{
++	return pfn_present(pfn);
++}
++EXPORT_SYMBOL(early_pfn_valid);
++
+ #endif
+ 
+ #ifndef CONFIG_SPARSEMEM
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 0f088f3a2fed..bedcf8a95881 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1170,12 +1170,16 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+ }
+ 
+ #ifndef CONFIG_HAVE_ARCH_PFN_VALID
++
+ static inline int pfn_valid(unsigned long pfn)
+ {
+ 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+ 		return 0;
+ 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+ }
++
++#define early_pfn_valid(pfn)	pfn_valid(pfn)
++
+ #endif
+ 
+ static inline int pfn_present(unsigned long pfn)
+@@ -1200,7 +1204,6 @@ static inline int pfn_present(unsigned long pfn)
+ #define pfn_to_nid(pfn)		(0)
+ #endif
+ 
+-#define early_pfn_valid(pfn)	pfn_valid(pfn)
+ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
