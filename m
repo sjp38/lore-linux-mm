@@ -1,147 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EEEE6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:45:10 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id n68so4311535itn.4
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:45:10 -0800 (PST)
-Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
-        by mx.google.com with ESMTPS id 30si14311542ioj.77.2016.12.14.08.45.09
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B486B0038
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:48:32 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id h141so19112432ybg.4
+        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:48:32 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id u65si544035ybi.82.2016.12.14.08.48.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Dec 2016 08:45:09 -0800 (PST)
-Received: by mail-it0-x243.google.com with SMTP id 75so585606ite.1
-        for <linux-mm@kvack.org>; Wed, 14 Dec 2016 08:45:09 -0800 (PST)
+        Wed, 14 Dec 2016 08:48:31 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBEGiJot043996
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:48:30 -0500
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 27b91w3vcp-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 14 Dec 2016 11:48:30 -0500
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 14 Dec 2016 09:48:29 -0700
+Date: Wed, 14 Dec 2016 08:48:27 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Fw: [lkp-developer] [sched,rcu]  cf7a2dca60: [No primary change]
+ +186% will-it-scale.time.involuntary_context_switches
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20161213151408.GC3924@linux.vnet.ibm.com>
+ <20161214095425.GE25573@dhcp22.suse.cz>
+ <20161214110609.GK3924@linux.vnet.ibm.com>
+ <20161214161540.GP25573@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <5851740A.2080806@gmail.com>
-References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org>
- <20161213171028.24dbf519@redhat.com> <5850335F.6090000@gmail.com>
- <20161213.145333.514056260418695987.davem@davemloft.net> <58505535.1080908@gmail.com>
- <20161214103914.3a9ebbbf@redhat.com> <5851740A.2080806@gmail.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 14 Dec 2016 08:45:08 -0800
-Message-ID: <CAKgT0UfnBurxz9f+ceD81hAp3U0tGHEi_5MEtxk6PiehG=X8ag@mail.gmail.com>
-Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161214161540.GP25573@dhcp22.suse.cz>
+Message-Id: <20161214164827.GL3924@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Fastabend <john.fastabend@gmail.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>, Christoph Lameter <cl@linux.com>, rppt@linux.vnet.ibm.com, Netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, willemdebruijn.kernel@gmail.com, =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>, magnus.karlsson@intel.com, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, METH@il.ibm.com, Vlad Yasevich <vyasevich@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org
 
-On Wed, Dec 14, 2016 at 8:32 AM, John Fastabend
-<john.fastabend@gmail.com> wrote:
-> On 16-12-14 01:39 AM, Jesper Dangaard Brouer wrote:
->> On Tue, 13 Dec 2016 12:08:21 -0800
->> John Fastabend <john.fastabend@gmail.com> wrote:
->>
->>> On 16-12-13 11:53 AM, David Miller wrote:
->>>> From: John Fastabend <john.fastabend@gmail.com>
->>>> Date: Tue, 13 Dec 2016 09:43:59 -0800
->>>>
->>>>> What does "zero-copy send packet-pages to the application/socket that
->>>>> requested this" mean? At the moment on x86 page-flipping appears to be
->>>>> more expensive than memcpy (I can post some data shortly) and shared
->>>>> memory was proposed and rejected for security reasons when we were
->>>>> working on bifurcated driver.
->>>>
->>>> The whole idea is that we map all the active RX ring pages into
->>>> userspace from the start.
->>>>
->>>> And just how Jesper's page pool work will avoid DMA map/unmap,
->>>> it will also avoid changing the userspace mapping of the pages
->>>> as well.
->>>>
->>>> Thus avoiding the TLB/VM overhead altogether.
->>>>
->>
->> Exactly.  It is worth mentioning that pages entering the page pool need
->> to be cleared (measured cost 143 cycles), in order to not leak any
->> kernel info.  The primary focus of this design is to make sure not to
->> leak kernel info to userspace, but with an "exclusive" mode also
->> support isolation between applications.
->>
->>
->>> I get this but it requires applications to be isolated. The pages from
->>> a queue can not be shared between multiple applications in different
->>> trust domains. And the application has to be cooperative meaning it
->>> can't "look" at data that has not been marked by the stack as OK. In
->>> these schemes we tend to end up with something like virtio/vhost or
->>> af_packet.
->>
->> I expect 3 modes, when enabling RX-zero-copy on a page_pool. The first
->> two would require CAP_NET_ADMIN privileges.  All modes have a trust
->> domain id, that need to match e.g. when page reach the socket.
->
-> Even mode 3 should required cap_net_admin we don't want userspace to
-> grab queues off the nic without it IMO.
->
->>
->> Mode-1 "Shared": Application choose lowest isolation level, allowing
->>  multiple application to mmap VMA area.
->
-> My only point here is applications can read each others data and all
-> applications need to cooperate for example one app could try to write
-> continuously to read only pages causing faults and what not. This is
-> all non standard and doesn't play well with cgroups and "normal"
-> applications. It requires a new orchestration model.
->
-> I'm a bit skeptical of the use case but I know of a handful of reasons
-> to use this model. Maybe take a look at the ivshmem implementation in
-> DPDK.
->
-> Also this still requires a hardware filter to push "application" traffic
-> onto reserved queues/pages as far as I can tell.
->
->>
->> Mode-2 "Single-user": Application request it want to be the only user
->>  of the RX queue.  This blocks other application to mmap VMA area.
->>
->
-> Assuming data is read-only sharing with the stack is possibly OK :/. I
-> guess you would need to pools of memory for data and skb so you don't
-> leak skb into user space.
->
-> The devils in the details here. There are lots of hooks in the kernel
-> that can for example push the packet with a 'redirect' tc action for
-> example. And letting an app "read" data or impact performance of an
-> unrelated application is wrong IMO. Stacked devices also provide another
-> set of details that are a bit difficult to track down see all the
-> hardware offload efforts.
->
-> I assume all these concerns are shared between mode-1 and mode-2
->
->> Mode-3 "Exclusive": Application request to own RX queue.  Packets are
->>  no longer allowed for normal netstack delivery.
->>
->
-> I have patches for this mode already but haven't pushed them due to
-> an alternative solution using VFIO.
->
->> Notice mode-2 still requires CAP_NET_ADMIN, because packets/pages are
->> still allowed to travel netstack and thus can contain packet data from
->> other normal applications.  This is part of the design, to share the
->> NIC between netstack and an accelerated userspace application using RX
->> zero-copy delivery.
->>
->
-> I don't think this is acceptable to be honest. Letting an application
-> potentially read/impact other arbitrary applications on the system
-> seems like a non-starter even with CAP_NET_ADMIN. At least this was
-> the conclusion from bifurcated driver work some time ago.
+On Wed, Dec 14, 2016 at 05:15:41PM +0100, Michal Hocko wrote:
+> On Wed 14-12-16 03:06:09, Paul E. McKenney wrote:
+> > On Wed, Dec 14, 2016 at 10:54:25AM +0100, Michal Hocko wrote:
+> > > On Tue 13-12-16 07:14:08, Paul E. McKenney wrote:
+> > > > Just FYI for the moment...
+> > > > 
+> > > > So even with the slowed-down checking, making cond_resched() do what
+> > > > cond_resched_rcu_qs() does results in a smallish but quite measurable
+> > > > degradation according to 0day.
+> > > 
+> > > So if I understand those results properly, the reason seems to be the
+> > > increased involuntary context switches, right? Or am I misreading the
+> > > data?
+> > > I am looking at your "sched,rcu: Make cond_resched() provide RCU
+> > > quiescent state" in linux-next and I am wondering whether rcu_all_qs has
+> > > to be called unconditionally and not only when should_resched failed few
+> > > times? I guess you have discussed that with Peter already but do not
+> > > remember the outcome.
+> > 
+> > My first thought is to wait for the grace period to age further before
+> > checking, the idea being to avoid increasing cond_resched() overhead
+> > any further.  But if that doesn't work, then yes, I may have to look at
+> > adding more checks to cond_resched().
+> 
+> This might be really naive but would something like the following work?
+> The overhead should be pretty much negligible, I guess. Ideally the pcp
+> variable could be set somewhere from check_cpu_stall() but I couldn't
+> wrap my head around that code to see how exactly.
 
-I agree.  This is a no-go from the performance perspective as well.
-At a minimum you would have to be zeroing out the page between uses to
-avoid leaking data, and that assumes that the program we are sending
-the pages to is slightly well behaved.  If we think zeroing out an
-sk_buff is expensive wait until we are trying to do an entire 4K page.
+My concern (perhaps misplaced) with this approach is that there are
+quite a few tight loops containing cond_resched().  So I would still
+need to throttle the resulting grace-period acceleration to keep the
+context switches down to a dull roar.
 
-I think we are stuck with having to use a HW filter to split off
-application traffic to a specific ring, and then having to share the
-memory between the application and the kernel on that ring only.  Any
-other approach just opens us up to all sorts of security concerns
-since it would be possible for the application to try to read and
-possibly write any data it wants into the buffers.
+							Thanx, Paul
 
-- Alex
+> --- 
+> diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
+> index ac81e4063b40..1c005c5304a3 100644
+> --- a/include/linux/rcutiny.h
+> +++ b/include/linux/rcutiny.h
+> @@ -243,6 +243,10 @@ static inline void rcu_all_qs(void)
+>  	barrier(); /* Avoid RCU read-side critical sections leaking across. */
+>  }
+> 
+> +static inline void cond_resched_rcu_check(void)
+> +{
+> +}
+> +
+>  /* RCUtree hotplug events */
+>  #define rcutree_prepare_cpu      NULL
+>  #define rcutree_online_cpu       NULL
+> diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
+> index 63a4e4cf40a5..176f6e386379 100644
+> --- a/include/linux/rcutree.h
+> +++ b/include/linux/rcutree.h
+> @@ -110,6 +110,18 @@ extern int rcu_scheduler_active __read_mostly;
+>  bool rcu_is_watching(void);
+> 
+>  void rcu_all_qs(void);
+> +#ifndef CONFIG_PREEMPT
+> +DECLARE_PER_CPU(int, rcu_needs_qs);
+> +
+> +static inline void cond_resched_rcu_check(void)
+> +{
+> +	/* Make sure we do not miss rcu_all_qs at least every now and then */
+> +	if (this_cpu_inc_return(rcu_needs_qs) > 10) {
+> +		this_cpu_write(rcu_needs_qs, 0);
+> +		rcu_all_qs();
+> +	}
+> +}
+> +#endif
+> 
+>  /* RCUtree hotplug events */
+>  int rcutree_prepare_cpu(unsigned int cpu);
+> diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+> index 69a5611a7e7c..783c74ae9930 100644
+> --- a/kernel/rcu/tree.c
+> +++ b/kernel/rcu/tree.c
+> @@ -268,6 +268,9 @@ void rcu_bh_qs(void)
+>  }
+> 
+>  static DEFINE_PER_CPU(int, rcu_sched_qs_mask);
+> +#ifndef CONFIG_PREEMPT
+> +DEFINE_PER_CPU(int, rcu_needs_qs);
+> +#endif
+> 
+>  static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
+>  	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index 154fd689fe02..a58844be2ef1 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -4905,6 +4905,8 @@ int __sched _cond_resched(void)
+>  	if (should_resched(0)) {
+>  		preempt_schedule_common();
+>  		return 1;
+> +	} else {
+> +		cond_resched_rcu_check();
+>  	}
+>  	return 0;
+>  }
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
