@@ -1,103 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DE76B0260
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:47:31 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so25182878wjb.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:31 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id e124si13493441wme.48.2016.12.15.08.47.30
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A826B0038
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 12:28:48 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id u144so13316321wmu.1
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:28:48 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id r3si3111064wjs.183.2016.12.15.09.28.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 08:47:30 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id j10so10720512wjb.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:30 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, slab: make sure that KMALLOC_MAX_SIZE will fit into MAX_ORDER
-Date: Thu, 15 Dec 2016 17:47:22 +0100
-Message-Id: <20161215164722.21586-3-mhocko@kernel.org>
-In-Reply-To: <20161215164722.21586-1-mhocko@kernel.org>
-References: <20161215164722.21586-1-mhocko@kernel.org>
+        Thu, 15 Dec 2016 09:28:47 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id a20so7903458wme.2
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:28:46 -0800 (PST)
+Date: Thu, 15 Dec 2016 19:28:39 +0200
+From: Krzysztof Kozlowski <krzk@kernel.org>
+Subject: Re: [PATCH 5/8] linux: drop __bitwise__ everywhere
+Message-ID: <20161215172839.GA6520@kozik-lap>
+References: <1481778865-27667-1-git-send-email-mst@redhat.com>
+ <1481778865-27667-6-git-send-email-mst@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1481778865-27667-6-git-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Cristopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Kukjin Kim <kgene@kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>, Javier Martinez Canillas <javier@osg.samsung.com>, Russell King <linux@armlinux.org.uk>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Shaohua Li <shli@kernel.org>, Johannes Berg <johannes.berg@intel.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Luca Coelho <luciano.coelho@intel.com>, Intel Linux Wireless <linuxwifi@intel.com>, Kalle Valo <kvalo@codeaurora.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Lee Duncan <lduncan@suse.com>, Chris Leech <cleech@redhat.com>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, "Nicholas A. Bellinger" <nab@linux-iscsi.org>, Jason Wang <jasowang@redhat.com>, Alexander Aring <aar@pengutronix.de>, Stefan Schmidt <stefan@osg.samsung.com>, "David S. Miller" <davem@davemloft.net>, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-raid@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-mm@kvack.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-wpan@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Dec 15, 2016 at 07:15:20AM +0200, Michael S. Tsirkin wrote:
+> __bitwise__ used to mean "yes, please enable sparse checks
+> unconditionally", but now that we dropped __CHECK_ENDIAN__
+> __bitwise is exactly the same.
+> There aren't many users, replace it by __bitwise everywhere.
+> 
+> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  arch/arm/plat-samsung/include/plat/gpio-cfg.h    | 2 +-
+>  drivers/md/dm-cache-block-types.h                | 6 +++---
+>  drivers/net/ethernet/sun/sunhme.h                | 2 +-
+>  drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h | 4 ++--
+>  include/linux/mmzone.h                           | 2 +-
+>  include/linux/serial_core.h                      | 4 ++--
+>  include/linux/types.h                            | 4 ++--
+>  include/scsi/iscsi_proto.h                       | 2 +-
+>  include/target/target_core_base.h                | 2 +-
+>  include/uapi/linux/virtio_types.h                | 6 +++---
+>  net/ieee802154/6lowpan/6lowpan_i.h               | 2 +-
+>  net/mac80211/ieee80211_i.h                       | 4 ++--
+>  12 files changed, 20 insertions(+), 20 deletions(-)
+> 
+> diff --git a/arch/arm/plat-samsung/include/plat/gpio-cfg.h b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> index 21391fa..e55d1f5 100644
+> --- a/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> +++ b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> @@ -26,7 +26,7 @@
+>  
+>  #include <linux/types.h>
+>  
+> -typedef unsigned int __bitwise__ samsung_gpio_pull_t;
+> +typedef unsigned int __bitwise samsung_gpio_pull_t;
+>  
+>  /* forward declaration if gpio-core.h hasn't been included */
+>  struct samsung_gpio_chip;
 
-Andrey Konovalov has reported the following warning triggered by
-the syzkaller fuzzer.
+For plat-samsung:
+Acked-by: Krzysztof Kozlowski <krzk@kernel.org>
 
-WARNING: CPU: 1 PID: 9935 at mm/page_alloc.c:3511
-__alloc_pages_nodemask+0x159c/0x1e20
-Kernel panic - not syncing: panic_on_warn set ...
-
-CPU: 1 PID: 9935 Comm: syz-executor0 Not tainted 4.9.0-rc7+ #34
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffff88006949f2c8 ffffffff81f96b8a ffffffff00000200 1ffff1000d293dec
- ffffed000d293de4 0000000000000a06 0000000041b58ab3 ffffffff8598b510
- ffffffff81f968f8 0000000041b58ab3 ffffffff85942a58 ffffffff81432860
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff81f96b8a>] dump_stack+0x292/0x398 lib/dump_stack.c:51
- [<ffffffff8168c88e>] panic+0x1cb/0x3a9 kernel/panic.c:179
- [<ffffffff812b80b4>] __warn+0x1c4/0x1e0 kernel/panic.c:542
- [<ffffffff812b831c>] warn_slowpath_null+0x2c/0x40 kernel/panic.c:585
- [<     inline     >] __alloc_pages_slowpath mm/page_alloc.c:3511
- [<ffffffff816c08ac>] __alloc_pages_nodemask+0x159c/0x1e20 mm/page_alloc.c:3781
- [<ffffffff817cde17>] alloc_pages_current+0x1c7/0x6b0 mm/mempolicy.c:2072
- [<     inline     >] alloc_pages include/linux/gfp.h:469
- [<ffffffff8172fd8f>] kmalloc_order+0x1f/0x70 mm/slab_common.c:1015
- [<ffffffff8172fdff>] kmalloc_order_trace+0x1f/0x160 mm/slab_common.c:1026
- [<     inline     >] kmalloc_large include/linux/slab.h:422
- [<ffffffff817e01f0>] __kmalloc+0x210/0x2d0 mm/slub.c:3723
- [<     inline     >] kmalloc include/linux/slab.h:495
- [<ffffffff832262a7>] ep_write_iter+0x167/0xb50 drivers/usb/gadget/legacy/inode.c:664
- [<     inline     >] new_sync_write fs/read_write.c:499
- [<ffffffff817fdcd3>] __vfs_write+0x483/0x760 fs/read_write.c:512
- [<ffffffff817ff720>] vfs_write+0x170/0x4e0 fs/read_write.c:560
- [<     inline     >] SYSC_write fs/read_write.c:607
- [<ffffffff81803b2b>] SyS_write+0xfb/0x230 fs/read_write.c:599
- [<ffffffff84f47ec1>] entry_SYSCALL_64_fastpath+0x1f/0xc2
-
-The issue is caused by a lack of size check for the request size in
-ep_write_iter which should be fixed. It, however, points to another
-problem, that SLUB defines KMALLOC_MAX_SIZE too large because the its
-KMALLOC_SHIFT_MAX is (MAX_ORDER + PAGE_SHIFT) which means that the
-resulting page allocator request might be MAX_ORDER which is too large
-(see __alloc_pages_slowpath). The same applies to the SLOB allocator
-which allows even larger sizes. Make sure that they are capped properly
-and never request more than MAX_ORDER order.
-
-Reported-by: Andrey Konovalov <andreyknvl@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/slab.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 084b12bad198..4c5363566815 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -226,7 +226,7 @@ static inline const char *__check_heap_object(const void *ptr,
-  * (PAGE_SIZE*2).  Larger requests are passed to the page allocator.
-  */
- #define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
--#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
-+#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT - 1)
- #ifndef KMALLOC_SHIFT_LOW
- #define KMALLOC_SHIFT_LOW	3
- #endif
-@@ -239,7 +239,7 @@ static inline const char *__check_heap_object(const void *ptr,
-  * be allocated from the same page.
-  */
- #define KMALLOC_SHIFT_HIGH	PAGE_SHIFT
--#define KMALLOC_SHIFT_MAX	30
-+#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT - 1)
- #ifndef KMALLOC_SHIFT_LOW
- #define KMALLOC_SHIFT_LOW	3
- #endif
--- 
-2.10.2
+Best regards,
+Krzysztof
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
