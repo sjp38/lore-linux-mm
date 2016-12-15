@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C5E280254
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:07:59 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id j10so23406493wjb.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:07:59 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id uz2si2222302wjb.9.2016.12.15.06.07.57
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BDAC280254
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:08:00 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so11180666wma.2
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:08:00 -0800 (PST)
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id b197si2678583wmb.95.2016.12.15.06.07.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 06:07:57 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id g23so6721939wme.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:07:57 -0800 (PST)
+        Thu, 15 Dec 2016 06:07:59 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id j10so9964881wjb.3
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:07:58 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 8/9] Revert "ext4: avoid deadlocks in the writeback path by using sb_getblk_gfp"
-Date: Thu, 15 Dec 2016 15:07:14 +0100
-Message-Id: <20161215140715.12732-9-mhocko@kernel.org>
+Subject: [PATCH 9/9] Revert "ext4: fix wrong gfp type under transaction"
+Date: Thu, 15 Dec 2016 15:07:15 +0100
+Message-Id: <20161215140715.12732-10-mhocko@kernel.org>
 In-Reply-To: <20161215140715.12732-1-mhocko@kernel.org>
 References: <20161215140715.12732-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,58 +24,111 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com
 
 From: Michal Hocko <mhocko@suse.com>
 
-This reverts commit c45653c341f5c8a0ce19c8f0ad4678640849cb86 because
-sb_getblk_gfp is not really needed as
-sb_getblk
-  __getblk_gfp
-    __getblk_slow
-      grow_buffers
-        grow_dev_page
-	  gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp
-
-so __GFP_FS is cleared unconditionally and therefore the above commit
-didn't have any real effect in fact.
+This reverts commit 216553c4b7f3e3e2beb4981cddca9b2027523928. Now that
+the transaction context uses memalloc_nofs_save and all allocations
+within the this context inherit GFP_NOFS automatically, there is no
+reason to mark specific allocations explicitly.
 
 This patch should not introduce any functional change. The main point
-of this change is to reduce explicit GFP_NOFS usage inside ext4 code to
-make the review of the remaining usage easier.
+of this change is to reduce explicit GFP_NOFS usage inside ext4 code
+to make the review of the remaining usage easier.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/ext4/extents.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ fs/ext4/acl.c     | 6 +++---
+ fs/ext4/extents.c | 2 +-
+ fs/ext4/resize.c  | 4 ++--
+ fs/ext4/xattr.c   | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)
 
+diff --git a/fs/ext4/acl.c b/fs/ext4/acl.c
+index fd389935ecd1..9e98092c2a4b 100644
+--- a/fs/ext4/acl.c
++++ b/fs/ext4/acl.c
+@@ -32,7 +32,7 @@ ext4_acl_from_disk(const void *value, size_t size)
+ 		return ERR_PTR(-EINVAL);
+ 	if (count == 0)
+ 		return NULL;
+-	acl = posix_acl_alloc(count, GFP_NOFS);
++	acl = posix_acl_alloc(count, GFP_KERNEL);
+ 	if (!acl)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (n = 0; n < count; n++) {
+@@ -94,7 +94,7 @@ ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
+ 
+ 	*size = ext4_acl_size(acl->a_count);
+ 	ext_acl = kmalloc(sizeof(ext4_acl_header) + acl->a_count *
+-			sizeof(ext4_acl_entry), GFP_NOFS);
++			sizeof(ext4_acl_entry), GFP_KERNEL);
+ 	if (!ext_acl)
+ 		return ERR_PTR(-ENOMEM);
+ 	ext_acl->a_version = cpu_to_le32(EXT4_ACL_VERSION);
+@@ -159,7 +159,7 @@ ext4_get_acl(struct inode *inode, int type)
+ 	}
+ 	retval = ext4_xattr_get(inode, name_index, "", NULL, 0);
+ 	if (retval > 0) {
+-		value = kmalloc(retval, GFP_NOFS);
++		value = kmalloc(retval, GFP_KERNEL);
+ 		if (!value)
+ 			return ERR_PTR(-ENOMEM);
+ 		retval = ext4_xattr_get(inode, name_index, "", value, retval);
 diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
-index b1f8416923ab..ef815eb72389 100644
+index ef815eb72389..c901d89f0038 100644
 --- a/fs/ext4/extents.c
 +++ b/fs/ext4/extents.c
-@@ -518,7 +518,7 @@ __read_extent_tree_block(const char *function, unsigned int line,
- 	struct buffer_head		*bh;
- 	int				err;
+@@ -2933,7 +2933,7 @@ int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
+ 				le16_to_cpu(path[k].p_hdr->eh_entries)+1;
+ 	} else {
+ 		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
+-			       GFP_NOFS);
++			       GFP_KERNEL);
+ 		if (path == NULL) {
+ 			ext4_journal_stop(handle);
+ 			return -ENOMEM;
+diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
+index cf681004b196..e121f4e048b8 100644
+--- a/fs/ext4/resize.c
++++ b/fs/ext4/resize.c
+@@ -816,7 +816,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
  
--	bh = sb_getblk_gfp(inode->i_sb, pblk, __GFP_MOVABLE | GFP_NOFS);
-+	bh = sb_getblk(inode->i_sb, pblk);
- 	if (unlikely(!bh))
- 		return ERR_PTR(-ENOMEM);
- 
-@@ -1096,7 +1096,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
- 		err = -EFSCORRUPTED;
- 		goto cleanup;
- 	}
--	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
-+	bh = sb_getblk(inode->i_sb, newblock);
- 	if (unlikely(!bh)) {
+ 	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
+ 				     sizeof(struct buffer_head *),
+-				     GFP_NOFS);
++				     GFP_KERNEL);
+ 	if (!n_group_desc) {
  		err = -ENOMEM;
- 		goto cleanup;
-@@ -1290,7 +1290,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
- 	if (newblock == 0)
- 		return err;
+ 		ext4_warning(sb, "not enough memory for %lu groups",
+@@ -943,7 +943,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
+ 	int res, i;
+ 	int err;
  
--	bh = sb_getblk_gfp(inode->i_sb, newblock, __GFP_MOVABLE | GFP_NOFS);
-+	bh = sb_getblk(inode->i_sb, newblock);
- 	if (unlikely(!bh))
+-	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_NOFS);
++	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_KERNEL);
+ 	if (!primary)
  		return -ENOMEM;
- 	lock_buffer(bh);
+ 
+diff --git a/fs/ext4/xattr.c b/fs/ext4/xattr.c
+index 5a94fa52b74f..172317462238 100644
+--- a/fs/ext4/xattr.c
++++ b/fs/ext4/xattr.c
+@@ -875,7 +875,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
+ 
+ 			unlock_buffer(bs->bh);
+ 			ea_bdebug(bs->bh, "cloning");
+-			s->base = kmalloc(bs->bh->b_size, GFP_NOFS);
++			s->base = kmalloc(bs->bh->b_size, GFP_KERNEL);
+ 			error = -ENOMEM;
+ 			if (s->base == NULL)
+ 				goto cleanup;
+@@ -887,7 +887,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
+ 		}
+ 	} else {
+ 		/* Allocate a buffer where we construct the new block. */
+-		s->base = kzalloc(sb->s_blocksize, GFP_NOFS);
++		s->base = kzalloc(sb->s_blocksize, GFP_KERNEL);
+ 		/* assert(header == s->base) */
+ 		error = -ENOMEM;
+ 		if (s->base == NULL)
 -- 
 2.10.2
 
