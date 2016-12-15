@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 972956B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:03:26 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id o2so23375827wje.5
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:03:26 -0800 (PST)
-Received: from mail-wj0-x241.google.com (mail-wj0-x241.google.com. [2a00:1450:400c:c01::241])
-        by mx.google.com with ESMTPS id cy11si2174807wjd.126.2016.12.15.06.03.25
+	by kanga.kvack.org (Postfix) with ESMTP id B5DB76B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:04:40 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id hb5so23411378wjc.2
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:04:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rb6si2145664wjb.250.2016.12.15.06.04.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 06:03:25 -0800 (PST)
-Received: by mail-wj0-x241.google.com with SMTP id xy5so9922332wjc.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:03:25 -0800 (PST)
-Date: Thu, 15 Dec 2016 17:03:21 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] MAINTAINERS, mm: add IRC info and update include file
- list
-Message-ID: <20161215140321.GB27758@node>
-References: <20161215080848.18070-1-vbabka@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Dec 2016 06:04:39 -0800 (PST)
+Date: Thu, 15 Dec 2016 15:04:34 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 3/3] mm, dax: move pmd_fault() to take only vmf
+ parameter
+Message-ID: <20161215140434.GC13811@quack2.suse.cz>
+References: <148174532372.194339.4875475197715168429.stgit@djiang5-desk3.ch.intel.com>
+ <148174533516.194339.9865528020619155270.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161215080848.18070-1-vbabka@suse.cz>
+In-Reply-To: <148174533516.194339.9865528020619155270.stgit@djiang5-desk3.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
 
-On Thu, Dec 15, 2016 at 09:08:48AM +0100, Vlastimil Babka wrote:
-> There's a new C: entry for IRC or similar chat, so add the OFTC #mm channel.
-> While at it, add more F: entries for least the more prominent include/ files
-> related to mm.
+On Wed 14-12-16 12:55:35, Dave Jiang wrote:
+> pmd_fault() and relate functions really only need the vmf parameter since
+> the additional parameters are all included in the vmf struct. Removing
+> additional parameter and simplify pmd_fault() and friends.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  MAINTAINERS | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
-> 
-> diff --git a/MAINTAINERS b/MAINTAINERS
-> index 59c9895d73d5..fd1ac4bfc2cd 100644
-> --- a/MAINTAINERS
-> +++ b/MAINTAINERS
-> @@ -3355,6 +3355,7 @@ M:	Vladimir Davydov <vdavydov.dev@gmail.com>
->  L:	cgroups@vger.kernel.org
->  L:	linux-mm@kvack.org
->  S:	Maintained
-> +F:	include/linux/memcontrol.h
->  F:	mm/memcontrol.c
->  F:	mm/swap_cgroup.c
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+...
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 157f77f..66c8f2e 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -1226,9 +1226,9 @@ EXPORT_SYMBOL_GPL(dax_iomap_fault);
+>   */
+>  #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
 >  
-> @@ -8058,12 +8059,27 @@ F:	include/uapi/linux/membarrier.h
->  MEMORY MANAGEMENT
->  L:	linux-mm@kvack.org
->  W:	http://www.linux-mm.org
-> +C:	irc://irc.oftc.net/mm
->  S:	Maintained
->  F:	include/linux/mm.h
-> +F:	include/linux/mm_types.h
-> +F:	include/linux/mm_inline.h
-> +F:	include/linux/mmdebug.h
-> +F:	include/linux/compaction.h
-> +F:	include/linux/oom.h
->  F:	include/linux/gfp.h
->  F:	include/linux/mmzone.h
->  F:	include/linux/memory_hotplug.h
-> +F:	include/linux/mempolicy.h
-> +F:	include/linux/page-isolation.h
-> +F:	include/linux/page_ext.h
-> +F:	include/linux/page_owner.h
-> +F:	include/linux/migrate.h
-> +F:	include/linux/hugetlb.h
-> +F:	include/linux/rmap.h
->  F:	include/linux/vmalloc.h
-> +F:	include/linux/vmstat.h
-> +F:	include/linux/vm_event_item.h
+> -static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
+> -		struct vm_fault *vmf, unsigned long address,
+> -		struct iomap *iomap, loff_t pos, bool write, void **entryp)
+> +static int dax_pmd_insert_mapping(struct vm_area_struct *vma,
+> +		struct vm_fault *vmf, struct iomap *iomap, loff_t pos,
+> +		bool write, void **entryp)
 
-Maybe sort the list?
+Any reason for keeping 'vma' and 'write' arguments? They can be fetched
+from vmf as well...
 
-And the it is still incomplete very incomplete: huge_mm.h, page-flags*,
-mman.h, etc.
+> -static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
+> -		struct vm_fault *vmf, unsigned long address,
+> +static int dax_pmd_load_hole(struct vm_area_struct *vma, struct vm_fault *vmf,
+>  		struct iomap *iomap, void **entryp)
 
+Ditto with vma here.
+
+Otherwise the patch looks good to me.
+
+								Honza
 -- 
- Kirill A. Shutemov
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
