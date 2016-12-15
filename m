@@ -1,244 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 047D86B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 14:47:53 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id bk3so26922921wjc.4
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:47:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s206si14212470wmf.158.2016.12.15.11.47.51
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D35F76B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 15:51:01 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q10so133532666pgq.7
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 12:51:01 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u10si4055448plu.297.2016.12.15.12.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Dec 2016 11:47:51 -0800 (PST)
-Subject: Re: [PATCH 5/8] linux: drop __bitwise__ everywhere
-References: <1481778865-27667-1-git-send-email-mst@redhat.com>
- <1481778865-27667-6-git-send-email-mst@redhat.com>
-From: Lee Duncan <lduncan@suse.com>
-Message-ID: <194f2e1c-515e-b676-8108-9e23ebddca97@suse.com>
-Date: Thu, 15 Dec 2016 11:44:24 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Dec 2016 12:51:00 -0800 (PST)
+Subject: [PATCH v3 1/3] dax: masking off __GFP_FS in fs DAX handlers
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Thu, 15 Dec 2016 13:50:59 -0700
+Message-ID: <148183505925.96369.9987658623875784437.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1481778865-27667-6-git-send-email-mst@redhat.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org
-Cc: Kukjin Kim <kgene@kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>, Javier Martinez Canillas <javier@osg.samsung.com>, Russell King <linux@armlinux.org.uk>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Shaohua Li <shli@kernel.org>, Johannes Berg <johannes.berg@intel.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Luca Coelho <luciano.coelho@intel.com>, Intel Linux Wireless <linuxwifi@intel.com>, Kalle Valo <kvalo@codeaurora.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Chris Leech <cleech@redhat.com>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, "Nicholas A. Bellinger" <nab@linux-iscsi.org>, Jason Wang <jasowang@redhat.com>, Alexander Aring <aar@pengutronix.de>, Stefan Schmidt <stefan@osg.samsung.com>, "David S. Miller" <davem@davemloft.net>, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-raid@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-mm@kvack.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-wpan@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
 
-On 12/14/2016 09:15 PM, Michael S. Tsirkin wrote:
-> __bitwise__ used to mean "yes, please enable sparse checks
-> unconditionally", but now that we dropped __CHECK_ENDIAN__
-> __bitwise is exactly the same.
-> There aren't many users, replace it by __bitwise everywhere.
-> 
-> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  arch/arm/plat-samsung/include/plat/gpio-cfg.h    | 2 +-
->  drivers/md/dm-cache-block-types.h                | 6 +++---
->  drivers/net/ethernet/sun/sunhme.h                | 2 +-
->  drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h | 4 ++--
->  include/linux/mmzone.h                           | 2 +-
->  include/linux/serial_core.h                      | 4 ++--
->  include/linux/types.h                            | 4 ++--
->  include/scsi/iscsi_proto.h                       | 2 +-
->  include/target/target_core_base.h                | 2 +-
->  include/uapi/linux/virtio_types.h                | 6 +++---
->  net/ieee802154/6lowpan/6lowpan_i.h               | 2 +-
->  net/mac80211/ieee80211_i.h                       | 4 ++--
->  12 files changed, 20 insertions(+), 20 deletions(-)
-> 
-> diff --git a/arch/arm/plat-samsung/include/plat/gpio-cfg.h b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
-> index 21391fa..e55d1f5 100644
-> --- a/arch/arm/plat-samsung/include/plat/gpio-cfg.h
-> +++ b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
-> @@ -26,7 +26,7 @@
->  
->  #include <linux/types.h>
->  
-> -typedef unsigned int __bitwise__ samsung_gpio_pull_t;
-> +typedef unsigned int __bitwise samsung_gpio_pull_t;
->  
->  /* forward declaration if gpio-core.h hasn't been included */
->  struct samsung_gpio_chip;
-> diff --git a/drivers/md/dm-cache-block-types.h b/drivers/md/dm-cache-block-types.h
-> index bed4ad4..389c9e8 100644
-> --- a/drivers/md/dm-cache-block-types.h
-> +++ b/drivers/md/dm-cache-block-types.h
-> @@ -17,9 +17,9 @@
->   * discard bitset.
->   */
->  
-> -typedef dm_block_t __bitwise__ dm_oblock_t;
-> -typedef uint32_t __bitwise__ dm_cblock_t;
-> -typedef dm_block_t __bitwise__ dm_dblock_t;
-> +typedef dm_block_t __bitwise dm_oblock_t;
-> +typedef uint32_t __bitwise dm_cblock_t;
-> +typedef dm_block_t __bitwise dm_dblock_t;
->  
->  static inline dm_oblock_t to_oblock(dm_block_t b)
->  {
-> diff --git a/drivers/net/ethernet/sun/sunhme.h b/drivers/net/ethernet/sun/sunhme.h
-> index f430765..4a8d5b1 100644
-> --- a/drivers/net/ethernet/sun/sunhme.h
-> +++ b/drivers/net/ethernet/sun/sunhme.h
-> @@ -302,7 +302,7 @@
->   * Always write the address first before setting the ownership
->   * bits to avoid races with the hardware scanning the ring.
->   */
-> -typedef u32 __bitwise__ hme32;
-> +typedef u32 __bitwise hme32;
->  
->  struct happy_meal_rxd {
->  	hme32 rx_flags;
-> diff --git a/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h b/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
-> index 1ad0ec1..84813b5 100644
-> --- a/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
-> +++ b/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
-> @@ -228,7 +228,7 @@ enum iwl_ucode_tlv_flag {
->  	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
->  };
->  
-> -typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
-> +typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
->  
->  /**
->   * enum iwl_ucode_tlv_api - ucode api
-> @@ -258,7 +258,7 @@ enum iwl_ucode_tlv_api {
->  #endif
->  };
->  
-> -typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
-> +typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
->  
->  /**
->   * enum iwl_ucode_tlv_capa - ucode capabilities
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 0f088f3..36d9896 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -246,7 +246,7 @@ struct lruvec {
->  #define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
->  
->  /* LRU Isolation modes. */
-> -typedef unsigned __bitwise__ isolate_mode_t;
-> +typedef unsigned __bitwise isolate_mode_t;
->  
->  enum zone_watermarks {
->  	WMARK_MIN,
-> diff --git a/include/linux/serial_core.h b/include/linux/serial_core.h
-> index 5d49488..5def8e8 100644
-> --- a/include/linux/serial_core.h
-> +++ b/include/linux/serial_core.h
-> @@ -111,8 +111,8 @@ struct uart_icount {
->  	__u32	buf_overrun;
->  };
->  
-> -typedef unsigned int __bitwise__ upf_t;
-> -typedef unsigned int __bitwise__ upstat_t;
-> +typedef unsigned int __bitwise upf_t;
-> +typedef unsigned int __bitwise upstat_t;
->  
->  struct uart_port {
->  	spinlock_t		lock;			/* port lock */
-> diff --git a/include/linux/types.h b/include/linux/types.h
-> index baf7183..d501ad3 100644
-> --- a/include/linux/types.h
-> +++ b/include/linux/types.h
-> @@ -154,8 +154,8 @@ typedef u64 dma_addr_t;
->  typedef u32 dma_addr_t;
->  #endif
->  
-> -typedef unsigned __bitwise__ gfp_t;
-> -typedef unsigned __bitwise__ fmode_t;
-> +typedef unsigned __bitwise gfp_t;
-> +typedef unsigned __bitwise fmode_t;
->  
->  #ifdef CONFIG_PHYS_ADDR_T_64BIT
->  typedef u64 phys_addr_t;
-> diff --git a/include/scsi/iscsi_proto.h b/include/scsi/iscsi_proto.h
-> index c1260d8..df156f1 100644
-> --- a/include/scsi/iscsi_proto.h
-> +++ b/include/scsi/iscsi_proto.h
-> @@ -74,7 +74,7 @@ static inline int iscsi_sna_gte(u32 n1, u32 n2)
->  #define zero_data(p) {p[0]=0;p[1]=0;p[2]=0;}
->  
->  /* initiator tags; opaque for target */
-> -typedef uint32_t __bitwise__ itt_t;
-> +typedef uint32_t __bitwise itt_t;
->  /* below makes sense only for initiator that created this tag */
->  #define build_itt(itt, age) ((__force itt_t)\
->  	((itt) | ((age) << ISCSI_AGE_SHIFT)))
-> diff --git a/include/target/target_core_base.h b/include/target/target_core_base.h
-> index c211900..0055828 100644
-> --- a/include/target/target_core_base.h
-> +++ b/include/target/target_core_base.h
-> @@ -149,7 +149,7 @@ enum se_cmd_flags_table {
->   * Used by transport_send_check_condition_and_sense()
->   * to signal which ASC/ASCQ sense payload should be built.
->   */
-> -typedef unsigned __bitwise__ sense_reason_t;
-> +typedef unsigned __bitwise sense_reason_t;
->  
->  enum tcm_sense_reason_table {
->  #define R(x)	(__force sense_reason_t )(x)
-> diff --git a/include/uapi/linux/virtio_types.h b/include/uapi/linux/virtio_types.h
-> index e845e8c..55c3b73 100644
-> --- a/include/uapi/linux/virtio_types.h
-> +++ b/include/uapi/linux/virtio_types.h
-> @@ -39,8 +39,8 @@
->   * - __le{16,32,64} for standard-compliant virtio devices
->   */
->  
-> -typedef __u16 __bitwise__ __virtio16;
-> -typedef __u32 __bitwise__ __virtio32;
-> -typedef __u64 __bitwise__ __virtio64;
-> +typedef __u16 __bitwise __virtio16;
-> +typedef __u32 __bitwise __virtio32;
-> +typedef __u64 __bitwise __virtio64;
->  
->  #endif /* _UAPI_LINUX_VIRTIO_TYPES_H */
-> diff --git a/net/ieee802154/6lowpan/6lowpan_i.h b/net/ieee802154/6lowpan/6lowpan_i.h
-> index 5ac7789..ac7c96b 100644
-> --- a/net/ieee802154/6lowpan/6lowpan_i.h
-> +++ b/net/ieee802154/6lowpan/6lowpan_i.h
-> @@ -7,7 +7,7 @@
->  #include <net/inet_frag.h>
->  #include <net/6lowpan.h>
->  
-> -typedef unsigned __bitwise__ lowpan_rx_result;
-> +typedef unsigned __bitwise lowpan_rx_result;
->  #define RX_CONTINUE		((__force lowpan_rx_result) 0u)
->  #define RX_DROP_UNUSABLE	((__force lowpan_rx_result) 1u)
->  #define RX_DROP			((__force lowpan_rx_result) 2u)
-> diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-> index d37a577..b2069fb 100644
-> --- a/net/mac80211/ieee80211_i.h
-> +++ b/net/mac80211/ieee80211_i.h
-> @@ -159,7 +159,7 @@ enum ieee80211_bss_valid_data_flags {
->  	IEEE80211_BSS_VALID_ERP			= BIT(3)
->  };
->  
-> -typedef unsigned __bitwise__ ieee80211_tx_result;
-> +typedef unsigned __bitwise ieee80211_tx_result;
->  #define TX_CONTINUE	((__force ieee80211_tx_result) 0u)
->  #define TX_DROP		((__force ieee80211_tx_result) 1u)
->  #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
-> @@ -180,7 +180,7 @@ struct ieee80211_tx_data {
->  };
->  
->  
-> -typedef unsigned __bitwise__ ieee80211_rx_result;
-> +typedef unsigned __bitwise ieee80211_rx_result;
->  #define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
->  #define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
->  #define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
->
+The caller into dax needs to clear __GFP_FS mask bit since it's
+responsible for acquiring locks / transactions that blocks __GFP_FS
+allocation.  The caller will restore the original mask when dax function
+returns.
 
-For iscsi initiator, looks good.
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+---
+ fs/dax.c          |    1 +
+ fs/ext2/file.c    |    9 ++++++++-
+ fs/ext4/file.c    |   10 +++++++++-
+ fs/xfs/xfs_file.c |   14 +++++++++++++-
+ 4 files changed, 31 insertions(+), 3 deletions(-)
 
-Akced-by: Lee Duncan <lduncan@suse.com>
-
--- 
-Lee Duncan
+diff --git a/fs/dax.c b/fs/dax.c
+index d3fe880..6395bc6 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1380,6 +1380,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+ 	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
++	vmf.gfp_mask &= ~__GFP_FS;
+ 
+ 	switch (iomap.type) {
+ 	case IOMAP_MAPPED:
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index b0f2415..8422d5f 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -92,16 +92,19 @@ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	int ret;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	if (vmf->flags & FAULT_FLAG_WRITE) {
+ 		sb_start_pagefault(inode->i_sb);
+ 		file_update_time(vma->vm_file);
+ 	}
++	vmf->gfp_mask &= ~__GFP_FS;
+ 	down_read(&ei->dax_sem);
+ 
+ 	ret = dax_iomap_fault(vma, vmf, &ext2_iomap_ops);
+ 
+ 	up_read(&ei->dax_sem);
++	vmf->gfp_mask = old_gfp;
+ 	if (vmf->flags & FAULT_FLAG_WRITE)
+ 		sb_end_pagefault(inode->i_sb);
+ 	return ret;
+@@ -114,6 +117,7 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	struct ext2_inode_info *ei = EXT2_I(inode);
+ 	loff_t size;
+ 	int ret;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	sb_start_pagefault(inode->i_sb);
+ 	file_update_time(vma->vm_file);
+@@ -123,8 +127,11 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else
++	else {
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 
+ 	up_read(&ei->dax_sem);
+ 	sb_end_pagefault(inode->i_sb);
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index d663d3d..a3f2bf0 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -261,14 +261,17 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct super_block *sb = inode->i_sb;
+ 	bool write = vmf->flags & FAULT_FLAG_WRITE;
++	gfp_t old_gfp = vmf->gfp_mask;
+ 
+ 	if (write) {
+ 		sb_start_pagefault(sb);
+ 		file_update_time(vma->vm_file);
+ 	}
++	vmf->gfp_mask &= ~__GFP_FS;
+ 	down_read(&EXT4_I(inode)->i_mmap_sem);
+ 	result = dax_iomap_fault(vma, vmf, &ext4_iomap_ops);
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
++	vmf->gfp_mask = old_gfp;
+ 	if (write)
+ 		sb_end_pagefault(sb);
+ 
+@@ -320,8 +323,13 @@ static int ext4_dax_pfn_mkwrite(struct vm_area_struct *vma,
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else
++	else {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
+ 	sb_end_pagefault(sb);
+ 
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index d818c16..52202b4 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1474,7 +1474,11 @@ xfs_filemap_page_mkwrite(
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 
+ 	if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
++		vmf->gfp_mask = old_gfp;
+ 	} else {
+ 		ret = iomap_page_mkwrite(vma, vmf, &xfs_iomap_ops);
+ 		ret = block_page_mkwrite_return(ret);
+@@ -1502,13 +1506,16 @@ xfs_filemap_fault(
+ 
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 	if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
+ 		/*
+ 		 * we do not want to trigger unwritten extent conversion on read
+ 		 * faults - that is unnecessary overhead and would also require
+ 		 * changes to xfs_get_blocks_direct() to map unwritten extent
+ 		 * ioend for conversion on read-only mappings.
+ 		 */
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
++		vmf->gfp_mask = old_gfp;
+ 	} else
+ 		ret = filemap_fault(vma, vmf);
+ 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+@@ -1581,8 +1588,13 @@ xfs_filemap_pfn_mkwrite(
+ 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	if (vmf->pgoff >= size)
+ 		ret = VM_FAULT_SIGBUS;
+-	else if (IS_DAX(inode))
++	else if (IS_DAX(inode)) {
++		gfp_t old_gfp = vmf->gfp_mask;
++
++		vmf->gfp_mask &= ~__GFP_FS;
+ 		ret = dax_pfn_mkwrite(vma, vmf);
++		vmf->gfp_mask = old_gfp;
++	}
+ 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+ 	sb_end_pagefault(inode->i_sb);
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
