@@ -1,69 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B5DB76B0069
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:04:40 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id hb5so23411378wjc.2
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:04:40 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id rb6si2145664wjb.250.2016.12.15.06.04.39
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ECAD16B0038
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 09:07:50 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i131so11184949wmf.3
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:07:50 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id n1si2670436wme.119.2016.12.15.06.07.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Dec 2016 06:04:39 -0800 (PST)
-Date: Thu, 15 Dec 2016 15:04:34 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 3/3] mm, dax: move pmd_fault() to take only vmf
- parameter
-Message-ID: <20161215140434.GC13811@quack2.suse.cz>
-References: <148174532372.194339.4875475197715168429.stgit@djiang5-desk3.ch.intel.com>
- <148174533516.194339.9865528020619155270.stgit@djiang5-desk3.ch.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <148174533516.194339.9865528020619155270.stgit@djiang5-desk3.ch.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Dec 2016 06:07:49 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id he10so9970903wjc.2
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:07:49 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/9 v2] scope GFP_NOFS api
+Date: Thu, 15 Dec 2016 15:07:06 +0100
+Message-Id: <20161215140715.12732-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>
 
-On Wed 14-12-16 12:55:35, Dave Jiang wrote:
-> pmd_fault() and relate functions really only need the vmf parameter since
-> the additional parameters are all included in the vmf struct. Removing
-> additional parameter and simplify pmd_fault() and friends.
-> 
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-...
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 157f77f..66c8f2e 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1226,9 +1226,9 @@ EXPORT_SYMBOL_GPL(dax_iomap_fault);
->   */
->  #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
->  
-> -static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
-> -		struct vm_fault *vmf, unsigned long address,
-> -		struct iomap *iomap, loff_t pos, bool write, void **entryp)
-> +static int dax_pmd_insert_mapping(struct vm_area_struct *vma,
-> +		struct vm_fault *vmf, struct iomap *iomap, loff_t pos,
-> +		bool write, void **entryp)
+Hi,
+I have posted the previous version here [1]. Since then I have added a
+support to suppress reclaim lockdep warnings (__GFP_NOLOCKDEP) to allow
+removing GFP_NOFS usage motivated by the lockdep false positives. On top
+of that I've tried to convert few KM_NOFS usages to use the new flag in
+the xfs code base. This would need a review from somebody familiar with
+xfs of course.
 
-Any reason for keeping 'vma' and 'write' arguments? They can be fetched
-from vmf as well...
+Then I've added the new scope API to the jbd/ext transaction code +
+reverted some explicit GFP_NOFS usages which are covered by the scope one
+now. This also needs a deep review from ext developers. I have some more
+patches which remove more explicit GFP_NOFS users but that is not really
+ready yet. I would really appreciate if developers for other filesystems
+joined me here as well. Maybe ext parts can help to show how to start.
+Especially btrfs which uses GFP_NOFS a lot (and not with a good reason
+in many cases I suspect).
 
-> -static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
-> -		struct vm_fault *vmf, unsigned long address,
-> +static int dax_pmd_load_hole(struct vm_area_struct *vma, struct vm_fault *vmf,
->  		struct iomap *iomap, void **entryp)
+The patchset is based on linux-next (next-20161214).
 
-Ditto with vma here.
+I think the GFP_NOIO should be seeing the same clean up but that is not
+a part of this patchset.
 
-Otherwise the patch looks good to me.
+Any feedback is highly appreciated of course.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Diffstat says
+ fs/ext4/acl.c                |  6 +++---
+ fs/ext4/extents.c            |  8 ++++----
+ fs/ext4/resize.c             |  4 ++--
+ fs/ext4/xattr.c              |  4 ++--
+ fs/jbd2/journal.c            |  7 +++++++
+ fs/jbd2/transaction.c        | 11 +++++++++++
+ fs/xfs/kmem.c                | 10 +++++-----
+ fs/xfs/kmem.h                |  6 +++++-
+ fs/xfs/libxfs/xfs_btree.c    |  2 +-
+ fs/xfs/libxfs/xfs_da_btree.c |  4 ++--
+ fs/xfs/xfs_aops.c            |  6 +++---
+ fs/xfs/xfs_buf.c             | 10 +++++-----
+ fs/xfs/xfs_dir2_readdir.c    |  2 +-
+ fs/xfs/xfs_trans.c           | 12 ++++++------
+ include/linux/gfp.h          | 18 +++++++++++++++++-
+ include/linux/jbd2.h         |  2 ++
+ include/linux/sched.h        | 32 ++++++++++++++++++++++++++------
+ kernel/locking/lockdep.c     |  6 +++++-
+ lib/radix-tree.c             |  2 ++
+ mm/page_alloc.c              |  8 +++++---
+ mm/vmscan.c                  |  6 +++---
+ 21 files changed, 117 insertions(+), 49 deletions(-)
+
+Shortlog:
+Michal Hocko (9):
+      lockdep: allow to disable reclaim lockup detection
+      xfs: introduce and use KM_NOLOCKDEP to silence reclaim lockdep false positives
+      xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+      mm: introduce memalloc_nofs_{save,restore} API
+      xfs: use memalloc_nofs_{save,restore} instead of memalloc_noio*
+      jbd2: mark the transaction context with the scope GFP_NOFS context
+      jbd2: make the whole kjournald2 kthread NOFS safe
+      Revert "ext4: avoid deadlocks in the writeback path by using sb_getblk_gfp"
+      Revert "ext4: fix wrong gfp type under transaction"
+
+
+[1] http://lkml.kernel.org/r/1461671772-1269-1-git-send-email-mhocko@kernel.org
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
