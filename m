@@ -1,46 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BB9B6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 05:28:42 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q10so96476344pgq.7
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 02:28:42 -0800 (PST)
-Received: from mail-pg0-f66.google.com (mail-pg0-f66.google.com. [74.125.83.66])
-        by mx.google.com with ESMTPS id r14si1816436pfb.184.2016.12.15.02.28.41
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C42DA6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 06:51:37 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 144so69860013pfv.5
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 03:51:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u17si2093859pgo.250.2016.12.15.03.51.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 02:28:41 -0800 (PST)
-Received: by mail-pg0-f66.google.com with SMTP id e9so5804435pgc.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 02:28:41 -0800 (PST)
-Date: Thu, 15 Dec 2016 11:28:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH v2] mm: consolidate GFP_NOFAIL checks in the allocator
- slowpath
-Message-ID: <20161215102838.GA8602@dhcp22.suse.cz>
-References: <20161214150706.27412-1-mhocko@kernel.org>
- <04b001d256a8$7bc813d0$73583b70$@alibaba-inc.com>
+        Thu, 15 Dec 2016 03:51:36 -0800 (PST)
+Date: Thu, 15 Dec 2016 03:51:46 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 5/8] linux: drop __bitwise__ everywhere
+Message-ID: <20161215115146.GB22750@kroah.com>
+References: <1481778865-27667-1-git-send-email-mst@redhat.com>
+ <1481778865-27667-6-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <04b001d256a8$7bc813d0$73583b70$@alibaba-inc.com>
+In-Reply-To: <1481778865-27667-6-git-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Kukjin Kim <kgene@kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>, Javier Martinez Canillas <javier@osg.samsung.com>, Russell King <linux@armlinux.org.uk>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Shaohua Li <shli@kernel.org>, Johannes Berg <johannes.berg@intel.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Luca Coelho <luciano.coelho@intel.com>, Intel Linux Wireless <linuxwifi@intel.com>, Kalle Valo <kvalo@codeaurora.org>, Jiri Slaby <jslaby@suse.com>, Lee Duncan <lduncan@suse.com>, Chris Leech <cleech@redhat.com>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, "Nicholas A. Bellinger" <nab@linux-iscsi.org>, Jason Wang <jasowang@redhat.com>, Alexander Aring <aar@pengutronix.de>, Stefan Schmidt <stefan@osg.samsung.com>, "David S. Miller" <davem@davemloft.net>, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-raid@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-mm@kvack.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-wpan@vger.kernel.org
 
-On Thu 15-12-16 15:54:37, Hillf Danton wrote:
-> On Wednesday, December 14, 2016 11:07 PM Michal Hocko wrote: 
-[...]
-> >  	/* Avoid allocations with no watermarks from looping endlessly */
-> > -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-> > +	if (test_thread_flag(TIF_MEMDIE))
-> >  		goto nopage;
-> > 
-> Nit: currently we allow TIF_MEMDIE & __GFP_NOFAIL request to
-> try direct reclaim. Are you intentionally reclaiming that chance?
+On Thu, Dec 15, 2016 at 07:15:20AM +0200, Michael S. Tsirkin wrote:
+> __bitwise__ used to mean "yes, please enable sparse checks
+> unconditionally", but now that we dropped __CHECK_ENDIAN__
+> __bitwise is exactly the same.
+> There aren't many users, replace it by __bitwise everywhere.
+> 
+> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  arch/arm/plat-samsung/include/plat/gpio-cfg.h    | 2 +-
+>  drivers/md/dm-cache-block-types.h                | 6 +++---
+>  drivers/net/ethernet/sun/sunhme.h                | 2 +-
+>  drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h | 4 ++--
+>  include/linux/mmzone.h                           | 2 +-
+>  include/linux/serial_core.h                      | 4 ++--
+>  include/linux/types.h                            | 4 ++--
+>  include/scsi/iscsi_proto.h                       | 2 +-
+>  include/target/target_core_base.h                | 2 +-
+>  include/uapi/linux/virtio_types.h                | 6 +++---
+>  net/ieee802154/6lowpan/6lowpan_i.h               | 2 +-
+>  net/mac80211/ieee80211_i.h                       | 4 ++--
+>  12 files changed, 20 insertions(+), 20 deletions(-)
 
-That is definitely not a nit! Thanks for catching that. We definitely
-shouldn't bypass the direct reclaim because that would mean we rely on
-somebody else makes progress for us.
+for include/linux/serial_core.h:
 
-Updated patch below:
---- 
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
