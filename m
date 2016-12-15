@@ -1,94 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B57CA6B0069
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:19:42 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w13so12656460wmw.0
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:19:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qr6si2804199wjc.79.2016.12.15.08.19.41
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1EF6B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:39:59 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id 75so31898454ite.7
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:39:59 -0800 (PST)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [69.252.207.43])
+        by mx.google.com with ESMTPS id 78si9640496ith.107.2016.12.15.08.39.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Dec 2016 08:19:41 -0800 (PST)
-Date: Thu, 15 Dec 2016 17:19:39 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Un-addressable device memory and
- block/fs implications
-Message-ID: <20161215161939.GF13811@quack2.suse.cz>
-References: <20161213181511.GB2305@redhat.com>
- <20161213201515.GB4326@dastard>
- <20161213203112.GE2305@redhat.com>
- <20161213211041.GC4326@dastard>
- <20161213212433.GF2305@redhat.com>
- <20161214111351.GC18624@quack2.suse.cz>
- <20161214171514.GB14755@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161214171514.GB14755@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Dec 2016 08:39:58 -0800 (PST)
+Date: Thu, 15 Dec 2016 10:38:53 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Designing a safe RX-zero-copy Memory Model for Networking
+In-Reply-To: <20161215092841.2f7065b5@redhat.com>
+Message-ID: <alpine.DEB.2.20.1612151034140.9073@east.gentwo.org>
+References: <alpine.DEB.2.20.1612121200280.13607@east.gentwo.org> <20161213171028.24dbf519@redhat.com> <5850335F.6090000@gmail.com> <20161213.145333.514056260418695987.davem@davemloft.net> <58505535.1080908@gmail.com> <20161214103914.3a9ebbbf@redhat.com>
+ <5851740A.2080806@gmail.com> <CAKgT0UfnBurxz9f+ceD81hAp3U0tGHEi_5MEtxk6PiehG=X8ag@mail.gmail.com> <20161214222927.587a8ac4@redhat.com> <CAKgT0UfckuW-qPOr3WAgwKJFGu0Ot0g2Ha3uRpyU3rpdZeFVpA@mail.gmail.com> <20161215092841.2f7065b5@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, John Fastabend <john.fastabend@gmail.com>, David Miller <davem@davemloft.net>, rppt@linux.vnet.ibm.com, Netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, willemdebruijn.kernel@gmail.com, =?ISO-8859-15?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>, magnus.karlsson@intel.com, Mel Gorman <mgorman@techsingularity.net>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Tariq Toukan <tariqt@mellanox.com>, Saeed Mahameed <saeedm@mellanox.com>, "Brandeburg, Jesse" <jesse.brandeburg@intel.com>, METH@il.ibm.com, Vlad Yasevich <vyasevich@gmail.com>
 
-On Wed 14-12-16 12:15:14, Jerome Glisse wrote:
-<snipped explanation that the device has the same cabilities as CPUs wrt
-page handling>
+On Thu, 15 Dec 2016, Jesper Dangaard Brouer wrote:
 
-> > So won't it be easier to leave the pagecache page where it is and *copy* it
-> > to the device? Can the device notify us *before* it is going to modify a
-> > page, not just after it has modified it? Possibly if we just give it the
-> > page read-only and it will have to ask CPU to get write permission? If yes,
-> > then I belive this could work and even fs support should be doable.
-> 
-> Well yes and no. Device obey the same rule as CPU so if a file back page is
-> map read only in the process it must first do a write fault which will call
-> in the fs (page_mkwrite() of vm_ops). But once a page has write permission
-> there is no way to be notify by hardware on every write. First the hardware
-> do not have the capability. Second we are talking thousand (10 000 is upper
-> range in today device) of concurrent thread, each can possibly write to page
-> under consideration.
+> > It sounds like Christoph's RDMA approach might be the way to go.
+>
+> I'm getting more and more fond of Christoph's RDMA approach.  I do
+> think we will end-up with something close to that approach.  I just
+> wanted to get review on my idea first.
+>
+> IMHO the major blocker for the RDMA approach is not HW filters
+> themselves, but a common API that applications can call to register
+> what goes into the HW queues in the driver.  I suspect it will be a
+> long project agreeing between vendors.  And agreeing on semantics.
 
-Sure, I meant whether the device is able to do equivalent of ->page_mkwrite
-notification which apparently it is. OK.
+Some of the methods from the RDMA subsystem (like queue pairs, the various
+queues etc) could be extracted and used here. Multiple vendors already
+support these features and some devices operate both in an RDMA and a
+network stack mode. Having that all supported by the networks stack would
+reduce overhead for those vendors.
 
-> We really want the device page to behave just like regular page. Most fs code
-> path never map file content, it only happens during read/write and i believe
-> this can be handled either by migrating back or by using bounce page. I want
-> to provide the choice between the two solutions as one will be better for some
-> workload and the other for different workload.
-
-I agree with keeping page used by the device behaving as similar as
-possible as any other page. I'm just exploring different possibilities how
-to make that happen. E.g. the scheme I was aiming at is:
-
-When you want page A to be used by the device, you set up page A' in the
-device but make sure any access to it will fault.
-
-When the device wants to access A', it notifies the CPU, that writeprotects
-all mappings of A, copy A to A' and map A' read-only for the device.
-
-When the device wants to write to A', it notifies CPU, that will clear all
-mappings of A and mark A as not-uptodate & dirty. When the CPU will then
-want to access the data in A again - we need to catch ->readpage,
-->readpages, ->writepage, ->writepages - it will writeprotect A' in
-the device, copy data to A, mark A as uptodate & dirty, and off we go.
-
-When we want to write to the page on CPU - we get either wp fault if it was
-via mmap, or we have to catch that in places using kmap() - we just remove
-access to A' from the device.
-
-This scheme makes the device mapping functionality transparent to the
-filesystem (you actually don't need to hook directly into ->readpage etc.
-handlers, you can just have wrappers around them for this functionality)
-and fairly straightforward... It is so transparent that even direct IO works
-with this since the page cache invalidation pass we do before actually doing
-the direct IO will make sure to pull all the pages from the device and write
-them to disk if needed. What do you think?
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Multiple new vendors are coming up in the RDMA subsystem because the
+regular network stack does not have the right performance for high speed
+networking. I would rather see them have a way to get that functionality
+from the regular network stack. Please add some extensions so that the
+RDMA style I/O can be made to work. Even the hardware of the new NICs is
+already prepared to work with the data structures of the RDMA subsystem.
+That provides an area of standardization where we could hook into but do
+that properly and in a nice way in the context of main stream network
+support.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
