@@ -1,64 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2066B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:07:28 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id n68so31171416itn.4
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:07:28 -0800 (PST)
-Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
-        by mx.google.com with ESMTPS id e19si2604855ioj.160.2016.12.15.08.07.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B57CA6B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:19:42 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so12656460wmw.0
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:19:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id qr6si2804199wjc.79.2016.12.15.08.19.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 08:07:27 -0800 (PST)
-Received: by mail-it0-x229.google.com with SMTP id j191so34105000ita.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:07:27 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Dec 2016 08:19:41 -0800 (PST)
+Date: Thu, 15 Dec 2016 17:19:39 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Un-addressable device memory and
+ block/fs implications
+Message-ID: <20161215161939.GF13811@quack2.suse.cz>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
+ <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+ <20161214111351.GC18624@quack2.suse.cz>
+ <20161214171514.GB14755@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20161215153930.GA8111@rric.localdomain>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org> <20161215153930.GA8111@rric.localdomain>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Thu, 15 Dec 2016 16:07:26 +0000
-Message-ID: <CAKv+Gu8K+mokbjzM8EpTJoCp3XAKK1_Doq1Zx=A2CCWTT6FbYg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161214171514.GB14755@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Richter <robert.richter@cavium.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Hanjun Guo <hanjun.guo@linaro.org>, Yisheng Xie <xieyisheng1@huawei.com>, James Morse <james.morse@arm.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
 
-On 15 December 2016 at 15:39, Robert Richter <robert.richter@cavium.com> wrote:
-> I was going to do some measurements but my kernel crashes now with a
-> page fault in efi_rtc_probe():
->
-> [   21.663393] Unable to handle kernel paging request at virtual address 20251000
-> [   21.663396] pgd = ffff000009090000
-> [   21.663401] [20251000] *pgd=0000010ffff90003
-> [   21.663402] , *pud=0000010ffff90003
-> [   21.663404] , *pmd=0000000fdc030003
-> [   21.663405] , *pte=00e8832000250707
->
-> The sparsemem config requires the whole section to be initialized.
-> Your patches do not address this.
->
+On Wed 14-12-16 12:15:14, Jerome Glisse wrote:
+<snipped explanation that the device has the same cabilities as CPUs wrt
+page handling>
 
-96000047 is a third level translation fault, and the PTE address has
-RES0 bits set. I don't see how this is related to sparsemem, could you
-explain?
+> > So won't it be easier to leave the pagecache page where it is and *copy* it
+> > to the device? Can the device notify us *before* it is going to modify a
+> > page, not just after it has modified it? Possibly if we just give it the
+> > page read-only and it will have to ask CPU to get write permission? If yes,
+> > then I belive this could work and even fs support should be doable.
+> 
+> Well yes and no. Device obey the same rule as CPU so if a file back page is
+> map read only in the process it must first do a write fault which will call
+> in the fs (page_mkwrite() of vm_ops). But once a page has write permission
+> there is no way to be notify by hardware on every write. First the hardware
+> do not have the capability. Second we are talking thousand (10 000 is upper
+> range in today device) of concurrent thread, each can possibly write to page
+> under consideration.
 
-> On 14.12.16 09:11:47, Ard Biesheuvel wrote:
->> +config HOLES_IN_ZONE
->> +     def_bool y
->> +     depends on NUMA
->
-> This enables pfn_valid_within() for arm64 and causes the check for
-> each page of a section. The arm64 implementation of pfn_valid() is
-> already expensive (traversing memblock areas). Now, this is increased
-> by a factor of 2^18 for 4k page size (16384 for 64k). We need to
-> initialize the whole section to avoid that.
->
+Sure, I meant whether the device is able to do equivalent of ->page_mkwrite
+notification which apparently it is. OK.
 
-I know that. But if you want something for -stable, we should have
-something that is correct first, and only then care about the
-performance hit (if there is one)
+> We really want the device page to behave just like regular page. Most fs code
+> path never map file content, it only happens during read/write and i believe
+> this can be handled either by migrating back or by using bounce page. I want
+> to provide the choice between the two solutions as one will be better for some
+> workload and the other for different workload.
+
+I agree with keeping page used by the device behaving as similar as
+possible as any other page. I'm just exploring different possibilities how
+to make that happen. E.g. the scheme I was aiming at is:
+
+When you want page A to be used by the device, you set up page A' in the
+device but make sure any access to it will fault.
+
+When the device wants to access A', it notifies the CPU, that writeprotects
+all mappings of A, copy A to A' and map A' read-only for the device.
+
+When the device wants to write to A', it notifies CPU, that will clear all
+mappings of A and mark A as not-uptodate & dirty. When the CPU will then
+want to access the data in A again - we need to catch ->readpage,
+->readpages, ->writepage, ->writepages - it will writeprotect A' in
+the device, copy data to A, mark A as uptodate & dirty, and off we go.
+
+When we want to write to the page on CPU - we get either wp fault if it was
+via mmap, or we have to catch that in places using kmap() - we just remove
+access to A' from the device.
+
+This scheme makes the device mapping functionality transparent to the
+filesystem (you actually don't need to hook directly into ->readpage etc.
+handlers, you can just have wrappers around them for this functionality)
+and fairly straightforward... It is so transparent that even direct IO works
+with this since the page cache invalidation pass we do before actually doing
+the direct IO will make sure to pull all the pages from the device and write
+them to disk if needed. What do you think?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
