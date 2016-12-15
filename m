@@ -1,43 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBEA6B0253
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 14:20:18 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id a1so255765pgf.6
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:20:18 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b27si3817819pfe.274.2016.12.15.11.20.18
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 047D86B0038
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 14:47:53 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id bk3so26922921wjc.4
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:47:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s206si14212470wmf.158.2016.12.15.11.47.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 11:20:18 -0800 (PST)
-Date: Thu, 15 Dec 2016 11:20:17 -0800
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
-Message-ID: <20161215192017.GP8388@tassilo.jf.intel.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com>
- <20161208162150.148763-17-kirill.shutemov@linux.intel.com>
- <20161208200505.c6xiy56oufg6d24m@pd.tnic>
- <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com>
- <20161208202013.uutsny6avn5gimwq@pd.tnic>
- <b393a48a-6e8b-6427-373c-2825641fea99@zytor.com>
- <BD4BD1C9-F6FD-4905-9B09-059284FD2713@alien8.de>
- <20161215143944.ruxr6r3b2atg4tnf@pd.tnic>
- <E77F6B05-4F69-4C02-90B4-A8A6D0D392DE@zytor.com>
- <20161215190902.tdle4uj27xkc3x4i@pd.tnic>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Dec 2016 11:47:51 -0800 (PST)
+Subject: Re: [PATCH 5/8] linux: drop __bitwise__ everywhere
+References: <1481778865-27667-1-git-send-email-mst@redhat.com>
+ <1481778865-27667-6-git-send-email-mst@redhat.com>
+From: Lee Duncan <lduncan@suse.com>
+Message-ID: <194f2e1c-515e-b676-8108-9e23ebddca97@suse.com>
+Date: Thu, 15 Dec 2016 11:44:24 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161215190902.tdle4uj27xkc3x4i@pd.tnic>
+In-Reply-To: <1481778865-27667-6-git-send-email-mst@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: hpa@zytor.com, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org
+Cc: Kukjin Kim <kgene@kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>, Javier Martinez Canillas <javier@osg.samsung.com>, Russell King <linux@armlinux.org.uk>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, Shaohua Li <shli@kernel.org>, Johannes Berg <johannes.berg@intel.com>, Emmanuel Grumbach <emmanuel.grumbach@intel.com>, Luca Coelho <luciano.coelho@intel.com>, Intel Linux Wireless <linuxwifi@intel.com>, Kalle Valo <kvalo@codeaurora.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.com>, Chris Leech <cleech@redhat.com>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, "Nicholas A. Bellinger" <nab@linux-iscsi.org>, Jason Wang <jasowang@redhat.com>, Alexander Aring <aar@pengutronix.de>, Stefan Schmidt <stefan@osg.samsung.com>, "David S. Miller" <davem@davemloft.net>, linux-arm-kernel@lists.infradead.org, linux-samsung-soc@vger.kernel.org, linux-raid@vger.kernel.org, netdev@vger.kernel.org, linux-wireless@vger.kernel.org, linux-mm@kvack.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, target-devel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-wpan@vger.kernel.org
 
+On 12/14/2016 09:15 PM, Michael S. Tsirkin wrote:
+> __bitwise__ used to mean "yes, please enable sparse checks
+> unconditionally", but now that we dropped __CHECK_ENDIAN__
+> __bitwise is exactly the same.
+> There aren't many users, replace it by __bitwise everywhere.
+> 
+> Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+> ---
+>  arch/arm/plat-samsung/include/plat/gpio-cfg.h    | 2 +-
+>  drivers/md/dm-cache-block-types.h                | 6 +++---
+>  drivers/net/ethernet/sun/sunhme.h                | 2 +-
+>  drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h | 4 ++--
+>  include/linux/mmzone.h                           | 2 +-
+>  include/linux/serial_core.h                      | 4 ++--
+>  include/linux/types.h                            | 4 ++--
+>  include/scsi/iscsi_proto.h                       | 2 +-
+>  include/target/target_core_base.h                | 2 +-
+>  include/uapi/linux/virtio_types.h                | 6 +++---
+>  net/ieee802154/6lowpan/6lowpan_i.h               | 2 +-
+>  net/mac80211/ieee80211_i.h                       | 4 ++--
+>  12 files changed, 20 insertions(+), 20 deletions(-)
+> 
+> diff --git a/arch/arm/plat-samsung/include/plat/gpio-cfg.h b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> index 21391fa..e55d1f5 100644
+> --- a/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> +++ b/arch/arm/plat-samsung/include/plat/gpio-cfg.h
+> @@ -26,7 +26,7 @@
+>  
+>  #include <linux/types.h>
+>  
+> -typedef unsigned int __bitwise__ samsung_gpio_pull_t;
+> +typedef unsigned int __bitwise samsung_gpio_pull_t;
+>  
+>  /* forward declaration if gpio-core.h hasn't been included */
+>  struct samsung_gpio_chip;
+> diff --git a/drivers/md/dm-cache-block-types.h b/drivers/md/dm-cache-block-types.h
+> index bed4ad4..389c9e8 100644
+> --- a/drivers/md/dm-cache-block-types.h
+> +++ b/drivers/md/dm-cache-block-types.h
+> @@ -17,9 +17,9 @@
+>   * discard bitset.
+>   */
+>  
+> -typedef dm_block_t __bitwise__ dm_oblock_t;
+> -typedef uint32_t __bitwise__ dm_cblock_t;
+> -typedef dm_block_t __bitwise__ dm_dblock_t;
+> +typedef dm_block_t __bitwise dm_oblock_t;
+> +typedef uint32_t __bitwise dm_cblock_t;
+> +typedef dm_block_t __bitwise dm_dblock_t;
+>  
+>  static inline dm_oblock_t to_oblock(dm_block_t b)
+>  {
+> diff --git a/drivers/net/ethernet/sun/sunhme.h b/drivers/net/ethernet/sun/sunhme.h
+> index f430765..4a8d5b1 100644
+> --- a/drivers/net/ethernet/sun/sunhme.h
+> +++ b/drivers/net/ethernet/sun/sunhme.h
+> @@ -302,7 +302,7 @@
+>   * Always write the address first before setting the ownership
+>   * bits to avoid races with the hardware scanning the ring.
+>   */
+> -typedef u32 __bitwise__ hme32;
+> +typedef u32 __bitwise hme32;
+>  
+>  struct happy_meal_rxd {
+>  	hme32 rx_flags;
+> diff --git a/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h b/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
+> index 1ad0ec1..84813b5 100644
+> --- a/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
+> +++ b/drivers/net/wireless/intel/iwlwifi/iwl-fw-file.h
+> @@ -228,7 +228,7 @@ enum iwl_ucode_tlv_flag {
+>  	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
+>  };
+>  
+> -typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
+> +typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
+>  
+>  /**
+>   * enum iwl_ucode_tlv_api - ucode api
+> @@ -258,7 +258,7 @@ enum iwl_ucode_tlv_api {
+>  #endif
+>  };
+>  
+> -typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
+> +typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
+>  
+>  /**
+>   * enum iwl_ucode_tlv_capa - ucode capabilities
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 0f088f3..36d9896 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -246,7 +246,7 @@ struct lruvec {
+>  #define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
+>  
+>  /* LRU Isolation modes. */
+> -typedef unsigned __bitwise__ isolate_mode_t;
+> +typedef unsigned __bitwise isolate_mode_t;
+>  
+>  enum zone_watermarks {
+>  	WMARK_MIN,
+> diff --git a/include/linux/serial_core.h b/include/linux/serial_core.h
+> index 5d49488..5def8e8 100644
+> --- a/include/linux/serial_core.h
+> +++ b/include/linux/serial_core.h
+> @@ -111,8 +111,8 @@ struct uart_icount {
+>  	__u32	buf_overrun;
+>  };
+>  
+> -typedef unsigned int __bitwise__ upf_t;
+> -typedef unsigned int __bitwise__ upstat_t;
+> +typedef unsigned int __bitwise upf_t;
+> +typedef unsigned int __bitwise upstat_t;
+>  
+>  struct uart_port {
+>  	spinlock_t		lock;			/* port lock */
+> diff --git a/include/linux/types.h b/include/linux/types.h
+> index baf7183..d501ad3 100644
+> --- a/include/linux/types.h
+> +++ b/include/linux/types.h
+> @@ -154,8 +154,8 @@ typedef u64 dma_addr_t;
+>  typedef u32 dma_addr_t;
+>  #endif
+>  
+> -typedef unsigned __bitwise__ gfp_t;
+> -typedef unsigned __bitwise__ fmode_t;
+> +typedef unsigned __bitwise gfp_t;
+> +typedef unsigned __bitwise fmode_t;
+>  
+>  #ifdef CONFIG_PHYS_ADDR_T_64BIT
+>  typedef u64 phys_addr_t;
+> diff --git a/include/scsi/iscsi_proto.h b/include/scsi/iscsi_proto.h
+> index c1260d8..df156f1 100644
+> --- a/include/scsi/iscsi_proto.h
+> +++ b/include/scsi/iscsi_proto.h
+> @@ -74,7 +74,7 @@ static inline int iscsi_sna_gte(u32 n1, u32 n2)
+>  #define zero_data(p) {p[0]=0;p[1]=0;p[2]=0;}
+>  
+>  /* initiator tags; opaque for target */
+> -typedef uint32_t __bitwise__ itt_t;
+> +typedef uint32_t __bitwise itt_t;
+>  /* below makes sense only for initiator that created this tag */
+>  #define build_itt(itt, age) ((__force itt_t)\
+>  	((itt) | ((age) << ISCSI_AGE_SHIFT)))
+> diff --git a/include/target/target_core_base.h b/include/target/target_core_base.h
+> index c211900..0055828 100644
+> --- a/include/target/target_core_base.h
+> +++ b/include/target/target_core_base.h
+> @@ -149,7 +149,7 @@ enum se_cmd_flags_table {
+>   * Used by transport_send_check_condition_and_sense()
+>   * to signal which ASC/ASCQ sense payload should be built.
+>   */
+> -typedef unsigned __bitwise__ sense_reason_t;
+> +typedef unsigned __bitwise sense_reason_t;
+>  
+>  enum tcm_sense_reason_table {
+>  #define R(x)	(__force sense_reason_t )(x)
+> diff --git a/include/uapi/linux/virtio_types.h b/include/uapi/linux/virtio_types.h
+> index e845e8c..55c3b73 100644
+> --- a/include/uapi/linux/virtio_types.h
+> +++ b/include/uapi/linux/virtio_types.h
+> @@ -39,8 +39,8 @@
+>   * - __le{16,32,64} for standard-compliant virtio devices
+>   */
+>  
+> -typedef __u16 __bitwise__ __virtio16;
+> -typedef __u32 __bitwise__ __virtio32;
+> -typedef __u64 __bitwise__ __virtio64;
+> +typedef __u16 __bitwise __virtio16;
+> +typedef __u32 __bitwise __virtio32;
+> +typedef __u64 __bitwise __virtio64;
+>  
+>  #endif /* _UAPI_LINUX_VIRTIO_TYPES_H */
+> diff --git a/net/ieee802154/6lowpan/6lowpan_i.h b/net/ieee802154/6lowpan/6lowpan_i.h
+> index 5ac7789..ac7c96b 100644
+> --- a/net/ieee802154/6lowpan/6lowpan_i.h
+> +++ b/net/ieee802154/6lowpan/6lowpan_i.h
+> @@ -7,7 +7,7 @@
+>  #include <net/inet_frag.h>
+>  #include <net/6lowpan.h>
+>  
+> -typedef unsigned __bitwise__ lowpan_rx_result;
+> +typedef unsigned __bitwise lowpan_rx_result;
+>  #define RX_CONTINUE		((__force lowpan_rx_result) 0u)
+>  #define RX_DROP_UNUSABLE	((__force lowpan_rx_result) 1u)
+>  #define RX_DROP			((__force lowpan_rx_result) 2u)
+> diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
+> index d37a577..b2069fb 100644
+> --- a/net/mac80211/ieee80211_i.h
+> +++ b/net/mac80211/ieee80211_i.h
+> @@ -159,7 +159,7 @@ enum ieee80211_bss_valid_data_flags {
+>  	IEEE80211_BSS_VALID_ERP			= BIT(3)
+>  };
+>  
+> -typedef unsigned __bitwise__ ieee80211_tx_result;
+> +typedef unsigned __bitwise ieee80211_tx_result;
+>  #define TX_CONTINUE	((__force ieee80211_tx_result) 0u)
+>  #define TX_DROP		((__force ieee80211_tx_result) 1u)
+>  #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
+> @@ -180,7 +180,7 @@ struct ieee80211_tx_data {
+>  };
+>  
+>  
+> -typedef unsigned __bitwise__ ieee80211_rx_result;
+> +typedef unsigned __bitwise ieee80211_rx_result;
+>  #define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
+>  #define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
+>  #define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
+>
 
-The code is not calling CPUID in any performance critical path, only
-at initialization. So any discussion about saving a few instructions
-is a complete waste of time.
+For iscsi initiator, looks good.
 
--Andi
+Akced-by: Lee Duncan <lduncan@suse.com>
+
+-- 
+Lee Duncan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
