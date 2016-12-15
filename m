@@ -1,40 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 93E436B0269
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 15:58:15 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 17so91447918pfy.2
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 12:58:15 -0800 (PST)
-Received: from mail.zytor.com (torg.zytor.com. [2001:1868:205::12])
-        by mx.google.com with ESMTPS id q10si4070554pgf.264.2016.12.15.12.58.14
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA02E6B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 18:23:23 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id p66so143329828pga.4
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 15:23:23 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id k187si4486983pgc.41.2016.12.15.15.23.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 12:58:14 -0800 (PST)
-In-Reply-To: <20161215192017.GP8388@tassilo.jf.intel.com>
-References: <20161208162150.148763-1-kirill.shutemov@linux.intel.com> <20161208162150.148763-17-kirill.shutemov@linux.intel.com> <20161208200505.c6xiy56oufg6d24m@pd.tnic> <CA+55aFzgp+6c6RhgYvEjor=_+ewMeYL4XY4BqER5HMUknXBDCA@mail.gmail.com> <20161208202013.uutsny6avn5gimwq@pd.tnic> <b393a48a-6e8b-6427-373c-2825641fea99@zytor.com> <BD4BD1C9-F6FD-4905-9B09-059284FD2713@alien8.de> <20161215143944.ruxr6r3b2atg4tnf@pd.tnic> <E77F6B05-4F69-4C02-90B4-A8A6D0D392DE@zytor.com> <20161215190902.tdle4uj27xkc3x4i@pd.tnic> <20161215192017.GP8388@tassilo.jf.intel.com>
+        Thu, 15 Dec 2016 15:23:22 -0800 (PST)
+Date: Thu, 15 Dec 2016 16:23:21 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 2/3] mm, dax: make pmd_fault() and friends to be the
+ same as fault()
+Message-ID: <20161215232321.GA10460@linux.intel.com>
+References: <148183505925.96369.9987658623875784437.stgit@djiang5-desk3.ch.intel.com>
+ <148183506511.96369.3577733318086932161.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [RFC, PATCHv1 15/28] x86: detect 5-level paging support
-From: hpa@zytor.com
-Date: Thu, 15 Dec 2016 12:57:43 -0800
-Message-ID: <34A313BB-EB15-4A4C-AB77-BD678118F086@zytor.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <148183506511.96369.3577733318086932161.stgit@djiang5-desk3.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>, Borislav Petkov <bp@alien8.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
 
-On December 15, 2016 11:20:17 AM PST, Andi Kleen <ak@linux.intel.com> wrote:
->
->The code is not calling CPUID in any performance critical path, only
->at initialization. So any discussion about saving a few instructions
->is a complete waste of time.
->
->-Andi
+On Thu, Dec 15, 2016 at 01:51:05PM -0700, Dave Jiang wrote:
+> Instead of passing in multiple parameters in the pmd_fault() handler,
+> a vmf can be passed in just like a fault() handler. This will simplify
+> code and remove the need for the actual pmd fault handlers to allocate a
+> vmf. Related functions are also modified to do the same.
+> 
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> ---
 
-NB: the chief offender is Loadlin, which is still used in some manufacturing flows that depends on a mix of legacy DOS and Linux applications; however, older versions of LILO also have this problem.
--- 
-Sent from my Android device with K-9 Mail. Please excuse my brevity.
+> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+> index a3f2bf0..e6cdb78 100644
+> --- a/fs/ext4/file.c
+> +++ b/fs/ext4/file.c
+> @@ -278,22 +278,26 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  	return result;
+>  }
+>  
+> -static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+> -						pmd_t *pmd, unsigned int flags)
+> +static int
+> +ext4_dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  {
+>  	int result;
+>  	struct inode *inode = file_inode(vma->vm_file);
+>  	struct super_block *sb = inode->i_sb;
+> -	bool write = flags & FAULT_FLAG_WRITE;
+> +	bool write = vmf->flags & FAULT_FLAG_WRITE;
+> +	gfp_t old_mask;
+>  
+>  	if (write) {
+>  		sb_start_pagefault(sb);
+>  		file_update_time(vma->vm_file);
+>  	}
+> +
+> +	old_mask = vmf->gfp_mask;
+> +	vmf->gfp_mask &= ~__GFP_FS;
+>  	down_read(&EXT4_I(inode)->i_mmap_sem);
+> -	result = dax_iomap_pmd_fault(vma, addr, pmd, flags,
+> -				     &ext4_iomap_ops);
+> +	result = dax_iomap_pmd_fault(vma, vmf, &ext4_iomap_ops);
+>  	up_read(&EXT4_I(inode)->i_mmap_sem);
+> +	vmf->gfp_mask = old_mask;
+>  	if (write)
+>  		sb_end_pagefault(sb);
+>  
+> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> index 52202b4..b1b8524 100644
+> --- a/fs/xfs/xfs_file.c
+> +++ b/fs/xfs/xfs_file.c
+> @@ -1533,29 +1533,31 @@ xfs_filemap_fault(
+>  STATIC int
+>  xfs_filemap_pmd_fault(
+>  	struct vm_area_struct	*vma,
+> -	unsigned long		addr,
+> -	pmd_t			*pmd,
+> -	unsigned int		flags)
+> +	struct vm_fault *vmf)
+>  {
+>  	struct inode		*inode = file_inode(vma->vm_file);
+>  	struct xfs_inode	*ip = XFS_I(inode);
+>  	int			ret;
+> +	gfp_t			old_mask;
+>  
+>  	if (!IS_DAX(inode))
+>  		return VM_FAULT_FALLBACK;
+>  
+>  	trace_xfs_filemap_pmd_fault(ip);
+>  
+> -	if (flags & FAULT_FLAG_WRITE) {
+> +	if (vmf->flags & FAULT_FLAG_WRITE) {
+>  		sb_start_pagefault(inode->i_sb);
+>  		file_update_time(vma->vm_file);
+>  	}
+>  
+> +	old_mask = vmf->gfp_mask;
+
+One small nit for both xfs and ext4 - in patch 1 you named your local
+'old_gfp' and set it when it was defined, but in this patch it's 'old_mask'
+and it's set later.  Probably best to keep this patch consistent with the
+first one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
