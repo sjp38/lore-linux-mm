@@ -1,39 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2EC6B0069
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:47:30 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so25182555wjb.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:30 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id s206si13438708wmf.158.2016.12.15.08.47.28
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD386B025E
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 11:47:31 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id g23so12954511wme.4
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:31 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id yo1si2896618wjc.240.2016.12.15.08.47.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 15 Dec 2016 08:47:29 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id g23so7643969wme.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:28 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id j10so10720449wjb.3
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 08:47:29 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/2] mm, slab: consolidate KMALLOC_MAX_SIZE
-Date: Thu, 15 Dec 2016 17:47:20 +0100
-Message-Id: <20161215164722.21586-1-mhocko@kernel.org>
+Subject: [PATCH 1/2] bpf: do not use KMALLOC_SHIFT_MAX
+Date: Thu, 15 Dec 2016 17:47:21 +0100
+Message-Id: <20161215164722.21586-2-mhocko@kernel.org>
+In-Reply-To: <20161215164722.21586-1-mhocko@kernel.org>
+References: <20161215164722.21586-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Cristopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Alexei Starovoitov <ast@kernel.org>, Andrey Konovalov <andreyknvl@google.com>, Michal Hocko <mhocko@suse.com>
+Cc: Cristopher Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Alexei Starovoitov <ast@kernel.org>
 
-Hi,
-Andrey has revealed a discrepancy between KMALLOC_MAX_SIZE and the
-maximum supported page allocator size [1]. The underlying problem
-should be fixed in the ep_write_iter code of course, but I do not feel
-qualified to do that. The discrepancy which it reveals (see patch 2)
-is worth fixing anyway, though.
+From: Michal Hocko <mhocko@suse.com>
 
-While I was looking into the code, I've noticed that the only code which
-uses KMALLOC_SHIFT_MAX outside of the slab code is bpf so I've updated
-it to use KMALLOC_MAX_SIZE instead. There shouldn't be any real reason
-to use KMALLOC_SHIFT_MAX which is a slab internal constant same as
-KMALLOC_SHIFT_{LOW,HIGH}
+01b3f52157ff ("bpf: fix allocation warnings in bpf maps and integer
+overflow") has added checks for the maximum allocateable size. It
+(ab)used KMALLOC_SHIFT_MAX for that purpose. While this is not incorrect
+it is not very clean because we already have KMALLOC_MAX_SIZE for this
+very reason so let's change both checks to use KMALLOC_MAX_SIZE instead.
 
-[1] http://lkml.kernel.org/r/CAAeHK+ztusS68DejO8AH3nn-EfiYQpD5FmBwmqKG8BWvoqPNqQ@mail.gmail.com
+Cc: Alexei Starovoitov <ast@kernel.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ kernel/bpf/arraymap.c | 2 +-
+ kernel/bpf/hashtab.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/bpf/arraymap.c b/kernel/bpf/arraymap.c
+index a2ac051c342f..229a5d5df977 100644
+--- a/kernel/bpf/arraymap.c
++++ b/kernel/bpf/arraymap.c
+@@ -56,7 +56,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
+ 	    attr->value_size == 0 || attr->map_flags)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	if (attr->value_size >= 1 << (KMALLOC_SHIFT_MAX - 1))
++	if (attr->value_size > KMALLOC_MAX_SIZE)
+ 		/* if value_size is bigger, the user space won't be able to
+ 		 * access the elements.
+ 		 */
+diff --git a/kernel/bpf/hashtab.c b/kernel/bpf/hashtab.c
+index ad1bc67aff1b..c5ec7dc71c84 100644
+--- a/kernel/bpf/hashtab.c
++++ b/kernel/bpf/hashtab.c
+@@ -181,7 +181,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
+ 		 */
+ 		goto free_htab;
+ 
+-	if (htab->map.value_size >= (1 << (KMALLOC_SHIFT_MAX - 1)) -
++	if (htab->map.value_size >= KMALLOC_MAX_SIZE -
+ 	    MAX_BPF_STACK - sizeof(struct htab_elem))
+ 		/* if value_size is bigger, the user space won't be able to
+ 		 * access the elements via bpf syscall. This check also makes
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
