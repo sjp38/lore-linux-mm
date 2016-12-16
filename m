@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E2CAF6B0280
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:48:30 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id b132so21281487iti.5
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:48:30 -0800 (PST)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9E806B0295
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:49:44 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id 71so92397385ioe.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:49:44 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j187si2965440ith.7.2016.12.16.06.48.29
+        by mx.google.com with ESMTPS id o128si6173355ioe.82.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:48:30 -0800 (PST)
+        Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 40/42] userfaultfd: non-cooperative: selftest: add test for FORK, MADVDONTNEED and REMAP events
-Date: Fri, 16 Dec 2016 15:48:19 +0100
-Message-Id: <20161216144821.5183-41-aarcange@redhat.com>
+Subject: [PATCH 24/42] userfaultfd: hugetlbfs: gup: support VM_FAULT_RETRY
+Date: Fri, 16 Dec 2016 15:48:03 +0100
+Message-Id: <20161216144821.5183-25-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,255 +20,131 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Add support for VM_FAULT_RETRY to follow_hugetlb_page() so that
+get_user_pages_unlocked/locked and "nonblocking/FOLL_NOWAIT" features
+will work on hugetlbfs. This is required for fully functional
+userfaultfd non-present support on hugetlbfs.
 
-Add test for userfaultfd events used in non-cooperative scenario when the
-process that monitors the userfaultfd and handles user faults is not the
-same process that causes the page faults.
-
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- tools/testing/selftests/vm/userfaultfd.c | 175 ++++++++++++++++++++++++++++---
- 1 file changed, 163 insertions(+), 12 deletions(-)
+ include/linux/hugetlb.h |  5 +++--
+ mm/gup.c                |  2 +-
+ mm/hugetlb.c            | 48 ++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 44 insertions(+), 11 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index c79c372..71b4d82 100644
---- a/tools/testing/selftests/vm/userfaultfd.c
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -63,6 +63,7 @@
- #include <sys/mman.h>
- #include <sys/syscall.h>
- #include <sys/ioctl.h>
-+#include <sys/wait.h>
- #include <pthread.h>
- #include <linux/userfaultfd.h>
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index aab2fff..503099d 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -65,7 +65,8 @@ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
+ int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
+ long follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
+ 			 struct page **, struct vm_area_struct **,
+-			 unsigned long *, unsigned long *, long, unsigned int);
++			 unsigned long *, unsigned long *, long, unsigned int,
++			 int *);
+ void unmap_hugepage_range(struct vm_area_struct *,
+ 			  unsigned long, unsigned long, struct page *);
+ void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+@@ -136,7 +137,7 @@ static inline unsigned long hugetlb_total_pages(void)
+ 	return 0;
+ }
  
-@@ -347,6 +348,7 @@ static void *uffd_poll_thread(void *arg)
- 	unsigned long cpu = (unsigned long) arg;
- 	struct pollfd pollfd[2];
- 	struct uffd_msg msg;
-+	struct uffdio_register uffd_reg;
- 	int ret;
- 	unsigned long offset;
- 	char tmp_chr;
-@@ -378,16 +380,35 @@ static void *uffd_poll_thread(void *arg)
+-#define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
++#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ BUG(); 0; })
+ #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+ #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+ static inline void hugetlb_report_meminfo(struct seq_file *m)
+diff --git a/mm/gup.c b/mm/gup.c
+index 5531555..40abe4c 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -572,7 +572,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			if (is_vm_hugetlb_page(vma)) {
+ 				i = follow_hugetlb_page(mm, vma, pages, vmas,
+ 						&start, &nr_pages, i,
+-						gup_flags);
++						gup_flags, nonblocking);
  				continue;
- 			perror("nonblocking read error"), exit(1);
+ 			}
  		}
--		if (msg.event != UFFD_EVENT_PAGEFAULT)
-+		switch (msg.event) {
-+		default:
- 			fprintf(stderr, "unexpected msg event %u\n",
- 				msg.event), exit(1);
--		if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
--			fprintf(stderr, "unexpected write fault\n"), exit(1);
--		offset = (char *)(unsigned long)msg.arg.pagefault.address -
--			 area_dst;
--		offset &= ~(page_size-1);
--		if (copy_page(uffd, offset))
--			userfaults++;
-+			break;
-+		case UFFD_EVENT_PAGEFAULT:
-+			if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
-+				fprintf(stderr, "unexpected write fault\n"), exit(1);
-+			offset = (char *)(unsigned long)msg.arg.pagefault.address -
-+				area_dst;
-+			offset &= ~(page_size-1);
-+			if (copy_page(uffd, offset))
-+				userfaults++;
-+			break;
-+		case UFFD_EVENT_FORK:
-+			uffd = msg.arg.fork.ufd;
-+			pollfd[0].fd = uffd;
-+			break;
-+		case UFFD_EVENT_MADVDONTNEED:
-+			uffd_reg.range.start = msg.arg.madv_dn.start;
-+			uffd_reg.range.len = msg.arg.madv_dn.end -
-+				msg.arg.madv_dn.start;
-+			if (ioctl(uffd, UFFDIO_UNREGISTER, &uffd_reg.range))
-+				fprintf(stderr, "madv_dn failure\n"), exit(1);
-+			break;
-+		case UFFD_EVENT_REMAP:
-+			area_dst = (char *)(unsigned long)msg.arg.remap.to;
-+			break;
-+		}
- 	}
- 	return (void *)userfaults;
- }
-@@ -512,7 +533,7 @@ static int stress(unsigned long *userfaults)
- 	return 0;
- }
- 
--static int userfaultfd_open(void)
-+static int userfaultfd_open(int features)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 621ea74..e1bb7c6 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4046,7 +4046,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 struct page **pages, struct vm_area_struct **vmas,
+ 			 unsigned long *position, unsigned long *nr_pages,
+-			 long i, unsigned int flags)
++			 long i, unsigned int flags, int *nonblocking)
  {
- 	struct uffdio_api uffdio_api;
+ 	unsigned long pfn_offset;
+ 	unsigned long vaddr = *position;
+@@ -4109,16 +4109,43 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		    ((flags & FOLL_WRITE) &&
+ 		      !huge_pte_write(huge_ptep_get(pte)))) {
+ 			int ret;
++			unsigned int fault_flags = 0;
  
-@@ -525,7 +546,7 @@ static int userfaultfd_open(void)
- 	uffd_flags = fcntl(uffd, F_GETFD, NULL);
+ 			if (pte)
+ 				spin_unlock(ptl);
+-			ret = hugetlb_fault(mm, vma, vaddr,
+-				(flags & FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+-			if (!(ret & VM_FAULT_ERROR))
+-				continue;
+-
+-			remainder = 0;
+-			break;
++			if (flags & FOLL_WRITE)
++				fault_flags |= FAULT_FLAG_WRITE;
++			if (nonblocking)
++				fault_flags |= FAULT_FLAG_ALLOW_RETRY;
++			if (flags & FOLL_NOWAIT)
++				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
++					FAULT_FLAG_RETRY_NOWAIT;
++			if (flags & FOLL_TRIED) {
++				VM_WARN_ON_ONCE(fault_flags &
++						FAULT_FLAG_ALLOW_RETRY);
++				fault_flags |= FAULT_FLAG_TRIED;
++			}
++			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
++			if (ret & VM_FAULT_ERROR) {
++				remainder = 0;
++				break;
++			}
++			if (ret & VM_FAULT_RETRY) {
++				if (nonblocking)
++					*nonblocking = 0;
++				*nr_pages = 0;
++				/*
++				 * VM_FAULT_RETRY must not return an
++				 * error, it will return zero
++				 * instead.
++				 *
++				 * No need to update "position" as the
++				 * caller will not check it after
++				 * *nr_pages is set to 0.
++				 */
++				return i;
++			}
++			continue;
+ 		}
  
- 	uffdio_api.api = UFFD_API;
--	uffdio_api.features = 0;
-+	uffdio_api.features = features;
- 	if (ioctl(uffd, UFFDIO_API, &uffdio_api)) {
- 		fprintf(stderr, "UFFDIO_API\n");
- 		return 1;
-@@ -538,6 +559,132 @@ static int userfaultfd_open(void)
- 	return 0;
- }
- 
-+/*
-+ * For non-cooperative userfaultfd test we fork() a process that will
-+ * generate pagefaults, will mremap the area monitored by the
-+ * userfaultfd and at last this process will release the monitored
-+ * area.
-+ * For the anonymous and shared memory the area is divided into two
-+ * parts, the first part is accessed before mremap, and the second
-+ * part is accessed after mremap. Since hugetlbfs does not support
-+ * mremap, the entire monitored area is accessed in a single pass for
-+ * HUGETLB_TEST.
-+ * The release of the pages currently generates event only for
-+ * anonymous memory (UFFD_EVENT_MADVDONTNEED), hence it is not checked
-+ * for hugetlb and shmem.
-+ */
-+static int faulting_process(void)
-+{
-+	unsigned long nr;
-+	unsigned long long count;
-+
-+#ifndef HUGETLB_TEST
-+	unsigned long split_nr_pages = (nr_pages + 1) / 2;
-+#else
-+	unsigned long split_nr_pages = nr_pages;
-+#endif
-+
-+	for (nr = 0; nr < split_nr_pages; nr++) {
-+		count = *area_count(area_dst, nr);
-+		if (count != count_verify[nr]) {
-+			fprintf(stderr,
-+				"nr %lu memory corruption %Lu %Lu\n",
-+				nr, count,
-+				count_verify[nr]), exit(1);
-+		}
-+	}
-+
-+#ifndef HUGETLB_TEST
-+	area_dst = mremap(area_dst, nr_pages * page_size,  nr_pages * page_size,
-+			  MREMAP_MAYMOVE | MREMAP_FIXED, area_src);
-+	if (area_dst == MAP_FAILED)
-+		perror("mremap"), exit(1);
-+
-+	for (; nr < nr_pages; nr++) {
-+		count = *area_count(area_dst, nr);
-+		if (count != count_verify[nr]) {
-+			fprintf(stderr,
-+				"nr %lu memory corruption %Lu %Lu\n",
-+				nr, count,
-+				count_verify[nr]), exit(1);
-+		}
-+	}
-+
-+#ifndef SHMEM_TEST
-+	if (release_pages(area_dst))
-+		return 1;
-+
-+	for (nr = 0; nr < nr_pages; nr++) {
-+		if (my_bcmp(area_dst + nr * page_size, zeropage, page_size))
-+			fprintf(stderr, "nr %lu is not zero\n", nr), exit(1);
-+	}
-+#endif /* SHMEM_TEST */
-+
-+#endif /* HUGETLB_TEST */
-+
-+	return 0;
-+}
-+
-+static int userfaultfd_events_test(void)
-+{
-+	struct uffdio_register uffdio_register;
-+	unsigned long expected_ioctls;
-+	unsigned long userfaults;
-+	pthread_t uffd_mon;
-+	int err, features;
-+	pid_t pid;
-+	char c;
-+
-+	printf("testing events (fork, remap, madv_dn): ");
-+	fflush(stdout);
-+
-+	if (release_pages(area_dst))
-+		return 1;
-+
-+	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
-+		UFFD_FEATURE_EVENT_MADVDONTNEED;
-+	if (userfaultfd_open(features) < 0)
-+		return 1;
-+	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
-+
-+	uffdio_register.range.start = (unsigned long) area_dst;
-+	uffdio_register.range.len = nr_pages * page_size;
-+	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
-+		fprintf(stderr, "register failure\n"), exit(1);
-+
-+	expected_ioctls = EXPECTED_IOCTLS;
-+	if ((uffdio_register.ioctls & expected_ioctls) !=
-+	    expected_ioctls)
-+		fprintf(stderr,
-+			"unexpected missing ioctl for anon memory\n"),
-+			exit(1);
-+
-+	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
-+		perror("uffd_poll_thread create"), exit(1);
-+
-+	pid = fork();
-+	if (pid < 0)
-+		perror("fork"), exit(1);
-+
-+	if (!pid)
-+		return faulting_process();
-+
-+	waitpid(pid, &err, 0);
-+	if (err)
-+		fprintf(stderr, "faulting process failed\n"), exit(1);
-+
-+	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
-+		perror("pipe write"), exit(1);
-+	if (pthread_join(uffd_mon, (void **)&userfaults))
-+		return 1;
-+
-+	close(uffd);
-+	printf("userfaults: %ld\n", userfaults);
-+
-+	return userfaults != nr_pages;
-+}
-+
- static int userfaultfd_stress(void)
- {
- 	void *area;
-@@ -555,7 +702,7 @@ static int userfaultfd_stress(void)
- 	if (!area_dst)
- 		return 1;
- 
--	if (userfaultfd_open() < 0)
-+	if (userfaultfd_open(0) < 0)
- 		return 1;
- 
- 	count_verify = malloc(nr_pages * sizeof(unsigned long long));
-@@ -702,7 +849,11 @@ static int userfaultfd_stress(void)
- 		printf("\n");
+ 		pfn_offset = (vaddr & ~huge_page_mask(h)) >> PAGE_SHIFT;
+@@ -4147,6 +4174,11 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		spin_unlock(ptl);
  	}
+ 	*nr_pages = remainder;
++	/*
++	 * setting position is actually required only if remainder is
++	 * not zero but it's faster not to add a "if (remainder)"
++	 * branch.
++	 */
+ 	*position = vaddr;
  
--	return err;
-+	if (err)
-+		return err;
-+
-+	close(uffd);
-+	return userfaultfd_events_test();
- }
- 
- #ifndef HUGETLB_TEST
+ 	return i ? i : -EFAULT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
