@@ -1,40 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5819F6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:54:36 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 3so156896372pgd.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 19:54:36 -0800 (PST)
-Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
-        by mx.google.com with ESMTP id m136si5450013pga.237.2016.12.15.19.54.34
-        for <linux-mm@kvack.org>;
-        Thu, 15 Dec 2016 19:54:35 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20161104193626.GU4611@redhat.com> <1805f956-1777-471c-1401-46c984189c88@oracle.com> <20161116182809.GC26185@redhat.com> <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com> <20161117154031.GA10229@redhat.com> <718434af-d279-445d-e210-201bf02f434f@oracle.com> <20161118000527.GB10229@redhat.com> <c9350efa-ca79-c514-0305-22c90fdbb0df@oracle.com> <1b60f0b3-835f-92d6-33e2-e7aaab3209cc@oracle.com> <019d01d24554$38e7f220$aab7d660$@alibaba-inc.com> <20161215190242.GC4909@redhat.com>
-In-Reply-To: <20161215190242.GC4909@redhat.com>
-Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb for huge page UFFDIO_COPY
-Date: Fri, 16 Dec 2016 11:54:21 +0800
-Message-ID: <04c301d25750$15fdcb00$41f96100$@alibaba-inc.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E69CC6B0038
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 00:02:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id e9so159202105pgc.5
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 21:02:03 -0800 (PST)
+Received: from mgwym04.jp.fujitsu.com (mgwym04.jp.fujitsu.com. [211.128.242.43])
+        by mx.google.com with ESMTPS id r11si5785347pfk.40.2016.12.15.21.02.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Dec 2016 21:02:03 -0800 (PST)
+Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
+	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 4507DAC01D1
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 14:01:47 +0900 (JST)
+Message-ID: <585374F0.6040407@jp.fujitsu.com>
+Date: Fri, 16 Dec 2016 14:00:32 +0900
+From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: [PATCH v2] block: avoid incorrect bdi_unregiter call
+References: <584101D2.4090200@jp.fujitsu.com>
+In-Reply-To: <584101D2.4090200@jp.fujitsu.com>
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrea Arcangeli' <aarcange@redhat.com>
-Cc: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On Friday, December 16, 2016 3:03 AM Andrea Arcangeli wrote:
- > I already applied Mark's patch that clears the page private flag in
-> the error path. 
+Hi Jens,
+
+Could you add this patch for 4.10?
+
+- Masayoshi Mizuma
+
+On Fri, 2 Dec 2016 14:08:34 +0900 Masayoshi Mizuma wrote:
+> bdi_unregister() should be called after bdi_register() is called,
+> so we should check whether WB_registered flag is set.
 > 
-Glad to hear it:)
-
-Happy Christmas Andrea.
-
-thanks
-Hillf
+> For example of the situation, error path in device driver may call
+> blk_cleanup_queue() before the driver calls bdi_register().
+> 
+> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> ---
+>   mm/backing-dev.c | 3 +++
+>   1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 8fde443..f8b07d4 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -853,6 +853,9 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
+>   
+>   void bdi_unregister(struct backing_dev_info *bdi)
+>   {
+> +	if (!test_bit(WB_registered, &bdi->wb.state))
+> +		return;
+> +
+>   	/* make sure nobody finds us on the bdi_list anymore */
+>   	bdi_remove_from_list(bdi);
+>   	wb_shutdown(&bdi->wb);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
