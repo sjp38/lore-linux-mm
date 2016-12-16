@@ -1,75 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F12356B0038
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:04:41 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id h30so24837668uaf.1
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:04:41 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id c4si2226469vkh.3.2016.12.16.06.04.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AC706B0253
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:16:02 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 17so122976894pfy.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:16:02 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id q8si7941051pgf.282.2016.12.16.06.16.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:04:41 -0800 (PST)
-Subject: Re: crash during oom reaper
-References: <20161216082202.21044-1-vegard.nossum@oracle.com>
- <20161216082202.21044-4-vegard.nossum@oracle.com>
- <20161216090157.GA13940@dhcp22.suse.cz>
- <d944e3ca-07d4-c7d6-5025-dc101406b3a7@oracle.com>
- <20161216101113.GE13940@dhcp22.suse.cz>
- <aaa788c2-7233-005d-ae7b-170cdcafc5ec@oracle.com>
-From: Vegard Nossum <vegard.nossum@oracle.com>
-Message-ID: <353d5304-d178-a6eb-05ab-e5a8c1ff8326@oracle.com>
-Date: Fri, 16 Dec 2016 15:04:08 +0100
-MIME-Version: 1.0
-In-Reply-To: <aaa788c2-7233-005d-ae7b-170cdcafc5ec@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 16 Dec 2016 06:16:01 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/4] oom-reaper: use madvise_dontneed() instead of unmap_page_range()
+Date: Fri, 16 Dec 2016 17:15:56 +0300
+Message-Id: <20161216141556.75130-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
+References: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 12/16/2016 02:14 PM, Vegard Nossum wrote:
-> On 12/16/2016 11:11 AM, Michal Hocko wrote:
->> On Fri 16-12-16 10:43:52, Vegard Nossum wrote:
->> [...]
->>> I don't think it's a bug in the OOM reaper itself, but either of the
->>> following two patches will fix the problem (without my understand how or
->>> why):
->>>
->> What is the atual crash?
->
-> Annoyingly it doesn't seem to reproduce with the very latest
-> linus/master, so maybe it's been fixed recently after all and I missed it.
->
-> I've started a bisect to see what fixed it. Just in case, I added 4
-> different crashes I saw with various kernels. I think there may have
-> been a few others too (I remember seeing one in a page fault path), but
-> these were the most frequent ones.
+Logic on whether we can reap pages from the VMA should match what we
+have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
+VMAs, but we don't now.
 
-The bisect points to:
+Let's just call madvise_dontneed() from __oom_reap_task_mm(), so we
+won't need to sync the logic in the future.
 
-commit 6b94780e45c17b83e3e75f8aaca5a328db583c74
-Author: Vincent Guittot <vincent.guittot@linaro.org>
-Date:   Thu Dec 8 17:56:54 2016 +0100
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/internal.h |  7 +++----
+ mm/madvise.c  |  2 +-
+ mm/memory.c   |  2 +-
+ mm/oom_kill.c | 15 ++-------------
+ 4 files changed, 7 insertions(+), 19 deletions(-)
 
-     sched/core: Use load_avg for selecting idlest group
-
-as fixing the crash, which seems odd to me. The only bit that sticks out
-from the changelog to me:
-
-"""
-For use case like hackbench, this enable the scheduler to select
-different CPUs during the fork sequence and to spread tasks across the
-system.
-"""
-
-Reverting it from linus/master doesn't reintroduce the crash, but the
-commit just before (6b94780e4^) does crash, so I'm not sure what's going
-on. Maybe the crash is just really sensitive to scheduling decisions or
-something.
-
-
-Vegard
+diff --git a/mm/internal.h b/mm/internal.h
+index 44d68895a9b9..5c355855e4ad 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -41,10 +41,9 @@ int do_swap_page(struct vm_fault *vmf);
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+-void unmap_page_range(struct mmu_gather *tlb,
+-			     struct vm_area_struct *vma,
+-			     unsigned long addr, unsigned long end,
+-			     struct zap_details *details);
++long madvise_dontneed(struct vm_area_struct *vma,
++			     struct vm_area_struct **prev,
++			     unsigned long start, unsigned long end);
+ 
+ extern int __do_page_cache_readahead(struct address_space *mapping,
+ 		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
+diff --git a/mm/madvise.c b/mm/madvise.c
+index aa4c502caecb..8c9f19b62b4a 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -468,7 +468,7 @@ static long madvise_free(struct vm_area_struct *vma,
+  * An interface that causes the system to free clean pages and flush
+  * dirty pages is already available as msync(MS_INVALIDATE).
+  */
+-static long madvise_dontneed(struct vm_area_struct *vma,
++long madvise_dontneed(struct vm_area_struct *vma,
+ 			     struct vm_area_struct **prev,
+ 			     unsigned long start, unsigned long end)
+ {
+diff --git a/mm/memory.c b/mm/memory.c
+index eed102070dcb..f8836232a492 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1271,7 +1271,7 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+ 	return addr;
+ }
+ 
+-void unmap_page_range(struct mmu_gather *tlb,
++static void unmap_page_range(struct mmu_gather *tlb,
+ 			     struct vm_area_struct *vma,
+ 			     unsigned long addr, unsigned long end,
+ 			     struct zap_details *details)
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 96a53ab0c9eb..59a00b1c3145 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -479,7 +479,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	 *				out_of_memory
+ 	 *				  select_bad_process
+ 	 *				    # no TIF_MEMDIE task selects new victim
+-	 *  unmap_page_range # frees some memory
++	 *  madvise_dontneed # frees some memory
+ 	 */
+ 	mutex_lock(&oom_lock);
+ 
+@@ -508,16 +508,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 
+ 	tlb_gather_mmu(&tlb, mm, 0, -1);
+ 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+-		if (is_vm_hugetlb_page(vma))
+-			continue;
+-
+-		/*
+-		 * mlocked VMAs require explicit munlocking before unmap.
+-		 * Let's keep it simple here and skip such VMAs.
+-		 */
+-		if (vma->vm_flags & VM_LOCKED)
+-			continue;
+-
+ 		/*
+ 		 * Only anonymous pages have a good chance to be dropped
+ 		 * without additional steps which we cannot afford as we
+@@ -529,8 +519,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 		 * count elevated without a good reason.
+ 		 */
+ 		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+-			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+-					 NULL);
++			madvise_dontneed(vma, &vma, vma->vm_start, vma->vm_end);
+ 	}
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
