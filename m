@@ -1,137 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 04FF86B0038
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 02:39:46 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id bk3so31985321wjc.4
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 23:39:45 -0800 (PST)
-Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
-        by mx.google.com with ESMTPS id f125si2173890wmf.44.2016.12.15.23.39.44
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0073C6B0038
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 03:14:23 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id m203so5214583wma.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 00:14:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i6si2279587wmf.38.2016.12.16.00.14.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 23:39:44 -0800 (PST)
-Received: by mail-wj0-f194.google.com with SMTP id j10so13111013wjb.3
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 23:39:44 -0800 (PST)
-Date: Fri, 16 Dec 2016 08:39:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM: Better, but still there on 4.9
-Message-ID: <20161216073941.GA26976@dhcp22.suse.cz>
-References: <20161215225702.GA27944@boerne.fritz.box>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Dec 2016 00:14:22 -0800 (PST)
+Date: Fri, 16 Dec 2016 09:14:19 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Un-addressable device memory and
+ block/fs implications
+Message-ID: <20161216081419.GB26608@quack2.suse.cz>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
+ <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+ <20161214111351.GC18624@quack2.suse.cz>
+ <20161214171514.GB14755@redhat.com>
+ <20161215161939.GF13811@quack2.suse.cz>
+ <20161215191453.GA3122@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161215225702.GA27944@boerne.fritz.box>
+In-Reply-To: <20161215191453.GA3122@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nils Holland <nholland@tisys.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
 
-[CC linux-mm and btrfs guys]
-
-On Thu 15-12-16 23:57:04, Nils Holland wrote:
-[...]
-> Of course, none of this are workloads that are new / special in any
-> way - prior to 4.8, I never experienced any issues doing the exact
-> same things.
+On Thu 15-12-16 14:14:53, Jerome Glisse wrote:
+> On Thu, Dec 15, 2016 at 05:19:39PM +0100, Jan Kara wrote:
+> > On Wed 14-12-16 12:15:14, Jerome Glisse wrote:
+> > <snipped explanation that the device has the same cabilities as CPUs wrt
+> > page handling>
+> > 
+> > > > So won't it be easier to leave the pagecache page where it is and *copy* it
+> > > > to the device? Can the device notify us *before* it is going to modify a
+> > > > page, not just after it has modified it? Possibly if we just give it the
+> > > > page read-only and it will have to ask CPU to get write permission? If yes,
+> > > > then I belive this could work and even fs support should be doable.
+> > > 
+> > > Well yes and no. Device obey the same rule as CPU so if a file back page is
+> > > map read only in the process it must first do a write fault which will call
+> > > in the fs (page_mkwrite() of vm_ops). But once a page has write permission
+> > > there is no way to be notify by hardware on every write. First the hardware
+> > > do not have the capability. Second we are talking thousand (10 000 is upper
+> > > range in today device) of concurrent thread, each can possibly write to page
+> > > under consideration.
+> > 
+> > Sure, I meant whether the device is able to do equivalent of ->page_mkwrite
+> > notification which apparently it is. OK.
+> > 
+> > > We really want the device page to behave just like regular page. Most fs code
+> > > path never map file content, it only happens during read/write and i believe
+> > > this can be handled either by migrating back or by using bounce page. I want
+> > > to provide the choice between the two solutions as one will be better for some
+> > > workload and the other for different workload.
+> > 
+> > I agree with keeping page used by the device behaving as similar as
+> > possible as any other page. I'm just exploring different possibilities how
+> > to make that happen. E.g. the scheme I was aiming at is:
+> > 
+> > When you want page A to be used by the device, you set up page A' in the
+> > device but make sure any access to it will fault.
+> > 
+> > When the device wants to access A', it notifies the CPU, that writeprotects
+> > all mappings of A, copy A to A' and map A' read-only for the device.
+> > 
+> > When the device wants to write to A', it notifies CPU, that will clear all
+> > mappings of A and mark A as not-uptodate & dirty. When the CPU will then
+> > want to access the data in A again - we need to catch ->readpage,
+> > ->readpages, ->writepage, ->writepages - it will writeprotect A' in
+> > the device, copy data to A, mark A as uptodate & dirty, and off we go.
+> > 
+> > When we want to write to the page on CPU - we get either wp fault if it was
+> > via mmap, or we have to catch that in places using kmap() - we just remove
+> > access to A' from the device.
+> > 
+> > This scheme makes the device mapping functionality transparent to the
+> > filesystem (you actually don't need to hook directly into ->readpage etc.
+> > handlers, you can just have wrappers around them for this functionality)
+> > and fairly straightforward... It is so transparent that even direct IO works
+> > with this since the page cache invalidation pass we do before actually doing
+> > the direct IO will make sure to pull all the pages from the device and write
+> > them to disk if needed. What do you think?
 > 
-> Dec 15 19:02:16 teela kernel: kworker/u4:5 invoked oom-killer: gfp_mask=0x2400840(GFP_NOFS|__GFP_NOFAIL), nodemask=0, order=0, oom_score_adj=0
-> Dec 15 19:02:18 teela kernel: kworker/u4:5 cpuset=/ mems_allowed=0
-> Dec 15 19:02:18 teela kernel: CPU: 1 PID: 2603 Comm: kworker/u4:5 Not tainted 4.9.0-gentoo #2
-> Dec 15 19:02:18 teela kernel: Hardware name: Hewlett-Packard Compaq 15 Notebook PC/21F7, BIOS F.22 08/06/2014
-> Dec 15 19:02:18 teela kernel: Workqueue: writeback wb_workfn (flush-btrfs-1)
-> Dec 15 19:02:18 teela kernel:  eff0b604 c142bcce eff0b734 00000000 eff0b634 c1163332 00000000 00000292
-> Dec 15 19:02:18 teela kernel:  eff0b634 c1431876 eff0b638 e7fb0b00 e7fa2900 e7fa2900 c1b58785 eff0b734
-> Dec 15 19:02:18 teela kernel:  eff0b678 c110795f c1043895 eff0b664 c11075c7 00000007 00000000 00000000
-> Dec 15 19:02:18 teela kernel: Call Trace:
-> Dec 15 19:02:18 teela kernel:  [<c142bcce>] dump_stack+0x47/0x69
-> Dec 15 19:02:18 teela kernel:  [<c1163332>] dump_header+0x60/0x178
-> Dec 15 19:02:18 teela kernel:  [<c1431876>] ? ___ratelimit+0x86/0xe0
-> Dec 15 19:02:18 teela kernel:  [<c110795f>] oom_kill_process+0x20f/0x3d0
-> Dec 15 19:02:18 teela kernel:  [<c1043895>] ? has_capability_noaudit+0x15/0x20
-> Dec 15 19:02:18 teela kernel:  [<c11075c7>] ? oom_badness.part.13+0xb7/0x130
-> Dec 15 19:02:18 teela kernel:  [<c1107df9>] out_of_memory+0xd9/0x260
-> Dec 15 19:02:18 teela kernel:  [<c110ba0b>] __alloc_pages_nodemask+0xbfb/0xc80
-> Dec 15 19:02:18 teela kernel:  [<c110414d>] pagecache_get_page+0xad/0x270
-> Dec 15 19:02:18 teela kernel:  [<c13664a6>] alloc_extent_buffer+0x116/0x3e0
-> Dec 15 19:02:18 teela kernel:  [<c1334a2e>] btrfs_find_create_tree_block+0xe/0x10
-> Dec 15 19:02:18 teela kernel:  [<c132a57f>] btrfs_alloc_tree_block+0x1ef/0x5f0
-> Dec 15 19:02:18 teela kernel:  [<c130f7c3>] __btrfs_cow_block+0x143/0x5f0
-> Dec 15 19:02:18 teela kernel:  [<c130fe1a>] btrfs_cow_block+0x13a/0x220
-> Dec 15 19:02:18 teela kernel:  [<c13132f1>] btrfs_search_slot+0x1d1/0x870
-> Dec 15 19:02:18 teela kernel:  [<c132fcdd>] btrfs_lookup_file_extent+0x4d/0x60
-> Dec 15 19:02:18 teela kernel:  [<c1354fe6>] __btrfs_drop_extents+0x176/0x1070
-> Dec 15 19:02:18 teela kernel:  [<c1150377>] ? kmem_cache_alloc+0xb7/0x190
-> Dec 15 19:02:18 teela kernel:  [<c133dbb5>] ? start_transaction+0x65/0x4b0
-> Dec 15 19:02:18 teela kernel:  [<c1150597>] ? __kmalloc+0x147/0x1e0
-> Dec 15 19:02:18 teela kernel:  [<c1345005>] cow_file_range_inline+0x215/0x6b0
-> Dec 15 19:02:18 teela kernel:  [<c13459fc>] cow_file_range.isra.49+0x55c/0x6d0
-> Dec 15 19:02:18 teela kernel:  [<c1361795>] ? lock_extent_bits+0x75/0x1e0
-> Dec 15 19:02:18 teela kernel:  [<c1346d51>] run_delalloc_range+0x441/0x470
-> Dec 15 19:02:18 teela kernel:  [<c13626e4>] writepage_delalloc.isra.47+0x144/0x1e0
-> Dec 15 19:02:18 teela kernel:  [<c1364548>] __extent_writepage+0xd8/0x2b0
-> Dec 15 19:02:18 teela kernel:  [<c1365c4c>] extent_writepages+0x25c/0x380
-> Dec 15 19:02:18 teela kernel:  [<c1342cd0>] ? btrfs_real_readdir+0x610/0x610
-> Dec 15 19:02:18 teela kernel:  [<c133ff0f>] btrfs_writepages+0x1f/0x30
-> Dec 15 19:02:18 teela kernel:  [<c110ff85>] do_writepages+0x15/0x40
-> Dec 15 19:02:18 teela kernel:  [<c1190a95>] __writeback_single_inode+0x35/0x2f0
-> Dec 15 19:02:18 teela kernel:  [<c119112e>] writeback_sb_inodes+0x16e/0x340
-> Dec 15 19:02:18 teela kernel:  [<c119145a>] wb_writeback+0xaa/0x280
-> Dec 15 19:02:18 teela kernel:  [<c1191de8>] wb_workfn+0xd8/0x3e0
-> Dec 15 19:02:18 teela kernel:  [<c104fd34>] process_one_work+0x114/0x3e0
-> Dec 15 19:02:18 teela kernel:  [<c1050b4f>] worker_thread+0x2f/0x4b0
-> Dec 15 19:02:18 teela kernel:  [<c1050b20>] ? create_worker+0x180/0x180
-> Dec 15 19:02:18 teela kernel:  [<c10552e7>] kthread+0x97/0xb0
-> Dec 15 19:02:18 teela kernel:  [<c1055250>] ? __kthread_parkme+0x60/0x60
-> Dec 15 19:02:18 teela kernel:  [<c19b5cb7>] ret_from_fork+0x1b/0x28
-> Dec 15 19:02:18 teela kernel: Mem-Info:
-> Dec 15 19:02:18 teela kernel: active_anon:58685 inactive_anon:90 isolated_anon:0
->                                active_file:274324 inactive_file:281962 isolated_file:0
+> This is do-able but i think it will require the same amount of changes than
+> what i had in mind (excluding the block bounce code) with one drawback. Doing
+> it that way we can not free page A.
 
-OK, so there is still some anonymous memory that could be swapped out
-and quite a lot of page cache. This might be harder to reclaim because
-the allocation is a GFP_NOFS request which is limited in its reclaim
-capabilities. It might be possible that those pagecache pages are pinned
-in some way by the the filesystem.
+I guess I'd have to see code implementing your approach to be able to judge
+what ends up being less code - the devil is in the details here I believe.
+Actually, when thinking about it with a fresh mind, I don't think we'd have
+to catch kmap() at all with my approach - all writes could be cached either
+in grab_cache_page_write_begin() or in page_mkwrite(). What I like about my
+solution is that it is completely fs agnostic and the places that need
+handling of device pages have very relaxed locking constraints - grabbing
+locks necessary to update mappings / communicate with the device should be
+no brainer in those contexts.
 
->                                unevictable:0 dirty:649 writeback:0 unstable:0
->                                slab_reclaimable:40662 slab_unreclaimable:17754
->                                mapped:7382 shmem:202 pagetables:351 bounce:0
->                                free:206736 free_pcp:332 free_cma:0
-> Dec 15 19:02:18 teela kernel: Node 0 active_anon:234740kB inactive_anon:360kB active_file:1097296kB inactive_file:1127848kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:29528kB dirty:2596kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 184320kB anon_thp: 808kB writeback_tmp:0kB unstable:0kB pages_scanned:0 all_unreclaimable? no
-> Dec 15 19:02:18 teela kernel: DMA free:3952kB min:788kB low:984kB high:1180kB active_anon:0kB inactive_anon:0kB active_file:7316kB inactive_file:0kB unevictable:0kB writepending:96kB present:15992kB managed:15916kB mlocked:0kB slab_reclaimable:3200kB slab_unreclaimable:1408kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> Dec 15 19:02:18 teela kernel: lowmem_reserve[]: 0 813 3474 3474
-> Dec 15 19:02:18 teela kernel: Normal free:41332kB min:41368kB low:51708kB high:62048kB active_anon:0kB inactive_anon:0kB active_file:532748kB inactive_file:44kB unevictable:0kB writepending:24kB present:897016kB managed:836248kB mlocked:0kB slab_reclaimable:159448kB slab_unreclaimable:69608kB kernel_stack:1112kB pagetables:1404kB bounce:0kB free_pcp:528kB local_pcp:340kB free_cma:0kB
+> On some workload this probably does not hurt much but on workload where you
+> read a big dataset from disk and then use it only on the GPU for long period
+> of time (minutes/hours) you will waste GB of system memory.
 
-And this shows that there is no anonymous memory in the lowmem zone.
-Note that this request cannot use the highmem zone so no swap out would
-help. So if we are not able to reclaim those pages on the file LRU then
-we are out of luck
+I was thinking about this as well. So you could just leave the page A to be
+undergoing normal page aging and reclaim. However what you need is to
+somehow maintain the information that index I in file F is mapped to the
+device's page A' so that ->readpage() and friends know they should pull the
+page from the device and not from disk. Traditionally we do this by
+exceptional entries in the radix tree - i.e., when we reclaim A, we do not
+insert shadow exceptional entry into the radix tree telling when the page
+was evicted but instead insert there exceptional entry telling this page
+is stored in the device.
 
-> Dec 15 19:02:18 teela kernel: lowmem_reserve[]: 0 0 21292 21292
-> Dec 15 19:02:18 teela kernel: HighMem free:781660kB min:512kB low:34356kB high:68200kB active_anon:234740kB inactive_anon:360kB active_file:557232kB inactive_file:1127804kB unevictable:0kB writepending:2592kB present:2725384kB managed:2725384kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:800kB local_pcp:608kB free_cma:0kB
+> Right now i am working on some other patchset, i intend to take a stab at this
+> in January/February time frame, before summit so i can post an RFC and have a
+> clear picture of every code path that needs modifications. I expect this would
+> provide better frame for discussion.
 
-That being said, the OOM killer invocation is clearly pointless and
-pre-mature. We normally do not invoke it normally for GFP_NOFS requests
-exactly for these reasons. But this is GFP_NOFS|__GFP_NOFAIL which
-behaves differently. I am about to change that but my last attempt [1]
-has to be rethought.
+Yeah, that sounds good.
 
-Now another thing is that the __GFP_NOFAIL which has this nasty side
-effect has been introduced by me d1b5c5671d01 ("btrfs: Prevent from
-early transaction abort") in 4.3 so I am quite surprised that this has
-shown up only in 4.8. Anyway there might be some other changes in the
-btrfs which could make it more subtle.
+> I assume i will have to change >readpage >readpages writepage >writepages but
+> i think that the only place i really need to change are do_generic_file_read()
+> and generic_perform_write() (or iov_iter_copy_*). Of course this only apply to
+> fs that use those generic helpers.
 
-I believe the right way to go around this is to pursue what I've started
-in [1]. I will try to prepare something for testing today for you. Stay
-tuned. But I would be really happy if somebody from the btrfs camp could
-check the NOFS aspect of this allocation. We have already seen
-allocation stalls from this path quite recently
+Not really. There is other stuff that can be pulling pagecache pages in
+memory - e.g. think of readahead, or page faults, or page fault around
+logic, or splice, or ...
+ 
+> I also probably will change >mmap or rather the helper it uses to set the pte
+> depending on what looks better.
+> 
+> Note that i don't think wrapping is an easy task. I would need to replace page
+> A mapping (struct page.mapping) to point to a wrapping address_space but there
+> is enough place in the kernel that directly dereference that and expect to hit
+> the right (real) address_space. I would need to replace all dereference of
+> page->mapping to an helper function and possibly would need to change some of
+> the call site logic accordingly. This might prove a bigger change than just
+> having to use bounce in do_generic_file_read() and generic_perform_write().
 
-[1] http://lkml.kernel.org/r/20161201152517.27698-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20161214101743.GA25578@dhcp22.suse.cz
+So what I meant by wrapping is that you'd wrap places that call ->readpage,
+->readpages, ->writepage, ->writepages with a helper function that will do
+what you need.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
