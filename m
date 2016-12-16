@@ -1,157 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C8B006B026C
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 11:37:53 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id y124so95299717iof.4
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 08:37:53 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 935BC6B026E
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 11:38:04 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id o141so23996779itc.1
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 08:38:04 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h190si3231684ite.62.2016.12.16.08.37.53
+        by mx.google.com with ESMTPS id f129si3245762itf.47.2016.12.16.08.38.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 08:37:53 -0800 (PST)
-Date: Fri, 16 Dec 2016 11:37:50 -0500
+        Fri, 16 Dec 2016 08:38:03 -0800 (PST)
+Date: Fri, 16 Dec 2016 11:38:01 -0500
 From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [PATCH 2/9 v2] xfs: introduce and use KM_NOLOCKDEP to silence
- reclaim lockdep false positives
-Message-ID: <20161216163749.GE8447@bfoster.bfoster>
+Subject: Re: [PATCH 3/9] xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+Message-ID: <20161216163801.GF8447@bfoster.bfoster>
 References: <20161215140715.12732-1-mhocko@kernel.org>
- <20161215140715.12732-3-mhocko@kernel.org>
- <20161216154041.GA7645@dhcp22.suse.cz>
+ <20161215140715.12732-4-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161216154041.GA7645@dhcp22.suse.cz>
+In-Reply-To: <20161215140715.12732-4-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri, Dec 16, 2016 at 04:40:41PM +0100, Michal Hocko wrote:
-> Updated patch after Mike noticed a BUG_ON when KM_NOLOCKDEP is used.
-> ---
-> From 1497e713e11639157aef21cae29052cb3dc7ab44 Mon Sep 17 00:00:00 2001
+On Thu, Dec 15, 2016 at 03:07:09PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
-> Date: Thu, 15 Dec 2016 13:06:43 +0100
-> Subject: [PATCH] xfs: introduce and use KM_NOLOCKDEP to silence reclaim
->  lockdep false positives
 > 
-> Now that the page allocator offers __GFP_NOLOCKDEP let's introduce
-> KM_NOLOCKDEP alias for the xfs allocation APIs. While we are at it
-> also change KM_NOFS users introduced by b17cb364dbbb ("xfs: fix missing
-> KM_NOFS tags to keep lockdep happy") and use the new flag for them
-> instead. There is really no reason to make these allocations contexts
-> weaker just because of the lockdep which even might not be enabled
-> in most cases.
+> xfs has defined PF_FSTRANS to declare a scope GFP_NOFS semantic quite
+> some time ago. We would like to make this concept more generic and use
+> it for other filesystems as well. Let's start by giving the flag a
+> more genric name PF_MEMALLOC_NOFS which is in line with an exiting
+
+Typos: generic						     existing
+
+> PF_MEMALLOC_NOIO already used for the same purpose for GFP_NOIO
+> contexts. Replace all PF_FSTRANS usage from the xfs code in the first
+> step before we introduce a full API for it as xfs uses the flag directly
+> anyway.
 > 
-
-Hi Michal,
-
-I haven't gone back to fully grok b17cb364dbbb ("xfs: fix missing
-KM_NOFS tags to keep lockdep happy"), so I'm not really familiar with
-the original problem. FWIW, there was another KM_NOFS instance added by
-that commit in xlog_cil_prepare_log_vecs() that is now in
-xlog_cil_alloc_shadow_bufs(). Perhaps Dave can confirm whether the
-original issue still applies..?
-
-Brian
-
-> Changes since v1
-> - check for KM_NOLOCKDEP in kmem_flags_convert to not hit sanity BUG_ON
->   as per Mike Galbraith
+> This patch doesn't introduce any functional change.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  fs/xfs/kmem.h                | 6 +++++-
->  fs/xfs/libxfs/xfs_da_btree.c | 4 ++--
->  fs/xfs/xfs_buf.c             | 2 +-
->  fs/xfs/xfs_dir2_readdir.c    | 2 +-
->  4 files changed, 9 insertions(+), 5 deletions(-)
+
+Otherwise seems fine to me:
+
+Reviewed-by: Brian Foster <bfoster@redhat.com>
+
+>  fs/xfs/kmem.c             |  4 ++--
+>  fs/xfs/kmem.h             |  2 +-
+>  fs/xfs/libxfs/xfs_btree.c |  2 +-
+>  fs/xfs/xfs_aops.c         |  6 +++---
+>  fs/xfs/xfs_trans.c        | 12 ++++++------
+>  include/linux/sched.h     |  2 ++
+>  6 files changed, 15 insertions(+), 13 deletions(-)
 > 
+> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> index 339c696bbc01..a76a05dae96b 100644
+> --- a/fs/xfs/kmem.c
+> +++ b/fs/xfs/kmem.c
+> @@ -80,13 +80,13 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+>  	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
+>  	 * the filesystem here and potentially deadlocking.
+>  	 */
+> -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  		noio_flag = memalloc_noio_save();
+>  
+>  	lflags = kmem_flags_convert(flags);
+>  	ptr = __vmalloc(size, lflags | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
+>  
+> -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  		memalloc_noio_restore(noio_flag);
+>  
+>  	return ptr;
 > diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> index 689f746224e7..d5d634ef1f7f 100644
+> index ea3984091d58..e40ddd12900b 100644
 > --- a/fs/xfs/kmem.h
 > +++ b/fs/xfs/kmem.h
-> @@ -33,6 +33,7 @@ typedef unsigned __bitwise xfs_km_flags_t;
->  #define KM_NOFS		((__force xfs_km_flags_t)0x0004u)
->  #define KM_MAYFAIL	((__force xfs_km_flags_t)0x0008u)
->  #define KM_ZERO		((__force xfs_km_flags_t)0x0010u)
-> +#define KM_NOLOCKDEP	((__force xfs_km_flags_t)0x0020u)
->  
->  /*
->   * We use a special process flag to avoid recursive callbacks into
-> @@ -44,7 +45,7 @@ kmem_flags_convert(xfs_km_flags_t flags)
->  {
->  	gfp_t	lflags;
->  
-> -	BUG_ON(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL|KM_ZERO));
-> +	BUG_ON(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL|KM_ZERO|KM_NOLOCKDEP));
->  
->  	if (flags & KM_NOSLEEP) {
+> @@ -51,7 +51,7 @@ kmem_flags_convert(xfs_km_flags_t flags)
 >  		lflags = GFP_ATOMIC | __GFP_NOWARN;
-> @@ -57,6 +58,9 @@ kmem_flags_convert(xfs_km_flags_t flags)
->  	if (flags & KM_ZERO)
->  		lflags |= __GFP_ZERO;
+>  	} else {
+>  		lflags = GFP_KERNEL | __GFP_NOWARN;
+> -		if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +		if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  			lflags &= ~__GFP_FS;
+>  	}
 >  
-> +	if (flags & KM_NOLOCKDEP)
-> +		lflags |= __GFP_NOLOCKDEP;
-> +
->  	return lflags;
->  }
->  
-> diff --git a/fs/xfs/libxfs/xfs_da_btree.c b/fs/xfs/libxfs/xfs_da_btree.c
-> index f2dc1a950c85..b8b5f6914863 100644
-> --- a/fs/xfs/libxfs/xfs_da_btree.c
-> +++ b/fs/xfs/libxfs/xfs_da_btree.c
-> @@ -2429,7 +2429,7 @@ xfs_buf_map_from_irec(
->  
->  	if (nirecs > 1) {
->  		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map),
-> -				  KM_SLEEP | KM_NOFS);
-> +				  KM_SLEEP | KM_NOLOCKDEP);
->  		if (!map)
->  			return -ENOMEM;
->  		*mapp = map;
-> @@ -2488,7 +2488,7 @@ xfs_dabuf_map(
->  		 */
->  		if (nfsb != 1)
->  			irecs = kmem_zalloc(sizeof(irec) * nfsb,
-> -					    KM_SLEEP | KM_NOFS);
-> +					    KM_SLEEP | KM_NOLOCKDEP);
->  
->  		nirecs = nfsb;
->  		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, irecs,
-> diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-> index 7f0a01f7b592..f31ae592dcae 100644
-> --- a/fs/xfs/xfs_buf.c
-> +++ b/fs/xfs/xfs_buf.c
-> @@ -1785,7 +1785,7 @@ xfs_alloc_buftarg(
->  {
->  	xfs_buftarg_t		*btp;
->  
-> -	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP | KM_NOFS);
-> +	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP | KM_NOLOCKDEP);
->  
->  	btp->bt_mount = mp;
->  	btp->bt_dev =  bdev->bd_dev;
-> diff --git a/fs/xfs/xfs_dir2_readdir.c b/fs/xfs/xfs_dir2_readdir.c
-> index 003a99b83bd8..033ed65d7ce6 100644
-> --- a/fs/xfs/xfs_dir2_readdir.c
-> +++ b/fs/xfs/xfs_dir2_readdir.c
-> @@ -503,7 +503,7 @@ xfs_dir2_leaf_getdents(
->  	length = howmany(bufsize + geo->blksize, (1 << geo->fsblog));
->  	map_info = kmem_zalloc(offsetof(struct xfs_dir2_leaf_map_info, map) +
->  				(length * sizeof(struct xfs_bmbt_irec)),
-> -			       KM_SLEEP | KM_NOFS);
-> +			       KM_SLEEP | KM_NOLOCKDEP);
->  	map_info->map_size = length;
+> diff --git a/fs/xfs/libxfs/xfs_btree.c b/fs/xfs/libxfs/xfs_btree.c
+> index 21e6a6ab6b9a..a2672ba4dc33 100644
+> --- a/fs/xfs/libxfs/xfs_btree.c
+> +++ b/fs/xfs/libxfs/xfs_btree.c
+> @@ -2866,7 +2866,7 @@ xfs_btree_split_worker(
+>  	struct xfs_btree_split_args	*args = container_of(work,
+>  						struct xfs_btree_split_args, work);
+>  	unsigned long		pflags;
+> -	unsigned long		new_pflags = PF_FSTRANS;
+> +	unsigned long		new_pflags = PF_MEMALLOC_NOFS;
 >  
 >  	/*
+>  	 * we are in a transaction context here, but may also be doing work
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index 0f56fcd3a5d5..61ca9f9c5a12 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -189,7 +189,7 @@ xfs_setfilesize_trans_alloc(
+>  	 * We hand off the transaction to the completion thread now, so
+>  	 * clear the flag here.
+>  	 */
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	return 0;
+>  }
+>  
+> @@ -252,7 +252,7 @@ xfs_setfilesize_ioend(
+>  	 * thus we need to mark ourselves as being in a transaction manually.
+>  	 * Similarly for freeze protection.
+>  	 */
+> -	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	__sb_writers_acquired(VFS_I(ip)->i_sb, SB_FREEZE_FS);
+>  
+>  	/* we abort the update if there was an IO error */
+> @@ -1015,7 +1015,7 @@ xfs_do_writepage(
+>  	 * Given that we do not allow direct reclaim to call us, we should
+>  	 * never be called while in a filesystem transaction.
+>  	 */
+> -	if (WARN_ON_ONCE(current->flags & PF_FSTRANS))
+> +	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC_NOFS))
+>  		goto redirty;
+>  
+>  	/*
+> diff --git a/fs/xfs/xfs_trans.c b/fs/xfs/xfs_trans.c
+> index 70f42ea86dfb..f5969c8274fc 100644
+> --- a/fs/xfs/xfs_trans.c
+> +++ b/fs/xfs/xfs_trans.c
+> @@ -134,7 +134,7 @@ xfs_trans_reserve(
+>  	bool		rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
+>  
+>  	/* Mark this thread as being in a transaction */
+> -	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	/*
+>  	 * Attempt to reserve the needed disk blocks by decrementing
+> @@ -144,7 +144,7 @@ xfs_trans_reserve(
+>  	if (blocks > 0) {
+>  		error = xfs_mod_fdblocks(tp->t_mountp, -((int64_t)blocks), rsvd);
+>  		if (error != 0) {
+> -			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +			current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  			return -ENOSPC;
+>  		}
+>  		tp->t_blk_res += blocks;
+> @@ -221,7 +221,7 @@ xfs_trans_reserve(
+>  		tp->t_blk_res = 0;
+>  	}
+>  
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	return error;
+>  }
+> @@ -914,7 +914,7 @@ __xfs_trans_commit(
+>  
+>  	xfs_log_commit_cil(mp, tp, &commit_lsn, regrant);
+>  
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	xfs_trans_free(tp);
+>  
+>  	/*
+> @@ -944,7 +944,7 @@ __xfs_trans_commit(
+>  		if (commit_lsn == -1 && !error)
+>  			error = -EIO;
+>  	}
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	xfs_trans_free_items(tp, NULLCOMMITLSN, !!error);
+>  	xfs_trans_free(tp);
+>  
+> @@ -998,7 +998,7 @@ xfs_trans_cancel(
+>  		xfs_log_done(mp, tp->t_ticket, NULL, false);
+>  
+>  	/* mark this thread as no longer being in a transaction */
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	xfs_trans_free_items(tp, NULLCOMMITLSN, dirty);
+>  	xfs_trans_free(tp);
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 4d1905245c7a..baffd340ea82 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -2320,6 +2320,8 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+>  #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
+>  #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
+>  
+> +#define PF_MEMALLOC_NOFS PF_FSTRANS	/* Transition to a more generic GFP_NOFS scope semantic */
+> +
+>  /*
+>   * Only the _current_ task can read/write to tsk->flags, but other
+>   * tasks can access tsk->flags in readonly mode for example
 > -- 
 > 2.10.2
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
 > the body of a message to majordomo@vger.kernel.org
