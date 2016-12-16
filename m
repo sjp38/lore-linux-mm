@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 653E96B0269
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B361B6B0269
 	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 13:36:04 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id x26so62782293qtb.6
+Received: by mail-ua0-f200.google.com with SMTP id b35so20250920uaa.0
         for <linux-mm@kvack.org>; Fri, 16 Dec 2016 10:36:04 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id m30si3810716qtg.333.2016.12.16.10.36.03
+        by mx.google.com with ESMTPS id c76si2475677vke.47.2016.12.16.10.36.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Dec 2016 10:36:03 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 04/14] sparc64: load shared id into context register 1
-Date: Fri, 16 Dec 2016 10:35:27 -0800
-Message-Id: <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 08/14] sparc64: shared context tsb handling at context switch time
+Date: Fri, 16 Dec 2016 10:35:31 -0800
+Message-Id: <1481913337-9331-9-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,291 +20,217 @@ List-ID: <linux-mm.kvack.org>
 To: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: "David S . Miller" <davem@davemloft.net>, Bob Picco <bob.picco@oracle.com>, Nitin Gupta <nitin.m.gupta@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, Julian Calaby <julian.calaby@gmail.com>, Adam Buchbinder <adam.buchbinder@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-In current code, only context ID register 0 is set and used by the MMU.
-On sun4v platforms that support MMU shared context, there is an additional
-context ID register: specifically context register 1.  When searching
-the TLB, the MMU will find a match if the virtual address matches and
-the ID contained in context register 0 -OR- context register 1 matches.
+At context switch time, load the shared context TSB into the MMU (if
+applicable) and set up global state to include the TSB.
 
-Load the shared context ID into context ID register 1.  Care must be
-taken to load register 1 after register 0, as loading register 0
-overwrites both register 0 and 1.  Modify code loading register 0 to
-also load register one if applicable.
+sun4v loads the address of base and huge page TSBs into scratchpad
+registers.  There is not an extra register for shared context TSB.
+So, use offset 0xd0 in the trap block.  This is TRAP_PER_CPU_TSB_HUGE,
+and is only used on sun4u.  We can then use this area for the shared
+context on sun4v.
+
+With this commit, global state is set up for shared context TSB but
+still not used.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- arch/sparc/include/asm/mmu_context_64.h | 37 +++++++++++++++++--
- arch/sparc/include/asm/spitfire.h       |  2 ++
- arch/sparc/kernel/fpu_traps.S           | 63 +++++++++++++++++++++++++++++++++
- arch/sparc/kernel/rtrap_64.S            | 20 +++++++++++
- arch/sparc/kernel/trampoline_64.S       | 20 +++++++++++
- 5 files changed, 140 insertions(+), 2 deletions(-)
+ arch/sparc/include/asm/mmu_context_64.h | 27 ++++++++++++++----
+ arch/sparc/include/asm/trap_block.h     |  3 +-
+ arch/sparc/kernel/head_64.S             |  2 +-
+ arch/sparc/kernel/tsb.S                 | 50 +++++++++++++++++++++------------
+ 4 files changed, 57 insertions(+), 25 deletions(-)
 
 diff --git a/arch/sparc/include/asm/mmu_context_64.h b/arch/sparc/include/asm/mmu_context_64.h
-index acaea6d..84268df 100644
+index 84268df..0dc95cb5 100644
 --- a/arch/sparc/include/asm/mmu_context_64.h
 +++ b/arch/sparc/include/asm/mmu_context_64.h
-@@ -61,8 +61,11 @@ void smp_tsb_sync(struct mm_struct *mm);
- #define smp_tsb_sync(__mm) do { } while (0)
- #endif
+@@ -36,21 +36,38 @@ void destroy_context(struct mm_struct *mm);
+ void __tsb_context_switch(unsigned long pgd_pa,
+ 			  struct tsb_config *tsb_base,
+ 			  struct tsb_config *tsb_huge,
++			  struct tsb_config *tsb_huge_shared,
+ 			  unsigned long tsb_descr_pa);
  
--/* Set MMU context in the actual hardware. */
--#define load_secondary_context(__mm) \
-+/*
-+ * Set MMU context in the actual hardware.  Secondary context register
-+ * zero is loaded with task specific context.
-+ */
-+#define load_secondary_context_0(__mm) \
- 	__asm__ __volatile__( \
- 	"\n661:	stxa		%0, [%1] %2\n" \
- 	"	.section	.sun4v_1insn_patch, \"ax\"\n" \
-@@ -74,6 +77,36 @@ void smp_tsb_sync(struct mm_struct *mm);
- 	: "r" (CTX_HWBITS((__mm)->context)), \
- 	  "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU), "i" (ASI_MMU))
- 
-+/*
-+ * Secondary context register one is loaded with shared context if
-+ * it exists for the task.
-+ */
-+#define load_secondary_context_1(__mm) \
-+	__asm__ __volatile__( \
-+	"\n661: stxa		%0, [%1] %2\n" \
-+	"	.section	.sun4v_1insn_patch, \"ax\"\n" \
-+	"	.word		661b\n" \
-+	"	stxa		%0, [%1] %3\n" \
-+	"	.previous\n" \
-+	"	flush		%%g6\n" \
-+	: /* No outputs */ \
-+	: "r" (SHARED_CTX_HWBITS((__mm)->context)), \
-+	  "r" (SECONDARY_CONTEXT_R1), "i" (ASI_DMMU), "i" (ASI_MMU))
-+
-+#if defined(CONFIG_SHARED_MMU_CTX)
-+#define load_secondary_context(__mm) \
-+	do { \
-+		load_secondary_context_0(__mm); \
-+		if ((__mm)->context.shared_ctx) \
-+			load_secondary_context_1(__mm); \
-+	} while (0)
-+#else
-+#define load_secondary_context(__mm) \
-+	do { \
-+		load_secondary_context_0(__mm); \
-+	} while (0)
++#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+ static inline void tsb_context_switch(struct mm_struct *mm)
+ {
++	/*
++	 * The conditional for tsb_descr_pa handles shared context
++	 * case where tsb_block[0] may not be used.
++	 */
+ 	__tsb_context_switch(__pa(mm->pgd),
+ 			     &mm->context.tsb_block[MM_TSB_BASE],
+-#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+ 			     (mm->context.tsb_block[MM_TSB_HUGE].tsb ?
+ 			      &mm->context.tsb_block[MM_TSB_HUGE] :
+-			      NULL)
++			      NULL),
++			     (mm->context.tsb_block[MM_TSB_HUGE_SHARED].tsb ?
++			      &mm->context.tsb_block[MM_TSB_HUGE_SHARED] :
++			      NULL),
++			     (mm->context.tsb_block[0].tsb ?
++			      __pa(&mm->context.tsb_descr[0]) :
++			      __pa(&mm->context.tsb_descr[1])));
++}
+ #else
+-			     NULL
+-#endif
+-			     , __pa(&mm->context.tsb_descr[MM_TSB_BASE]));
++static inline void tsb_context_switch(struct mm_struct *mm)
++{
++	__tsb_context_switch(__pa(mm->pgd),
++			     &mm->context.tsb_block[MM_TSB_BASE],
++			     NULL,
++			     NULL,
++			     __pa(&mm->context.tsb_descr[MM_TSB_BASE]);
+ }
 +#endif
+ 
+ void tsb_grow(struct mm_struct *mm,
+ 	      unsigned long tsb_index,
+diff --git a/arch/sparc/include/asm/trap_block.h b/arch/sparc/include/asm/trap_block.h
+index ec9c04d..e971785 100644
+--- a/arch/sparc/include/asm/trap_block.h
++++ b/arch/sparc/include/asm/trap_block.h
+@@ -96,7 +96,8 @@ extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
+ #define TRAP_PER_CPU_FAULT_INFO		0x40
+ #define TRAP_PER_CPU_CPU_MONDO_BLOCK_PA	0xc0
+ #define TRAP_PER_CPU_CPU_LIST_PA	0xc8
+-#define TRAP_PER_CPU_TSB_HUGE		0xd0
++#define TRAP_PER_CPU_TSB_HUGE		0xd0	/* sun4u only */
++#define TRAP_PER_CPU_TSB_HUGE_SHARED	0xd0	/* sun4v only */
+ #define TRAP_PER_CPU_TSB_HUGE_TEMP	0xd8
+ #define TRAP_PER_CPU_IRQ_WORKLIST_PA	0xe0
+ #define TRAP_PER_CPU_CPU_MONDO_QMASK	0xe8
+diff --git a/arch/sparc/kernel/head_64.S b/arch/sparc/kernel/head_64.S
+index 6aa3da1..0bf1e1f 100644
+--- a/arch/sparc/kernel/head_64.S
++++ b/arch/sparc/kernel/head_64.S
+@@ -875,7 +875,6 @@ sparc64_boot_end:
+ #include "sun4v_tlb_miss.S"
+ #include "sun4v_ivec.S"
+ #include "ktlb.S"
+-#include "tsb.S"
+ 
+ /*
+  * The following skip makes sure the trap table in ttable.S is aligned
+@@ -916,6 +915,7 @@ swapper_4m_tsb:
+ 
+ ! 0x0000000000428000
+ 
++#include "tsb.S"
+ #include "systbls_64.S"
+ 
+ 	.data
+diff --git a/arch/sparc/kernel/tsb.S b/arch/sparc/kernel/tsb.S
+index d568c82..3ed3e7c 100644
+--- a/arch/sparc/kernel/tsb.S
++++ b/arch/sparc/kernel/tsb.S
+@@ -374,7 +374,8 @@ tsb_flush:
+ 	 * %o0: page table physical address
+ 	 * %o1:	TSB base config pointer
+ 	 * %o2:	TSB huge config pointer, or NULL if none
+-	 * %o3:	Hypervisor TSB descriptor physical address
++	 * %o3: TSB huge shared config pointer, or NULL if none
++	 * %o4: Hypervisor TSB descriptor physical address
+ 	 *
+ 	 * We have to run this whole thing with interrupts
+ 	 * disabled so that the current cpu doesn't change
+@@ -387,6 +388,8 @@ __tsb_context_switch:
+ 	rdpr	%pstate, %g1
+ 	wrpr	%g1, PSTATE_IE, %pstate
+ 
++	mov	%o4, %g7
 +
- void __flush_tlb_mm(unsigned long, unsigned long);
+ 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
  
- /* Switch the current MM context. */
-diff --git a/arch/sparc/include/asm/spitfire.h b/arch/sparc/include/asm/spitfire.h
-index 1d8321c..1fa4594 100644
---- a/arch/sparc/include/asm/spitfire.h
-+++ b/arch/sparc/include/asm/spitfire.h
-@@ -33,6 +33,8 @@
- #define DMMU_SFAR		0x0000000000000020
- #define VIRT_WATCHPOINT		0x0000000000000038
- #define PHYS_WATCHPOINT		0x0000000000000040
-+#define	PRIMARY_CONTEXT_R1	0x0000000000000108
-+#define	SECONDARY_CONTEXT_R1	0x0000000000000110
+ 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
+@@ -397,13 +400,8 @@ __tsb_context_switch:
  
- #define SPITFIRE_HIGHEST_LOCKED_TLBENT	(64 - 1)
- #define CHEETAH_HIGHEST_LOCKED_TLBENT	(16 - 1)
-diff --git a/arch/sparc/kernel/fpu_traps.S b/arch/sparc/kernel/fpu_traps.S
-index 336d275..f85a034 100644
---- a/arch/sparc/kernel/fpu_traps.S
-+++ b/arch/sparc/kernel/fpu_traps.S
-@@ -73,6 +73,16 @@ do_fpdis:
- 	ldxa		[%g3] ASI_MMU, %g5
- 	.previous
+ 	ldx	[%o2 + TSB_CONFIG_REG_VAL], %g3
  
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g3
-+	ldxa		[%g3] ASI_MMU, %g4
-+	.previous
-+	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-+	mov		SECONDARY_CONTEXT, %g3
+-1:	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE]
+-
+-	sethi	%hi(tlb_type), %g2
+-	lduw	[%g2 + %lo(tlb_type)], %g2
+-	cmp	%g2, 3
+-	bne,pt	%icc, 50f
+-	 nop
++1:	IF_TLB_TYPE_NOT_HYPE(%o5, 50f)
++	/* Only setup HV TSB descriptors on appropriate MMU */
+ 
+ 	/* Hypervisor TSB switch. */
+ 	mov	SCRATCHPAD_UTSBREG1, %o5
+@@ -411,27 +409,43 @@ __tsb_context_switch:
+ 	mov	SCRATCHPAD_UTSBREG2, %o5
+ 	stxa	%g3, [%o5] ASI_SCRATCHPAD
+ 
+-	mov	2, %o0
++	/* Start counting HV tsb descriptors. */
++	mov	1, %o0				/* Always MM_TSB_BASE */
++	cmp	%g3, -1				/* MM_TSB_HUGE ? */
++	beq	%xcc, 2f
++	 nop
++	add	%o0, 1, %o0
++2:
++	brz,pt	%o3, 3f				/* MM_TSB_HUGE_SHARED ? */
++	 mov	-1, %g3
++	ldx	[%o3 + TSB_CONFIG_REG_VAL], %g3
++3:
++	/* Put Huge Shared TSB in trap block */
++	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE_SHARED]
+ 	cmp	%g3, -1
+-	move	%xcc, 1, %o0
+-
++	beq	%xcc, 4f
++	 nop
++	add	%o0, 1, %o0
++4:
+ 	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
+-	mov	%o3, %o1
++	mov	%g7, %o1
+ 	ta	HV_FAST_TRAP
+ 
+ 	/* Finish up.  */
+-	ba,pt	%xcc, 9f
++	ba,pt	%xcc, 60f
+ 	 nop
+ 
+ 	/* SUN4U TSB switch.  */
+-50:	mov	TSB_REG, %o5
++50:	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE]
 +
- 	sethi		%hi(sparc64_kern_sec_context), %g2
- 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
++	mov	TSB_REG, %o5
+ 	stxa	%o0, [%o5] ASI_DMMU
+ 	membar	#Sync
+ 	stxa	%o0, [%o5] ASI_IMMU
+ 	membar	#Sync
  
-@@ -114,6 +124,16 @@ do_fpdis:
- 	ldxa		[%g3] ASI_MMU, %g5
- 	.previous
+-2:	ldx	[%o1 + TSB_CONFIG_MAP_VADDR], %o4
+-	brz	%o4, 9f
++	ldx	[%o1 + TSB_CONFIG_MAP_VADDR], %o4
++	brz	%o4, 60f
+ 	 ldx	[%o1 + TSB_CONFIG_MAP_PTE], %o5
  
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g3
-+	ldxa		[%g3] ASI_MMU, %g4
-+	.previous
-+	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-+	mov		SECONDARY_CONTEXT, %g3
-+
- 	add		%g6, TI_FPREGS, %g1
- 	sethi		%hi(sparc64_kern_sec_context), %g2
- 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-@@ -155,6 +175,16 @@ do_fpdis:
- 	ldxa		[%g3] ASI_MMU, %g5
- 	.previous
+ 	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %g2
+@@ -443,7 +457,7 @@ __tsb_context_switch:
+ 	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
+ 	membar	#Sync
  
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g3
-+	ldxa		[%g3] ASI_MMU, %g4
-+	.previous
-+	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-+	mov		SECONDARY_CONTEXT, %g3
-+
- 	sethi		%hi(sparc64_kern_sec_context), %g2
- 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
+-	brz,pt	%o2, 9f
++	brz,pt	%o2, 60f
+ 	 nop
  
-@@ -181,11 +211,24 @@ fpdis_exit:
- 	stxa		%g5, [%g3] ASI_MMU
- 	.previous
+ 	ldx	[%o2 + TSB_CONFIG_MAP_VADDR], %o4
+@@ -455,7 +469,7 @@ __tsb_context_switch:
+ 	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
+ 	membar	#Sync
  
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g3
-+	stxa		%g4, [%g3] ASI_MMU
-+	.previous
-+
- 	membar		#Sync
- fpdis_exit2:
- 	wr		%g7, 0, %gsr
- 	ldx		[%g6 + TI_XFSR], %fsr
- 	rdpr		%tstate, %g3
-+661:	nop
-+	.section	.sun4v_1insn_patch, "ax"
-+	.word		661b
-+	sethi		%hi(TSTATE_PEF), %g4
-+	.previous
- 	or		%g3, %g4, %g3		! anal...
- 	wrpr		%g3, %tstate
- 	wr		%g0, FPRS_FEF, %fprs	! clean DU/DL bits
-@@ -347,6 +390,16 @@ do_fptrap_after_fsr:
- 	ldxa		[%g3] ASI_MMU, %g5
- 	.previous
+-9:
++60:
+ 	wrpr	%g1, %pstate
  
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g3
-+	ldxa		[%g3] ASI_MMU, %g4
-+	.previous
-+	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-+	mov		SECONDARY_CONTEXT, %g3
-+
- 	sethi		%hi(sparc64_kern_sec_context), %g2
- 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
- 
-@@ -377,7 +430,17 @@ do_fptrap_after_fsr:
- 	stxa		%g5, [%g1] ASI_MMU
- 	.previous
- 
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g1
-+	stxa		%g4, [%g1] ASI_MMU
-+	.previous
-+
- 	membar		#Sync
-+	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-+	mov		SECONDARY_CONTEXT, %g1
- 	ba,pt		%xcc, etrap
- 	 wr		%g0, 0, %fprs
- 	.size		do_fptrap,.-do_fptrap
-diff --git a/arch/sparc/kernel/rtrap_64.S b/arch/sparc/kernel/rtrap_64.S
-index 216948c..d409d84 100644
---- a/arch/sparc/kernel/rtrap_64.S
-+++ b/arch/sparc/kernel/rtrap_64.S
-@@ -202,6 +202,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
- 		brnz,pn			%l3, kern_rtt
- 		 mov			PRIMARY_CONTEXT, %l7
- 
-+		/* Get value from SECONDARY_CONTEXT register */
- 661:		ldxa			[%l7 + %l7] ASI_DMMU, %l0
- 		.section		.sun4v_1insn_patch, "ax"
- 		.word			661b
-@@ -212,12 +213,31 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
- 		ldx			[%l1 + %lo(sparc64_kern_pri_nuc_bits)], %l1
- 		or			%l0, %l1, %l0
- 
-+		/* and, put into PRIMARY_CONTEXT register */
- 661:		stxa			%l0, [%l7] ASI_DMMU
- 		.section		.sun4v_1insn_patch, "ax"
- 		.word			661b
- 		stxa			%l0, [%l7] ASI_MMU
- 		.previous
- 
-+		/* Get value from SECONDARY_CONTEXT_R1 register */
-+661:		nop
-+		nop
-+		.section		.sun4v_2insn_patch, "ax"
-+		.word			661b
-+		mov			SECONDARY_CONTEXT_R1, %l7
-+		ldxa			[%l7] ASI_MMU, %l0
-+		.previous
-+
-+		/* and, put into PRIMARY_CONTEXT_R1 register */
-+661:		nop
-+		nop
-+		.section		.sun4v_2insn_patch, "ax"
-+		.word			661b
-+		mov			PRIMARY_CONTEXT_R1, %l7
-+		stxa			%l0, [%l7] ASI_MMU
-+		.previous
-+
- 		sethi			%hi(KERNBASE), %l7
- 		flush			%l7
- 		rdpr			%wstate, %l1
-diff --git a/arch/sparc/kernel/trampoline_64.S b/arch/sparc/kernel/trampoline_64.S
-index 88ede1d..7c4ab3b 100644
---- a/arch/sparc/kernel/trampoline_64.S
-+++ b/arch/sparc/kernel/trampoline_64.S
-@@ -260,6 +260,16 @@ after_lock_tlb:
- 	stxa		%g0, [%g7] ASI_MMU
- 	.previous
- 
-+	/* Save SECONDARY_CONTEXT_R1, membar should be part of patch */
-+	membar		#Sync
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g7
-+	ldxa		[%g7] ASI_MMU, %g1
-+	.previous
-+
- 	membar		#Sync
- 	mov		SECONDARY_CONTEXT, %g7
- 
-@@ -269,6 +279,16 @@ after_lock_tlb:
- 	stxa		%g0, [%g7] ASI_MMU
- 	.previous
- 
-+	/* Restore SECONDARY_CONTEXT_R1, membar should be part of patch */
-+	membar		#Sync
-+661:	nop
-+	nop
-+	.section	.sun4v_2insn_patch, "ax"
-+	.word		661b
-+	mov		SECONDARY_CONTEXT_R1, %g7
-+	stxa		%g1, [%g7] ASI_MMU
-+	.previous
-+
- 	membar		#Sync
- 
- 	/* Everything we do here, until we properly take over the
+ 	retl
 -- 
 2.7.4
 
