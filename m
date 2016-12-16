@@ -1,69 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8976A6B0038
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 05:44:41 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xy5so33604445wjc.0
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 02:44:41 -0800 (PST)
-Received: from mail-wj0-x241.google.com (mail-wj0-x241.google.com. [2a00:1450:400c:c01::241])
-        by mx.google.com with ESMTPS id p21si2788964wmb.29.2016.12.16.02.44.40
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C8C16B0038
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:15:20 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id m67so61815747qkf.0
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 03:15:20 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id l37si2922750qtl.48.2016.12.16.03.15.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 02:44:40 -0800 (PST)
-Received: by mail-wj0-x241.google.com with SMTP id kp2so13871671wjc.0
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 02:44:40 -0800 (PST)
-Date: Fri, 16 Dec 2016 13:44:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: crash during oom reaper (was: Re: [PATCH 4/4] [RFC!] mm: 'struct
- mm_struct' reference counting debugging)
-Message-ID: <20161216104438.GD27758@node>
+        Fri, 16 Dec 2016 03:15:19 -0800 (PST)
+Subject: Re: [PATCH 1/4] mm: add new mmgrab() helper
 References: <20161216082202.21044-1-vegard.nossum@oracle.com>
- <20161216082202.21044-4-vegard.nossum@oracle.com>
- <20161216090157.GA13940@dhcp22.suse.cz>
- <d944e3ca-07d4-c7d6-5025-dc101406b3a7@oracle.com>
- <20161216101113.GE13940@dhcp22.suse.cz>
+ <20161216095624.GR3107@twins.programming.kicks-ass.net>
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Message-ID: <9b9b09ac-f47a-3644-7d20-cc9d059a0b0d@oracle.com>
+Date: Fri, 16 Dec 2016 12:14:40 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161216101113.GE13940@dhcp22.suse.cz>
+In-Reply-To: <20161216095624.GR3107@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Dec 16, 2016 at 11:11:13AM +0100, Michal Hocko wrote:
-> On Fri 16-12-16 10:43:52, Vegard Nossum wrote:
-> [...]
-> > I don't think it's a bug in the OOM reaper itself, but either of the
-> > following two patches will fix the problem (without my understand how or
-> > why):
-> > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index ec9f11d4f094..37b14b2e2af4 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -485,7 +485,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk,
-> > struct mm_struct *mm)
-> >  	 */
-> >  	mutex_lock(&oom_lock);
-> > 
-> > -	if (!down_read_trylock(&mm->mmap_sem)) {
-> > +	if (!down_write_trylock(&mm->mmap_sem)) {
-> 
-> __oom_reap_task_mm is basically the same thing as MADV_DONTNEED and that
-> doesn't require the exlusive mmap_sem. So this looks correct to me.
+On 12/16/2016 10:56 AM, Peter Zijlstra wrote:
+> On Fri, Dec 16, 2016 at 09:21:59AM +0100, Vegard Nossum wrote:
+>> Apart from adding the helper function itself, the rest of the kernel is
+>> converted mechanically using:
+>>
+>>   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_count);/mmgrab\(\1\);/'
+>>   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_count);/mmgrab\(\&\1\);/'
+>>
+>> This is needed for a later patch that hooks into the helper, but might be
+>> a worthwhile cleanup on its own.
+>
+> Given the desire to replace all refcounting with a specific refcount
+> type, this seems to make sense.
+>
+> FYI: http://www.openwall.com/lists/kernel-hardening/2016/12/07/8
 
-BTW, shouldn't we filter out all VM_SPECIAL VMAs there? Or VM_PFNMAP at
-least.
+If we're going that way eventually (replacing all reference counting
+things with a generic interface), I wonder if we shouldn't consider a
+generic mechanism for reference counting debugging too.
 
-MADV_DONTNEED doesn't touch VM_PFNMAP, but I don't see anything matching
-on __oom_reap_task_mm() side.
+We could wrap all the 'type *' + 'type_ref' occurrences in a struct, so
+that with debugging it boils down to just a pointer (like we have now):
 
-Other difference is that you use unmap_page_range() witch doesn't touch
-mmu_notifiers. MADV_DONTNEED goes via zap_page_range(), which invalidates
-the range. Not sure if it can make any difference here.
+struct ref {
+     void *ptr;
+#ifdef CONFIG_REF_DEBUG
+     /* list_entry, pid, stacktrace, etc. */
+#endif
+};
 
--- 
- Kirill A. Shutemov
+Instead of calling refcount_inc() in most of the kernel code, that would
+be considered a low-level detail and you'd have the main interface be
+something like:
+
+void ref_acquire(refcount_t *count, struct ref *old, struct ref *new)
+{
+     refcount_inc(&count);
+     new->ptr = old->ptr;
+#ifdef CONFIG_REF_DEBUG
+     /* extra code for debugging case */
+#endif
+}
+
+So if you had old code that did (for example):
+
+struct task_struct {
+     struct mm_struct *mm;
+     ...
+};
+
+int proc_pid_cmdline_read(struct task_struct *task)
+{
+     struct mm_struct *mm;
+
+     task_lock(task);
+     mm = task->mm;
+     atomic_inc(&mm->mm_users);
+     task_unlock(task);
+
+     ...
+
+     mmput(mm);
+}
+
+you'd instead have:
+
+struct task_struct {
+     struct ref mm;
+};
+
+int proc_pid_cmdline_read(struct task_struct *task)
+{
+     REF(mm);
+
+     task_lock(task);
+     ref_acquire(&mm->mm_users, &task->mm, &mm)
+     task_unlock(task);
+
+     ...
+
+     ref_release(&mm->mm_users, &mm);
+}
+
+Of course you'd define a 'struct ref' per type using a macro or
+something to keep it type safe (maybe even wrap the counter itself in
+there, e.g. mm_users in the example above, so you wouldn't have to pass
+it explicitly).
+
+Functions that don't touch reference counts (because the caller holds
+one) can just take a plain pointer as usual.
+
+In the example above, you could also have ref_release() set mm->ptr =
+NULL; as the pointer should not be considered usable after it has been
+released anyway for added safety/debugability.
+
+Best of both worlds?
+
+
+Vegard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
