@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 68E986B0276
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 739436B027A
 	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:48:29 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id q186so21187964itb.0
+Received: by mail-io0-f199.google.com with SMTP id 136so91838538iou.7
         for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:48:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l72si2928331ita.109.2016.12.16.06.48.28
+        by mx.google.com with ESMTPS id i9si2964669itb.15.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 34/42] userfaultfd: shmem: add userfaultfd_shmem test
-Date: Fri, 16 Dec 2016 15:48:13 +0100
-Message-Id: <20161216144821.5183-35-aarcange@redhat.com>
+Subject: [PATCH 33/42] userfaultfd: shmem: allow registration of shared memory ranges
+Date: Fri, 16 Dec 2016 15:48:12 +0100
+Message-Id: <20161216144821.5183-34-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,131 +22,114 @@ Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@r
 
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-The test verifies that anonymous shared mapping can be used with userfault
-using the existing testing method.
-The shared memory area is allocated using mmap(..., MAP_SHARED |
-MAP_ANONYMOUS, ...) and released using madvise(MADV_REMOVE)
+Expand the userfaultfd_register/unregister routines to allow shared memory
+VMAs. Currently, there is no UFFDIO_ZEROPAGE and write-protection support
+for shared memory VMAs, which is reflected in ioctl methods supported by
+uffdio_register.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- tools/testing/selftests/vm/Makefile      |  4 ++++
- tools/testing/selftests/vm/run_vmtests   | 11 ++++++++++
- tools/testing/selftests/vm/userfaultfd.c | 37 ++++++++++++++++++++++++++++++--
- 3 files changed, 50 insertions(+), 2 deletions(-)
+ fs/userfaultfd.c                         | 21 +++++++--------------
+ include/uapi/linux/userfaultfd.h         |  2 +-
+ tools/testing/selftests/vm/userfaultfd.c |  2 +-
+ 3 files changed, 9 insertions(+), 16 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index 0114aac..900dfaf 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -11,6 +11,7 @@ BINARIES += thuge-gen
- BINARIES += transhuge-stress
- BINARIES += userfaultfd
- BINARIES += userfaultfd_hugetlb
-+BINARIES += userfaultfd_shmem
- BINARIES += mlock-random-test
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index eccfc18..61c553f 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1065,7 +1065,8 @@ static __always_inline int validate_range(struct mm_struct *mm,
  
- all: $(BINARIES)
-@@ -22,6 +23,9 @@ userfaultfd: userfaultfd.c ../../../../usr/include/linux/kernel.h
- userfaultfd_hugetlb: userfaultfd.c ../../../../usr/include/linux/kernel.h
- 	$(CC) $(CFLAGS) -DHUGETLB_TEST -O2 -o $@ $< -lpthread
+ static inline bool vma_can_userfault(struct vm_area_struct *vma)
+ {
+-	return vma_is_anonymous(vma) || is_vm_hugetlb_page(vma);
++	return vma_is_anonymous(vma) || is_vm_hugetlb_page(vma) ||
++		vma_is_shmem(vma);
+ }
  
-+userfaultfd_shmem: userfaultfd.c ../../../../usr/include/linux/kernel.h
-+	$(CC) $(CFLAGS) -DSHMEM_TEST -O2 -o $@ $< -lpthread
-+
- mlock-random-test: mlock-random-test.c
- 	$(CC) $(CFLAGS) -o $@ $< -lcap
+ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+@@ -1078,7 +1079,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 	struct uffdio_register __user *user_uffdio_register;
+ 	unsigned long vm_flags, new_flags;
+ 	bool found;
+-	bool huge_pages;
++	bool non_anon_pages;
+ 	unsigned long start, end, vma_end;
  
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 14d697e..c92f6cf 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -116,6 +116,17 @@ else
- fi
- rm -f $mnt/ufd_test_file
+ 	user_uffdio_register = (struct uffdio_register __user *) arg;
+@@ -1142,13 +1143,9 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
  
-+echo "----------------------------"
-+echo "running userfaultfd_shmem"
-+echo "----------------------------"
-+./userfaultfd_shmem 128 32
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- #cleanup
- umount $mnt
- rm -rf $mnt
+ 	/*
+ 	 * Search for not compatible vmas.
+-	 *
+-	 * FIXME: this shall be relaxed later so that it doesn't fail
+-	 * on tmpfs backed vmas (in addition to the current allowance
+-	 * on anonymous vmas).
+ 	 */
+ 	found = false;
+-	huge_pages = false;
++	non_anon_pages = false;
+ 	for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
+ 		cond_resched();
+ 
+@@ -1187,8 +1184,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		/*
+ 		 * Note vmas containing huge pages
+ 		 */
+-		if (is_vm_hugetlb_page(cur))
+-			huge_pages = true;
++		if (is_vm_hugetlb_page(cur) || vma_is_shmem(cur))
++			non_anon_pages = true;
+ 
+ 		found = true;
+ 	}
+@@ -1259,7 +1256,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		 * userland which ioctls methods are guaranteed to
+ 		 * succeed on this range.
+ 		 */
+-		if (put_user(huge_pages ? UFFD_API_RANGE_IOCTLS_HPAGE :
++		if (put_user(non_anon_pages ? UFFD_API_RANGE_IOCTLS_BASIC :
+ 			     UFFD_API_RANGE_IOCTLS,
+ 			     &user_uffdio_register->ioctls))
+ 			ret = -EFAULT;
+@@ -1319,10 +1316,6 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 
+ 	/*
+ 	 * Search for not compatible vmas.
+-	 *
+-	 * FIXME: this shall be relaxed later so that it doesn't fail
+-	 * on tmpfs backed vmas (in addition to the current allowance
+-	 * on anonymous vmas).
+ 	 */
+ 	found = false;
+ 	ret = -EINVAL;
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 7293321..10631a4 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -30,7 +30,7 @@
+ 	((__u64)1 << _UFFDIO_WAKE |		\
+ 	 (__u64)1 << _UFFDIO_COPY |		\
+ 	 (__u64)1 << _UFFDIO_ZEROPAGE)
+-#define UFFD_API_RANGE_IOCTLS_HPAGE		\
++#define UFFD_API_RANGE_IOCTLS_BASIC		\
+ 	((__u64)1 << _UFFDIO_WAKE |		\
+ 	 (__u64)1 << _UFFDIO_COPY)
+ 
 diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index d753a91..a5e5808 100644
+index 3011711..d753a91 100644
 --- a/tools/testing/selftests/vm/userfaultfd.c
 +++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -101,8 +101,9 @@ pthread_attr_t attr;
- 				 ~(unsigned long)(sizeof(unsigned long long) \
- 						  -  1)))
+@@ -129,7 +129,7 @@ static void allocate_area(void **alloc_area)
  
--#ifndef HUGETLB_TEST
-+#if !defined(HUGETLB_TEST) && !defined(SHMEM_TEST)
+ #else /* HUGETLB_TEST */
  
-+/* Anonymous memory */
- #define EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
- 				 (1 << _UFFDIO_COPY) | \
- 				 (1 << _UFFDIO_ZEROPAGE))
-@@ -127,10 +128,13 @@ static void allocate_area(void **alloc_area)
- 	}
- }
+-#define EXPECTED_IOCTLS		UFFD_API_RANGE_IOCTLS_HPAGE
++#define EXPECTED_IOCTLS		UFFD_API_RANGE_IOCTLS_BASIC
  
--#else /* HUGETLB_TEST */
-+#else /* HUGETLB_TEST or SHMEM_TEST */
- 
- #define EXPECTED_IOCTLS		UFFD_API_RANGE_IOCTLS_BASIC
- 
-+#ifdef HUGETLB_TEST
-+
-+/* HugeTLB memory */
  static int release_pages(char *rel_area)
  {
- 	int ret = 0;
-@@ -162,8 +166,37 @@ static void allocate_area(void **alloc_area)
- 		huge_fd_off0 = *alloc_area;
- }
- 
-+#elif defined(SHMEM_TEST)
-+
-+/* Shared memory */
-+static int release_pages(char *rel_area)
-+{
-+	int ret = 0;
-+
-+	if (madvise(rel_area, nr_pages * page_size, MADV_REMOVE)) {
-+		perror("madvise");
-+		ret = 1;
-+	}
-+
-+	return ret;
-+}
-+
-+static void allocate_area(void **alloc_area)
-+{
-+	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
-+			   MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-+	if (*alloc_area == MAP_FAILED) {
-+		fprintf(stderr, "shared memory mmap failed\n");
-+		*alloc_area = NULL;
-+	}
-+}
-+
-+#else /* SHMEM_TEST */
-+#error "Undefined test type"
- #endif /* HUGETLB_TEST */
- 
-+#endif /* !defined(HUGETLB_TEST) && !defined(SHMEM_TEST) */
-+
- static int my_bcmp(char *str1, char *str2, size_t n)
- {
- 	unsigned long i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
