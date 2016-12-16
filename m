@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D09366B02BE
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:27 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id q186so21230139itb.0
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:27 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6406B02C0
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:29 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id n68so21077291itn.4
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k18si6170060ioi.183.2016.12.16.06.48.29
+        by mx.google.com with ESMTPS id i31si6178634ioo.48.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:48:29 -0800 (PST)
+        Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 37/42] userfaultfd: hugetlbfs: UFFD_FEATURE_MISSING_SHMEM
-Date: Fri, 16 Dec 2016 15:48:16 +0100
-Message-Id: <20161216144821.5183-38-aarcange@redhat.com>
+Subject: [PATCH 32/42] userfaultfd: shmem: add userfaultfd hook for shared memory faults
+Date: Fri, 16 Dec 2016 15:48:11 +0100
+Message-Id: <20161216144821.5183-33-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,48 +20,105 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Userland developers asked to be notified immediately by the UFFDIO_API
-ioctl if shmem missing mode is supported by userfaultfd in the running
-kernel. This avoids the need to run UFFDIO_REGISTER on a shmem virtual
-memory range to find out.
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
+When processing a page fault in shared memory area for not present page,
+check the VMA determine if faults are to be handled by userfaultfd. If so,
+delegate the page fault to handle_userfault.
+
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/uapi/linux/userfaultfd.h | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/shmem.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
 
-diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-index 10631a4..9ac4b68 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -21,7 +21,8 @@
- #define UFFD_API_FEATURES (UFFD_FEATURE_EVENT_FORK |		\
- 			   UFFD_FEATURE_EVENT_REMAP |		\
- 			   UFFD_FEATURE_EVENT_MADVDONTNEED |	\
--			   UFFD_FEATURE_MISSING_HUGETLBFS)
-+			   UFFD_FEATURE_MISSING_HUGETLBFS |	\
-+			   UFFD_FEATURE_MISSING_SHMEM)
- #define UFFD_API_IOCTLS				\
- 	((__u64)1 << _UFFDIO_REGISTER |		\
- 	 (__u64)1 << _UFFDIO_UNREGISTER |	\
-@@ -146,12 +147,17 @@ struct uffdio_api {
- 	 *    it, so userland can later check if the feature flag is
- 	 *    present in uffdio_api.features after UFFDIO_API
- 	 *    succeeded.
-+	 *
-+	 * UFFD_FEATURE_MISSING_SHMEM works the same as
-+	 * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
-+	 * (i.e. tmpfs and other shmem based APIs).
- 	 */
- #define UFFD_FEATURE_PAGEFAULT_FLAG_WP		(1<<0)
- #define UFFD_FEATURE_EVENT_FORK			(1<<1)
- #define UFFD_FEATURE_EVENT_REMAP		(1<<2)
- #define UFFD_FEATURE_EVENT_MADVDONTNEED		(1<<3)
- #define UFFD_FEATURE_MISSING_HUGETLBFS		(1<<4)
-+#define UFFD_FEATURE_MISSING_SHMEM		(1<<5)
- 	__u64 features;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 5cc1cb2..75866a3 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -72,6 +72,7 @@ static struct vfsmount *shm_mnt;
+ #include <linux/syscalls.h>
+ #include <linux/fcntl.h>
+ #include <uapi/linux/memfd.h>
++#include <linux/userfaultfd_k.h>
+ #include <linux/rmap.h>
  
- 	__u64 ioctls;
+ #include <asm/uaccess.h>
+@@ -118,13 +119,14 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ 				struct shmem_inode_info *info, pgoff_t index);
+ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		struct page **pagep, enum sgp_type sgp,
+-		gfp_t gfp, struct mm_struct *fault_mm, int *fault_type);
++		gfp_t gfp, struct vm_area_struct *vma,
++		struct vm_fault *vmf, int *fault_type);
+ 
+ int shmem_getpage(struct inode *inode, pgoff_t index,
+ 		struct page **pagep, enum sgp_type sgp)
+ {
+ 	return shmem_getpage_gfp(inode, index, pagep, sgp,
+-		mapping_gfp_mask(inode->i_mapping), NULL, NULL);
++		mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
+ }
+ 
+ static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
+@@ -1571,7 +1573,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+  */
+ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
+-	struct mm_struct *fault_mm, int *fault_type)
++	struct vm_area_struct *vma, struct vm_fault *vmf, int *fault_type)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+@@ -1625,7 +1627,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	 * bring it back from swap or allocate.
+ 	 */
+ 	sbinfo = SHMEM_SB(inode->i_sb);
+-	charge_mm = fault_mm ? : current->mm;
++	charge_mm = vma ? vma->vm_mm : current->mm;
+ 
+ 	if (swap.val) {
+ 		/* Look it up and read it in.. */
+@@ -1635,7 +1637,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 			if (fault_type) {
+ 				*fault_type |= VM_FAULT_MAJOR;
+ 				count_vm_event(PGMAJFAULT);
+-				mem_cgroup_count_vm_event(fault_mm, PGMAJFAULT);
++				mem_cgroup_count_vm_event(charge_mm,
++							  PGMAJFAULT);
+ 			}
+ 			/* Here we actually start the io */
+ 			page = shmem_swapin(swap, gfp, info, index);
+@@ -1704,6 +1707,11 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		swap_free(swap);
+ 
+ 	} else {
++		if (vma && userfaultfd_missing(vma)) {
++			*fault_type = handle_userfault(vmf, VM_UFFD_MISSING);
++			return 0;
++		}
++
+ 		/* shmem_symlink() */
+ 		if (mapping->a_ops != &shmem_aops)
+ 			goto alloc_nohuge;
+@@ -1966,7 +1974,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		sgp = SGP_NOHUGE;
+ 
+ 	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
+-				  gfp, vma->vm_mm, &ret);
++				  gfp, vma, vmf, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+ 	return ret;
+@@ -4252,7 +4260,7 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ 
+ 	BUG_ON(mapping->a_ops != &shmem_aops);
+ 	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE,
+-				  gfp, NULL, NULL);
++				  gfp, NULL, NULL, NULL);
+ 	if (error)
+ 		page = ERR_PTR(error);
+ 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
