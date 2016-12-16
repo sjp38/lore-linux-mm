@@ -1,166 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F9E26B0069
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 07:00:28 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id hb5so34411945wjc.2
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:00:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x127si3005687wmg.118.2016.12.16.04.00.26
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 711D86B0038
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 07:13:01 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i131so7356932wmf.3
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:13:01 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id gr7si6751289wjb.113.2016.12.16.04.13.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 16 Dec 2016 04:00:26 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 1/2] mm, page_alloc: don't convert pfn to idx when merging
-Date: Fri, 16 Dec 2016 13:00:08 +0100
-Message-Id: <20161216120009.20064-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Dec 2016 04:13:00 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id xy5so14250254wjc.1
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:13:00 -0800 (PST)
+Date: Fri, 16 Dec 2016 13:12:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: crash during oom reaper
+Message-ID: <20161216121258.GI13940@dhcp22.suse.cz>
+References: <20161216082202.21044-1-vegard.nossum@oracle.com>
+ <20161216082202.21044-4-vegard.nossum@oracle.com>
+ <20161216090157.GA13940@dhcp22.suse.cz>
+ <d944e3ca-07d4-c7d6-5025-dc101406b3a7@oracle.com>
+ <20161216101113.GE13940@dhcp22.suse.cz>
+ <20161216104438.GD27758@node>
+ <20161216114243.GG13940@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161216114243.GG13940@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-In __free_one_page() we do the buddy merging arithmetics on "page/buddy index",
-which is just the lower MAX_ORDER bits of pfn. The operations we do that affect
-the higher bits are bitwise AND and subtraction (in that order), where the
-final result will be the same with the higher bits left unmasked, as long as
-these bits are equal for both buddies - which must be true by the definition of
-a buddy.
+On Fri 16-12-16 12:42:43, Michal Hocko wrote:
+> On Fri 16-12-16 13:44:38, Kirill A. Shutemov wrote:
+> > On Fri, Dec 16, 2016 at 11:11:13AM +0100, Michal Hocko wrote:
+> > > On Fri 16-12-16 10:43:52, Vegard Nossum wrote:
+> > > [...]
+> > > > I don't think it's a bug in the OOM reaper itself, but either of the
+> > > > following two patches will fix the problem (without my understand how or
+> > > > why):
+> > > > 
+> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > > index ec9f11d4f094..37b14b2e2af4 100644
+> > > > --- a/mm/oom_kill.c
+> > > > +++ b/mm/oom_kill.c
+> > > > @@ -485,7 +485,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk,
+> > > > struct mm_struct *mm)
+> > > >  	 */
+> > > >  	mutex_lock(&oom_lock);
+> > > > 
+> > > > -	if (!down_read_trylock(&mm->mmap_sem)) {
+> > > > +	if (!down_write_trylock(&mm->mmap_sem)) {
+> > > 
+> > > __oom_reap_task_mm is basically the same thing as MADV_DONTNEED and that
+> > > doesn't require the exlusive mmap_sem. So this looks correct to me.
+> > 
+> > BTW, shouldn't we filter out all VM_SPECIAL VMAs there? Or VM_PFNMAP at
+> > least.
+> > 
+> > MADV_DONTNEED doesn't touch VM_PFNMAP, but I don't see anything matching
+> > on __oom_reap_task_mm() side.
+> 
+> I guess you are right and we should match the MADV_DONTNEED behavior
+> here. Care to send a patch?
+> 
+> > Other difference is that you use unmap_page_range() witch doesn't touch
+> > mmu_notifiers. MADV_DONTNEED goes via zap_page_range(), which invalidates
+> > the range. Not sure if it can make any difference here.
+> 
+> Which mmu notifier would care about this? I am not really familiar with
+> those users so I might miss something easily.
 
-We can therefore use pfn's directly instead of "index" and skip the zeroing of
->MAX_ORDER bits. This can help a bit by itself, although compiler might be
-smart enough already. It also helps the next patch to avoid page_to_pfn() for
-memory hole checks.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
----
-Changes since v1:
-o rebase to mmotm-2016-12-14-16-01
-o fix mm/page_isolation.c
-o don't rename 'pfn' to 'page_pfn'
-
- mm/internal.h       |  4 ++--
- mm/page_alloc.c     | 31 ++++++++++++++-----------------
- mm/page_isolation.c |  8 ++++----
- 3 files changed, 20 insertions(+), 23 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index 44d68895a9b9..ebb3cbd21937 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -131,9 +131,9 @@ struct alloc_context {
-  * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
-  */
- static inline unsigned long
--__find_buddy_index(unsigned long page_idx, unsigned int order)
-+__find_buddy_pfn(unsigned long page_pfn, unsigned int order)
- {
--	return page_idx ^ (1 << order);
-+	return page_pfn ^ (1 << order);
- }
- 
- extern struct page *__pageblock_pfn_to_page(unsigned long start_pfn,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f6d5b73e1d7c..771fc8e18736 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -787,9 +787,8 @@ static inline void __free_one_page(struct page *page,
- 		struct zone *zone, unsigned int order,
- 		int migratetype)
- {
--	unsigned long page_idx;
--	unsigned long combined_idx;
--	unsigned long uninitialized_var(buddy_idx);
-+	unsigned long combined_pfn;
-+	unsigned long uninitialized_var(buddy_pfn);
- 	struct page *buddy;
- 	unsigned int max_order;
- 
-@@ -802,15 +801,13 @@ static inline void __free_one_page(struct page *page,
- 	if (likely(!is_migrate_isolate(migratetype)))
- 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
- 
--	page_idx = pfn & ((1 << MAX_ORDER) - 1);
--
--	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
-+	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
- 
- continue_merging:
- 	while (order < max_order - 1) {
--		buddy_idx = __find_buddy_index(page_idx, order);
--		buddy = page + (buddy_idx - page_idx);
-+		buddy_pfn = __find_buddy_pfn(pfn, order);
-+		buddy = page + (buddy_pfn - pfn);
- 		if (!page_is_buddy(page, buddy, order))
- 			goto done_merging;
- 		/*
-@@ -824,9 +821,9 @@ static inline void __free_one_page(struct page *page,
- 			zone->free_area[order].nr_free--;
- 			rmv_page_order(buddy);
- 		}
--		combined_idx = buddy_idx & page_idx;
--		page = page + (combined_idx - page_idx);
--		page_idx = combined_idx;
-+		combined_pfn = buddy_pfn & pfn;
-+		page = page + (combined_pfn - pfn);
-+		pfn = combined_pfn;
- 		order++;
- 	}
- 	if (max_order < MAX_ORDER) {
-@@ -841,8 +838,8 @@ static inline void __free_one_page(struct page *page,
- 		if (unlikely(has_isolate_pageblock(zone))) {
- 			int buddy_mt;
- 
--			buddy_idx = __find_buddy_index(page_idx, order);
--			buddy = page + (buddy_idx - page_idx);
-+			buddy_pfn = __find_buddy_pfn(pfn, order);
-+			buddy = page + (buddy_pfn - pfn);
- 			buddy_mt = get_pageblock_migratetype(buddy);
- 
- 			if (migratetype != buddy_mt
-@@ -867,10 +864,10 @@ static inline void __free_one_page(struct page *page,
- 	 */
- 	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
- 		struct page *higher_page, *higher_buddy;
--		combined_idx = buddy_idx & page_idx;
--		higher_page = page + (combined_idx - page_idx);
--		buddy_idx = __find_buddy_index(combined_idx, order + 1);
--		higher_buddy = higher_page + (buddy_idx - combined_idx);
-+		combined_pfn = buddy_pfn & pfn;
-+		higher_page = page + (combined_pfn - pfn);
-+		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-+		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
- 		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
- 			list_add_tail(&page->lru,
- 				&zone->free_area[order].free_list[migratetype]);
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index a5594bfcc5ed..dadb7e74d7d6 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -83,7 +83,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- 	unsigned long flags, nr_pages;
- 	bool isolated_page = false;
- 	unsigned int order;
--	unsigned long page_idx, buddy_idx;
-+	unsigned long pfn, buddy_pfn;
- 	struct page *buddy;
- 
- 	zone = page_zone(page);
-@@ -102,9 +102,9 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- 	if (PageBuddy(page)) {
- 		order = page_order(page);
- 		if (order >= pageblock_order) {
--			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
--			buddy_idx = __find_buddy_index(page_idx, order);
--			buddy = page + (buddy_idx - page_idx);
-+			pfn = page_to_pfn(page);
-+			buddy_pfn = __find_buddy_pfn(pfn, order);
-+			buddy = page + (buddy_pfn - pfn);
- 
- 			if (pfn_valid_within(page_to_pfn(buddy)) &&
- 			    !is_migrate_isolate_page(buddy)) {
+Just forgot to add. Unlike the MADV_DONTNEED, there is nobody who should
+observe the address space of the oom killed (and reaped) task so why
+should notifiers matter in the first place?
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
