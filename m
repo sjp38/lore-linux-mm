@@ -1,54 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AA0A6B0253
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:26:44 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w13so5891234wmw.0
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:26:44 -0800 (PST)
-Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
-        by mx.google.com with ESMTPS id o7si6177968wjw.219.2016.12.16.01.26.42
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E40A86B0260
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:27:47 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id hb5so32976778wjc.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:27:47 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id i2si2498288wma.140.2016.12.16.01.27.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 01:26:42 -0800 (PST)
-Received: by mail-wj0-f196.google.com with SMTP id he10so13538938wjc.2
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:26:42 -0800 (PST)
-Date: Fri, 16 Dec 2016 10:26:40 +0100
+        Fri, 16 Dec 2016 01:27:46 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id xy5so13491114wjc.1
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:27:46 -0800 (PST)
+Date: Fri, 16 Dec 2016 10:27:45 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/4] mm: add new mmget() helper
-Message-ID: <20161216092640.GC13940@dhcp22.suse.cz>
+Subject: Re: [PATCH 3/4] mm: use mmget_not_zero() helper
+Message-ID: <20161216092745.GD13940@dhcp22.suse.cz>
 References: <20161216082202.21044-1-vegard.nossum@oracle.com>
- <20161216082202.21044-2-vegard.nossum@oracle.com>
+ <20161216082202.21044-3-vegard.nossum@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161216082202.21044-2-vegard.nossum@oracle.com>
+In-Reply-To: <20161216082202.21044-3-vegard.nossum@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vegard Nossum <vegard.nossum@oracle.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri 16-12-16 09:22:00, Vegard Nossum wrote:
-> Apart from adding the helper function itself, the rest of the kernel is
-> converted mechanically using:
+On Fri 16-12-16 09:22:01, Vegard Nossum wrote:
+> We already have the helper, we can convert the rest of the kernel
+> mechanically using:
 > 
->   git grep -l 'atomic_inc.*mm_users' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_users);/mmget\(\1\);/'
->   git grep -l 'atomic_inc.*mm_users' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_users);/mmget\(\&\1\);/'
+>   git grep -l 'atomic_inc_not_zero.*mm_users' | xargs sed -i 's/atomic_inc_not_zero(&\(.*\)->mm_users)/mmget_not_zero\(\1\)/'
 > 
 > This is needed for a later patch that hooks into the helper, but might be
 > a worthwhile cleanup on its own.
-
-Same here a clarification comment would be really nice
-
-/**
- * mmget: pins the address space
- *
- * Makes sure that the address space of the given mm struct doesn't go
- * away. This doesn't protect from freeing parts of the address space
- * though.
- *
- * Never use this function if the time the address space is pinned is
- * not bounded.
- */
-
 > 
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Michal Hocko <mhocko@suse.com>
@@ -57,189 +42,124 @@ Same here a clarification comment would be really nice
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  arch/arc/kernel/smp.c           |  2 +-
->  arch/blackfin/mach-common/smp.c |  2 +-
->  arch/frv/mm/mmu-context.c       |  2 +-
->  arch/metag/kernel/smp.c         |  2 +-
->  arch/sh/kernel/smp.c            |  2 +-
->  arch/xtensa/kernel/smp.c        |  2 +-
->  include/linux/sched.h           |  5 +++++
->  kernel/fork.c                   |  4 ++--
->  mm/swapfile.c                   | 10 +++++-----
->  virt/kvm/async_pf.c             |  2 +-
->  10 files changed, 19 insertions(+), 14 deletions(-)
+>  drivers/gpu/drm/i915/i915_gem_userptr.c | 2 +-
+>  drivers/iommu/intel-svm.c               | 2 +-
+>  fs/proc/base.c                          | 4 ++--
+>  fs/proc/task_mmu.c                      | 4 ++--
+>  fs/proc/task_nommu.c                    | 2 +-
+>  kernel/events/uprobes.c                 | 2 +-
+>  mm/swapfile.c                           | 2 +-
+>  7 files changed, 9 insertions(+), 9 deletions(-)
 > 
-> diff --git a/arch/arc/kernel/smp.c b/arch/arc/kernel/smp.c
-> index 9cbc7aba3ede..eec70cb71db1 100644
-> --- a/arch/arc/kernel/smp.c
-> +++ b/arch/arc/kernel/smp.c
-> @@ -124,7 +124,7 @@ void start_kernel_secondary(void)
->  	/* MMU, Caches, Vector Table, Interrupts etc */
->  	setup_processor();
+> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> index f21ca404af79..e97f9ade99fc 100644
+> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
+> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+> @@ -514,7 +514,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
+>  			flags |= FOLL_WRITE;
 >  
-> -	atomic_inc(&mm->mm_users);
-> +	mmget(mm);
->  	mmgrab(mm);
->  	current->active_mm = mm;
->  	cpumask_set_cpu(cpu, mm_cpumask(mm));
-> diff --git a/arch/blackfin/mach-common/smp.c b/arch/blackfin/mach-common/smp.c
-> index bc5617ef7128..a2e6db2ce811 100644
-> --- a/arch/blackfin/mach-common/smp.c
-> +++ b/arch/blackfin/mach-common/smp.c
-> @@ -307,7 +307,7 @@ void secondary_start_kernel(void)
->  	local_irq_disable();
+>  		ret = -EFAULT;
+> -		if (atomic_inc_not_zero(&mm->mm_users)) {
+> +		if (mmget_not_zero(mm)) {
+>  			down_read(&mm->mmap_sem);
+>  			while (pinned < npages) {
+>  				ret = get_user_pages_remote
+> diff --git a/drivers/iommu/intel-svm.c b/drivers/iommu/intel-svm.c
+> index cb72e0011310..51f2b228723f 100644
+> --- a/drivers/iommu/intel-svm.c
+> +++ b/drivers/iommu/intel-svm.c
+> @@ -579,7 +579,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
+>  		if (!svm->mm)
+>  			goto bad_req;
+>  		/* If the mm is already defunct, don't handle faults. */
+> -		if (!atomic_inc_not_zero(&svm->mm->mm_users))
+> +		if (!mmget_not_zero(svm->mm))
+>  			goto bad_req;
+>  		down_read(&svm->mm->mmap_sem);
+>  		vma = find_extend_vma(svm->mm, address);
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 0b8ccacae8b3..87fd5bf07578 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -842,7 +842,7 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
+>  		return -ENOMEM;
 >  
->  	/* Attach the new idle task to the global mm. */
-> -	atomic_inc(&mm->mm_users);
-> +	mmget(mm);
->  	mmgrab(mm);
->  	current->active_mm = mm;
+>  	copied = 0;
+> -	if (!atomic_inc_not_zero(&mm->mm_users))
+> +	if (!mmget_not_zero(mm))
+>  		goto free;
 >  
-> diff --git a/arch/frv/mm/mmu-context.c b/arch/frv/mm/mmu-context.c
-> index 81757d55a5b5..3473bde77f56 100644
-> --- a/arch/frv/mm/mmu-context.c
-> +++ b/arch/frv/mm/mmu-context.c
-> @@ -188,7 +188,7 @@ int cxn_pin_by_pid(pid_t pid)
->  		task_lock(tsk);
->  		if (tsk->mm) {
->  			mm = tsk->mm;
-> -			atomic_inc(&mm->mm_users);
-> +			mmget(mm);
->  			ret = 0;
+>  	/* Maybe we should limit FOLL_FORCE to actual ptrace users? */
+> @@ -950,7 +950,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
+>  		return -ENOMEM;
+>  
+>  	ret = 0;
+> -	if (!atomic_inc_not_zero(&mm->mm_users))
+> +	if (!mmget_not_zero(mm))
+>  		goto free;
+>  
+>  	down_read(&mm->mmap_sem);
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 35b92d81692f..c71975293dc8 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -167,7 +167,7 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
+>  		return ERR_PTR(-ESRCH);
+>  
+>  	mm = priv->mm;
+> -	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
+> +	if (!mm || !mmget_not_zero(mm))
+>  		return NULL;
+>  
+>  	down_read(&mm->mmap_sem);
+> @@ -1352,7 +1352,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+>  	unsigned long end_vaddr;
+>  	int ret = 0, copied = 0;
+>  
+> -	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
+> +	if (!mm || !mmget_not_zero(mm))
+>  		goto out;
+>  
+>  	ret = -EINVAL;
+> diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+> index 37175621e890..1ef97cfcf422 100644
+> --- a/fs/proc/task_nommu.c
+> +++ b/fs/proc/task_nommu.c
+> @@ -219,7 +219,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+>  		return ERR_PTR(-ESRCH);
+>  
+>  	mm = priv->mm;
+> -	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
+> +	if (!mm || !mmget_not_zero(mm))
+>  		return NULL;
+>  
+>  	down_read(&mm->mmap_sem);
+> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> index f9ec9add2164..bcf0f9d77d4d 100644
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -741,7 +741,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
+>  			continue;
 >  		}
->  		task_unlock(tsk);
-> diff --git a/arch/metag/kernel/smp.c b/arch/metag/kernel/smp.c
-> index af9cff547a19..c622293254e4 100644
-> --- a/arch/metag/kernel/smp.c
-> +++ b/arch/metag/kernel/smp.c
-> @@ -344,7 +344,7 @@ asmlinkage void secondary_start_kernel(void)
->  	 * All kernel threads share the same mm context; grab a
->  	 * reference and switch to it.
->  	 */
-> -	atomic_inc(&mm->mm_users);
-> +	mmget(mm);
->  	mmgrab(mm);
->  	current->active_mm = mm;
->  	cpumask_set_cpu(cpu, mm_cpumask(mm));
-> diff --git a/arch/sh/kernel/smp.c b/arch/sh/kernel/smp.c
-> index ee379c699c08..edc4769b047e 100644
-> --- a/arch/sh/kernel/smp.c
-> +++ b/arch/sh/kernel/smp.c
-> @@ -179,7 +179,7 @@ asmlinkage void start_secondary(void)
 >  
->  	enable_mmu();
->  	mmgrab(mm);
-> -	atomic_inc(&mm->mm_users);
-> +	mmget(mm);
->  	current->active_mm = mm;
->  #ifdef CONFIG_MMU
->  	enter_lazy_tlb(mm, current);
-> diff --git a/arch/xtensa/kernel/smp.c b/arch/xtensa/kernel/smp.c
-> index 9bf5cea3bae4..fcea72019df7 100644
-> --- a/arch/xtensa/kernel/smp.c
-> +++ b/arch/xtensa/kernel/smp.c
-> @@ -135,7 +135,7 @@ void secondary_start_kernel(void)
+> -		if (!atomic_inc_not_zero(&vma->vm_mm->mm_users))
+> +		if (!mmget_not_zero(vma->vm_mm))
+>  			continue;
 >  
->  	/* All kernel threads share the same mm context. */
->  
-> -	atomic_inc(&mm->mm_users);
-> +	mmget(mm);
->  	mmgrab(mm);
->  	current->active_mm = mm;
->  	cpumask_set_cpu(cpu, mm_cpumask(mm));
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 31ae1f49eebb..2ca3e15dad3b 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -2899,6 +2899,11 @@ static inline void mmdrop_async(struct mm_struct *mm)
->  	}
->  }
->  
-> +static inline void mmget(struct mm_struct *mm)
-> +{
-> +	atomic_inc(&mm->mm_users);
-> +}
-> +
->  static inline bool mmget_not_zero(struct mm_struct *mm)
->  {
->  	return atomic_inc_not_zero(&mm->mm_users);
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 997ac1d584f7..f9c32dc6ccbc 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -989,7 +989,7 @@ struct mm_struct *get_task_mm(struct task_struct *task)
->  		if (task->flags & PF_KTHREAD)
->  			mm = NULL;
->  		else
-> -			atomic_inc(&mm->mm_users);
-> +			mmget(mm);
->  	}
->  	task_unlock(task);
->  	return mm;
-> @@ -1177,7 +1177,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
->  	vmacache_flush(tsk);
->  
->  	if (clone_flags & CLONE_VM) {
-> -		atomic_inc(&oldmm->mm_users);
-> +		mmget(oldmm);
->  		mm = oldmm;
->  		goto good_mm;
->  	}
+>  		info = prev;
 > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index f30438970cd1..cf73169ce153 100644
+> index cf73169ce153..8c92829326cb 100644
 > --- a/mm/swapfile.c
 > +++ b/mm/swapfile.c
-> @@ -1402,7 +1402,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
->  	 * that.
->  	 */
->  	start_mm = &init_mm;
-> -	atomic_inc(&init_mm.mm_users);
-> +	mmget(&init_mm);
->  
->  	/*
->  	 * Keep on scanning until all entries have gone.  Usually,
-> @@ -1451,7 +1451,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
->  		if (atomic_read(&start_mm->mm_users) == 1) {
->  			mmput(start_mm);
->  			start_mm = &init_mm;
-> -			atomic_inc(&init_mm.mm_users);
-> +			mmget(&init_mm);
->  		}
->  
->  		/*
-> @@ -1488,8 +1488,8 @@ int try_to_unuse(unsigned int type, bool frontswap,
->  			struct mm_struct *prev_mm = start_mm;
->  			struct mm_struct *mm;
->  
-> -			atomic_inc(&new_start_mm->mm_users);
-> -			atomic_inc(&prev_mm->mm_users);
-> +			mmget(new_start_mm);
-> +			mmget(prev_mm);
->  			spin_lock(&mmlist_lock);
+> @@ -1494,7 +1494,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 >  			while (swap_count(*swap_map) && !retval &&
 >  					(p = p->next) != &start_mm->mmlist) {
-> @@ -1512,7 +1512,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
->  
->  				if (set_start_mm && *swap_map < swcount) {
->  					mmput(new_start_mm);
-> -					atomic_inc(&mm->mm_users);
-> +					mmget(mm);
->  					new_start_mm = mm;
->  					set_start_mm = 0;
->  				}
-> diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-> index efeceb0a222d..9ec9cef2b207 100644
-> --- a/virt/kvm/async_pf.c
-> +++ b/virt/kvm/async_pf.c
-> @@ -200,7 +200,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
->  	work->addr = hva;
->  	work->arch = *arch;
->  	work->mm = current->mm;
-> -	atomic_inc(&work->mm->mm_users);
-> +	mmget(work->mm);
->  	kvm_get_kvm(work->vcpu->kvm);
->  
->  	/* this can't really happen otherwise gfn_to_pfn_async
+>  				mm = list_entry(p, struct mm_struct, mmlist);
+> -				if (!atomic_inc_not_zero(&mm->mm_users))
+> +				if (!mmget_not_zero(mm))
+>  					continue;
+>  				spin_unlock(&mmlist_lock);
+>  				mmput(prev_mm);
 > -- 
 > 2.11.0.1.gaa10c3f
 > 
