@@ -1,62 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9816B0038
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:14:19 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j49so49462793qta.1
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 19:14:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f62si2117364qkj.33.2016.12.15.19.14.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 19:14:19 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBG3DsM5093464
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:14:18 -0500
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 27c3chq5mw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:14:18 -0500
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 15 Dec 2016 20:14:17 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [LSF/MM ATTEND] Un-addressable device memory and block/fs implications
-In-Reply-To: <20161213181511.GB2305@redhat.com>
-References: <20161213181511.GB2305@redhat.com>
-Date: Fri, 16 Dec 2016 08:44:11 +0530
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5819F6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:54:36 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 3so156896372pgd.3
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 19:54:36 -0800 (PST)
+Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
+        by mx.google.com with ESMTP id m136si5450013pga.237.2016.12.15.19.54.34
+        for <linux-mm@kvack.org>;
+        Thu, 15 Dec 2016 19:54:35 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161104193626.GU4611@redhat.com> <1805f956-1777-471c-1401-46c984189c88@oracle.com> <20161116182809.GC26185@redhat.com> <8ee2c6db-7ee4-285f-4c68-75fd6e799c0d@oracle.com> <20161117154031.GA10229@redhat.com> <718434af-d279-445d-e210-201bf02f434f@oracle.com> <20161118000527.GB10229@redhat.com> <c9350efa-ca79-c514-0305-22c90fdbb0df@oracle.com> <1b60f0b3-835f-92d6-33e2-e7aaab3209cc@oracle.com> <019d01d24554$38e7f220$aab7d660$@alibaba-inc.com> <20161215190242.GC4909@redhat.com>
+In-Reply-To: <20161215190242.GC4909@redhat.com>
+Subject: Re: [PATCH 15/33] userfaultfd: hugetlbfs: add __mcopy_atomic_hugetlb for huge page UFFDIO_COPY
+Date: Fri, 16 Dec 2016 11:54:21 +0800
+Message-ID: <04c301d25750$15fdcb00$41f96100$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87lgvgwoos.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: 'Andrea Arcangeli' <aarcange@redhat.com>
+Cc: 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Shaohua Li' <shli@fb.com>, 'Pavel Emelyanov' <xemul@parallels.com>, 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
 
-Jerome Glisse <jglisse@redhat.com> writes:
+On Friday, December 16, 2016 3:03 AM Andrea Arcangeli wrote:
+ > I already applied Mark's patch that clears the page private flag in
+> the error path. 
+> 
+Glad to hear it:)
 
-> I would like to discuss un-addressable device memory in the context of
-> filesystem and block device. Specificaly how to handle write-back, read,
-> ... when a filesystem page is migrated to device memory that CPU can not
-> access.
->
-> I intend to post a patchset leveraging the same idea as the existing
-> block bounce helper (block/bounce.c) to handle this. I believe this is
-> worth discussing during summit see how people feels about such plan and
-> if they have better ideas.
->
->
-> I also like to join discussions on:
->   - Peer-to-Peer DMAs between PCIe devices
->   - CDM coherent device memory
->   - PMEM
->   - overall mm discussions
+Happy Christmas Andrea.
 
-I would like to attend this discussion. I can talk about coherent device
-memory and how having HMM handle that will make it easy to have one
-interface for device driver. For Coherent device case we definitely need
-page cache migration support.
-
--aneesh
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
