@@ -1,110 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 301B56B02C2
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:32 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id n68so21078343itn.4
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p71si2931683itp.87.2016.12.16.06.48.28
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F6DC6B02C4
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:53:46 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id j49so58763607qta.1
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:53:46 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j14si3334865qta.217.2016.12.16.06.53.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:48:28 -0800 (PST)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 31/42] userfaultfd: shmem: use shmem_mcopy_atomic_pte for shared memory
-Date: Fri, 16 Dec 2016 15:48:10 +0100
-Message-Id: <20161216144821.5183-32-aarcange@redhat.com>
-In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
-References: <20161216144821.5183-1-aarcange@redhat.com>
+        Fri, 16 Dec 2016 06:53:45 -0800 (PST)
+Subject: Re: crash during oom reaper
+References: <20161216082202.21044-1-vegard.nossum@oracle.com>
+ <20161216082202.21044-4-vegard.nossum@oracle.com>
+ <20161216090157.GA13940@dhcp22.suse.cz>
+ <d944e3ca-07d4-c7d6-5025-dc101406b3a7@oracle.com>
+ <20161216101113.GE13940@dhcp22.suse.cz>
+ <aaa788c2-7233-005d-ae7b-170cdcafc5ec@oracle.com>
+ <20161216140043.GN13940@dhcp22.suse.cz>
+ <2d65449b-5f8a-7a29-e879-9c27bd1d4537@oracle.com>
+ <20161216143235.GO13940@dhcp22.suse.cz>
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Message-ID: <53b709f5-c560-a8ae-616f-cc7a64ff536c@oracle.com>
+Date: Fri, 16 Dec 2016 15:53:11 +0100
+MIME-Version: 1.0
+In-Reply-To: <20161216143235.GO13940@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+On 12/16/2016 03:32 PM, Michal Hocko wrote:
+> On Fri 16-12-16 15:25:27, Vegard Nossum wrote:
+>> On 12/16/2016 03:00 PM, Michal Hocko wrote:
+>>> On Fri 16-12-16 14:14:17, Vegard Nossum wrote:
+>>> [...]
+>>>> Out of memory: Kill process 1650 (trinity-main) score 90 or sacrifice child
+>>>> Killed process 1724 (trinity-c14) total-vm:37280kB, anon-rss:236kB,
+>>>> file-rss:112kB, shmem-rss:112kB
+>>>> BUG: unable to handle kernel NULL pointer dereference at 00000000000001e8
+>>>> IP: [<ffffffff8126b1c0>] copy_process.part.41+0x2150/0x5580
+>>>> PGD c001067 PUD c000067
+>>>> PMD 0
+>>>> Oops: 0002 [#1] PREEMPT SMP KASAN
+>>>> Dumping ftrace buffer:
+>>>>    (ftrace buffer empty)
+>>>> CPU: 28 PID: 1650 Comm: trinity-main Not tainted 4.9.0-rc6+ #317
+>>>
+>>> Hmm, so this was the oom victim initially but we have decided to kill
+>>> its child 1724 instead.
+>>>
+>>>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
+>>>> Ubuntu-1.8.2-1ubuntu1 04/01/2014
+>>>> task: ffff88000f9bc440 task.stack: ffff88000c778000
+>>>> RIP: 0010:[<ffffffff8126b1c0>]  [<ffffffff8126b1c0>]
+>>>> copy_process.part.41+0x2150/0x5580
+>>>
+>>> Could you match this to the kernel source please?
+>>
+>> kernel/fork.c:629 dup_mmap()
+>
+> Ok, so this is before the child is made visible so the oom reaper
+> couldn't have seen it.
+>
+>> it's atomic_dec(&inode->i_writecount), it matches up with
+>> file_inode(file) == NULL:
+>>
+>> (gdb) p &((struct inode *)0)->i_writecount
+>> $1 = (atomic_t *) 0x1e8 <irq_stack_union+488>
+>
+> is this a p9 inode?
 
-The shmem_mcopy_atomic_pte implements low lever part of UFFDIO_COPY
-operation for shared memory VMAs. It's based on mcopy_atomic_pte with
-adjustments necessary for shared memory pages.
+When I looked at this before it always crashed in this spot for the very
+first VMA in the mm (which happens to be the exe, which is on a 9p root fs).
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/userfaultfd.c | 34 +++++++++++++++++++++-------------
- 1 file changed, 21 insertions(+), 13 deletions(-)
+I added a trace_printk() to dup_mmap() to print inode->i_sb->s_type and
+the last thing I see for a new crash in the same place is:
 
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 31207b4..a0817cc 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -16,6 +16,7 @@
- #include <linux/mmu_notifier.h>
- #include <linux/hugetlb.h>
- #include <linux/pagemap.h>
-+#include <linux/shmem_fs.h>
- #include <asm/tlbflush.h>
- #include "internal.h"
- 
-@@ -369,7 +370,9 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 	 */
- 	err = -EINVAL;
- 	dst_vma = find_vma(dst_mm, dst_start);
--	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
-+	if (!dst_vma)
-+		goto out_unlock;
-+	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
- 		goto out_unlock;
- 	if (dst_start < dst_vma->vm_start ||
- 	    dst_start + len > dst_vma->vm_end)
-@@ -394,11 +397,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 	if (!dst_vma->vm_userfaultfd_ctx.ctx)
- 		goto out_unlock;
- 
--	/*
--	 * FIXME: only allow copying on anonymous vmas, tmpfs should
--	 * be added.
--	 */
--	if (!vma_is_anonymous(dst_vma))
-+	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
- 		goto out_unlock;
- 
- 	/*
-@@ -407,7 +406,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 	 * dst_vma.
- 	 */
- 	err = -ENOMEM;
--	if (unlikely(anon_vma_prepare(dst_vma)))
-+	if (vma_is_anonymous(dst_vma) && unlikely(anon_vma_prepare(dst_vma)))
- 		goto out_unlock;
- 
- 	while (src_addr < src_start + len) {
-@@ -444,12 +443,21 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
- 		BUG_ON(pmd_none(*dst_pmd));
- 		BUG_ON(pmd_trans_huge(*dst_pmd));
- 
--		if (!zeropage)
--			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
--					       dst_addr, src_addr, &page);
--		else
--			err = mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma,
--						 dst_addr);
-+		if (vma_is_anonymous(dst_vma)) {
-+			if (!zeropage)
-+				err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-+						       dst_addr, src_addr,
-+						       &page);
-+			else
-+				err = mfill_zeropage_pte(dst_mm, dst_pmd,
-+							 dst_vma, dst_addr);
-+		} else {
-+			err = -EINVAL; /* if zeropage is true return -EINVAL */
-+			if (likely(!zeropage))
-+				err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
-+							     dst_vma, dst_addr,
-+							     src_addr, &page);
-+		}
- 
- 		cond_resched();
- 
+trinity--9280   28.... 136345090us : copy_process.part.41: ffffffff8485ec40
+---------------------------------
+CPU: 0 PID: 9302 Comm: trinity-c0 Not tainted 4.9.0-rc8+ #332
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 
+Ubuntu-1.8.2-1ubuntu1 04/01/2014
+task: ffff880000070000 task.stack: ffff8800099e0000
+RIP: 0010:[<ffffffff8126c7c9>]  [<ffffffff8126c7c9>] 
+copy_process.part.41+0x22c9/0x55b0
+
+As you can see, the addresses match:
+
+(gdb) p &v9fs_fs_type
+$1 = (struct file_system_type *) 0xffffffff8485ec40 <v9fs_fs_type>
+
+So I think we can safely say that yes, it's a p9 inode.
+
+
+Vegard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
