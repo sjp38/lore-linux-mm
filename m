@@ -1,64 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E69CC6B0038
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 00:02:03 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id e9so159202105pgc.5
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 21:02:03 -0800 (PST)
-Received: from mgwym04.jp.fujitsu.com (mgwym04.jp.fujitsu.com. [211.128.242.43])
-        by mx.google.com with ESMTPS id r11si5785347pfk.40.2016.12.15.21.02.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 21:02:03 -0800 (PST)
-Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
-	by yt-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 4507DAC01D1
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 14:01:47 +0900 (JST)
-Message-ID: <585374F0.6040407@jp.fujitsu.com>
-Date: Fri, 16 Dec 2016 14:00:32 +0900
-From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CE986B0038
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:39:44 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so107984425pfx.1
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 22:39:44 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 189si6208789pgi.82.2016.12.15.22.39.42
+        for <linux-mm@kvack.org>;
+        Thu, 15 Dec 2016 22:39:43 -0800 (PST)
+Date: Fri, 16 Dec 2016 15:39:40 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: jemalloc testsuite stalls in memset
+Message-ID: <20161216063940.GA1334@bbox>
+References: <mvmmvfy37g1.fsf@hawking.suse.de>
+ <20161214235031.GA2912@bbox>
+ <mvm4m2535pc.fsf@hawking.suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] block: avoid incorrect bdi_unregiter call
-References: <584101D2.4090200@jp.fujitsu.com>
-In-Reply-To: <584101D2.4090200@jp.fujitsu.com>
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <mvm4m2535pc.fsf@hawking.suse.de>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Andreas Schwab <schwab@suse.de>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mbrugger@suse.de, linux-mm@kvack.org, Jason Evans <je@fb.com>
 
-Hi Jens,
+Hello,
 
-Could you add this patch for 4.10?
+On Thu, Dec 15, 2016 at 10:24:47AM +0100, Andreas Schwab wrote:
+> On Dez 15 2016, Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > You mean program itself access the address(ie, 0xffffb7400000) is hang
+> > while access the address from the debugger is OK?
+> 
+> Yes.
+> 
+> > Can you reproduce it easily?
+> 
+> 100%
+> 
+> > Did you test it in real machine or qemu on x86?
+> 
+> Both real and kvm.
+> 
+> > Could you show me how I can reproduce it?
+> 
+> Just run make check.
+> 
+> > I want to test it in x86 machine, first of all.
+> > Unfortunately, I don't have any aarch64 platform now so maybe I have to
+> > run it on qemu on x86 until I can set up aarch64 platform if it is reproducible
+> > on real machine only.
+> >
+> >> 
+> >> The kernel has been configured with transparent hugepages.
+> >> 
+> >> CONFIG_TRANSPARENT_HUGEPAGE=y
+> >> CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+> >> # CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is not set
+> >> CONFIG_TRANSPARENT_HUGE_PAGECACHE=y
+> >
+> > What's the exact kernel version?
+> 
+> Anything >= your commit.
 
-- Masayoshi Mizuma
+Thanks for the info. I cannot setup testing enviroment but when I read code,
+it seems we need pmd_wrprotect for non-hardware dirty architecture.
 
-On Fri, 2 Dec 2016 14:08:34 +0900 Masayoshi Mizuma wrote:
-> bdi_unregister() should be called after bdi_register() is called,
-> so we should check whether WB_registered flag is set.
-> 
-> For example of the situation, error path in device driver may call
-> blk_cleanup_queue() before the driver calls bdi_register().
-> 
-> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-> ---
->   mm/backing-dev.c | 3 +++
->   1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 8fde443..f8b07d4 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -853,6 +853,9 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
->   
->   void bdi_unregister(struct backing_dev_info *bdi)
->   {
-> +	if (!test_bit(WB_registered, &bdi->wb.state))
-> +		return;
-> +
->   	/* make sure nobody finds us on the bdi_list anymore */
->   	bdi_remove_from_list(bdi);
->   	wb_shutdown(&bdi->wb);
-> 
+Below helps?
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index e10a4fe..dc37c9a 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1611,6 +1611,7 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			tlb->fullmm);
+ 		orig_pmd = pmd_mkold(orig_pmd);
+ 		orig_pmd = pmd_mkclean(orig_pmd);
++		orig_pmd = pmd_wrprotect(orig_pmd);
+ 
+ 		set_pmd_at(mm, addr, pmd, orig_pmd);
+ 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
