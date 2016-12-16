@@ -1,669 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 724E96B0253
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:14:21 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xy5so32735395wjc.0
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:14:21 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AA0A6B0253
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 04:26:44 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id w13so5891234wmw.0
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:26:44 -0800 (PST)
 Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
-        by mx.google.com with ESMTPS id u10si6159893wjz.151.2016.12.16.01.14.19
+        by mx.google.com with ESMTPS id o7si6177968wjw.219.2016.12.16.01.26.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 01:14:19 -0800 (PST)
-Received: by mail-wj0-f196.google.com with SMTP id xy5so13432570wjc.1
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:14:19 -0800 (PST)
-Date: Fri, 16 Dec 2016 10:14:17 +0100
+        Fri, 16 Dec 2016 01:26:42 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id he10so13538938wjc.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 01:26:42 -0800 (PST)
+Date: Fri, 16 Dec 2016 10:26:40 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] mm: add new mmgrab() helper
-Message-ID: <20161216091417.GB13940@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/4] mm: add new mmget() helper
+Message-ID: <20161216092640.GC13940@dhcp22.suse.cz>
 References: <20161216082202.21044-1-vegard.nossum@oracle.com>
+ <20161216082202.21044-2-vegard.nossum@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161216082202.21044-1-vegard.nossum@oracle.com>
+In-Reply-To: <20161216082202.21044-2-vegard.nossum@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vegard Nossum <vegard.nossum@oracle.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri 16-12-16 09:21:59, Vegard Nossum wrote:
+On Fri 16-12-16 09:22:00, Vegard Nossum wrote:
 > Apart from adding the helper function itself, the rest of the kernel is
 > converted mechanically using:
 > 
->   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_count);/mmgrab\(\1\);/'
->   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_count);/mmgrab\(\&\1\);/'
+>   git grep -l 'atomic_inc.*mm_users' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_users);/mmget\(\1\);/'
+>   git grep -l 'atomic_inc.*mm_users' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_users);/mmget\(\&\1\);/'
 > 
 > This is needed for a later patch that hooks into the helper, but might be
 > a worthwhile cleanup on its own.
+
+Same here a clarification comment would be really nice
+
+/**
+ * mmget: pins the address space
+ *
+ * Makes sure that the address space of the given mm struct doesn't go
+ * away. This doesn't protect from freeing parts of the address space
+ * though.
+ *
+ * Never use this function if the time the address space is pinned is
+ * not bounded.
+ */
+
 > 
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Michal Hocko <mhocko@suse.com>
 > Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
 
-Yes this make sense to me. I usually do not like wrappers around simple
-atomic operations but the api will be more symmetric (and cscope will
-work nicer as a bonus).
-
-While you are there a comment explaining where mmgrab should be used
-would be nice
-
-/** 
- * mmgrab: pins the mm_struct
- *
- * Make sure that the mm struct will not get freed even after the owner
- * task exits. This doesn't guarantee that the associated address space
- * will still exist later on and mmget_not_zero has to be used before
- * accessing it.
- *
- * This is a preferred way to to pin the mm struct for longer/unbound
- * time.
- */
-
-or something along those lines.
-
-Anyway
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  arch/alpha/kernel/smp.c                  | 2 +-
->  arch/arc/kernel/smp.c                    | 2 +-
->  arch/arm/kernel/smp.c                    | 2 +-
->  arch/arm64/kernel/smp.c                  | 2 +-
->  arch/blackfin/mach-common/smp.c          | 2 +-
->  arch/hexagon/kernel/smp.c                | 2 +-
->  arch/ia64/kernel/setup.c                 | 2 +-
->  arch/m32r/kernel/setup.c                 | 2 +-
->  arch/metag/kernel/smp.c                  | 2 +-
->  arch/mips/kernel/traps.c                 | 2 +-
->  arch/mn10300/kernel/smp.c                | 2 +-
->  arch/parisc/kernel/smp.c                 | 2 +-
->  arch/powerpc/kernel/smp.c                | 2 +-
->  arch/s390/kernel/processor.c             | 2 +-
->  arch/score/kernel/traps.c                | 2 +-
->  arch/sh/kernel/smp.c                     | 2 +-
->  arch/sparc/kernel/leon_smp.c             | 2 +-
->  arch/sparc/kernel/smp_64.c               | 2 +-
->  arch/sparc/kernel/sun4d_smp.c            | 2 +-
->  arch/sparc/kernel/sun4m_smp.c            | 2 +-
->  arch/sparc/kernel/traps_32.c             | 2 +-
->  arch/sparc/kernel/traps_64.c             | 2 +-
->  arch/tile/kernel/smpboot.c               | 2 +-
->  arch/x86/kernel/cpu/common.c             | 4 ++--
->  arch/xtensa/kernel/smp.c                 | 2 +-
->  drivers/gpu/drm/amd/amdkfd/kfd_process.c | 2 +-
->  drivers/gpu/drm/i915/i915_gem_userptr.c  | 2 +-
->  drivers/infiniband/hw/hfi1/file_ops.c    | 2 +-
->  fs/proc/base.c                           | 4 ++--
->  fs/userfaultfd.c                         | 2 +-
->  include/linux/sched.h                    | 5 +++++
->  kernel/exit.c                            | 2 +-
->  kernel/futex.c                           | 2 +-
->  kernel/sched/core.c                      | 4 ++--
->  mm/khugepaged.c                          | 2 +-
->  mm/ksm.c                                 | 2 +-
->  mm/mmu_context.c                         | 2 +-
->  mm/mmu_notifier.c                        | 2 +-
->  mm/oom_kill.c                            | 4 ++--
->  virt/kvm/kvm_main.c                      | 2 +-
->  40 files changed, 48 insertions(+), 43 deletions(-)
+>  arch/arc/kernel/smp.c           |  2 +-
+>  arch/blackfin/mach-common/smp.c |  2 +-
+>  arch/frv/mm/mmu-context.c       |  2 +-
+>  arch/metag/kernel/smp.c         |  2 +-
+>  arch/sh/kernel/smp.c            |  2 +-
+>  arch/xtensa/kernel/smp.c        |  2 +-
+>  include/linux/sched.h           |  5 +++++
+>  kernel/fork.c                   |  4 ++--
+>  mm/swapfile.c                   | 10 +++++-----
+>  virt/kvm/async_pf.c             |  2 +-
+>  10 files changed, 19 insertions(+), 14 deletions(-)
 > 
-> diff --git a/arch/alpha/kernel/smp.c b/arch/alpha/kernel/smp.c
-> index 46bf263c3153..acb4b146a607 100644
-> --- a/arch/alpha/kernel/smp.c
-> +++ b/arch/alpha/kernel/smp.c
-> @@ -144,7 +144,7 @@ smp_callin(void)
->  		alpha_mv.smp_callin();
->  
->  	/* All kernel threads share the same mm context.  */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	/* inform the notifiers about the new cpu */
 > diff --git a/arch/arc/kernel/smp.c b/arch/arc/kernel/smp.c
-> index 88674d972c9d..9cbc7aba3ede 100644
+> index 9cbc7aba3ede..eec70cb71db1 100644
 > --- a/arch/arc/kernel/smp.c
 > +++ b/arch/arc/kernel/smp.c
-> @@ -125,7 +125,7 @@ void start_kernel_secondary(void)
+> @@ -124,7 +124,7 @@ void start_kernel_secondary(void)
+>  	/* MMU, Caches, Vector Table, Interrupts etc */
 >  	setup_processor();
 >  
->  	atomic_inc(&mm->mm_users);
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
+> -	atomic_inc(&mm->mm_users);
+> +	mmget(mm);
+>  	mmgrab(mm);
 >  	current->active_mm = mm;
 >  	cpumask_set_cpu(cpu, mm_cpumask(mm));
+> diff --git a/arch/blackfin/mach-common/smp.c b/arch/blackfin/mach-common/smp.c
+> index bc5617ef7128..a2e6db2ce811 100644
+> --- a/arch/blackfin/mach-common/smp.c
+> +++ b/arch/blackfin/mach-common/smp.c
+> @@ -307,7 +307,7 @@ void secondary_start_kernel(void)
+>  	local_irq_disable();
 >  
-> diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
-> index 7dd14e8395e6..c6514ce0fcbc 100644
-> --- a/arch/arm/kernel/smp.c
-> +++ b/arch/arm/kernel/smp.c
-> @@ -371,7 +371,7 @@ asmlinkage void secondary_start_kernel(void)
->  	 * reference and switch to it.
->  	 */
->  	cpu = smp_processor_id();
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
+>  	/* Attach the new idle task to the global mm. */
+> -	atomic_inc(&mm->mm_users);
+> +	mmget(mm);
+>  	mmgrab(mm);
 >  	current->active_mm = mm;
->  	cpumask_set_cpu(cpu, mm_cpumask(mm));
 >  
-> diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-> index 8507703dabe4..61969ea29654 100644
-> --- a/arch/arm64/kernel/smp.c
-> +++ b/arch/arm64/kernel/smp.c
-> @@ -214,7 +214,7 @@ asmlinkage void secondary_start_kernel(void)
+> diff --git a/arch/frv/mm/mmu-context.c b/arch/frv/mm/mmu-context.c
+> index 81757d55a5b5..3473bde77f56 100644
+> --- a/arch/frv/mm/mmu-context.c
+> +++ b/arch/frv/mm/mmu-context.c
+> @@ -188,7 +188,7 @@ int cxn_pin_by_pid(pid_t pid)
+>  		task_lock(tsk);
+>  		if (tsk->mm) {
+>  			mm = tsk->mm;
+> -			atomic_inc(&mm->mm_users);
+> +			mmget(mm);
+>  			ret = 0;
+>  		}
+>  		task_unlock(tsk);
+> diff --git a/arch/metag/kernel/smp.c b/arch/metag/kernel/smp.c
+> index af9cff547a19..c622293254e4 100644
+> --- a/arch/metag/kernel/smp.c
+> +++ b/arch/metag/kernel/smp.c
+> @@ -344,7 +344,7 @@ asmlinkage void secondary_start_kernel(void)
 >  	 * All kernel threads share the same mm context; grab a
 >  	 * reference and switch to it.
 >  	 */
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	current->active_mm = mm;
->  
->  	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-> diff --git a/arch/blackfin/mach-common/smp.c b/arch/blackfin/mach-common/smp.c
-> index 23c4ef5f8bdc..bc5617ef7128 100644
-> --- a/arch/blackfin/mach-common/smp.c
-> +++ b/arch/blackfin/mach-common/smp.c
-> @@ -308,7 +308,7 @@ void secondary_start_kernel(void)
->  
->  	/* Attach the new idle task to the global mm. */
->  	atomic_inc(&mm->mm_users);
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	current->active_mm = mm;
->  
->  	preempt_disable();
-> diff --git a/arch/hexagon/kernel/smp.c b/arch/hexagon/kernel/smp.c
-> index 983bae7d2665..c02a6455839e 100644
-> --- a/arch/hexagon/kernel/smp.c
-> +++ b/arch/hexagon/kernel/smp.c
-> @@ -162,7 +162,7 @@ void start_secondary(void)
->  	);
->  
->  	/*  Set the memory struct  */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	cpu = smp_processor_id();
-> diff --git a/arch/ia64/kernel/setup.c b/arch/ia64/kernel/setup.c
-> index 7ec7acc844c2..ecbff47b01f1 100644
-> --- a/arch/ia64/kernel/setup.c
-> +++ b/arch/ia64/kernel/setup.c
-> @@ -992,7 +992,7 @@ cpu_init (void)
->  	 */
->  	ia64_setreg(_IA64_REG_CR_DCR,  (  IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX | IA64_DCR_DR
->  					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	BUG_ON(current->mm);
->  
-> diff --git a/arch/m32r/kernel/setup.c b/arch/m32r/kernel/setup.c
-> index 136c69f1fb8a..b18bc0bd6544 100644
-> --- a/arch/m32r/kernel/setup.c
-> +++ b/arch/m32r/kernel/setup.c
-> @@ -403,7 +403,7 @@ void __init cpu_init (void)
->  	printk(KERN_INFO "Initializing CPU#%d\n", cpu_id);
->  
->  	/* Set up and load the per-CPU TSS and LDT */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	if (current->mm)
->  		BUG();
-> diff --git a/arch/metag/kernel/smp.c b/arch/metag/kernel/smp.c
-> index bad13232de51..af9cff547a19 100644
-> --- a/arch/metag/kernel/smp.c
-> +++ b/arch/metag/kernel/smp.c
-> @@ -345,7 +345,7 @@ asmlinkage void secondary_start_kernel(void)
->  	 * reference and switch to it.
->  	 */
->  	atomic_inc(&mm->mm_users);
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
+> -	atomic_inc(&mm->mm_users);
+> +	mmget(mm);
+>  	mmgrab(mm);
 >  	current->active_mm = mm;
 >  	cpumask_set_cpu(cpu, mm_cpumask(mm));
->  	enter_lazy_tlb(mm, current);
-> diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
-> index 3905003dfe2b..e50b0e0ca44c 100644
-> --- a/arch/mips/kernel/traps.c
-> +++ b/arch/mips/kernel/traps.c
-> @@ -2177,7 +2177,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
->  	if (!cpu_data[cpu].asid_cache)
->  		cpu_data[cpu].asid_cache = asid_first_version(cpu);
->  
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	BUG_ON(current->mm);
->  	enter_lazy_tlb(&init_mm, current);
-> diff --git a/arch/mn10300/kernel/smp.c b/arch/mn10300/kernel/smp.c
-> index 426173c4b0b9..e65b5cc2fa67 100644
-> --- a/arch/mn10300/kernel/smp.c
-> +++ b/arch/mn10300/kernel/smp.c
-> @@ -589,7 +589,7 @@ static void __init smp_cpu_init(void)
->  	}
->  	printk(KERN_INFO "Initializing CPU#%d\n", cpu_id);
->  
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	BUG_ON(current->mm);
->  
-> diff --git a/arch/parisc/kernel/smp.c b/arch/parisc/kernel/smp.c
-> index 75dab2871346..67b452b41ff6 100644
-> --- a/arch/parisc/kernel/smp.c
-> +++ b/arch/parisc/kernel/smp.c
-> @@ -279,7 +279,7 @@ smp_cpu_init(int cpunum)
->  	set_cpu_online(cpunum, true);
->  
->  	/* Initialise the idle task for this CPU */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	BUG_ON(current->mm);
->  	enter_lazy_tlb(&init_mm, current);
-> diff --git a/arch/powerpc/kernel/smp.c b/arch/powerpc/kernel/smp.c
-> index 9c6f3fd58059..42b82364c782 100644
-> --- a/arch/powerpc/kernel/smp.c
-> +++ b/arch/powerpc/kernel/smp.c
-> @@ -707,7 +707,7 @@ void start_secondary(void *unused)
->  	unsigned int cpu = smp_processor_id();
->  	int i, base;
->  
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	smp_store_cpu_info(cpu);
-> diff --git a/arch/s390/kernel/processor.c b/arch/s390/kernel/processor.c
-> index 81d0808085e6..ec9bc100895c 100644
-> --- a/arch/s390/kernel/processor.c
-> +++ b/arch/s390/kernel/processor.c
-> @@ -73,7 +73,7 @@ void cpu_init(void)
->  	get_cpu_id(id);
->  	if (machine_has_cpu_mhz)
->  		update_cpu_mhz(NULL);
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	BUG_ON(current->mm);
->  	enter_lazy_tlb(&init_mm, current);
-> diff --git a/arch/score/kernel/traps.c b/arch/score/kernel/traps.c
-> index 5cea1e750cec..6f6e5a39d147 100644
-> --- a/arch/score/kernel/traps.c
-> +++ b/arch/score/kernel/traps.c
-> @@ -336,7 +336,7 @@ void __init trap_init(void)
->  	set_except_vector(18, handle_dbe);
->  	flush_icache_range(DEBUG_VECTOR_BASE_ADDR, IRQ_VECTOR_BASE_ADDR);
->  
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	cpu_cache_init();
->  }
 > diff --git a/arch/sh/kernel/smp.c b/arch/sh/kernel/smp.c
-> index 38e7860845db..ee379c699c08 100644
+> index ee379c699c08..edc4769b047e 100644
 > --- a/arch/sh/kernel/smp.c
 > +++ b/arch/sh/kernel/smp.c
-> @@ -178,7 +178,7 @@ asmlinkage void start_secondary(void)
->  	struct mm_struct *mm = &init_mm;
+> @@ -179,7 +179,7 @@ asmlinkage void start_secondary(void)
 >  
 >  	enable_mmu();
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	atomic_inc(&mm->mm_users);
+>  	mmgrab(mm);
+> -	atomic_inc(&mm->mm_users);
+> +	mmget(mm);
 >  	current->active_mm = mm;
 >  #ifdef CONFIG_MMU
-> diff --git a/arch/sparc/kernel/leon_smp.c b/arch/sparc/kernel/leon_smp.c
-> index 71e16f2241c2..b99d33797e1d 100644
-> --- a/arch/sparc/kernel/leon_smp.c
-> +++ b/arch/sparc/kernel/leon_smp.c
-> @@ -93,7 +93,7 @@ void leon_cpu_pre_online(void *arg)
->  			     : "memory" /* paranoid */);
->  
->  	/* Attach to the address space of init_task. */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
-> diff --git a/arch/sparc/kernel/smp_64.c b/arch/sparc/kernel/smp_64.c
-> index 8182f7caf5b1..c1d2bed22961 100644
-> --- a/arch/sparc/kernel/smp_64.c
-> +++ b/arch/sparc/kernel/smp_64.c
-> @@ -122,7 +122,7 @@ void smp_callin(void)
->  	current_thread_info()->new_child = 0;
->  
->  	/* Attach to the address space of init_task. */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	/* inform the notifiers about the new cpu */
-> diff --git a/arch/sparc/kernel/sun4d_smp.c b/arch/sparc/kernel/sun4d_smp.c
-> index 9d98e5002a09..7b55c50eabe5 100644
-> --- a/arch/sparc/kernel/sun4d_smp.c
-> +++ b/arch/sparc/kernel/sun4d_smp.c
-> @@ -93,7 +93,7 @@ void sun4d_cpu_pre_online(void *arg)
->  	show_leds(cpuid);
->  
->  	/* Attach to the address space of init_task. */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	local_ops->cache_all();
-> diff --git a/arch/sparc/kernel/sun4m_smp.c b/arch/sparc/kernel/sun4m_smp.c
-> index 278c40abce82..633c4cf6fdb0 100644
-> --- a/arch/sparc/kernel/sun4m_smp.c
-> +++ b/arch/sparc/kernel/sun4m_smp.c
-> @@ -59,7 +59,7 @@ void sun4m_cpu_pre_online(void *arg)
->  			     : "memory" /* paranoid */);
->  
->  	/* Attach to the address space of init_task. */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
-> diff --git a/arch/sparc/kernel/traps_32.c b/arch/sparc/kernel/traps_32.c
-> index 4f21df7d4f13..ecddac5a4c96 100644
-> --- a/arch/sparc/kernel/traps_32.c
-> +++ b/arch/sparc/kernel/traps_32.c
-> @@ -448,7 +448,7 @@ void trap_init(void)
->  		thread_info_offsets_are_bolixed_pete();
->  
->  	/* Attach to the address space of init_task. */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  
->  	/* NOTE: Other cpus have this done as they are started
-> diff --git a/arch/sparc/kernel/traps_64.c b/arch/sparc/kernel/traps_64.c
-> index 4094a51b1970..0dbbe40012ef 100644
-> --- a/arch/sparc/kernel/traps_64.c
-> +++ b/arch/sparc/kernel/traps_64.c
-> @@ -2764,6 +2764,6 @@ void __init trap_init(void)
->  	/* Attach to the address space of init_task.  On SMP we
->  	 * do this in smp.c:smp_callin for other cpus.
->  	 */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  }
-> diff --git a/arch/tile/kernel/smpboot.c b/arch/tile/kernel/smpboot.c
-> index 6c0abaacec33..53ce940a5016 100644
-> --- a/arch/tile/kernel/smpboot.c
-> +++ b/arch/tile/kernel/smpboot.c
-> @@ -160,7 +160,7 @@ static void start_secondary(void)
->  	__this_cpu_write(current_asid, min_asid);
->  
->  	/* Set up this thread as another owner of the init_mm */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	current->active_mm = &init_mm;
->  	if (current->mm)
->  		BUG();
-> diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
-> index cc9e980c68ec..b580da4582e1 100644
-> --- a/arch/x86/kernel/cpu/common.c
-> +++ b/arch/x86/kernel/cpu/common.c
-> @@ -1555,7 +1555,7 @@ void cpu_init(void)
->  	for (i = 0; i <= IO_BITMAP_LONGS; i++)
->  		t->io_bitmap[i] = ~0UL;
->  
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	me->active_mm = &init_mm;
->  	BUG_ON(me->mm);
->  	enter_lazy_tlb(&init_mm, me);
-> @@ -1606,7 +1606,7 @@ void cpu_init(void)
->  	/*
->  	 * Set up and load the per-CPU TSS and LDT
->  	 */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	curr->active_mm = &init_mm;
->  	BUG_ON(curr->mm);
->  	enter_lazy_tlb(&init_mm, curr);
+>  	enter_lazy_tlb(mm, current);
 > diff --git a/arch/xtensa/kernel/smp.c b/arch/xtensa/kernel/smp.c
-> index fc4ad21a5ed4..9bf5cea3bae4 100644
+> index 9bf5cea3bae4..fcea72019df7 100644
 > --- a/arch/xtensa/kernel/smp.c
 > +++ b/arch/xtensa/kernel/smp.c
-> @@ -136,7 +136,7 @@ void secondary_start_kernel(void)
+> @@ -135,7 +135,7 @@ void secondary_start_kernel(void)
+>  
 >  	/* All kernel threads share the same mm context. */
 >  
->  	atomic_inc(&mm->mm_users);
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
+> -	atomic_inc(&mm->mm_users);
+> +	mmget(mm);
+>  	mmgrab(mm);
 >  	current->active_mm = mm;
 >  	cpumask_set_cpu(cpu, mm_cpumask(mm));
->  	enter_lazy_tlb(mm, current);
-> diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_process.c b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-> index ef7c8de7060e..ca5f2aa7232d 100644
-> --- a/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-> +++ b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-> @@ -262,7 +262,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
->  	 * and because the mmu_notifier_unregister function also drop
->  	 * mm_count we need to take an extra count here.
->  	 */
-> -	atomic_inc(&p->mm->mm_count);
-> +	mmgrab(p->mm);
->  	mmu_notifier_unregister_no_release(&p->mmu_notifier, p->mm);
->  	mmu_notifier_call_srcu(&p->rcu, &kfd_process_destroy_delayed);
->  }
-> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> index c6f780f5abc9..f21ca404af79 100644
-> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> @@ -341,7 +341,7 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
->  		mm->i915 = to_i915(obj->base.dev);
->  
->  		mm->mm = current->mm;
-> -		atomic_inc(&current->mm->mm_count);
-> +		mmgrab(current->mm);
->  
->  		mm->mn = NULL;
->  
-> diff --git a/drivers/infiniband/hw/hfi1/file_ops.c b/drivers/infiniband/hw/hfi1/file_ops.c
-> index bd786b7bd30b..2e1a6643a910 100644
-> --- a/drivers/infiniband/hw/hfi1/file_ops.c
-> +++ b/drivers/infiniband/hw/hfi1/file_ops.c
-> @@ -185,7 +185,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
->  	if (fd) {
->  		fd->rec_cpu_num = -1; /* no cpu affinity by default */
->  		fd->mm = current->mm;
-> -		atomic_inc(&fd->mm->mm_count);
-> +		mmgrab(fd->mm);
->  		fp->private_data = fd;
->  	} else {
->  		fp->private_data = NULL;
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index ca651ac00660..0b8ccacae8b3 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -795,7 +795,7 @@ struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
->  
->  		if (!IS_ERR_OR_NULL(mm)) {
->  			/* ensure this mm_struct can't be freed */
-> -			atomic_inc(&mm->mm_count);
-> +			mmgrab(mm);
->  			/* but do not pin its memory */
->  			mmput(mm);
->  		}
-> @@ -1093,7 +1093,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
->  		if (p) {
->  			if (atomic_read(&p->mm->mm_users) > 1) {
->  				mm = p->mm;
-> -				atomic_inc(&mm->mm_count);
-> +				mmgrab(mm);
->  			}
->  			task_unlock(p);
->  		}
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 85959d8324df..ffa9c7cbc5fa 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -1304,7 +1304,7 @@ static struct file *userfaultfd_file_create(int flags)
->  	ctx->released = false;
->  	ctx->mm = current->mm;
->  	/* prevent the mm struct to be freed */
-> -	atomic_inc(&ctx->mm->mm_count);
-> +	mmgrab(ctx->mm);
->  
->  	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
->  				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
 > diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index e9c009dc3a4a..31ae1f49eebb 100644
+> index 31ae1f49eebb..2ca3e15dad3b 100644
 > --- a/include/linux/sched.h
 > +++ b/include/linux/sched.h
-> @@ -2872,6 +2872,11 @@ static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
->   */
->  extern struct mm_struct * mm_alloc(void);
+> @@ -2899,6 +2899,11 @@ static inline void mmdrop_async(struct mm_struct *mm)
+>  	}
+>  }
 >  
-> +static inline void mmgrab(struct mm_struct *mm)
+> +static inline void mmget(struct mm_struct *mm)
 > +{
-> +	atomic_inc(&mm->mm_count);
+> +	atomic_inc(&mm->mm_users);
 > +}
 > +
->  /* mmdrop drops the mm and the page tables */
->  extern void __mmdrop(struct mm_struct *);
->  static inline void mmdrop(struct mm_struct *mm)
-> diff --git a/kernel/exit.c b/kernel/exit.c
-> index 3076f3089919..b12753840050 100644
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -500,7 +500,7 @@ static void exit_mm(struct task_struct *tsk)
->  		__set_task_state(tsk, TASK_RUNNING);
->  		down_read(&mm->mmap_sem);
->  	}
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	BUG_ON(mm != tsk->active_mm);
->  	/* more a memory barrier than a real lock */
->  	task_lock(tsk);
-> diff --git a/kernel/futex.c b/kernel/futex.c
-> index 2c4be467fecd..cbe6056c17c1 100644
-> --- a/kernel/futex.c
-> +++ b/kernel/futex.c
-> @@ -338,7 +338,7 @@ static inline bool should_fail_futex(bool fshared)
->  
->  static inline void futex_get_mm(union futex_key *key)
+>  static inline bool mmget_not_zero(struct mm_struct *mm)
 >  {
-> -	atomic_inc(&key->private.mm->mm_count);
-> +	mmgrab(key->private.mm);
->  	/*
->  	 * Ensure futex_get_mm() implies a full barrier such that
->  	 * get_futex_key() implies a full barrier. This is relied upon
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 154fd689fe02..ee1fb0070544 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -2877,7 +2877,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
+>  	return atomic_inc_not_zero(&mm->mm_users);
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 997ac1d584f7..f9c32dc6ccbc 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -989,7 +989,7 @@ struct mm_struct *get_task_mm(struct task_struct *task)
+>  		if (task->flags & PF_KTHREAD)
+>  			mm = NULL;
+>  		else
+> -			atomic_inc(&mm->mm_users);
+> +			mmget(mm);
+>  	}
+>  	task_unlock(task);
+>  	return mm;
+> @@ -1177,7 +1177,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
+>  	vmacache_flush(tsk);
 >  
->  	if (!mm) {
->  		next->active_mm = oldmm;
-> -		atomic_inc(&oldmm->mm_count);
-> +		mmgrab(oldmm);
->  		enter_lazy_tlb(oldmm, next);
->  	} else
->  		switch_mm_irqs_off(oldmm, mm, next);
-> @@ -7667,7 +7667,7 @@ void __init sched_init(void)
->  	/*
->  	 * The boot idle thread does lazy MMU switching as well:
+>  	if (clone_flags & CLONE_VM) {
+> -		atomic_inc(&oldmm->mm_users);
+> +		mmget(oldmm);
+>  		mm = oldmm;
+>  		goto good_mm;
+>  	}
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index f30438970cd1..cf73169ce153 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1402,7 +1402,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
+>  	 * that.
 >  	 */
-> -	atomic_inc(&init_mm.mm_count);
-> +	mmgrab(&init_mm);
->  	enter_lazy_tlb(&init_mm, current);
+>  	start_mm = &init_mm;
+> -	atomic_inc(&init_mm.mm_users);
+> +	mmget(&init_mm);
 >  
 >  	/*
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index 87e1a7ca3846..1343271a18f1 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -420,7 +420,7 @@ int __khugepaged_enter(struct mm_struct *mm)
->  	list_add_tail(&mm_slot->mm_node, &khugepaged_scan.mm_head);
->  	spin_unlock(&khugepaged_mm_lock);
+>  	 * Keep on scanning until all entries have gone.  Usually,
+> @@ -1451,7 +1451,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
+>  		if (atomic_read(&start_mm->mm_users) == 1) {
+>  			mmput(start_mm);
+>  			start_mm = &init_mm;
+> -			atomic_inc(&init_mm.mm_users);
+> +			mmget(&init_mm);
+>  		}
 >  
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	if (wakeup)
->  		wake_up_interruptible(&khugepaged_wait);
+>  		/*
+> @@ -1488,8 +1488,8 @@ int try_to_unuse(unsigned int type, bool frontswap,
+>  			struct mm_struct *prev_mm = start_mm;
+>  			struct mm_struct *mm;
 >  
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 9ae6011a41f8..5a49aad9d87b 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1813,7 +1813,7 @@ int __ksm_enter(struct mm_struct *mm)
->  	spin_unlock(&ksm_mmlist_lock);
+> -			atomic_inc(&new_start_mm->mm_users);
+> -			atomic_inc(&prev_mm->mm_users);
+> +			mmget(new_start_mm);
+> +			mmget(prev_mm);
+>  			spin_lock(&mmlist_lock);
+>  			while (swap_count(*swap_map) && !retval &&
+>  					(p = p->next) != &start_mm->mmlist) {
+> @@ -1512,7 +1512,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 >  
->  	set_bit(MMF_VM_MERGEABLE, &mm->flags);
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
+>  				if (set_start_mm && *swap_map < swcount) {
+>  					mmput(new_start_mm);
+> -					atomic_inc(&mm->mm_users);
+> +					mmget(mm);
+>  					new_start_mm = mm;
+>  					set_start_mm = 0;
+>  				}
+> diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+> index efeceb0a222d..9ec9cef2b207 100644
+> --- a/virt/kvm/async_pf.c
+> +++ b/virt/kvm/async_pf.c
+> @@ -200,7 +200,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
+>  	work->addr = hva;
+>  	work->arch = *arch;
+>  	work->mm = current->mm;
+> -	atomic_inc(&work->mm->mm_users);
+> +	mmget(work->mm);
+>  	kvm_get_kvm(work->vcpu->kvm);
 >  
->  	if (needs_wakeup)
->  		wake_up_interruptible(&ksm_thread_wait);
-> diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-> index 6f4d27c5bb32..daf67bb02b4a 100644
-> --- a/mm/mmu_context.c
-> +++ b/mm/mmu_context.c
-> @@ -25,7 +25,7 @@ void use_mm(struct mm_struct *mm)
->  	task_lock(tsk);
->  	active_mm = tsk->active_mm;
->  	if (active_mm != mm) {
-> -		atomic_inc(&mm->mm_count);
-> +		mmgrab(mm);
->  		tsk->active_mm = mm;
->  	}
->  	tsk->mm = mm;
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index f4259e496f83..32bc9f2ff7eb 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -275,7 +275,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
->  		mm->mmu_notifier_mm = mmu_notifier_mm;
->  		mmu_notifier_mm = NULL;
->  	}
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  
->  	/*
->  	 * Serialize the update against mmu_notifier_unregister. A
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ec9f11d4f094..ead093c6f2a6 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -660,7 +660,7 @@ static void mark_oom_victim(struct task_struct *tsk)
->  
->  	/* oom_mm is bound to the signal struct life time. */
->  	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
-> -		atomic_inc(&tsk->signal->oom_mm->mm_count);
-> +		mmgrab(tsk->signal->oom_mm);
->  
->  	/*
->  	 * Make sure that the task is woken up from uninterruptible sleep
-> @@ -877,7 +877,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  
->  	/* Get a reference to safely compare mm after task_unlock(victim) */
->  	mm = victim->mm;
-> -	atomic_inc(&mm->mm_count);
-> +	mmgrab(mm);
->  	/*
->  	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
->  	 * the OOM victim from depleting the memory reserves from the user
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 7f9ee2929cfe..43914b981691 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -613,7 +613,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
->  		return ERR_PTR(-ENOMEM);
->  
->  	spin_lock_init(&kvm->mmu_lock);
-> -	atomic_inc(&current->mm->mm_count);
-> +	mmgrab(current->mm);
->  	kvm->mm = current->mm;
->  	kvm_eventfd_init(kvm);
->  	mutex_init(&kvm->lock);
+>  	/* this can't really happen otherwise gfn_to_pfn_async
 > -- 
 > 2.11.0.1.gaa10c3f
 > 
