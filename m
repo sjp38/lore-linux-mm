@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 505216B0279
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 68E986B0276
 	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:48:29 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f73so92507064ioe.1
+Received: by mail-it0-f72.google.com with SMTP id q186so21187964itb.0
         for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:48:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v83si6194634iod.8.2016.12.16.06.48.28
+        by mx.google.com with ESMTPS id l72si2928331ita.109.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 17/42] userfaultfd: hugetlbfs: add hugetlb_mcopy_atomic_pte for userfaultfd support
-Date: Fri, 16 Dec 2016 15:47:56 +0100
-Message-Id: <20161216144821.5183-18-aarcange@redhat.com>
+Subject: [PATCH 34/42] userfaultfd: shmem: add userfaultfd_shmem test
+Date: Fri, 16 Dec 2016 15:48:13 +0100
+Message-Id: <20161216144821.5183-35-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,136 +20,133 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-hugetlb_mcopy_atomic_pte is the low level routine that implements
-the userfaultfd UFFDIO_COPY command.  It is based on the existing
-mcopy_atomic_pte routine with modifications for huge pages.
+The test verifies that anonymous shared mapping can be used with userfault
+using the existing testing method.
+The shared memory area is allocated using mmap(..., MAP_SHARED |
+MAP_ANONYMOUS, ...) and released using madvise(MADV_REMOVE)
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/hugetlb.h |  7 +++++
- mm/hugetlb.c            | 81 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 88 insertions(+)
+ tools/testing/selftests/vm/Makefile      |  4 ++++
+ tools/testing/selftests/vm/run_vmtests   | 11 ++++++++++
+ tools/testing/selftests/vm/userfaultfd.c | 37 ++++++++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 48c76d6..aab2fff 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -81,6 +81,11 @@ void hugetlb_show_meminfo(void);
- unsigned long hugetlb_total_pages(void);
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, unsigned int flags);
-+int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm, pte_t *dst_pte,
-+				struct vm_area_struct *dst_vma,
-+				unsigned long dst_addr,
-+				unsigned long src_addr,
-+				struct page **pagep);
- int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						struct vm_area_struct *vma,
- 						vm_flags_t vm_flags);
-@@ -149,6 +154,8 @@ static inline void hugetlb_show_meminfo(void)
- #define is_hugepage_only_range(mm, addr, len)	0
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
-+#define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
-+				src_addr, pagep)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
- static inline int dequeue_hwpoisoned_huge_page(struct page *page)
- {
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3edb759..f815f56 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3929,6 +3929,87 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return ret;
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index 0114aac..900dfaf 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -11,6 +11,7 @@ BINARIES += thuge-gen
+ BINARIES += transhuge-stress
+ BINARIES += userfaultfd
+ BINARIES += userfaultfd_hugetlb
++BINARIES += userfaultfd_shmem
+ BINARIES += mlock-random-test
+ 
+ all: $(BINARIES)
+@@ -22,6 +23,9 @@ userfaultfd: userfaultfd.c ../../../../usr/include/linux/kernel.h
+ userfaultfd_hugetlb: userfaultfd.c ../../../../usr/include/linux/kernel.h
+ 	$(CC) $(CFLAGS) -DHUGETLB_TEST -O2 -o $@ $< -lpthread
+ 
++userfaultfd_shmem: userfaultfd.c ../../../../usr/include/linux/kernel.h
++	$(CC) $(CFLAGS) -DSHMEM_TEST -O2 -o $@ $< -lpthread
++
+ mlock-random-test: mlock-random-test.c
+ 	$(CC) $(CFLAGS) -o $@ $< -lcap
+ 
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index 14d697e..c92f6cf 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -116,6 +116,17 @@ else
+ fi
+ rm -f $mnt/ufd_test_file
+ 
++echo "----------------------------"
++echo "running userfaultfd_shmem"
++echo "----------------------------"
++./userfaultfd_shmem 128 32
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
+ #cleanup
+ umount $mnt
+ rm -rf $mnt
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index d753a91..a5e5808 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -101,8 +101,9 @@ pthread_attr_t attr;
+ 				 ~(unsigned long)(sizeof(unsigned long long) \
+ 						  -  1)))
+ 
+-#ifndef HUGETLB_TEST
++#if !defined(HUGETLB_TEST) && !defined(SHMEM_TEST)
+ 
++/* Anonymous memory */
+ #define EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
+ 				 (1 << _UFFDIO_COPY) | \
+ 				 (1 << _UFFDIO_ZEROPAGE))
+@@ -127,10 +128,13 @@ static void allocate_area(void **alloc_area)
+ 	}
  }
  
-+/*
-+ * Used by userfaultfd UFFDIO_COPY.  Based on mcopy_atomic_pte with
-+ * modifications for huge pages.
-+ */
-+int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
-+			    pte_t *dst_pte,
-+			    struct vm_area_struct *dst_vma,
-+			    unsigned long dst_addr,
-+			    unsigned long src_addr,
-+			    struct page **pagep)
+-#else /* HUGETLB_TEST */
++#else /* HUGETLB_TEST or SHMEM_TEST */
+ 
+ #define EXPECTED_IOCTLS		UFFD_API_RANGE_IOCTLS_BASIC
+ 
++#ifdef HUGETLB_TEST
++
++/* HugeTLB memory */
+ static int release_pages(char *rel_area)
+ {
+ 	int ret = 0;
+@@ -162,8 +166,37 @@ static void allocate_area(void **alloc_area)
+ 		huge_fd_off0 = *alloc_area;
+ }
+ 
++#elif defined(SHMEM_TEST)
++
++/* Shared memory */
++static int release_pages(char *rel_area)
 +{
-+	struct hstate *h = hstate_vma(dst_vma);
-+	pte_t _dst_pte;
-+	spinlock_t *ptl;
-+	int ret;
-+	struct page *page;
++	int ret = 0;
 +
-+	if (!*pagep) {
-+		ret = -ENOMEM;
-+		page = alloc_huge_page(dst_vma, dst_addr, 0);
-+		if (IS_ERR(page))
-+			goto out;
-+
-+		ret = copy_huge_page_from_user(page,
-+						(const void __user *) src_addr,
-+						pages_per_huge_page(h));
-+
-+		/* fallback to copy_from_user outside mmap_sem */
-+		if (unlikely(ret)) {
-+			ret = -EFAULT;
-+			*pagep = page;
-+			/* don't free the page */
-+			goto out;
-+		}
-+	} else {
-+		page = *pagep;
-+		*pagep = NULL;
++	if (madvise(rel_area, nr_pages * page_size, MADV_REMOVE)) {
++		perror("madvise");
++		ret = 1;
 +	}
 +
-+	/*
-+	 * The memory barrier inside __SetPageUptodate makes sure that
-+	 * preceding stores to the page contents become visible before
-+	 * the set_pte_at() write.
-+	 */
-+	__SetPageUptodate(page);
-+	set_page_huge_active(page);
-+
-+	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
-+	spin_lock(ptl);
-+
-+	ret = -EEXIST;
-+	if (!huge_pte_none(huge_ptep_get(dst_pte)))
-+		goto out_release_unlock;
-+
-+	ClearPagePrivate(page);
-+	hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
-+
-+	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
-+	if (dst_vma->vm_flags & VM_WRITE)
-+		_dst_pte = huge_pte_mkdirty(_dst_pte);
-+	_dst_pte = pte_mkyoung(_dst_pte);
-+
-+	set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
-+
-+	(void)huge_ptep_set_access_flags(dst_vma, dst_addr, dst_pte, _dst_pte,
-+					dst_vma->vm_flags & VM_WRITE);
-+	hugetlb_count_add(pages_per_huge_page(h), dst_mm);
-+
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(dst_vma, dst_addr, dst_pte);
-+
-+	spin_unlock(ptl);
-+	ret = 0;
-+out:
 +	return ret;
-+out_release_unlock:
-+	spin_unlock(ptl);
-+	put_page(page);
-+	goto out;
 +}
 +
- long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			 struct page **pages, struct vm_area_struct **vmas,
- 			 unsigned long *position, unsigned long *nr_pages,
++static void allocate_area(void **alloc_area)
++{
++	*alloc_area = mmap(NULL, nr_pages * page_size, PROT_READ | PROT_WRITE,
++			   MAP_ANONYMOUS | MAP_SHARED, -1, 0);
++	if (*alloc_area == MAP_FAILED) {
++		fprintf(stderr, "shared memory mmap failed\n");
++		*alloc_area = NULL;
++	}
++}
++
++#else /* SHMEM_TEST */
++#error "Undefined test type"
+ #endif /* HUGETLB_TEST */
+ 
++#endif /* !defined(HUGETLB_TEST) && !defined(SHMEM_TEST) */
++
+ static int my_bcmp(char *str1, char *str2, size_t n)
+ {
+ 	unsigned long i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
