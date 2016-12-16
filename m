@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B73A86B0271
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E84E26B0270
 	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:48:28 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g187so21100989itc.2
+Received: by mail-io0-f198.google.com with SMTP id f73so92506951ioe.1
         for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e205si6178890ioa.58.2016.12.16.06.48.27
+        by mx.google.com with ESMTPS id u29si6178146iou.165.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 19/42] userfaultfd: hugetlbfs: fix __mcopy_atomic_hugetlb retry/error processing
-Date: Fri, 16 Dec 2016 15:47:58 +0100
-Message-Id: <20161216144821.5183-20-aarcange@redhat.com>
+Subject: [PATCH 28/42] userfaultfd: shmem: add shmem_mcopy_atomic_pte for userfaultfd support
+Date: Fri, 16 Dec 2016 15:48:07 +0100
+Message-Id: <20161216144821.5183-29-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,98 +20,167 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-The new routine copy_huge_page_from_user() uses kmap_atomic() to map
-PAGE_SIZE pages.  However, this prevents page faults in the subsequent
-call to copy_from_user().  This is OK in the case where the routine
-is copied with mmap_sema held.  However, in another case we want to
-allow page faults.  So, add a new argument allow_pagefault to indicate
-if the routine should allow page faults.
+shmem_mcopy_atomic_pte is the low level routine that implements
+the userfaultfd UFFDIO_COPY command.  It is based on the existing
+mcopy_atomic_pte routine with modifications for shared memory pages.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/mm.h |  3 ++-
- mm/hugetlb.c       |  2 +-
- mm/memory.c        | 13 ++++++++++---
- mm/userfaultfd.c   |  2 +-
- 4 files changed, 14 insertions(+), 6 deletions(-)
+ include/linux/shmem_fs.h |  11 +++++
+ mm/shmem.c               | 110 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 298b265..f9914ba 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2396,7 +2396,8 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
- 				unsigned int pages_per_huge_page);
- extern long copy_huge_page_from_user(struct page *dst_page,
- 				const void __user *usr_src,
--				unsigned int pages_per_huge_page);
-+				unsigned int pages_per_huge_page,
-+				bool allow_pagefault);
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index ff078e7..fdaac9d4 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -124,4 +124,15 @@ static inline bool shmem_huge_enabled(struct vm_area_struct *vma)
+ }
+ #endif
  
- extern struct page_ext_operations debug_guardpage_ops;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f815f56..9ea7588 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3954,7 +3954,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
++#ifdef CONFIG_SHMEM
++extern int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm, pmd_t *dst_pmd,
++				  struct vm_area_struct *dst_vma,
++				  unsigned long dst_addr,
++				  unsigned long src_addr,
++				  struct page **pagep);
++#else
++#define shmem_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
++			       src_addr, pagep)        ({ BUG(); 0; })
++#endif
++
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 54287d44..11b24a8 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -70,6 +70,7 @@ static struct vfsmount *shm_mnt;
+ #include <linux/syscalls.h>
+ #include <linux/fcntl.h>
+ #include <uapi/linux/memfd.h>
++#include <linux/rmap.h>
  
- 		ret = copy_huge_page_from_user(page,
- 						(const void __user *) src_addr,
--						pages_per_huge_page(h));
-+						pages_per_huge_page(h), false);
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -2174,6 +2175,115 @@ bool shmem_mapping(struct address_space *mapping)
+ 	return mapping->host->i_sb->s_op == &shmem_ops;
+ }
  
- 		/* fallback to copy_from_user outside mmap_sem */
- 		if (unlikely(ret)) {
-diff --git a/mm/memory.c b/mm/memory.c
-index 9e4ecf1..5c9bfd2 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4142,7 +4142,8 @@ void copy_user_huge_page(struct page *dst, struct page *src,
- 
- long copy_huge_page_from_user(struct page *dst_page,
- 				const void __user *usr_src,
--				unsigned int pages_per_huge_page)
-+				unsigned int pages_per_huge_page,
-+				bool allow_pagefault)
- {
- 	void *src = (void *)usr_src;
- 	void *page_kaddr;
-@@ -4150,11 +4151,17 @@ long copy_huge_page_from_user(struct page *dst_page,
- 	unsigned long ret_val = pages_per_huge_page * PAGE_SIZE;
- 
- 	for (i = 0; i < pages_per_huge_page; i++) {
--		page_kaddr = kmap_atomic(dst_page + i);
-+		if (allow_pagefault)
-+			page_kaddr = kmap(dst_page + i);
-+		else
-+			page_kaddr = kmap_atomic(dst_page + i);
- 		rc = copy_from_user(page_kaddr,
- 				(const void __user *)(src + i * PAGE_SIZE),
- 				PAGE_SIZE);
--		kunmap_atomic(page_kaddr);
-+		if (allow_pagefault)
-+			kunmap(page_kaddr);
-+		else
-+			kunmap_atomic(page_kaddr);
- 
- 		ret_val -= (PAGE_SIZE - rc);
- 		if (rc)
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index ef0495b..0997674 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -274,7 +274,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 
- 			err = copy_huge_page_from_user(page,
- 						(const void __user *)src_addr,
--						pages_per_huge_page(h));
-+						pages_per_huge_page(h), true);
- 			if (unlikely(err)) {
- 				err = -EFAULT;
- 				goto out;
++int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
++			   pmd_t *dst_pmd,
++			   struct vm_area_struct *dst_vma,
++			   unsigned long dst_addr,
++			   unsigned long src_addr,
++			   struct page **pagep)
++{
++	struct inode *inode = file_inode(dst_vma->vm_file);
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	struct address_space *mapping = inode->i_mapping;
++	gfp_t gfp = mapping_gfp_mask(mapping);
++	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
++	struct mem_cgroup *memcg;
++	spinlock_t *ptl;
++	void *page_kaddr;
++	struct page *page;
++	pte_t _dst_pte, *dst_pte;
++	int ret;
++
++	if (!*pagep) {
++		ret = -ENOMEM;
++		if (shmem_acct_block(info->flags, 1))
++			goto out;
++		if (sbinfo->max_blocks) {
++			if (percpu_counter_compare(&sbinfo->used_blocks,
++						   sbinfo->max_blocks) >= 0)
++				goto out_unacct_blocks;
++			percpu_counter_inc(&sbinfo->used_blocks);
++		}
++
++		page = shmem_alloc_page(gfp, info, pgoff);
++		if (!page)
++			goto out_dec_used_blocks;
++
++		page_kaddr = kmap_atomic(page);
++		ret = copy_from_user(page_kaddr, (const void __user *)src_addr,
++				     PAGE_SIZE);
++		kunmap_atomic(page_kaddr);
++
++		/* fallback to copy_from_user outside mmap_sem */
++		if (unlikely(ret)) {
++			*pagep = page;
++			/* don't free the page */
++			return -EFAULT;
++		}
++	} else {
++		page = *pagep;
++		*pagep = NULL;
++	}
++
++	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
++	if (ret)
++		goto out_release;
++
++	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
++	if (!ret) {
++		ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL);
++		radix_tree_preload_end();
++	}
++	if (ret)
++		goto out_release_uncharge;
++
++	mem_cgroup_commit_charge(page, memcg, false, false);
++
++	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
++	if (dst_vma->vm_flags & VM_WRITE)
++		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
++
++	ret = -EEXIST;
++	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
++	if (!pte_none(*dst_pte))
++		goto out_release_uncharge_unlock;
++
++	__SetPageUptodate(page);
++
++	lru_cache_add_anon(page);
++
++	spin_lock(&info->lock);
++	info->alloced++;
++	inode->i_blocks += BLOCKS_PER_PAGE;
++	shmem_recalc_inode(inode);
++	spin_unlock(&info->lock);
++
++	inc_mm_counter(dst_mm, mm_counter_file(page));
++	page_add_file_rmap(page, false);
++	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
++
++	/* No need to invalidate - it was non-present before */
++	update_mmu_cache(dst_vma, dst_addr, dst_pte);
++	unlock_page(page);
++	pte_unmap_unlock(dst_pte, ptl);
++	ret = 0;
++out:
++	return ret;
++out_release_uncharge_unlock:
++	pte_unmap_unlock(dst_pte, ptl);
++out_release_uncharge:
++	mem_cgroup_cancel_charge(page, memcg, false);
++out_release:
++	put_page(page);
++out_dec_used_blocks:
++	if (sbinfo->max_blocks)
++		percpu_counter_add(&sbinfo->used_blocks, -1);
++out_unacct_blocks:
++	shmem_unacct_blocks(info->flags, 1);
++	goto out;
++}
++
+ #ifdef CONFIG_TMPFS
+ static const struct inode_operations shmem_symlink_inode_operations;
+ static const struct inode_operations shmem_short_symlink_operations;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
