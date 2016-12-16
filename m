@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AB456B02A0
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:49:58 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id o141so21482679itc.1
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:49:58 -0800 (PST)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B83F86B02AD
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:03 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id b123so21221917itb.3
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:03 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h64si6142860iof.237.2016.12.16.06.48.26
+        by mx.google.com with ESMTPS id u193si2945717itc.59.2016.12.16.06.48.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:48:26 -0800 (PST)
+        Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/42] userfaultfd: non-cooperative: report all available features to userland
-Date: Fri, 16 Dec 2016 15:47:46 +0100
-Message-Id: <20161216144821.5183-8-aarcange@redhat.com>
+Subject: [PATCH 20/42] userfaultfd: hugetlbfs: add userfaultfd hugetlb hook
+Date: Fri, 16 Dec 2016 15:47:59 +0100
+Message-Id: <20161216144821.5183-21-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,55 +20,70 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-This will allow userland to probe all features available in the
-kernel. It will however only enable the requested features in the
-open userfaultfd context.
+From: Mike Kravetz <mike.kravetz@oracle.com>
 
+When processing a hugetlb fault for no page present, check the vma to
+determine if faults are to be handled via userfaultfd.  If so, drop the
+hugetlb_fault_mutex and call handle_userfault().
+
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ mm/hugetlb.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index fa6a6bf..fd89b1c 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -1252,6 +1252,7 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
- 	struct uffdio_api uffdio_api;
- 	void __user *buf = (void __user *)arg;
- 	int ret;
-+	__u64 features;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 9ea7588..621ea74 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -32,6 +32,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/hugetlb_cgroup.h>
+ #include <linux/node.h>
++#include <linux/userfaultfd_k.h>
+ #include "internal.h"
  
- 	ret = -EINVAL;
- 	if (ctx->state != UFFD_STATE_WAIT_API)
-@@ -1259,21 +1260,23 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
- 	ret = -EFAULT;
- 	if (copy_from_user(&uffdio_api, buf, sizeof(uffdio_api)))
- 		goto out;
--	if (uffdio_api.api != UFFD_API ||
--	    (uffdio_api.features & ~UFFD_API_FEATURES)) {
-+	features = uffdio_api.features;
-+	if (uffdio_api.api != UFFD_API || (features & ~UFFD_API_FEATURES)) {
- 		memset(&uffdio_api, 0, sizeof(uffdio_api));
- 		if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
+ int hugepages_treat_as_movable;
+@@ -3661,6 +3662,38 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		size = i_size_read(mapping->host) >> huge_page_shift(h);
+ 		if (idx >= size)
  			goto out;
- 		ret = -EINVAL;
- 		goto out;
- 	}
--	uffdio_api.features &= UFFD_API_FEATURES;
-+	/* report all available features and ioctls to userland */
-+	uffdio_api.features = UFFD_API_FEATURES;
- 	uffdio_api.ioctls = UFFD_API_IOCTLS;
- 	ret = -EFAULT;
- 	if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
- 		goto out;
- 	ctx->state = UFFD_STATE_RUNNING;
--	ctx->features = uffd_ctx_features(uffdio_api.features);
-+	/* only enable the requested features for this uffd context */
-+	ctx->features = uffd_ctx_features(features);
- 	ret = 0;
- out:
- 	return ret;
++
++		/*
++		 * Check for page in userfault range
++		 */
++		if (userfaultfd_missing(vma)) {
++			u32 hash;
++			struct vm_fault vmf = {
++				.vma = vma,
++				.address = address,
++				.flags = flags,
++				/*
++				 * Hard to debug if it ends up being
++				 * used by a callee that assumes
++				 * something about the other
++				 * uninitialized fields... same as in
++				 * memory.c
++				 */
++			};
++
++			/*
++			 * hugetlb_fault_mutex must be dropped before
++			 * handling userfault.  Reacquire after handling
++			 * fault to make calling code simpler.
++			 */
++			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
++							idx, address);
++			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
++			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
++			mutex_lock(&hugetlb_fault_mutex_table[hash]);
++			goto out;
++		}
++
+ 		page = alloc_huge_page(vma, address, 0);
+ 		if (IS_ERR(page)) {
+ 			ret = PTR_ERR(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
