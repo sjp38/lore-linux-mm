@@ -1,124 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F0EF46B0260
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 17:05:24 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c4so141719608pfb.7
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 14:05:24 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id q21si9531904pgg.333.2016.12.16.14.05.22
-        for <linux-mm@kvack.org>;
-        Fri, 16 Dec 2016 14:05:24 -0800 (PST)
-Date: Sat, 17 Dec 2016 09:04:50 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v4 1/3] dax: masking off __GFP_FS in fs DAX handlers
-Message-ID: <20161216220450.GZ4219@dastard>
-References: <148184524161.184728.14005697153880489871.stgit@djiang5-desk3.ch.intel.com>
- <20161216010730.GY4219@dastard>
- <20161216161916.GA2410@linux.intel.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D33B66B0260
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 17:12:05 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i131so11140187wmf.3
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 14:12:05 -0800 (PST)
+Received: from mail-wj0-f196.google.com (mail-wj0-f196.google.com. [209.85.210.196])
+        by mx.google.com with ESMTPS id g66si5389401wmf.113.2016.12.16.14.12.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Dec 2016 14:12:04 -0800 (PST)
+Received: by mail-wj0-f196.google.com with SMTP id he10so16107677wjc.2
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 14:12:04 -0800 (PST)
+Date: Fri, 16 Dec 2016 23:12:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161216221202.GE7645@dhcp22.suse.cz>
+References: <20161216073941.GA26976@dhcp22.suse.cz>
+ <20161216155808.12809-1-mhocko@kernel.org>
+ <20161216155808.12809-3-mhocko@kernel.org>
+ <20161216173151.GA23182@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161216161916.GA2410@linux.intel.com>
+In-Reply-To: <20161216173151.GA23182@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>, akpm@linux-foundation.org, jack@suse.cz, linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, dan.j.williams@intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Nils Holland <nholland@tisys.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Fri, Dec 16, 2016 at 09:19:16AM -0700, Ross Zwisler wrote:
-> On Fri, Dec 16, 2016 at 12:07:30PM +1100, Dave Chinner wrote:
-> > On Thu, Dec 15, 2016 at 04:40:41PM -0700, Dave Jiang wrote:
-> > > The caller into dax needs to clear __GFP_FS mask bit since it's
-> > > responsible for acquiring locks / transactions that blocks __GFP_FS
-> > > allocation.  The caller will restore the original mask when dax function
-> > > returns.
-> > 
-> > What's the allocation problem you're working around here? Can you
-> > please describe the call chain that is the problem?
-> > 
-> > >  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> > >  
-> > >  	if (IS_DAX(inode)) {
-> > > +		gfp_t old_gfp = vmf->gfp_mask;
-> > > +
-> > > +		vmf->gfp_mask &= ~__GFP_FS;
-> > >  		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
-> > > +		vmf->gfp_mask = old_gfp;
-> > 
-> > I really have to say that I hate code that clears and restores flags
-> > without any explanation of why the code needs to play flag tricks. I
-> > take one look at the XFS fault handling code and ask myself now "why
-> > the hell do we need to clear those flags?" Especially as the other
-> > paths into generic fault handlers /don't/ require us to do this.
-> > What does DAX do that require us to treat memory allocation contexts
-> > differently to the filemap_fault() path?
+On Fri 16-12-16 12:31:51, Johannes Weiner wrote:
+> On Fri, Dec 16, 2016 at 04:58:08PM +0100, Michal Hocko wrote:
+> > @@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
+> >  	 * make sure exclude 0 mask - all other users should have at least
+> >  	 * ___GFP_DIRECT_RECLAIM to get here.
+> >  	 */
+> > -	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
+> > +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+> >  		return true;
 > 
-> This was done in response to Jan Kara's concern:
+> This makes sense, we should go back to what we had here. Because it's
+> not that the reported OOMs are premature - there is genuinely no more
+> memory reclaimable from the allocating context - but that this class
+> of allocations should never invoke the OOM killer in the first place.
+
+agreed, at least not with the current implementtion. If we had a proper
+accounting where we know that the memory pinned by the fs is not really
+there then we could invoke the oom killer and be safe
+
+> > @@ -3737,6 +3752,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  		 */
+> >  		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
+> >  
+> > +		/*
+> > +		 * Help non-failing allocations by giving them access to memory
+> > +		 * reserves but do not use ALLOC_NO_WATERMARKS because this
+> > +		 * could deplete whole memory reserves which would just make
+> > +		 * the situation worse
+> > +		 */
+> > +		page = __alloc_pages_cpuset_fallback(gfp_mask, order, ALLOC_HARDER, ac);
+> > +		if (page)
+> > +			goto got_pg;
+> > +
 > 
->   The gfp_mask that propagates from __do_fault() or do_page_mkwrite() is fine
->   because at that point it is correct. But once we grab filesystem locks which
->   are not reclaim safe, we should update vmf->gfp_mask we pass further down
->   into DAX code to not contain __GFP_FS (that's a bug we apparently have
->   there). And inside DAX code, we definitely are not generally safe to add
->   __GFP_FS to mapping_gfp_mask(). Maybe we'd be better off propagating struct
->   vm_fault into this function, using passed gfp_mask there and make sure
->   callers update gfp_mask as appropriate.
+> But this should be a separate patch, IMO.
 > 
-> https://lkml.org/lkml/2016/10/4/37
-> 
-> IIUC I think the concern is that, for example, in xfs_filemap_page_mkwrite()
-> we take a read lock on the struct inode.i_rwsem before we call
-> dax_iomap_fault().
+> Do we observe GFP_NOFS lockups when we don't do this? 
 
-That, my friends, is exactly the problem that mapping_gfp_mask() is
-meant to solve. This:
+this is hard to tell but considering users like grow_dev_page we can get
+stuck with a very slow progress I believe. Those allocations could see
+some help.
 
-> > > +	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_FS |  __GFP_IO;
+> Don't we risk
+> premature exhaustion of the memory reserves, and it's better to wait
+> for other reclaimers to make some progress instead?
 
-Is just so wrong it's not funny.
+waiting for other reclaimers would be preferable but we should at least
+give these some priority, which is what ALLOC_HARDER should help with.
 
-The whole point of mapping_gfp_mask() is to remove flags from the
-gfp_mask used to do mapping+page cache related allocations that the
-mapping->host considers dangerous when the host may be holding locks.
-This includes mapping tree allocations, and anything else required
-to set up a new entry in the mapping during IO path operations. That
-includes page fault operations...
+> Should we give
+> reserve access to all GFP_NOFS allocations, or just the ones from a
+> reclaim/cleaning context?
 
-e.g. in xfs_setup_inode():
+I would focus only for those which are important enough. Which are those
+is a harder question. But certainly those with GFP_NOFAIL are important
+enough.
 
-        /*
-         * Ensure all page cache allocations are done from GFP_NOFS context to
-         * prevent direct reclaim recursion back into the filesystem and blowing
-         * stacks or deadlocking.
-         */
-        gfp_mask = mapping_gfp_mask(inode->i_mapping);
-        mapping_set_gfp_mask(inode->i_mapping, (gfp_mask & ~(__GFP_FS)));
+> All that should go into the changelog of a separate allocation booster
+> patch, I think.
 
-i.e. XFS considers it invalid to use GFP_FS at all for mapping
-allocations in the io path, because we *know* that we hold
-filesystems locks over those allocations.
+The reason I did both in the same patch is to address the concern about
+potential lockups when NOFS|NOFAIL cannot make any progress. I've chosen
+ALLOC_HARDER to give the minimum portion of the reserves so that we do
+not risk other high priority users to be blocked out but still help a
+bit at least and prevent from starvation when other reclaimers are
+faster to consume the reclaimed memory.
 
-> dax_iomap_fault() then calls find_or_create_page(), etc. with the
-> vfm->gfp_mask we were given.
+I can extend the changelog of course but I believe that having both
+changes together makes some sense. NOFS|NOFAIL allocations are not all
+that rare and sometimes we really depend on them making a further
+progress.
 
-Yup. Precisely why we should be using mapping_gfp_mask() as it was
-intended for vmf.gfp_mask....
-
-> I believe the concern is that if that memory allocation tries to do FS
-> operations to free memory because __GFP_FS is part of the gfp mask, then we
-> could end up deadlocking because we are already holding FS locks.
-
-Which is a problem with the filesystem mapping mask setup, not a
-reason to sprinkle random gfpmask clear/set pairs around the code.
-i.e. For DAX inodes, the mapping mask should clear __GFP_FS as XFS
-does above, and the mapping_gfp_mask() should be used unadulterated
-by the DAX page fault code....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
