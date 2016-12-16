@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D23746B0069
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 20:43:40 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id y71so148985139pgd.0
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 17:43:40 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f17si4912081plj.199.2016.12.15.17.43.40
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BC596B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 20:57:26 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id y71so149625100pgd.0
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 17:57:26 -0800 (PST)
+Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
+        by mx.google.com with ESMTPS id u3si4981808plb.141.2016.12.15.17.57.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Dec 2016 17:43:40 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
- fast (de)inflating & fast live migration
-Date: Fri, 16 Dec 2016 01:43:36 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C32A908@shsmsx102.ccr.corp.intel.com>
-References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
- <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
- <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
- <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
- <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
- <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
- <20161207183817.GE28786@redhat.com>
- <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
- <20161207202824.GH28786@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
- <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E3C31D0E6@SHSMSX104.ccr.corp.intel.com>
- <01886693-c73e-3696-860b-086417d695e1@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E3C32985A@shsmsx102.ccr.corp.intel.com>
- <f517bfbe-18b8-6962-5c57-545f6ef47ad0@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E3C32A8D6@shsmsx102.ccr.corp.intel.com>
- <84ac9822-880d-b998-52ca-6aa87e0f7a43@intel.com>
-In-Reply-To: <84ac9822-880d-b998-52ca-6aa87e0f7a43@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 15 Dec 2016 17:57:25 -0800 (PST)
+Received: by mail-pf0-x22f.google.com with SMTP id 189so11453042pfz.3
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 17:57:25 -0800 (PST)
+Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
+References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
+ <20161215153930.GA8111@rric.localdomain>
+From: Hanjun Guo <hanjun.guo@linaro.org>
+Message-ID: <125f3064-bbec-d923-ad9f-b2d152ee2c2d@linaro.org>
+Date: Fri, 16 Dec 2016 09:57:20 +0800
 MIME-Version: 1.0
+In-Reply-To: <20161215153930.GA8111@rric.localdomain>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: Robert Richter <robert.richter@cavium.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, catalin.marinas@arm.com, akpm@linux-foundation.org, xieyisheng1@huawei.com, james.morse@arm.com
 
-> On 12/15/2016 05:38 PM, Li, Liang Z wrote:
-> >
-> > Use 52 bits for 'pfn', 12 bits for 'length', when the 12 bits is not lo=
-ng enough
-> for the 'length'
-> > Set the 'length' to a special value to indicate the "actual length in n=
-ext 8
-> bytes".
-> >
-> > That will be much more simple. Right?
->=20
-> Sounds fine to me.
+Hi Robert,
 
-Thanks for your inspiration!
+On 2016/12/15 23:39, Robert Richter wrote:
+> I was going to do some measurements but my kernel crashes now with a
+> page fault in efi_rtc_probe():
+>
+> [   21.663393] Unable to handle kernel paging request at virtual address 20251000
+> [   21.663396] pgd = ffff000009090000
+> [   21.663401] [20251000] *pgd=0000010ffff90003
+> [   21.663402] , *pud=0000010ffff90003
+> [   21.663404] , *pmd=0000000fdc030003
+> [   21.663405] , *pte=00e8832000250707
+>
+> The sparsemem config requires the whole section to be initialized.
+> Your patches do not address this.
 
-Liang
+This patch set is running properly on D05, both the boot and
+LTP MM stress test are ok, seems it's a different configuration
+of memory mappings in firmware, just a stupid question, which
+part is related to this problem, is it only the Reserved memory?
+
+Thanks
+Hanjun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
