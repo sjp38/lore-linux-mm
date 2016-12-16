@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A98A6B0253
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BAE786B02AD
 	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:06 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id g187so21134014itc.2
+Received: by mail-io0-f198.google.com with SMTP id 71so92405088ioe.2
         for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:06 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e125si6180939ioe.47.2016.12.16.06.48.26
+        by mx.google.com with ESMTPS id w67si6177704ioe.190.2016.12.16.06.48.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 06:48:26 -0800 (PST)
+        Fri, 16 Dec 2016 06:48:29 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 09/42] userfaultfd: non-cooperative: Add fork() event, build warning fix
-Date: Fri, 16 Dec 2016 15:47:48 +0100
-Message-Id: <20161216144821.5183-10-aarcange@redhat.com>
+Subject: [PATCH 42/42] mm: mprotect: use pmd_trans_unstable instead of taking the pmd_lock
+Date: Fri, 16 Dec 2016 15:48:21 +0100
+Message-Id: <20161216144821.5183-43-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,41 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-It was harmless, but 32bit kernel builds would emit warnings if not
-passing through an (unsigned long) cast of the pointer, before storing
-it in a __u64.
+pmd_trans_unstable does an atomic read on the pmd so it doesn't
+require the pmd_lock for the same check.
 
-Warning found by the kbuild test robot.
+This also removes the special assumption that the mmap_sem is hold for
+writing if prot_numa is not set. userfaultfd will hold the mmap_sem
+only for reading in change_pte_range like prot_numa, but it will not
+set prot_numa.
+
+This is always a valid micro-optimization regardless of userfaultfd.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/userfaultfd.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/mprotect.c | 44 +++++++++++++++-----------------------------
+ 1 file changed, 15 insertions(+), 29 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 09e8d5b..6fe0efd 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -545,7 +545,7 @@ static int dup_fctx(struct userfaultfd_fork_ctx *fctx)
- 	msg_init(&ewq.msg);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index cc2459c..98acf7d 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -33,34 +33,6 @@
  
- 	ewq.msg.event = UFFD_EVENT_FORK;
--	ewq.msg.arg.reserved.reserved1 = (__u64)fctx->new;
-+	ewq.msg.arg.reserved.reserved1 = (unsigned long)fctx->new;
+ #include "internal.h"
  
- 	return userfaultfd_event_wait_completion(ctx, &ewq);
- }
-@@ -799,7 +799,9 @@ static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
- 			*msg = uwq->msg;
+-/*
+- * For a prot_numa update we only hold mmap_sem for read so there is a
+- * potential race with faulting where a pmd was temporarily none. This
+- * function checks for a transhuge pmd under the appropriate lock. It
+- * returns a pte if it was successfully locked or NULL if it raced with
+- * a transhuge insertion.
+- */
+-static pte_t *lock_pte_protection(struct vm_area_struct *vma, pmd_t *pmd,
+-			unsigned long addr, int prot_numa, spinlock_t **ptl)
+-{
+-	pte_t *pte;
+-	spinlock_t *pmdl;
+-
+-	/* !prot_numa is protected by mmap_sem held for write */
+-	if (!prot_numa)
+-		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
+-
+-	pmdl = pmd_lock(vma->vm_mm, pmd);
+-	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
+-		spin_unlock(pmdl);
+-		return NULL;
+-	}
+-
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
+-	spin_unlock(pmdl);
+-	return pte;
+-}
+-
+ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable, int prot_numa)
+@@ -71,7 +43,21 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	unsigned long pages = 0;
+ 	int target_node = NUMA_NO_NODE;
  
- 			if (uwq->msg.event == UFFD_EVENT_FORK) {
--				fork_nctx = (struct userfaultfd_ctx *)uwq->msg.arg.reserved.reserved1;
-+				fork_nctx = (struct userfaultfd_ctx *)
-+					(unsigned long)
-+					uwq->msg.arg.reserved.reserved1;
- 				list_move(&uwq->wq.task_list, &fork_event);
- 				spin_unlock(&ctx->event_wqh.lock);
- 				ret = 0;
+-	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
++	/*
++	 * Can be called with only the mmap_sem for reading by
++	 * prot_numa so we must check the pmd isn't constantly
++	 * changing from under us from pmd_none to pmd_trans_huge
++	 * and/or the other way around.
++	 */
++	if (pmd_trans_unstable(pmd))
++		return 0;
++
++	/*
++	 * The pmd points to a regular pte so the pmd can't change
++	 * from under us even if the mmap_sem is only hold for
++	 * reading.
++	 */
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	if (!pte)
+ 		return 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
