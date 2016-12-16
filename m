@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BA36B026E
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 13:36:10 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id p9so71113467vkd.7
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 10:36:10 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 664656B026F
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 13:36:11 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id k201so69988062qke.6
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 10:36:11 -0800 (PST)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i22si2480518uab.64.2016.12.16.10.36.09
+        by mx.google.com with ESMTPS id u57si3829805qtc.171.2016.12.16.10.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 10:36:09 -0800 (PST)
+        Fri, 16 Dec 2016 10:36:10 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 12/14] mm: add mmap and shmat arch hooks for shared context
-Date: Fri, 16 Dec 2016 10:35:35 -0800
-Message-Id: <1481913337-9331-13-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 13/14] sparc64 mm: add shared context support to mmap() and shmat() APIs
+Date: Fri, 16 Dec 2016 10:35:36 -0800
+Message-Id: <1481913337-9331-14-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,211 +20,254 @@ List-ID: <linux-mm.kvack.org>
 To: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: "David S . Miller" <davem@davemloft.net>, Bob Picco <bob.picco@oracle.com>, Nitin Gupta <nitin.m.gupta@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, Julian Calaby <julian.calaby@gmail.com>, Adam Buchbinder <adam.buchbinder@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Shared context will require some additional checking and processing
-when mappings are created.  To faciliate this, add new mmap hooks
-arch_pre_mmap_flags and arch_post_mmap to generic mm_hooks.  For
-shmat, a new hook arch_shmat_check is added.
+Add new mmap(MAP_SHAREDCTX) and shm(SHM_SHAREDCTX) flags to specify
+desire for shared context mappings.  This only works on HUGETLB
+mappings.  In addition, the mappings must be SHARED and at a FIXED
+address otherwize EINVAL will be returned.
+
+Also, populate the sparc specific hooks to mmap and shmat that perform
+shared context processing.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- arch/powerpc/include/asm/mmu_context.h   | 12 ++++++++++++
- arch/s390/include/asm/mmu_context.h      | 12 ++++++++++++
- arch/unicore32/include/asm/mmu_context.h | 12 ++++++++++++
- arch/x86/include/asm/mmu_context.h       | 12 ++++++++++++
- include/asm-generic/mm_hooks.h           | 18 +++++++++++++++---
- ipc/shm.c                                | 13 +++++++++++++
- mm/mmap.c                                | 10 ++++++++++
- 7 files changed, 86 insertions(+), 3 deletions(-)
+ arch/sparc/include/asm/hugetlb.h        |  4 +++
+ arch/sparc/include/asm/mman.h           |  6 ++++
+ arch/sparc/include/asm/mmu_context_64.h | 62 ++++++++++++++++++++++++++++++++-
+ arch/sparc/include/uapi/asm/mman.h      |  1 +
+ arch/sparc/kernel/sys_sparc_64.c        | 17 +++++++++
+ arch/sparc/mm/init_64.c                 | 36 +++++++++++++++++++
+ include/uapi/linux/shm.h                |  1 +
+ 7 files changed, 126 insertions(+), 1 deletion(-)
 
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 5c45114..d5ce33a 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -133,6 +133,18 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
- #endif
- }
+diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
+index dcbf985..13157b3 100644
+--- a/arch/sparc/include/asm/hugetlb.h
++++ b/arch/sparc/include/asm/hugetlb.h
+@@ -78,4 +78,8 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
+ 			    unsigned long end, unsigned long floor,
+ 			    unsigned long ceiling);
  
-+static inline unsigned long arch_pre_mmap_flags(struct file *file,
-+						unsigned long flags,
-+						vm_flags_t *vm_flags)
-+{
-+	return 0;	/* no errors */
-+}
-+
-+static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
-+					vm_flags_t vm_flags)
-+{
-+}
-+
- static inline void arch_dup_mmap(struct mm_struct *oldmm,
- 				 struct mm_struct *mm)
- {
-diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
-index 515fea5..0a2322d 100644
---- a/arch/s390/include/asm/mmu_context.h
-+++ b/arch/s390/include/asm/mmu_context.h
-@@ -129,6 +129,18 @@ static inline void activate_mm(struct mm_struct *prev,
- 	set_user_asce(next);
- }
- 
-+static inline unsigned long arch_pre_mmap_flags(struct file *file,
-+						unsigned long flags,
-+						vm_flags_t *vm_flags)
-+{
-+	return 0;	/* no errors */
-+}
-+
-+static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
-+					vm_flags_t vm_flags)
-+{
-+}
-+
- static inline void arch_dup_mmap(struct mm_struct *oldmm,
- 				 struct mm_struct *mm)
- {
-diff --git a/arch/unicore32/include/asm/mmu_context.h b/arch/unicore32/include/asm/mmu_context.h
-index 62dfc64..8b57b9d 100644
---- a/arch/unicore32/include/asm/mmu_context.h
-+++ b/arch/unicore32/include/asm/mmu_context.h
-@@ -81,6 +81,18 @@ do { \
- 	} \
- } while (0)
- 
-+static inline unsigned long arch_pre_mmap_flags(struct file *file,
-+						unsigned long flags,
-+						vm_flags_t *vm_flags)
-+{
-+	return 0;	/* no errors */
-+}
-+
-+static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
-+					vm_flags_t vm_flags)
-+{
-+}
-+
- static inline void arch_dup_mmap(struct mm_struct *oldmm,
- 				 struct mm_struct *mm)
- {
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 8e0a9fe..fe60309 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -151,6 +151,18 @@ do {						\
- } while (0)
- #endif
- 
-+static inline unsigned long arch_pre_mmap_flags(struct file *file,
-+						unsigned long flags,
-+						vm_flags_t *vm_flags)
-+{
-+	return 0;	/* no errors */
-+}
-+
-+static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
-+					vm_flags_t vm_flags)
-+{
-+}
-+
- static inline void arch_dup_mmap(struct mm_struct *oldmm,
- 				 struct mm_struct *mm)
- {
-diff --git a/include/asm-generic/mm_hooks.h b/include/asm-generic/mm_hooks.h
-index cc5d9a1..c742e52 100644
---- a/include/asm-generic/mm_hooks.h
-+++ b/include/asm-generic/mm_hooks.h
-@@ -1,11 +1,23 @@
- /*
-- * Define generic no-op hooks for arch_dup_mmap, arch_exit_mmap
-- * and arch_unmap to be included in asm-FOO/mmu_context.h for any
-- * arch FOO which doesn't need to hook these.
-+ * Define generic no-op hooks for mmap and protection related routines
-+ * to be included in asm-FOO/mmu_context.h for any arch FOO which doesn't
-+ * need to hook these.
-  */
- #ifndef _ASM_GENERIC_MM_HOOKS_H
- #define _ASM_GENERIC_MM_HOOKS_H
- 
-+static inline unsigned long arch_pre_mmap_flags(struct file *file,
-+						unsigned long flags,
-+						vm_flags_t *vm_flags)
-+{
-+	return 0;	/* no errors */
-+}
-+
-+static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
-+					vm_flags_t vm_flags)
-+{
-+}
-+
- static inline void arch_dup_mmap(struct mm_struct *oldmm,
- 				 struct mm_struct *mm)
- {
-diff --git a/ipc/shm.c b/ipc/shm.c
-index dbac886..dab6cd1 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -72,6 +72,14 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp);
- static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
- #endif
- 
-+#ifndef arch_shmat_check
-+#define arch_shmat_check(file, shmflg, flags) (0)
++#if defined(CONFIG_SHARED_MMU_CTX)
++void huge_get_shared_ctx(struct mm_struct *mm, unsigned long addr);
 +#endif
 +
-+#ifndef arch_shmat_check
-+#define arch_shmat_check(file, shmflg, flags) (0)
+ #endif /* _ASM_SPARC64_HUGETLB_H */
+diff --git a/arch/sparc/include/asm/mman.h b/arch/sparc/include/asm/mman.h
+index 59bb593..cbe384e 100644
+--- a/arch/sparc/include/asm/mman.h
++++ b/arch/sparc/include/asm/mman.h
+@@ -6,5 +6,11 @@
+ #ifndef __ASSEMBLY__
+ #define arch_mmap_check(addr,len,flags)	sparc_mmap_check(addr,len)
+ int sparc_mmap_check(unsigned long addr, unsigned long len);
++
++#if defined(CONFIG_SHARED_MMU_CTX)
++#define arch_shmat_check(file, shmflg, flags) \
++				sparc_shmat_check(file, shmflg, flags)
++int sparc_shmat_check(struct file *file, int shmflg, unsigned long *flags);
 +#endif
-+
- void shm_init_ns(struct ipc_namespace *ns)
+ #endif
+ #endif /* __SPARC_MMAN_H__ */
+diff --git a/arch/sparc/include/asm/mmu_context_64.h b/arch/sparc/include/asm/mmu_context_64.h
+index 46c2c7e..8ab05f2 100644
+--- a/arch/sparc/include/asm/mmu_context_64.h
++++ b/arch/sparc/include/asm/mmu_context_64.h
+@@ -7,7 +7,6 @@
+ 
+ #include <linux/spinlock.h>
+ #include <asm/spitfire.h>
+-#include <asm-generic/mm_hooks.h>
+ 
+ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  {
- 	ns->shm_ctlmax = SHMMAX;
-@@ -1149,6 +1157,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
- 		goto out_unlock;
- 	}
- 
-+	/* arch specific check and possible flag modification */
-+	err = arch_shmat_check(shp->shm_file, shmflg, &flags);
-+	if (err)
-+		goto out_unlock;
-+
- 	err = -EACCES;
- 	if (ipcperms(ns, &shp->shm_perm, acc_mode))
- 		goto out_unlock;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 1af87c1..7fc946b 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1307,6 +1307,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 			unsigned long pgoff, unsigned long *populate)
- {
- 	struct mm_struct *mm = current->mm;
-+	unsigned long ret;
- 	int pkey = 0;
- 
- 	*populate = 0;
-@@ -1314,6 +1315,11 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 	if (!len)
- 		return -EINVAL;
- 
-+	/* arch specific check and possible modification of vm_flags */
-+	ret = arch_pre_mmap_flags(file, flags, &vm_flags);
-+	if (ret)
-+		return ret;
-+
- 	/*
- 	 * Does the application expect PROT_READ to imply PROT_EXEC?
- 	 *
-@@ -1452,6 +1458,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 	    ((vm_flags & VM_LOCKED) ||
- 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
- 		*populate = len;
-+
-+	if (!IS_ERR_VALUE(addr))
-+		arch_post_mmap(mm, addr, vm_flags);
-+
- 	return addr;
+@@ -24,6 +23,13 @@ void put_shared_context(struct mm_struct *mm);
+ void set_mm_shared_ctx(struct mm_struct *mm, struct shared_mmu_ctx *ctx);
+ void destroy_shared_context(struct mm_struct *mm);
+ void set_vma_shared_ctx(struct vm_area_struct *vma);
++void sparc64_exit_mmap(struct mm_struct *mm);
++void sparc64_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
++			unsigned long start, unsigned long end);
++unsigned long sparc64_pre_mmap_flags(struct file *file, unsigned long flags,
++					vm_flags_t *vm_flags);
++void sparc64_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags);
+ #endif
+ #ifdef CONFIG_SMP
+ void smp_new_mmu_context_version(void);
+@@ -208,6 +214,60 @@ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm
+ 	spin_unlock_irqrestore(&mm->context.lock, flags);
  }
  
++#if defined(CONFIG_SHARED_MMU_CTX)
++/*
++ * mm_hooks only needed for CONFIG_SHARED_MMU_CTX
++ */
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
++{
++	return sparc64_pre_mmap_flags(file, flags, vm_flags);
++}
++
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++							vm_flags_t vm_flags)
++{
++	sparc64_post_mmap(mm, addr, vm_flags);
++}
++
++static inline void arch_dup_mmap(struct mm_struct *oldmm,
++				 struct mm_struct *mm)
++{
++}
++
++static inline void arch_exit_mmap(struct mm_struct *mm)
++{
++	sparc64_exit_mmap(mm);
++}
++
++static inline void arch_unmap(struct mm_struct *mm,
++			struct vm_area_struct *vma,
++			unsigned long start, unsigned long end)
++{
++	sparc64_unmap(mm, vma, start, end);
++}
++
++static inline void arch_bprm_mm_init(struct mm_struct *mm,
++				     struct vm_area_struct *vma)
++{
++}
++
++static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
++		bool write, bool execute, bool foreign)
++{
++	/* by default, allow everything */
++	return true;
++}
++
++static inline bool arch_pte_access_permitted(pte_t pte, bool write)
++{
++	/* by default, allow everything */
++	return true;
++}
++#else
++#include <asm-generic/mm_hooks.h>
++#endif
+ #endif /* !(__ASSEMBLY__) */
+ 
+ #endif /* !(__SPARC64_MMU_CONTEXT_H) */
+diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
+index 9765896..a52c6fe 100644
+--- a/arch/sparc/include/uapi/asm/mman.h
++++ b/arch/sparc/include/uapi/asm/mman.h
+@@ -23,6 +23,7 @@
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+ #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
++#define	MAP_SHAREDCTX	0x80000		/* request shared cxt mapping */
+ 
+ 
+ #endif /* _UAPI__SPARC_MMAN_H__ */
+diff --git a/arch/sparc/kernel/sys_sparc_64.c b/arch/sparc/kernel/sys_sparc_64.c
+index fe8b8ee..23fa538 100644
+--- a/arch/sparc/kernel/sys_sparc_64.c
++++ b/arch/sparc/kernel/sys_sparc_64.c
+@@ -25,6 +25,7 @@
+ #include <linux/random.h>
+ #include <linux/export.h>
+ #include <linux/context_tracking.h>
++#include <linux/hugetlb.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/utrap.h>
+@@ -444,6 +445,22 @@ int sparc_mmap_check(unsigned long addr, unsigned long len)
+ 	return 0;
+ }
+ 
++int sparc_shmat_check(struct file *file, int shmflg, unsigned long *flags)
++{
++	if (shmflg & SHM_SHAREDCTX) {
++		if ((*flags & (MAP_SHARED | MAP_FIXED)) !=
++		    (unsigned long)(MAP_SHARED | MAP_FIXED))
++			return -EINVAL;
++
++		if (!is_file_hugepages(file))
++			return -EINVAL;
++
++		*flags |= MAP_SHAREDCTX;
++	}
++
++	return 0;
++}
++
+ /* Linux version of mmap */
+ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+ 		unsigned long, prot, unsigned long, flags, unsigned long, fd,
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 25ad5bd..0637762 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -27,6 +27,7 @@
+ #include <linux/memblock.h>
+ #include <linux/mmzone.h>
+ #include <linux/gfp.h>
++#include <linux/mman.h>
+ 
+ #include <asm/head.h>
+ #include <asm/page.h>
+@@ -832,6 +833,41 @@ void set_vma_shared_ctx(struct vm_area_struct *vma)
+ 	atomic_inc(&mm->context.shared_ctx->refcount);
+ 	vma->vm_shared_mmu_ctx.ctx = mm->context.shared_ctx;
+ }
++
++unsigned long sparc64_pre_mmap_flags(struct file *file, unsigned long flags,
++					vm_flags_t *vm_flags)
++{
++	if (flags & MAP_SHAREDCTX) {
++		/* Must be a shared huge page mapping */
++		if (!(flags & (MAP_SHARED | MAP_FIXED)))
++			return -EINVAL;
++		if (!(flags & MAP_HUGETLB)  &&
++		    !(file && is_file_hugepages(file)))
++			return -EINVAL;
++
++		*vm_flags |= VM_SHARED_CTX;
++	}
++
++	return 0;
++}
++
++void sparc64_post_mmap(struct mm_struct *mm, unsigned long addr,
++							vm_flags_t vm_flags)
++{
++	if (vm_flags & VM_SHARED_CTX)
++		huge_get_shared_ctx(mm, addr);
++}
++
++void sparc64_exit_mmap(struct mm_struct *mm)
++{
++	put_shared_context(mm);
++}
++
++void sparc64_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
++			unsigned long start, unsigned long end)
++{
++	put_shared_context(mm);
++}
+ #endif
+ 
+ static int numa_enabled = 1;
+diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+index 1fbf24e..3373567 100644
+--- a/include/uapi/linux/shm.h
++++ b/include/uapi/linux/shm.h
+@@ -49,6 +49,7 @@ struct shmid_ds {
+ #define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
+ #define	SHM_REMAP	040000	/* take-over region on attach */
+ #define	SHM_EXEC	0100000	/* execution access */
++#define	SHM_SHAREDCTX	0200000	/* share context (TLB entries) if possible */
+ 
+ /* super user shmctl commands */
+ #define SHM_LOCK 	11
 -- 
 2.7.4
 
