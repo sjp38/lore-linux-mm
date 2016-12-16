@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 340826B026D
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 13:36:09 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id k201so69987432qke.6
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 10:36:09 -0800 (PST)
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B8BA36B026E
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 13:36:10 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id p9so71113467vkd.7
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 10:36:10 -0800 (PST)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 34si3812984qtg.305.2016.12.16.10.36.08
+        by mx.google.com with ESMTPS id i22si2480518uab.64.2016.12.16.10.36.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 10:36:08 -0800 (PST)
+        Fri, 16 Dec 2016 10:36:09 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 11/14] sparc64: add routines to look for vmsa which can share context
-Date: Fri, 16 Dec 2016 10:35:34 -0800
-Message-Id: <1481913337-9331-12-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 12/14] mm: add mmap and shmat arch hooks for shared context
+Date: Fri, 16 Dec 2016 10:35:35 -0800
+Message-Id: <1481913337-9331-13-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,202 +20,209 @@ List-ID: <linux-mm.kvack.org>
 To: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: "David S . Miller" <davem@davemloft.net>, Bob Picco <bob.picco@oracle.com>, Nitin Gupta <nitin.m.gupta@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, Julian Calaby <julian.calaby@gmail.com>, Adam Buchbinder <adam.buchbinder@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-When a shared context mapping is requested, a search of the other
-vmas mapping the same object is searched.  For simplicity, vmas
-can only share context if the following is true:
-- They both request shared context mapping
-- The are at the same virtual address
-- They are of the same size
-In addition, a task is only allowed to have a single vma with shared
-context.
-
-Some of these contstraints can be relaxed at a later date.  They
-make the code simpler for now.
+Shared context will require some additional checking and processing
+when mappings are created.  To faciliate this, add new mmap hooks
+arch_pre_mmap_flags and arch_post_mmap to generic mm_hooks.  For
+shmat, a new hook arch_shmat_check is added.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- arch/sparc/include/asm/mmu_context_64.h |  1 +
- arch/sparc/include/asm/page_64.h        |  1 +
- arch/sparc/mm/hugetlbpage.c             | 78 ++++++++++++++++++++++++++++++++-
- arch/sparc/mm/init_64.c                 | 19 ++++++++
- mm/hugetlb.c                            |  9 ++++
- 5 files changed, 106 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/mmu_context.h   | 12 ++++++++++++
+ arch/s390/include/asm/mmu_context.h      | 12 ++++++++++++
+ arch/unicore32/include/asm/mmu_context.h | 12 ++++++++++++
+ arch/x86/include/asm/mmu_context.h       | 12 ++++++++++++
+ include/asm-generic/mm_hooks.h           | 18 +++++++++++++++---
+ ipc/shm.c                                | 13 +++++++++++++
+ mm/mmap.c                                | 10 ++++++++++
+ 7 files changed, 86 insertions(+), 3 deletions(-)
 
-diff --git a/arch/sparc/include/asm/mmu_context_64.h b/arch/sparc/include/asm/mmu_context_64.h
-index 0dc95cb5..46c2c7e 100644
---- a/arch/sparc/include/asm/mmu_context_64.h
-+++ b/arch/sparc/include/asm/mmu_context_64.h
-@@ -23,6 +23,7 @@ void get_new_mmu_shared_context(struct mm_struct *mm);
- void put_shared_context(struct mm_struct *mm);
- void set_mm_shared_ctx(struct mm_struct *mm, struct shared_mmu_ctx *ctx);
- void destroy_shared_context(struct mm_struct *mm);
-+void set_vma_shared_ctx(struct vm_area_struct *vma);
+diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
+index 5c45114..d5ce33a 100644
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -133,6 +133,18 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
  #endif
- #ifdef CONFIG_SMP
- void smp_new_mmu_context_version(void);
-diff --git a/arch/sparc/include/asm/page_64.h b/arch/sparc/include/asm/page_64.h
-index c1263fc..ccceb76 100644
---- a/arch/sparc/include/asm/page_64.h
-+++ b/arch/sparc/include/asm/page_64.h
-@@ -33,6 +33,7 @@
- #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
- struct pt_regs;
- void hugetlb_setup(struct pt_regs *regs);
-+void hugetlb_shared_setup(struct pt_regs *regs);
- #endif
- 
- #define WANT_PAGE_VIRTUAL
-diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
-index 2039d45..5681df6 100644
---- a/arch/sparc/mm/hugetlbpage.c
-+++ b/arch/sparc/mm/hugetlbpage.c
-@@ -127,6 +127,80 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 				pgoff, flags);
  }
  
-+#if defined(CONFIG_SHARED_MMU_CTX)
-+static bool huge_vma_can_share_ctx(struct vm_area_struct *vma,
-+					struct vm_area_struct *tvma)
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
 +{
-+	/*
-+	 * Do not match unless there is an actual context value.  It
-+	 * could be the case that tvma is a new mapping with VM_SHARED_CTX
-+	 * set, but still not associated with a shared context ID.
-+	 */
-+	if (!vma_shared_ctx_val(tvma))
-+		return false;
-+
-+	/*
-+	 * For simple functionality now, vmas must be exactly the same
-+	 */
-+	if ((vma->vm_flags & VM_LOCKED_CLEAR_MASK) ==
-+	    (tvma->vm_flags & VM_LOCKED_CLEAR_MASK) &&
-+	    vma->vm_pgoff == tvma->vm_pgoff &&
-+	    vma->vm_start == tvma->vm_start &&
-+	    vma->vm_end == tvma->vm_end)
-+		return true;
-+
-+	return false;
++	return 0;	/* no errors */
 +}
 +
-+/*
-+ * If vma is marked as desiring shared contexxt, search for a context to
-+ * share.  If no context found, assign one.
-+ */
-+void huge_get_shared_ctx(struct mm_struct *mm, unsigned long addr)
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags)
 +{
-+	struct vm_area_struct *vma = find_vma(mm, addr);
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-+			vma->vm_pgoff;
-+	struct vm_area_struct *tvma;
-+
-+	/*
-+	 * FIXME
-+	 *
-+	 * For now limit a task to a single shared context mapping
-+	 */
-+	if (!(vma->vm_flags & VM_SHARED_CTX) || vma_shared_ctx_val(vma) ||
-+	    mm_shared_ctx_val(mm))
-+		return;
-+
-+	i_mmap_lock_write(mapping);
-+	vma_interval_tree_foreach(tvma, &mapping->i_mmap, idx, idx) {
-+		if (tvma == vma)
-+			continue;
-+
-+		if (huge_vma_can_share_ctx(vma, tvma)) {
-+			set_mm_shared_ctx(mm, tvma->vm_shared_mmu_ctx.ctx);
-+			set_vma_shared_ctx(vma);
-+			if (likely(mm_shared_ctx_val(mm))) {
-+				load_secondary_context(mm);
-+				/*
-+				 * What about multiple matches ?
-+				 */
-+				break;
-+			}
-+		}
-+	}
-+
-+	if (!mm_shared_ctx_val(mm)) {
-+		get_new_mmu_shared_context(mm);
-+		set_vma_shared_ctx(vma);
-+		load_secondary_context(mm);
-+	}
-+
-+	i_mmap_unlock_write(mapping);
 +}
-+#endif
 +
- pte_t *huge_pte_alloc(struct mm_struct *mm,
- 			unsigned long addr, unsigned long sz)
+ static inline void arch_dup_mmap(struct mm_struct *oldmm,
+ 				 struct mm_struct *mm)
  {
-@@ -164,7 +238,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- 
- 	if (!pte_present(*ptep) && pte_present(entry)) {
- #if defined(CONFIG_SHARED_MMU_CTX)
--		if (pte_val(entry) | _PAGE_SHR_CTX_4V)
-+		if (is_sharedctx_pte(entry))
- 			mm->context.shared_hugetlb_pte_count++;
- 		else
- #endif
-@@ -188,7 +262,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
- 	entry = *ptep;
- 	if (pte_present(entry)) {
- #if defined(CONFIG_SHARED_MMU_CTX)
--		if (pte_val(entry) | _PAGE_SHR_CTX_4V)
-+		if (is_sharedctx_pte(entry))
- 			mm->context.shared_hugetlb_pte_count--;
- 		else
- #endif
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 2b310e5..25ad5bd 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -813,6 +813,25 @@ void set_mm_shared_ctx(struct mm_struct *mm, struct shared_mmu_ctx *ctx)
- 	atomic_inc(&ctx->refcount);
- 	mm->context.shared_ctx = ctx;
+diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
+index 515fea5..0a2322d 100644
+--- a/arch/s390/include/asm/mmu_context.h
++++ b/arch/s390/include/asm/mmu_context.h
+@@ -129,6 +129,18 @@ static inline void activate_mm(struct mm_struct *prev,
+ 	set_user_asce(next);
  }
-+
-+/*
-+ * Set the shared context value in the vma to that in the mm.
-+ *
-+ *
-+ * Note that we are called from mmap with mmap_sem held.
-+ */
-+void set_vma_shared_ctx(struct vm_area_struct *vma)
+ 
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
 +{
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	BUG_ON(vma->vm_shared_mmu_ctx.ctx);
-+
-+	if (!mm_shared_ctx_val(mm))
-+		return;
-+
-+	atomic_inc(&mm->context.shared_ctx->refcount);
-+	vma->vm_shared_mmu_ctx.ctx = mm->context.shared_ctx;
++	return 0;	/* no errors */
 +}
++
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags)
++{
++}
++
+ static inline void arch_dup_mmap(struct mm_struct *oldmm,
+ 				 struct mm_struct *mm)
+ {
+diff --git a/arch/unicore32/include/asm/mmu_context.h b/arch/unicore32/include/asm/mmu_context.h
+index 62dfc64..8b57b9d 100644
+--- a/arch/unicore32/include/asm/mmu_context.h
++++ b/arch/unicore32/include/asm/mmu_context.h
+@@ -81,6 +81,18 @@ do { \
+ 	} \
+ } while (0)
+ 
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
++{
++	return 0;	/* no errors */
++}
++
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags)
++{
++}
++
+ static inline void arch_dup_mmap(struct mm_struct *oldmm,
+ 				 struct mm_struct *mm)
+ {
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 8e0a9fe..fe60309 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -151,6 +151,18 @@ do {						\
+ } while (0)
  #endif
  
- static int numa_enabled = 1;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 418bf01..3733ba1 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3150,6 +3150,15 @@ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
- 	entry = pte_mkhuge(entry);
- 	entry = arch_make_huge_pte(entry, vma, page, writable);
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
++{
++	return 0;	/* no errors */
++}
++
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags)
++{
++}
++
+ static inline void arch_dup_mmap(struct mm_struct *oldmm,
+ 				 struct mm_struct *mm)
+ {
+diff --git a/include/asm-generic/mm_hooks.h b/include/asm-generic/mm_hooks.h
+index cc5d9a1..c742e52 100644
+--- a/include/asm-generic/mm_hooks.h
++++ b/include/asm-generic/mm_hooks.h
+@@ -1,11 +1,23 @@
+ /*
+- * Define generic no-op hooks for arch_dup_mmap, arch_exit_mmap
+- * and arch_unmap to be included in asm-FOO/mmu_context.h for any
+- * arch FOO which doesn't need to hook these.
++ * Define generic no-op hooks for mmap and protection related routines
++ * to be included in asm-FOO/mmu_context.h for any arch FOO which doesn't
++ * need to hook these.
+  */
+ #ifndef _ASM_GENERIC_MM_HOOKS_H
+ #define _ASM_GENERIC_MM_HOOKS_H
  
-+#if defined(CONFIG_SHARED_MMU_CTX)
-+	/*
-+	 * FIXME
-+	 * needs arch independent way of setting - perhaps arch_make_huge_pte
-+	 */
-+	if (vma->vm_flags & VM_SHARED_CTX)
-+		pte_val(entry) |= _PAGE_SHR_CTX_4V;
++static inline unsigned long arch_pre_mmap_flags(struct file *file,
++						unsigned long flags,
++						vm_flags_t *vm_flags)
++{
++	return 0;	/* no errors */
++}
++
++static inline void arch_post_mmap(struct mm_struct *mm, unsigned long addr,
++					vm_flags_t vm_flags)
++{
++}
++
+ static inline void arch_dup_mmap(struct mm_struct *oldmm,
+ 				 struct mm_struct *mm)
+ {
+diff --git a/ipc/shm.c b/ipc/shm.c
+index dbac886..dab6cd1 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -72,6 +72,14 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp);
+ static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
+ #endif
+ 
++#ifndef arch_shmat_check
++#define arch_shmat_check(file, shmflg, flags) (0)
 +#endif
 +
- 	return entry;
++#ifndef arch_shmat_check
++#define arch_shmat_check(file, shmflg, flags) (0)
++#endif
++
+ void shm_init_ns(struct ipc_namespace *ns)
+ {
+ 	ns->shm_ctlmax = SHMMAX;
+@@ -1149,6 +1157,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+ 		goto out_unlock;
+ 	}
+ 
++	/* arch specific check and possible flag modification */
++	err = arch_shmat_check(shp->shm_file, shmflg, &flags);
++	if (err)
++		goto out_unlock;
++
+ 	err = -EACCES;
+ 	if (ipcperms(ns, &shp->shm_perm, acc_mode))
+ 		goto out_unlock;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 1af87c1..7fc946b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1307,6 +1307,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 			unsigned long pgoff, unsigned long *populate)
+ {
+ 	struct mm_struct *mm = current->mm;
++	unsigned long ret;
+ 	int pkey = 0;
+ 
+ 	*populate = 0;
+@@ -1314,6 +1315,11 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	if (!len)
+ 		return -EINVAL;
+ 
++	/* arch specific check and possible modification of vm_flags */
++	ret = arch_pre_mmap_flags(file, flags, &vm_flags);
++	if (ret)
++		return ret;
++
+ 	/*
+ 	 * Does the application expect PROT_READ to imply PROT_EXEC?
+ 	 *
+@@ -1452,6 +1458,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 	    ((vm_flags & VM_LOCKED) ||
+ 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
+ 		*populate = len;
++
++	if (!IS_ERR_VALUE(addr))
++		arch_post_mmap(mm, addr, vm_flags);
++
+ 	return addr;
  }
  
 -- 
