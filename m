@@ -1,58 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3773C6B0260
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 12:14:20 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c4so130394744pfb.7
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:14:20 -0800 (PST)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0087.outbound.protection.outlook.com. [104.47.36.87])
-        by mx.google.com with ESMTPS id a3si8635075plc.19.2016.12.16.09.14.18
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F5FC6B0260
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 12:36:50 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id j10so36464962wjb.3
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:36:50 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g29si4264359wmi.66.2016.12.16.09.36.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Dec 2016 09:14:18 -0800 (PST)
-Date: Fri, 16 Dec 2016 18:14:06 +0100
-From: Robert Richter <robert.richter@cavium.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Message-ID: <20161216171406.GE4930@rric.localdomain>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
- <20161215153930.GA8111@rric.localdomain>
- <125f3064-bbec-d923-ad9f-b2d152ee2c2d@linaro.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Dec 2016 09:36:48 -0800 (PST)
+Date: Fri, 16 Dec 2016 12:31:51 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20161216173151.GA23182@cmpxchg.org>
+References: <20161216073941.GA26976@dhcp22.suse.cz>
+ <20161216155808.12809-1-mhocko@kernel.org>
+ <20161216155808.12809-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <125f3064-bbec-d923-ad9f-b2d152ee2c2d@linaro.org>
+In-Reply-To: <20161216155808.12809-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hanjun Guo <hanjun.guo@linaro.org>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, catalin.marinas@arm.com, akpm@linux-foundation.org, xieyisheng1@huawei.com, james.morse@arm.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Nils Holland <nholland@tisys.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-On 16.12.16 09:57:20, Hanjun Guo wrote:
-> Hi Robert,
-> 
-> On 2016/12/15 23:39, Robert Richter wrote:
-> >I was going to do some measurements but my kernel crashes now with a
-> >page fault in efi_rtc_probe():
-> >
-> >[   21.663393] Unable to handle kernel paging request at virtual address 20251000
-> >[   21.663396] pgd = ffff000009090000
-> >[   21.663401] [20251000] *pgd=0000010ffff90003
-> >[   21.663402] , *pud=0000010ffff90003
-> >[   21.663404] , *pmd=0000000fdc030003
-> >[   21.663405] , *pte=00e8832000250707
-> >
-> >The sparsemem config requires the whole section to be initialized.
-> >Your patches do not address this.
-> 
-> This patch set is running properly on D05, both the boot and
-> LTP MM stress test are ok, seems it's a different configuration
-> of memory mappings in firmware, just a stupid question, which
-> part is related to this problem, is it only the Reserved memory?
+On Fri, Dec 16, 2016 at 04:58:08PM +0100, Michal Hocko wrote:
+> @@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
+>  	 * make sure exclude 0 mask - all other users should have at least
+>  	 * ___GFP_DIRECT_RECLAIM to get here.
+>  	 */
+> -	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
+> +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+>  		return true;
 
-The problem are efi reserved regions that are no longer reserved but
-marked as nomap pages. Those are excluded from page initialization
-causing parts of a memory section not being initialized.
+This makes sense, we should go back to what we had here. Because it's
+not that the reported OOMs are premature - there is genuinely no more
+memory reclaimable from the allocating context - but that this class
+of allocations should never invoke the OOM killer in the first place.
 
--Robert
+> @@ -3737,6 +3752,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		 */
+>  		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
+>  
+> +		/*
+> +		 * Help non-failing allocations by giving them access to memory
+> +		 * reserves but do not use ALLOC_NO_WATERMARKS because this
+> +		 * could deplete whole memory reserves which would just make
+> +		 * the situation worse
+> +		 */
+> +		page = __alloc_pages_cpuset_fallback(gfp_mask, order, ALLOC_HARDER, ac);
+> +		if (page)
+> +			goto got_pg;
+> +
+
+But this should be a separate patch, IMO.
+
+Do we observe GFP_NOFS lockups when we don't do this? Don't we risk
+premature exhaustion of the memory reserves, and it's better to wait
+for other reclaimers to make some progress instead? Should we give
+reserve access to all GFP_NOFS allocations, or just the ones from a
+reclaim/cleaning context? All that should go into the changelog of a
+separate allocation booster patch, I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
