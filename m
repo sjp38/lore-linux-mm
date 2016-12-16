@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6406B02C0
-	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:29 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id n68so21077291itn.4
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 301B56B02C2
+	for <linux-mm@kvack.org>; Fri, 16 Dec 2016 09:50:32 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id n68so21078343itn.4
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 06:50:32 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i31si6178634ioo.48.2016.12.16.06.48.28
+        by mx.google.com with ESMTPS id p71si2931683itp.87.2016.12.16.06.48.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 16 Dec 2016 06:48:28 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 32/42] userfaultfd: shmem: add userfaultfd hook for shared memory faults
-Date: Fri, 16 Dec 2016 15:48:11 +0100
-Message-Id: <20161216144821.5183-33-aarcange@redhat.com>
+Subject: [PATCH 31/42] userfaultfd: shmem: use shmem_mcopy_atomic_pte for shared memory
+Date: Fri, 16 Dec 2016 15:48:10 +0100
+Message-Id: <20161216144821.5183-32-aarcange@redhat.com>
 In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
 References: <20161216144821.5183-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,103 +22,89 @@ Cc: Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@r
 
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-When processing a page fault in shared memory area for not present page,
-check the VMA determine if faults are to be handled by userfaultfd. If so,
-delegate the page fault to handle_userfault.
+The shmem_mcopy_atomic_pte implements low lever part of UFFDIO_COPY
+operation for shared memory VMAs. It's based on mcopy_atomic_pte with
+adjustments necessary for shared memory pages.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/shmem.c | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ mm/userfaultfd.c | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 5cc1cb2..75866a3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -72,6 +72,7 @@ static struct vfsmount *shm_mnt;
- #include <linux/syscalls.h>
- #include <linux/fcntl.h>
- #include <uapi/linux/memfd.h>
-+#include <linux/userfaultfd_k.h>
- #include <linux/rmap.h>
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index 31207b4..a0817cc 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -16,6 +16,7 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/hugetlb.h>
+ #include <linux/pagemap.h>
++#include <linux/shmem_fs.h>
+ #include <asm/tlbflush.h>
+ #include "internal.h"
  
- #include <asm/uaccess.h>
-@@ -118,13 +119,14 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
- 				struct shmem_inode_info *info, pgoff_t index);
- static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 		struct page **pagep, enum sgp_type sgp,
--		gfp_t gfp, struct mm_struct *fault_mm, int *fault_type);
-+		gfp_t gfp, struct vm_area_struct *vma,
-+		struct vm_fault *vmf, int *fault_type);
- 
- int shmem_getpage(struct inode *inode, pgoff_t index,
- 		struct page **pagep, enum sgp_type sgp)
- {
- 	return shmem_getpage_gfp(inode, index, pagep, sgp,
--		mapping_gfp_mask(inode->i_mapping), NULL, NULL);
-+		mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
- }
- 
- static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
-@@ -1571,7 +1573,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-  */
- static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
--	struct mm_struct *fault_mm, int *fault_type)
-+	struct vm_area_struct *vma, struct vm_fault *vmf, int *fault_type)
- {
- 	struct address_space *mapping = inode->i_mapping;
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-@@ -1625,7 +1627,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 	 * bring it back from swap or allocate.
+@@ -369,7 +370,9 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
  	 */
- 	sbinfo = SHMEM_SB(inode->i_sb);
--	charge_mm = fault_mm ? : current->mm;
-+	charge_mm = vma ? vma->vm_mm : current->mm;
+ 	err = -EINVAL;
+ 	dst_vma = find_vma(dst_mm, dst_start);
+-	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
++	if (!dst_vma)
++		goto out_unlock;
++	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
+ 		goto out_unlock;
+ 	if (dst_start < dst_vma->vm_start ||
+ 	    dst_start + len > dst_vma->vm_end)
+@@ -394,11 +397,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+ 		goto out_unlock;
  
- 	if (swap.val) {
- 		/* Look it up and read it in.. */
-@@ -1635,7 +1637,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 			if (fault_type) {
- 				*fault_type |= VM_FAULT_MAJOR;
- 				count_vm_event(PGMAJFAULT);
--				mem_cgroup_count_vm_event(fault_mm, PGMAJFAULT);
-+				mem_cgroup_count_vm_event(charge_mm,
-+							  PGMAJFAULT);
- 			}
- 			/* Here we actually start the io */
- 			page = shmem_swapin(swap, gfp, info, index);
-@@ -1704,6 +1707,11 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 		swap_free(swap);
+-	/*
+-	 * FIXME: only allow copying on anonymous vmas, tmpfs should
+-	 * be added.
+-	 */
+-	if (!vma_is_anonymous(dst_vma))
++	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
+ 		goto out_unlock;
  
- 	} else {
-+		if (vma && userfaultfd_missing(vma)) {
-+			*fault_type = handle_userfault(vmf, VM_UFFD_MISSING);
-+			return 0;
+ 	/*
+@@ -407,7 +406,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	 * dst_vma.
+ 	 */
+ 	err = -ENOMEM;
+-	if (unlikely(anon_vma_prepare(dst_vma)))
++	if (vma_is_anonymous(dst_vma) && unlikely(anon_vma_prepare(dst_vma)))
+ 		goto out_unlock;
+ 
+ 	while (src_addr < src_start + len) {
+@@ -444,12 +443,21 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 		BUG_ON(pmd_none(*dst_pmd));
+ 		BUG_ON(pmd_trans_huge(*dst_pmd));
+ 
+-		if (!zeropage)
+-			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+-					       dst_addr, src_addr, &page);
+-		else
+-			err = mfill_zeropage_pte(dst_mm, dst_pmd, dst_vma,
+-						 dst_addr);
++		if (vma_is_anonymous(dst_vma)) {
++			if (!zeropage)
++				err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
++						       dst_addr, src_addr,
++						       &page);
++			else
++				err = mfill_zeropage_pte(dst_mm, dst_pmd,
++							 dst_vma, dst_addr);
++		} else {
++			err = -EINVAL; /* if zeropage is true return -EINVAL */
++			if (likely(!zeropage))
++				err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
++							     dst_vma, dst_addr,
++							     src_addr, &page);
 +		}
-+
- 		/* shmem_symlink() */
- 		if (mapping->a_ops != &shmem_aops)
- 			goto alloc_nohuge;
-@@ -1966,7 +1974,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		sgp = SGP_NOHUGE;
  
- 	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
--				  gfp, vma->vm_mm, &ret);
-+				  gfp, vma, vmf, &ret);
- 	if (error)
- 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
- 	return ret;
-@@ -4252,7 +4260,7 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ 		cond_resched();
  
- 	BUG_ON(mapping->a_ops != &shmem_aops);
- 	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE,
--				  gfp, NULL, NULL);
-+				  gfp, NULL, NULL, NULL);
- 	if (error)
- 		page = ERR_PTR(error);
- 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
