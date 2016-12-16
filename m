@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 68CC56B0253
-	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 20:08:33 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e9so148002066pgc.5
-        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 17:08:33 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id t127si4751266pgt.302.2016.12.15.17.08.31
-        for <linux-mm@kvack.org>;
-        Thu, 15 Dec 2016 17:08:32 -0800 (PST)
-Date: Fri, 16 Dec 2016 12:07:30 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v4 1/3] dax: masking off __GFP_FS in fs DAX handlers
-Message-ID: <20161216010730.GY4219@dastard>
-References: <148184524161.184728.14005697153880489871.stgit@djiang5-desk3.ch.intel.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B548E6B0069
+	for <linux-mm@kvack.org>; Thu, 15 Dec 2016 20:09:13 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e9so148037615pgc.5
+        for <linux-mm@kvack.org>; Thu, 15 Dec 2016 17:09:13 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id f35si4785300plh.192.2016.12.15.17.09.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Dec 2016 17:09:12 -0800 (PST)
+Subject: Re: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+References: <1480495397-23225-1-git-send-email-liang.z.li@intel.com>
+ <f67ca79c-ad34-59dd-835f-e7bc9dcaef58@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A130C01@shsmsx102.ccr.corp.intel.com>
+ <0b18c636-ee67-cbb4-1ba3-81a06150db76@redhat.com>
+ <0b83db29-ebad-2a70-8d61-756d33e33a48@intel.com>
+ <2171e091-46ee-decd-7348-772555d3a5e3@redhat.com>
+ <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
+ <20161207183817.GE28786@redhat.com>
+ <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
+ <20161207202824.GH28786@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
+ <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C31D0E6@SHSMSX104.ccr.corp.intel.com>
+ <01886693-c73e-3696-860b-086417d695e1@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C32985A@shsmsx102.ccr.corp.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <f517bfbe-18b8-6962-5c57-545f6ef47ad0@intel.com>
+Date: Thu, 15 Dec 2016 17:09:10 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <148184524161.184728.14005697153880489871.stgit@djiang5-desk3.ch.intel.com>
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3C32985A@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, jack@suse.cz, linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
+To: "Li, Liang Z" <liang.z.li@intel.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Thu, Dec 15, 2016 at 04:40:41PM -0700, Dave Jiang wrote:
-> The caller into dax needs to clear __GFP_FS mask bit since it's
-> responsible for acquiring locks / transactions that blocks __GFP_FS
-> allocation.  The caller will restore the original mask when dax function
-> returns.
+On 12/15/2016 04:48 PM, Li, Liang Z wrote:
+>>> It seems we leave too many bit  for the pfn, and the bits leave for
+>>> length is not enough, How about keep 45 bits for the pfn and 19 bits
+>>> for length, 45 bits for pfn can cover 57 bits physical address, that should be
+>> enough in the near feature.
+>>> What's your opinion?
+>> I still think 'order' makes a lot of sense.  But, as you say, 57 bits is enough for
+>> x86 for a while.  Other architectures.... who knows?
 
-What's the allocation problem you're working around here? Can you
-please describe the call chain that is the problem?
+Thinking about this some more...  There are really only two cases that
+matter: 4k pages and "much bigger" ones.
 
->  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
->  
->  	if (IS_DAX(inode)) {
-> +		gfp_t old_gfp = vmf->gfp_mask;
-> +
-> +		vmf->gfp_mask &= ~__GFP_FS;
->  		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
-> +		vmf->gfp_mask = old_gfp;
+Squeezing each 4k page into 8 bytes of metadata helps guarantee that
+this scheme won't regress over the old scheme in any cases.  For bigger
+ranges, 8 vs 16 bytes means *nothing*.  And 16 bytes will be as good or
+better than the old scheme for everything which is >4k.
 
-I really have to say that I hate code that clears and restores flags
-without any explanation of why the code needs to play flag tricks. I
-take one look at the XFS fault handling code and ask myself now "why
-the hell do we need to clear those flags?" Especially as the other
-paths into generic fault handlers /don't/ require us to do this.
-What does DAX do that require us to treat memory allocation contexts
-differently to the filemap_fault() path?
+How about this:
+ * 52 bits of 'pfn', 5 bits of 'order', 7 bits of 'length'
+ * One special 'length' value to mean "actual length in next 8 bytes"
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+That should be pretty simple to produce and decode.  We have two record
+sizes, but I think it is manageable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
