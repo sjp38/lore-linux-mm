@@ -1,84 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C786B0267
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 07:00:58 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id v132so30030753yba.3
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 04:00:58 -0800 (PST)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id 203si3220839ywu.17.2016.12.17.04.00.57
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 955586B0269
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 07:39:06 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id y71so257751270pgd.0
+        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 04:39:06 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id o4si12413841plb.25.2016.12.17.04.39.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Dec 2016 04:00:57 -0800 (PST)
-Received: by mail-yw0-x241.google.com with SMTP id s68so5696039ywg.0
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 04:00:57 -0800 (PST)
+        Sat, 17 Dec 2016 04:39:05 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
+ fast (de)inflating & fast live migration
+Date: Sat, 17 Dec 2016 12:39:01 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C32C4D5@shsmsx102.ccr.corp.intel.com>
+References: <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
+ <20161207202824.GH28786@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
+ <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C31D0E6@SHSMSX104.ccr.corp.intel.com>
+ <01886693-c73e-3696-860b-086417d695e1@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C32985A@shsmsx102.ccr.corp.intel.com>
+ <f517bfbe-18b8-6962-5c57-545f6ef47ad0@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C32A8D6@shsmsx102.ccr.corp.intel.com>
+ <84ac9822-880d-b998-52ca-6aa87e0f7a43@intel.com>
+ <20161216160112.GC6168@redhat.com>
+In-Reply-To: <20161216160112.GC6168@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <db51d8ca-e95f-ad93-ff6d-c55762d484c0@redhat.com>
-References: <1481259930-4620-1-git-send-email-jaewon31.kim@samsung.com>
- <1481259930-4620-2-git-send-email-jaewon31.kim@samsung.com> <db51d8ca-e95f-ad93-ff6d-c55762d484c0@redhat.com>
-From: Jaewon Kim <jaewon31.kim@gmail.com>
-Date: Sat, 17 Dec 2016 21:00:57 +0900
-Message-ID: <CAJrd-UsOxs7VbWoh49jEgYS5gM39k1d3mOy-cfr-bNWsBZfN1w@mail.gmail.com>
-Subject: Re: [PATCH] staging: android: ion: return -ENOMEM in ion_cma_heap
- allocation failure
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Jaewon Kim <jaewon31.kim@samsung.com>, gregkh@linuxfoundation.org, sumit.semwal@linaro.org, tixy@linaro.org, prime.zeng@huawei.com, tranmanphong@gmail.com, fabio.estevam@freescale.com, ccross@android.com, rebecca@android.com, benjamin.gaignard@linaro.org, arve@android.com, riandrews@android.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>
+Cc: David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-2016-12-14 1:04 GMT+09:00 Laura Abbott <labbott@redhat.com>:
-> On 12/08/2016 09:05 PM, Jaewon Kim wrote:
->> Initial Commit 349c9e138551 ("gpu: ion: add CMA heap") returns -1 in allocation
->> failure. The returned value is passed up to userspace through ioctl. So user can
->> misunderstand error reason as -EPERM(1) rather than -ENOMEM(12).
->>
->> This patch simply changed this to return -ENOMEM.
->>
->> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->> ---
->>  drivers/staging/android/ion/ion_cma_heap.c | 6 ++----
->>  1 file changed, 2 insertions(+), 4 deletions(-)
->>
->> diff --git a/drivers/staging/android/ion/ion_cma_heap.c b/drivers/staging/android/ion/ion_cma_heap.c
->> index 6c7de74..22b9582 100644
->> --- a/drivers/staging/android/ion/ion_cma_heap.c
->> +++ b/drivers/staging/android/ion/ion_cma_heap.c
->> @@ -24,8 +24,6 @@
->>  #include "ion.h"
->>  #include "ion_priv.h"
->>
->> -#define ION_CMA_ALLOCATE_FAILED -1
->> -
->>  struct ion_cma_heap {
->>       struct ion_heap heap;
->>       struct device *dev;
->> @@ -59,7 +57,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
->>
->>       info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
->>       if (!info)
->> -             return ION_CMA_ALLOCATE_FAILED;
->> +             return -ENOMEM;
->>
->>       info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
->>                                               GFP_HIGHUSER | __GFP_ZERO);
->> @@ -88,7 +86,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
->>       dma_free_coherent(dev, len, info->cpu_addr, info->handle);
->>  err:
->>       kfree(info);
->> -     return ION_CMA_ALLOCATE_FAILED;
->> +     return -ENOMEM;
->>  }
->>
->>  static void ion_cma_free(struct ion_buffer *buffer)
->>
->
-> Happy to see cleanup
->
-> Acked-by: Laura Abbott <labbott@redhat.com>
+> Subject: Re: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
+> fast (de)inflating & fast live migration
+>=20
+> On Thu, Dec 15, 2016 at 05:40:45PM -0800, Dave Hansen wrote:
+> > On 12/15/2016 05:38 PM, Li, Liang Z wrote:
+> > >
+> > > Use 52 bits for 'pfn', 12 bits for 'length', when the 12 bits is not =
+long
+> enough for the 'length'
+> > > Set the 'length' to a special value to indicate the "actual length in=
+ next 8
+> bytes".
+> > >
+> > > That will be much more simple. Right?
+> >
+> > Sounds fine to me.
+> >
+>=20
+> Sounds fine to me too indeed.
+>=20
+> I'm only wondering what is the major point for compressing gpfn+len in
+> 8 bytes in the common case, you already use sg_init_table to send down tw=
+o
+> pages, we could send three as well and avoid all math and bit shifts and =
+ors,
+> or not?
+>=20
 
-Thank you Laura Abbott. I'm honored to get Ack from you. I looked many
-patches of you.
-I hope this patch to be mainlined.
+Yes, we can use more pages for that.
+
+> I agree with the above because from a performance prospective I tend to
+> think the above proposal will run at least theoretically faster because t=
+he
+> other way is to waste double amount of CPU cache, and bit mangling in the
+> encoding and the later decoding on qemu side should be faster than
+> accessing an array of double size, but then I'm not sure if it's measurab=
+le
+> optimization. So I'd be curious to know the exact motivation and if it is=
+ to
+> reduce the CPU cache usage or if there's some other fundamental reason to
+> compress it.
+> The header already tells qemu how big is the array payload, couldn't we j=
+ust
+> add more pages if one isn't enough?
+>=20
+
+The original intention to compress the PFN and length it's to reduce the me=
+mory required.
+Even the code was changed a lot from the previous versions, I think this is=
+ still true.
+
+Now we allocate a specified buffer size to save the 'PFN|length', when the =
+buffer is not big
+enough to save all the page info for a specified order. A double size buffe=
+r will be allocated.
+This is what we want to avoid because the allocation may fail and allocatio=
+n takes some time,
+for fast live migration, time is a critical factor we have to consider, mor=
+e time takes means
+more unnecessary pages are sent, because live migration starts before the r=
+equest for unused
+ pages get response.=20
+
+Thanks
+
+Liang
+
+> Thanks,
+> Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
