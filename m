@@ -1,134 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E29AD6B0253
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 06:17:25 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g1so15875981pgn.3
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 03:17:25 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id c186si12123162pga.181.2016.12.17.03.17.24
+	by kanga.kvack.org (Postfix) with ESMTP id 286F16B0261
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 06:56:45 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id g1so17721322pgn.3
+        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 03:56:45 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id z21si12258029pgi.50.2016.12.17.03.56.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 17 Dec 2016 03:17:24 -0800 (PST)
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-References: <20161216073941.GA26976@dhcp22.suse.cz>
- <20161216155808.12809-1-mhocko@kernel.org>
- <20161216155808.12809-3-mhocko@kernel.org>
- <20161216173151.GA23182@cmpxchg.org> <20161216221202.GE7645@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <18652e94-8f5c-dcf1-16e6-0deab6c642ec@I-love.SAKURA.ne.jp>
-Date: Sat, 17 Dec 2016 20:17:07 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 17 Dec 2016 03:56:44 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [Qemu-devel] [PATCH kernel v5 0/5] Extend virtio-balloon for
+ fast (de)inflating & fast live migration
+Date: Sat, 17 Dec 2016 11:56:40 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C32C4A1@shsmsx102.ccr.corp.intel.com>
+References: <d3ff453c-56fa-19de-317c-1c82456f2831@intel.com>
+ <20161207183817.GE28786@redhat.com>
+ <b58fd9f6-d9dd-dd56-d476-dd342174dac5@intel.com>
+ <20161207202824.GH28786@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A14E2AD@SHSMSX104.ccr.corp.intel.com>
+ <060287c7-d1af-45d5-70ea-ad35d4bbeb84@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3C31D0E6@SHSMSX104.ccr.corp.intel.com>
+ <01886693-c73e-3696-860b-086417d695e1@intel.com>
+ <20161215173901-mutt-send-email-mst@kernel.org>
+ <F2CBF3009FA73547804AE4C663CAB28E3C32A899@shsmsx102.ccr.corp.intel.com>
+ <20161216154049.GB6168@redhat.com>
+In-Reply-To: <20161216154049.GB6168@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20161216221202.GE7645@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nils Holland <nholland@tisys.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, David Hildenbrand <david@redhat.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-Michal Hocko wrote:
-> On Fri 16-12-16 12:31:51, Johannes Weiner wrote:
->>> @@ -3737,6 +3752,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>>  		 */
->>>  		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
->>>  
->>> +		/*
->>> +		 * Help non-failing allocations by giving them access to memory
->>> +		 * reserves but do not use ALLOC_NO_WATERMARKS because this
->>> +		 * could deplete whole memory reserves which would just make
->>> +		 * the situation worse
->>> +		 */
->>> +		page = __alloc_pages_cpuset_fallback(gfp_mask, order, ALLOC_HARDER, ac);
->>> +		if (page)
->>> +			goto got_pg;
->>> +
->>
->> But this should be a separate patch, IMO.
->>
->> Do we observe GFP_NOFS lockups when we don't do this? 
-> 
-> this is hard to tell but considering users like grow_dev_page we can get
-> stuck with a very slow progress I believe. Those allocations could see
-> some help.
-> 
->> Don't we risk
->> premature exhaustion of the memory reserves, and it's better to wait
->> for other reclaimers to make some progress instead?
-> 
-> waiting for other reclaimers would be preferable but we should at least
-> give these some priority, which is what ALLOC_HARDER should help with.
-> 
->> Should we give
->> reserve access to all GFP_NOFS allocations, or just the ones from a
->> reclaim/cleaning context?
-> 
-> I would focus only for those which are important enough. Which are those
-> is a harder question. But certainly those with GFP_NOFAIL are important
-> enough.
-> 
->> All that should go into the changelog of a separate allocation booster
->> patch, I think.
-> 
-> The reason I did both in the same patch is to address the concern about
-> potential lockups when NOFS|NOFAIL cannot make any progress. I've chosen
-> ALLOC_HARDER to give the minimum portion of the reserves so that we do
-> not risk other high priority users to be blocked out but still help a
-> bit at least and prevent from starvation when other reclaimers are
-> faster to consume the reclaimed memory.
-> 
-> I can extend the changelog of course but I believe that having both
-> changes together makes some sense. NOFS|NOFAIL allocations are not all
-> that rare and sometimes we really depend on them making a further
-> progress.
-> 
+> On Fri, Dec 16, 2016 at 01:12:21AM +0000, Li, Liang Z wrote:
+> > There still exist the case if the MAX_ORDER is configured to a large
+> > value, e.g. 36 for a system with huge amount of memory, then there is o=
+nly
+> 28 bits left for the pfn, which is not enough.
+>=20
+> Not related to the balloon but how would it help to set MAX_ORDER to 36?
+>=20
 
-I feel that allowing access to memory reserves based on __GFP_NOFAIL might not
-make sense. My understanding is that actual I/O operation triggered by I/O
-requests by filesystem code are processed by other threads. Even if we grant
-access to memory reserves to GFP_NOFS | __GFP_NOFAIL allocations by fs code,
-I think that it is possible that memory allocations by underlying bio code
-fails to make a further progress unless memory reserves are granted as well.
+My point here is  MAX_ORDER may be configured to a big value.
 
-Below is a typical trace which I observe under OOM lockuped situation (though
-this trace is from an OOM stress test using XFS).
+> What the MAX_ORDER affects is that you won't be able to ask the kernel
+> page allocator for contiguous memory bigger than 1<<(MAX_ORDER-1), but
+> that's a driver issue not relevant to the amount of RAM. Drivers won't
+> suddenly start to ask the kernel allocator to allocate compound pages at
+> orders >=3D 11 just because more RAM was added.
+>=20
+> The higher the MAX_ORDER the slower the kernel runs simply so the smaller
+> the MAX_ORDER the better.
+>=20
+> > Should  we limit the MAX_ORDER? I don't think so.
+>=20
+> We shouldn't strictly depend on MAX_ORDER value but it's mostly limited
+> already even if configurable at build time.
+>=20
 
-----------------------------------------
-[ 1845.187246] MemAlloc: kworker/2:1(14498) flags=0x4208060 switches=323636 seq=48 gfp=0x2400000(GFP_NOIO) order=0 delay=430400 uninterruptible
-[ 1845.187248] kworker/2:1     D12712 14498      2 0x00000080
-[ 1845.187251] Workqueue: events_freezable_power_ disk_events_workfn
-[ 1845.187252] Call Trace:
-[ 1845.187253]  ? __schedule+0x23f/0xba0
-[ 1845.187254]  schedule+0x38/0x90
-[ 1845.187255]  schedule_timeout+0x205/0x4a0
-[ 1845.187256]  ? del_timer_sync+0xd0/0xd0
-[ 1845.187257]  schedule_timeout_uninterruptible+0x25/0x30
-[ 1845.187258]  __alloc_pages_nodemask+0x1035/0x10e0
-[ 1845.187259]  ? alloc_request_struct+0x14/0x20
-[ 1845.187261]  alloc_pages_current+0x96/0x1b0
-[ 1845.187262]  ? bio_alloc_bioset+0x20f/0x2e0
-[ 1845.187264]  bio_copy_kern+0xc4/0x180
-[ 1845.187265]  blk_rq_map_kern+0x6f/0x120
-[ 1845.187268]  __scsi_execute.isra.23+0x12f/0x160
-[ 1845.187270]  scsi_execute_req_flags+0x8f/0x100
-[ 1845.187271]  sr_check_events+0xba/0x2b0 [sr_mod]
-[ 1845.187274]  cdrom_check_events+0x13/0x30 [cdrom]
-[ 1845.187275]  sr_block_check_events+0x25/0x30 [sr_mod]
-[ 1845.187276]  disk_check_events+0x5b/0x150
-[ 1845.187277]  disk_events_workfn+0x17/0x20
-[ 1845.187278]  process_one_work+0x1fc/0x750
-[ 1845.187279]  ? process_one_work+0x167/0x750
-[ 1845.187279]  worker_thread+0x126/0x4a0
-[ 1845.187280]  kthread+0x10a/0x140
-[ 1845.187281]  ? process_one_work+0x750/0x750
-[ 1845.187282]  ? kthread_create_on_node+0x60/0x60
-[ 1845.187283]  ret_from_fork+0x2a/0x40
-----------------------------------------
+I didn't know that and will take a look, thanks for your information.
 
-I think that this GFP_NOIO allocation request needs to consume more memory reserves
-than GFP_NOFS allocation request to make progress. 
-Do we want to add __GFP_NOFAIL to this GFP_NOIO allocation request in order to allow
-access to memory reserves as well as GFP_NOFS | __GFP_NOFAIL allocation request?
+
+Liang
+> We definitely need it to reach at least the hugepage size, then it's most=
+ly
+> driver issue, but drivers requiring large contiguous allocations should r=
+ely on
+> CMA only or vmalloc if they only require it virtually contiguous, and not=
+ rely
+> on larger MAX_ORDER that would slowdown all kernel allocations/freeing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
