@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE646B0253
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 02:45:16 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id t196so13243422lff.3
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 23:45:16 -0800 (PST)
-Received: from asavdk4.altibox.net (asavdk4.altibox.net. [109.247.116.15])
-        by mx.google.com with ESMTPS id h99si5815549lfi.54.2016.12.16.23.45.14
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3022C6B0253
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 02:53:30 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id y21so13251208lfa.0
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 23:53:30 -0800 (PST)
+Received: from asavdk3.altibox.net (asavdk3.altibox.net. [109.247.116.14])
+        by mx.google.com with ESMTPS id 9si5836298lff.251.2016.12.16.23.53.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 23:45:14 -0800 (PST)
-Date: Sat, 17 Dec 2016 08:45:12 +0100
+        Fri, 16 Dec 2016 23:53:28 -0800 (PST)
+Date: Sat, 17 Dec 2016 08:53:25 +0100
 From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC PATCH 04/14] sparc64: load shared id into context register 1
-Message-ID: <20161217074512.GC23567@ravnborg.org>
+Subject: Re: [RFC PATCH 06/14] sparc64: general shared context tsb creation
+ and support
+Message-ID: <20161217075325.GD23567@ravnborg.org>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
- <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
+ <1481913337-9331-7-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1481913337-9331-7-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mike Kravetz <mike.kravetz@oracle.com>
@@ -26,30 +27,40 @@ Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Hi Mike
 
-> diff --git a/arch/sparc/kernel/fpu_traps.S b/arch/sparc/kernel/fpu_traps.S
-> index 336d275..f85a034 100644
-> --- a/arch/sparc/kernel/fpu_traps.S
-> +++ b/arch/sparc/kernel/fpu_traps.S
-> @@ -73,6 +73,16 @@ do_fpdis:
->  	ldxa		[%g3] ASI_MMU, %g5
->  	.previous
+> --- a/arch/sparc/mm/hugetlbpage.c
+> +++ b/arch/sparc/mm/hugetlbpage.c
+> @@ -162,8 +162,14 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+>  {
+>  	pte_t orig;
 >  
-> +661:	nop
-> +	nop
-> +	.section	.sun4v_2insn_patch, "ax"
-> +	.word		661b
-> +	mov		SECONDARY_CONTEXT_R1, %g3
-> +	ldxa		[%g3] ASI_MMU, %g4
-> +	.previous
-> +	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
-> +	mov		SECONDARY_CONTEXT, %g3
-> +
->  	sethi		%hi(sparc64_kern_sec_context), %g2
+> -	if (!pte_present(*ptep) && pte_present(entry))
+> -		mm->context.hugetlb_pte_count++;
+> +	if (!pte_present(*ptep) && pte_present(entry)) {
+> +#if defined(CONFIG_SHARED_MMU_CTX)
+> +		if (pte_val(entry) | _PAGE_SHR_CTX_4V)
+> +			mm->context.shared_hugetlb_pte_count++;
+> +		else
+> +#endif
+> +			mm->context.hugetlb_pte_count++;
+> +	}
 
-You missed the second instruction to patch with here.
-This bug repeats itself further down.
+This kind of conditional code it just too ugly to survive...
+Could a static inline be used to help you here?
+The compiler will inline it so there should not be any run-time cost
 
-Just noted while briefly reading the code - did not really follow the code.
+>  
+>  	mm_rss -= saved_thp_pte_count * (HPAGE_SIZE / PAGE_SIZE);
+>  #endif
+> @@ -544,8 +576,10 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+>  	 * us, so we need to zero out the TSB pointer or else tsb_grow()
+>  	 * will be confused and think there is an older TSB to free up.
+>  	 */
+> -	for (i = 0; i < MM_NUM_TSBS; i++)
+> +	for (i = 0; i < MM_NUM_TSBS; i++) {
+>  		mm->context.tsb_block[i].tsb = NULL;
+> +		mm->context.tsb_descr[i].tsb_base = 0UL;
+> +	}
+This change seems un-related to the rest?
 
 	Sam
 
