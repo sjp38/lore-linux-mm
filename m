@@ -1,25 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0836B0253
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 02:38:16 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id b14so13036044lfg.6
-        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 23:38:16 -0800 (PST)
-Received: from asavdk3.altibox.net (asavdk3.altibox.net. [109.247.116.14])
-        by mx.google.com with ESMTPS id b84si5788544lfd.398.2016.12.16.23.38.15
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE646B0253
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 02:45:16 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id t196so13243422lff.3
+        for <linux-mm@kvack.org>; Fri, 16 Dec 2016 23:45:16 -0800 (PST)
+Received: from asavdk4.altibox.net (asavdk4.altibox.net. [109.247.116.15])
+        by mx.google.com with ESMTPS id h99si5815549lfi.54.2016.12.16.23.45.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Dec 2016 23:38:15 -0800 (PST)
-Date: Sat, 17 Dec 2016 08:38:13 +0100
+        Fri, 16 Dec 2016 23:45:14 -0800 (PST)
+Date: Sat, 17 Dec 2016 08:45:12 +0100
 From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC PATCH 02/14] sparc64: add new fields to mmu context for
- shared context support
-Message-ID: <20161217073813.GB23567@ravnborg.org>
+Subject: Re: [RFC PATCH 04/14] sparc64: load shared id into context register 1
+Message-ID: <20161217074512.GC23567@ravnborg.org>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
- <1481913337-9331-3-git-send-email-mike.kravetz@oracle.com>
+ <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1481913337-9331-3-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mike Kravetz <mike.kravetz@oracle.com>
@@ -27,35 +26,30 @@ Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 Hi Mike
 
-> diff --git a/arch/sparc/include/asm/mmu_context_64.h b/arch/sparc/include/asm/mmu_context_64.h
-> index b84be67..d031799 100644
-> --- a/arch/sparc/include/asm/mmu_context_64.h
-> +++ b/arch/sparc/include/asm/mmu_context_64.h
-> @@ -35,15 +35,15 @@ void __tsb_context_switch(unsigned long pgd_pa,
->  static inline void tsb_context_switch(struct mm_struct *mm)
->  {
->  	__tsb_context_switch(__pa(mm->pgd),
-> -			     &mm->context.tsb_block[0],
-> +			     &mm->context.tsb_block[MM_TSB_BASE],
->  #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> -			     (mm->context.tsb_block[1].tsb ?
-> -			      &mm->context.tsb_block[1] :
-> +			     (mm->context.tsb_block[MM_TSB_HUGE].tsb ?
-> +			      &mm->context.tsb_block[MM_TSB_HUGE] :
->  			      NULL)
->  #else
->  			     NULL
->  #endif
-> -			     , __pa(&mm->context.tsb_descr[0]));
-> +			     , __pa(&mm->context.tsb_descr[MM_TSB_BASE]));
->  }
+> diff --git a/arch/sparc/kernel/fpu_traps.S b/arch/sparc/kernel/fpu_traps.S
+> index 336d275..f85a034 100644
+> --- a/arch/sparc/kernel/fpu_traps.S
+> +++ b/arch/sparc/kernel/fpu_traps.S
+> @@ -73,6 +73,16 @@ do_fpdis:
+>  	ldxa		[%g3] ASI_MMU, %g5
+>  	.previous
 >  
-This is a nice cleanup that has nothing to do with your series.
-Could you submit this as a separate patch so we can get it applied.
+> +661:	nop
+> +	nop
+> +	.section	.sun4v_2insn_patch, "ax"
+> +	.word		661b
+> +	mov		SECONDARY_CONTEXT_R1, %g3
+> +	ldxa		[%g3] ASI_MMU, %g4
+> +	.previous
+> +	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
+> +	mov		SECONDARY_CONTEXT, %g3
+> +
+>  	sethi		%hi(sparc64_kern_sec_context), %g2
 
-This is the only place left where the array index for tsb_block
-and tsb_descr uses hardcoded values. And it would be good to get
-rid of these.
+You missed the second instruction to patch with here.
+This bug repeats itself further down.
+
+Just noted while briefly reading the code - did not really follow the code.
 
 	Sam
 
