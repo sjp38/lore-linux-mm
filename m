@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A17596B0038
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 11:06:12 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so15765323wms.7
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:06:12 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id lm8si15271273wjb.234.2016.12.18.08.06.10
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 851626B0038
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 11:22:02 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so15949420wme.4
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:22:02 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id e133si11639581wmf.127.2016.12.18.08.22.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Dec 2016 08:06:11 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id j10so20606350wjb.3
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:06:10 -0800 (PST)
-Date: Sun, 18 Dec 2016 17:06:08 +0100
+        Sun, 18 Dec 2016 08:22:01 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id he10so20675914wjc.2
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:22:00 -0800 (PST)
+Date: Sun, 18 Dec 2016 17:21:59 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: crash during oom reaper
-Message-ID: <20161218160608.GA8440@dhcp22.suse.cz>
-References: <20161216090157.GA13940@dhcp22.suse.cz>
- <d944e3ca-07d4-c7d6-5025-dc101406b3a7@oracle.com>
- <20161216101113.GE13940@dhcp22.suse.cz>
- <20161216104438.GD27758@node>
- <20161216114243.GG13940@dhcp22.suse.cz>
- <20161216123555.GE27758@node>
- <20161216125650.GJ13940@dhcp22.suse.cz>
- <20161216130730.GF27758@node>
- <20161216131427.GM13940@dhcp22.suse.cz>
- <7918aa6b-8517-956b-5258-616ef1df6338@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH 4/9] mm: introduce memalloc_nofs_{save,restore} API
+Message-ID: <20161218162159.GB8440@dhcp22.suse.cz>
+References: <20161215140715.12732-1-mhocko@kernel.org>
+ <20161215140715.12732-5-mhocko@kernel.org>
+ <7019c051-ebca-7396-54f9-2a1d5805c57b@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7918aa6b-8517-956b-5258-616ef1df6338@I-love.SAKURA.ne.jp>
+In-Reply-To: <7019c051-ebca-7396-54f9-2a1d5805c57b@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Vegard Nossum <vegard.nossum@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>
 
-On Sun 18-12-16 22:47:07, Tetsuo Handa wrote:
-> On 2016/12/16 22:14, Michal Hocko wrote:
-[...]
-> > I would have to rememeber all the details. This is mostly off-topic for
-> > this particular thread so I think it would be better if you could send a
-> > full patch separatelly and we can discuss it there?
+On Sat 17-12-16 19:44:22, Tetsuo Handa wrote:
+> On 2016/12/15 23:07, Michal Hocko wrote:
+> > GFP_NOFS context is used for the following 5 reasons currently
+> > 	- to prevent from deadlocks when the lock held by the allocation
+> > 	  context would be needed during the memory reclaim
+> > 	- to prevent from stack overflows during the reclaim because
+> > 	  the allocation is performed from a deep context already
+> > 	- to prevent lockups when the allocation context depends on
+> > 	  other reclaimers to make a forward progress indirectly
+> > 	- just in case because this would be safe from the fs POV
+> > 	- silence lockdep false positives
 > > 
+> > Unfortunately overuse of this allocation context brings some problems
+> > to the MM. Memory reclaim is much weaker (especially during heavy FS
+> > metadata workloads), OOM killer cannot be invoked because the MM layer
+> > doesn't have enough information about how much memory is freeable by the
+> > FS layer.
 > 
-> zap_page_range() calls mmu_notifier_invalidate_range_start().
-> mmu_notifier_invalidate_range_start() calls __mmu_notifier_invalidate_range_start().
-> __mmu_notifier_invalidate_range_start() calls srcu_read_lock()/srcu_read_unlock().
-> This means that zap_page_range() might sleep.
-> 
-> I don't know what individual notifier will do, but for example
-> 
->   static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
->           .invalidate_range_start = i915_gem_userptr_mn_invalidate_range_start,
->   };
-> 
-> i915_gem_userptr_mn_invalidate_range_start() calls flush_workqueue()
-> which means that we can OOM livelock if work item involves memory allocation.
-> Some of other notifiers call mutex_lock()/mutex_unlock().
-> 
-> Even if none of currently in-tree notifier users are blocked on memory
-> allocation, I think it is not guaranteed that future changes/users won't be
-> blocked on memory allocation.
+> This series is intended for simply applying "& ~__GFP_FS" mask to allocations
+> which are using GFP_KERNEL by error for the current thread, isn't it?
 
-Kirill has sent this as a separate patchset [1]. Could you follow up on
-that there please?
+Not really. I've tried to cover that in changelogs but in short I would
+like to achieve a state where this api would cover all the recursion
+dangerous places with a documentation why and most/all the specific
+allocations will not care about NOFS at all. They will simply inherit
+NOFS scope when necessary.
+ 
+> > In many cases it is far from clear why the weaker context is even used
+> > and so it might be used unnecessarily. We would like to get rid of
+> > those as much as possible. One way to do that is to use the flag in
+> > scopes rather than isolated cases. Such a scope is declared when really
+> > necessary, tracked per task and all the allocation requests from within
+> > the context will simply inherit the GFP_NOFS semantic.
+> > 
+> > Not only this is easier to understand and maintain because there are
+> > much less problematic contexts than specific allocation requests, this
+> > also helps code paths where FS layer interacts with other layers (e.g.
+> > crypto, security modules, MM etc...) and there is no easy way to convey
+> > the allocation context between the layers.
+> 
+> I haven't heard an answer to "a terrible thing" in
+> http://lkml.kernel.org/r/20160427200530.GB22544@dhcp22.suse.cz .
+> 
+> What is your plan for checking whether we need to propagate "& ~__GFP_FS"
+> mask to other threads which current thread waits synchronously (e.g.
+> wait_for_completion()) from "& ~__GFP_FS" context?
 
-http://lkml.kernel.org/r/20161216141556.75130-4-kirill.shutemov@linux.intel.com
+This needs a deeper inspection. First of all we have to find out whether
+we have a _relevant_ code which depends on kworkers (without WQ_MEM_RECLAIM)
+from the NOFS context. This is not covered in this patch series, though.
+I plan to get to it later after we actually finish this step.
 
 -- 
 Michal Hocko
