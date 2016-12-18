@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A37846B0253
-	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 22:12:58 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q10so303252855pgq.7
-        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 19:12:58 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F41C96B0253
+	for <linux-mm@kvack.org>; Sat, 17 Dec 2016 22:14:45 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id i88so175867607pfk.3
+        for <linux-mm@kvack.org>; Sat, 17 Dec 2016 19:14:45 -0800 (PST)
 Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id e63si14024085plb.279.2016.12.17.19.12.57
+        by mx.google.com with ESMTP id m17si13989739pgh.314.2016.12.17.19.14.44
         for <linux-mm@kvack.org>;
-        Sat, 17 Dec 2016 19:12:57 -0800 (PST)
-Date: Sat, 17 Dec 2016 22:12:55 -0500 (EST)
-Message-Id: <20161217.221255.1870405962737594028.davem@davemloft.net>
-Subject: Re: [RFC PATCH 05/14] sparc64: Add PAGE_SHR_CTX flag
+        Sat, 17 Dec 2016 19:14:45 -0800 (PST)
+Date: Sat, 17 Dec 2016 22:14:42 -0500 (EST)
+Message-Id: <20161217.221442.430708127662119954.davem@davemloft.net>
+Subject: Re: [RFC PATCH 04/14] sparc64: load shared id into context
+ register 1
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <1481913337-9331-6-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
-	<1481913337-9331-6-git-send-email-mike.kravetz@oracle.com>
+	<1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -24,23 +25,27 @@ To: mike.kravetz@oracle.com
 Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@oracle.com, nitin.m.gupta@oracle.com, vijay.ac.kumar@oracle.com, julian.calaby@gmail.com, adam.buchbinder@gmail.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, akpm@linux-foundation.org
 
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Date: Fri, 16 Dec 2016 10:35:28 -0800
+Date: Fri, 16 Dec 2016 10:35:27 -0800
 
-> @@ -166,6 +166,7 @@ bool kern_addr_valid(unsigned long addr);
->  #define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
->  #define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
->  #define _PAGE_SOFT_4V	  _AC(0x0000000000000030,UL) /* Software bits        */
-> +#define _PAGE_SHR_CTX_4V  _AC(0x0000000000000020,UL) /* Shared Context       */
->  #define _PAGE_PRESENT_4V  _AC(0x0000000000000010,UL) /* Present              */
->  #define _PAGE_RESV_4V	  _AC(0x0000000000000008,UL) /* Reserved             */
->  #define _PAGE_SZ16GB_4V	  _AC(0x0000000000000007,UL) /* 16GB Page            */
+> In current code, only context ID register 0 is set and used by the MMU.
+> On sun4v platforms that support MMU shared context, there is an additional
+> context ID register: specifically context register 1.  When searching
+> the TLB, the MMU will find a match if the virtual address matches and
+> the ID contained in context register 0 -OR- context register 1 matches.
+> 
+> Load the shared context ID into context ID register 1.  Care must be
+> taken to load register 1 after register 0, as loading register 0
+> overwrites both register 0 and 1.  Modify code loading register 0 to
+> also load register one if applicable.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-You really don't need this.
+You can't make these register accesses if the feature isn't being
+used.
 
-The VMA is available, and you can obtain the information you need
-about whether this is a shared mapping or not from the. It just isn't
-being passed down into things like set_huge_pte_at().  Simply make it
-do so.
+Considering the percentage of applications which will actually use
+this thing, incuring the overhead of even loading the shared context
+register is simply unacceptable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
