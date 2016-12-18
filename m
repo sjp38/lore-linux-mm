@@ -1,104 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 57BBD6B0253
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 11:37:30 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i131so15930152wmf.3
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:37:30 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id l66si11708379wml.44.2016.12.18.08.37.28
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E326B0038
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 18:34:14 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id 34so101177771uac.6
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 15:34:14 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j63si4219649vkb.150.2016.12.18.15.34.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Dec 2016 08:37:28 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id g23so14498476wme.1
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 08:37:28 -0800 (PST)
-Date: Sun, 18 Dec 2016 17:37:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-Message-ID: <20161218163727.GC8440@dhcp22.suse.cz>
-References: <20161216073941.GA26976@dhcp22.suse.cz>
- <20161216155808.12809-1-mhocko@kernel.org>
- <20161216155808.12809-3-mhocko@kernel.org>
- <20161216173151.GA23182@cmpxchg.org>
- <20161216221202.GE7645@dhcp22.suse.cz>
- <18652e94-8f5c-dcf1-16e6-0deab6c642ec@I-love.SAKURA.ne.jp>
+        Sun, 18 Dec 2016 15:34:13 -0800 (PST)
+Subject: Re: [RFC PATCH 02/14] sparc64: add new fields to mmu context for
+ shared context support
+References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
+ <1481913337-9331-3-git-send-email-mike.kravetz@oracle.com>
+ <20161217073406.GA23567@ravnborg.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <b1c84633-7b4a-98d3-fd60-bcaf64574e4d@oracle.com>
+Date: Sun, 18 Dec 2016 15:33:59 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <18652e94-8f5c-dcf1-16e6-0deab6c642ec@I-love.SAKURA.ne.jp>
+In-Reply-To: <20161217073406.GA23567@ravnborg.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Nils Holland <nholland@tisys.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S . Miller" <davem@davemloft.net>, Bob Picco <bob.picco@oracle.com>, Nitin Gupta <nitin.m.gupta@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, Julian Calaby <julian.calaby@gmail.com>, Adam Buchbinder <adam.buchbinder@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat 17-12-16 20:17:07, Tetsuo Handa wrote:
-[...]
-> I feel that allowing access to memory reserves based on __GFP_NOFAIL might not
-> make sense. My understanding is that actual I/O operation triggered by I/O
-> requests by filesystem code are processed by other threads. Even if we grant
-> access to memory reserves to GFP_NOFS | __GFP_NOFAIL allocations by fs code,
-> I think that it is possible that memory allocations by underlying bio code
-> fails to make a further progress unless memory reserves are granted as well.
-
-IO layer should rely on mempools to guarantee a forward progress.
-
-> Below is a typical trace which I observe under OOM lockuped situation (though
-> this trace is from an OOM stress test using XFS).
+On 12/16/2016 11:34 PM, Sam Ravnborg wrote:
+> Hi Mike.
 > 
-> ----------------------------------------
-> [ 1845.187246] MemAlloc: kworker/2:1(14498) flags=0x4208060 switches=323636 seq=48 gfp=0x2400000(GFP_NOIO) order=0 delay=430400 uninterruptible
-> [ 1845.187248] kworker/2:1     D12712 14498      2 0x00000080
-> [ 1845.187251] Workqueue: events_freezable_power_ disk_events_workfn
-> [ 1845.187252] Call Trace:
-> [ 1845.187253]  ? __schedule+0x23f/0xba0
-> [ 1845.187254]  schedule+0x38/0x90
-> [ 1845.187255]  schedule_timeout+0x205/0x4a0
-> [ 1845.187256]  ? del_timer_sync+0xd0/0xd0
-> [ 1845.187257]  schedule_timeout_uninterruptible+0x25/0x30
-> [ 1845.187258]  __alloc_pages_nodemask+0x1035/0x10e0
-> [ 1845.187259]  ? alloc_request_struct+0x14/0x20
-> [ 1845.187261]  alloc_pages_current+0x96/0x1b0
-> [ 1845.187262]  ? bio_alloc_bioset+0x20f/0x2e0
-> [ 1845.187264]  bio_copy_kern+0xc4/0x180
-> [ 1845.187265]  blk_rq_map_kern+0x6f/0x120
-> [ 1845.187268]  __scsi_execute.isra.23+0x12f/0x160
-> [ 1845.187270]  scsi_execute_req_flags+0x8f/0x100
-> [ 1845.187271]  sr_check_events+0xba/0x2b0 [sr_mod]
-> [ 1845.187274]  cdrom_check_events+0x13/0x30 [cdrom]
-> [ 1845.187275]  sr_block_check_events+0x25/0x30 [sr_mod]
-> [ 1845.187276]  disk_check_events+0x5b/0x150
-> [ 1845.187277]  disk_events_workfn+0x17/0x20
-> [ 1845.187278]  process_one_work+0x1fc/0x750
-> [ 1845.187279]  ? process_one_work+0x167/0x750
-> [ 1845.187279]  worker_thread+0x126/0x4a0
-> [ 1845.187280]  kthread+0x10a/0x140
-> [ 1845.187281]  ? process_one_work+0x750/0x750
-> [ 1845.187282]  ? kthread_create_on_node+0x60/0x60
-> [ 1845.187283]  ret_from_fork+0x2a/0x40
-> ----------------------------------------
+> On Fri, Dec 16, 2016 at 10:35:25AM -0800, Mike Kravetz wrote:
+>> Add new fields to the mm_context structure to support shared context.
+>> Instead of a simple context ID, add a pointer to a structure with a
+>> reference count.  This is needed as multiple tasks will share the
+>> context ID.
 > 
-> I think that this GFP_NOIO allocation request needs to consume more memory reserves
-> than GFP_NOFS allocation request to make progress. 
+> What are the benefits with the shared_mmu_ctx struct?
+> It does not save any space in mm_context_t, and the CPU only
+> supports one extra context.
+> So it looks like over-engineering with all the extra administration
+> required to handle it with refcount, poitners etc.
+> 
+> what do I miss?
 
-AFAIU, this is an allocation path which doesn't block a forward progress
-on a regular IO. It is merely a check whether there is a new medium in
-the CDROM (aka regular polling of the device). I really fail to see any
-reason why this one should get any access to memory reserves at all.
+Multiple tasks will share this same context ID.  The first task to need
+a new shared context will allocate the structure, increment the ref count
+and point to it.  As other tasks join the sharing, they will increment
+the ref count and point to the same structure.  Similarly, when tasks
+no longer use the shared context ID, they will decrement the reference
+count.
 
-I actually do not see any reason why it should be NOIO in the first
-place but I am not familiar with this code much so there might be some
-reasons for that. The fact that it might stall under a heavy memory
-pressure is sad but who actually cares?
+The reference count is important so that we will know when the last
+reference to the shared context ID is dropped.  When the last reference
+is dropped, then the ID can be recycled/given back to the global pool
+of context IDs.
 
-> Do we want to add __GFP_NOFAIL to this GFP_NOIO allocation request
-> in order to allow access to memory reserves as well as GFP_NOFS |
-> __GFP_NOFAIL allocation request?
-
-Why?
-
+This seemed to be the most straight forward way to implement this.
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
