@@ -1,82 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A306B0038
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 03:15:11 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id 2so25284276uax.4
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 00:15:11 -0800 (PST)
-Received: from mail-ua0-x243.google.com (mail-ua0-x243.google.com. [2607:f8b0:400c:c08::243])
-        by mx.google.com with ESMTPS id o1si1509630uaf.63.2016.12.18.00.15.10
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 256766B0038
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 07:33:12 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id 3so87773050uaz.2
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 04:33:12 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r4si1113046uaf.22.2016.12.18.04.33.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Dec 2016 00:15:10 -0800 (PST)
-Received: by mail-ua0-x243.google.com with SMTP id y13so3323264uay.1
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 00:15:10 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org>
-References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
- <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com> <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Sun, 18 Dec 2016 09:15:09 +0100
-Message-ID: <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com>
-Subject: Re: [PATCH 0/2] z3fold fixes
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Sun, 18 Dec 2016 04:33:11 -0800 (PST)
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Subject: [PATCH 4/4] mm: clarify mm_struct.mm_{users,count} documentation
+Date: Sun, 18 Dec 2016 13:32:29 +0100
+Message-Id: <20161218123229.22952-4-vegard.nossum@oracle.com>
+In-Reply-To: <20161218123229.22952-1-vegard.nossum@oracle.com>
+References: <20161218123229.22952-1-vegard.nossum@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Vegard Nossum <vegard.nossum@oracle.com>
 
-On Tue, Nov 29, 2016 at 11:39 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 29 Nov 2016 17:33:19 -0500 Dan Streetman <ddstreet@ieee.org> wrot=
-e:
->
->> On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wrot=
-e:
->> > Here come 2 patches with z3fold fixes for chunks counting and locking.=
- As commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is to=
-o big") was NAK'ed [1], I would suggest that we removed that one and the ne=
-xt z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't com=
-pacted") and applied the coming 2 instead.
->>
->> Instead of adding these onto all the previous ones, could you redo the
->> entire z3fold series?  I think it'll be simpler to review the series
->> all at once and that would remove some of the stuff from previous
->> patches that shouldn't be there.
->>
->> If that's ok with Andrew, of course, but I don't think any of the
->> z3fold patches have been pushed to Linus yet.
->
-> Sounds good to me.  I had a few surprise rejects when merging these
-> two, which indicates that things might be out of sync.
->
-> I presently have:
->
-> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patc=
-h
-> z3fold-make-pages_nr-atomic.patch
-> z3fold-extend-compaction-function.patch
-> z3fold-use-per-page-spinlock.patch
-> z3fold-discourage-use-of-pages-that-werent-compacted.patch
-> z3fold-fix-header-size-related-issues.patch
-> z3fold-fix-locking-issues.patch
+Clarify documentation relating to mm_users and mm_count, and switch to
+kernel-doc syntax.
 
-My initial suggestion was to have it the following way:
-z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patch
-z3fold-make-pages_nr-atomic.patch
-z3fold-extend-compaction-function.patch
-z3fold-use-per-page-spinlock.patch
-z3fold-fix-header-size-related-issues.patch
-z3fold-fix-locking-issues.patch
+Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
+---
+ include/linux/mm_types.h | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
-I would prefer to keep the fix-XXX patches separate since e. g.
-z3fold-fix-header-size-related-issues.patch concerns also the problems
-that have been in the code for a while now. I am ok with folding these
-into the relevant main patches but once again, given that some fixes
-are related to the code that is already merged, I don't see why it
-would be better.
-
-~vitaly
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 08d947fc4c59..316c3e1fc226 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -407,8 +407,27 @@ struct mm_struct {
+ 	unsigned long task_size;		/* size of task vm space */
+ 	unsigned long highest_vm_end;		/* highest vma end address */
+ 	pgd_t * pgd;
+-	atomic_t mm_users;			/* How many users with user space? */
+-	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
++
++	/**
++	 * @mm_users: The number of users including userspace.
++	 *
++	 * Use mmget()/mmget_not_zero()/mmput() to modify. When this drops
++	 * to 0 (i.e. when the task exits and there are no other temporary
++	 * reference holders), we also release a reference on @mm_count
++	 * (which may then free the &struct mm_struct if @mm_count also
++	 * drops to 0).
++	 */
++	atomic_t mm_users;
++
++	/**
++	 * @mm_count: The number of references to &struct mm_struct
++	 * (@mm_users count as 1).
++	 *
++	 * Use mmgrab()/mmdrop() to modify. When this drops to 0, the
++	 * &struct mm_struct is freed.
++	 */
++	atomic_t mm_count;
++
+ 	atomic_long_t nr_ptes;			/* PTE page table pages */
+ #if CONFIG_PGTABLE_LEVELS > 2
+ 	atomic_long_t nr_pmds;			/* PMD page table pages */
+-- 
+2.11.0.1.gaa10c3f
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
