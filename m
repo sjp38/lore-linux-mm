@@ -1,67 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1716B0260
-	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 19:22:41 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id 2so42911172uax.4
-        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 16:22:41 -0800 (PST)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD076B0269
+	for <linux-mm@kvack.org>; Sun, 18 Dec 2016 19:43:02 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id i145so7144107qke.5
+        for <linux-mm@kvack.org>; Sun, 18 Dec 2016 16:43:02 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 46si641822uan.100.2016.12.18.16.22.40
+        by mx.google.com with ESMTPS id f61si8436435qtd.103.2016.12.18.16.43.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Dec 2016 16:22:40 -0800 (PST)
-Subject: Re: [RFC PATCH 04/14] sparc64: load shared id into context register 1
+        Sun, 18 Dec 2016 16:43:01 -0800 (PST)
+Subject: Re: [RFC PATCH 05/14] sparc64: Add PAGE_SHR_CTX flag
 References: <1481913337-9331-1-git-send-email-mike.kravetz@oracle.com>
- <1481913337-9331-5-git-send-email-mike.kravetz@oracle.com>
- <20161217074512.GC23567@ravnborg.org>
+ <1481913337-9331-6-git-send-email-mike.kravetz@oracle.com>
+ <20161217.221255.1870405962737594028.davem@davemloft.net>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <86a484e6-7b71-383d-b7da-d64b99206fa9@oracle.com>
-Date: Sun, 18 Dec 2016 16:22:31 -0800
+Message-ID: <0311a0ea-097b-be27-3f4d-14bbba46348c@oracle.com>
+Date: Sun, 18 Dec 2016 16:42:52 -0800
 MIME-Version: 1.0
-In-Reply-To: <20161217074512.GC23567@ravnborg.org>
+In-Reply-To: <20161217.221255.1870405962737594028.davem@davemloft.net>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S . Miller" <davem@davemloft.net>, Bob Picco <bob.picco@oracle.com>, Nitin Gupta <nitin.m.gupta@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, Julian Calaby <julian.calaby@gmail.com>, Adam Buchbinder <adam.buchbinder@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Miller <davem@davemloft.net>
+Cc: sparclinux@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, bob.picco@oracle.com, nitin.m.gupta@oracle.com, vijay.ac.kumar@oracle.com, julian.calaby@gmail.com, adam.buchbinder@gmail.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, akpm@linux-foundation.org
 
-On 12/16/2016 11:45 PM, Sam Ravnborg wrote:
-> Hi Mike
+On 12/17/2016 07:12 PM, David Miller wrote:
+> From: Mike Kravetz <mike.kravetz@oracle.com>
+> Date: Fri, 16 Dec 2016 10:35:28 -0800
 > 
->> diff --git a/arch/sparc/kernel/fpu_traps.S b/arch/sparc/kernel/fpu_traps.S
->> index 336d275..f85a034 100644
->> --- a/arch/sparc/kernel/fpu_traps.S
->> +++ b/arch/sparc/kernel/fpu_traps.S
->> @@ -73,6 +73,16 @@ do_fpdis:
->>  	ldxa		[%g3] ASI_MMU, %g5
->>  	.previous
->>  
->> +661:	nop
->> +	nop
->> +	.section	.sun4v_2insn_patch, "ax"
->> +	.word		661b
->> +	mov		SECONDARY_CONTEXT_R1, %g3
->> +	ldxa		[%g3] ASI_MMU, %g4
->> +	.previous
->> +	/* Unnecessary on sun4u and pre-Niagara 2 sun4v */
->> +	mov		SECONDARY_CONTEXT, %g3
->> +
->>  	sethi		%hi(sparc64_kern_sec_context), %g2
+>> @@ -166,6 +166,7 @@ bool kern_addr_valid(unsigned long addr);
+>>  #define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
+>>  #define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
+>>  #define _PAGE_SOFT_4V	  _AC(0x0000000000000030,UL) /* Software bits        */
+>> +#define _PAGE_SHR_CTX_4V  _AC(0x0000000000000020,UL) /* Shared Context       */
+>>  #define _PAGE_PRESENT_4V  _AC(0x0000000000000010,UL) /* Present              */
+>>  #define _PAGE_RESV_4V	  _AC(0x0000000000000008,UL) /* Reserved             */
+>>  #define _PAGE_SZ16GB_4V	  _AC(0x0000000000000007,UL) /* 16GB Page            */
 > 
-> You missed the second instruction to patch with here.
-> This bug repeats itself further down.
+> You really don't need this.
 > 
-> Just noted while briefly reading the code - did not really follow the code.
+> The VMA is available, and you can obtain the information you need
+> about whether this is a shared mapping or not from the. It just isn't
+> being passed down into things like set_huge_pte_at().  Simply make it
+> do so.
+> 
 
-Hi Sam,
-
-This is my first sparc assembly code, so I could certainly have this
-wrong.  The code I was trying to write has the two nop instructions,
-that get patched with the mov and ldxa on sun4v.  Certainly, this is
-not elegant.  And, the formatting may lead to some confusion.
-
-Did you perhaps think the mov instruction after the comment was for
-patching?  I am just trying to understand your comment.
+I was more concerned about the page table walk code at tlb/tsb miss time.
+Specifically, the code after tsb_miss_page_table_walk_sun4v_fastpath in
+tsb.S.  AFAICT, the tsb entries should have been created when the pte entries
+were created.  Yet, this code is still walking the page table and creating
+tsb entries.  We do not have a pointer to the vma here, and I thought it
+would be somewhat difficult to get access.  This is the reason why I went
+down the path of a page flag.
 
 -- 
 Mike Kravetz
