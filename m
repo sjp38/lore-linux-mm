@@ -1,147 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B399B6B027B
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 04:36:56 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id bk3so46526629wjc.4
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 01:36:56 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2659D6B0283
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 04:56:27 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a20so18567146wme.5
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 01:56:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id us1si17774148wjc.102.2016.12.19.01.36.55
+        by mx.google.com with ESMTPS id hf6si17822759wjc.204.2016.12.19.01.56.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Dec 2016 01:36:55 -0800 (PST)
-Date: Fri, 16 Dec 2016 09:43:41 +0100
+        Mon, 19 Dec 2016 01:56:25 -0800 (PST)
+Date: Mon, 19 Dec 2016 10:56:23 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 9/9] Revert "ext4: fix wrong gfp type under transaction"
-Message-ID: <20161216084341.GG26608@quack2.suse.cz>
-References: <20161215140715.12732-1-mhocko@kernel.org>
- <20161215140715.12732-10-mhocko@kernel.org>
+Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
+Message-ID: <20161219095623.GE17598@quack2.suse.cz>
+References: <20161212164708.23244-1-jack@suse.cz>
+ <20161213115209.GG15362@quack2.suse.cz>
+ <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
+ <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161215140715.12732-10-mhocko@kernel.org>
+In-Reply-To: <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Thu 15-12-16 15:07:15, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Fri 16-12-16 17:35:35, Dan Williams wrote:
+> On Tue, Dec 13, 2016 at 10:57 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+> > On Tue, Dec 13, 2016 at 3:52 AM, Jan Kara <jack@suse.cz> wrote:
+> >> On Mon 12-12-16 17:47:02, Jan Kara wrote:
+> >>> Hello,
+> >>>
+> >>> this is the third revision of my fixes of races when invalidating hole pages in
+> >>> DAX mappings. See changelogs for details. The series is based on my patches to
+> >>> write-protect DAX PTEs which are currently carried in mm tree. This is a hard
+> >>> dependency because we really need to closely track dirtiness (and cleanness!)
+> >>> of radix tree entries in DAX mappings in order to avoid discarding valid dirty
+> >>> bits leading to missed cache flushes on fsync(2).
+> >>>
+> >>> The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
+> >>>
+> >>> Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
+> >>> patches to some tree once DAX write-protection patches are merged.  I'm hoping
+> >>> to get at least first three patches merged for 4.10-rc2... Thanks!
+> >>
+> >> OK, with the final ack from Johannes and since this is mostly DAX stuff,
+> >> can we take this through NVDIMM tree and push to Linus either late in the
+> >> merge window or for -rc2? These patches require my DAX patches sitting in mm
+> >> tree so they can be included in any git tree only once those patches land
+> >> in Linus' tree (which may happen only once Dave and Ted push out their
+> >> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
+> >> Dan?
+> >>
+> >
+> > I like the -rc2 plan better than sending a pull request based on some
+> > random point in the middle of the merge window. I can give Linus a
+> > heads up in my initial nvdimm pull request for -rc1 that for
+> > coordination purposes we'll be sending this set of follow-on DAX
+> > cleanups for -rc2.
 > 
-> This reverts commit 216553c4b7f3e3e2beb4981cddca9b2027523928. Now that
-> the transaction context uses memalloc_nofs_save and all allocations
-> within the this context inherit GFP_NOFS automatically, there is no
-> reason to mark specific allocations explicitly.
-> 
-> This patch should not introduce any functional change. The main point
-> of this change is to reduce explicit GFP_NOFS usage inside ext4 code
-> to make the review of the remaining usage easier.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> So what's still pending for -rc2? I want to be explicit about what I'm
+> requesting Linus be prepared to receive after -rc1. The libnvdimm pull
+> request is very light this time around since I ended up deferring the
+> device-dax-subdivision topic until 4.11 and sub-section memory hotplug
+> didn't make the cutoff for -mm. We can spend some of that goodwill on
+> your patches ;-).
 
-Looks good to me. You can add:
+;-) So I'd like all these 6 patches to go for rc2. The first three patches
+fix invalidation of exceptional DAX entries (a bug which is there for a
+long time) - without these patches data loss can occur on power failure
+even though user called fsync(2). The other three patches change locking of
+DAX faults so that ->iomap_begin() is called in a more relaxed locking
+context and we are safe to start a transaction there for ext4.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> I can roll them into libnvdimm-for-next now for the integration
+> testing coverage, rebase to -rc1 when it's out, wait for your thumbs
+> up on the testing and send a pull request on the 23rd.
+
+Yup, all prerequisites are merged now so you can pick these patches up.
+Thanks! Note that I'll be on vacation on Dec 23 - Jan 1.
 
 								Honza
-
-> ---
->  fs/ext4/acl.c     | 6 +++---
->  fs/ext4/extents.c | 2 +-
->  fs/ext4/resize.c  | 4 ++--
->  fs/ext4/xattr.c   | 4 ++--
->  4 files changed, 8 insertions(+), 8 deletions(-)
-> 
-> diff --git a/fs/ext4/acl.c b/fs/ext4/acl.c
-> index fd389935ecd1..9e98092c2a4b 100644
-> --- a/fs/ext4/acl.c
-> +++ b/fs/ext4/acl.c
-> @@ -32,7 +32,7 @@ ext4_acl_from_disk(const void *value, size_t size)
->  		return ERR_PTR(-EINVAL);
->  	if (count == 0)
->  		return NULL;
-> -	acl = posix_acl_alloc(count, GFP_NOFS);
-> +	acl = posix_acl_alloc(count, GFP_KERNEL);
->  	if (!acl)
->  		return ERR_PTR(-ENOMEM);
->  	for (n = 0; n < count; n++) {
-> @@ -94,7 +94,7 @@ ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
->  
->  	*size = ext4_acl_size(acl->a_count);
->  	ext_acl = kmalloc(sizeof(ext4_acl_header) + acl->a_count *
-> -			sizeof(ext4_acl_entry), GFP_NOFS);
-> +			sizeof(ext4_acl_entry), GFP_KERNEL);
->  	if (!ext_acl)
->  		return ERR_PTR(-ENOMEM);
->  	ext_acl->a_version = cpu_to_le32(EXT4_ACL_VERSION);
-> @@ -159,7 +159,7 @@ ext4_get_acl(struct inode *inode, int type)
->  	}
->  	retval = ext4_xattr_get(inode, name_index, "", NULL, 0);
->  	if (retval > 0) {
-> -		value = kmalloc(retval, GFP_NOFS);
-> +		value = kmalloc(retval, GFP_KERNEL);
->  		if (!value)
->  			return ERR_PTR(-ENOMEM);
->  		retval = ext4_xattr_get(inode, name_index, "", value, retval);
-> diff --git a/fs/ext4/extents.c b/fs/ext4/extents.c
-> index ef815eb72389..c901d89f0038 100644
-> --- a/fs/ext4/extents.c
-> +++ b/fs/ext4/extents.c
-> @@ -2933,7 +2933,7 @@ int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
->  				le16_to_cpu(path[k].p_hdr->eh_entries)+1;
->  	} else {
->  		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
-> -			       GFP_NOFS);
-> +			       GFP_KERNEL);
->  		if (path == NULL) {
->  			ext4_journal_stop(handle);
->  			return -ENOMEM;
-> diff --git a/fs/ext4/resize.c b/fs/ext4/resize.c
-> index cf681004b196..e121f4e048b8 100644
-> --- a/fs/ext4/resize.c
-> +++ b/fs/ext4/resize.c
-> @@ -816,7 +816,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
->  
->  	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
->  				     sizeof(struct buffer_head *),
-> -				     GFP_NOFS);
-> +				     GFP_KERNEL);
->  	if (!n_group_desc) {
->  		err = -ENOMEM;
->  		ext4_warning(sb, "not enough memory for %lu groups",
-> @@ -943,7 +943,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
->  	int res, i;
->  	int err;
->  
-> -	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_NOFS);
-> +	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_KERNEL);
->  	if (!primary)
->  		return -ENOMEM;
->  
-> diff --git a/fs/ext4/xattr.c b/fs/ext4/xattr.c
-> index 5a94fa52b74f..172317462238 100644
-> --- a/fs/ext4/xattr.c
-> +++ b/fs/ext4/xattr.c
-> @@ -875,7 +875,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
->  
->  			unlock_buffer(bs->bh);
->  			ea_bdebug(bs->bh, "cloning");
-> -			s->base = kmalloc(bs->bh->b_size, GFP_NOFS);
-> +			s->base = kmalloc(bs->bh->b_size, GFP_KERNEL);
->  			error = -ENOMEM;
->  			if (s->base == NULL)
->  				goto cleanup;
-> @@ -887,7 +887,7 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
->  		}
->  	} else {
->  		/* Allocate a buffer where we construct the new block. */
-> -		s->base = kzalloc(sb->s_blocksize, GFP_NOFS);
-> +		s->base = kzalloc(sb->s_blocksize, GFP_KERNEL);
->  		/* assert(header == s->base) */
->  		error = -ENOMEM;
->  		if (s->base == NULL)
-> -- 
-> 2.10.2
-> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
