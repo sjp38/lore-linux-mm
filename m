@@ -1,67 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0963D6B0299
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:03:15 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id y16so19727759wmd.6
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:03:14 -0800 (PST)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id q19si18631829wju.89.2016.12.19.06.03.13
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EEEDC6B029B
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:22:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id g23so19870085wme.4
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:22:19 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id n64si14939265wmn.101.2016.12.19.06.22.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 06:03:13 -0800 (PST)
-Received: by mail-wm0-f67.google.com with SMTP id m203so18777803wma.3
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:03:13 -0800 (PST)
-Date: Mon, 19 Dec 2016 15:03:12 +0100
+        Mon, 19 Dec 2016 06:22:18 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id kp2so23804251wjc.0
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:22:18 -0800 (PST)
+Date: Mon, 19 Dec 2016 15:22:16 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: simplify node/zone name printing
-Message-ID: <20161219140312.GG5164@dhcp22.suse.cz>
-References: <20161216123232.26307-1-mhocko@kernel.org>
- <2094d241-f40b-2f21-b90b-059374bcd2c2@suse.cz>
- <20161219073228.GA1339@jagdpanzerIV.localdomain>
- <20161219081210.GA32389@dhcp22.suse.cz>
- <20161219102759.GM393@pathway.suse.cz>
+Subject: Re: [PATCH 1/4] mm: drop zap_details::ignore_dirty
+Message-ID: <20161219142216.GH5164@dhcp22.suse.cz>
+References: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161219102759.GM393@pathway.suse.cz>
+In-Reply-To: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 19-12-16 11:27:59, Petr Mladek wrote:
-> On Mon 2016-12-19 09:12:10, Michal Hocko wrote:
-> > On Mon 19-12-16 16:32:28, Sergey Senozhatsky wrote:
-> > [...]
-> > > as far as I can tell, now for_each_populated_zone() iterations are
-> > > split by non-CONT printk() from show_zone_node(), which previously
-> > > has been   printk(KERN_CONT "%s: ", zone->name), so pr_cont(\n)
-> > > between iterations was important, but now that non-CONT printk()
-> > > should do the trick. it's _a bit_ hacky, though.
-> > 
-> > Do you consider that more hacky than the original? At least for me,
-> > starting with KERN_CONT and relying on an explicit \n sounds more error
-> > prone than leaving the last pr_cont without \n and relying on the
-> > implicit flushing.
+On Fri 16-12-16 17:15:53, Kirill A. Shutemov wrote:
+> The only user of ignore_dirty is oom-reaper. But it doesn't really use
+> it.
 > 
-> The missing '\n' will cause the string will not be flushed
-> until another printk happens. It is not a problem here because
-> other printk follows. But it might take a while in general.
+> ignore_dirty only has effect on file pages mapped with dirty pte.
+> But oom-repear skips shared VMAs, so there's no way we can dirty file
+> pte in them.
+
+Hmm, I am trying to rememeber why I've done that and it seems I was just
+too paranoid and wanted to make sure that we never touch dirty mapped
+pages. As you say this is not possible with the current implementation
+so the patch should be OK.
+
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/mm.h | 1 -
+>  mm/memory.c        | 6 ------
+>  mm/oom_kill.c      | 3 +--
+>  3 files changed, 1 insertion(+), 9 deletions(-)
 > 
-> There was a commit[1] that flushed the cont lines when the log
-> buffer was read via /dev/kmsg or syslog. Also there was a patch[2]
-> that flushed cont lines using a timer. But the commit caused problems
-> and was reverted[3]. Also the patch needs more testing. So, it might
-> take a while until flushing partial cont lines is "guaranteed".
-
-OK, fair enough. If the flushing partial cont lines is not guaranteed
-then this cleanup makes less sense. I was under impression this has been
-solved but as per your list of commits we are not there yet.
-
-So let's just drop this patch and I will try to remember to double check
-later.
-
-Thanks!
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4424784ac374..7b8e425ac41c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1148,7 +1148,6 @@ struct zap_details {
+>  	struct address_space *check_mapping;	/* Check page->mapping if set */
+>  	pgoff_t	first_index;			/* Lowest page->index to unmap */
+>  	pgoff_t last_index;			/* Highest page->index to unmap */
+> -	bool ignore_dirty;			/* Ignore dirty pages */
+>  	bool check_swap_entries;		/* Check also swap entries */
+>  };
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 455c3e628d52..6ac8fa56080f 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1155,12 +1155,6 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+>  
+>  			if (!PageAnon(page)) {
+>  				if (pte_dirty(ptent)) {
+> -					/*
+> -					 * oom_reaper cannot tear down dirty
+> -					 * pages
+> -					 */
+> -					if (unlikely(details && details->ignore_dirty))
+> -						continue;
+>  					force_flush = 1;
+>  					set_page_dirty(page);
+>  				}
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index ec9f11d4f094..f101db68e760 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -465,8 +465,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  {
+>  	struct mmu_gather tlb;
+>  	struct vm_area_struct *vma;
+> -	struct zap_details details = {.check_swap_entries = true,
+> -				      .ignore_dirty = true};
+> +	struct zap_details details = {.check_swap_entries = true};
+>  	bool ret = true;
+>  
+>  	/*
+> -- 
+> 2.10.2
+> 
 
 -- 
 Michal Hocko
