@@ -1,51 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 511396B0273
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 03:26:59 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id a190so103700407pgc.0
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 00:26:59 -0800 (PST)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id j3si17580442pld.177.2016.12.19.00.26.58
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 01F6C6B0275
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 03:47:05 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so18260563wmw.0
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 00:47:05 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wn4si17644785wjb.27.2016.12.19.00.47.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 00:26:58 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id 144so7223325pfv.0
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 00:26:58 -0800 (PST)
-Date: Mon, 19 Dec 2016 17:27:05 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: simplify node/zone name printing
-Message-ID: <20161219082705.GA4298@jagdpanzerIV.localdomain>
-References: <20161216123232.26307-1-mhocko@kernel.org>
- <2094d241-f40b-2f21-b90b-059374bcd2c2@suse.cz>
- <20161219073228.GA1339@jagdpanzerIV.localdomain>
- <20161219081210.GA32389@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Dec 2016 00:47:04 -0800 (PST)
+Date: Mon, 19 Dec 2016 09:46:57 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Un-addressable device memory and
+ block/fs implications
+Message-ID: <20161219084657.GA17598@quack2.suse.cz>
+References: <20161213181511.GB2305@redhat.com>
+ <20161213201515.GB4326@dastard>
+ <20161213203112.GE2305@redhat.com>
+ <20161213211041.GC4326@dastard>
+ <20161213212433.GF2305@redhat.com>
+ <20161214111351.GC18624@quack2.suse.cz>
+ <20161214171514.GB14755@redhat.com>
+ <20161215161939.GF13811@quack2.suse.cz>
+ <87oa0cwoup.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161219081210.GA32389@dhcp22.suse.cz>
+In-Reply-To: <87oa0cwoup.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Petr Mladek <pmladek@suse.cz>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, Dave Chinner <david@fromorbit.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
 
-On (12/19/16 09:12), Michal Hocko wrote:
-> On Mon 19-12-16 16:32:28, Sergey Senozhatsky wrote:
-> [...]
-> > as far as I can tell, now for_each_populated_zone() iterations are
-> > split by non-CONT printk() from show_zone_node(), which previously
-> > has been   printk(KERN_CONT "%s: ", zone->name), so pr_cont(\n)
-> > between iterations was important, but now that non-CONT printk()
-> > should do the trick. it's _a bit_ hacky, though.
+On Fri 16-12-16 08:40:38, Aneesh Kumar K.V wrote:
+> Jan Kara <jack@suse.cz> writes:
 > 
-> Do you consider that more hacky than the original?
+> > On Wed 14-12-16 12:15:14, Jerome Glisse wrote:
+> > <snipped explanation that the device has the same cabilities as CPUs wrt
+> > page handling>
+> >
+> >> > So won't it be easier to leave the pagecache page where it is and *copy* it
+> >> > to the device? Can the device notify us *before* it is going to modify a
+> >> > page, not just after it has modified it? Possibly if we just give it the
+> >> > page read-only and it will have to ask CPU to get write permission? If yes,
+> >> > then I belive this could work and even fs support should be doable.
+> >> 
+> >> Well yes and no. Device obey the same rule as CPU so if a file back page is
+> >> map read only in the process it must first do a write fault which will call
+> >> in the fs (page_mkwrite() of vm_ops). But once a page has write permission
+> >> there is no way to be notify by hardware on every write. First the hardware
+> >> do not have the capability. Second we are talking thousand (10 000 is upper
+> >> range in today device) of concurrent thread, each can possibly write to page
+> >> under consideration.
+> >
+> > Sure, I meant whether the device is able to do equivalent of ->page_mkwrite
+> > notification which apparently it is. OK.
+> >
+> >> We really want the device page to behave just like regular page. Most fs code
+> >> path never map file content, it only happens during read/write and i believe
+> >> this can be handled either by migrating back or by using bounce page. I want
+> >> to provide the choice between the two solutions as one will be better for some
+> >> workload and the other for different workload.
+> >
+> > I agree with keeping page used by the device behaving as similar as
+> > possible as any other page. I'm just exploring different possibilities how
+> > to make that happen. E.g. the scheme I was aiming at is:
+> >
+> > When you want page A to be used by the device, you set up page A' in the
+> > device but make sure any access to it will fault.
+> >
+> > When the device wants to access A', it notifies the CPU, that writeprotects
+> > all mappings of A, copy A to A' and map A' read-only for the device.
+> 
+> 
+> A and A' will have different pfns here and hence different struct page.
 
-well, slightly. merely because (to me) implicit always relies on
-internals, which can change; while explicit does not (ideally).
-simply because of that.
+Yes. In fact I don't think there's need to have struct page for A' in my
+scheme. At least for the purposes of page cache tracking... Maybe there's
+good reason to have it from a device driver POV.
 
-but I don't have any problems with your patch.
+> So what will be there in the address_space->page_tree ? If we place
+> A' in the page cache, then we are essentially bringing lot of locking
+> complexity Dave talked about in previous mails.
 
-	-ss
+No, I meant page A will stay in the page_tree. There's no need for
+migration in my scheme.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
