@@ -1,57 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B23C26B02C1
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 16:24:17 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id a190so149755272pgc.0
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 13:24:17 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id e92si19647500pld.136.2016.12.19.13.24.15
-        for <linux-mm@kvack.org>;
-        Mon, 19 Dec 2016 13:24:16 -0800 (PST)
-Date: Tue, 20 Dec 2016 08:24:13 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/9] xfs: introduce and use KM_NOLOCKDEP to silence
- reclaim lockdep false positives
-Message-ID: <20161219212413.GN4326@dastard>
-References: <20161215140715.12732-1-mhocko@kernel.org>
- <20161215140715.12732-3-mhocko@kernel.org>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A95E6B02C3
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 16:51:55 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id n184so302292141oig.1
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 13:51:55 -0800 (PST)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id n82si9777418oib.28.2016.12.19.13.51.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Dec 2016 13:51:54 -0800 (PST)
+Received: by mail-oi0-x229.google.com with SMTP id b126so159422540oia.2
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 13:51:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161215140715.12732-3-mhocko@kernel.org>
+In-Reply-To: <20161219095623.GE17598@quack2.suse.cz>
+References: <20161212164708.23244-1-jack@suse.cz> <20161213115209.GG15362@quack2.suse.cz>
+ <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
+ <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com> <20161219095623.GE17598@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 19 Dec 2016 13:51:53 -0800
+Message-ID: <CAPcyv4jjLg=Nyxusz5Hp8OaJ9fi0Xf6LHW37jgVbxKoOYHjNQw@mail.gmail.com>
+Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Thu, Dec 15, 2016 at 03:07:08PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Now that the page allocator offers __GFP_NOLOCKDEP let's introduce
-> KM_NOLOCKDEP alias for the xfs allocation APIs. While we are at it
-> also change KM_NOFS users introduced by b17cb364dbbb ("xfs: fix missing
-> KM_NOFS tags to keep lockdep happy") and use the new flag for them
-> instead. There is really no reason to make these allocations contexts
-> weaker just because of the lockdep which even might not be enabled
-> in most cases.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Mon, Dec 19, 2016 at 1:56 AM, Jan Kara <jack@suse.cz> wrote:
+> On Fri 16-12-16 17:35:35, Dan Williams wrote:
+>> On Tue, Dec 13, 2016 at 10:57 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+>> > On Tue, Dec 13, 2016 at 3:52 AM, Jan Kara <jack@suse.cz> wrote:
+>> >> On Mon 12-12-16 17:47:02, Jan Kara wrote:
+>> >>> Hello,
+>> >>>
+>> >>> this is the third revision of my fixes of races when invalidating hole pages in
+>> >>> DAX mappings. See changelogs for details. The series is based on my patches to
+>> >>> write-protect DAX PTEs which are currently carried in mm tree. This is a hard
+>> >>> dependency because we really need to closely track dirtiness (and cleanness!)
+>> >>> of radix tree entries in DAX mappings in order to avoid discarding valid dirty
+>> >>> bits leading to missed cache flushes on fsync(2).
+>> >>>
+>> >>> The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
+>> >>>
+>> >>> Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
+>> >>> patches to some tree once DAX write-protection patches are merged.  I'm hoping
+>> >>> to get at least first three patches merged for 4.10-rc2... Thanks!
+>> >>
+>> >> OK, with the final ack from Johannes and since this is mostly DAX stuff,
+>> >> can we take this through NVDIMM tree and push to Linus either late in the
+>> >> merge window or for -rc2? These patches require my DAX patches sitting in mm
+>> >> tree so they can be included in any git tree only once those patches land
+>> >> in Linus' tree (which may happen only once Dave and Ted push out their
+>> >> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
+>> >> Dan?
+>> >>
+>> >
+>> > I like the -rc2 plan better than sending a pull request based on some
+>> > random point in the middle of the merge window. I can give Linus a
+>> > heads up in my initial nvdimm pull request for -rc1 that for
+>> > coordination purposes we'll be sending this set of follow-on DAX
+>> > cleanups for -rc2.
+>>
+>> So what's still pending for -rc2? I want to be explicit about what I'm
+>> requesting Linus be prepared to receive after -rc1. The libnvdimm pull
+>> request is very light this time around since I ended up deferring the
+>> device-dax-subdivision topic until 4.11 and sub-section memory hotplug
+>> didn't make the cutoff for -mm. We can spend some of that goodwill on
+>> your patches ;-).
+>
+> ;-) So I'd like all these 6 patches to go for rc2. The first three patches
+> fix invalidation of exceptional DAX entries (a bug which is there for a
+> long time) - without these patches data loss can occur on power failure
+> even though user called fsync(2). The other three patches change locking of
+> DAX faults so that ->iomap_begin() is called in a more relaxed locking
+> context and we are safe to start a transaction there for ext4.
+>
+>> I can roll them into libnvdimm-for-next now for the integration
+>> testing coverage, rebase to -rc1 when it's out, wait for your thumbs
+>> up on the testing and send a pull request on the 23rd.
+>
+> Yup, all prerequisites are merged now so you can pick these patches up.
+> Thanks! Note that I'll be on vacation on Dec 23 - Jan 1.
 
-I'd suggest that it might be better to drop this patch for now -
-it's not necessary for the context flag changeover but does
-introduce a risk of regressions if the conversion is wrong.
-
-Hence I think this is better as a completely separate series
-which audits and changes all the unnecessary KM_NOFS allocations
-in one go. I've never liked whack-a-mole style changes like this -
-do it once, do it properly....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Sounds good, the contents are now out on libnvdimm-pending awaiting
+0day-run before moving them over to libnvdimm-for-next, also it's down
+to 5 patches since it seems that the "dax: Fix sleep in atomic contex
+in grab_mapping_entry()" change went upstream already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
