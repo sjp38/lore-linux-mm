@@ -1,90 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2659D6B0283
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 04:56:27 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a20so18567146wme.5
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 01:56:27 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 81E566B0285
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 05:05:52 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id o3so46703482wjo.1
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 02:05:52 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hf6si17822759wjc.204.2016.12.19.01.56.25
+        by mx.google.com with ESMTPS id y6si17874050wjh.73.2016.12.19.02.05.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Dec 2016 01:56:25 -0800 (PST)
-Date: Mon, 19 Dec 2016 10:56:23 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
-Message-ID: <20161219095623.GE17598@quack2.suse.cz>
-References: <20161212164708.23244-1-jack@suse.cz>
- <20161213115209.GG15362@quack2.suse.cz>
- <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
- <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
+        Mon, 19 Dec 2016 02:05:51 -0800 (PST)
+Date: Mon, 19 Dec 2016 11:05:49 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm: simplify node/zone name printing
+Message-ID: <20161219100549.GL393@pathway.suse.cz>
+References: <20161216123232.26307-1-mhocko@kernel.org>
+ <2094d241-f40b-2f21-b90b-059374bcd2c2@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
+In-Reply-To: <2094d241-f40b-2f21-b90b-059374bcd2c2@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri 16-12-16 17:35:35, Dan Williams wrote:
-> On Tue, Dec 13, 2016 at 10:57 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> > On Tue, Dec 13, 2016 at 3:52 AM, Jan Kara <jack@suse.cz> wrote:
-> >> On Mon 12-12-16 17:47:02, Jan Kara wrote:
-> >>> Hello,
-> >>>
-> >>> this is the third revision of my fixes of races when invalidating hole pages in
-> >>> DAX mappings. See changelogs for details. The series is based on my patches to
-> >>> write-protect DAX PTEs which are currently carried in mm tree. This is a hard
-> >>> dependency because we really need to closely track dirtiness (and cleanness!)
-> >>> of radix tree entries in DAX mappings in order to avoid discarding valid dirty
-> >>> bits leading to missed cache flushes on fsync(2).
-> >>>
-> >>> The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
-> >>>
-> >>> Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
-> >>> patches to some tree once DAX write-protection patches are merged.  I'm hoping
-> >>> to get at least first three patches merged for 4.10-rc2... Thanks!
-> >>
-> >> OK, with the final ack from Johannes and since this is mostly DAX stuff,
-> >> can we take this through NVDIMM tree and push to Linus either late in the
-> >> merge window or for -rc2? These patches require my DAX patches sitting in mm
-> >> tree so they can be included in any git tree only once those patches land
-> >> in Linus' tree (which may happen only once Dave and Ted push out their
-> >> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
-> >> Dan?
-> >>
-> >
-> > I like the -rc2 plan better than sending a pull request based on some
-> > random point in the middle of the merge window. I can give Linus a
-> > heads up in my initial nvdimm pull request for -rc1 that for
-> > coordination purposes we'll be sending this set of follow-on DAX
-> > cleanups for -rc2.
+On Mon 2016-12-19 08:00:47, Vlastimil Babka wrote:
+> On 12/16/2016 01:32 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > show_node currently only prints Node id while it is always followed by
+> > printing zone->name. As the node information is conditional to
+> > CONFIG_NUMA we have to be careful to always terminate the previous
+> > continuation line before printing the zone name. This is quite ugly
+> > and easy to mess up. Let's rename show_node to show_zone_node and
+> > make sure that it will always start at a new line. We can drop the ugly
+> > printk(KERN_CONT "\n") from show_free_areas.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> So what's still pending for -rc2? I want to be explicit about what I'm
-> requesting Linus be prepared to receive after -rc1. The libnvdimm pull
-> request is very light this time around since I ended up deferring the
-> device-dax-subdivision topic until 4.11 and sub-section memory hotplug
-> didn't make the cutoff for -mm. We can spend some of that goodwill on
-> your patches ;-).
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 3f2c9e535f7f..5324efa8b9d0 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4120,10 +4120,12 @@ unsigned long nr_free_pagecache_pages(void)
+> >  	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
+> >  }
+> >  
+> > -static inline void show_node(struct zone *zone)
+> > +static inline void show_zone_node(struct zone *zone)
+> >  {
+> >  	if (IS_ENABLED(CONFIG_NUMA))
+> > -		printk("Node %d ", zone_to_nid(zone));
+> > +		printk("Node %d %s", zone_to_nid(zone), zone->name);
+> > +	else
+> > +		printk("%s: ", zone->name);
+> >  }
+> >  
+> >  long si_mem_available(void)
+> > @@ -4371,9 +4373,8 @@ void show_free_areas(unsigned int filter)
+> >  		for_each_online_cpu(cpu)
+> >  			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
+> >  
+> > -		show_node(zone);
+> > +		show_zone_node(zone);
+> >  		printk(KERN_CONT
+> > -			"%s"
 
-;-) So I'd like all these 6 patches to go for rc2. The first three patches
-fix invalidation of exceptional DAX entries (a bug which is there for a
-long time) - without these patches data loss can occur on power failure
-even though user called fsync(2). The other three patches change locking of
-DAX faults so that ->iomap_begin() is called in a more relaxed locking
-context and we are safe to start a transaction there for ext4.
+The new code will printk "%s: " when called with disabled CONFIG_NUMA.
+Is the added ": " OK?
 
-> I can roll them into libnvdimm-for-next now for the integration
-> testing coverage, rebase to -rc1 when it's out, wait for your thumbs
-> up on the testing and send a pull request on the 23rd.
-
-Yup, all prerequisites are merged now so you can pick these patches up.
-Thanks! Note that I'll be on vacation on Dec 23 - Jan 1.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
