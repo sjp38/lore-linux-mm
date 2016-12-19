@@ -1,75 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D05236B0297
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:00:11 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id j10so47806126wjb.3
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:00:11 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id up6si18618108wjc.5.2016.12.19.06.00.10
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0963D6B0299
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:03:15 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id y16so19727759wmd.6
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:03:14 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id q19si18631829wju.89.2016.12.19.06.03.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 06:00:10 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id a20so18863256wme.2
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:00:10 -0800 (PST)
-Date: Mon, 19 Dec 2016 15:00:09 +0100
+        Mon, 19 Dec 2016 06:03:13 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id m203so18777803wma.3
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:03:13 -0800 (PST)
+Date: Mon, 19 Dec 2016 15:03:12 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] oom-reaper: use madvise_dontneed() instead of
- unmap_page_range()
-Message-ID: <20161219140008.GF5164@dhcp22.suse.cz>
-References: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
- <20161216141556.75130-4-kirill.shutemov@linux.intel.com>
- <e9dd55e8-4cf0-0e91-ddeb-3004ca8fc611@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mm: simplify node/zone name printing
+Message-ID: <20161219140312.GG5164@dhcp22.suse.cz>
+References: <20161216123232.26307-1-mhocko@kernel.org>
+ <2094d241-f40b-2f21-b90b-059374bcd2c2@suse.cz>
+ <20161219073228.GA1339@jagdpanzerIV.localdomain>
+ <20161219081210.GA32389@dhcp22.suse.cz>
+ <20161219102759.GM393@pathway.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e9dd55e8-4cf0-0e91-ddeb-3004ca8fc611@I-love.SAKURA.ne.jp>
+In-Reply-To: <20161219102759.GM393@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Mon 19-12-16 20:39:24, Tetsuo Handa wrote:
-> On 2016/12/16 23:15, Kirill A. Shutemov wrote:
-> > Logic on whether we can reap pages from the VMA should match what we
-> > have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
-> > VMAs, but we don't now.
+On Mon 19-12-16 11:27:59, Petr Mladek wrote:
+> On Mon 2016-12-19 09:12:10, Michal Hocko wrote:
+> > On Mon 19-12-16 16:32:28, Sergey Senozhatsky wrote:
+> > [...]
+> > > as far as I can tell, now for_each_populated_zone() iterations are
+> > > split by non-CONT printk() from show_zone_node(), which previously
+> > > has been   printk(KERN_CONT "%s: ", zone->name), so pr_cont(\n)
+> > > between iterations was important, but now that non-CONT printk()
+> > > should do the trick. it's _a bit_ hacky, though.
 > > 
-> > Let's just call madvise_dontneed() from __oom_reap_task_mm(), so we
-> > won't need to sync the logic in the future.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/internal.h |  7 +++----
-> >  mm/madvise.c  |  2 +-
-> >  mm/memory.c   |  2 +-
-> >  mm/oom_kill.c | 15 ++-------------
-> >  4 files changed, 7 insertions(+), 19 deletions(-)
+> > Do you consider that more hacky than the original? At least for me,
+> > starting with KERN_CONT and relying on an explicit \n sounds more error
+> > prone than leaving the last pr_cont without \n and relying on the
+> > implicit flushing.
 > 
-> madvise_dontneed() calls zap_page_range().
-> zap_page_range() calls mmu_notifier_invalidate_range_start().
-> mmu_notifier_invalidate_range_start() calls __mmu_notifier_invalidate_range_start().
-> __mmu_notifier_invalidate_range_start() calls srcu_read_lock()/srcu_read_unlock().
-> This means that madvise_dontneed() might sleep.
+> The missing '\n' will cause the string will not be flushed
+> until another printk happens. It is not a problem here because
+> other printk follows. But it might take a while in general.
 > 
-> I don't know what individual notifier will do, but for example
-> 
->   static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
->           .invalidate_range_start = i915_gem_userptr_mn_invalidate_range_start,
->   };
-> 
-> i915_gem_userptr_mn_invalidate_range_start() calls flush_workqueue()
-> which means that we can OOM livelock if work item involves memory allocation.
-> Some of other notifiers call mutex_lock()/mutex_unlock().
-> 
-> Even if none of currently in-tree notifier users are blocked on memory
-> allocation, I think it is not guaranteed that future changes/users won't be
-> blocked on memory allocation.
+> There was a commit[1] that flushed the cont lines when the log
+> buffer was read via /dev/kmsg or syslog. Also there was a patch[2]
+> that flushed cont lines using a timer. But the commit caused problems
+> and was reverted[3]. Also the patch needs more testing. So, it might
+> take a while until flushing partial cont lines is "guaranteed".
 
-Yes I agree. The reason I didn't go with zap_page_range was that I
-didn't want to rely on any external code path. Moreover I believe that
-we even do not have to care about mmu notifiers. The task is dead and
-nobody should be watching its address space. If somebody still does then
-it would get SEGV anyway. Or am I missing something?
+OK, fair enough. If the flushing partial cont lines is not guaranteed
+then this cleanup makes less sense. I was under impression this has been
+solved but as per your list of commits we are not there yet.
+
+So let's just drop this patch and I will try to remember to double check
+later.
+
+Thanks!
 
 -- 
 Michal Hocko
