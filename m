@@ -1,77 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E29F96B02A7
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 11:46:02 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id p66so418451753pga.4
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 08:46:02 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o61si18988763plb.168.2016.12.19.08.46.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7556C6B02A9
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 12:00:44 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 144so233139320pfv.5
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:00:44 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n28si19023345pfb.144.2016.12.19.09.00.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 08:46:01 -0800 (PST)
-Date: Mon, 19 Dec 2016 09:46:00 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 0/5] introduce DAX tracepoint support
-Message-ID: <20161219164600.GA21334@linux.intel.com>
-References: <1480610271-23699-1-git-send-email-ross.zwisler@linux.intel.com>
+        Mon, 19 Dec 2016 09:00:43 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBJGwrFa036851
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 12:00:43 -0500
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 27ehbkseg0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 12:00:42 -0500
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 19 Dec 2016 10:00:41 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Un-addressable device memory and block/fs implications
+In-Reply-To: <20161214111351.GC18624@quack2.suse.cz>
+References: <20161213181511.GB2305@redhat.com> <20161213201515.GB4326@dastard> <20161213203112.GE2305@redhat.com> <20161213211041.GC4326@dastard> <20161213212433.GF2305@redhat.com> <20161214111351.GC18624@quack2.suse.cz>
+Date: Mon, 19 Dec 2016 22:30:06 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1480610271-23699-1-git-send-email-ross.zwisler@linux.intel.com>
+Content-Type: text/plain
+Message-Id: <87shpjua5l.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Dec 01, 2016 at 09:37:46AM -0700, Ross Zwisler wrote:
-> Tracepoints are the standard way to capture debugging and tracing
-> information in many parts of the kernel, including the XFS and ext4
-> filesystems.  This series creates a tracepoint header for FS DAX and add
-> the first few DAX tracepoints to the PMD fault handler.  This allows the
-> tracing for DAX to be done in the same way as the filesystem tracing so
-> that developers can look at them together and get a coherent idea of what
-> the system is doing.
-> 
-> I do intend to add tracepoints to the normal 4k DAX fault path and to the
-> DAX I/O path, but I wanted to get feedback on the PMD tracepoints before I
-> went any further.
-> 
-> This series is based on Jan Kara's "dax: Clear dirty bits after flushing
-> caches" series:
-> 
-> https://lists.01.org/pipermail/linux-nvdimm/2016-November/007864.html
-> 
-> I've pushed a git tree with this work here:
-> 
-> https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_tracepoints_v3
-> 
-> Changes since v2:
->  - Dropped "dax: remove leading space from labels" patch. (Jan)
->  - Reordered TP_STRUCT__entry() fields so that all the 64 bit entries (for
->    64 bit machines) come first, followed by the 32 bit entries.  This
->    allows for optimal packing of the entires. (Steve)
->  - Fixed 'mask' in trace_print_flags_seq_u64() to be an unsigned long long.
->    (Steve)
-> 
-> Ross Zwisler (5):
->   tracing: add __print_flags_u64()
->   dax: add tracepoint infrastructure, PMD tracing
->   dax: update MAINTAINERS entries for FS DAX
->   dax: add tracepoints to dax_pmd_load_hole()
->   dax: add tracepoints to dax_pmd_insert_mapping()
-> 
->  MAINTAINERS                   |   5 +-
->  fs/dax.c                      |  56 ++++++++++-----
->  include/linux/mm.h            |  25 +++++++
->  include/linux/pfn_t.h         |   6 ++
->  include/linux/trace_events.h  |   4 ++
->  include/trace/events/fs_dax.h | 161 ++++++++++++++++++++++++++++++++++++++++++
->  include/trace/trace_events.h  |  11 +++
->  kernel/trace/trace_output.c   |  38 ++++++++++
->  8 files changed, 288 insertions(+), 18 deletions(-)
->  create mode 100644 include/trace/events/fs_dax.h
+Jan Kara <jack@suse.cz> writes:
 
-Ping on this series - Dave, were you planning on sending this for v4.10-rc1?
+> On Tue 13-12-16 16:24:33, Jerome Glisse wrote:
+>> On Wed, Dec 14, 2016 at 08:10:41AM +1100, Dave Chinner wrote:
+>> > On Tue, Dec 13, 2016 at 03:31:13PM -0500, Jerome Glisse wrote:
+>> > > On Wed, Dec 14, 2016 at 07:15:15AM +1100, Dave Chinner wrote:
+>> > > > On Tue, Dec 13, 2016 at 01:15:11PM -0500, Jerome Glisse wrote:
+>> > > > > I would like to discuss un-addressable device memory in the context of
+>> > > > > filesystem and block device. Specificaly how to handle write-back, read,
+>> > > > > ... when a filesystem page is migrated to device memory that CPU can not
+>> > > > > access.
+>> > > > 
+>> > > > You mean pmem that is DAX-capable that suddenly, without warning,
+>> > > > becomes non-DAX capable?
+>> > > > 
+>> > > > If you are not talking about pmem and DAX, then exactly what does
+>> > > > "when a filesystem page is migrated to device memory that CPU can
+>> > > > not access" mean? What "filesystem page" are we talking about that
+>> > > > can get migrated from main RAM to something the CPU can't access?
+>> > > 
+>> > > I am talking about GPU, FPGA, ... any PCIE device that have fast on
+>> > > board memory that can not be expose transparently to the CPU. I am
+>> > > reusing ZONE_DEVICE for this, you can see HMM patchset on linux-mm
+>> > > https://lwn.net/Articles/706856/
+>> > 
+>> > So ZONE_DEVICE memory that is a DMA target but not CPU addressable?
+>> 
+>> Well not only target, it can be source too. But the device can read
+>> and write any system memory and dma to/from that memory to its on
+>> board memory.
+>> 
+>> > 
+>> > > So in my case i am only considering non DAX/PMEM filesystem ie any
+>> > > "regular" filesystem back by a "regular" block device. I want to be
+>> > > able to migrate mmaped area of such filesystem to device memory while
+>> > > the device is actively using that memory.
+>> > 
+>> > "migrate mmapped area of such filesystem" means what, exactly?
+>> 
+>> fd = open("/path/to/some/file")
+>> ptr = mmap(fd, ...);
+>> gpu_compute_something(ptr);
+>> 
+>> > 
+>> > Are you talking about file data contents that have been copied into
+>> > the page cache and mmapped into a user process address space?
+>> > IOWs, migrating ZONE_NORMAL page cache page content and state
+>> > to a new ZONE_DEVICE page, and then migrating back again somehow?
+>> 
+>> Take any existing application that mmap a file and allow to migrate
+>> chunk of that mmaped file to device memory without the application
+>> even knowing about it. So nothing special in respect to that mmaped
+>> file. It is a regular file on your filesystem.
+>
+> OK, so I share most of Dave's concerns about this. But let's talk about
+> what we can do and what you need and we may find something usable. First
+> let me understand what is doable / what are the costs on your side.
+>
+> So we have a page cache page that you'd like to migrate to the device.
+> Fine. You are willing to sacrifice direct IO - even better. We can fall
+> back to buffered IO in that case (well, except for XFS which does not do it
+> but that's a minor detail). One thing I'm not sure about: When a page is
+> migrated to the device, is its contents available and is just possibly stale
+> or will something bad happen if we try to access (or even modify) page data?
+
+For Coherent Device Memory case, the CPU can continue to access these
+device pages.
+
+
+>
+> And by migration you really mean page migration? Be aware that migration of
+> pagecache pages may be a problem for some pages of some filesystems on its
+> own - e. g. page migration may fail because there is a filesystem transaction
+> outstanding modifying that page. For userspace these will be really hard
+> to understand sporadic errors because it's really filesystem internal
+> thing. So far page migration was widely used only for free space
+> defragmentation and for that purpose if page is not migratable for a minute
+> who cares.
+
+On the device driver side, i guess we should be able to handle page
+migration failures and retry. For the reverse, i guess we need the
+guarantee that a CPU access can always migrate back these pages without
+failures ? Are there failure condition we need to handle when migrating
+pages back to system memory ?
+
+
+>
+> So won't it be easier to leave the pagecache page where it is and *copy* it
+> to the device? Can the device notify us *before* it is going to modify a
+> page, not just after it has modified it? Possibly if we just give it the
+> page read-only and it will have to ask CPU to get write permission? If yes,
+> then I belive this could work and even fs support should be doable.
+>
+
+For coherent device memory scenario, we can live with one copy and both
+cpu/device can access these pages. In CDM case the decision to migrate
+is driven by the frequency of access from the device.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
