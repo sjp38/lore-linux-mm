@@ -1,115 +1,384 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A66DB6B02B5
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 12:57:00 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q10so418499495pgq.7
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 09:57:00 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 33si19204807plt.66.2016.12.19.09.56.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A71196B02B7
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 13:27:22 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c4so236444706pfb.7
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 10:27:22 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q10si19272216pge.19.2016.12.19.10.27.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 09:56:59 -0800 (PST)
-From: "Jiang, Dave" <dave.jiang@intel.com>
-Subject: Re: [PATCH v4 1/3] dax: masking off __GFP_FS in fs DAX handlers
-Date: Mon, 19 Dec 2016 17:56:57 +0000
-Message-ID: <1482170215.11563.1.camel@intel.com>
-References: <148184524161.184728.14005697153880489871.stgit@djiang5-desk3.ch.intel.com>
-	 <20161216010730.GY4219@dastard> <20161216161916.GA2410@linux.intel.com>
-	 <20161216220450.GZ4219@dastard>
-In-Reply-To: <20161216220450.GZ4219@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0EA0D90568C04343810C5CFBB09144E4@intel.com>
-Content-Transfer-Encoding: base64
+        Mon, 19 Dec 2016 10:27:21 -0800 (PST)
+Subject: [PATCH v5 1/2] mm,
+ dax: make pmd_fault() and friends to be the same as fault()
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Mon, 19 Dec 2016 11:27:20 -0700
+Message-ID: <148217204020.68724.7039023452029022016.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "david@fromorbit.com" <david@fromorbit.com>
-Cc: "hch@lst.de" <hch@lst.de>, "Williams, Dan J" <dan.j.williams@intel.com>, "jack@suse.cz" <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tytso@mit.edu" <tytso@mit.edu>
+To: akpm@linux-foundation.org
+Cc: jack@suse.cz, linux-nvdimm@lists.01.org, david@fromorbit.com, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, ross.zwisler@linux.intel.com, dan.j.williams@intel.com
 
-DQpPbiBTYXQsIDIwMTYtMTItMTcgYXQgMDk6MDQgKzExMDAsIERhdmUgQ2hpbm5lciB3cm90ZToN
-Cj4gT24gRnJpLCBEZWMgMTYsIDIwMTYgYXQgMDk6MTk6MTZBTSAtMDcwMCwgUm9zcyBad2lzbGVy
-IHdyb3RlOg0KPiA+IA0KPiA+IE9uIEZyaSwgRGVjIDE2LCAyMDE2IGF0IDEyOjA3OjMwUE0gKzEx
-MDAsIERhdmUgQ2hpbm5lciB3cm90ZToNCj4gPiA+IA0KPiA+ID4gT24gVGh1LCBEZWMgMTUsIDIw
-MTYgYXQgMDQ6NDA6NDFQTSAtMDcwMCwgRGF2ZSBKaWFuZyB3cm90ZToNCj4gPiA+ID4gDQo+ID4g
-PiA+IFRoZSBjYWxsZXIgaW50byBkYXggbmVlZHMgdG8gY2xlYXIgX19HRlBfRlMgbWFzayBiaXQg
-c2luY2UgaXQncw0KPiA+ID4gPiByZXNwb25zaWJsZSBmb3IgYWNxdWlyaW5nIGxvY2tzIC8gdHJh
-bnNhY3Rpb25zIHRoYXQgYmxvY2tzDQo+ID4gPiA+IF9fR0ZQX0ZTDQo+ID4gPiA+IGFsbG9jYXRp
-b24uwqDCoFRoZSBjYWxsZXIgd2lsbCByZXN0b3JlIHRoZSBvcmlnaW5hbCBtYXNrIHdoZW4gZGF4
-DQo+ID4gPiA+IGZ1bmN0aW9uDQo+ID4gPiA+IHJldHVybnMuDQo+ID4gPiANCj4gPiA+IFdoYXQn
-cyB0aGUgYWxsb2NhdGlvbiBwcm9ibGVtIHlvdSdyZSB3b3JraW5nIGFyb3VuZCBoZXJlPyBDYW4g
-eW91DQo+ID4gPiBwbGVhc2UgZGVzY3JpYmUgdGhlIGNhbGwgY2hhaW4gdGhhdCBpcyB0aGUgcHJv
-YmxlbT8NCj4gPiA+IA0KPiA+ID4gPiANCj4gPiA+ID4gwqAJeGZzX2lsb2NrKFhGU19JKGlub2Rl
-KSwgWEZTX01NQVBMT0NLX1NIQVJFRCk7DQo+ID4gPiA+IMKgDQo+ID4gPiA+IMKgCWlmIChJU19E
-QVgoaW5vZGUpKSB7DQo+ID4gPiA+ICsJCWdmcF90IG9sZF9nZnAgPSB2bWYtPmdmcF9tYXNrOw0K
-PiA+ID4gPiArDQo+ID4gPiA+ICsJCXZtZi0+Z2ZwX21hc2sgJj0gfl9fR0ZQX0ZTOw0KPiA+ID4g
-PiDCoAkJcmV0ID0gZGF4X2lvbWFwX2ZhdWx0KHZtYSwgdm1mLA0KPiA+ID4gPiAmeGZzX2lvbWFw
-X29wcyk7DQo+ID4gPiA+ICsJCXZtZi0+Z2ZwX21hc2sgPSBvbGRfZ2ZwOw0KPiA+ID4gDQo+ID4g
-PiBJIHJlYWxseSBoYXZlIHRvIHNheSB0aGF0IEkgaGF0ZSBjb2RlIHRoYXQgY2xlYXJzIGFuZCBy
-ZXN0b3Jlcw0KPiA+ID4gZmxhZ3MNCj4gPiA+IHdpdGhvdXQgYW55IGV4cGxhbmF0aW9uIG9mIHdo
-eSB0aGUgY29kZSBuZWVkcyB0byBwbGF5IGZsYWcNCj4gPiA+IHRyaWNrcy4gSQ0KPiA+ID4gdGFr
-ZSBvbmUgbG9vayBhdCB0aGUgWEZTIGZhdWx0IGhhbmRsaW5nIGNvZGUgYW5kIGFzayBteXNlbGYg
-bm93DQo+ID4gPiAid2h5DQo+ID4gPiB0aGUgaGVsbCBkbyB3ZSBuZWVkIHRvIGNsZWFyIHRob3Nl
-IGZsYWdzPyIgRXNwZWNpYWxseSBhcyB0aGUNCj4gPiA+IG90aGVyDQo+ID4gPiBwYXRocyBpbnRv
-IGdlbmVyaWMgZmF1bHQgaGFuZGxlcnMgL2Rvbid0LyByZXF1aXJlIHVzIHRvIGRvIHRoaXMuDQo+
-ID4gPiBXaGF0IGRvZXMgREFYIGRvIHRoYXQgcmVxdWlyZSB1cyB0byB0cmVhdCBtZW1vcnkgYWxs
-b2NhdGlvbg0KPiA+ID4gY29udGV4dHMNCj4gPiA+IGRpZmZlcmVudGx5IHRvIHRoZSBmaWxlbWFw
-X2ZhdWx0KCkgcGF0aD8NCj4gPiANCj4gPiBUaGlzIHdhcyBkb25lIGluIHJlc3BvbnNlIHRvIEph
-biBLYXJhJ3MgY29uY2VybjoNCj4gPiANCj4gPiDCoCBUaGUgZ2ZwX21hc2sgdGhhdCBwcm9wYWdh
-dGVzIGZyb20gX19kb19mYXVsdCgpIG9yDQo+ID4gZG9fcGFnZV9ta3dyaXRlKCkgaXMgZmluZQ0K
-PiA+IMKgIGJlY2F1c2UgYXQgdGhhdCBwb2ludCBpdCBpcyBjb3JyZWN0LiBCdXQgb25jZSB3ZSBn
-cmFiIGZpbGVzeXN0ZW0NCj4gPiBsb2NrcyB3aGljaA0KPiA+IMKgIGFyZSBub3QgcmVjbGFpbSBz
-YWZlLCB3ZSBzaG91bGQgdXBkYXRlIHZtZi0+Z2ZwX21hc2sgd2UgcGFzcw0KPiA+IGZ1cnRoZXIg
-ZG93bg0KPiA+IMKgIGludG8gREFYIGNvZGUgdG8gbm90IGNvbnRhaW4gX19HRlBfRlMgKHRoYXQn
-cyBhIGJ1ZyB3ZSBhcHBhcmVudGx5DQo+ID4gaGF2ZQ0KPiA+IMKgIHRoZXJlKS4gQW5kIGluc2lk
-ZSBEQVggY29kZSwgd2UgZGVmaW5pdGVseSBhcmUgbm90IGdlbmVyYWxseSBzYWZlDQo+ID4gdG8g
-YWRkDQo+ID4gwqAgX19HRlBfRlMgdG8gbWFwcGluZ19nZnBfbWFzaygpLiBNYXliZSB3ZSdkIGJl
-IGJldHRlciBvZmYNCj4gPiBwcm9wYWdhdGluZyBzdHJ1Y3QNCj4gPiDCoCB2bV9mYXVsdCBpbnRv
-IHRoaXMgZnVuY3Rpb24sIHVzaW5nIHBhc3NlZCBnZnBfbWFzayB0aGVyZSBhbmQgbWFrZQ0KPiA+
-IHN1cmUNCj4gPiDCoCBjYWxsZXJzIHVwZGF0ZSBnZnBfbWFzayBhcyBhcHByb3ByaWF0ZS4NCj4g
-PiANCj4gPiBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNi8xMC80LzM3DQo+ID4gDQo+ID4gSUlV
-QyBJIHRoaW5rIHRoZSBjb25jZXJuIGlzIHRoYXQsIGZvciBleGFtcGxlLCBpbg0KPiA+IHhmc19m
-aWxlbWFwX3BhZ2VfbWt3cml0ZSgpDQo+ID4gd2UgdGFrZSBhIHJlYWQgbG9jayBvbiB0aGUgc3Ry
-dWN0IGlub2RlLmlfcndzZW0gYmVmb3JlIHdlIGNhbGwNCj4gPiBkYXhfaW9tYXBfZmF1bHQoKS4N
-Cj4gDQo+IFRoYXQsIG15IGZyaWVuZHMsIGlzIGV4YWN0bHkgdGhlIHByb2JsZW0gdGhhdCBtYXBw
-aW5nX2dmcF9tYXNrKCkgaXMNCj4gbWVhbnQgdG8gc29sdmUuIFRoaXM6DQo+IA0KPiA+IA0KPiA+
-ID4gDQo+ID4gPiA+IA0KPiA+ID4gPiArCXZtZi5nZnBfbWFzayA9IG1hcHBpbmdfZ2ZwX21hc2so
-bWFwcGluZykgfCBfX0dGUF9GUw0KPiA+ID4gPiB8wqDCoF9fR0ZQX0lPOw0KPiANCj4gSXMganVz
-dCBzbyB3cm9uZyBpdCdzIG5vdCBmdW5ueS4NCj4gDQo+IFRoZSB3aG9sZSBwb2ludCBvZiBtYXBw
-aW5nX2dmcF9tYXNrKCkgaXMgdG8gcmVtb3ZlIGZsYWdzIGZyb20gdGhlDQo+IGdmcF9tYXNrIHVz
-ZWQgdG8gZG8gbWFwcGluZytwYWdlIGNhY2hlIHJlbGF0ZWQgYWxsb2NhdGlvbnMgdGhhdCB0aGUN
-Cj4gbWFwcGluZy0+aG9zdCBjb25zaWRlcnMgZGFuZ2Vyb3VzIHdoZW4gdGhlIGhvc3QgbWF5IGJl
-IGhvbGRpbmcgbG9ja3MuDQo+IFRoaXMgaW5jbHVkZXMgbWFwcGluZyB0cmVlIGFsbG9jYXRpb25z
-LCBhbmQgYW55dGhpbmcgZWxzZSByZXF1aXJlZA0KPiB0byBzZXQgdXAgYSBuZXcgZW50cnkgaW4g
-dGhlIG1hcHBpbmcgZHVyaW5nIElPIHBhdGggb3BlcmF0aW9ucy4gVGhhdA0KPiBpbmNsdWRlcyBw
-YWdlIGZhdWx0IG9wZXJhdGlvbnMuLi4NCj4gDQo+IGUuZy4gaW4geGZzX3NldHVwX2lub2RlKCk6
-DQo+IA0KPiDCoMKgwqDCoMKgwqDCoMKgLyoNCj4gwqDCoMKgwqDCoMKgwqDCoMKgKiBFbnN1cmUg
-YWxsIHBhZ2UgY2FjaGUgYWxsb2NhdGlvbnMgYXJlIGRvbmUgZnJvbSBHRlBfTk9GUw0KPiBjb250
-ZXh0IHRvDQo+IMKgwqDCoMKgwqDCoMKgwqDCoCogcHJldmVudCBkaXJlY3QgcmVjbGFpbSByZWN1
-cnNpb24gYmFjayBpbnRvIHRoZSBmaWxlc3lzdGVtDQo+IGFuZCBibG93aW5nDQo+IMKgwqDCoMKg
-wqDCoMKgwqDCoCogc3RhY2tzIG9yIGRlYWRsb2NraW5nLg0KPiDCoMKgwqDCoMKgwqDCoMKgwqAq
-Lw0KPiDCoMKgwqDCoMKgwqDCoMKgZ2ZwX21hc2sgPSBtYXBwaW5nX2dmcF9tYXNrKGlub2RlLT5p
-X21hcHBpbmcpOw0KPiDCoMKgwqDCoMKgwqDCoMKgbWFwcGluZ19zZXRfZ2ZwX21hc2soaW5vZGUt
-PmlfbWFwcGluZywgKGdmcF9tYXNrICYNCj4gfihfX0dGUF9GUykpKTsNCj4gDQo+IGkuZS4gWEZT
-IGNvbnNpZGVycyBpdCBpbnZhbGlkIHRvIHVzZSBHRlBfRlMgYXQgYWxsIGZvciBtYXBwaW5nDQo+
-IGFsbG9jYXRpb25zIGluIHRoZSBpbyBwYXRoLCBiZWNhdXNlIHdlICprbm93KiB0aGF0IHdlIGhv
-bGQNCj4gZmlsZXN5c3RlbXMgbG9ja3Mgb3ZlciB0aG9zZSBhbGxvY2F0aW9ucy4NCj4gDQo+ID4g
-DQo+ID4gZGF4X2lvbWFwX2ZhdWx0KCkgdGhlbiBjYWxscyBmaW5kX29yX2NyZWF0ZV9wYWdlKCks
-IGV0Yy4gd2l0aCB0aGUNCj4gPiB2Zm0tPmdmcF9tYXNrIHdlIHdlcmUgZ2l2ZW4uDQo+IA0KPiBZ
-dXAuIFByZWNpc2VseSB3aHkgd2Ugc2hvdWxkIGJlIHVzaW5nIG1hcHBpbmdfZ2ZwX21hc2soKSBh
-cyBpdCB3YXMNCj4gaW50ZW5kZWQgZm9yIHZtZi5nZnBfbWFzay4uLi4NCj4gDQo+ID4gDQo+ID4g
-SSBiZWxpZXZlIHRoZSBjb25jZXJuIGlzIHRoYXQgaWYgdGhhdCBtZW1vcnkgYWxsb2NhdGlvbiB0
-cmllcyB0byBkbw0KPiA+IEZTDQo+ID4gb3BlcmF0aW9ucyB0byBmcmVlIG1lbW9yeSBiZWNhdXNl
-IF9fR0ZQX0ZTIGlzIHBhcnQgb2YgdGhlIGdmcCBtYXNrLA0KPiA+IHRoZW4gd2UNCj4gPiBjb3Vs
-ZCBlbmQgdXAgZGVhZGxvY2tpbmcgYmVjYXVzZSB3ZSBhcmUgYWxyZWFkeSBob2xkaW5nIEZTIGxv
-Y2tzLg0KPiANCj4gV2hpY2ggaXMgYSBwcm9ibGVtIHdpdGggdGhlIGZpbGVzeXN0ZW0gbWFwcGlu
-ZyBtYXNrIHNldHVwLCBub3QgYQ0KPiByZWFzb24gdG8gc3ByaW5rbGUgcmFuZG9tIGdmcG1hc2sg
-Y2xlYXIvc2V0IHBhaXJzIGFyb3VuZCB0aGUgY29kZS4NCj4gaS5lLiBGb3IgREFYIGlub2Rlcywg
-dGhlIG1hcHBpbmcgbWFzayBzaG91bGQgY2xlYXIgX19HRlBfRlMgYXMgWEZTDQo+IGRvZXMgYWJv
-dmUsIGFuZCB0aGUgbWFwcGluZ19nZnBfbWFzaygpIHNob3VsZCBiZSB1c2VkIHVuYWR1bHRlcmF0
-ZWQNCj4gYnkgdGhlIERBWCBwYWdlIGZhdWx0IGNvZGUuLi4uDQoNCg0KSSdsbCBkcm9wIHRoaXMg
-cGF0Y2guIFdlIGNhbiBhZGRyZXNzIHRoZSBpc3N1ZSBzZXBhcmF0ZSBmcm9tIHRoZQ0KcG1kX2Zh
-dWx0IGNoYW5nZXMuwqANCg0KPiANCj4gQ2hlZXJzLA0KPiANCj4gRGF2ZS4=
+Instead of passing in multiple parameters in the pmd_fault() handler,
+a vmf can be passed in just like a fault() handler. This will simplify
+code and remove the need for the actual pmd fault handlers to allocate a
+vmf. Related functions are also modified to do the same.
+
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+---
+ drivers/dax/dax.c             |   16 +++++++---------
+ fs/dax.c                      |   42 ++++++++++++++++++-----------------------
+ fs/ext4/file.c                |    9 ++++-----
+ fs/xfs/xfs_file.c             |   10 ++++------
+ include/linux/dax.h           |    7 +++----
+ include/linux/mm.h            |    3 +--
+ include/trace/events/fs_dax.h |   15 +++++++--------
+ mm/memory.c                   |    6 ++----
+ 8 files changed, 46 insertions(+), 62 deletions(-)
+
+diff --git a/drivers/dax/dax.c b/drivers/dax/dax.c
+index c753a4c..947e49a 100644
+--- a/drivers/dax/dax.c
++++ b/drivers/dax/dax.c
+@@ -379,10 +379,9 @@ static int dax_dev_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ }
+ 
+ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
+-		struct vm_area_struct *vma, unsigned long addr, pmd_t *pmd,
+-		unsigned int flags)
++		struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+-	unsigned long pmd_addr = addr & PMD_MASK;
++	unsigned long pmd_addr = vmf->address & PMD_MASK;
+ 	struct device *dev = &dax_dev->dev;
+ 	struct dax_region *dax_region;
+ 	phys_addr_t phys;
+@@ -414,23 +413,22 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
+ 
+ 	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+ 
+-	return vmf_insert_pfn_pmd(vma, addr, pmd, pfn,
+-			flags & FAULT_FLAG_WRITE);
++	return vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
++			vmf->flags & FAULT_FLAG_WRITE);
+ }
+ 
+-static int dax_dev_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+-		pmd_t *pmd, unsigned int flags)
++static int dax_dev_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	int rc;
+ 	struct file *filp = vma->vm_file;
+ 	struct dax_dev *dax_dev = filp->private_data;
+ 
+ 	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx)\n", __func__,
+-			current->comm, (flags & FAULT_FLAG_WRITE)
++			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
+ 			? "write" : "read", vma->vm_start, vma->vm_end);
+ 
+ 	rcu_read_lock();
+-	rc = __dax_dev_pmd_fault(dax_dev, vma, addr, pmd, flags);
++	rc = __dax_dev_pmd_fault(dax_dev, vma, vmf);
+ 	rcu_read_unlock();
+ 
+ 	return rc;
+diff --git a/fs/dax.c b/fs/dax.c
+index d3fe880..446e861 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1310,18 +1310,17 @@ static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
+ 	return VM_FAULT_FALLBACK;
+ }
+ 
+-int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+-		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
++int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
++		struct iomap_ops *ops)
+ {
+ 	struct address_space *mapping = vma->vm_file->f_mapping;
+-	unsigned long pmd_addr = address & PMD_MASK;
+-	bool write = flags & FAULT_FLAG_WRITE;
++	unsigned long pmd_addr = vmf->address & PMD_MASK;
++	bool write = vmf->flags & FAULT_FLAG_WRITE;
+ 	unsigned int iomap_flags = (write ? IOMAP_WRITE : 0) | IOMAP_FAULT;
+ 	struct inode *inode = mapping->host;
+ 	int result = VM_FAULT_FALLBACK;
+ 	struct iomap iomap = { 0 };
+-	pgoff_t max_pgoff, pgoff;
+-	struct vm_fault vmf;
++	pgoff_t max_pgoff;
+ 	void *entry;
+ 	loff_t pos;
+ 	int error;
+@@ -1331,10 +1330,10 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	 * supposed to hold locks serializing us with truncate / punch hole so
+ 	 * this is a reliable test.
+ 	 */
+-	pgoff = linear_page_index(vma, pmd_addr);
++	vmf->pgoff = linear_page_index(vma, pmd_addr);
+ 	max_pgoff = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+ 
+-	trace_dax_pmd_fault(inode, vma, address, flags, pgoff, max_pgoff, 0);
++	trace_dax_pmd_fault(inode, vma, vmf, max_pgoff, 0);
+ 
+ 	/* Fall back to PTEs if we're going to COW */
+ 	if (write && !(vma->vm_flags & VM_SHARED))
+@@ -1346,13 +1345,13 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
+ 		goto fallback;
+ 
+-	if (pgoff > max_pgoff) {
++	if (vmf->pgoff > max_pgoff) {
+ 		result = VM_FAULT_SIGBUS;
+ 		goto out;
+ 	}
+ 
+ 	/* If the PMD would extend beyond the file size */
+-	if ((pgoff | PG_PMD_COLOUR) > max_pgoff)
++	if ((vmf->pgoff | PG_PMD_COLOUR) > max_pgoff)
+ 		goto fallback;
+ 
+ 	/*
+@@ -1360,7 +1359,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	 * setting up a mapping, so really we're using iomap_begin() as a way
+ 	 * to look up our filesystem block.
+ 	 */
+-	pos = (loff_t)pgoff << PAGE_SHIFT;
++	pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
+ 	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
+ 	if (error)
+ 		goto fallback;
+@@ -1370,28 +1369,24 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	 * the tree, for instance), it will return -EEXIST and we just fall
+ 	 * back to 4k entries.
+ 	 */
+-	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
++	entry = grab_mapping_entry(mapping, vmf->pgoff, RADIX_DAX_PMD);
+ 	if (IS_ERR(entry))
+ 		goto finish_iomap;
+ 
+ 	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+ 		goto unlock_entry;
+ 
+-	vmf.pgoff = pgoff;
+-	vmf.flags = flags;
+-	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_IO;
+-
+ 	switch (iomap.type) {
+ 	case IOMAP_MAPPED:
+-		result = dax_pmd_insert_mapping(vma, pmd, &vmf, address,
+-				&iomap, pos, write, &entry);
++		result = dax_pmd_insert_mapping(vma, vmf->pmd, vmf,
++				vmf->address, &iomap, pos, write, &entry);
+ 		break;
+ 	case IOMAP_UNWRITTEN:
+ 	case IOMAP_HOLE:
+ 		if (WARN_ON_ONCE(write))
+ 			goto unlock_entry;
+-		result = dax_pmd_load_hole(vma, pmd, &vmf, address, &iomap,
+-				&entry);
++		result = dax_pmd_load_hole(vma, vmf->pmd, vmf, vmf->address,
++				&iomap, &entry);
+ 		break;
+ 	default:
+ 		WARN_ON_ONCE(1);
+@@ -1399,7 +1394,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	}
+ 
+  unlock_entry:
+-	put_locked_mapping_entry(mapping, pgoff, entry);
++	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+  finish_iomap:
+ 	if (ops->iomap_end) {
+ 		int copied = PMD_SIZE;
+@@ -1417,12 +1412,11 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 	}
+  fallback:
+ 	if (result == VM_FAULT_FALLBACK) {
+-		split_huge_pmd(vma, pmd, address);
++		split_huge_pmd(vma, vmf->pmd, vmf->address);
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 	}
+ out:
+-	trace_dax_pmd_fault_done(inode, vma, address, flags, pgoff, max_pgoff,
+-			result);
++	trace_dax_pmd_fault_done(inode, vma, vmf, max_pgoff, result);
+ 	return result;
+ }
+ EXPORT_SYMBOL_GPL(dax_iomap_pmd_fault);
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index d663d3d..10b64ba 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -275,21 +275,20 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	return result;
+ }
+ 
+-static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+-						pmd_t *pmd, unsigned int flags)
++static int
++ext4_dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	int result;
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct super_block *sb = inode->i_sb;
+-	bool write = flags & FAULT_FLAG_WRITE;
++	bool write = vmf->flags & FAULT_FLAG_WRITE;
+ 
+ 	if (write) {
+ 		sb_start_pagefault(sb);
+ 		file_update_time(vma->vm_file);
+ 	}
+ 	down_read(&EXT4_I(inode)->i_mmap_sem);
+-	result = dax_iomap_pmd_fault(vma, addr, pmd, flags,
+-				     &ext4_iomap_ops);
++	result = dax_iomap_pmd_fault(vma, vmf, &ext4_iomap_ops);
+ 	up_read(&EXT4_I(inode)->i_mmap_sem);
+ 	if (write)
+ 		sb_end_pagefault(sb);
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index d818c16..4f65a9d 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1526,9 +1526,7 @@ xfs_filemap_fault(
+ STATIC int
+ xfs_filemap_pmd_fault(
+ 	struct vm_area_struct	*vma,
+-	unsigned long		addr,
+-	pmd_t			*pmd,
+-	unsigned int		flags)
++	struct vm_fault		*vmf)
+ {
+ 	struct inode		*inode = file_inode(vma->vm_file);
+ 	struct xfs_inode	*ip = XFS_I(inode);
+@@ -1539,16 +1537,16 @@ xfs_filemap_pmd_fault(
+ 
+ 	trace_xfs_filemap_pmd_fault(ip);
+ 
+-	if (flags & FAULT_FLAG_WRITE) {
++	if (vmf->flags & FAULT_FLAG_WRITE) {
+ 		sb_start_pagefault(inode->i_sb);
+ 		file_update_time(vma->vm_file);
+ 	}
+ 
+ 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+-	ret = dax_iomap_pmd_fault(vma, addr, pmd, flags, &xfs_iomap_ops);
++	ret = dax_iomap_pmd_fault(vma, vmf, &xfs_iomap_ops);
+ 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+ 
+-	if (flags & FAULT_FLAG_WRITE)
++	if (vmf->flags & FAULT_FLAG_WRITE)
+ 		sb_end_pagefault(inode->i_sb);
+ 
+ 	return ret;
+diff --git a/include/linux/dax.h b/include/linux/dax.h
+index 6e36b11..9761c90 100644
+--- a/include/linux/dax.h
++++ b/include/linux/dax.h
+@@ -71,16 +71,15 @@ static inline unsigned int dax_radix_order(void *entry)
+ 		return PMD_SHIFT - PAGE_SHIFT;
+ 	return 0;
+ }
+-int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+-		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops);
++int dax_iomap_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
++		struct iomap_ops *ops);
+ #else
+ static inline unsigned int dax_radix_order(void *entry)
+ {
+ 	return 0;
+ }
+ static inline int dax_iomap_pmd_fault(struct vm_area_struct *vma,
+-		unsigned long address, pmd_t *pmd, unsigned int flags,
+-		struct iomap_ops *ops)
++		struct vm_fault *vmf, struct iomap_ops *ops)
+ {
+ 	return VM_FAULT_FALLBACK;
+ }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 30f416a..aef645b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -347,8 +347,7 @@ struct vm_operations_struct {
+ 	void (*close)(struct vm_area_struct * area);
+ 	int (*mremap)(struct vm_area_struct * area);
+ 	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+-	int (*pmd_fault)(struct vm_area_struct *, unsigned long address,
+-						pmd_t *, unsigned int flags);
++	int (*pmd_fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+ 	void (*map_pages)(struct vm_fault *vmf,
+ 			pgoff_t start_pgoff, pgoff_t end_pgoff);
+ 
+diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
+index c3b0aae..a98665b 100644
+--- a/include/trace/events/fs_dax.h
++++ b/include/trace/events/fs_dax.h
+@@ -8,9 +8,8 @@
+ 
+ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+ 	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
+-		unsigned long address, unsigned int flags, pgoff_t pgoff,
+-		pgoff_t max_pgoff, int result),
+-	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result),
++		struct vm_fault *vmf, pgoff_t max_pgoff, int result),
++	TP_ARGS(inode, vma, vmf, max_pgoff, result),
+ 	TP_STRUCT__entry(
+ 		__field(unsigned long, ino)
+ 		__field(unsigned long, vm_start)
+@@ -29,9 +28,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+ 		__entry->vm_start = vma->vm_start;
+ 		__entry->vm_end = vma->vm_end;
+ 		__entry->vm_flags = vma->vm_flags;
+-		__entry->address = address;
+-		__entry->flags = flags;
+-		__entry->pgoff = pgoff;
++		__entry->address = vmf->address;
++		__entry->flags = vmf->flags;
++		__entry->pgoff = vmf->pgoff;
+ 		__entry->max_pgoff = max_pgoff;
+ 		__entry->result = result;
+ 	),
+@@ -54,9 +53,9 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
+ #define DEFINE_PMD_FAULT_EVENT(name) \
+ DEFINE_EVENT(dax_pmd_fault_class, name, \
+ 	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
+-		unsigned long address, unsigned int flags, pgoff_t pgoff, \
++		struct vm_fault *vmf, \
+ 		pgoff_t max_pgoff, int result), \
+-	TP_ARGS(inode, vma, address, flags, pgoff, max_pgoff, result))
++	TP_ARGS(inode, vma, vmf, max_pgoff, result))
+ 
+ DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
+ DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
+diff --git a/mm/memory.c b/mm/memory.c
+index e37250f..8ec36cf 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3447,8 +3447,7 @@ static int create_huge_pmd(struct vm_fault *vmf)
+ 	if (vma_is_anonymous(vma))
+ 		return do_huge_pmd_anonymous_page(vmf);
+ 	if (vma->vm_ops->pmd_fault)
+-		return vma->vm_ops->pmd_fault(vma, vmf->address, vmf->pmd,
+-				vmf->flags);
++		return vma->vm_ops->pmd_fault(vma, vmf);
+ 	return VM_FAULT_FALLBACK;
+ }
+ 
+@@ -3457,8 +3456,7 @@ static int wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	if (vma_is_anonymous(vmf->vma))
+ 		return do_huge_pmd_wp_page(vmf, orig_pmd);
+ 	if (vmf->vma->vm_ops->pmd_fault)
+-		return vmf->vma->vm_ops->pmd_fault(vmf->vma, vmf->address,
+-				vmf->pmd, vmf->flags);
++		return vmf->vma->vm_ops->pmd_fault(vmf->vma, vmf);
+ 
+ 	/* COW handled on pte level: split pmd */
+ 	VM_BUG_ON_VMA(vmf->vma->vm_flags & VM_SHARED, vmf->vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
