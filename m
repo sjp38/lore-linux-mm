@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0AF6B028D
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 06:39:45 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id j198so277113361oih.5
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 03:39:45 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a3si8987608ota.8.2016.12.19.03.39.44
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D04136B028F
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 07:27:53 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id i88so218558832pfk.3
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 04:27:53 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id u89si18175889pfg.283.2016.12.19.04.27.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Dec 2016 03:39:44 -0800 (PST)
-Subject: Re: [PATCH 4/4] oom-reaper: use madvise_dontneed() instead of
- unmap_page_range()
-References: <20161216141556.75130-1-kirill.shutemov@linux.intel.com>
- <20161216141556.75130-4-kirill.shutemov@linux.intel.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <e9dd55e8-4cf0-0e91-ddeb-3004ca8fc611@I-love.SAKURA.ne.jp>
-Date: Mon, 19 Dec 2016 20:39:24 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Dec 2016 04:27:53 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id p66so18374493pga.2
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 04:27:53 -0800 (PST)
+Date: Mon, 19 Dec 2016 21:27:38 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20161219122738.GB427@tigerII.localdomain>
+References: <201612142037.AAC60483.HVOSOJFLMOFtQF@I-love.SAKURA.ne.jp>
+ <20161214124231.GI25573@dhcp22.suse.cz>
+ <201612150136.GBC13980.FHQFLSOJOFOtVM@I-love.SAKURA.ne.jp>
+ <20161214181850.GC16763@dhcp22.suse.cz>
+ <201612151921.CBE43202.SFLtOFJMOFOQVH@I-love.SAKURA.ne.jp>
+ <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20161216141556.75130-4-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@suse.com, linux-mm@kvack.org, pmladek@suse.cz, sergey.senozhatsky@gmail.com
 
-On 2016/12/16 23:15, Kirill A. Shutemov wrote:
-> Logic on whether we can reap pages from the VMA should match what we
-> have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
-> VMAs, but we don't now.
+On (12/19/16 20:25), Tetsuo Handa wrote:
+[..]
+> So, I'd like to check whether async printk() can prevent the system from reaching
+> the threshold. Though, I guess async printk() won't help for preemption outside
+> printk() (i.e. CONFIG_PREEMPT=y and/or longer sleep by schedule_timeout_killable(1)
+> after returning from oom_kill_process()).
 > 
-> Let's just call madvise_dontneed() from __oom_reap_task_mm(), so we
-> won't need to sync the logic in the future.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/internal.h |  7 +++----
->  mm/madvise.c  |  2 +-
->  mm/memory.c   |  2 +-
->  mm/oom_kill.c | 15 ++-------------
->  4 files changed, 7 insertions(+), 19 deletions(-)
+> Sergey, will you share your async printk() patches?
 
-madvise_dontneed() calls zap_page_range().
-zap_page_range() calls mmu_notifier_invalidate_range_start().
-mmu_notifier_invalidate_range_start() calls __mmu_notifier_invalidate_range_start().
-__mmu_notifier_invalidate_range_start() calls srcu_read_lock()/srcu_read_unlock().
-This means that madvise_dontneed() might sleep.
+Hello,
 
-I don't know what individual notifier will do, but for example
+I don't have (yet) a re-based version, since printk has changed a lot
+once again during this merge window.
 
-  static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
-          .invalidate_range_start = i915_gem_userptr_mn_invalidate_range_start,
-  };
+the work is in progress now.
 
-i915_gem_userptr_mn_invalidate_range_start() calls flush_workqueue()
-which means that we can OOM livelock if work item involves memory allocation.
-Some of other notifiers call mutex_lock()/mutex_unlock().
+the latest publicly available version is against the linux-next 20161202
 
-Even if none of currently in-tree notifier users are blocked on memory
-allocation, I think it is not guaranteed that future changes/users won't be
-blocked on memory allocation.
+https://gitlab.com/senozhatsky/linux-next-ss/commits/printk-safe-deferred
+
+
+I'll finish re-basing the patch set tomorrow.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
