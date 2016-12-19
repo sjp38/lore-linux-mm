@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4982F6B02CA
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 18:12:22 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id w63so305088766oiw.4
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 15:12:22 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id r132si4009998oig.2.2016.12.19.15.12.21
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3046B02CD
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 18:20:26 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id 75so96423188ite.7
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 15:20:26 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a125si14620123iog.216.2016.12.19.15.20.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 15:12:21 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id c20so12039668itb.0
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 15:12:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
-References: <20161219225826.F8CB356F@viggo.jf.intel.com> <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 19 Dec 2016 15:12:20 -0800
-Message-ID: <CA+55aFx9gZ0qDeD=1-jh+DYnSiteO4fEM-jvA0xbnrzL8hS8Hg@mail.gmail.com>
-Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
-Content-Type: multipart/alternative; boundary=94eb2c04abb843da0105440b0d29
+        Mon, 19 Dec 2016 15:20:26 -0800 (PST)
+Date: Mon, 19 Dec 2016 15:21:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: throttle show_mem from warn_alloc
+Message-Id: <20161219152125.f77ddf79f3c89e5cdd0e02d6@linux-foundation.org>
+In-Reply-To: <20161215101510.9030-1-mhocko@kernel.org>
+References: <20161215101510.9030-1-mhocko@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, luto@kernel.org, agruenba@redhat.com, peterz@infradead.org, mgorman@techsingularity.net, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
---94eb2c04abb843da0105440b0d29
-Content-Type: text/plain; charset=UTF-8
+On Thu, 15 Dec 2016 11:15:10 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-On Dec 19, 2016 3:07 PM, "Linus Torvalds" <torvalds@linux-foundation.org>
-wrote:
+> Tetsuo has been stressing OOM killer path with many parallel allocation
+> requests when he has noticed that it is not all that hard to swamp
+> kernel logs with warn_alloc messages caused by allocation stalls. Even
+> though the allocation stall message is triggered only once in 10s there
+> might be many different tasks hitting it roughly around the same time.
+> 
+> A big part of the output is show_mem() which can generate a lot of
+> output even on a small machines. There is no reason to show the state of
+> memory counter for each allocation stall, especially when multiple of
+> them are reported in a short time period. Chances are that not much has
+> changed since the last report. This patch simply rate limits show_mem
+> called from warn_alloc to only dump something once per second. This
+> should be enough to give us a clue why an allocation might be stalling
+> while burst of warnings will not swamp log with too much data.
+> 
+> While we are at it, extract all the show_mem related handling (filters)
+> into a separate function warn_alloc_show_mem. This will make the code
+> cleaner and as a bonus point we can distinguish which part of warn_alloc
+> got throttled due to rate limiting as ___ratelimit dumps the caller.
 
+These guys don't need file-wide scope...
 
-Part of the problem with the old coffee ..
-
-
-Traveling. My phone always thinks I mean coffee when I swipe "code".
-
-I can't blame it on not enough coffee this time. I should just double-check
-the autocorrect more.
-
-     Linus
-
---94eb2c04abb843da0105440b0d29
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"auto"><div><br><div class=3D"gmail_extra"><br><div class=3D"gma=
-il_quote">On Dec 19, 2016 3:07 PM, &quot;Linus Torvalds&quot; &lt;<a href=
-=3D"mailto:torvalds@linux-foundation.org">torvalds@linux-foundation.org</a>=
-&gt; wrote:<blockquote class=3D"quote" style=3D"margin:0 0 0 .8ex;border-le=
-ft:1px #ccc solid;padding-left:1ex"><div dir=3D"auto"><div class=3D"quoted-=
-text"><div dir=3D"auto"><br></div></div><div dir=3D"auto">Part of the probl=
-em with the old coffee ..</div></div></blockquote></div></div></div><div di=
-r=3D"auto"><br></div><div dir=3D"auto">Traveling. My phone always thinks I =
-mean coffee when I swipe &quot;code&quot;.=C2=A0</div><div dir=3D"auto"><br=
-></div><div dir=3D"auto">I can&#39;t blame it on not enough coffee this tim=
-e. I should just double-check the autocorrect more.=C2=A0</div><div dir=3D"=
-auto"><br></div><div dir=3D"auto">=C2=A0 =C2=A0 =C2=A0Linus</div><div dir=
-=3D"auto"></div></div>
-
---94eb2c04abb843da0105440b0d29--
+--- a/mm/page_alloc.c~mm-throttle-show_mem-from-warn_alloc-fix
++++ a/mm/page_alloc.c
+@@ -3018,15 +3018,10 @@ static inline bool should_suppress_show_
+ 	return ret;
+ }
+ 
+-static DEFINE_RATELIMIT_STATE(nopage_rs,
+-		DEFAULT_RATELIMIT_INTERVAL,
+-		DEFAULT_RATELIMIT_BURST);
+-
+-static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
+-
+ static void warn_alloc_show_mem(gfp_t gfp_mask)
+ {
+ 	unsigned int filter = SHOW_MEM_FILTER_NODES;
++	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
+ 
+ 	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
+ 		return;
+@@ -3050,6 +3045,8 @@ void warn_alloc(gfp_t gfp_mask, const ch
+ {
+ 	struct va_format vaf;
+ 	va_list args;
++	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
++				      DEFAULT_RATELIMIT_BURST);
+ 
+ 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
+ 	    debug_guardpage_minorder() > 0)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
