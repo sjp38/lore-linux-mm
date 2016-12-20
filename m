@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 418296B034D
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 14:22:36 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id n68so116870917itn.4
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 11:22:36 -0800 (PST)
-Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
-        by mx.google.com with ESMTPS id v64si14250547itd.3.2016.12.20.11.22.35
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A62336B034F
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 15:09:46 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id b202so351420926oii.3
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 12:09:46 -0800 (PST)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id y128si11819419oig.1.2016.12.20.12.09.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 11:22:35 -0800 (PST)
-Received: by mail-io0-x241.google.com with SMTP id p13so23503024ioi.0
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 11:22:35 -0800 (PST)
+        Tue, 20 Dec 2016 12:09:46 -0800 (PST)
+Received: by mail-oi0-x233.google.com with SMTP id w63so189458018oiw.0
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 12:09:46 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20161205121131.3c1d9ad8452d5e09247336e4@linux-foundation.org>
-References: <20161129182010.13445.31256.stgit@localhost.localdomain>
- <CAKgT0UchMkvsboO23R332j96=yumL7=oSSm97zqJ5-v30_SgCw@mail.gmail.com> <20161205121131.3c1d9ad8452d5e09247336e4@linux-foundation.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 20 Dec 2016 11:22:34 -0800
-Message-ID: <CAKgT0UfgY089jdzXexB87yPOdEFhAAi=au8b4RX2LnHNOM_=kw@mail.gmail.com>
-Subject: Re: [mm PATCH 0/3] Page fragment updates
+In-Reply-To: <20161220075942.GB496@quack2.suse.cz>
+References: <20161212164708.23244-1-jack@suse.cz> <20161213115209.GG15362@quack2.suse.cz>
+ <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
+ <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
+ <20161219095623.GE17598@quack2.suse.cz> <CAPcyv4jjLg=Nyxusz5Hp8OaJ9fi0Xf6LHW37jgVbxKoOYHjNQw@mail.gmail.com>
+ <20161220075942.GB496@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 20 Dec 2016 12:09:45 -0800
+Message-ID: <CAPcyv4gYeQ+ZjJZU07Co5OHvgPsdU4vmYPOfUyMxJTqmMRktnw@mail.gmail.com>
+Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Netdev <netdev@vger.kernel.org>, Eric Dumazet <edumazet@google.com>, David Miller <davem@davemloft.net>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Mon, Dec 5, 2016 at 12:11 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 5 Dec 2016 09:01:12 -0800 Alexander Duyck <alexander.duyck@gmail.com> wrote:
->
->> On Tue, Nov 29, 2016 at 10:23 AM, Alexander Duyck
->> <alexander.duyck@gmail.com> wrote:
->> > This patch series takes care of a few cleanups for the page fragments API.
->> >
->> > ...
->>
->> It's been about a week since I submitted this series.  Just wanted to
->> check in and see if anyone had any feedback or if this is good to be
->> accepted for 4.10-rc1 with the rest of the set?
->
-> Looks good to me.  I have it all queued for post-4.9 processing.
+On Mon, Dec 19, 2016 at 11:59 PM, Jan Kara <jack@suse.cz> wrote:
+> On Mon 19-12-16 13:51:53, Dan Williams wrote:
+[..]
+> Yes, but I've accounted for that. Checking the libnvdimm-pending branch I
+> see you missed "ext2: Return BH_New buffers for zeroed blocks" which was
+> the first patch in the series. The subject is a slight misnomer since it is
+> about setting IOMAP_F_NEW flag instead these days but still it is needed...
+> Otherwise the DAX invalidation code would not propely invalidate zero pages
+> in the radix tree in response to writes for ext2.
 
-So I guess there is a small bug in the first patch in that I was
-comparing a pointer to to 0 instead of NULL.  Just wondering if I
-should resubmit the first patch, the whole series, or if I need to
-just submit an incremental patch.
-
-Thanks.
-
-- Alex
+Ok, thanks. Updated libnvdimm-pending pushed out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
