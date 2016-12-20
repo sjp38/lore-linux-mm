@@ -1,106 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A107B6B02E1
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 02:59:47 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y16so23417597wmd.6
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 23:59:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q126si17928696wme.18.2016.12.19.23.59.45
+	by kanga.kvack.org (Postfix) with ESMTP id 495256B02E3
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 03:35:41 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id a20so23625245wme.5
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 00:35:41 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id d3si21773724wjm.90.2016.12.20.00.35.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Dec 2016 23:59:45 -0800 (PST)
-Date: Tue, 20 Dec 2016 08:59:42 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/6 v3] dax: Page invalidation fixes
-Message-ID: <20161220075942.GB496@quack2.suse.cz>
-References: <20161212164708.23244-1-jack@suse.cz>
- <20161213115209.GG15362@quack2.suse.cz>
- <CAPcyv4giLyY8pWP09V5BmUM+sfGO-VJCtkfV6L-RFS+0XQsT9Q@mail.gmail.com>
- <CAPcyv4jqN+GkO7pL0QE0vM50MmqPZ1aD2G3YmziKvp+4+oh5gQ@mail.gmail.com>
- <20161219095623.GE17598@quack2.suse.cz>
- <CAPcyv4jjLg=Nyxusz5Hp8OaJ9fi0Xf6LHW37jgVbxKoOYHjNQw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Dec 2016 00:35:39 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id m203so22875144wma.3
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 00:35:39 -0800 (PST)
+Date: Tue, 20 Dec 2016 09:35:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: throttle show_mem from warn_alloc
+Message-ID: <20161220083537.GA3769@dhcp22.suse.cz>
+References: <20161215101510.9030-1-mhocko@kernel.org>
+ <20161219152125.f77ddf79f3c89e5cdd0e02d6@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jjLg=Nyxusz5Hp8OaJ9fi0Xf6LHW37jgVbxKoOYHjNQw@mail.gmail.com>
+In-Reply-To: <20161219152125.f77ddf79f3c89e5cdd0e02d6@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux MM <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 19-12-16 13:51:53, Dan Williams wrote:
-> On Mon, Dec 19, 2016 at 1:56 AM, Jan Kara <jack@suse.cz> wrote:
-> > On Fri 16-12-16 17:35:35, Dan Williams wrote:
-> >> On Tue, Dec 13, 2016 at 10:57 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> >> > On Tue, Dec 13, 2016 at 3:52 AM, Jan Kara <jack@suse.cz> wrote:
-> >> >> On Mon 12-12-16 17:47:02, Jan Kara wrote:
-> >> >>> Hello,
-> >> >>>
-> >> >>> this is the third revision of my fixes of races when invalidating hole pages in
-> >> >>> DAX mappings. See changelogs for details. The series is based on my patches to
-> >> >>> write-protect DAX PTEs which are currently carried in mm tree. This is a hard
-> >> >>> dependency because we really need to closely track dirtiness (and cleanness!)
-> >> >>> of radix tree entries in DAX mappings in order to avoid discarding valid dirty
-> >> >>> bits leading to missed cache flushes on fsync(2).
-> >> >>>
-> >> >>> The tests have passed xfstests for xfs and ext4 in DAX and non-DAX mode.
-> >> >>>
-> >> >>> Johannes, are you OK with patch 2/6 in its current form? I'd like to push these
-> >> >>> patches to some tree once DAX write-protection patches are merged.  I'm hoping
-> >> >>> to get at least first three patches merged for 4.10-rc2... Thanks!
-> >> >>
-> >> >> OK, with the final ack from Johannes and since this is mostly DAX stuff,
-> >> >> can we take this through NVDIMM tree and push to Linus either late in the
-> >> >> merge window or for -rc2? These patches require my DAX patches sitting in mm
-> >> >> tree so they can be included in any git tree only once those patches land
-> >> >> in Linus' tree (which may happen only once Dave and Ted push out their
-> >> >> stuff - this is the most convoluted merge window I'd ever to deal with ;-)...
-> >> >> Dan?
-> >> >>
-> >> >
-> >> > I like the -rc2 plan better than sending a pull request based on some
-> >> > random point in the middle of the merge window. I can give Linus a
-> >> > heads up in my initial nvdimm pull request for -rc1 that for
-> >> > coordination purposes we'll be sending this set of follow-on DAX
-> >> > cleanups for -rc2.
-> >>
-> >> So what's still pending for -rc2? I want to be explicit about what I'm
-> >> requesting Linus be prepared to receive after -rc1. The libnvdimm pull
-> >> request is very light this time around since I ended up deferring the
-> >> device-dax-subdivision topic until 4.11 and sub-section memory hotplug
-> >> didn't make the cutoff for -mm. We can spend some of that goodwill on
-> >> your patches ;-).
-> >
-> > ;-) So I'd like all these 6 patches to go for rc2. The first three patches
-> > fix invalidation of exceptional DAX entries (a bug which is there for a
-> > long time) - without these patches data loss can occur on power failure
-> > even though user called fsync(2). The other three patches change locking of
-> > DAX faults so that ->iomap_begin() is called in a more relaxed locking
-> > context and we are safe to start a transaction there for ext4.
-> >
-> >> I can roll them into libnvdimm-for-next now for the integration
-> >> testing coverage, rebase to -rc1 when it's out, wait for your thumbs
-> >> up on the testing and send a pull request on the 23rd.
-> >
-> > Yup, all prerequisites are merged now so you can pick these patches up.
-> > Thanks! Note that I'll be on vacation on Dec 23 - Jan 1.
+On Mon 19-12-16 15:21:25, Andrew Morton wrote:
+> On Thu, 15 Dec 2016 11:15:10 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Sounds good, the contents are now out on libnvdimm-pending awaiting
-> 0day-run before moving them over to libnvdimm-for-next, also it's down
-> to 5 patches since it seems that the "dax: Fix sleep in atomic contex
-> in grab_mapping_entry()" change went upstream already.
+> > Tetsuo has been stressing OOM killer path with many parallel allocation
+> > requests when he has noticed that it is not all that hard to swamp
+> > kernel logs with warn_alloc messages caused by allocation stalls. Even
+> > though the allocation stall message is triggered only once in 10s there
+> > might be many different tasks hitting it roughly around the same time.
+> > 
+> > A big part of the output is show_mem() which can generate a lot of
+> > output even on a small machines. There is no reason to show the state of
+> > memory counter for each allocation stall, especially when multiple of
+> > them are reported in a short time period. Chances are that not much has
+> > changed since the last report. This patch simply rate limits show_mem
+> > called from warn_alloc to only dump something once per second. This
+> > should be enough to give us a clue why an allocation might be stalling
+> > while burst of warnings will not swamp log with too much data.
+> > 
+> > While we are at it, extract all the show_mem related handling (filters)
+> > into a separate function warn_alloc_show_mem. This will make the code
+> > cleaner and as a bonus point we can distinguish which part of warn_alloc
+> > got throttled due to rate limiting as ___ratelimit dumps the caller.
+> 
+> These guys don't need file-wide scope...
+> 
+> --- a/mm/page_alloc.c~mm-throttle-show_mem-from-warn_alloc-fix
+> +++ a/mm/page_alloc.c
+> @@ -3018,15 +3018,10 @@ static inline bool should_suppress_show_
+>  	return ret;
+>  }
+>  
+> -static DEFINE_RATELIMIT_STATE(nopage_rs,
+> -		DEFAULT_RATELIMIT_INTERVAL,
+> -		DEFAULT_RATELIMIT_BURST);
+> -
+> -static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
+> -
+>  static void warn_alloc_show_mem(gfp_t gfp_mask)
+>  {
+>  	unsigned int filter = SHOW_MEM_FILTER_NODES;
+> +	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
+>  
+>  	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
+>  		return;
+> @@ -3050,6 +3045,8 @@ void warn_alloc(gfp_t gfp_mask, const ch
+>  {
+>  	struct va_format vaf;
+>  	va_list args;
+> +	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
+> +				      DEFAULT_RATELIMIT_BURST);
+>  
+>  	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
+>  	    debug_guardpage_minorder() > 0)
+> _
+> 
 
-Yes, but I've accounted for that. Checking the libnvdimm-pending branch I
-see you missed "ext2: Return BH_New buffers for zeroed blocks" which was
-the first patch in the series. The subject is a slight misnomer since it is
-about setting IOMAP_F_NEW flag instead these days but still it is needed...
-Otherwise the DAX invalidation code would not propely invalidate zero pages
-in the radix tree in response to writes for ext2.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
