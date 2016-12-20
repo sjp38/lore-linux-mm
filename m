@@ -1,111 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 14C3C6B0335
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 11:35:44 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 5so302699338pgi.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:35:44 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id e11si22801660pgp.204.2016.12.20.08.35.42
+	by kanga.kvack.org (Postfix) with ESMTP id E5F546B0337
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 11:48:26 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id g1so262821682pgn.3
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:48:26 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id e80si22933076pfl.8.2016.12.20.08.48.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 08:35:42 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id i5so3029803pgh.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:35:42 -0800 (PST)
-Date: Tue, 20 Dec 2016 16:35:40 +0000
+        Tue, 20 Dec 2016 08:48:26 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id b1so12661881pgc.1
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:48:26 -0800 (PST)
+Date: Tue, 20 Dec 2016 16:48:23 +0000
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH V2 1/2] mm/memblock.c: trivial code refine in
- memblock_is_region_memory()
-Message-ID: <20161220163540.GA13224@vultr.guest>
+Subject: Re: [PATCH V2 2/2] mm/memblock.c: check return value of
+ memblock_reserve() in memblock_virt_alloc_internal()
+Message-ID: <20161220164823.GB13224@vultr.guest>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
 References: <1482072470-26151-1-git-send-email-richard.weiyang@gmail.com>
- <1482072470-26151-2-git-send-email-richard.weiyang@gmail.com>
- <20161219151514.GB5175@dhcp22.suse.cz>
+ <1482072470-26151-3-git-send-email-richard.weiyang@gmail.com>
+ <20161219152156.GC5175@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161219151514.GB5175@dhcp22.suse.cz>
+In-Reply-To: <20161219152156.GC5175@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Wei Yang <richard.weiyang@gmail.com>, trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 19, 2016 at 04:15:14PM +0100, Michal Hocko wrote:
->On Sun 18-12-16 14:47:49, Wei Yang wrote:
->> The base address is already guaranteed to be in the region by
->> memblock_search().
+On Mon, Dec 19, 2016 at 04:21:57PM +0100, Michal Hocko wrote:
+>On Sun 18-12-16 14:47:50, Wei Yang wrote:
+>> memblock_reserve() may fail in case there is not enough regions.
 >
+>Have you seen this happenning in the real setups or this is a by-review
+>driven change?
 
-Hi, Michal
+This is a by-review driven change.
 
-Nice to receive your comment.
-
->First of all the way how the check is removed is the worst possible...
->Apart from that it is really not clear to me why checking the base
->is not needed. You are mentioning memblock_search but what about other
->callers? adjust_range_page_size_mask e.g...
->
-
-Hmm... the memblock_search() is called by memblock_is_region_memory(). Maybe I
-paste the whole function here would clarify the change.
-
-int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
-{
-	int idx = memblock_search(&memblock.memory, base);
-	phys_addr_t end = base + memblock_cap_size(base, &size);
-
-	if (idx == -1)
-		return 0;
-	return memblock.memory.regions[idx].base <= base &&
-		(memblock.memory.regions[idx].base +
-		 memblock.memory.regions[idx].size) >= end;
-}
-
-So memblock_search() will search "base" in memblock.memory. If "base" is not
-in memblock.memory, idx would be -1. Then following code will not be executed.
-
-And if the following code is executed, it means idx is not -1 and
-memblock_search() has found the "base" in memblock.memory.regions[idx], which
-is ture for statement (memblock.memory.regions[idx].base <= base).
-
->You also didn't mention what is the motivation of this change? What will
->work better or why it makes sense in general?
->
-
-The purpose is to improve the code by reduce an extra check.
-
->Also this seems to be a general purpose function so it should better
->be robust.
->
-
-I think it is as robust as it was.
-
->> This patch removes the check on base.
->> 
->> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->
->Without a proper justification and with the horrible way how it is done
->Nacked-by: Michal Hocko <mhocko@suse.com>
->
-
-Not sure I make it clear or I may miss something?
-
->> ---
->>  mm/memblock.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->> 
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 7608bc3..cd85303 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -1615,7 +1615,7 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
+>[...]
+>>  again:
+>>  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
+>>  					    nid, flags);
+>> -	if (alloc)
+>> +	if (alloc && !memblock_reserve(alloc, size))
+>>  		goto done;
 >>  
->>  	if (idx == -1)
->>  		return 0;
->> -	return memblock.memory.regions[idx].base <= base &&
->> +	return /* memblock.memory.regions[idx].base <= base && */
->>  		(memblock.memory.regions[idx].base +
->>  		 memblock.memory.regions[idx].size) >= end;
->>  }
+>>  	if (nid != NUMA_NO_NODE) {
+>>  		alloc = memblock_find_in_range_node(size, align, min_addr,
+>>  						    max_addr, NUMA_NO_NODE,
+>>  						    flags);
+>> -		if (alloc)
+>> +		if (alloc && !memblock_reserve(alloc, size))
+>>  			goto done;
+>>  	}
+>
+>This doesn't look right. You can end up leaking the first allocated
+>range.
+>
+
+Hmm... why?
+
+If first memblock_reserve() succeed, it will jump to done, so that no 2nd
+allocation.
+If the second executes, it means the first allocation failed.
+memblock_find_in_range_node() doesn't modify the memblock, it just tell you
+there is a proper memory region available.
+
+>>  
+>> @@ -1303,7 +1302,6 @@ static void * __init memblock_virt_alloc_internal(
+>>  
+>>  	return NULL;
+>>  done:
+>> -	memblock_reserve(alloc, size);
+>>  	ptr = phys_to_virt(alloc);
+>>  	memset(ptr, 0, size);
+>
+>
+>>  
 >> -- 
 >> 2.5.0
 >> 
