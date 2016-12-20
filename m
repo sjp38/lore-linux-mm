@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CC3046B02CD
-	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 18:20:26 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id 75so96423188ite.7
-        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 15:20:26 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a125si14620123iog.216.2016.12.19.15.20.25
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14A3A6B02CF
+	for <linux-mm@kvack.org>; Mon, 19 Dec 2016 19:20:07 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id 71so169017590ioe.2
+        for <linux-mm@kvack.org>; Mon, 19 Dec 2016 16:20:07 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id n195si3109637ita.23.2016.12.19.16.20.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Dec 2016 15:20:26 -0800 (PST)
-Date: Mon, 19 Dec 2016 15:21:25 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: throttle show_mem from warn_alloc
-Message-Id: <20161219152125.f77ddf79f3c89e5cdd0e02d6@linux-foundation.org>
-In-Reply-To: <20161215101510.9030-1-mhocko@kernel.org>
-References: <20161215101510.9030-1-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 19 Dec 2016 16:20:06 -0800 (PST)
+Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
+References: <20161219225826.F8CB356F@viggo.jf.intel.com>
+ <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <156a5b34-ad3b-d0aa-83c9-109b366c1bdf@linux.intel.com>
+Date: Mon, 19 Dec 2016 16:20:05 -0800
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, swhiteho@redhat.com, luto@kernel.org, agruenba@redhat.com, peterz@infradead.org, mgorman@techsingularity.net, linux-mm@kvack.org
 
-On Thu, 15 Dec 2016 11:15:10 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-
-> Tetsuo has been stressing OOM killer path with many parallel allocation
-> requests when he has noticed that it is not all that hard to swamp
-> kernel logs with warn_alloc messages caused by allocation stalls. Even
-> though the allocation stall message is triggered only once in 10s there
-> might be many different tasks hitting it roughly around the same time.
+On 12/19/2016 03:07 PM, Linus Torvalds wrote:
+>     +wait_queue_head_t *bit_waitqueue(void *word, int bit)
+>     +{
+>     +       const int __maybe_unused nid = page_to_nid(virt_to_page(word));
+>     +
+>     +       return __bit_waitqueue(word, bit, nid);
 > 
-> A big part of the output is show_mem() which can generate a lot of
-> output even on a small machines. There is no reason to show the state of
-> memory counter for each allocation stall, especially when multiple of
-> them are reported in a short time period. Chances are that not much has
-> changed since the last report. This patch simply rate limits show_mem
-> called from warn_alloc to only dump something once per second. This
-> should be enough to give us a clue why an allocation might be stalling
-> while burst of warnings will not swamp log with too much data.
-> 
-> While we are at it, extract all the show_mem related handling (filters)
-> into a separate function warn_alloc_show_mem. This will make the code
-> cleaner and as a bonus point we can distinguish which part of warn_alloc
-> got throttled due to rate limiting as ___ratelimit dumps the caller.
+> No can do. Part of the problem with the old coffee was that it did that
+> virt_to_page() crud. That doesn't work with the virtually mapped stack. 
 
-These guys don't need file-wide scope...
+Ahhh, got it.
 
---- a/mm/page_alloc.c~mm-throttle-show_mem-from-warn_alloc-fix
-+++ a/mm/page_alloc.c
-@@ -3018,15 +3018,10 @@ static inline bool should_suppress_show_
- 	return ret;
- }
- 
--static DEFINE_RATELIMIT_STATE(nopage_rs,
--		DEFAULT_RATELIMIT_INTERVAL,
--		DEFAULT_RATELIMIT_BURST);
--
--static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
--
- static void warn_alloc_show_mem(gfp_t gfp_mask)
- {
- 	unsigned int filter = SHOW_MEM_FILTER_NODES;
-+	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
- 
- 	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
- 		return;
-@@ -3050,6 +3045,8 @@ void warn_alloc(gfp_t gfp_mask, const ch
- {
- 	struct va_format vaf;
- 	va_list args;
-+	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
-+				      DEFAULT_RATELIMIT_BURST);
- 
- 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
- 	    debug_guardpage_minorder() > 0)
-_
+So, what did you have in mind?  Just redirect bit_waitqueue() to the
+"first_online_node" waitqueues?
+
+wait_queue_head_t *bit_waitqueue(void *word, int bit)
+{
+        return __bit_waitqueue(word, bit, first_online_node);
+}
+
+We could do some fancy stuff like only do virt_to_page() for things in
+the linear map, but I'm not sure we'll see much of a gain for it.  None
+of the other waitqueue users look as pathological as the 'struct page'
+ones.  Maybe:
+
+wait_queue_head_t *bit_waitqueue(void *word, int bit)
+{
+	int nid
+	if (word >= VMALLOC_START) /* all addrs not in linear map */
+		nid = first_online_node;
+	else
+		nid = page_to_nid(virt_to_page(word));
+        return __bit_waitqueue(word, bit, nid);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
