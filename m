@@ -1,100 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BC536B02EF
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:46:32 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id a190so193009471pgc.0
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 02:46:32 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 59si21731413plp.46.2016.12.20.02.46.31
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EACE76B02F1
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 07:31:24 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so24742621wma.2
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 04:31:24 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id km9si22453156wjb.282.2016.12.20.04.31.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 02:46:31 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 4/4] oom-reaper: use madvise_dontneed() logic to decide if unmap the VMA
-Date: Tue, 20 Dec 2016 13:46:25 +0300
-Message-Id: <20161220104625.158107-1-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20161219171722.77995-4-kirill.shutemov@linux.intel.com>
-References: <20161219171722.77995-4-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Dec 2016 04:31:23 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id B85A099205
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 12:31:22 +0000 (UTC)
+Date: Tue, 20 Dec 2016 12:31:22 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH RFC 1/1] mm, page_alloc: fix incorrect zone_statistics
+ data
+Message-ID: <20161220123121.e4wgkxm2txdoxogo@techsingularity.net>
+References: <1481522347-20393-1-git-send-email-hejianet@gmail.com>
+ <1481522347-20393-2-git-send-email-hejianet@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1481522347-20393-2-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jia He <hejianet@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-Logic on whether we can reap pages from the VMA should match what we
-have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
-VMAs, but we don't now.
+On Mon, Dec 12, 2016 at 01:59:07PM +0800, Jia He wrote:
+> In commit b9f00e147f27 ("mm, page_alloc: reduce branches in
+> zone_statistics"), it reconstructed codes to reduce the branch miss rate.
+> Compared with the original logic, it assumed if !(flag & __GFP_OTHER_NODE)
+>  z->node would not be equal to preferred_zone->node. That seems to be
+> incorrect.
+> 
+> Fixes: commit b9f00e147f27 ("mm, page_alloc: reduce branches in
+> zone_statistics")
+> 
+> Signed-off-by: Jia He <hejianet@gmail.com>
 
-Let's just extract condition on which we can shoot down pagesi from a
-VMA with MADV_DONTNEED into separate function and use it in both places.
+This is slightly curious. It appear it would only occur if a process was
+running on a node that was outside the memory policy. Can you confirm
+that is the case?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- mm/internal.h | 5 +++++
- mm/madvise.c  | 4 +++-
- mm/oom_kill.c | 9 +--------
- 3 files changed, 9 insertions(+), 9 deletions(-)
+If so, your patch is a a semantic curiousity because it's actually
+impossible for a NUMA allocation to be local and the definition of "HIT"
+is fuzzy enough to be useless.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 44d68895a9b9..7430628bff34 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -41,6 +41,11 @@ int do_swap_page(struct vm_fault *vmf);
- void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
- 
-+static inline bool can_madv_dontneed_vma(struct vm_area_struct *vma)
-+{
-+	return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
-+}
-+
- void unmap_page_range(struct mmu_gather *tlb,
- 			     struct vm_area_struct *vma,
- 			     unsigned long addr, unsigned long end,
-diff --git a/mm/madvise.c b/mm/madvise.c
-index aa4c502caecb..c53d8da9c8e6 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -24,6 +24,8 @@
- 
- #include <asm/tlb.h>
- 
-+#include "internal.h"
-+
- /*
-  * Any behaviour which results in changes to the vma->vm_flags needs to
-  * take mmap_sem for writing. Others, which simply traverse vmas, need
-@@ -473,7 +475,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
- 			     unsigned long start, unsigned long end)
- {
- 	*prev = vma;
--	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-+	if (!can_madv_dontneed_vma(vma))
- 		return -EINVAL;
- 
- 	zap_page_range(vma, start, end - start);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 96a53ab0c9eb..b6d8ac4948db 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -508,14 +508,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 
- 	tlb_gather_mmu(&tlb, mm, 0, -1);
- 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
--		if (is_vm_hugetlb_page(vma))
--			continue;
--
--		/*
--		 * mlocked VMAs require explicit munlocking before unmap.
--		 * Let's keep it simple here and skip such VMAs.
--		 */
--		if (vma->vm_flags & VM_LOCKED)
-+		if (!can_madv_dontneed_vma(vma))
- 			continue;
- 
- 		/*
+I won't object to the patch but it makes me trust "hit" even less than I
+already do for any analysis.
+
+Note that after this mail that I'll be unavailable by mail until early
+new years.
+
 -- 
-2.10.2
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
