@@ -1,127 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 85E306B0318
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:49:14 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id bk3so53590828wjc.4
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:49:14 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DAD36B031D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:50:19 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i131so25070961wmf.3
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:50:19 -0800 (PST)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id q19si22795539wju.89.2016.12.20.05.49.13
+        by mx.google.com with ESMTPS id m141si19077197wmd.20.2016.12.20.05.50.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 05:49:13 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id a20so24524197wme.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:49:13 -0800 (PST)
+        Tue, 20 Dec 2016 05:50:18 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id g23so24500947wme.1
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:50:18 -0800 (PST)
+Date: Tue, 20 Dec 2016 14:50:16 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/3] mm: help __GFP_NOFAIL allocations which do not trigger OOM killer
-Date: Tue, 20 Dec 2016 14:49:04 +0100
-Message-Id: <20161220134904.21023-4-mhocko@kernel.org>
-In-Reply-To: <20161220134904.21023-1-mhocko@kernel.org>
-References: <20161220134904.21023-1-mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
+Message-ID: <20161220135016.GH3769@dhcp22.suse.cz>
+References: <20161208103300.23217-1-mhocko@kernel.org>
+ <20161213101451.GB10492@dhcp22.suse.cz>
+ <1481666853.29291.33.camel@perches.com>
+ <20161214085916.GB25573@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161214085916.GB25573@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>, Joe Perches <joe@perches.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 14-12-16 09:59:16, Michal Hocko wrote:
+> On Tue 13-12-16 14:07:33, Joe Perches wrote:
+> > On Tue, 2016-12-13 at 11:14 +0100, Michal Hocko wrote:
+> > > Are there any more comments or objections to this patch? Is this a good
+> > > start or kv[mz]alloc has to provide a way to cover GFP_NOFS users as
+> > > well in the initial version.
+> > 
+> > Did Andrew Morton ever comment on this?
+> > I believe he was the primary objector in the past.
+> > 
+> > Last I recollect was over a year ago:
+> > 
+> > https://lkml.org/lkml/2015/7/7/1050
+> 
+> Let me quote:
+> : Sigh.  We've resisted doing this because vmalloc() is somewhat of a bad
+> : thing, and we don't want to make it easy for people to do bad things.
+> : 
+> : And vmalloc is bad because a) it's slow and b) it does GFP_KERNEL
+> : allocations for page tables and c) it is susceptible to arena
+> : fragmentation.
+> : 
+> : We'd prefer that people fix their junk so it doesn't depend upon large
+> : contiguous allocations.  This isn't userspace - kernel space is hostile
+> : and kernel code should be robust.
+> : 
+> : So I dunno.  Should we continue to make it a bit more awkward to use
+> : vmalloc()?  Probably that tactic isn't being very successful - people
+> : will just go ahead and open-code it.  And given the surprising amount
+> : of stuff you've placed in kvmalloc_node(), they'll implement it
+> : incorrectly...
+> : 
+> : How about we compromise: add kvmalloc_node(), but include a BUG_ON("you
+> : suck") to it?
+> 
+> While I agree with some of those points, the reality really sucks,
+> though. We have tried the same tactic with __GFP_NOFAIL and failed as
+> well. I guess we should just bite the bullet and provide an api which is
+> so common that people keep reinventing their own ways around that, many
+> times wrongly or suboptimally. BUG_ON("you suck") is just not going to
+> help much I am afraid.
+> 
+> What do you think Andrew?
 
-Now that __GFP_NOFAIL doesn't override decisions to skip the oom killer
-we are left with requests which require to loop inside the allocator
-without invoking the oom killer (e.g. GFP_NOFS|__GFP_NOFAIL used by fs
-code) and so they might, in very unlikely situations, loop for ever -
-e.g. other parallel request could starve them.
-
-This patch tries to limit the likelihood of such a lockup by giving
-these __GFP_NOFAIL requests a chance to move on by consuming a small
-part of memory reserves. We are using ALLOC_HARDER which should be
-enough to prevent from the starvation by regular allocation requests,
-yet it shouldn't consume enough from the reserves to disrupt high
-priority requests (ALLOC_HIGH).
-
-While we are at it, let's introduce a helper __alloc_pages_cpuset_fallback
-which enforces the cpusets but allows to fallback to ignore them if
-the first attempt fails. __GFP_NOFAIL requests can be considered
-important enough to allow cpuset runaway in order for the system to move
-on. It is highly unlikely that any of these will be GFP_USER anyway.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 46 ++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 36 insertions(+), 10 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2dda7c3eba52..e8e551015d48 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3064,6 +3064,26 @@ void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
- }
- 
- static inline struct page *
-+__alloc_pages_cpuset_fallback(gfp_t gfp_mask, unsigned int order,
-+			      unsigned int alloc_flags,
-+			      const struct alloc_context *ac)
-+{
-+	struct page *page;
-+
-+	page = get_page_from_freelist(gfp_mask, order,
-+			alloc_flags|ALLOC_CPUSET, ac);
-+	/*
-+	 * fallback to ignore cpuset restriction if our nodes
-+	 * are depleted
-+	 */
-+	if (!page)
-+		page = get_page_from_freelist(gfp_mask, order,
-+				alloc_flags, ac);
-+
-+	return page;
-+}
-+
-+static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	const struct alloc_context *ac, unsigned long *did_some_progress)
- {
-@@ -3127,17 +3147,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
- 
--		if (gfp_mask & __GFP_NOFAIL) {
--			page = get_page_from_freelist(gfp_mask, order,
--					ALLOC_NO_WATERMARKS|ALLOC_CPUSET, ac);
--			/*
--			 * fallback to ignore cpuset restriction if our nodes
--			 * are depleted
--			 */
--			if (!page)
--				page = get_page_from_freelist(gfp_mask, order,
-+		/*
-+		 * Help non-failing allocations by giving them access to memory
-+		 * reserves
-+		 */
-+		if (gfp_mask & __GFP_NOFAIL)
-+			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
- 					ALLOC_NO_WATERMARKS, ac);
--		}
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -3743,6 +3759,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 */
- 		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
- 
-+		/*
-+		 * Help non-failing allocations by giving them access to memory
-+		 * reserves but do not use ALLOC_NO_WATERMARKS because this
-+		 * could deplete whole memory reserves which would just make
-+		 * the situation worse
-+		 */
-+		page = __alloc_pages_cpuset_fallback(gfp_mask, order, ALLOC_HARDER, ac);
-+		if (page)
-+			goto got_pg;
-+
- 		cond_resched();
- 		goto retry;
- 	}
+So what are we going to do about this patch?
 -- 
-2.10.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
