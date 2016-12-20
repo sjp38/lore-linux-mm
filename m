@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F423E6B0309
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:28:10 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id w39so127206554qtw.0
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:28:10 -0800 (PST)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF6F6B030B
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 08:28:15 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id t184so24477340qkd.2
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:28:15 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x66si2647320qkd.227.2016.12.20.05.28.10
+        by mx.google.com with ESMTPS id v127si2491451qkh.28.2016.12.20.05.28.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 05:28:10 -0800 (PST)
-Subject: [RFC PATCH 0/4] page_pool proof-of-concept early code
+        Tue, 20 Dec 2016 05:28:15 -0800 (PST)
+Subject: [RFC PATCH 1/4] doc: page_pool introduction documentation
 From: Jesper Dangaard Brouer <brouer@redhat.com>
-Date: Tue, 20 Dec 2016 14:28:07 +0100
-Message-ID: <20161220132444.18788.50875.stgit@firesoul>
+Date: Tue, 20 Dec 2016 14:28:12 +0100
+Message-ID: <20161220132812.18788.20431.stgit@firesoul>
+In-Reply-To: <20161220132444.18788.50875.stgit@firesoul>
+References: <20161220132444.18788.50875.stgit@firesoul>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,55 +23,94 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Alexander Duyck <alexander.duyck@gmail.com>
 Cc: willemdebruijn.kernel@gmail.com, netdev@vger.kernel.org, john.fastabend@gmail.com, Saeed Mahameed <saeedm@mellanox.com>, Jesper Dangaard Brouer <brouer@redhat.com>, bjorn.topel@intel.com, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tariq Toukan <tariqt@mellanox.com>
 
-This is an RFC patchset of my *work-in-progress* page_pool implemenation.
-This is NOT ready for inclusion.  People asked to see the code, so here we go.
+Copied from:
+ https://prototype-kernel.readthedocs.io/en/latest/vm/page_pool/introduction.html
+ ~/git/prototype-kernel/kernel/Documentation/vm/page_pool/introduction.rst
 
-This patchset is focused providing a generic replacement for the
-driver page recycle caches. Where mlx5 is the first user in patch-3.
-
-Notice that patch-2 is more "MM-invasive" (modifies put_page) than
-patch-4 which is less MM-agressive (scaled back based on input from
-Mel Gorman).
-
-I do know that all page-flags are used (for 32bit), thus I'm open to
-suggestions/ideas on howto work-around this (need some way to identify
-a page belongs to a page pool).
-
-
-This patchset is the bare-minimum PoC that allows me to benchmarks
-these ideas and see if performance is going in the right direction.
-It is not safe, e.g. unloading the driver can crash the kernel.
-
+This will be updated from above links before upstream submit.
+Also this need to be "linked" into new kernel doc system.
 ---
-
-Jesper Dangaard Brouer (4):
-      doc: page_pool introduction documentation
-      page_pool: basic implementation of page_pool
-      mlx5: use page_pool
-      page_pool: change refcnt model
-
-
- Documentation/vm/page_pool/introduction.rst       |   71 ++++
- drivers/net/ethernet/mellanox/mlx5/core/en.h      |    1 
- drivers/net/ethernet/mellanox/mlx5/core/en_main.c |   28 +
- drivers/net/ethernet/mellanox/mlx5/core/en_rx.c   |   47 ++
- include/linux/mm.h                                |    1 
- include/linux/mm_types.h                          |   11 +
- include/linux/page-flags.h                        |   13 +
- include/linux/page_pool.h                         |  168 +++++++++
- include/linux/skbuff.h                            |    2 
- include/trace/events/mmflags.h                    |    3 
- mm/Makefile                                       |    3 
- mm/page_alloc.c                                   |    6 
- mm/page_pool.c                                    |  402 +++++++++++++++++++++
- mm/slub.c                                         |    4 
- mm/swap.c                                         |    3 
- 15 files changed, 741 insertions(+), 22 deletions(-)
+ Documentation/vm/page_pool/introduction.rst |   71 +++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)
  create mode 100644 Documentation/vm/page_pool/introduction.rst
- create mode 100644 include/linux/page_pool.h
- create mode 100644 mm/page_pool.c
 
---
+diff --git a/Documentation/vm/page_pool/introduction.rst b/Documentation/vm/page_pool/introduction.rst
+new file mode 100644
+index 000000000000..db03b02f218c
+--- /dev/null
++++ b/Documentation/vm/page_pool/introduction.rst
+@@ -0,0 +1,71 @@
++============
++Introduction
++============
++
++The page_pool is a generic API for drivers that have a need for a pool
++of recycling pages used for streaming DMA.
++
++
++Motivation
++==========
++
++The page_pool is primarily motivated by two things (1) performance
++and (2) changing the memory model for drivers.
++
++Drivers have developed performance workarounds when the speed of the
++page allocator and the DMA APIs became too slow for their HW
++needs. The page pool solves them on a general level providing
++performance gains and benefits that local driver recycling hacks
++cannot realize.
++
++A fundamental property is that pages are returned to the page_pool.
++This property allow a certain class of optimizations, which is to move
++setup and tear-down operations out of the fast-path, sometimes known as
++constructor/destruction operations.  DMA map/unmap is one example of
++operations this applies to.  Certain page alloc/free validations can
++also be avoided in the fast-path.  Another example could be
++pre-mapping pages into userspace, and clearing them (memset-zero)
++outside the fast-path.
++
++Memory model
++============
++
++Once drivers are converted to using page_pool API, then it will become
++easier change the underlying memory model backing the driver with
++pages (without changing the driver).
++
++One prime use-case is NIC zero-copy RX into userspace.  As DaveM
++describes in his `Google-plus post`_, the mapping and unmapping
++operations in the address space of the process has a cost that cancels
++out most of the gains of such zero-copy schemes.
++
++This mapping cost can solved the same way as the keeping DMA mapped
++trick.  By keeping the pages VM-mapped to userspace.  This is a layer
++that can be added later to the page_pool.  It will likely be
++beneficial to also consider using huge-pages (as backing) to reduce
++the TLB-stress.
++
++.. _Google-plus post:
++   https://plus.google.com/+DavidMiller/posts/EUDiGoXD6Xv
++
++Advantages
++==========
++
++Advantages of a recycling page pool as bullet points:
++
++1) Faster than going through page-allocator.  Given a specialized
++   allocator require less checks, and can piggyback on drivers
++   resource protection (for alloc-side).
++
++2) DMA IOMMU mapping cost is removed by keeping pages mapped.
++
++3) Makes DMA pages writable by predictable DMA unmap point.
++
++4) OOM protection at device level, as having a feedback-loop knows
++   number of outstanding pages.
++
++5) Flexible memory model allowing zero-copy RX, solving memory early
++   demux (does depend on HW filters into RX queues)
++
++6) Less fragmentation of the page buddy algorithm, when driver
++   maintains a steady-state working-set.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
