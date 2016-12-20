@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A44A6B0357
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 17:12:41 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id a190so234994585pgc.0
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 14:12:41 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n22si23857475pfj.253.2016.12.20.14.12.40
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 100C46B0359
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 17:23:17 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q10so517449577pgq.7
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 14:23:17 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id l24si23948313pgn.71.2016.12.20.14.23.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 14:12:40 -0800 (PST)
-Date: Tue, 20 Dec 2016 14:13:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-Message-Id: <20161220141341.de8b22fd66ea9bc6c4fcf962@linux-foundation.org>
-In-Reply-To: <1482255502.1984.21.camel@perches.com>
-References: <20161208103300.23217-1-mhocko@kernel.org>
-	<20161213101451.GB10492@dhcp22.suse.cz>
-	<1481666853.29291.33.camel@perches.com>
-	<20161214085916.GB25573@dhcp22.suse.cz>
-	<20161220135016.GH3769@dhcp22.suse.cz>
-	<1482255502.1984.21.camel@perches.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 20 Dec 2016 14:23:16 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH 0/2] Write protect DAX PMDs in *sync path
+Date: Tue, 20 Dec 2016 15:23:04 -0700
+Message-Id: <1482272586-21177-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Tue, 20 Dec 2016 09:38:22 -0800 Joe Perches <joe@perches.com> wrote:
+Currently dax_mapping_entry_mkclean() fails to clean and write protect the
+pmd_t of a DAX PMD entry during an *sync operation.  This can result in
+data loss, as detailed in patch 2.
 
-> > So what are we going to do about this patch?
-> 
-> Well if Andrew doesn't object again, it should probably be applied.
-> Unless his silence here acts like a pocket-veto.
-> 
-> Andrew?  Anything to add?
+This series is based on Dan's "libnvdimm-pending" branch, which is the
+current home for Jan's "dax: Page invalidation fixes" series.  You can find
+a working tree here:
 
-I guess we should give in to reality and do this, or something like it.
-But Al said he was going to dig out some patches for us to consider?
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_clean
 
+Ross Zwisler (2):
+  mm: add follow_pte_pmd()
+  dax: wrprotect pmd_t in dax_mapping_entry_mkclean
+
+ fs/dax.c           | 51 ++++++++++++++++++++++++++++++++++++---------------
+ include/linux/mm.h |  4 ++--
+ mm/memory.c        | 41 ++++++++++++++++++++++++++++++++---------
+ 3 files changed, 70 insertions(+), 26 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
