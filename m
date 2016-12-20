@@ -1,250 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC3E6B0329
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 09:43:30 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id y21so46647613lfa.0
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 06:43:30 -0800 (PST)
-Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
-        by mx.google.com with ESMTPS id 9si12383153lff.251.2016.12.20.06.43.29
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D029E6B032C
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 09:49:39 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id hb5so53939715wjc.2
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 06:49:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d128si19276616wmf.100.2016.12.20.06.49.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 06:43:29 -0800 (PST)
-Received: by mail-lf0-x22c.google.com with SMTP id b14so77450031lfg.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 06:43:29 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Dec 2016 06:49:38 -0800 (PST)
+Subject: Re: [PATCH RFC 1/1] mm, page_alloc: fix incorrect zone_statistics
+ data
+References: <1481522347-20393-1-git-send-email-hejianet@gmail.com>
+ <1481522347-20393-2-git-send-email-hejianet@gmail.com>
+ <20161220091814.GC3769@dhcp22.suse.cz>
+ <20161220131040.f5ga5426dduh3mhu@techsingularity.net>
+ <20161220132643.GG3769@dhcp22.suse.cz>
+ <20161220142845.drbedcibjcggdxk7@techsingularity.net>
+ <20161220143501.GI3769@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c7c6239b-c521-b5b0-473a-187b9b04e931@suse.cz>
+Date: Tue, 20 Dec 2016 15:49:34 +0100
 MIME-Version: 1.0
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 20 Dec 2016 15:43:27 +0100
-Message-ID: <CAAeHK+yqC-S=fQozuBF4xu+d+e=ikwc_ipn-xUGnmfnWsjUtoA@mail.gmail.com>
-Subject: x86: warning in unwind_get_return_address
-Content-Type: multipart/mixed; boundary=94eb2c19e11c383a980544180fc3
+In-Reply-To: <20161220143501.GI3769@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Kostya Serebryany <kcc@google.com>, syzkaller <syzkaller@googlegroups.com>
+To: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Jia He <hejianet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Andi Kleen <ak@linux.intel.com>
 
---94eb2c19e11c383a980544180fc3
-Content-Type: text/plain; charset=UTF-8
+On 12/20/2016 03:35 PM, Michal Hocko wrote:
+> On Tue 20-12-16 14:28:45, Mel Gorman wrote:
+>> On Tue, Dec 20, 2016 at 02:26:43PM +0100, Michal Hocko wrote:
+>>> On Tue 20-12-16 13:10:40, Mel Gorman wrote:
+>>>> On Tue, Dec 20, 2016 at 10:18:14AM +0100, Michal Hocko wrote:
+>>>>> On Mon 12-12-16 13:59:07, Jia He wrote:
+>>>>>> In commit b9f00e147f27 ("mm, page_alloc: reduce branches in
+>>>>>> zone_statistics"), it reconstructed codes to reduce the branch miss rate.
+>>>>>> Compared with the original logic, it assumed if !(flag & __GFP_OTHER_NODE)
+>>>>>>  z->node would not be equal to preferred_zone->node. That seems to be
+>>>>>> incorrect.
+>>>>>
+>>>>> I am sorry but I have hard time following the changelog. It is clear
+>>>>> that you are trying to fix a missed NUMA_{HIT,OTHER} accounting
+>>>>> but it is not really clear when such thing happens. You are adding
+>>>>> preferred_zone->node check. preferred_zone is the first zone in the
+>>>>> requested zonelist. So for the most allocations it is a node from the
+>>>>> local node. But if something request an explicit numa node (without
+>>>>> __GFP_OTHER_NODE which would be the majority I suspect) then we could
+>>>>> indeed end up accounting that as a NUMA_MISS, NUMA_FOREIGN so the
+>>>>> referenced patch indeed caused an unintended change of accounting AFAIU.
+>>>>>
+>>>>
+>>>> This is a similar concern to what I had. If the preferred zone, which is
+>>>> the first valid usable zone, is not a "hit" for the statistics then I
+>>>> don't know what "hit" is meant to mean.
+>>>
+>>> But the first valid usable zone is defined based on the requested numa
+>>> node. Unless the requested node is memoryless then we should have a hit,
+>>> no?
+>>>
+>>
+>> Should be. If the local node is memoryless then there would be a difference
+>> between hit and whether it's local or not but that to me is a little
+>> useless. A local vs remote page allocated has a specific meaning and
+>> consequence. It's hard to see how hit can be meaningfully interpreted if
+>> there are memoryless nodes. I don't have a strong objection to the patch
+>> so I didn't nak it, I'm just not convinced it matters.
+> 
+> So what do you think about
+> http://lkml.kernel.org/r/20161220091814.GC3769@dhcp22.suse.cz
+> 
+> I think that we should get rid of __GFP_OTHER_NODE thingy. It is just
+> one off thing and the gfp space it rather precious.
 
-Hi,
-
-I've got the following warning while running the syzkaller fuzzer:
-
-WARNING: unrecognized kernel stack return address ffffffffa0000001 at
-ffff88006377fa18 in a.out:4467
-
-By adding a BUG() to unwind_get_return_address() I was able to capture
-the stack trace (see below). Looks like unwind_get_return_address()
-gets called when KASAN tries to unwind the stack to save the stack
-trace.
-
-A reproducer is attached. CONFIG_KASAN=y is most likely needed for it to work.
-
-On commit e93b1cc8a8965da137ffea0b88e5f62fa1d2a9e6 (Dec 19).
-
-------------[ cut here ]------------
-kernel BUG at arch/x86/kernel/unwind_frame.c:27!
-invalid opcode: 0000 [#1] SMP KASAN
-Modules linked in:
-CPU: 1 PID: 4467 Comm: a.out Not tainted 4.9.0+ #53
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff8800665b9600 task.stack: ffff880063778000
-RIP: 0010:unwind_get_return_address+0xcc/0x1b0 arch/x86/kernel/unwind_frame.c:24
-RSP: 0018:ffff88006cb06fa0 EFLAGS: 00010286
-RAX: 0000000000000064 RBX: ffff8800665b9600 RCX: 0000000000000000
-RDX: 0000000000000100 RSI: ffff88006cb15f08 RDI: ffffed000d960de6
-RBP: ffff88006cb06fb8 R08: 0000000000000001 R09: 0000000000000000
-R10: 0000000000000009 R11: 0000000000000000 R12: ffffffffa0000001
-R13: ffff88006377fa18 R14: ffff8800665b9600 R15: 0000000000000246
-FS:  00007f7c347947c0(0000) GS:ffff88006cb00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020004fc8 CR3: 0000000062668000 CR4: 00000000000006e0
-Call Trace:
- <IRQ>
- __save_stack_trace+0x7e/0xd0 arch/x86/kernel/stacktrace.c:43
- save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:57
- save_stack+0x43/0xd0 mm/kasan/kasan.c:502
- set_track mm/kasan/kasan.c:514
- kasan_slab_free+0x73/0xc0 mm/kasan/kasan.c:578
- slab_free_hook mm/slub.c:1352
- slab_free_freelist_hook mm/slub.c:1374
- slab_free mm/slub.c:2951
- kmem_cache_free+0xb2/0x2c0 mm/slub.c:2973
- file_free_rcu+0x6d/0xa0 fs/file_table.c:49
- __rcu_reclaim kernel/rcu/rcu.h:118
- rcu_do_batch.isra.67+0x900/0xc50 kernel/rcu/tree.c:2777
- invoke_rcu_callbacks kernel/rcu/tree.c:3040
- __rcu_process_callbacks kernel/rcu/tree.c:3007
- rcu_process_callbacks+0x2b7/0xba0 kernel/rcu/tree.c:3024
- __do_softirq+0x2fb/0xb7d kernel/softirq.c:284
- invoke_softirq kernel/softirq.c:364
- irq_exit+0x19e/0x1d0 kernel/softirq.c:405
- exiting_irq ./arch/x86/include/asm/apic.h:658
- smp_apic_timer_interrupt+0x76/0xa0 arch/x86/kernel/apic/apic.c:961
- apic_timer_interrupt+0x93/0xa0
-RIP: 0010:0xffffffffa0000001
-RSP: 0018:ffff88006377fa48 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff10
-RAX: ffff8800665b9600 RBX: ffff880066471400 RCX: 1ffffffff0bc9005
-RDX: 0000000000000000 RSI: ffff88006377fe78 RDI: ffff880066471400
-RBP: ffff88006377fb00 R08: 0000000000000001 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000000 R12: 1ffff1000c6eff4f
-R13: ffffffff85e47fc0 R14: 0000000000000000 R15: ffff880066471428
- </IRQ>
-Code: 00 fc ff df 48 c1 ea 03 80 3c 02 00 0f 85 eb 00 00 00 4d 8b 65
-00 4c 89 e7 e8 21 75 0c 00 85 c0 75 0e 80 3d 44 fc c9 04 00 74 4f <0f>
-0b 45 31 e4 5b 4c 89 e0 41 5c 41 5d 5d c3 48 8d 7b 38 48 b8
-RIP: unwind_get_return_address+0xcc/0x1b0 RSP: ffff88006cb06fa0
----[ end trace a4f6a441af47c2dc ]---
-Kernel panic - not syncing: Fatal exception in interrupt
-Kernel Offset: disabled
----[ end Kernel panic - not syncing: Fatal exception in interrupt
-
---94eb2c19e11c383a980544180fc3
-Content-Type: text/x-csrc; charset=US-ASCII; name="stack-unwind-warn-poc.c"
-Content-Disposition: attachment; filename="stack-unwind-warn-poc.c"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_iwxm83cs0
-
-Ly8gYXV0b2dlbmVyYXRlZCBieSBzeXprYWxsZXIgKGh0dHA6Ly9naXRodWIuY29tL2dvb2dsZS9z
-eXprYWxsZXIpCgojaWZuZGVmIF9fTlJfbW1hcAojZGVmaW5lIF9fTlJfbW1hcCA5CiNlbmRpZgoj
-aWZuZGVmIF9fTlJfc29ja2V0CiNkZWZpbmUgX19OUl9zb2NrZXQgNDEKI2VuZGlmCiNpZm5kZWYg
-X19OUl9zZW5kbXNnCiNkZWZpbmUgX19OUl9zZW5kbXNnIDQ2CiNlbmRpZgoKI2RlZmluZSBfR05V
-X1NPVVJDRQoKI2luY2x1ZGUgPHN5cy9pb2N0bC5oPgojaW5jbHVkZSA8c3lzL21vdW50Lmg+CiNp
-bmNsdWRlIDxzeXMvcHJjdGwuaD4KI2luY2x1ZGUgPHN5cy9yZXNvdXJjZS5oPgojaW5jbHVkZSA8
-c3lzL3NvY2tldC5oPgojaW5jbHVkZSA8c3lzL3N0YXQuaD4KI2luY2x1ZGUgPHN5cy9zeXNjYWxs
-Lmg+CiNpbmNsdWRlIDxzeXMvdGltZS5oPgojaW5jbHVkZSA8c3lzL3R5cGVzLmg+CiNpbmNsdWRl
-IDxzeXMvd2FpdC5oPgoKI2luY2x1ZGUgPGxpbnV4L2NhcGFiaWxpdHkuaD4KI2luY2x1ZGUgPGxp
-bnV4L2lmLmg+CiNpbmNsdWRlIDxsaW51eC9pZl90dW4uaD4KI2luY2x1ZGUgPGxpbnV4L3NjaGVk
-Lmg+CiNpbmNsdWRlIDxuZXQvaWZfYXJwLmg+CgojaW5jbHVkZSA8YXNzZXJ0Lmg+CiNpbmNsdWRl
-IDxkaXJlbnQuaD4KI2luY2x1ZGUgPGVycm5vLmg+CiNpbmNsdWRlIDxmY250bC5oPgojaW5jbHVk
-ZSA8Z3JwLmg+CiNpbmNsdWRlIDxwdGhyZWFkLmg+CiNpbmNsdWRlIDxzZXRqbXAuaD4KI2luY2x1
-ZGUgPHNpZ25hbC5oPgojaW5jbHVkZSA8c3RkYXJnLmg+CiNpbmNsdWRlIDxzdGRib29sLmg+CiNp
-bmNsdWRlIDxzdGRkZWYuaD4KI2luY2x1ZGUgPHN0ZGludC5oPgojaW5jbHVkZSA8c3RkaW8uaD4K
-I2luY2x1ZGUgPHN0ZGxpYi5oPgojaW5jbHVkZSA8c3RyaW5nLmg+CiNpbmNsdWRlIDx1bmlzdGQu
-aD4KCmNvbnN0IGludCBrRmFpbFN0YXR1cyA9IDY3Owpjb25zdCBpbnQga0Vycm9yU3RhdHVzID0g
-Njg7CmNvbnN0IGludCBrUmV0cnlTdGF0dXMgPSA2OTsKCl9fYXR0cmlidXRlX18oKG5vcmV0dXJu
-KSkgdm9pZCBmYWlsKGNvbnN0IGNoYXIqIG1zZywgLi4uKQp7CiAgaW50IGUgPSBlcnJubzsKICBm
-Zmx1c2goc3Rkb3V0KTsKICB2YV9saXN0IGFyZ3M7CiAgdmFfc3RhcnQoYXJncywgbXNnKTsKICB2
-ZnByaW50ZihzdGRlcnIsIG1zZywgYXJncyk7CiAgdmFfZW5kKGFyZ3MpOwogIGZwcmludGYoc3Rk
-ZXJyLCAiIChlcnJubyAlZClcbiIsIGUpOwogIGV4aXQoa0ZhaWxTdGF0dXMpOwp9CgpfX2F0dHJp
-YnV0ZV9fKChub3JldHVybikpIHZvaWQgZXhpdGYoY29uc3QgY2hhciogbXNnLCAuLi4pCnsKICBp
-bnQgZSA9IGVycm5vOwogIGZmbHVzaChzdGRvdXQpOwogIHZhX2xpc3QgYXJnczsKICB2YV9zdGFy
-dChhcmdzLCBtc2cpOwogIHZmcHJpbnRmKHN0ZGVyciwgbXNnLCBhcmdzKTsKICB2YV9lbmQoYXJn
-cyk7CiAgZnByaW50ZihzdGRlcnIsICIgKGVycm5vICVkKVxuIiwgZSk7CiAgZXhpdChrUmV0cnlT
-dGF0dXMpOwp9CgpzdGF0aWMgaW50IGZsYWdfZGVidWc7Cgp2b2lkIGRlYnVnKGNvbnN0IGNoYXIq
-IG1zZywgLi4uKQp7CiAgaWYgKCFmbGFnX2RlYnVnKQogICAgcmV0dXJuOwogIHZhX2xpc3QgYXJn
-czsKICB2YV9zdGFydChhcmdzLCBtc2cpOwogIHZmcHJpbnRmKHN0ZG91dCwgbXNnLCBhcmdzKTsK
-ICB2YV9lbmQoYXJncyk7CiAgZmZsdXNoKHN0ZG91dCk7Cn0KCl9fdGhyZWFkIGludCBza2lwX3Nl
-Z3Y7Cl9fdGhyZWFkIGptcF9idWYgc2Vndl9lbnY7CgpzdGF0aWMgdm9pZCBzZWd2X2hhbmRsZXIo
-aW50IHNpZywgc2lnaW5mb190KiBpbmZvLCB2b2lkKiB1Y3R4KQp7CiAgaWYgKF9fYXRvbWljX2xv
-YWRfbigmc2tpcF9zZWd2LCBfX0FUT01JQ19SRUxBWEVEKSkKICAgIF9sb25nam1wKHNlZ3ZfZW52
-LCAxKTsKICBleGl0KHNpZyk7Cn0KCnN0YXRpYyB2b2lkIGluc3RhbGxfc2Vndl9oYW5kbGVyKCkK
-ewogIHN0cnVjdCBzaWdhY3Rpb24gc2E7CiAgbWVtc2V0KCZzYSwgMCwgc2l6ZW9mKHNhKSk7CiAg
-c2Euc2Ffc2lnYWN0aW9uID0gc2Vndl9oYW5kbGVyOwogIHNhLnNhX2ZsYWdzID0gU0FfTk9ERUZF
-UiB8IFNBX1NJR0lORk87CiAgc2lnYWN0aW9uKFNJR1NFR1YsICZzYSwgTlVMTCk7CiAgc2lnYWN0
-aW9uKFNJR0JVUywgJnNhLCBOVUxMKTsKfQoKI2RlZmluZSBOT05GQUlMSU5HKC4uLikgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBcCiAgeyAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-XAogICAgX19hdG9taWNfZmV0Y2hfYWRkKCZza2lwX3NlZ3YsIDEsIF9fQVRPTUlDX1NFUV9DU1Qp
-OyAgICAgICAgICAgICAgIFwKICAgIGlmIChfc2V0am1wKHNlZ3ZfZW52KSA9PSAwKSB7ICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBcCiAgICAgIF9fVkFfQVJHU19fOyAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXAogICAgfSAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgIFwKICAgIF9fYXRvbWljX2ZldGNoX3N1Yigmc2tpcF9zZWd2LCAxLCBfX0FUT01JQ19T
-RVFfQ1NUKTsgICAgICAgICAgICAgICBcCiAgfQoKc3RhdGljIHVpbnRwdHJfdCBleGVjdXRlX3N5
-c2NhbGwoaW50IG5yLCB1aW50cHRyX3QgYTAsIHVpbnRwdHJfdCBhMSwKICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgdWludHB0cl90IGEyLCB1aW50cHRyX3QgYTMsCiAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgIHVpbnRwdHJfdCBhNCwgdWludHB0cl90IGE1LAogICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICB1aW50cHRyX3QgYTYsIHVpbnRwdHJfdCBhNywKICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgdWludHB0cl90IGE4KQp7CiAgc3dpdGNoIChu
-cikgewogIGRlZmF1bHQ6CiAgICByZXR1cm4gc3lzY2FsbChuciwgYTAsIGExLCBhMiwgYTMsIGE0
-LCBhNSk7CiAgfQp9CgpzdGF0aWMgdm9pZCBzZXR1cF9tYWluX3Byb2Nlc3ModWludDY0X3QgcGlk
-LCBib29sIGVuYWJsZV90dW4pCnsKICBzdHJ1Y3Qgc2lnYWN0aW9uIHNhOwogIG1lbXNldCgmc2Es
-IDAsIHNpemVvZihzYSkpOwogIHNhLnNhX2hhbmRsZXIgPSBTSUdfSUdOOwogIHN5c2NhbGwoU1lT
-X3J0X3NpZ2FjdGlvbiwgMHgyMCwgJnNhLCBOVUxMLCA4KTsKICBzeXNjYWxsKFNZU19ydF9zaWdh
-Y3Rpb24sIDB4MjEsICZzYSwgTlVMTCwgOCk7CiAgaW5zdGFsbF9zZWd2X2hhbmRsZXIoKTsKCiAg
-Y2hhciB0bXBkaXJfdGVtcGxhdGVbXSA9ICIuL3N5emthbGxlci5YWFhYWFgiOwogIGNoYXIqIHRt
-cGRpciA9IG1rZHRlbXAodG1wZGlyX3RlbXBsYXRlKTsKICBpZiAoIXRtcGRpcikKICAgIGZhaWwo
-ImZhaWxlZCB0byBta2R0ZW1wIik7CiAgaWYgKGNobW9kKHRtcGRpciwgMDc3NykpCiAgICBmYWls
-KCJmYWlsZWQgdG8gY2htb2QiKTsKICBpZiAoY2hkaXIodG1wZGlyKSkKICAgIGZhaWwoImZhaWxl
-ZCB0byBjaGRpciIpOwp9CgpzdGF0aWMgdm9pZCBsb29wKCk7CgpzdGF0aWMgdm9pZCBzYW5kYm94
-X2NvbW1vbigpCnsKICBwcmN0bChQUl9TRVRfUERFQVRIU0lHLCBTSUdLSUxMLCAwLCAwLCAwKTsK
-ICBzZXRwZ3JwKCk7CiAgc2V0c2lkKCk7CgogIHN0cnVjdCBybGltaXQgcmxpbTsKICBybGltLnJs
-aW1fY3VyID0gcmxpbS5ybGltX21heCA9IDEyOCA8PCAyMDsKICBzZXRybGltaXQoUkxJTUlUX0FT
-LCAmcmxpbSk7CiAgcmxpbS5ybGltX2N1ciA9IHJsaW0ucmxpbV9tYXggPSAxIDw8IDIwOwogIHNl
-dHJsaW1pdChSTElNSVRfRlNJWkUsICZybGltKTsKICBybGltLnJsaW1fY3VyID0gcmxpbS5ybGlt
-X21heCA9IDEgPDwgMjA7CiAgc2V0cmxpbWl0KFJMSU1JVF9TVEFDSywgJnJsaW0pOwogIHJsaW0u
-cmxpbV9jdXIgPSBybGltLnJsaW1fbWF4ID0gMDsKICBzZXRybGltaXQoUkxJTUlUX0NPUkUsICZy
-bGltKTsKCiAgdW5zaGFyZShDTE9ORV9ORVdOUyk7CiAgdW5zaGFyZShDTE9ORV9ORVdJUEMpOwog
-IHVuc2hhcmUoQ0xPTkVfSU8pOwp9CgpzdGF0aWMgaW50IGRvX3NhbmRib3hfbm9uZSgpCnsKICBp
-bnQgcGlkID0gZm9yaygpOwogIGlmIChwaWQpCiAgICByZXR1cm4gcGlkOwogIHNhbmRib3hfY29t
-bW9uKCk7CiAgbG9vcCgpOwogIGV4aXQoMSk7Cn0KCnN0YXRpYyB2b2lkIHJlbW92ZV9kaXIoY29u
-c3QgY2hhciogZGlyKQp7CiAgRElSKiBkcDsKICBzdHJ1Y3QgZGlyZW50KiBlcDsKICBpbnQgaXRl
-ciA9IDA7CnJldHJ5OgogIGRwID0gb3BlbmRpcihkaXIpOwogIGlmIChkcCA9PSBOVUxMKSB7CiAg
-ICBpZiAoZXJybm8gPT0gRU1GSUxFKSB7CiAgICAgIGV4aXRmKCJvcGVuZGlyKCVzKSBmYWlsZWQg
-ZHVlIHRvIE5PRklMRSwgZXhpdGluZyIpOwogICAgfQogICAgZXhpdGYoIm9wZW5kaXIoJXMpIGZh
-aWxlZCIsIGRpcik7CiAgfQogIHdoaWxlICgoZXAgPSByZWFkZGlyKGRwKSkpIHsKICAgIGlmIChz
-dHJjbXAoZXAtPmRfbmFtZSwgIi4iKSA9PSAwIHx8IHN0cmNtcChlcC0+ZF9uYW1lLCAiLi4iKSA9
-PSAwKQogICAgICBjb250aW51ZTsKICAgIGNoYXIgZmlsZW5hbWVbRklMRU5BTUVfTUFYXTsKICAg
-IHNucHJpbnRmKGZpbGVuYW1lLCBzaXplb2YoZmlsZW5hbWUpLCAiJXMvJXMiLCBkaXIsIGVwLT5k
-X25hbWUpOwogICAgc3RydWN0IHN0YXQgc3Q7CiAgICBpZiAobHN0YXQoZmlsZW5hbWUsICZzdCkp
-CiAgICAgIGV4aXRmKCJsc3RhdCglcykgZmFpbGVkIiwgZmlsZW5hbWUpOwogICAgaWYgKFNfSVNE
-SVIoc3Quc3RfbW9kZSkpIHsKICAgICAgcmVtb3ZlX2RpcihmaWxlbmFtZSk7CiAgICAgIGNvbnRp
-bnVlOwogICAgfQogICAgaW50IGk7CiAgICBmb3IgKGkgPSAwOzsgaSsrKSB7CiAgICAgIGRlYnVn
-KCJ1bmxpbmsoJXMpXG4iLCBmaWxlbmFtZSk7CiAgICAgIGlmICh1bmxpbmsoZmlsZW5hbWUpID09
-IDApCiAgICAgICAgYnJlYWs7CiAgICAgIGlmIChlcnJubyA9PSBFUk9GUykgewogICAgICAgIGRl
-YnVnKCJpZ25vcmluZyBFUk9GU1xuIik7CiAgICAgICAgYnJlYWs7CiAgICAgIH0KICAgICAgaWYg
-KGVycm5vICE9IEVCVVNZIHx8IGkgPiAxMDApCiAgICAgICAgZXhpdGYoInVubGluayglcykgZmFp
-bGVkIiwgZmlsZW5hbWUpOwogICAgICBkZWJ1ZygidW1vdW50KCVzKVxuIiwgZmlsZW5hbWUpOwog
-ICAgICBpZiAodW1vdW50MihmaWxlbmFtZSwgTU5UX0RFVEFDSCkpCiAgICAgICAgZXhpdGYoInVt
-b3VudCglcykgZmFpbGVkIiwgZmlsZW5hbWUpOwogICAgfQogIH0KICBjbG9zZWRpcihkcCk7CiAg
-aW50IGk7CiAgZm9yIChpID0gMDs7IGkrKykgewogICAgZGVidWcoInJtZGlyKCVzKVxuIiwgZGly
-KTsKICAgIGlmIChybWRpcihkaXIpID09IDApCiAgICAgIGJyZWFrOwogICAgaWYgKGkgPCAxMDAp
-IHsKICAgICAgaWYgKGVycm5vID09IEVST0ZTKSB7CiAgICAgICAgZGVidWcoImlnbm9yaW5nIEVS
-T0ZTXG4iKTsKICAgICAgICBicmVhazsKICAgICAgfQogICAgICBpZiAoZXJybm8gPT0gRUJVU1kp
-IHsKICAgICAgICBkZWJ1ZygidW1vdW50KCVzKVxuIiwgZGlyKTsKICAgICAgICBpZiAodW1vdW50
-MihkaXIsIE1OVF9ERVRBQ0gpKQogICAgICAgICAgZXhpdGYoInVtb3VudCglcykgZmFpbGVkIiwg
-ZGlyKTsKICAgICAgICBjb250aW51ZTsKICAgICAgfQogICAgICBpZiAoZXJybm8gPT0gRU5PVEVN
-UFRZKSB7CiAgICAgICAgaWYgKGl0ZXIgPCAxMDApIHsKICAgICAgICAgIGl0ZXIrKzsKICAgICAg
-ICAgIGdvdG8gcmV0cnk7CiAgICAgICAgfQogICAgICB9CiAgICB9CiAgICBleGl0Zigicm1kaXIo
-JXMpIGZhaWxlZCIsIGRpcik7CiAgfQp9CgpzdGF0aWMgdWludDY0X3QgY3VycmVudF90aW1lX21z
-KCkKewogIHN0cnVjdCB0aW1lc3BlYyB0czsKCiAgaWYgKGNsb2NrX2dldHRpbWUoQ0xPQ0tfTU9O
-T1RPTklDLCAmdHMpKQogICAgZmFpbCgiY2xvY2tfZ2V0dGltZSBmYWlsZWQiKTsKICByZXR1cm4g
-KHVpbnQ2NF90KXRzLnR2X3NlYyAqIDEwMDAgKyAodWludDY0X3QpdHMudHZfbnNlYyAvIDEwMDAw
-MDA7Cn0KCnN0YXRpYyB2b2lkIHRlc3QoKTsKCnZvaWQgbG9vcCgpCnsKICBpbnQgaXRlcjsKICBm
-b3IgKGl0ZXIgPSAwOzsgaXRlcisrKSB7CiAgICBjaGFyIGN3ZGJ1ZlsyNTZdOwogICAgc3ByaW50
-Zihjd2RidWYsICIuLyVkIiwgaXRlcik7CiAgICBpZiAobWtkaXIoY3dkYnVmLCAwNzc3KSkKICAg
-ICAgZmFpbCgiZmFpbGVkIHRvIG1rZGlyIik7CiAgICBpbnQgcGlkID0gZm9yaygpOwogICAgaWYg
-KHBpZCA8IDApCiAgICAgIGZhaWwoImNsb25lIGZhaWxlZCIpOwogICAgaWYgKHBpZCA9PSAwKSB7
-CiAgICAgIHByY3RsKFBSX1NFVF9QREVBVEhTSUcsIFNJR0tJTEwsIDAsIDAsIDApOwogICAgICBz
-ZXRwZ3JwKCk7CiAgICAgIGlmIChjaGRpcihjd2RidWYpKQogICAgICAgIGZhaWwoImZhaWxlZCB0
-byBjaGRpciIpOwogICAgICB0ZXN0KCk7CiAgICAgIGV4aXQoMCk7CiAgICB9CiAgICBpbnQgc3Rh
-dHVzID0gMDsKICAgIHVpbnQ2NF90IHN0YXJ0ID0gY3VycmVudF90aW1lX21zKCk7CiAgICBmb3Ig
-KDs7KSB7CiAgICAgIGludCByZXMgPSB3YWl0cGlkKHBpZCwgJnN0YXR1cywgX19XQUxMIHwgV05P
-SEFORyk7CiAgICAgIGludCBlcnJubzAgPSBlcnJubzsKICAgICAgaWYgKHJlcyA9PSBwaWQpCiAg
-ICAgICAgYnJlYWs7CiAgICAgIHVzbGVlcCgxMDAwKTsKICAgICAgaWYgKGN1cnJlbnRfdGltZV9t
-cygpIC0gc3RhcnQgPiA1ICogMTAwMCkgewogICAgICAgIGtpbGwoLXBpZCwgU0lHS0lMTCk7CiAg
-ICAgICAga2lsbChwaWQsIFNJR0tJTEwpOwogICAgICAgIHdhaXRwaWQocGlkLCAmc3RhdHVzLCBf
-X1dBTEwpOwogICAgICAgIGJyZWFrOwogICAgICB9CiAgICB9CiAgICByZW1vdmVfZGlyKGN3ZGJ1
-Zik7CiAgfQp9Cgpsb25nIHJbMTFdOwp2b2lkIHRlc3QoKQp7CiAgbWVtc2V0KHIsIC0xLCBzaXpl
-b2YocikpOwogIHJbMF0gPSBleGVjdXRlX3N5c2NhbGwoX19OUl9tbWFwLCAweDIwMDAwMDAwdWws
-IDB4NjAwMHVsLCAweDN1bCwKICAgICAgICAgICAgICAgICAgICAgICAgIDB4MzJ1bCwgMHhmZmZm
-ZmZmZmZmZmZmZmZmdWwsIDB4MHVsLCAwLCAwLCAwKTsKICByWzFdID0gZXhlY3V0ZV9zeXNjYWxs
-KF9fTlJfc29ja2V0LCAweGF1bCwgMHg4MDZ1bCwgMHgwdWwsIDAsIDAsIDAsIDAsCiAgICAgICAg
-ICAgICAgICAgICAgICAgICAwLCAwKTsKICBOT05GQUlMSU5HKCoodWludDY0X3QqKTB4MjAwMDRm
-YzggPSAodWludDY0X3QpMHgyMDAwNDAwMCk7CiAgTk9ORkFJTElORygqKHVpbnQzMl90KikweDIw
-MDA0ZmQwID0gKHVpbnQzMl90KTB4Mik7CiAgTk9ORkFJTElORygqKHVpbnQ2NF90KikweDIwMDA0
-ZmQ4ID0gKHVpbnQ2NF90KTB4MjAwMDQwMDApOwogIE5PTkZBSUxJTkcoKih1aW50NjRfdCopMHgy
-MDAwNGZlMCA9ICh1aW50NjRfdCkweDApOwogIE5PTkZBSUxJTkcoKih1aW50NjRfdCopMHgyMDAw
-NGZlOCA9ICh1aW50NjRfdCkweDIwMDA1MDAwKTsKICBOT05GQUlMSU5HKCoodWludDY0X3QqKTB4
-MjAwMDRmZjAgPSAodWludDY0X3QpMHgwKTsKICBOT05GQUlMSU5HKCoodWludDMyX3QqKTB4MjAw
-MDRmZjggPSAodWludDMyX3QpMHgwKTsKICBOT05GQUlMSU5HKCoodWludDE2X3QqKTB4MjAwMDQw
-MDAgPSAodWludDE2X3QpMHgwKTsKICByWzEwXSA9IGV4ZWN1dGVfc3lzY2FsbChfX05SX3NlbmRt
-c2csIHJbMV0sIDB4MjAwMDRmYzh1bCwgMHgwdWwsIDAsIDAsCiAgICAgICAgICAgICAgICAgICAg
-ICAgICAgMCwgMCwgMCwgMCk7Cn0KaW50IG1haW4oKQp7CiAgc2V0dXBfbWFpbl9wcm9jZXNzKDAs
-IGZhbHNlKTsKICBpbnQgcGlkID0gZG9fc2FuZGJveF9ub25lKCk7CiAgaW50IHN0YXR1cyA9IDA7
-CiAgd2hpbGUgKHdhaXRwaWQocGlkLCAmc3RhdHVzLCBfX1dBTEwpICE9IHBpZCkgewogIH0KICBy
-ZXR1cm4gMDsKfQo=
---94eb2c19e11c383a980544180fc3--
+Let's CC Andi who introduced it by commit 78afd5612deb8.
+Personally I agree that the reasoning provided by that commit does not
+justify the troubles. We already have the HIT and MISS counters to
+record if we allocated on the node we explicitly wanted/preferred (local
+or remote). The LOCAL and OTHER should thus be true local/remote
+statistics, why fake them in some rare cases such as khugepaged? The
+only other case is do_huge_pmd_wp_page_fallback() where it perhaps makes
+even less sense. No others were added in 5 years so I think the flag
+really didn't catch on, let's get rid of it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
