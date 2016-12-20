@@ -1,119 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE3096B02EB
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 04:57:41 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id bk3so52404231wjc.4
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 01:57:41 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id qi6si21974822wjb.175.2016.12.20.01.57.40
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 66CCD6B02ED
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 05:13:56 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id a20so24095624wme.5
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 02:13:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w3si14051062wjp.149.2016.12.20.02.13.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 01:57:40 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id he10so26943454wjc.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 01:57:40 -0800 (PST)
-Date: Tue, 20 Dec 2016 10:57:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] oom-reaper: use madvise_dontneed() logic to decide
- if unmap the VMA
-Message-ID: <20161220095738.GD3769@dhcp22.suse.cz>
-References: <20161219171722.77995-1-kirill.shutemov@linux.intel.com>
- <20161219171722.77995-4-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Dec 2016 02:13:54 -0800 (PST)
+Date: Tue, 20 Dec 2016 11:13:52 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v4 1/3] dax: masking off __GFP_FS in fs DAX handlers
+Message-ID: <20161220101352.GE3769@dhcp22.suse.cz>
+References: <148184524161.184728.14005697153880489871.stgit@djiang5-desk3.ch.intel.com>
+ <20161216010730.GY4219@dastard>
+ <20161216161916.GA2410@linux.intel.com>
+ <20161216220450.GZ4219@dastard>
+ <20161219195302.GI17598@quack2.suse.cz>
+ <20161219211711.GD4219@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161219171722.77995-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20161219211711.GD4219@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Jiang <dave.jiang@intel.com>, akpm@linux-foundation.org, linux-nvdimm@lists.01.org, hch@lst.de, linux-mm@kvack.org, tytso@mit.edu, dan.j.williams@intel.com
 
-On Mon 19-12-16 20:17:22, Kirill A. Shutemov wrote:
-> Logic on whether we can reap pages from the VMA should match what we
-> have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
-> VMAs, but we don't now.
+On Tue 20-12-16 08:17:11, Dave Chinner wrote:
+> On Mon, Dec 19, 2016 at 08:53:02PM +0100, Jan Kara wrote:
+> > On Sat 17-12-16 09:04:50, Dave Chinner wrote:
+> > > On Fri, Dec 16, 2016 at 09:19:16AM -0700, Ross Zwisler wrote:
+> > > > On Fri, Dec 16, 2016 at 12:07:30PM +1100, Dave Chinner wrote:
+> > > > > On Thu, Dec 15, 2016 at 04:40:41PM -0700, Dave Jiang wrote:
+> > > > > > The caller into dax needs to clear __GFP_FS mask bit since it's
+> > > > > > responsible for acquiring locks / transactions that blocks __GFP_FS
+> > > > > > allocation.  The caller will restore the original mask when dax function
+> > > > > > returns.
+> > > > > 
+> > > > > What's the allocation problem you're working around here? Can you
+> > > > > please describe the call chain that is the problem?
+> > > > > 
+> > > > > >  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+> > > > > >  
+> > > > > >  	if (IS_DAX(inode)) {
+> > > > > > +		gfp_t old_gfp = vmf->gfp_mask;
+> > > > > > +
+> > > > > > +		vmf->gfp_mask &= ~__GFP_FS;
+> > > > > >  		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
+> > > > > > +		vmf->gfp_mask = old_gfp;
+> > > > > 
+> > > > > I really have to say that I hate code that clears and restores flags
+> > > > > without any explanation of why the code needs to play flag tricks. I
+> > > > > take one look at the XFS fault handling code and ask myself now "why
+> > > > > the hell do we need to clear those flags?" Especially as the other
+> > > > > paths into generic fault handlers /don't/ require us to do this.
+> > > > > What does DAX do that require us to treat memory allocation contexts
+> > > > > differently to the filemap_fault() path?
+> > > > 
+> > > > This was done in response to Jan Kara's concern:
+> > > > 
+> > > >   The gfp_mask that propagates from __do_fault() or do_page_mkwrite() is fine
+> > > >   because at that point it is correct. But once we grab filesystem locks which
+> > > >   are not reclaim safe, we should update vmf->gfp_mask we pass further down
+> > > >   into DAX code to not contain __GFP_FS (that's a bug we apparently have
+> > > >   there). And inside DAX code, we definitely are not generally safe to add
+> > > >   __GFP_FS to mapping_gfp_mask(). Maybe we'd be better off propagating struct
+> > > >   vm_fault into this function, using passed gfp_mask there and make sure
+> > > >   callers update gfp_mask as appropriate.
+> > > > 
+> > > > https://lkml.org/lkml/2016/10/4/37
+> > > > 
+> > > > IIUC I think the concern is that, for example, in xfs_filemap_page_mkwrite()
+> > > > we take a read lock on the struct inode.i_rwsem before we call
+> > > > dax_iomap_fault().
+> > > 
+> > > That, my friends, is exactly the problem that mapping_gfp_mask() is
+> > > meant to solve. This:
+> > > 
+> > > > > > +	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_FS |  __GFP_IO;
+> > > 
+> > > Is just so wrong it's not funny.
+> > 
+> > You mean like in mm/memory.c: __get_fault_gfp_mask()?
+> > 
+> > Which was introduced by commit c20cd45eb017 "mm: allow GFP_{FS,IO} for
+> > page_cache_read page cache allocation" by Michal (added to CC) and you were
+> > even on CC ;).
 > 
-> Let's just extract condition on which we can shoot down pagesi from a
-> VMA with MADV_DONTNEED into separate function and use it in both places.
+> Sure, I was on the cc list, but that doesn't mean I /liked/ the
+> patch. It also doesn't mean I had the time or patience to argue
+> whether it was the right way to address whatever whacky OOM/reclaim
+> deficiency was being reported....
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-you need to include internal.h in madvise.c
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 20200dfbd1bb..c53d8da9c8e6 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -24,6 +24,8 @@
- 
- #include <asm/tlb.h>
- 
-+#include "internal.h"
-+
- /*
-  * Any behaviour which results in changes to the vma->vm_flags needs to
-  * take mmap_sem for writing. Others, which simply traverse vmas, need
-
-otherwise it won't compile. Then you can add
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/internal.h | 5 +++++
->  mm/madvise.c  | 2 +-
->  mm/oom_kill.c | 9 +--------
->  3 files changed, 7 insertions(+), 9 deletions(-)
+> Oh, and this is a write fault, not a read fault. There's a big
+> difference in filesystem behaviour between those two types of
+> faults, so what might be fine for a page cache read (i.e. no
+> transactions) isn't necessarily correct for a write operation...
 > 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 44d68895a9b9..7430628bff34 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -41,6 +41,11 @@ int do_swap_page(struct vm_fault *vmf);
->  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
->  		unsigned long floor, unsigned long ceiling);
->  
-> +static inline bool can_madv_dontneed_vma(struct vm_area_struct *vma)
-> +{
-> +	return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
-> +}
-> +
->  void unmap_page_range(struct mmu_gather *tlb,
->  			     struct vm_area_struct *vma,
->  			     unsigned long addr, unsigned long end,
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index aa4c502caecb..20200dfbd1bb 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -473,7 +473,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
->  			     unsigned long start, unsigned long end)
->  {
->  	*prev = vma;
-> -	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-> +	if (!can_madv_dontneed_vma(vma))
->  		return -EINVAL;
->  
->  	zap_page_range(vma, start, end - start);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 96a53ab0c9eb..b6d8ac4948db 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -508,14 +508,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  
->  	tlb_gather_mmu(&tlb, mm, 0, -1);
->  	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-> -		if (is_vm_hugetlb_page(vma))
-> -			continue;
-> -
-> -		/*
-> -		 * mlocked VMAs require explicit munlocking before unmap.
-> -		 * Let's keep it simple here and skip such VMAs.
-> -		 */
-> -		if (vma->vm_flags & VM_LOCKED)
-> +		if (!can_madv_dontneed_vma(vma))
->  			continue;
->  
->  		/*
-> -- 
-> 2.10.2
+> > The code here was replicating __get_fault_gfp_mask() and in fact the idea
+> > of the cleanup is to get rid of this code and take whatever is in
+> > vmf.gfp_mask and mask off __GFP_FS in the filesystem if it deems it is
+> > needed (e.g. ext4 really needs this as inode reclaim is depending on being
+> > able to force a transaction commit).
 > 
+> And so now we add a flag to the fault that the filesystem says not
+> to add to mapping masks, and now the filesystem has to mask off
+> thati flag /again/ because it's mapping gfp mask guidelines are
+> essentially being ignored.
+> 
+> Remind me again why we even have the mapping gfp_mask if we just
+> ignore it like this?
+
+mapping mask still serves its _main_ purpose - the allocation
+placement/movability properties. This is something only the owner of
+the mapping knows. The (ab)use of the mapping gfp_mask to drop GFP_FS
+was imho a bad decision. As the above mentioned commit has mentioned
+we were doing a lot of GFP_NOFS allocations from the paths which are
+inherently GFP_KERNEL so they couldn't prevent from recursion problems
+while they still affected the direct relaim behavior. On the other hand
+I do understand why mapping's mask has been used at the time. We simply
+lacked a better api back then. But I believe that with the scope nofs
+[1] api we can do much better and get rid of ~__GFP_FS in mapping's mask
+finally. c20cd45eb017 was an intermediate step until we get there.
+
+I am not fully familiar with the DAX changes which started this
+discussion but if there is a reclaim recursion problem from within the
+fault path then the scope api sounds like a good fit here.
+
+[1] http://lkml.kernel.org/r/20161215140715.12732-1-mhocko@kernel.org
 
 -- 
 Michal Hocko
