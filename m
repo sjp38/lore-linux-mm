@@ -1,83 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C8C66B033B
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 12:38:29 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id o141so115957558itc.1
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 09:38:29 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0230.hostedemail.com. [216.40.44.230])
-        by mx.google.com with ESMTPS id 89si7044072iom.26.2016.12.20.09.38.28
+	by kanga.kvack.org (Postfix) with ESMTP id 9641A6B033D
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 13:02:48 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id c20so23991986itb.5
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 10:02:48 -0800 (PST)
+Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
+        by mx.google.com with ESMTPS id q77si14024885itb.80.2016.12.20.10.02.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 09:38:28 -0800 (PST)
-Message-ID: <1482255502.1984.21.camel@perches.com>
-Subject: Re: [RFC PATCH] mm: introduce kv[mz]alloc helpers
-From: Joe Perches <joe@perches.com>
-Date: Tue, 20 Dec 2016 09:38:22 -0800
-In-Reply-To: <20161220135016.GH3769@dhcp22.suse.cz>
-References: <20161208103300.23217-1-mhocko@kernel.org>
-	 <20161213101451.GB10492@dhcp22.suse.cz>
-	 <1481666853.29291.33.camel@perches.com>
-	 <20161214085916.GB25573@dhcp22.suse.cz>
-	 <20161220135016.GH3769@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 20 Dec 2016 10:02:47 -0800 (PST)
+Received: by mail-it0-x244.google.com with SMTP id c20so14717212itb.0
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 10:02:47 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFxVzes5Jt-hC9BLVSb99x6K-_WkLO-_JTvCjhf5wuK_4w@mail.gmail.com>
+References: <20161219225826.F8CB356F@viggo.jf.intel.com> <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
+ <156a5b34-ad3b-d0aa-83c9-109b366c1bdf@linux.intel.com> <CA+55aFxVzes5Jt-hC9BLVSb99x6K-_WkLO-_JTvCjhf5wuK_4w@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 20 Dec 2016 10:02:46 -0800
+Message-ID: <CA+55aFwy6+ya_E8N3DFbrq2XjbDs8LWe=W_qW8awimbxw26bJw@mail.gmail.com>
+Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, LKML <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, kvm@vger.kernel.org, linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Mikulas Patocka <mpatocka@redhat.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 2016-12-20 at 14:50 +0100, Michal Hocko wrote:
-> On Wed 14-12-16 09:59:16, Michal Hocko wrote:
-> > On Tue 13-12-16 14:07:33, Joe Perches wrote:
-> > > On Tue, 2016-12-13 at 11:14 +0100, Michal Hocko wrote:
-> > > > Are there any more comments or objections to this patch? Is this a good
-> > > > start or kv[mz]alloc has to provide a way to cover GFP_NOFS users as
-> > > > well in the initial version.
-> > > 
-> > > Did Andrew Morton ever comment on this?
-> > > I believe he was the primary objector in the past.
-> > > 
-> > > Last I recollect was over a year ago:
-> > > 
-> > > https://lkml.org/lkml/2015/7/7/1050
-> > 
-> > Let me quote:
-> > : Sigh.  We've resisted doing this because vmalloc() is somewhat of a bad
-> > : thing, and we don't want to make it easy for people to do bad things.
-> > : 
-> > : And vmalloc is bad because a) it's slow and b) it does GFP_KERNEL
-> > : allocations for page tables and c) it is susceptible to arena
-> > : fragmentation.
-> > : 
-> > : We'd prefer that people fix their junk so it doesn't depend upon large
-> > : contiguous allocations.  This isn't userspace - kernel space is hostile
-> > : and kernel code should be robust.
-> > : 
-> > : So I dunno.  Should we continue to make it a bit more awkward to use
-> > : vmalloc()?  Probably that tactic isn't being very successful - people
-> > : will just go ahead and open-code it.  And given the surprising amount
-> > : of stuff you've placed in kvmalloc_node(), they'll implement it
-> > : incorrectly...
-> > : 
-> > : How about we compromise: add kvmalloc_node(), but include a BUG_ON("you
-> > : suck") to it?
-> > 
-> > While I agree with some of those points, the reality really sucks,
-> > though. We have tried the same tactic with __GFP_NOFAIL and failed as
-> > well. I guess we should just bite the bullet and provide an api which is
-> > so common that people keep reinventing their own ways around that, many
-> > times wrongly or suboptimally. BUG_ON("you suck") is just not going to
-> > help much I am afraid.
-> > 
-> > What do you think Andrew?
-> 
-> So what are we going to do about this patch?
+On Tue, Dec 20, 2016 at 9:31 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> I'll go back and try to see why the page flag contention patch didn't
+> get applied.
 
-Well if Andrew doesn't object again, it should probably be applied.
-Unless his silence here acts like a pocket-veto.
+Ahh, a combination of warring patches by Nick and PeterZ, and worry
+about the page flag bits.
 
-Andrew?  Anything to add?
+Damn. I had mentally marked this whole issue as "solved". But the fact
+that we know how to solve it doesn't mean it's done.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
