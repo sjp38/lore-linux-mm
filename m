@@ -1,92 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E771A6B037F
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 02:57:15 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id xr1so57956074wjb.7
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 23:57:15 -0800 (PST)
-Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
-        by mx.google.com with ESMTPS id ip3si26505440wjb.97.2016.12.20.23.57.14
+	by kanga.kvack.org (Postfix) with ESMTP id BFC196B0381
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 03:06:59 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id gl16so6302939wjc.5
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 00:06:59 -0800 (PST)
+Received: from mail-wj0-f194.google.com (mail-wj0-f194.google.com. [209.85.210.194])
+        by mx.google.com with ESMTPS id g142si22833761wmg.53.2016.12.21.00.06.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 23:57:14 -0800 (PST)
-Received: by mail-wj0-f195.google.com with SMTP id xy5so30841700wjc.1
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 23:57:14 -0800 (PST)
-Date: Wed, 21 Dec 2016 08:57:13 +0100
+        Wed, 21 Dec 2016 00:06:58 -0800 (PST)
+Received: by mail-wj0-f194.google.com with SMTP id j10so30919197wjb.3
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 00:06:58 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 1/1] mm, page_alloc: fix incorrect zone_statistics
- data
-Message-ID: <20161221075711.GF16502@dhcp22.suse.cz>
-References: <1481522347-20393-1-git-send-email-hejianet@gmail.com>
- <1481522347-20393-2-git-send-email-hejianet@gmail.com>
- <20161220091814.GC3769@dhcp22.suse.cz>
- <20161220131040.f5ga5426dduh3mhu@techsingularity.net>
- <20161220132643.GG3769@dhcp22.suse.cz>
- <20161220142845.drbedcibjcggdxk7@techsingularity.net>
- <20161220143501.GI3769@dhcp22.suse.cz>
- <20161220145435.c3htqyfhpjt5uma7@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161220145435.c3htqyfhpjt5uma7@techsingularity.net>
+Subject: [PATCH 1/2] mm: fix remote numa hits statistics
+Date: Wed, 21 Dec 2016 09:06:52 +0100
+Message-Id: <20161221080653.29437-1-mhocko@kernel.org>
+In-Reply-To: <20161221075711.GF16502@dhcp22.suse.cz>
+References: <20161221075711.GF16502@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Jia He <hejianet@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, Jia He <hejianet@gmail.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue 20-12-16 14:54:35, Mel Gorman wrote:
-> On Tue, Dec 20, 2016 at 03:35:02PM +0100, Michal Hocko wrote:
-> > On Tue 20-12-16 14:28:45, Mel Gorman wrote:
-> > > On Tue, Dec 20, 2016 at 02:26:43PM +0100, Michal Hocko wrote:
-> > > > On Tue 20-12-16 13:10:40, Mel Gorman wrote:
-> > > > > On Tue, Dec 20, 2016 at 10:18:14AM +0100, Michal Hocko wrote:
-> > > > > > On Mon 12-12-16 13:59:07, Jia He wrote:
-> > > > > > > In commit b9f00e147f27 ("mm, page_alloc: reduce branches in
-> > > > > > > zone_statistics"), it reconstructed codes to reduce the branch miss rate.
-> > > > > > > Compared with the original logic, it assumed if !(flag & __GFP_OTHER_NODE)
-> > > > > > >  z->node would not be equal to preferred_zone->node. That seems to be
-> > > > > > > incorrect.
-> > > > > > 
-> > > > > > I am sorry but I have hard time following the changelog. It is clear
-> > > > > > that you are trying to fix a missed NUMA_{HIT,OTHER} accounting
-> > > > > > but it is not really clear when such thing happens. You are adding
-> > > > > > preferred_zone->node check. preferred_zone is the first zone in the
-> > > > > > requested zonelist. So for the most allocations it is a node from the
-> > > > > > local node. But if something request an explicit numa node (without
-> > > > > > __GFP_OTHER_NODE which would be the majority I suspect) then we could
-> > > > > > indeed end up accounting that as a NUMA_MISS, NUMA_FOREIGN so the
-> > > > > > referenced patch indeed caused an unintended change of accounting AFAIU.
-> > > > > > 
-> > > > > 
-> > > > > This is a similar concern to what I had. If the preferred zone, which is
-> > > > > the first valid usable zone, is not a "hit" for the statistics then I
-> > > > > don't know what "hit" is meant to mean.
-> > > > 
-> > > > But the first valid usable zone is defined based on the requested numa
-> > > > node. Unless the requested node is memoryless then we should have a hit,
-> > > > no?
-> > > > 
-> > > 
-> > > Should be. If the local node is memoryless then there would be a difference
-> > > between hit and whether it's local or not but that to me is a little
-> > > useless. A local vs remote page allocated has a specific meaning and
-> > > consequence. It's hard to see how hit can be meaningfully interpreted if
-> > > there are memoryless nodes. I don't have a strong objection to the patch
-> > > so I didn't nak it, I'm just not convinced it matters.
-> > 
-> > So what do you think about
-> > http://lkml.kernel.org/r/20161220091814.GC3769@dhcp22.suse.cz
-> > 
-> 
-> This doesn't appear to resolve for me and I've 30 minutes left before
-> being offline for 4 days so didn't go digging. 
+From: Michal Hocko <mhocko@suse.com>
 
-OK, it seems that it didn't go to the lkml so it didn't get to the
-archive indexed by the message id. I will send the two patches as a
-reply to this email for reference.
+Jia He has noticed that b9f00e147f27 ("mm, page_alloc: reduce branches
+in zone_statistics") has an unintentional side effect that remote node
+allocation requests are accounted as NUMA_MISS rathat than NUMA_HIT and
+NUMA_OTHER if such a request doesn't use __GFP_OTHER_NODE. There are
+many of these potentially because the flag is used very rarely while
+we have many users of __alloc_pages_node.
 
+Fix this by simply ignoring __GFP_OTHER_NODE (it can be removed in a
+follow up patch) and treat all allocations that were satisfied from the
+preferred zone's node as NUMA_HITS because this is the same node we
+requested the allocation from in most cases. If this is not the local
+node then we just account it as NUMA_OTHER rather than NUMA_LOCAL.
+
+One downsize would be that an allocation request for a node which is
+outside of the mempolicy nodemask would be reported as a hit which is a
+bit weird but that was the case before b9f00e147f27 already.
+
+Reported-by: Jia He <hejianet@gmail.com>
+Fixes: b9f00e147f27 ("mm, page_alloc: reduce branches in zone_statistics")
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/page_alloc.c | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f6d5b73e1d7c..506946a902c5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2583,25 +2583,17 @@ int __isolate_free_page(struct page *page, unsigned int order)
+  * Update NUMA hit/miss statistics
+  *
+  * Must be called with interrupts disabled.
+- *
+- * When __GFP_OTHER_NODE is set assume the node of the preferred
+- * zone is the local node. This is useful for daemons who allocate
+- * memory on behalf of other processes.
+  */
+ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
+ 								gfp_t flags)
+ {
+ #ifdef CONFIG_NUMA
+-	int local_nid = numa_node_id();
+-	enum zone_stat_item local_stat = NUMA_LOCAL;
+-
+-	if (unlikely(flags & __GFP_OTHER_NODE)) {
+-		local_stat = NUMA_OTHER;
+-		local_nid = preferred_zone->node;
+-	}
++	if (z->node == preferred_zone->node) {
++		enum zone_stat_item local_stat = NUMA_LOCAL;
+ 
+-	if (z->node == local_nid) {
+ 		__inc_zone_state(z, NUMA_HIT);
++		if (z->node != numa_node_id())
++			local_stat = NUMA_OTHER;
+ 		__inc_zone_state(z, local_stat);
+ 	} else {
+ 		__inc_zone_state(z, NUMA_MISS);
 -- 
-Michal Hocko
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
