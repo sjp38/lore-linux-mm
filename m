@@ -1,115 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1C26B0367
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:01:28 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y68so299555535pfb.6
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:01:28 -0800 (PST)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id a62si3998830pge.65.2016.12.20.19.01.27
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 471426B0369
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:07:27 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q10so534088726pgq.7
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:07:27 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id 62si24738052ply.256.2016.12.20.19.07.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 19:01:27 -0800 (PST)
-Received: by mail-pg0-x244.google.com with SMTP id i5so4835073pgh.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:01:27 -0800 (PST)
+        Tue, 20 Dec 2016 19:07:26 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id g1so12675323pgn.0
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:07:26 -0800 (PST)
 Subject: Re: [PATCH RFC 1/1] mm, page_alloc: fix incorrect zone_statistics
  data
 References: <1481522347-20393-1-git-send-email-hejianet@gmail.com>
  <1481522347-20393-2-git-send-email-hejianet@gmail.com>
- <20161220091814.GC3769@dhcp22.suse.cz>
+ <20161220123121.e4wgkxm2txdoxogo@techsingularity.net>
 From: hejianet <hejianet@gmail.com>
-Message-ID: <84c018b5-bf63-6057-e39f-c8e0935bca09@gmail.com>
-Date: Wed, 21 Dec 2016 11:01:08 +0800
+Message-ID: <8cb130a7-3753-7f14-632b-11d53bf2272d@gmail.com>
+Date: Wed, 21 Dec 2016 11:07:12 +0800
 MIME-Version: 1.0
-In-Reply-To: <20161220091814.GC3769@dhcp22.suse.cz>
+In-Reply-To: <20161220123121.e4wgkxm2txdoxogo@techsingularity.net>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
 
 
-On 20/12/2016 5:18 PM, Michal Hocko wrote:
-> On Mon 12-12-16 13:59:07, Jia He wrote:
+On 20/12/2016 8:31 PM, Mel Gorman wrote:
+> On Mon, Dec 12, 2016 at 01:59:07PM +0800, Jia He wrote:
 >> In commit b9f00e147f27 ("mm, page_alloc: reduce branches in
 >> zone_statistics"), it reconstructed codes to reduce the branch miss rate.
 >> Compared with the original logic, it assumed if !(flag & __GFP_OTHER_NODE)
 >>   z->node would not be equal to preferred_zone->node. That seems to be
 >> incorrect.
-> I am sorry but I have hard time following the changelog. It is clear
-> that you are trying to fix a missed NUMA_{HIT,OTHER} accounting
-> but it is not really clear when such thing happens. You are adding
-> preferred_zone->node check. preferred_zone is the first zone in the
-> requested zonelist. So for the most allocations it is a node from the
-> local node. But if something request an explicit numa node (without
-> __GFP_OTHER_NODE which would be the majority I suspect) then we could
-> indeed end up accounting that as a NUMA_MISS, NUMA_FOREIGN so the
-> referenced patch indeed caused an unintended change of accounting AFAIU.
->
-> If this is correct then it should be a part of the changelog. I also
-> cannot say I would like the fix. First of all I am not sure
-> __GFP_OTHER_NODE is a good idea at all. How is an explicit usage of the
-> flag any different from an explicit __alloc_pages_node(non_local_nid)?
-> In both cases we ask for an allocation on a remote node and successful
-> allocation is a NUMA_HIT and NUMA_OTHER.
->
-> That being said, why cannot we simply do the following? As a bonus, we
-> can get rid of a barely used __GFP_OTHER_NODE. Also the number of
-> branches will stay same.
-Yes, I agree maybe we can get rid of __GFP_OTHER_NODE if no objections
-Seems currently it is only used for hugepage and statistics
-> ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 429855be6ec9..f035d5c8b864 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2583,25 +2583,17 @@ int __isolate_free_page(struct page *page, unsigned int order)
->    * Update NUMA hit/miss statistics
->    *
->    * Must be called with interrupts disabled.
-> - *
-> - * When __GFP_OTHER_NODE is set assume the node of the preferred
-> - * zone is the local node. This is useful for daemons who allocate
-> - * memory on behalf of other processes.
->    */
->   static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
->   								gfp_t flags)
->   {
->   #ifdef CONFIG_NUMA
-> -	int local_nid = numa_node_id();
-> -	enum zone_stat_item local_stat = NUMA_LOCAL;
-> -
-> -	if (unlikely(flags & __GFP_OTHER_NODE)) {
-> -		local_stat = NUMA_OTHER;
-> -		local_nid = preferred_zone->node;
-> -	}
-> +	if (z->node == preferred_zone->node) {
-> +		enum zone_stat_item local_stat = NUMA_LOCAL;
->   
-> -	if (z->node == local_nid) {
->   		__inc_zone_state(z, NUMA_HIT);
-> +		if (z->node != numa_node_id())
-> +			local_stat = NUMA_OTHER;
->   		__inc_zone_state(z, local_stat);
->   	} else {
->   		__inc_zone_state(z, NUMA_MISS);
-I thought the logic here is different
-Here is the zone_statistics() before introducing __GFP_OTHER_NODE:
+>>
+>> Fixes: commit b9f00e147f27 ("mm, page_alloc: reduce branches in
+>> zone_statistics")
+>>
+>> Signed-off-by: Jia He <hejianet@gmail.com>
+> This is slightly curious. It appear it would only occur if a process was
+> running on a node that was outside the memory policy. Can you confirm
+> that is the case?
+Yes, here is what I caught:
 
-if (z->zone_pgdat == preferred_zone->zone_pgdat) {
-         __inc_zone_state(z, NUMA_HIT);
-     } else {
-         __inc_zone_state(z, NUMA_MISS);
-         __inc_zone_state(preferred_zone, NUMA_FOREIGN);
-     }
-     if (z->node == numa_node_id())
-         __inc_zone_state(z, NUMA_LOCAL);
-     else
-         __inc_zone_state(z, NUMA_OTHER);
+dumpstack() is triggered when z->node(5) == preferred_zone->node(5) and z->node != numa_node_id(4)
+without flag GET_OTHER_NODE
 
-B.R.
-Jia
+It is not a rare case. I saw hundreds of such cases when kernel boots up
+[c000000cdcaef440] [c0000000002e88cc] cache_grow_begin+0xcc/0x500
+[c000000cdcaef6f0] [c0000000002ecb44] do_tune_cpucache+0x64/0x100
+[c000000cdcaef750] [c0000000002ecc7c] enable_cpucache+0x9c/0x180
+[c000000cdcaef7d0] [c0000000002ed01c] __kmem_cache_create+0x1ec/00x2c0
+[c000000cdcaef820] [c000000000291c98] create_cache+0xb8/0x240
+[c000000cdcaef890] [c000000000291fa8] kmem_cache_create+0x188/0x2290
+[c000000cdcaef950] [d000000011dc5c70] ext4_mb_init+0x3c0/0x5e0 [eext4]
+[c000000cdcaef9f0] [d000000011daaedc] ext4_fill_super+0x266c/0x33390 [ext4]
+[c000000cdcaefb30] [c000000000328b8c] mount_bdev+0x22c/0x260
+[c000000cdcaefbd0] [d000000011da1fa8] ext4_mount+0x48/0x60 [ext4]
+[c000000cdcaefc10] [c00000000032a11c] mount_fs+0x8c/0x230
+[c000000cdcaefcb0] [c000000000351f98] vfs_kern_mount+0x78/0x180
+[c000000cdcaefd00] [c000000000356d68] do_mount+0x258/0xea0
+[c000000cdcaefde0] [c000000000357da0] SyS_mount+0xa0/0x110
+[c000000cdcaefe30] [c00000000000bd84] system_call+0x38/0xe0
+
+
+> If so, your patch is a a semantic curiousity because it's actually
+> impossible for a NUMA allocation to be local and the definition of "HIT"
+> is fuzzy enough to be useless.
+>
+> I won't object to the patch but it makes me trust "hit" even less than I
+> already do for any analysis.
+>
+> Note that after this mail that I'll be unavailable by mail until early
+> new years.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
