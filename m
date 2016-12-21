@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC3236B036B
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 00:08:53 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id n68so127499733itn.4
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 21:08:53 -0800 (PST)
-Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
-        by mx.google.com with ESMTPS id f25si18676023ioj.155.2016.12.20.21.08.52
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0026B036D
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 01:58:34 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id z5so118018289pgb.4
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:58:34 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p124si25478767pga.159.2016.12.20.22.58.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 21:08:53 -0800 (PST)
-Received: by mail-io0-x244.google.com with SMTP id b194so24571204ioa.3
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 21:08:52 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <7fd4b8b0-e305-1c6a-51ea-d5459c77d923@gmail.com>
-References: <7fd4b8b0-e305-1c6a-51ea-d5459c77d923@gmail.com>
-From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-Date: Wed, 21 Dec 2016 00:08:52 -0500
-Message-ID: <CAAR42d==ZF-=dziVSPjzWX5WpHEYsjZRA4xgpqJzDPJjotBc4Q@mail.gmail.com>
-Subject: Re: [Patch 0/2] mm/memory_hotplug: fix hot remove bug
-Content-Type: multipart/alternative; boundary=001a114abd0221e9b00544242675
+        Tue, 20 Dec 2016 22:58:33 -0800 (PST)
+From: Liang Li <liang.z.li@intel.com>
+Subject: [PATCH v6 kernel 0/5] Extend virtio-balloon for fast (de)inflating & fast live migration
+Date: Wed, 21 Dec 2016 14:52:23 +0800
+Message-Id: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: kvm@vger.kernel.org
+Cc: virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, mst@redhat.com, david@redhat.com, aarcange@redhat.com, dgilbert@redhat.com, quintela@redhat.com, Liang Li <liang.z.li@intel.com>
 
---001a114abd0221e9b00544242675
-Content-Type: text/plain; charset=UTF-8
+This patch set contains two parts of changes to the virtio-balloon.
+ 
+One is the change for speeding up the inflating & deflating process,
+the main idea of this optimization is to use {pfn|length} to present
+the page information instead of the PFNs, to reduce the overhead of
+virtio data transmission, address translation and madvise(). This can
+help to improve the performance by about 85%.
+ 
+Another change is for speeding up live migration. By skipping process
+guest's unused pages in the first round of data copy, to reduce needless
+data processing, this can help to save quite a lot of CPU cycles and
+network bandwidth. We put guest's unused page information in a
+{pfn|length} array and send it to host with the virt queue of
+virtio-balloon. For an idle guest with 8GB RAM, this can help to shorten
+the total live migration time from 2Sec to about 500ms in 10Gbps network
+environment. For an guest with quite a lot of page cache and with little
+unused pages, it's possible to let the guest drop it's page cache before
+live migration, this case can benefit from this new feature too.
+ 
+Changes from v5 to v6:
+    * Drop the bitmap from the virtio ABI, use {pfn|length} only.
+    * Enhance the API to get the unused page information from mm. 
 
-Self-NACK.
-I sent wrong patch-set...
+Changes from v4 to v5:
+    * Drop the code to get the max_pfn, use another way instead.
+    * Simplify the API to get the unused page information from mm. 
 
-Thanks,
-Yasuaki Ishimatsu
+Changes from v3 to v4:
+    * Use the new scheme suggested by Dave Hansen to encode the bitmap.
+    * Add code which is missed in v3 to handle migrate page. 
+    * Free the memory for bitmap intime once the operation is done.
+    * Address some of the comments in v3.
 
-2016-12-20 14:15 GMT-05:00 Yasuaki Ishimatsu <yasu.isimatu@gmail.com>:
+Changes from v2 to v3:
+    * Change the name of 'free page' to 'unused page'.
+    * Use the scatter & gather bitmap instead of a 1MB page bitmap.
+    * Fix overwriting the page bitmap after kicking.
+    * Some of MST's comments for v2.
+ 
+Changes from v1 to v2:
+    * Abandon the patch for dropping page cache.
+    * Put some structures to uapi head file.
+    * Use a new way to determine the page bitmap size.
+    * Use a unified way to send the free page information with the bitmap
+    * Address the issues referred in MST's comments
 
-> Here are two patches for memory hotplug:
->
-> Yasuaki Ishimatsu (2):
->   mm/sparse: use page_private() to get page->private value
->   mm/memory_hotplug: set magic number to page->freelsit instead
->     of page->lru.next
->
->  arch/x86/mm/init_64.c | 2 +-
->  mm/memory_hotplug.c   | 4 ++--
->  mm/sparse.c           | 4 ++--
->  3 files changed, 5 insertions(+), 5 deletions(-)
->
+Liang Li (5):
+  virtio-balloon: rework deflate to add page to a list
+  virtio-balloon: define new feature bit and head struct
+  virtio-balloon: speed up inflate/deflate process
+  virtio-balloon: define flags and head for host request vq
+  virtio-balloon: tell host vm's unused page info
 
---001a114abd0221e9b00544242675
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+ drivers/virtio/virtio_balloon.c     | 510 ++++++++++++++++++++++++++++++++----
+ include/linux/mm.h                  |   3 +
+ include/uapi/linux/virtio_balloon.h |  34 +++
+ mm/page_alloc.c                     | 120 +++++++++
+ 4 files changed, 621 insertions(+), 46 deletions(-)
 
-<div dir=3D"ltr"><div>Self-NACK.<br></div>I sent wrong patch-set...<br><div=
-><div><div><div><div><div class=3D"gmail_extra"><br></div><div class=3D"gma=
-il_extra">Thanks,<br></div><div class=3D"gmail_extra">Yasuaki Ishimatsu<br>=
-</div><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">2016-12-20 =
-14:15 GMT-05:00 Yasuaki Ishimatsu <span dir=3D"ltr">&lt;<a href=3D"mailto:y=
-asu.isimatu@gmail.com" target=3D"_blank">yasu.isimatu@gmail.com</a>&gt;</sp=
-an>:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border=
--left:1px #ccc solid;padding-left:1ex">Here are two patches for memory hotp=
-lug:<br>
-<br>
-Yasuaki Ishimatsu (2):<br>
-=C2=A0 mm/sparse: use page_private() to get page-&gt;private value<br>
-=C2=A0 mm/memory_hotplug: set magic number to page-&gt;freelsit instead<br>
-=C2=A0 =C2=A0 of page-&gt;lru.next<br>
-<br>
-=C2=A0arch/x86/mm/init_64.c | 2 +-<br>
-=C2=A0mm/memory_hotplug.c=C2=A0 =C2=A0| 4 ++--<br>
-=C2=A0mm/sparse.c=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| 4 ++--<br>
-=C2=A03 files changed, 5 insertions(+), 5 deletions(-)<br>
-</blockquote></div><br></div></div></div></div></div></div></div>
-
---001a114abd0221e9b00544242675--
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
