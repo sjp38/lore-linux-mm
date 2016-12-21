@@ -1,54 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F14A6B0373
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 01:58:47 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 5so351776147pgi.2
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:58:47 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id n6si25552574pla.24.2016.12.20.22.58.46
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F206B0375
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 01:59:00 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 127so7048026pfg.5
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:59:00 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id b13si9325132pll.7.2016.12.20.22.58.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 22:58:46 -0800 (PST)
+        Tue, 20 Dec 2016 22:58:59 -0800 (PST)
 From: Liang Li <liang.z.li@intel.com>
-Subject: [PATCH v6 kernel 3/5] virtio-balloon: speed up inflate/deflate process
-Date: Wed, 21 Dec 2016 14:52:26 +0800
-Message-Id: <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
+Subject: [PATCH v6 kernel 5/5] virtio-balloon: tell host vm's unused page info
+Date: Wed, 21 Dec 2016 14:52:28 +0800
+Message-Id: <1482303148-22059-6-git-send-email-liang.z.li@intel.com>
 In-Reply-To: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
 References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kvm@vger.kernel.org
-Cc: virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, mst@redhat.com, david@redhat.com, aarcange@redhat.com, dgilbert@redhat.com, quintela@redhat.com, Liang Li <liang.z.li@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, mst@redhat.com, david@redhat.com, aarcange@redhat.com, dgilbert@redhat.com, quintela@redhat.com, Liang Li <liang.z.li@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The implementation of the current virtio-balloon is not very
-efficient, the time spends on different stages of inflating
-the balloon to 7GB of a 8GB idle guest:
+This patch contains two parts:
 
-a. allocating pages (6.5%)
-b. sending PFNs to host (68.3%)
-c. address translation (6.1%)
-d. madvise (19%)
+One is to add a new API to mm go get the unused page information.
+The virtio balloon driver will use this new API added to get the
+unused page info and send it to hypervisor(QEMU) to speed up live
+migration. During sending the bitmap, some the pages may be modified
+and are used by the guest, this inaccuracy can be corrected by the
+dirty page logging mechanism.
 
-It takes about 4126ms for the inflating process to complete.
-Debugging shows that the bottle neck are the stage b and stage d.
-
-If using {pfn|length} array to send the page info instead of the
-PFNs, we can reduce the overhead in stage b quite a lot.
-Furthermore, we can do the address translation and call madvise()
-with a range of memory, instead of the current page per page way,
-the overhead of stage c and stage d can also be reduced a lot.
-
-This patch is the kernel side implementation which is intended to
-speed up the inflating & deflating process by adding a new feature
-to the virtio-balloon device. With this new feature, inflating the
-balloon to 7GB of a 8GB idle guest only takes 590ms, the
-performance improvement is about 85%.
-
-TODO: optimize stage a by allocating/freeing a chunk of pages
-instead of a single page at a time.
+One is to add support the request for vm's unused page information,
+QEMU can make use of unused page information and the dirty page
+logging mechanism to skip the transportation of some of these unused
+pages, this is very helpful to reduce the network traffic and speed
+up the live migration process.
 
 Signed-off-by: Liang Li <liang.z.li@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
 Cc: Michael S. Tsirkin <mst@redhat.com>
 Cc: Paolo Bonzini <pbonzini@redhat.com>
 Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -57,483 +46,373 @@ Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: David Hildenbrand <david@redhat.com>
 ---
- drivers/virtio/virtio_balloon.c | 348 ++++++++++++++++++++++++++++++++++++----
- 1 file changed, 320 insertions(+), 28 deletions(-)
+ drivers/virtio/virtio_balloon.c | 144 ++++++++++++++++++++++++++++++++++++++--
+ include/linux/mm.h              |   3 +
+ mm/page_alloc.c                 | 120 +++++++++++++++++++++++++++++++++
+ 3 files changed, 261 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f59cb4f..03383b3 100644
+index 03383b3..b67f865 100644
 --- a/drivers/virtio/virtio_balloon.c
 +++ b/drivers/virtio/virtio_balloon.c
-@@ -42,6 +42,10 @@
- #define OOM_VBALLOON_DEFAULT_PAGES 256
- #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+@@ -56,7 +56,7 @@
  
-+#define BALLOON_BMAP_SIZE	(8 * PAGE_SIZE)
-+#define PFNS_PER_BMAP		(BALLOON_BMAP_SIZE * BITS_PER_BYTE)
-+#define BALLOON_BMAP_COUNT	32
-+
- static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
- module_param(oom_pages, int, S_IRUSR | S_IWUSR);
- MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
-@@ -67,6 +71,20 @@ struct virtio_balloon {
+ struct virtio_balloon {
+ 	struct virtio_device *vdev;
+-	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
++	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *req_vq;
  
- 	/* Number of balloon pages we've told the Host we're not using. */
- 	unsigned int num_pages;
-+	/* Pointer to the response header. */
-+	void *resp_hdr;
-+	/* Pointer to the start address of response data. */
-+	__le64 *resp_data;
-+	/* Size of response data buffer. */
-+	unsigned int resp_buf_size;
-+	/* Pointer offset of the response data. */
-+	unsigned int resp_pos;
-+	/* Bitmap used to save the pfns info */
-+	unsigned long *page_bitmap[BALLOON_BMAP_COUNT];
-+	/* Number of split page bitmaps */
-+	unsigned int nr_page_bmap;
-+	/* Used to record the processed pfn range */
-+	unsigned long min_pfn, max_pfn, start_pfn, end_pfn;
+ 	/* The balloon servicing is delegated to a freezable workqueue. */
+ 	struct work_struct update_balloon_stats_work;
+@@ -85,6 +85,8 @@ struct virtio_balloon {
+ 	unsigned int nr_page_bmap;
+ 	/* Used to record the processed pfn range */
+ 	unsigned long min_pfn, max_pfn, start_pfn, end_pfn;
++	/* Request header */
++	struct virtio_balloon_req_hdr req_hdr;
  	/*
  	 * The pages we've told the Host we're not using are enqueued
  	 * at vb_dev_info->pages list.
-@@ -110,20 +128,180 @@ static void balloon_ack(struct virtqueue *vq)
- 	wake_up(&vb->acked);
+@@ -505,6 +507,80 @@ static void update_balloon_stats(struct virtio_balloon *vb)
+ 				pages_to_bytes(available));
  }
  
--static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-+static inline void init_bmap_pfn_range(struct virtio_balloon *vb)
- {
--	struct scatterlist sg;
-+	vb->min_pfn = ULONG_MAX;
-+	vb->max_pfn = 0;
-+}
-+
-+static inline void update_bmap_pfn_range(struct virtio_balloon *vb,
-+				 struct page *page)
++static void __send_unused_pages(struct virtio_balloon *vb,
++	unsigned long req_id, unsigned int pos, bool done)
 +{
-+	unsigned long balloon_pfn = page_to_balloon_pfn(page);
-+
-+	vb->min_pfn = min(balloon_pfn, vb->min_pfn);
-+	vb->max_pfn = max(balloon_pfn, vb->max_pfn);
-+}
-+
-+static void extend_page_bitmap(struct virtio_balloon *vb,
-+				unsigned long nr_pfn)
-+{
-+	int i, bmap_count;
-+	unsigned long bmap_len;
-+
-+	bmap_len = ALIGN(nr_pfn, BITS_PER_LONG) / BITS_PER_BYTE;
-+	bmap_len = ALIGN(bmap_len, BALLOON_BMAP_SIZE);
-+	bmap_count = min((int)(bmap_len / BALLOON_BMAP_SIZE),
-+				 BALLOON_BMAP_COUNT);
-+
-+	for (i = 1; i < bmap_count; i++) {
-+		vb->page_bitmap[i] = kmalloc(BALLOON_BMAP_SIZE, GFP_KERNEL);
-+		if (vb->page_bitmap[i])
-+			vb->nr_page_bmap++;
-+		else
-+			break;
-+	}
-+}
-+
-+static void free_extended_page_bitmap(struct virtio_balloon *vb)
-+{
-+	int i, bmap_count = vb->nr_page_bmap;
-+
-+	for (i = 1; i < bmap_count; i++) {
-+		kfree(vb->page_bitmap[i]);
-+		vb->page_bitmap[i] = NULL;
-+		vb->nr_page_bmap--;
-+	}
-+}
-+
-+static void kfree_page_bitmap(struct virtio_balloon *vb)
-+{
-+	int i;
-+
-+	for (i = 0; i < vb->nr_page_bmap; i++)
-+		kfree(vb->page_bitmap[i]);
-+}
-+
-+static void clear_page_bitmap(struct virtio_balloon *vb)
-+{
-+	int i;
-+
-+	for (i = 0; i < vb->nr_page_bmap; i++)
-+		memset(vb->page_bitmap[i], 0, BALLOON_BMAP_SIZE);
-+}
-+
-+static void send_resp_data(struct virtio_balloon *vb, struct virtqueue *vq,
-+			bool busy_wait)
-+{
-+	struct scatterlist sg[2];
 +	struct virtio_balloon_resp_hdr *hdr = vb->resp_hdr;
- 	unsigned int len;
- 
--	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-+	len = hdr->data_len = vb->resp_pos * sizeof(__le64);
-+	sg_init_table(sg, 2);
-+	sg_set_buf(&sg[0], hdr, sizeof(struct virtio_balloon_resp_hdr));
-+	sg_set_buf(&sg[1], vb->resp_data, len);
++	struct virtqueue *vq = vb->req_vq;
 +
-+	if (virtqueue_add_outbuf(vq, sg, 2, vb, GFP_KERNEL) == 0) {
-+		virtqueue_kick(vq);
-+		if (busy_wait)
-+			while (!virtqueue_get_buf(vq, &len)
-+				&& !virtqueue_is_broken(vq))
-+				cpu_relax();
-+		else
-+			wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-+		vb->resp_pos = 0;
-+		free_extended_page_bitmap(vb);
-+	}
-+}
- 
--	/* We should always be able to add one buffer to an empty queue. */
--	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
--	virtqueue_kick(vq);
-+static void do_set_resp_bitmap(struct virtio_balloon *vb,
-+		unsigned long base_pfn, int pages)
- 
--	/* When host has read buffer, this completes via balloon_ack */
--	wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-+{
-+	__le64 *range = vb->resp_data + vb->resp_pos;
- 
-+	if (pages > (1 << VIRTIO_BALLOON_NR_PFN_BITS)) {
-+		/* when the length field can't contain pages, set it to 0 to
-+		 * indicate the actual length is in the next __le64;
-+		 */
-+		*range = cpu_to_le64((base_pfn <<
-+				VIRTIO_BALLOON_NR_PFN_BITS) | 0);
-+		*(range + 1) = cpu_to_le64(pages);
-+		vb->resp_pos += 2;
-+	} else {
-+		*range = (base_pfn << VIRTIO_BALLOON_NR_PFN_BITS) | pages;
-+		vb->resp_pos++;
-+	}
++	vb->resp_pos = pos;
++	hdr->cmd = BALLOON_GET_UNUSED_PAGES;
++	hdr->id = req_id;
++	if (!done)
++		hdr->flag = BALLOON_FLAG_CONT;
++	else
++		hdr->flag = BALLOON_FLAG_DONE;
++
++	if (pos > 0 || done)
++		send_resp_data(vb, vq, true);
++
 +}
 +
-+static void set_bulk_pages(struct virtio_balloon *vb, struct virtqueue *vq,
-+		unsigned long start_pfn, unsigned long *bitmap,
-+		unsigned long len, bool busy_wait)
++static void send_unused_pages(struct virtio_balloon *vb,
++				unsigned long req_id)
 +{
-+	unsigned long pos = 0, end = len * BITS_PER_BYTE;
++	struct scatterlist sg_in;
++	unsigned int pos = 0;
++	struct virtqueue *vq = vb->req_vq;
++	int ret, order;
++	struct zone *zone = NULL;
++	bool part_fill = false;
 +
-+	while (pos < end) {
-+		unsigned long one = find_next_bit(bitmap, end, pos);
++	mutex_lock(&vb->balloon_lock);
 +
-+		if (one < end) {
-+			unsigned long pages, zero;
++	for (order = MAX_ORDER - 1; order >= 0; order--) {
++		ret = mark_unused_pages(&zone, order, vb->resp_data,
++			 vb->resp_buf_size / sizeof(__le64),
++			 &pos, VIRTIO_BALLOON_NR_PFN_BITS, part_fill);
++		if (ret == -ENOSPC) {
++			if (pos == 0) {
++				void *new_resp_data;
 +
-+			zero = find_next_zero_bit(bitmap, end, one + 1);
-+			if (zero >= end)
-+				pages = end - one;
-+			else
-+				pages = zero - one;
-+			if (pages) {
-+				if ((vb->resp_pos + 2) * sizeof(__le64) >
-+						vb->resp_buf_size)
-+					send_resp_data(vb, vq, busy_wait);
-+				do_set_resp_bitmap(vb, start_pfn + one,	pages);
++				new_resp_data = kmalloc(2 * vb->resp_buf_size,
++							GFP_KERNEL);
++				if (new_resp_data) {
++					kfree(vb->resp_data);
++					vb->resp_data = new_resp_data;
++					vb->resp_buf_size *= 2;
++				} else {
++					part_fill = true;
++					dev_warn(&vb->vdev->dev,
++						 "%s: part fill order: %d\n",
++						 __func__, order);
++				}
++			} else {
++				__send_unused_pages(vb, req_id, pos, false);
++				pos = 0;
 +			}
-+			pos = one + pages;
-+		} else
-+			pos = one;
-+	}
-+}
 +
-+static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-+{
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_PAGE_RANGE)) {
-+		int nr_pfn, nr_used_bmap, i;
-+		unsigned long start_pfn, bmap_len;
-+
-+		start_pfn = vb->start_pfn;
-+		nr_pfn = vb->end_pfn - start_pfn + 1;
-+		nr_pfn = roundup(nr_pfn, BITS_PER_LONG);
-+		nr_used_bmap = nr_pfn / PFNS_PER_BMAP;
-+		if (nr_pfn % PFNS_PER_BMAP)
-+			nr_used_bmap++;
-+		bmap_len = nr_pfn / BITS_PER_BYTE;
-+
-+		for (i = 0; i < nr_used_bmap; i++) {
-+			unsigned int bmap_size = BALLOON_BMAP_SIZE;
-+
-+			if (i + 1 == nr_used_bmap)
-+				bmap_size = bmap_len - BALLOON_BMAP_SIZE * i;
-+			set_bulk_pages(vb, vq, start_pfn + i * PFNS_PER_BMAP,
-+				 vb->page_bitmap[i], bmap_size, false);
-+		}
-+		if (vb->resp_pos > 0)
-+			send_resp_data(vb, vq, false);
-+	} else {
-+		struct scatterlist sg;
-+		unsigned int len;
-+
-+		sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-+
-+		/* We should always be able to add one buffer to an
-+		 * empty queue
-+		 */
-+		virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-+		virtqueue_kick(vq);
-+		/* When host has read buffer, this completes via balloon_ack */
-+		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-+	}
- }
- 
- static void set_page_pfns(struct virtio_balloon *vb,
-@@ -138,13 +316,59 @@ static void set_page_pfns(struct virtio_balloon *vb,
- 					  page_to_balloon_pfn(page) + i);
- }
- 
--static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-+static void set_page_bitmap(struct virtio_balloon *vb,
-+			 struct list_head *pages, struct virtqueue *vq)
-+{
-+	unsigned long pfn, pfn_limit;
-+	struct page *page;
-+	bool found;
-+	int bmap_idx;
-+
-+	vb->min_pfn = rounddown(vb->min_pfn, BITS_PER_LONG);
-+	vb->max_pfn = roundup(vb->max_pfn, BITS_PER_LONG);
-+	pfn_limit = PFNS_PER_BMAP * vb->nr_page_bmap;
-+
-+	if (vb->nr_page_bmap == 1)
-+		extend_page_bitmap(vb, vb->max_pfn - vb->min_pfn + 1);
-+	for (pfn = vb->min_pfn; pfn < vb->max_pfn; pfn += pfn_limit) {
-+		unsigned long end_pfn;
-+
-+		clear_page_bitmap(vb);
-+		vb->start_pfn = pfn;
-+		end_pfn = pfn;
-+		found = false;
-+		list_for_each_entry(page, pages, lru) {
-+			unsigned long pos, balloon_pfn;
-+
-+			balloon_pfn = page_to_balloon_pfn(page);
-+			if (balloon_pfn < pfn || balloon_pfn >= pfn + pfn_limit)
++			if (!part_fill) {
++				order++;
 +				continue;
-+			bmap_idx = (balloon_pfn - pfn) / PFNS_PER_BMAP;
-+			pos = (balloon_pfn - pfn) % PFNS_PER_BMAP;
-+			set_bit(pos, vb->page_bitmap[bmap_idx]);
-+			if (balloon_pfn > end_pfn)
-+				end_pfn = balloon_pfn;
-+			found = true;
-+		}
-+		if (found) {
-+			vb->end_pfn = end_pfn;
-+			tell_host(vb, vq);
-+		}
-+	}
-+}
++			}
++		} else
++			zone = NULL;
 +
-+static unsigned int fill_balloon(struct virtio_balloon *vb, size_t num)
- {
- 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
--	unsigned num_allocated_pages;
-+	unsigned int num_allocated_pages;
-+	bool use_bmap = virtio_has_feature(vb->vdev,
-+				 VIRTIO_BALLOON_F_PAGE_RANGE);
- 
--	/* We can only do one array worth at a time. */
--	num = min(num, ARRAY_SIZE(vb->pfns));
-+	if (use_bmap)
-+		init_bmap_pfn_range(vb);
-+	else
-+		/* We can only do one array worth at a time. */
-+		num = min(num, ARRAY_SIZE(vb->pfns));
- 
- 	mutex_lock(&vb->balloon_lock);
- 	for (vb->num_pfns = 0; vb->num_pfns < num;
-@@ -159,7 +383,10 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 			msleep(200);
- 			break;
- 		}
--		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-+		if (use_bmap)
-+			update_bmap_pfn_range(vb, page);
-+		else
-+			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
- 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
- 		if (!virtio_has_feature(vb->vdev,
- 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-@@ -168,8 +395,13 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 
- 	num_allocated_pages = vb->num_pfns;
- 	/* Did we get any? */
--	if (vb->num_pfns != 0)
--		tell_host(vb, vb->inflate_vq);
-+	if (vb->num_pfns != 0) {
-+		if (use_bmap)
-+			set_page_bitmap(vb, &vb_dev_info->pages,
-+					vb->inflate_vq);
-+		else
-+			tell_host(vb, vb->inflate_vq);
-+	}
- 	mutex_unlock(&vb->balloon_lock);
- 
- 	return num_allocated_pages;
-@@ -189,15 +421,20 @@ static void release_pages_balloon(struct virtio_balloon *vb,
- 	}
- }
- 
--static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
-+static unsigned int leak_balloon(struct virtio_balloon *vb, size_t num)
- {
--	unsigned num_freed_pages;
-+	unsigned int num_freed_pages;
- 	struct page *page;
- 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
- 	LIST_HEAD(pages);
-+	bool use_bmap = virtio_has_feature(vb->vdev,
-+			 VIRTIO_BALLOON_F_PAGE_RANGE);
- 
--	/* We can only do one array worth at a time. */
--	num = min(num, ARRAY_SIZE(vb->pfns));
-+	if (use_bmap)
-+		init_bmap_pfn_range(vb);
-+	else
-+		/* We can only do one array worth at a time. */
-+		num = min(num, ARRAY_SIZE(vb->pfns));
- 
- 	mutex_lock(&vb->balloon_lock);
- 	/* We can't release more pages than taken */
-@@ -207,7 +444,10 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 		page = balloon_page_dequeue(vb_dev_info);
- 		if (!page)
- 			break;
--		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-+		if (use_bmap)
-+			update_bmap_pfn_range(vb, page);
-+		else
-+			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
- 		list_add(&page->lru, &pages);
- 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
- 	}
-@@ -218,8 +458,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
- 	 * is true, we *have* to do it in this order
- 	 */
--	if (vb->num_pfns != 0)
--		tell_host(vb, vb->deflate_vq);
-+	if (vb->num_pfns != 0) {
-+		if (use_bmap)
-+			set_page_bitmap(vb, &pages, vb->deflate_vq);
-+		else
-+			tell_host(vb, vb->deflate_vq);
-+	}
- 	release_pages_balloon(vb, &pages);
- 	mutex_unlock(&vb->balloon_lock);
- 	return num_freed_pages;
-@@ -431,6 +675,18 @@ static int init_vqs(struct virtio_balloon *vb)
- }
- 
- #ifdef CONFIG_BALLOON_COMPACTION
-+static void tell_host_one_page(struct virtio_balloon *vb,
-+	struct virtqueue *vq, struct page *page)
-+{
-+	__le64 *range;
++		if (order == 0)
++			__send_unused_pages(vb, req_id, pos, true);
 +
-+	range = vb->resp_data + vb->resp_pos;
-+	*range = cpu_to_le64((page_to_pfn(page) <<
-+				VIRTIO_BALLOON_NR_PFN_BITS) | 1);
-+	vb->resp_pos++;
-+	send_resp_data(vb, vq, false);
++	}
++
++	mutex_unlock(&vb->balloon_lock);
++	sg_init_one(&sg_in, &vb->req_hdr, sizeof(vb->req_hdr));
++	virtqueue_add_inbuf(vq, &sg_in, 1, &vb->req_hdr, GFP_KERNEL);
++	virtqueue_kick(vq);
 +}
 +
  /*
-  * virtballoon_migratepage - perform the balloon page migration on behalf of
-  *			     a compation thread.     (called under page lock)
-@@ -455,6 +711,8 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	struct virtio_balloon *vb = container_of(vb_dev_info,
- 			struct virtio_balloon, vb_dev_info);
- 	unsigned long flags;
-+	bool use_bmap = virtio_has_feature(vb->vdev,
-+				 VIRTIO_BALLOON_F_PAGE_RANGE);
- 
- 	/*
- 	 * In order to avoid lock contention while migrating pages concurrently
-@@ -475,15 +733,23 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	vb_dev_info->isolated_pages--;
- 	__count_vm_event(BALLOON_MIGRATE);
- 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
--	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
--	set_page_pfns(vb, vb->pfns, newpage);
--	tell_host(vb, vb->inflate_vq);
-+	if (use_bmap)
-+		tell_host_one_page(vb, vb->inflate_vq, newpage);
-+	else {
-+		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-+		set_page_pfns(vb, vb->pfns, newpage);
-+		tell_host(vb, vb->inflate_vq);
-+	}
- 
- 	/* balloon's page migration 2nd step -- deflate "page" */
- 	balloon_page_delete(page);
--	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
--	set_page_pfns(vb, vb->pfns, page);
--	tell_host(vb, vb->deflate_vq);
-+	if (use_bmap)
-+		tell_host_one_page(vb, vb->deflate_vq, page);
-+	else {
-+		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-+		set_page_pfns(vb, vb->pfns, page);
-+		tell_host(vb, vb->deflate_vq);
-+	}
- 
- 	mutex_unlock(&vb->balloon_lock);
- 
-@@ -533,6 +799,29 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	spin_lock_init(&vb->stop_update_lock);
- 	vb->stop_update = false;
- 	vb->num_pages = 0;
-+	vb->resp_hdr = kzalloc(sizeof(struct virtio_balloon_resp_hdr),
-+				 GFP_KERNEL);
-+	/* Clear the feature bit if memory allocation fails */
-+	if (!vb->resp_hdr)
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
-+	else {
-+		vb->page_bitmap[0] = kmalloc(BALLOON_BMAP_SIZE, GFP_KERNEL);
-+		if (!vb->page_bitmap[0]) {
-+			__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
-+			kfree(vb->resp_hdr);
-+		} else {
-+			vb->nr_page_bmap = 1;
-+			vb->resp_data = kmalloc(BALLOON_BMAP_SIZE, GFP_KERNEL);
-+			if (!vb->resp_data) {
-+				__virtio_clear_bit(vdev,
-+						VIRTIO_BALLOON_F_PAGE_RANGE);
-+				kfree(vb->page_bitmap[0]);
-+				kfree(vb->resp_hdr);
-+			}
-+		}
-+	}
-+	vb->resp_pos = 0;
-+	vb->resp_buf_size = BALLOON_BMAP_SIZE;
- 	mutex_init(&vb->balloon_lock);
- 	init_waitqueue_head(&vb->acked);
- 	vb->vdev = vdev;
-@@ -611,6 +900,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 	remove_common(vb);
- 	if (vb->vb_dev_info.inode)
- 		iput(vb->vb_dev_info.inode);
-+	kfree_page_bitmap(vb);
-+	kfree(vb->resp_hdr);
- 	kfree(vb);
+  * While most virtqueues communicate guest-initiated requests to the hypervisor,
+  * the stats queue operates in reverse.  The driver initializes the virtqueue
+@@ -639,11 +715,38 @@ static void update_balloon_size_func(struct work_struct *work)
+ 		queue_work(system_freezable_wq, work);
  }
  
-@@ -649,6 +940,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
- 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
++static void misc_handle_rq(struct virtio_balloon *vb)
++{
++	struct virtio_balloon_req_hdr *ptr_hdr;
++	unsigned int len;
++
++	ptr_hdr = virtqueue_get_buf(vb->req_vq, &len);
++	if (!ptr_hdr || len != sizeof(vb->req_hdr))
++		return;
++
++	switch (ptr_hdr->cmd) {
++	case BALLOON_GET_UNUSED_PAGES:
++		send_unused_pages(vb, ptr_hdr->param);
++		break;
++	default:
++		break;
++	}
++}
++
++static void misc_request(struct virtqueue *vq)
++{
++	struct virtio_balloon *vb = vq->vdev->priv;
++
++	misc_handle_rq(vb);
++}
++
+ static int init_vqs(struct virtio_balloon *vb)
+ {
+-	struct virtqueue *vqs[3];
+-	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+-	static const char * const names[] = { "inflate", "deflate", "stats" };
++	struct virtqueue *vqs[4];
++	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack,
++					 stats_request, misc_request };
++	static const char * const names[] = { "inflate", "deflate", "stats",
++						 "misc" };
+ 	int err, nvqs;
+ 
+ 	/*
+@@ -651,6 +754,18 @@ static int init_vqs(struct virtio_balloon *vb)
+ 	 * optionally stat.
+ 	 */
+ 	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ))
++		nvqs = 4;
++	else if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
++		nvqs = 3;
++	else
++		nvqs = 2;
++
++	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
++		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
++		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ);
++	}
++
+ 	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
+ 	if (err)
+ 		return err;
+@@ -671,6 +786,18 @@ static int init_vqs(struct virtio_balloon *vb)
+ 			BUG();
+ 		virtqueue_kick(vb->stats_vq);
+ 	}
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ)) {
++		struct scatterlist sg_in;
++
++		vb->req_vq = vqs[3];
++		sg_init_one(&sg_in, &vb->req_hdr, sizeof(vb->req_hdr));
++		if (virtqueue_add_inbuf(vb->req_vq, &sg_in, 1,
++		    &vb->req_hdr, GFP_KERNEL) < 0)
++			__virtio_clear_bit(vb->vdev,
++					VIRTIO_BALLOON_F_HOST_REQ_VQ);
++		else
++			virtqueue_kick(vb->req_vq);
++	}
+ 	return 0;
+ }
+ 
+@@ -802,12 +929,14 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	vb->resp_hdr = kzalloc(sizeof(struct virtio_balloon_resp_hdr),
+ 				 GFP_KERNEL);
+ 	/* Clear the feature bit if memory allocation fails */
+-	if (!vb->resp_hdr)
++	if (!vb->resp_hdr) {
+ 		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
+-	else {
++		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ);
++	} else {
+ 		vb->page_bitmap[0] = kmalloc(BALLOON_BMAP_SIZE, GFP_KERNEL);
+ 		if (!vb->page_bitmap[0]) {
+ 			__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_RANGE);
++			__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_HOST_REQ_VQ);
+ 			kfree(vb->resp_hdr);
+ 		} else {
+ 			vb->nr_page_bmap = 1;
+@@ -815,6 +944,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 			if (!vb->resp_data) {
+ 				__virtio_clear_bit(vdev,
+ 						VIRTIO_BALLOON_F_PAGE_RANGE);
++				__virtio_clear_bit(vdev,
++						VIRTIO_BALLOON_F_HOST_REQ_VQ);
+ 				kfree(vb->page_bitmap[0]);
+ 				kfree(vb->resp_hdr);
+ 			}
+@@ -941,6 +1072,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
  	VIRTIO_BALLOON_F_STATS_VQ,
  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-+	VIRTIO_BALLOON_F_PAGE_RANGE,
+ 	VIRTIO_BALLOON_F_PAGE_RANGE,
++	VIRTIO_BALLOON_F_HOST_REQ_VQ,
  };
  
  static struct virtio_driver virtio_balloon_driver = {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4424784..a80b8f3 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1762,6 +1762,9 @@ static inline spinlock_t *pmd_lock(struct mm_struct *mm, pmd_t *pmd)
+ extern void free_area_init_node(int nid, unsigned long * zones_size,
+ 		unsigned long zone_start_pfn, unsigned long *zholes_size);
+ extern void free_initmem(void);
++extern int mark_unused_pages(struct zone **start_zone, int order,
++		__le64 *pages, unsigned int size, unsigned int *pos,
++		u8 len_bits, bool part_fill);
+ 
+ /*
+  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c6d5f6..de0e7a4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4479,6 +4479,126 @@ void show_free_areas(unsigned int filter)
+ 	show_swap_cache_info();
+ }
+ 
++static int  __mark_unused_pages(struct zone *zone, int order,
++		__le64 *pages, unsigned int size, unsigned int *pos,
++		u8 len_bits, bool part_fill)
++{
++	unsigned long pfn, flags;
++	int t, ret = 0;
++	struct list_head *curr;
++	__le64 *range;
++
++	if (zone_is_empty(zone))
++		return 0;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	if (*pos + zone->free_area[order].nr_free > size && !part_fill) {
++		ret = -ENOSPC;
++		goto out;
++	}
++	for (t = 0; t < MIGRATE_TYPES; t++) {
++		list_for_each(curr, &zone->free_area[order].free_list[t]) {
++			pfn = page_to_pfn(list_entry(curr, struct page, lru));
++			range = pages + *pos;
++			if (order < len_bits) {
++				if (*pos + 1 > size) {
++					ret = -ENOSPC;
++					goto out;
++				}
++				*range = cpu_to_le64((pfn << len_bits)
++							| 1 << order);
++				*pos += 1;
++			} else {
++				if (*pos + 2 > size) {
++					ret = -ENOSPC;
++					goto out;
++				}
++				*range = cpu_to_le64((pfn << len_bits) | 0);
++				*(range + 1) = cpu_to_le64(1 << order);
++				*pos += 2;
++			}
++		}
++	}
++
++out:
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return ret;
++}
++
++/*
++ * During live migration, page is discardable unless it's content
++ * is needed by the system.
++ * mark_unused_pages provides an API to mark the unused pages, these
++ * unused pages can be discarded if there is no modification since
++ * the request. Some other mechanism, like the dirty page logging
++ * can be used to track the modification.
++ *
++ * This function scans the free page list to mark the unused pages
++ * with the specified order, and set the corresponding range element
++ * in the array 'pages' if unused pages are found for the specified
++ * order.
++ *
++ * @start_zone: zone to start the mark operation.
++ * @order: page order to mark.
++ * @pages: array to save the unused page info.
++ * @size: size of array pages.
++ * @pos: offset in the array to save the page info.
++ * @len_bits: bits for the length field of the range.
++ * @part_fill: indicate if partial fill is used.
++ *
++ * return -EINVAL if parameter is invalid
++ * return -ENOSPC when bitmap can't contain the pages
++ * return 0 when sccess
++ */
++int mark_unused_pages(struct zone **start_zone, int order,
++	__le64 *pages, unsigned int size, unsigned int *pos,
++	u8 len_bits, bool part_fill)
++{
++	struct zone *zone;
++	int ret = 0;
++	bool skip_check = false;
++
++	/* make sure all the parameters are valid */
++	if (pages == NULL || pos == NULL || *pos < 0
++		|| order >= MAX_ORDER || len_bits > 64)
++		return -EINVAL;
++	if (*start_zone != NULL) {
++		bool found = false;
++
++		for_each_populated_zone(zone) {
++			if (zone != *start_zone)
++				continue;
++			found = true;
++			break;
++		}
++		if (!found)
++			return -EINVAL;
++	} else
++		skip_check = true;
++
++	for_each_populated_zone(zone) {
++		/* Start from *start_zone if it's not NULL */
++		if (!skip_check) {
++			if (*start_zone != zone)
++				continue;
++			else
++				skip_check = true;
++		}
++		ret = __mark_unused_pages(zone, order, pages, size,
++					pos, len_bits, part_fill);
++		if (ret < 0) {
++			/* record the failed zone */
++			*start_zone = zone;
++			break;
++		}
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(mark_unused_pages);
++
+ static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ {
+ 	zoneref->zone = zone;
 -- 
 1.9.1
 
