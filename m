@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B5F06B03AD
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 09:52:54 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id gl16so8427256wjc.5
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 06:52:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gr7si27822596wjb.113.2016.12.21.06.52.53
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 20FCC6B03AE
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 10:20:15 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y68so320690768pfb.6
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 07:20:15 -0800 (PST)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id 61si27081498pla.14.2016.12.21.07.20.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Dec 2016 06:52:53 -0800 (PST)
-Date: Wed, 21 Dec 2016 15:52:50 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 2/2] mm/memblock.c: check return value of
- memblock_reserve() in memblock_virt_alloc_internal()
-Message-ID: <20161221145249.GL31118@dhcp22.suse.cz>
-References: <1482072470-26151-1-git-send-email-richard.weiyang@gmail.com>
- <1482072470-26151-3-git-send-email-richard.weiyang@gmail.com>
- <20161219152156.GC5175@dhcp22.suse.cz>
- <20161220164823.GB13224@vultr.guest>
- <20161221075115.GE16502@dhcp22.suse.cz>
- <20161221131332.GB23096@vultr.guest>
- <20161221132200.GK31118@dhcp22.suse.cz>
- <20161221143956.GA23331@vultr.guest>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161221143956.GA23331@vultr.guest>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Dec 2016 07:20:14 -0800 (PST)
+Received: by mail-pf0-x244.google.com with SMTP id 127so1086681pfg.0
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 07:20:13 -0800 (PST)
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: [PATCH 0/2] respin of PageWaiters patch
+Date: Thu, 22 Dec 2016 01:19:49 +1000
+Message-Id: <20161221151951.16396-1-npiggin@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, swhiteho@redhat.com, luto@kernel.org, agruenba@redhat.com, peterz@infradead.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>
+Cc: Nicholas Piggin <npiggin@gmail.com>
 
-On Wed 21-12-16 14:39:56, Wei Yang wrote:
-> On Wed, Dec 21, 2016 at 02:22:01PM +0100, Michal Hocko wrote:
-[...]
-> >Anyway this all should be part of the changelog.
-> 
-> Ok, let me add this in changelog in next version.
+Seeing as Mel said he would test it (and maybe Dave could as well), I
+will post my patches again. There was a couple of page flags bugs pointed
+out last time, which should be fixed.
 
-Then make sure to document how it could happen and how realistic such a
-scenario is.
+Thanks,
+Nick
+
+
+
+
+Nicholas Piggin (2):
+  mm: Use owner_priv bit for PageSwapCache, valid when PageSwapBacked
+  mm: add PageWaiters bit to indicate waitqueue should be checked
+
+ include/linux/mm.h             |   2 +
+ include/linux/page-flags.h     |  33 ++++++--
+ include/linux/pagemap.h        |  23 +++---
+ include/linux/writeback.h      |   1 -
+ include/trace/events/mmflags.h |   2 +-
+ init/main.c                    |   3 +-
+ mm/filemap.c                   | 180 +++++++++++++++++++++++++++++++++--------
+ mm/internal.h                  |   2 +
+ mm/swap.c                      |   2 +
+ 9 files changed, 189 insertions(+), 59 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
