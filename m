@@ -1,99 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1DD6B0365
-	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:41:12 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id h30so152853497uaf.1
-        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 16:41:12 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 74si7921uaf.30.2016.12.20.16.41.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D1C26B0367
+	for <linux-mm@kvack.org>; Tue, 20 Dec 2016 22:01:28 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y68so299555535pfb.6
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:01:28 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id a62si3998830pge.65.2016.12.20.19.01.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Dec 2016 16:41:11 -0800 (PST)
-Date: Tue, 20 Dec 2016 16:40:32 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
- /proc/self/smaps)
-Message-ID: <20161221004031.GF9865@birch.djwong.org>
-References: <20160914201936.08315277@roar.ozlabs.ibm.com>
- <20160915023133.GR22388@dastard>
- <20160915134945.0aaa4f5a@roar.ozlabs.ibm.com>
- <20160915103210.GT22388@dastard>
- <20160915214222.505f4888@roar.ozlabs.ibm.com>
- <20160915223350.GU22388@dastard>
- <20160916155405.6b634bbc@roar.ozlabs.ibm.com>
- <20161219211149.GA12822@linux.intel.com>
- <20161220010936.GH7311@birch.djwong.org>
- <CAPcyv4g6LVTVrtGz+vdV2bLvskrYrCBss80qB-HtjAE+Sae=UA@mail.gmail.com>
+        Tue, 20 Dec 2016 19:01:27 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id i5so4835073pgh.2
+        for <linux-mm@kvack.org>; Tue, 20 Dec 2016 19:01:27 -0800 (PST)
+Subject: Re: [PATCH RFC 1/1] mm, page_alloc: fix incorrect zone_statistics
+ data
+References: <1481522347-20393-1-git-send-email-hejianet@gmail.com>
+ <1481522347-20393-2-git-send-email-hejianet@gmail.com>
+ <20161220091814.GC3769@dhcp22.suse.cz>
+From: hejianet <hejianet@gmail.com>
+Message-ID: <84c018b5-bf63-6057-e39f-c8e0935bca09@gmail.com>
+Date: Wed, 21 Dec 2016 11:01:08 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4g6LVTVrtGz+vdV2bLvskrYrCBss80qB-HtjAE+Sae=UA@mail.gmail.com>
+In-Reply-To: <20161220091814.GC3769@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Nicholas Piggin <npiggin@gmail.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Moyer <jmoyer@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Michal Hocko <mhocko@suse.com>, Xiaof Guangrong <guangrong.xiao@linux.intel.com>, KVM list <kvm@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Gleb Natapov <gleb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, mtosatti@redhat.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Linux MM <linux-mm@kvack.org>, Stefan Hajnoczi <stefanha@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
 
-On Mon, Dec 19, 2016 at 05:18:40PM -0800, Dan Williams wrote:
-> On Mon, Dec 19, 2016 at 5:09 PM, Darrick J. Wong
-> <darrick.wong@oracle.com> wrote:
-> > On Mon, Dec 19, 2016 at 02:11:49PM -0700, Ross Zwisler wrote:
-> >> On Fri, Sep 16, 2016 at 03:54:05PM +1000, Nicholas Piggin wrote:
-> >> <>
-> >> > Definitely the first step would be your simple preallocated per
-> >> > inode approach until it is shown to be insufficient.
-> >>
-> >> Reviving this thread a few months later...
-> >>
-> >> Dave, we're interested in taking a serious look at what it would take to get
-> >> PMEM_IMMUTABLE working.  Do you still hold the opinion that this is (or could
-> >> become, with some amount of work) a workable solution?
-> >>
-> >> We're happy to do the grunt work for this feature, but we will probably need
-> >> guidance from someone with more XFS experience.  With you out on extended leave
-> >> the first half of 2017, who would be the best person to ask for this guidance?
-> >> Darrick?
-> >
-> > Yes, probably. :)
-> >
-> > I think where we left off with this (on the XFS side) is some sort of
-> > fallocate mode that would allocate blocks, zero them, and then set the
-> > DAX and PMEM_IMMUTABLE on-disk inode flags.  After that, you'd mmap the
-> > file and thereby gain the ability to control write persistents behavior
-> > without having to worry about fs metadata updates.  As an added plus, I
-> > think zeroing the pmem also clears media errors, or something like that.
-> >
-> > <shrug> Is that a reasonable starting point?  My memory is a little foggy.
-> >
-> > Hmm, I see Dan just posted something about blockdev fallocate.  I'll go
-> > read that.
-> 
-> That's for device-dax, which is basically a poor man's PMEM_IMMUTABLE
-> via a character device interface. It's useful for cases where you want
-> an entire nvdimm namespace/volume in "no fs-metadata to worry about"
-> mode.  But, for sub-allocations of a namespace and support for
-> existing tooling, PMEM_IMMUTABLE is much more usable.
 
-Well sure... but otoh I was thinking that it'd be pretty neat if we
-could use the same code regardless of whether the target file was a
-dax-device or an xfs file:
 
-fd = open("<some path>", O_RDWR);
-fstat(fd, &statbuf):
-fallocate(fd, FALLOC_FL_PMEM_IMMUTABLE, 0, statbuf.st_size);
-p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, fd, 0);
+On 20/12/2016 5:18 PM, Michal Hocko wrote:
+> On Mon 12-12-16 13:59:07, Jia He wrote:
+>> In commit b9f00e147f27 ("mm, page_alloc: reduce branches in
+>> zone_statistics"), it reconstructed codes to reduce the branch miss rate.
+>> Compared with the original logic, it assumed if !(flag & __GFP_OTHER_NODE)
+>>   z->node would not be equal to preferred_zone->node. That seems to be
+>> incorrect.
+> I am sorry but I have hard time following the changelog. It is clear
+> that you are trying to fix a missed NUMA_{HIT,OTHER} accounting
+> but it is not really clear when such thing happens. You are adding
+> preferred_zone->node check. preferred_zone is the first zone in the
+> requested zonelist. So for the most allocations it is a node from the
+> local node. But if something request an explicit numa node (without
+> __GFP_OTHER_NODE which would be the majority I suspect) then we could
+> indeed end up accounting that as a NUMA_MISS, NUMA_FOREIGN so the
+> referenced patch indeed caused an unintended change of accounting AFAIU.
+>
+> If this is correct then it should be a part of the changelog. I also
+> cannot say I would like the fix. First of all I am not sure
+> __GFP_OTHER_NODE is a good idea at all. How is an explicit usage of the
+> flag any different from an explicit __alloc_pages_node(non_local_nid)?
+> In both cases we ask for an allocation on a remote node and successful
+> allocation is a NUMA_HIT and NUMA_OTHER.
+>
+> That being said, why cannot we simply do the following? As a bonus, we
+> can get rid of a barely used __GFP_OTHER_NODE. Also the number of
+> branches will stay same.
+Yes, I agree maybe we can get rid of __GFP_OTHER_NODE if no objections
+Seems currently it is only used for hugepage and statistics
+> ---
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 429855be6ec9..f035d5c8b864 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2583,25 +2583,17 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>    * Update NUMA hit/miss statistics
+>    *
+>    * Must be called with interrupts disabled.
+> - *
+> - * When __GFP_OTHER_NODE is set assume the node of the preferred
+> - * zone is the local node. This is useful for daemons who allocate
+> - * memory on behalf of other processes.
+>    */
+>   static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
+>   								gfp_t flags)
+>   {
+>   #ifdef CONFIG_NUMA
+> -	int local_nid = numa_node_id();
+> -	enum zone_stat_item local_stat = NUMA_LOCAL;
+> -
+> -	if (unlikely(flags & __GFP_OTHER_NODE)) {
+> -		local_stat = NUMA_OTHER;
+> -		local_nid = preferred_zone->node;
+> -	}
+> +	if (z->node == preferred_zone->node) {
+> +		enum zone_stat_item local_stat = NUMA_LOCAL;
+>   
+> -	if (z->node == local_nid) {
+>   		__inc_zone_state(z, NUMA_HIT);
+> +		if (z->node != numa_node_id())
+> +			local_stat = NUMA_OTHER;
+>   		__inc_zone_state(z, local_stat);
+>   	} else {
+>   		__inc_zone_state(z, NUMA_MISS);
+I thought the logic here is different
+Here is the zone_statistics() before introducing __GFP_OTHER_NODE:
 
-*(p + 42) = 0xDEADBEEF;
-asm { clflush; } /* or whatever */
+if (z->zone_pgdat == preferred_zone->zone_pgdat) {
+         __inc_zone_state(z, NUMA_HIT);
+     } else {
+         __inc_zone_state(z, NUMA_MISS);
+         __inc_zone_state(preferred_zone, NUMA_FOREIGN);
+     }
+     if (z->node == numa_node_id())
+         __inc_zone_state(z, NUMA_LOCAL);
+     else
+         __inc_zone_state(z, NUMA_OTHER);
 
-...so perhaps it would be a good idea to design the fallocate primitive
-around "prepare this fd for mmap-only pmem semantics" and let it the
-backend do zeroing and inode flag changes as necessary to make it
-happen.  We'd need to do some bikeshedding about what the other falloc
-flags mean when we're dealing with pmem files and devices, but I think
-we should try to keep the userland presentation the same unless there's
-a really good reason not to.
-
---D
+B.R.
+Jia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
