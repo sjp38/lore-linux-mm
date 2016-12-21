@@ -1,147 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D3B6B03B9
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 10:49:58 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id 41so150656979qtn.7
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 07:49:58 -0800 (PST)
-Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
-        by mx.google.com with ESMTPS id d49si15253361qtc.330.2016.12.21.07.49.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1748F6B03BB
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 11:42:00 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 26so230952451pgy.6
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 08:42:00 -0800 (PST)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10128.outbound.protection.outlook.com. [40.107.1.128])
+        by mx.google.com with ESMTPS id 64si27279387ply.171.2016.12.21.08.41.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Dec 2016 07:49:56 -0800 (PST)
-Received: by mail-qt0-x241.google.com with SMTP id 3so145305qtr.2
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 07:49:55 -0800 (PST)
-Subject: [Resend PATCH 2/2] mm/memory_hotplug: set magic number to
- page->freelsit instead of page->lru.next
-References: <b7ae8d10-da58-45cb-f088-f8adff299911@gmail.com>
- <1d34eaa5-a506-8b7a-6471-490c345deef8@gmail.com>
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Message-ID: <2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com>
-Date: Wed, 21 Dec 2016 10:49:51 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Dec 2016 08:41:58 -0800 (PST)
+Subject: Re: [PATCH 1/2] kasan: drain quarantine of memcg slab objects
+References: <1482257462-36948-1-git-send-email-gthelen@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <7a7bdc20-121e-07d7-cb02-bb44902cd797@virtuozzo.com>
+Date: Wed, 21 Dec 2016 19:42:22 +0300
 MIME-Version: 1.0
-In-Reply-To: <1d34eaa5-a506-8b7a-6471-490c345deef8@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1482257462-36948-1-git-send-email-gthelen@google.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
-Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, dave.hansen@linux.intel.com, vbabka@suse.cz, mgorman@techsingularity.net, qiuxishi@huawei.com
+To: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-To identify that pages of page table are allocated from bootmem
-allocator, magic number sets to page->lru.next. But page->lru
-list is initialized in reserve_bootmem_region(). So when calling
-free_pagetable(), the function cannot find the magic number of
-pages. And free_pagetable() frees the pages by free_reserved_page()
-not put_page_bootmem().
+On 12/20/2016 09:11 PM, Greg Thelen wrote:
+> Per memcg slab accounting and kasan have a problem with kmem_cache
+> destruction.
+> - kmem_cache_create() allocates a kmem_cache, which is used for
+>   allocations from processes running in root (top) memcg.
+> - Processes running in non root memcg and allocating with either
+>   __GFP_ACCOUNT or from a SLAB_ACCOUNT cache use a per memcg kmem_cache.
+> - Kasan catches use-after-free by having kfree() and kmem_cache_free()
+>   defer freeing of objects.  Objects are placed in a quarantine.
+> - kmem_cache_destroy() destroys root and non root kmem_caches.  It takes
+>   care to drain the quarantine of objects from the root memcg's
+>   kmem_cache, but ignores objects associated with non root memcg.  This
+>   causes leaks because quarantined per memcg objects refer to per memcg
+>   kmem cache being destroyed.
+> 
+> To see the problem:
+> 1) create a slab cache with kmem_cache_create(,,,SLAB_ACCOUNT,)
+> 2) from non root memcg, allocate and free a few objects from cache
+> 3) dispose of the cache with kmem_cache_destroy()
+> kmem_cache_destroy() will trigger a "Slab cache still has objects"
+> warning indicating that the per memcg kmem_cache structure was leaked.
+> 
+> Fix the leak by draining kasan quarantined objects allocated from non
+> root memcg.
+> 
+> Racing memcg deletion is tricky, but handled.  kmem_cache_destroy() =>
+> shutdown_memcg_caches() => __shutdown_memcg_cache() => shutdown_cache()
+> flushes per memcg quarantined objects, even if that memcg has been
+> rmdir'd and gone through memcg_deactivate_kmem_caches().
+> 
+> This leak only affects destroyed SLAB_ACCOUNT kmem caches when kasan is
+> enabled.  So I don't think it's worth patching stable kernels.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> 
 
-But if the pages are allocated from bootmem allocator and used as
-page table, the pages have private flag. So before freeing the
-pages, we should clear the private flag by put_page_bootmem().
-
-Before applying the commit 7bfec6f47bb0 ("mm, page_alloc: check
-multiple page fields with a single branch"), we could find the
-following visible issue:
-
-  BUG: Bad page state in process kworker/u1024:1
-  page:ffffea103cfd8040 count:0 mapcount:0 mappi
-  flags: 0x6fffff80000800(private)
-  page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-  bad because of flags: 0x800(private)
-  <snip>
-  Call Trace:
-  [...] dump_stack+0x63/0x87
-  [...] bad_page+0x114/0x130
-  [...] free_pages_prepare+0x299/0x2d0
-  [...] free_hot_cold_page+0x31/0x150
-  [...] __free_pages+0x25/0x30
-  [...] free_pagetable+0x6f/0xb4
-  [...] remove_pagetable+0x379/0x7ff
-  [...] vmemmap_free+0x10/0x20
-  [...] sparse_remove_one_section+0x149/0x180
-  [...] __remove_pages+0x2e9/0x4f0
-  [...] arch_remove_memory+0x63/0xc0
-  [...] remove_memory+0x8c/0xc0
-  [...] acpi_memory_device_remove+0x79/0xa5
-  [...] acpi_bus_trim+0x5a/0x8d
-  [...] acpi_bus_trim+0x38/0x8d
-  [...] acpi_device_hotplug+0x1b7/0x418
-  [...] acpi_hotplug_work_fn+0x1e/0x29
-  [...] process_one_work+0x152/0x400
-  [...] worker_thread+0x125/0x4b0
-  [...] ? __schedule+0x345/0x960
-  [...] ? rescuer_thread+0x380/0x380
-  [...] kthread+0xd8/0xf0
-  [...] ret_from_fork+0x22/0x40
-  [...] ? kthread_park+0x60/0x60
-
-And the issue still silently occurs.
-
-Until freeing the pages of page table allocated from bootmem allocator,
-the page->freelist is never used. So the patch sets magic number to
-page->freelist instead of page->lru.next.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
-  arch/x86/mm/init_64.c | 2 +-
-  mm/memory_hotplug.c   | 5 +++--
-  mm/sparse.c           | 2 +-
-  3 files changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 963895f..b35e525 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -679,7 +679,7 @@ static void __meminit free_pagetable(struct page *page, int order)
-  	if (PageReserved(page)) {
-  		__ClearPageReserved(page);
-
--		magic = (unsigned long)page->lru.next;
-+		magic = (unsigned long)page->freelist;
-  		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
-  			while (nr_pages--)
-  				put_page_bootmem(page++);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e43142c1..9847e4a 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -179,7 +179,7 @@ static void release_memory_resource(struct resource *res)
-  void get_page_bootmem(unsigned long info,  struct page *page,
-  		      unsigned long type)
-  {
--	page->lru.next = (struct list_head *) type;
-+	page->freelist = (void *) type;
-  	SetPagePrivate(page);
-  	set_page_private(page, info);
-  	page_ref_inc(page);
-@@ -189,11 +189,12 @@ void put_page_bootmem(struct page *page)
-  {
-  	unsigned long type;
-
--	type = (unsigned long) page->lru.next;
-+	type = (unsigned long) page->freelist;
-  	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
-  	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
-
-  	if (page_ref_dec_return(page) == 1) {
-+		page->freelist = NULL;
-  		ClearPagePrivate(page);
-  		set_page_private(page, 0);
-  		INIT_LIST_HEAD(&page->lru);
-diff --git a/mm/sparse.c b/mm/sparse.c
-index dc30a70..db6bf3c 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -662,7 +662,7 @@ static void free_map_bootmem(struct page *memmap)
-  		>> PAGE_SHIFT;
-
-  	for (i = 0; i < nr_pages; i++, page++) {
--		magic = (unsigned long) page->lru.next;
-+		magic = (unsigned long) page->freelist;
-
-  		BUG_ON(magic == NODE_INFO);
-
--- 
-1.8.3.1
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
