@@ -1,93 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E5686B03FC
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 04:15:24 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id qs7so10177635wjc.4
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 01:15:24 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 530A66B03FE
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 04:35:08 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so3259449wmi.6
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 01:35:08 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n5si6481276wje.171.2016.12.22.01.15.22
+        by mx.google.com with ESMTPS id q126si27448086wme.18.2016.12.22.01.35.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 01:15:22 -0800 (PST)
-Date: Thu, 22 Dec 2016 10:15:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm/memblock.c: check return value of
- memblock_reserve() in memblock_virt_alloc_internal()
-Message-ID: <20161222091519.GC6048@dhcp22.suse.cz>
-References: <1482363033-24754-1-git-send-email-richard.weiyang@gmail.com>
- <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
+        Thu, 22 Dec 2016 01:35:06 -0800 (PST)
+Date: Thu, 22 Dec 2016 10:35:01 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm, oom_reaper: Move oom_lock from __oom_reap_task_mm()
+ to oom_reap_task().
+Message-ID: <20161222093501.GE6048@dhcp22.suse.cz>
+References: <1481540152-7599-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20161212115918.GI18163@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
+In-Reply-To: <20161212115918.GI18163@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org
 
-On Wed 21-12-16 23:30:33, Wei Yang wrote:
-> memblock_reserve() would add a new range to memblock.reserved in case the
-> new range is not totally covered by any of the current memblock.reserved
-> range. If the memblock.reserved is full and can't resize,
-> memblock_reserve() would fail.
+On Mon 12-12-16 12:59:18, Michal Hocko wrote:
+> On Mon 12-12-16 19:55:52, Tetsuo Handa wrote:
+> > Since commit 862e3073b3eed13f
+> > ("mm, oom: get rid of signal_struct::oom_victims")
+> > changed to wait until MMF_OOM_SKIP is set rather than wait while
+> > TIF_MEMDIE is set, rationale comment for commit e2fe14564d3316d1
+> > ("oom_reaper: close race with exiting task") needs to be updated.
 > 
-> This doesn't happen in real world now, I observed this during code review.
-> While theoretically, it has the chance to happen. And if it happens, others
-> would think this range of memory is still available and may corrupt the
-> memory.
-
-OK, this explains it much better than the previous version! The silent
-memory corruption is indeed too hard to debug to have this open even
-when the issue is theoretical.
-
-> This patch checks the return value and goto "done" after it succeeds.
+> True.
 > 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  mm/memblock.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
+> > While holding oom_lock can make sure that other threads waiting for
+> > oom_lock at __alloc_pages_may_oom() are given a chance to call
+> > get_page_from_freelist() after the OOM reaper called unmap_page_range()
+> > via __oom_reap_task_mm(), it can defer calling of __oom_reap_task_mm().
+> > 
+> > Therefore, this patch moves oom_lock from __oom_reap_task_mm() to
+> > oom_reap_task() (without any functional change). By doing so, the OOM
+> > killer can call __oom_reap_task_mm() if we don't want to defer calling
+> > of __oom_reap_task_mm() (e.g. when oom_evaluate_task() aborted by
+> > finding existing OOM victim's mm without MMF_OOM_SKIP).
 > 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 4929e06..d0f2c96 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1274,18 +1274,17 @@ static void * __init memblock_virt_alloc_internal(
->  
->  	if (max_addr > memblock.current_limit)
->  		max_addr = memblock.current_limit;
-> -
->  again:
->  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
->  					    nid, flags);
-> -	if (alloc)
-> +	if (alloc && !memblock_reserve(alloc, size))
->  		goto done;
->  
->  	if (nid != NUMA_NO_NODE) {
->  		alloc = memblock_find_in_range_node(size, align, min_addr,
->  						    max_addr, NUMA_NO_NODE,
->  						    flags);
-> -		if (alloc)
-> +		if (alloc && !memblock_reserve(alloc, size))
->  			goto done;
->  	}
->  
-> @@ -1303,7 +1302,6 @@ static void * __init memblock_virt_alloc_internal(
->  
->  	return NULL;
->  done:
-> -	memblock_reserve(alloc, size);
->  	ptr = phys_to_virt(alloc);
->  	memset(ptr, 0, size);
->  
-> -- 
-> 2.5.0
+> But I fail to understand this part of the changelog. It sounds like a
+> preparatory for other changes. There doesn't seem to be any other user
+> of __oom_reap_task_mm in the current tree.
+> 
+> Please send a patch which removes the comment which is no longer true
+> on its own and feel free to add
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> but do not make other changes if you do not have any follow up patch
+> which would benefit from that.
 
+Do you plan to pursue this?
 -- 
 Michal Hocko
 SUSE Labs
