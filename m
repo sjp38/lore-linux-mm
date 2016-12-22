@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4696D280253
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 05:35:30 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so34979515wms.7
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 02:35:30 -0800 (PST)
-Received: from celine.tisys.org (celine.tisys.org. [85.25.117.166])
-        by mx.google.com with ESMTPS id k186si27650693wma.76.2016.12.22.02.35.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FF92280255
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 05:41:44 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u5so13280257pgi.7
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 02:41:44 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k17si30293342pgh.279.2016.12.22.02.41.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 02:35:29 -0800 (PST)
-Date: Thu, 22 Dec 2016 11:35:25 +0100
-From: Nils Holland <nholland@tisys.org>
-Subject: Re: OOM: Better, but still there on
-Message-ID: <20161222103524.GA14020@ppc-nas.fritz.box>
-References: <20161216184655.GA5664@boerne.fritz.box>
- <20161217000203.GC23392@dhcp22.suse.cz>
- <20161217125950.GA3321@boerne.fritz.box>
- <862a1ada-17f1-9cff-c89b-46c47432e89f@I-love.SAKURA.ne.jp>
- <20161217210646.GA11358@boerne.fritz.box>
- <20161219134534.GC5164@dhcp22.suse.cz>
- <20161220020829.GA5449@boerne.fritz.box>
- <20161221073658.GC16502@dhcp22.suse.cz>
- <20161222101028.GA11105@ppc-nas.fritz.box>
- <20161222102725.GG6048@dhcp22.suse.cz>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Dec 2016 02:41:43 -0800 (PST)
+Subject: Re: [PATCH] mm, oom_reaper: Move oom_lock from __oom_reap_task_mm()to oom_reap_task().
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1481540152-7599-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20161212115918.GI18163@dhcp22.suse.cz>
+	<20161222093501.GE6048@dhcp22.suse.cz>
+In-Reply-To: <20161222093501.GE6048@dhcp22.suse.cz>
+Message-Id: <201612221941.DIC60933.tHFOOVLJFQOMSF@I-love.SAKURA.ne.jp>
+Date: Thu, 22 Dec 2016 19:41:41 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161222102725.GG6048@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: mhocko@suse.com
+Cc: linux-mm@kvack.org
 
-On Thu, Dec 22, 2016 at 11:27:25AM +0100, Michal Hocko wrote:
-> On Thu 22-12-16 11:10:29, Nils Holland wrote:
+Michal Hocko wrote:
+> On Mon 12-12-16 12:59:18, Michal Hocko wrote:
+> > On Mon 12-12-16 19:55:52, Tetsuo Handa wrote:
+> > > Since commit 862e3073b3eed13f
+> > > ("mm, oom: get rid of signal_struct::oom_victims")
+> > > changed to wait until MMF_OOM_SKIP is set rather than wait while
+> > > TIF_MEMDIE is set, rationale comment for commit e2fe14564d3316d1
+> > > ("oom_reaper: close race with exiting task") needs to be updated.
+> > 
+> > True.
+> > 
+> > > While holding oom_lock can make sure that other threads waiting for
+> > > oom_lock at __alloc_pages_may_oom() are given a chance to call
+> > > get_page_from_freelist() after the OOM reaper called unmap_page_range()
+> > > via __oom_reap_task_mm(), it can defer calling of __oom_reap_task_mm().
+> > > 
+> > > Therefore, this patch moves oom_lock from __oom_reap_task_mm() to
+> > > oom_reap_task() (without any functional change). By doing so, the OOM
+> > > killer can call __oom_reap_task_mm() if we don't want to defer calling
+> > > of __oom_reap_task_mm() (e.g. when oom_evaluate_task() aborted by
+> > > finding existing OOM victim's mm without MMF_OOM_SKIP).
+> > 
+> > But I fail to understand this part of the changelog. It sounds like a
+> > preparatory for other changes. There doesn't seem to be any other user
+> > of __oom_reap_task_mm in the current tree.
+
+I'm planning to call __oom_reap_task_mm() from out_of_memory() if OOM
+situation is not solved immediately, after we made sure that we give
+enough CPU time to OOM killer and OOM reaper to run reclaim code by
+mutex_lock_killable(&oom_lock) change.
+
+> > 
+> > Please send a patch which removes the comment which is no longer true
+> > on its own and feel free to add
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
+> > 
+> > but do not make other changes if you do not have any follow up patch
+> > which would benefit from that.
 > 
-> > However, the log comes from machine #2 again today, as I'm
-> > unfortunately forced to try this via VPN from work to home today, so I
-> > have exactly one attempt per machine before it goes down and locks up
-> > (and I can only restart it later tonight).
-> 
-> This is really surprising to me. Are you sure that you have sysrq
-> configured properly. At least sysrq+b shouldn't depend on any memory
-> allocations and should allow you to reboot immediately. A sysrq+m right
-> before the reboot might turn out being helpful as well.
+> Do you plan to pursue this?
 
-Well, the issue is that I could only do everything via ssh today and
-don't have any physical access to the machines. In fact, both seem to
-have suffered a genuine kernel panic, which is also visible in the
-last few lines of the log I provided today. So, basically, both
-machines are now sitting at my home in panic state and I'll only be
-able to resurrect them wheh I'm physically there again tonight. But
-that was expected; I could have waited with the test until I'm at
-home, which makes things easier, but I thought the sooner I can
-provide a log for you to look at, the better. ;-)
-
-Greetings
-Nils
+Although I don't know whether we agree with mutex_lock_killable(&oom_lock)
+change, I think this patch alone can go as a cleanup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
