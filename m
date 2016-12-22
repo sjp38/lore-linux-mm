@@ -1,56 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CFA0280258
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:12:36 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id u144so38337873wmu.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:12:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o4si29579256wmb.73.2016.12.22.14.12.35
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44BA128026B
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:27:00 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id n189so89423414pga.4
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:27:00 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id j68si32050505pfj.291.2016.12.22.14.26.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 14:12:35 -0800 (PST)
-From: Andreas Schwab <schwab@suse.de>
-Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
-References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
-	<20161222081713.GA32480@node.shutemov.name>
-	<20161222145203.GA18970@bbox>
-Date: Thu, 22 Dec 2016 23:12:32 +0100
-In-Reply-To: <20161222145203.GA18970@bbox> (Minchan Kim's message of "Thu, 22
-	Dec 2016 23:52:03 +0900")
-Message-ID: <8737hftxyn.fsf@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Dec 2016 14:26:59 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id i88so41275521pfk.2
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:26:59 -0800 (PST)
+Date: Thu, 22 Dec 2016 14:26:50 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: A small window for a race condition in
+ mm/rmap.c:page_lock_anon_vma_read
+In-Reply-To: <20161222135106.GY3124@twins.programming.kicks-ass.net>
+Message-ID: <alpine.LSU.2.11.1612221351340.1744@eggly.anvils>
+References: <23B7B563BA4E9446B962B142C86EF24ADBD62C@CNMAILEX03.lenovo.com> <20161221144343.GD593@dhcp22.suse.cz> <20161222135106.GY3124@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Dashi DS1 Cao <caods1@lenovo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Dez 22 2016, Minchan Kim <minchan@kernel.org> wrote:
+On Thu, 22 Dec 2016, Peter Zijlstra wrote:
+> On Wed, Dec 21, 2016 at 03:43:43PM +0100, Michal Hocko wrote:
+> > anon_vma locking is clever^Wsubtle as hell. CC Peter...
+> > 
+> > On Tue 20-12-16 09:32:27, Dashi DS1 Cao wrote:
+> > > I've collected four crash dumps with similar backtrace. 
+> > > 
+> > > PID: 247    TASK: ffff881fcfad8000  CPU: 14  COMMAND: "kswapd1"
+> > >  #0 [ffff881fcfad7978] machine_kexec at ffffffff81051e9b
+> > >  #1 [ffff881fcfad79d8] crash_kexec at ffffffff810f27e2
+> > >  #2 [ffff881fcfad7aa8] oops_end at ffffffff8163f448
+> > >  #3 [ffff881fcfad7ad0] die at ffffffff8101859b
+> > >  #4 [ffff881fcfad7b00] do_general_protection at ffffffff8163ed3e
+> > >  #5 [ffff881fcfad7b30] general_protection at ffffffff8163e5e8
+> > >     [exception RIP: down_read_trylock+9]
+> > >     RIP: ffffffff810aa9f9  RSP: ffff881fcfad7be0  RFLAGS: 00010286
+> > >     RAX: 0000000000000000  RBX: ffff882b47ddadc0  RCX: 0000000000000000
+> > >     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 91550b2b32f5a3e8
+> > 
+> > rdi is obviously a mess - smells like a string. So either sombody has
+> > overwritten root_anon_vma or this is really a use after free...
+> 
+> e8 - ???
+> a3 - ???
+> f5 - ???
+> 32 - 2
+> 2b - +
+>  b - 
+> 
+> 55 - U
+> 91 - ???
+> 
+> Not a string..
+> 
+> > >     RBP: ffff881fcfad7be0   R8: ffffea00ecc28860   R9: ffff883fcffeae28
+> > >     R10: ffffffff81a691a0  R11: 0000000000000001  R12: ffff882b47ddadc1
+> > >     R13: ffffea00ecc28840  R14: 91550b2b32f5a3e8  R15: ffffea00ecc28840
+> > >     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
+> > >  #6 [ffff881fcfad7be8] page_lock_anon_vma_read at ffffffff811a3365
+> > >  #7 [ffff881fcfad7c18] page_referenced at ffffffff811a35e7
+> > >  #8 [ffff881fcfad7c90] shrink_active_list at ffffffff8117e8cc
+> > >  #9 [ffff881fcfad7d48] balance_pgdat at ffffffff81180288
+> > > #10 [ffff881fcfad7e20] kswapd at ffffffff81180813
+> > > #11 [ffff881fcfad7ec8] kthread at ffffffff810a5b8f
+> > > #12 [ffff881fcfad7f50] ret_from_fork at ffffffff81646a98
+> > > 
+> > > I suspect my customer hits into a small window of a race condition in mm/rmap.c: page_lock_anon_vma_read.
+> > > struct anon_vma *page_lock_anon_vma_read(struct page *page)
+> > > {
+> > >         struct anon_vma *anon_vma = NULL;
+> > >         struct anon_vma *root_anon_vma;
+> > >         unsigned long anon_mapping;
+> > > 
+> > >         rcu_read_lock();
+> > >         anon_mapping = (unsigned long)READ_ONCE(page->mapping);
+> > >         if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+> > >                 goto out;
+> > >         if (!page_mapped(page))
+> > >                 goto out;
+> > > 
+> > >         anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+> > >         root_anon_vma = READ_ONCE(anon_vma->root);
+> > 
+> > Could you dump the anon_vma and struct page as well?
+> > 
+> > >         if (down_read_trylock(&root_anon_vma->rwsem)) {
+> > >                 /*
+> > >                  * If the page is still mapped, then this anon_vma is still
+> > >                  * its anon_vma, and holding the mutex ensures that it will
+> > >                  * not go away, see anon_vma_free().
+> > >                  */
+> > >                 if (!page_mapped(page)) {
+> > >                         up_read(&root_anon_vma->rwsem);
+> > >                         anon_vma = NULL;
+> > >                 }
+> > >                 goto out;
+> > >         }
+> > > ...
+> > > }
+> > > 
+> > > Between the time the two "page_mapped(page)" are checked, the address
+> > > (anon_mapping - PAGE_MAPPING_ANON) is unmapped! However it seems
+> > > that anon_vma->root could still be read in but the value is wild. So
+> > > the kernel crashes in down_read_trylock. But it's weird that all the
+> > > "struct page" has its member "_mapcount" still with value 0, not -1,
+> > > in the four crashes.
+> 
+> So the point is that while we hold rcu_read_lock() the actual memory
+> backing the anon_vmas cannot be freed. It can be reused, but only for
+> another anon_vma.
+> 
+> Now, anon_vma_alloc() sets ->root to self, while anon_vma_free() leaves
+> ->root set to whatever. And any other ->root assignment is to a valid
+> anon_vma.
+> 
+> Therefore, the same rules that ensure anon_vma stays valid, should also
+> ensure anon_vma->root stays valid.
+> 
+> Now, one thing that might go wobbly is that ->root assignments are not
+> done using WRITE_ONCE(), this means a naughty compiler can miscompile
+> those stores and introduce store-tearing, if our READ_ONCE() would
+> observe such a tear, we'd be up some creek without a paddle.
 
-> From b3ec95c0df91ad113525968a4a6b53030fd0b48d Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Thu, 22 Dec 2016 23:43:49 +0900
-> Subject: [PATCH v2] mm: pmd dirty emulation in page fault handler
->
-> Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-> http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
->
-> The problem is page fault handler supports only accessed flag emulation
-> for THP page of SW-dirty/accessed architecture.
->
-> This patch enables dirty-bit emulation for those architectures.
-> Without it, MADV_FREE makes application hang by repeated fault forever.
->
-> [1] b8d3c4c3009d, mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called
+We would indeed.  And this being the season of goodwill, I'm biting
+my tongue not to say what I think of the prospect of store tearing.
+But that zeroed anon_vma implies tearing not the problem here anyway.
 
-Successfully tested a backport to 4.9.
+> 
+> Now, its been a long time since I looked at any of this code, and I see
+> that Hugh has fixed at least two wobblies in my original code.
 
-Andreas.
+Nothing much, and this (admittedly subtle) technique has been working
+well for years, so I'm sceptical about "a small window for a race
+condition".
 
--- 
-Andreas Schwab, SUSE Labs, schwab@suse.de
-GPG Key fingerprint = 0196 BAD8 1CE9 1970 F4BE  1748 E4D4 88E3 0EEA B9D7
-"And now for something completely different."
+But Dashi's right to point out that the struct page has _mapcount 0
+(not -1 for logical 0) in these cases: it looks as if something is
+freeing (or corrupting) the anon_vma despite it still having pages
+mapped, or something is misaccounting (or corrupting) the _mapcount.
+
+But I've no idea what, and we have not heard such reports elsewhere.
+We don't even know what kernel this is - something special, perhaps?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
