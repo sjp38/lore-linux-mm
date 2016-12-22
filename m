@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AC396B0348
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C89C26B034A
 	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:19:06 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 83so373602569pfx.1
+Received: by mail-pg0-f69.google.com with SMTP id f188so669126231pgc.1
         for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:19:06 -0800 (PST)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b10si31949871pfd.39.2016.12.22.13.19.04
+        by mx.google.com with ESMTPS id b10si31949871pfd.39.2016.12.22.13.19.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 13:19:05 -0800 (PST)
+        Thu, 22 Dec 2016 13:19:06 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 0/4] Write protect DAX PMDs in *sync path
-Date: Thu, 22 Dec 2016 14:18:52 -0700
-Message-Id: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 1/4] dax: kill uml support
+Date: Thu, 22 Dec 2016 14:18:53 -0700
+Message-Id: <1482441536-14550-2-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
+References: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+Cc: Dan Williams <dan.j.williams@intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Currently dax_mapping_entry_mkclean() fails to clean and write protect the
-pmd_t of a DAX PMD entry during an *sync operation.  This can result in
-data loss, as detailed in patch 4.
+From: Dan Williams <dan.j.williams@intel.com>
 
-You can find a working tree here:
+The lack of common transparent-huge-page helpers for UML is becoming
+increasingly painful for fs/dax.c now that it is growing more pmd
+functionality. Add UML to the list of unsupported architectures.
 
-https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_clean_v2
+Cc: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+[rez: squashed #ifdef removal into another patch in the series ]
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+---
+ fs/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-This series applies cleanly to mmotm-2016-12-19-16-31.
-
-Changes since v1:
- - Included Dan's patch to kill DAX support for UML.
- - Instead of wrapping the DAX PMD code in dax_mapping_entry_mkclean() in
-   an #ifdef, we now create a stub for pmdp_huge_clear_flush() for the case
-   when CONFIG_TRANSPARENT_HUGEPAGE isn't defined. (Dan & Jan)
-
-Dan Williams (1):
-  dax: kill uml support
-
-Ross Zwisler (3):
-  dax: add stub for pmdp_huge_clear_flush()
-  mm: add follow_pte_pmd()
-  dax: wrprotect pmd_t in dax_mapping_entry_mkclean
-
- fs/Kconfig                    |  2 +-
- fs/dax.c                      | 49 ++++++++++++++++++++++++++++++-------------
- include/asm-generic/pgtable.h | 10 +++++++++
- include/linux/mm.h            |  4 ++--
- mm/memory.c                   | 41 ++++++++++++++++++++++++++++--------
- 5 files changed, 79 insertions(+), 27 deletions(-)
-
+diff --git a/fs/Kconfig b/fs/Kconfig
+index c2a377c..661931f 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -37,7 +37,7 @@ source "fs/f2fs/Kconfig"
+ config FS_DAX
+ 	bool "Direct Access (DAX) support"
+ 	depends on MMU
+-	depends on !(ARM || MIPS || SPARC)
++	depends on !(ARM || MIPS || SPARC || UML)
+ 	help
+ 	  Direct Access (DAX) can be used on memory-backed block devices.
+ 	  If the block device supports DAX and the filesystem supports DAX,
 -- 
 2.7.4
 
