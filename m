@@ -1,135 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B49F46B037C
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:55:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id b1so478240416pgc.5
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:55:33 -0800 (PST)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id m68si31760958pga.16.2016.12.22.11.55.32
+	by kanga.kvack.org (Postfix) with ESMTP id C2E4E6B02CB
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:05:29 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u5so49867224pgi.7
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:05:29 -0800 (PST)
+Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
+        by mx.google.com with ESMTPS id u28si4013993pfl.22.2016.12.22.13.05.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 11:55:32 -0800 (PST)
-Received: by mail-pg0-x22c.google.com with SMTP id i5so35993957pgh.2
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:55:32 -0800 (PST)
-Date: Thu, 22 Dec 2016 11:55:28 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/2] mm: Use owner_priv bit for PageSwapCache, valid when
- PageSwapBacked
-In-Reply-To: <20161221151951.16396-2-npiggin@gmail.com>
-Message-ID: <alpine.LSU.2.11.1612221130520.4215@eggly.anvils>
-References: <20161221151951.16396-1-npiggin@gmail.com> <20161221151951.16396-2-npiggin@gmail.com>
+        Thu, 22 Dec 2016 13:05:28 -0800 (PST)
+Received: by mail-pg0-x22f.google.com with SMTP id i5so36476510pgh.2
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:05:28 -0800 (PST)
+Date: Thu, 22 Dec 2016 13:05:27 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <20161222100009.GA6055@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, swhiteho@redhat.com, luto@kernel.org, agruenba@redhat.com, peterz@infradead.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 22 Dec 2016, Nicholas Piggin wrote:
+On Thu, 22 Dec 2016, Michal Hocko wrote:
 
-I agree with every word of that changelog ;)
-
-And I'll stamp this with
-Acked-by: Hugh Dickins <hughd@google.com>
-
-The thing that Peter remembers I commented on (which 0day caught too),
-was to remove PG_swapcache from PAGE_FLAGS_CHECK_AT_FREE: you've done
-that now, so this is good.  (Note in passing: wouldn't it be good to
-add PG_waiters to PAGE_FLAGS_CHECK_AT_FREE in the 2/2?)
-
-Though I did yesterday notice a few more problematic uses of
-PG_swapcache, which you'll probably need to refine to exclude
-other uses of PG_owner_priv_1; though no great hurry for those,
-so not necessarily in this same patch.  Do your own grep, but
-
-fs/proc/page.c derives its KPF_SWAPCACHE from PG_swapcache,
-needs refining.
-
-kernel/kexec_core.c says VMCOREINFO_NUMBER(PG_swapcache):
-I haven't looked into what that's about, it will probably just
-have to be commented as now including other uses of the same bit.
-
-mm/memory-failure.c has an error_states[] table that involves
-testing PG_swapcache as "sc", but looks as if it can be changed
-to factor in "swapbacked" too.
-
-Hugh
-
-> ---
->  include/linux/page-flags.h     | 24 ++++++++++++++++--------
->  include/trace/events/mmflags.h |  1 -
->  2 files changed, 16 insertions(+), 9 deletions(-)
+> > Currently, when defrag is set to "madvise", thp allocations will direct
+> > reclaim.  However, when defrag is set to "defer", all thp allocations do
+> > not attempt reclaim regardless of MADV_HUGEPAGE.
+> > 
+> > This patch always directly reclaims for MADV_HUGEPAGE regions when defrag
+> > is not set to "never."  The idea is that MADV_HUGEPAGE regions really
+> > want to be backed by hugepages and are willing to endure the latency at
+> > fault as it was the default behavior prior to commit 444eb2a449ef ("mm:
+> > thp: set THP defrag by default to madvise and add a stall-free defrag
+> > option").
 > 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 74e4dda91238..a57c909a15e4 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -87,7 +87,6 @@ enum pageflags {
->  	PG_private_2,		/* If pagecache, has fs aux data */
->  	PG_writeback,		/* Page is under writeback */
->  	PG_head,		/* A head page */
-> -	PG_swapcache,		/* Swap page: swp_entry_t in private */
->  	PG_mappedtodisk,	/* Has blocks allocated on-disk */
->  	PG_reclaim,		/* To be reclaimed asap */
->  	PG_swapbacked,		/* Page is backed by RAM/swap */
-> @@ -110,6 +109,9 @@ enum pageflags {
->  	/* Filesystems */
->  	PG_checked = PG_owner_priv_1,
->  
-> +	/* SwapBacked */
-> +	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
-> +
->  	/* Two page bits are conscripted by FS-Cache to maintain local caching
->  	 * state.  These bits are set on pages belonging to the netfs's inodes
->  	 * when those inodes are being locally cached.
-> @@ -314,7 +316,13 @@ PAGEFLAG_FALSE(HighMem)
->  #endif
->  
->  #ifdef CONFIG_SWAP
-> -PAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-> +static __always_inline int PageSwapCache(struct page *page)
-> +{
-> +	return PageSwapBacked(page) && test_bit(PG_swapcache, &page->flags);
-> +
-> +}
-> +SETPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
-> +CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
->  #else
->  PAGEFLAG_FALSE(SwapCache)
->  #endif
-> @@ -701,12 +709,12 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
->   * Flags checked when a page is freed.  Pages being freed should not have
->   * these flags set.  It they are, there is a problem.
->   */
-> -#define PAGE_FLAGS_CHECK_AT_FREE \
-> -	(1UL << PG_lru	 | 1UL << PG_locked    | \
-> -	 1UL << PG_private | 1UL << PG_private_2 | \
-> -	 1UL << PG_writeback | 1UL << PG_reserved | \
-> -	 1UL << PG_slab	 | 1UL << PG_swapcache | 1UL << PG_active | \
-> -	 1UL << PG_unevictable | __PG_MLOCKED)
-> +#define PAGE_FLAGS_CHECK_AT_FREE				\
-> +	(1UL << PG_lru		| 1UL << PG_locked	|	\
-> +	 1UL << PG_private	| 1UL << PG_private_2	|	\
-> +	 1UL << PG_writeback	| 1UL << PG_reserved	|	\
-> +	 1UL << PG_slab		| 1UL << PG_active 	|	\
-> +	 1UL << PG_unevictable	| __PG_MLOCKED)
->  
->  /*
->   * Flags checked when a page is prepped for return by the page allocator.
-> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-> index 5a81ab48a2fb..30c2adbdebe8 100644
-> --- a/include/trace/events/mmflags.h
-> +++ b/include/trace/events/mmflags.h
-> @@ -95,7 +95,6 @@
->  	{1UL << PG_private_2,		"private_2"	},		\
->  	{1UL << PG_writeback,		"writeback"	},		\
->  	{1UL << PG_head,		"head"		},		\
-> -	{1UL << PG_swapcache,		"swapcache"	},		\
->  	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
->  	{1UL << PG_reclaim,		"reclaim"	},		\
->  	{1UL << PG_swapbacked,		"swapbacked"	},		\
-> -- 
-> 2.11.0
+> AFAIR "defer" is implemented exactly as intended. To offer a never-stall
+> but allow to form THP in the background option. The patch description
+> doesn't explain why this is not good anymore. Could you give us more
+> details about the motivation and why "madvise" doesn't work for
+> you? This is a user visible change so the reason should better be really
+> documented and strong.
+> 
+
+The offering of defer breaks backwards compatibility with previous 
+settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
+.text segment remap and try to force thp backing if available but not 
+directly reclaim for non VM_HUGEPAGE vmas.  This was very advantageous.  
+We prefer that to stay unchanged and allow kcompactd compaction to be 
+triggered in background by everybody else as opposed to direct reclaim.  
+We do not have that ability without this patch.
+
+Without this patch, we will be forced to offer multiple sysfs tunables to 
+define (1) direct vs background compact, (2) madvise behavior, (3) always, 
+(4) never and we cannot have 2^4 settings for "defrag" alone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
