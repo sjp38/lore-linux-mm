@@ -1,137 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 71A906B041F
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 08:51:07 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id f73so235686887ioe.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 05:51:07 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id d2si19389656itg.13.2016.12.22.05.51.06
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DE76B0421
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 09:01:36 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id a190so363325476pgc.0
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 06:01:36 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id w76si30867284pfa.220.2016.12.22.06.01.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 05:51:06 -0800 (PST)
-Date: Thu, 22 Dec 2016 14:51:06 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: A small window for a race condition in
- mm/rmap.c:page_lock_anon_vma_read
-Message-ID: <20161222135106.GY3124@twins.programming.kicks-ass.net>
-References: <23B7B563BA4E9446B962B142C86EF24ADBD62C@CNMAILEX03.lenovo.com>
- <20161221144343.GD593@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161221144343.GD593@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Dec 2016 06:01:35 -0800 (PST)
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
+	<20161219122738.GB427@tigerII.localdomain>
+	<20161220153948.GA575@tigerII.localdomain>
+	<201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
+	<20161222134250.GE413@tigerII.localdomain>
+In-Reply-To: <20161222134250.GE413@tigerII.localdomain>
+Message-Id: <201612222301.AFG57832.QOFMSVFOJHLOtF@I-love.SAKURA.ne.jp>
+Date: Thu, 22 Dec 2016 23:01:25 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dashi DS1 Cao <caods1@lenovo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: sergey.senozhatsky@gmail.com
+Cc: mhocko@suse.com, linux-mm@kvack.org, pmladek@suse.cz
 
-On Wed, Dec 21, 2016 at 03:43:43PM +0100, Michal Hocko wrote:
-> anon_vma locking is clever^Wsubtle as hell. CC Peter...
+Sergey Senozhatsky wrote:
+> On (12/22/16 19:27), Tetsuo Handa wrote:
+> > Thank you. I tried "[PATCHv6 0/7] printk: use printk_safe to handle printk()
+> > recursive calls" at https://lkml.org/lkml/2016/12/21/232 on top of linux.git
+> > as of commit 52bce91165e5f2db "splice: reinstate SIGPIPE/EPIPE handling", but
+> > it turned out that your patch set does not solve this problem.
+> > 
+> > I was assuming that sending to consoles from printk() is offloaded to a kernel
+> > thread dedicated for that purpose, but your patch set does not do it.
 > 
-> On Tue 20-12-16 09:32:27, Dashi DS1 Cao wrote:
-> > I've collected four crash dumps with similar backtrace. 
-> > 
-> > PID: 247    TASK: ffff881fcfad8000  CPU: 14  COMMAND: "kswapd1"
-> >  #0 [ffff881fcfad7978] machine_kexec at ffffffff81051e9b
-> >  #1 [ffff881fcfad79d8] crash_kexec at ffffffff810f27e2
-> >  #2 [ffff881fcfad7aa8] oops_end at ffffffff8163f448
-> >  #3 [ffff881fcfad7ad0] die at ffffffff8101859b
-> >  #4 [ffff881fcfad7b00] do_general_protection at ffffffff8163ed3e
-> >  #5 [ffff881fcfad7b30] general_protection at ffffffff8163e5e8
-> >     [exception RIP: down_read_trylock+9]
-> >     RIP: ffffffff810aa9f9  RSP: ffff881fcfad7be0  RFLAGS: 00010286
-> >     RAX: 0000000000000000  RBX: ffff882b47ddadc0  RCX: 0000000000000000
-> >     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 91550b2b32f5a3e8
+> sorry, seems that I didn't deliver the information properly.
 > 
-> rdi is obviously a mess - smells like a string. So either sombody has
-> overwritten root_anon_vma or this is really a use after free...
-
-e8 - i? 1/2 
-a3 - i? 1/2 
-f5 - i? 1/2 
-32 - 2
-2b - +
- b - 
-
-55 - U
-91 - i? 1/2 
-
-Not a string..
-
-> >     RBP: ffff881fcfad7be0   R8: ffffea00ecc28860   R9: ffff883fcffeae28
-> >     R10: ffffffff81a691a0  R11: 0000000000000001  R12: ffff882b47ddadc1
-> >     R13: ffffea00ecc28840  R14: 91550b2b32f5a3e8  R15: ffffea00ecc28840
-> >     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
-> >  #6 [ffff881fcfad7be8] page_lock_anon_vma_read at ffffffff811a3365
-> >  #7 [ffff881fcfad7c18] page_referenced at ffffffff811a35e7
-> >  #8 [ffff881fcfad7c90] shrink_active_list at ffffffff8117e8cc
-> >  #9 [ffff881fcfad7d48] balance_pgdat at ffffffff81180288
-> > #10 [ffff881fcfad7e20] kswapd at ffffffff81180813
-> > #11 [ffff881fcfad7ec8] kthread at ffffffff810a5b8f
-> > #12 [ffff881fcfad7f50] ret_from_fork at ffffffff81646a98
-> > 
-> > I suspect my customer hits into a small window of a race condition in mm/rmap.c: page_lock_anon_vma_read.
-> > struct anon_vma *page_lock_anon_vma_read(struct page *page)
-> > {
-> >         struct anon_vma *anon_vma = NULL;
-> >         struct anon_vma *root_anon_vma;
-> >         unsigned long anon_mapping;
-> > 
-> >         rcu_read_lock();
-> >         anon_mapping = (unsigned long)READ_ONCE(page->mapping);
-> >         if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
-> >                 goto out;
-> >         if (!page_mapped(page))
-> >                 goto out;
-> > 
-> >         anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> >         root_anon_vma = READ_ONCE(anon_vma->root);
+> https://gitlab.com/senozhatsky/linux-next-ss/commits/printk-safe-deferred
 > 
-> Could you dump the anon_vma and struct page as well?
+> there are 2 patch sets. the first one is printk-safe. the second one
+> is async printk.
 > 
-> >         if (down_read_trylock(&root_anon_vma->rwsem)) {
-> >                 /*
-> >                  * If the page is still mapped, then this anon_vma is still
-> >                  * its anon_vma, and holding the mutex ensures that it will
-> >                  * not go away, see anon_vma_free().
-> >                  */
-> >                 if (!page_mapped(page)) {
-> >                         up_read(&root_anon_vma->rwsem);
-> >                         anon_vma = NULL;
-> >                 }
-> >                 goto out;
-> >         }
-> > ...
-> > }
-> > 
-> > Between the time the two "page_mapped(page)" are checked, the address
-> > (anon_mapping - PAGE_MAPPING_ANON) is unmapped! However it seems
-> > that anon_vma->root could still be read in but the value is wild. So
-> > the kernel crashes in down_read_trylock. But it's weird that all the
-> > "struct page" has its member "_mapcount" still with value 0, not -1,
-> > in the four crashes.
+> 9 patches in total (as of now).
+> 
+> can you access it?
 
-So the point is that while we hold rcu_read_lock() the actual memory
-backing the anon_vmas cannot be freed. It can be reused, but only for
-another anon_vma.
+"404 The page you're looking for could not be found."
 
-Now, anon_vma_alloc() sets ->root to self, while anon_vma_free() leaves
-->root set to whatever. And any other ->root assignment is to a valid
-anon_vma.
-
-Therefore, the same rules that ensure anon_vma stays valid, should also
-ensure anon_vma->root stays valid.
-
-Now, one thing that might go wobbly is that ->root assignments are not
-done using WRITE_ONCE(), this means a naughty compiler can miscompile
-those stores and introduce store-tearing, if our READ_ONCE() would
-observe such a tear, we'd be up some creek without a paddle.
-
-
-Now, its been a long time since I looked at any of this code, and I see
-that Hugh has fixed at least two wobblies in my original code.
-
+Anonymous access not supported?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
