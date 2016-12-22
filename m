@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E8BB06B03FA
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 03:56:48 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id g12so69505915lfe.5
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 00:56:48 -0800 (PST)
-Received: from smtp36.i.mail.ru (smtp36.i.mail.ru. [94.100.177.96])
-        by mx.google.com with ESMTPS id e124si16780244lfg.84.2016.12.22.00.56.46
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A82C96B03E7
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 04:06:52 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id w13so34830753wmw.0
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 01:06:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h6si783136wjj.194.2016.12.22.01.06.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 00:56:47 -0800 (PST)
-Date: Thu, 22 Dec 2016 11:56:37 +0300
-From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: [PATCH 2/2] kasan: add memcg kmem_cache test
-Message-ID: <20161222085637.GB3494@esperanza>
-References: <1482257462-36948-1-git-send-email-gthelen@google.com>
- <1482257462-36948-2-git-send-email-gthelen@google.com>
+        Thu, 22 Dec 2016 01:06:51 -0800 (PST)
+Date: Thu, 22 Dec 2016 10:06:48 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V3 1/2] mm/memblock.c: trivial code refine in
+ memblock_is_region_memory()
+Message-ID: <20161222090648.GB6048@dhcp22.suse.cz>
+References: <1482363033-24754-1-git-send-email-richard.weiyang@gmail.com>
+ <1482363033-24754-2-git-send-email-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482257462-36948-2-git-send-email-gthelen@google.com>
+In-Reply-To: <1482363033-24754-2-git-send-email-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 20, 2016 at 10:11:02AM -0800, Greg Thelen wrote:
-> Make a kasan test which uses a SLAB_ACCOUNT slab cache.  If the test is
-> run within a non default memcg, then it uncovers the bug fixed by
-> "kasan: drain quarantine of memcg slab objects"[1].
+On Wed 21-12-16 23:30:32, Wei Yang wrote:
+> memblock_is_region_memory() invoke memblock_search() to see whether the
+> base address is in the memory region. If it fails, idx would be -1. Then,
+> it returns 0.
 > 
-> If run without fix [1] it shows "Slab cache still has objects", and the
-> kmem_cache structure is leaked.
-> Here's an unpatched kernel test:
-> $ dmesg -c > /dev/null
-> $ mkdir /sys/fs/cgroup/memory/test
-> $ echo $$ > /sys/fs/cgroup/memory/test/tasks
-> $ modprobe test_kasan 2> /dev/null
-> $ dmesg | grep -B1 still
-> [ 123.456789] kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
-> [ 124.456789] kmem_cache_destroy test_cache: Slab cache still has objects
+> If the memblock_search() returns a valid index, it means the base address
+> is guaranteed to be in the range memblock.memory.regions[idx]. Because of
+> this, it is not necessary to check the base again.
 > 
-> Kernels with fix [1] don't have the "Slab cache still has objects"
-> warning or the underlying leak.
-> 
-> The new test runs and passes in the default (root) memcg, though in the
-> root memcg it won't uncover the problem fixed by [1].
-> 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+> This patch removes the check on "base".
 
-Reviewed-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+OK, the patch looks correct. I doubt it makes any real difference but I
+do not see it being harmful.
+
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/memblock.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 7608bc3..4929e06 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1615,8 +1615,7 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
+>  
+>  	if (idx == -1)
+>  		return 0;
+> -	return memblock.memory.regions[idx].base <= base &&
+> -		(memblock.memory.regions[idx].base +
+> +	return (memblock.memory.regions[idx].base +
+>  		 memblock.memory.regions[idx].size) >= end;
+>  }
+>  
+> -- 
+> 2.5.0
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
