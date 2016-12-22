@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2F76B03F8
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 03:55:11 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id iq1so2887832wjb.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 00:55:11 -0800 (PST)
-Received: from smtp24.mail.ru (smtp24.mail.ru. [94.100.181.179])
-        by mx.google.com with ESMTPS id us1si30989439wjc.102.2016.12.22.00.55.09
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E8BB06B03FA
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 03:56:48 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id g12so69505915lfe.5
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 00:56:48 -0800 (PST)
+Received: from smtp36.i.mail.ru (smtp36.i.mail.ru. [94.100.177.96])
+        by mx.google.com with ESMTPS id e124si16780244lfg.84.2016.12.22.00.56.46
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 00:55:10 -0800 (PST)
-Date: Thu, 22 Dec 2016 11:54:58 +0300
+        Thu, 22 Dec 2016 00:56:47 -0800 (PST)
+Date: Thu, 22 Dec 2016 11:56:37 +0300
 From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: [PATCH 1/2] kasan: drain quarantine of memcg slab objects
-Message-ID: <20161222085458.GA3494@esperanza>
+Subject: Re: [PATCH 2/2] kasan: add memcg kmem_cache test
+Message-ID: <20161222085637.GB3494@esperanza>
 References: <1482257462-36948-1-git-send-email-gthelen@google.com>
+ <1482257462-36948-2-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482257462-36948-1-git-send-email-gthelen@google.com>
+In-Reply-To: <1482257462-36948-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 20, 2016 at 10:11:01AM -0800, Greg Thelen wrote:
-> Per memcg slab accounting and kasan have a problem with kmem_cache
-> destruction.
-> - kmem_cache_create() allocates a kmem_cache, which is used for
->   allocations from processes running in root (top) memcg.
-> - Processes running in non root memcg and allocating with either
->   __GFP_ACCOUNT or from a SLAB_ACCOUNT cache use a per memcg kmem_cache.
-> - Kasan catches use-after-free by having kfree() and kmem_cache_free()
->   defer freeing of objects.  Objects are placed in a quarantine.
-> - kmem_cache_destroy() destroys root and non root kmem_caches.  It takes
->   care to drain the quarantine of objects from the root memcg's
->   kmem_cache, but ignores objects associated with non root memcg.  This
->   causes leaks because quarantined per memcg objects refer to per memcg
->   kmem cache being destroyed.
+On Tue, Dec 20, 2016 at 10:11:02AM -0800, Greg Thelen wrote:
+> Make a kasan test which uses a SLAB_ACCOUNT slab cache.  If the test is
+> run within a non default memcg, then it uncovers the bug fixed by
+> "kasan: drain quarantine of memcg slab objects"[1].
 > 
-> To see the problem:
-> 1) create a slab cache with kmem_cache_create(,,,SLAB_ACCOUNT,)
-> 2) from non root memcg, allocate and free a few objects from cache
-> 3) dispose of the cache with kmem_cache_destroy()
-> kmem_cache_destroy() will trigger a "Slab cache still has objects"
-> warning indicating that the per memcg kmem_cache structure was leaked.
+> If run without fix [1] it shows "Slab cache still has objects", and the
+> kmem_cache structure is leaked.
+> Here's an unpatched kernel test:
+> $ dmesg -c > /dev/null
+> $ mkdir /sys/fs/cgroup/memory/test
+> $ echo $$ > /sys/fs/cgroup/memory/test/tasks
+> $ modprobe test_kasan 2> /dev/null
+> $ dmesg | grep -B1 still
+> [ 123.456789] kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
+> [ 124.456789] kmem_cache_destroy test_cache: Slab cache still has objects
 > 
-> Fix the leak by draining kasan quarantined objects allocated from non
-> root memcg.
+> Kernels with fix [1] don't have the "Slab cache still has objects"
+> warning or the underlying leak.
 > 
-> Racing memcg deletion is tricky, but handled.  kmem_cache_destroy() =>
-> shutdown_memcg_caches() => __shutdown_memcg_cache() => shutdown_cache()
-> flushes per memcg quarantined objects, even if that memcg has been
-> rmdir'd and gone through memcg_deactivate_kmem_caches().
-> 
-> This leak only affects destroyed SLAB_ACCOUNT kmem caches when kasan is
-> enabled.  So I don't think it's worth patching stable kernels.
+> The new test runs and passes in the default (root) memcg, though in the
+> root memcg it won't uncover the problem fixed by [1].
 > 
 > Signed-off-by: Greg Thelen <gthelen@google.com>
 
