@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7AC28025E
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:24:11 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so6060462wmi.6
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:24:11 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FEC228025E
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:27:57 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id xr1so67236498wjb.7
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:27:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id iq8si3063356wjb.259.2016.12.22.11.24.09
+        by mx.google.com with ESMTPS id cv5si32875112wjc.141.2016.12.22.11.27.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 11:24:10 -0800 (PST)
-Date: Thu, 22 Dec 2016 20:24:07 +0100
+        Thu, 22 Dec 2016 11:27:56 -0800 (PST)
+Date: Thu, 22 Dec 2016 20:27:53 +0100
 From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161222192406.GB19898@dhcp22.suse.cz>
-References: <201612151921.CBE43202.SFLtOFJMOFOQVH@I-love.SAKURA.ne.jp>
- <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
- <20161219122738.GB427@tigerII.localdomain>
- <20161220153948.GA575@tigerII.localdomain>
- <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
- <201612222233.CBC56295.LFOtMOVQSJOFHF@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mm, oom_reaper: Update rationale comment for holding
+ oom_lock.
+Message-ID: <20161222192752.GC19898@dhcp22.suse.cz>
+References: <1482411450-8097-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612222233.CBC56295.LFOtMOVQSJOFHF@I-love.SAKURA.ne.jp>
+In-Reply-To: <1482411450-8097-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sergey.senozhatsky@gmail.com, linux-mm@kvack.org, pmladek@suse.cz
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Thu 22-12-16 22:33:40, Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
-> > Now, what options are left other than replacing !mutex_trylock(&oom_lock)
-> > with mutex_lock_killable(&oom_lock) which also stops wasting CPU time?
-> > Are we waiting for offloading sending to consoles?
+On Thu 22-12-16 21:57:30, Tetsuo Handa wrote:
+> Since commit 862e3073b3eed13f
+> ("mm, oom: get rid of signal_struct::oom_victims")
+> changed to wait until MMF_OOM_SKIP is set rather than wait while
+> TIF_MEMDIE is set, rationale comment for commit e2fe14564d3316d1
+> ("oom_reaper: close race with exiting task") needs to be updated.
 > 
->  From http://lkml.kernel.org/r/20161222115057.GH6048@dhcp22.suse.cz :
-> > > Although I don't know whether we agree with mutex_lock_killable(&oom_lock)
-> > > change, I think this patch alone can go as a cleanup.
-> > 
-> > No, we don't agree on that part. As this is a printk issue I do not want
-> > to workaround it in the oom related code. That is just ridiculous. The
-> > very same issue would be possible due to other continous source of log
-> > messages.
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  mm/oom_kill.c | 15 +++------------
+>  1 file changed, 3 insertions(+), 12 deletions(-)
 > 
-> I don't think so. Lockup caused by printk() is printk's problem. But printk
-> is not the only source of lockup. If CONFIG_PREEMPT=y, it is possible that
-> a thread which held oom_lock can sleep for unbounded period depending on
-> scheduling priority.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index ec9f11d..6fd076b 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -470,18 +470,9 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	bool ret = true;
+>  
+>  	/*
+> -	 * We have to make sure to not race with the victim exit path
+> -	 * and cause premature new oom victim selection:
+> -	 * __oom_reap_task_mm		exit_mm
+> -	 *   mmget_not_zero
+> -	 *				  mmput
+> -	 *				    atomic_dec_and_test
+> -	 *				  exit_oom_victim
+> -	 *				[...]
+> -	 *				out_of_memory
+> -	 *				  select_bad_process
+> -	 *				    # no TIF_MEMDIE task selects new victim
+> -	 *  unmap_page_range # frees some memory
+> +	 * Make sure that other threads waiting for oom_lock at
+> +	 * __alloc_pages_may_oom() are given a chance to call
+> +	 * get_page_from_freelist() after MMF_OOM_SKIP is set.
+>  	 */
+>  	mutex_lock(&oom_lock);
 
-Unless there is some runaway realtime process then the holder of the oom
-lock shouldn't be preempted for the _unbounded_ amount of time. It might
-take quite some time, though. But that is not reduced to the OOM killer.
-Any important part of the system (IO flushers and what not) would suffer
-from the same issue.
+I am not sure the comment clarifies things. I would either remove the
+comment completely or write something like the below
 
-> Then, you call such latency as scheduler's problem?
-> mutex_lock_killable(&oom_lock) change helps coping with whatever delays
-> OOM killer/reaper might encounter.
-
-It helps _your_ particular insane workload. I believe you can construct
-many others which which would cause a similar problem and the above
-suggestion wouldn't help a bit. Until I can see this is easily
-triggerable on a reasonably configured system then I am not convinced
-we should add more non trivial changes to the oom killer path.
+	/*
+	 * Exclude any oom actions while we are reaping the oom
+	 * victim. This will save us from pointless searching of the
+	 * new oom victim.
+	 */
 
 -- 
 Michal Hocko
