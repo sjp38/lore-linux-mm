@@ -1,108 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A686028026B
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:37:36 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 5so483387231pgi.2
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:37:36 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id b31si32147518pli.65.2016.12.22.14.37.35
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC16128026B
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 18:04:52 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id 96so3253835uaq.7
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 15:04:52 -0800 (PST)
+Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
+        by mx.google.com with ESMTPS id 31si1399873uam.178.2016.12.22.15.04.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 14:37:35 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id i5so11899335pgh.2
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:37:35 -0800 (PST)
-Date: Thu, 22 Dec 2016 22:37:33 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 2/2] mm/memblock.c: check return value of
- memblock_reserve() in memblock_virt_alloc_internal()
-Message-ID: <20161222223733.GA27208@vultr.guest>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <1482363033-24754-1-git-send-email-richard.weiyang@gmail.com>
- <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
- <20161222091519.GC6048@dhcp22.suse.cz>
+        Thu, 22 Dec 2016 15:04:48 -0800 (PST)
+Received: by mail-vk0-x241.google.com with SMTP id p9so18995756vkd.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 15:04:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161222091519.GC6048@dhcp22.suse.cz>
+In-Reply-To: <CALZtONCCkp8ZhZ29f1FK5DsOyhkyM3_25ZXmr0QGfTbrBxFysw@mail.gmail.com>
+References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
+ <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
+ <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org>
+ <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com> <CALZtONCCkp8ZhZ29f1FK5DsOyhkyM3_25ZXmr0QGfTbrBxFysw@mail.gmail.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Fri, 23 Dec 2016 00:04:47 +0100
+Message-ID: <CAMJBoFOxh7162k942bhArikpBgyhESZGJo1+ccP-MOX12Sdd9w@mail.gmail.com>
+Subject: Re: [PATCH 0/2] z3fold fixes
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
 
-On Thu, Dec 22, 2016 at 10:15:20AM +0100, Michal Hocko wrote:
->On Wed 21-12-16 23:30:33, Wei Yang wrote:
->> memblock_reserve() would add a new range to memblock.reserved in case the
->> new range is not totally covered by any of the current memblock.reserved
->> range. If the memblock.reserved is full and can't resize,
->> memblock_reserve() would fail.
->> 
->> This doesn't happen in real world now, I observed this during code review.
->> While theoretically, it has the chance to happen. And if it happens, others
->> would think this range of memory is still available and may corrupt the
->> memory.
+On Thu, Dec 22, 2016 at 10:55 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Sun, Dec 18, 2016 at 3:15 AM, Vitaly Wool <vitalywool@gmail.com> wrote=
+:
+>> On Tue, Nov 29, 2016 at 11:39 PM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>>> On Tue, 29 Nov 2016 17:33:19 -0500 Dan Streetman <ddstreet@ieee.org> wr=
+ote:
+>>>
+>>>> On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wr=
+ote:
+>>>> > Here come 2 patches with z3fold fixes for chunks counting and lockin=
+g. As commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is =
+too big") was NAK'ed [1], I would suggest that we removed that one and the =
+next z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't c=
+ompacted") and applied the coming 2 instead.
+>>>>
+>>>> Instead of adding these onto all the previous ones, could you redo the
+>>>> entire z3fold series?  I think it'll be simpler to review the series
+>>>> all at once and that would remove some of the stuff from previous
+>>>> patches that shouldn't be there.
+>>>>
+>>>> If that's ok with Andrew, of course, but I don't think any of the
+>>>> z3fold patches have been pushed to Linus yet.
+>>>
+>>> Sounds good to me.  I had a few surprise rejects when merging these
+>>> two, which indicates that things might be out of sync.
+>>>
+>>> I presently have:
+>>>
+>>> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.pa=
+tch
+>>> z3fold-make-pages_nr-atomic.patch
+>>> z3fold-extend-compaction-function.patch
+>>> z3fold-use-per-page-spinlock.patch
+>>> z3fold-discourage-use-of-pages-that-werent-compacted.patch
+>>> z3fold-fix-header-size-related-issues.patch
+>>> z3fold-fix-locking-issues.patch
+>>
+>> My initial suggestion was to have it the following way:
+>> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.pat=
+ch
 >
->OK, this explains it much better than the previous version! The silent
->memory corruption is indeed too hard to debug to have this open even
->when the issue is theoretical.
+> this is a good one, acked by both of us; it should stay and go upstream t=
+o Linus
 >
+>> z3fold-make-pages_nr-atomic.patch
+>
+> the change itself looks ok and I acked it, but as Andrew commented the
+> log says nothing about why it's being changed; the atomic function is
+> slower so the log should explain why it's being changed; anyone
+> reviewing the log history won't know why you made the change, and the
+> change all by itself is a step backwards in performance.
+>
+>> z3fold-extend-compaction-function.patch
+>
+> this explictly has a bug in it that's fixed in one of the later
+> patches; instead, this should be fixed up and resent.
+>
+>> z3fold-use-per-page-spinlock.patch
+>
+> i should have explicitly nak'ed this, as not only did it add a bug
+> (fixed by the the other 'fix-' patch below) but its design should be
+> replaced by kref counting, which your latest patch is working
+> towards...
+>
+>> z3fold-fix-header-size-related-issues.patch
+>> z3fold-fix-locking-issues.patch
+>
+> and these fix the known problems in the previous patches.
+>
+>>
+>> I would prefer to keep the fix-XXX patches separate since e. g.
+>> z3fold-fix-header-size-related-issues.patch concerns also the problems
+>> that have been in the code for a while now. I am ok with folding these
+>> into the relevant main patches but once again, given that some fixes
+>> are related to the code that is already merged, I don't see why it
+>> would be better.
+>
+> none of those patches are "merged", the last z3fold patch in Linus'
+> tree is 43afc194 from June.  Just because they're in Andrew's mmotm
+> queue (and/or linux-next) doesn't mean they are going to be
+> merged...(correct me please if I'm wrong there Andrew)
 
-Thanks~ Have a nice day:-)
+that I do understand, however,
+z3fold-fix-header-size-related-issues.patch fixes the off-by-one issue
+present in the code that is in Linus's tree too.
 
->> This patch checks the return value and goto "done" after it succeeds.
->> 
->> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
->
->Acked-by: Michal Hocko <mhocko@suse.com>
->
->Thanks!
->
->> ---
->>  mm/memblock.c | 6 ++----
->>  1 file changed, 2 insertions(+), 4 deletions(-)
->> 
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 4929e06..d0f2c96 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -1274,18 +1274,17 @@ static void * __init memblock_virt_alloc_internal(
->>  
->>  	if (max_addr > memblock.current_limit)
->>  		max_addr = memblock.current_limit;
->> -
->>  again:
->>  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
->>  					    nid, flags);
->> -	if (alloc)
->> +	if (alloc && !memblock_reserve(alloc, size))
->>  		goto done;
->>  
->>  	if (nid != NUMA_NO_NODE) {
->>  		alloc = memblock_find_in_range_node(size, align, min_addr,
->>  						    max_addr, NUMA_NO_NODE,
->>  						    flags);
->> -		if (alloc)
->> +		if (alloc && !memblock_reserve(alloc, size))
->>  			goto done;
->>  	}
->>  
->> @@ -1303,7 +1302,6 @@ static void * __init memblock_virt_alloc_internal(
->>  
->>  	return NULL;
->>  done:
->> -	memblock_reserve(alloc, size);
->>  	ptr = phys_to_virt(alloc);
->>  	memset(ptr, 0, size);
->>  
->> -- 
->> 2.5.0
->
->-- 
->Michal Hocko
->SUSE Labs
+> So as you can see by my patch-by-patch breakdown, almost all of them
+> need changes based on feedback from various people.  And they are all
+> related - your goal is to improve z3fold performance, right?  IMHO
+> they should be sent as a single patch series with that goal in the
+> cover letter, including specific details and numbers about how the
+> series does improve performance.
 
--- 
-Wei Yang
-Help you, Help me
+but that is a good idea anyway, the only thing i\m not sure about is
+whether it makes sense to fold
+z3fold-fix-header-size-related-issues.patch into another or not.
+
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
