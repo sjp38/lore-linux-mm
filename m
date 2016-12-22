@@ -1,65 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A82C96B03E7
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 04:06:52 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w13so34830753wmw.0
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 01:06:52 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E5686B03FC
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 04:15:24 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id qs7so10177635wjc.4
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 01:15:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h6si783136wjj.194.2016.12.22.01.06.51
+        by mx.google.com with ESMTPS id n5si6481276wje.171.2016.12.22.01.15.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 01:06:51 -0800 (PST)
-Date: Thu, 22 Dec 2016 10:06:48 +0100
+        Thu, 22 Dec 2016 01:15:22 -0800 (PST)
+Date: Thu, 22 Dec 2016 10:15:20 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V3 1/2] mm/memblock.c: trivial code refine in
- memblock_is_region_memory()
-Message-ID: <20161222090648.GB6048@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm/memblock.c: check return value of
+ memblock_reserve() in memblock_virt_alloc_internal()
+Message-ID: <20161222091519.GC6048@dhcp22.suse.cz>
 References: <1482363033-24754-1-git-send-email-richard.weiyang@gmail.com>
- <1482363033-24754-2-git-send-email-richard.weiyang@gmail.com>
+ <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482363033-24754-2-git-send-email-richard.weiyang@gmail.com>
+In-Reply-To: <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Yang <richard.weiyang@gmail.com>
 Cc: trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 21-12-16 23:30:32, Wei Yang wrote:
-> memblock_is_region_memory() invoke memblock_search() to see whether the
-> base address is in the memory region. If it fails, idx would be -1. Then,
-> it returns 0.
+On Wed 21-12-16 23:30:33, Wei Yang wrote:
+> memblock_reserve() would add a new range to memblock.reserved in case the
+> new range is not totally covered by any of the current memblock.reserved
+> range. If the memblock.reserved is full and can't resize,
+> memblock_reserve() would fail.
 > 
-> If the memblock_search() returns a valid index, it means the base address
-> is guaranteed to be in the range memblock.memory.regions[idx]. Because of
-> this, it is not necessary to check the base again.
+> This doesn't happen in real world now, I observed this during code review.
+> While theoretically, it has the chance to happen. And if it happens, others
+> would think this range of memory is still available and may corrupt the
+> memory.
+
+OK, this explains it much better than the previous version! The silent
+memory corruption is indeed too hard to debug to have this open even
+when the issue is theoretical.
+
+> This patch checks the return value and goto "done" after it succeeds.
 > 
-> This patch removes the check on "base".
-
-OK, the patch looks correct. I doubt it makes any real difference but I
-do not see it being harmful.
-
 > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 
 Acked-by: Michal Hocko <mhocko@suse.com>
 
+Thanks!
+
 > ---
->  mm/memblock.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+>  mm/memblock.c | 6 ++----
+>  1 file changed, 2 insertions(+), 4 deletions(-)
 > 
 > diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7608bc3..4929e06 100644
+> index 4929e06..d0f2c96 100644
 > --- a/mm/memblock.c
 > +++ b/mm/memblock.c
-> @@ -1615,8 +1615,7 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
+> @@ -1274,18 +1274,17 @@ static void * __init memblock_virt_alloc_internal(
 >  
->  	if (idx == -1)
->  		return 0;
-> -	return memblock.memory.regions[idx].base <= base &&
-> -		(memblock.memory.regions[idx].base +
-> +	return (memblock.memory.regions[idx].base +
->  		 memblock.memory.regions[idx].size) >= end;
->  }
+>  	if (max_addr > memblock.current_limit)
+>  		max_addr = memblock.current_limit;
+> -
+>  again:
+>  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
+>  					    nid, flags);
+> -	if (alloc)
+> +	if (alloc && !memblock_reserve(alloc, size))
+>  		goto done;
+>  
+>  	if (nid != NUMA_NO_NODE) {
+>  		alloc = memblock_find_in_range_node(size, align, min_addr,
+>  						    max_addr, NUMA_NO_NODE,
+>  						    flags);
+> -		if (alloc)
+> +		if (alloc && !memblock_reserve(alloc, size))
+>  			goto done;
+>  	}
+>  
+> @@ -1303,7 +1302,6 @@ static void * __init memblock_virt_alloc_internal(
+>  
+>  	return NULL;
+>  done:
+> -	memblock_reserve(alloc, size);
+>  	ptr = phys_to_virt(alloc);
+>  	memset(ptr, 0, size);
 >  
 > -- 
 > 2.5.0
