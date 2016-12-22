@@ -1,128 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86955280258
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:56:36 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id i145so78329201qke.5
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:56:36 -0800 (PST)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id w143si9542708qka.155.2016.12.22.13.56.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E1942280258
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:03:54 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 83so374940447pfx.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:03:54 -0800 (PST)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id e72si32016815pfd.125.2016.12.22.14.03.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 13:56:35 -0800 (PST)
-Received: by mail-qt0-x244.google.com with SMTP id 41so3377468qtn.0
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:56:35 -0800 (PST)
+        Thu, 22 Dec 2016 14:03:54 -0800 (PST)
+Received: by mail-pf0-x22e.google.com with SMTP id d2so41464111pfd.0
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:03:54 -0800 (PST)
+Date: Thu, 22 Dec 2016 14:03:52 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] mm: add new mmgrab() helper
+In-Reply-To: <20161218123229.22952-1-vegard.nossum@oracle.com>
+Message-ID: <alpine.DEB.2.10.1612221403340.108886@chino.kir.corp.google.com>
+References: <20161218123229.22952-1-vegard.nossum@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com>
-References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
- <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
- <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org> <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 22 Dec 2016 16:55:54 -0500
-Message-ID: <CALZtONCCkp8ZhZ29f1FK5DsOyhkyM3_25ZXmr0QGfTbrBxFysw@mail.gmail.com>
-Subject: Re: [PATCH 0/2] z3fold fixes
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Vegard Nossum <vegard.nossum@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
 
-On Sun, Dec 18, 2016 at 3:15 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> On Tue, Nov 29, 2016 at 11:39 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Tue, 29 Nov 2016 17:33:19 -0500 Dan Streetman <ddstreet@ieee.org> wro=
-te:
->>
->>> On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wro=
-te:
->>> > Here come 2 patches with z3fold fixes for chunks counting and locking=
-. As commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is t=
-oo big") was NAK'ed [1], I would suggest that we removed that one and the n=
-ext z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't co=
-mpacted") and applied the coming 2 instead.
->>>
->>> Instead of adding these onto all the previous ones, could you redo the
->>> entire z3fold series?  I think it'll be simpler to review the series
->>> all at once and that would remove some of the stuff from previous
->>> patches that shouldn't be there.
->>>
->>> If that's ok with Andrew, of course, but I don't think any of the
->>> z3fold patches have been pushed to Linus yet.
->>
->> Sounds good to me.  I had a few surprise rejects when merging these
->> two, which indicates that things might be out of sync.
->>
->> I presently have:
->>
->> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.pat=
-ch
->> z3fold-make-pages_nr-atomic.patch
->> z3fold-extend-compaction-function.patch
->> z3fold-use-per-page-spinlock.patch
->> z3fold-discourage-use-of-pages-that-werent-compacted.patch
->> z3fold-fix-header-size-related-issues.patch
->> z3fold-fix-locking-issues.patch
->
-> My initial suggestion was to have it the following way:
-> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patc=
-h
+On Sun, 18 Dec 2016, Vegard Nossum wrote:
 
-this is a good one, acked by both of us; it should stay and go upstream to =
-Linus
+> Apart from adding the helper function itself, the rest of the kernel is
+> converted mechanically using:
+> 
+>   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_count);/mmgrab\(\1\);/'
+>   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_count);/mmgrab\(\&\1\);/'
+> 
+> This is needed for a later patch that hooks into the helper, but might be
+> a worthwhile cleanup on its own.
+> 
+> (Michal Hocko provided most of the kerneldoc comment.)
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
 
-> z3fold-make-pages_nr-atomic.patch
+Acked-by: David Rientjes <rientjes@google.com>
 
-the change itself looks ok and I acked it, but as Andrew commented the
-log says nothing about why it's being changed; the atomic function is
-slower so the log should explain why it's being changed; anyone
-reviewing the log history won't know why you made the change, and the
-change all by itself is a step backwards in performance.
-
-> z3fold-extend-compaction-function.patch
-
-this explictly has a bug in it that's fixed in one of the later
-patches; instead, this should be fixed up and resent.
-
-> z3fold-use-per-page-spinlock.patch
-
-i should have explicitly nak'ed this, as not only did it add a bug
-(fixed by the the other 'fix-' patch below) but its design should be
-replaced by kref counting, which your latest patch is working
-towards...
-
-> z3fold-fix-header-size-related-issues.patch
-> z3fold-fix-locking-issues.patch
-
-and these fix the known problems in the previous patches.
-
->
-> I would prefer to keep the fix-XXX patches separate since e. g.
-> z3fold-fix-header-size-related-issues.patch concerns also the problems
-> that have been in the code for a while now. I am ok with folding these
-> into the relevant main patches but once again, given that some fixes
-> are related to the code that is already merged, I don't see why it
-> would be better.
-
-none of those patches are "merged", the last z3fold patch in Linus'
-tree is 43afc194 from June.  Just because they're in Andrew's mmotm
-queue (and/or linux-next) doesn't mean they are going to be
-merged...(correct me please if I'm wrong there Andrew)
-
-So as you can see by my patch-by-patch breakdown, almost all of them
-need changes based on feedback from various people.  And they are all
-related - your goal is to improve z3fold performance, right?  IMHO
-they should be sent as a single patch series with that goal in the
-cover letter, including specific details and numbers about how the
-series does improve performance.
-
->
-> ~vitaly
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
+for the series
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
