@@ -1,75 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E94280264
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:28:40 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f188so662529680pgc.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:28:40 -0800 (PST)
-Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
-        by mx.google.com with ESMTPS id r79si8611594pfl.8.2016.12.22.11.28.39
+	by kanga.kvack.org (Postfix) with ESMTP id B49F46B037C
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:55:33 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b1so478240416pgc.5
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:55:33 -0800 (PST)
+Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
+        by mx.google.com with ESMTPS id m68si31760958pga.16.2016.12.22.11.55.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 11:28:39 -0800 (PST)
-Received: by mail-pg0-x236.google.com with SMTP id y62so48718725pgy.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:28:39 -0800 (PST)
-Date: Thu, 22 Dec 2016 11:28:31 -0800 (PST)
+        Thu, 22 Dec 2016 11:55:32 -0800 (PST)
+Received: by mail-pg0-x22c.google.com with SMTP id i5so35993957pgh.2
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:55:32 -0800 (PST)
+Date: Thu, 22 Dec 2016 11:55:28 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
-In-Reply-To: <CA+55aFx-YmpZ4NBU0oSw_iJV8jEMaL8qX-HCH=DrutQ65UYR5A@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1612221120230.4215@eggly.anvils>
-References: <20161219225826.F8CB356F@viggo.jf.intel.com> <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com> <156a5b34-ad3b-d0aa-83c9-109b366c1bdf@linux.intel.com> <CA+55aFxVzes5Jt-hC9BLVSb99x6K-_WkLO-_JTvCjhf5wuK_4w@mail.gmail.com>
- <CA+55aFwy6+ya_E8N3DFbrq2XjbDs8LWe=W_qW8awimbxw26bJw@mail.gmail.com> <20161221080931.GQ3124@twins.programming.kicks-ass.net> <20161221083247.GW3174@twins.programming.kicks-ass.net> <CA+55aFx-YmpZ4NBU0oSw_iJV8jEMaL8qX-HCH=DrutQ65UYR5A@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: Use owner_priv bit for PageSwapCache, valid when
+ PageSwapBacked
+In-Reply-To: <20161221151951.16396-2-npiggin@gmail.com>
+Message-ID: <alpine.LSU.2.11.1612221130520.4215@eggly.anvils>
+References: <20161221151951.16396-1-npiggin@gmail.com> <20161221151951.16396-2-npiggin@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, swhiteho@redhat.com, luto@kernel.org, agruenba@redhat.com, peterz@infradead.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>
 
-On Wed, 21 Dec 2016, Linus Torvalds wrote:
-> On Wed, Dec 21, 2016 at 12:32 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >
-> > FWIW, here's mine.. compiles and boots on a NUMA x86_64 machine.
-> 
-> So I like how your patch is smaller, but your patch is also broken.
-> 
-> First off, the whole contention bit is *not* NUMA-specific. It should
-> help non-NUMA too, by avoiding the stupid extra cache miss.
-> 
-> Secondly, CONFIG_NUMA is a broken thing to test anyway, since adding a
-> bit for the NUMA case can overflow the page flags as far as I can tell
-> (MIPS seems to support NUMA on 32-bit, for example, but I didn't
-> really check the Kconfig details). Making it dependent on 64-bit might
-> be ok (and would fix the issue above - I don't think we really need to
-> care too much about 32-bit any more)
-> 
-> But making it conditional at all means that now you have those two
-> different cases for this, which is a maintenance nightmare. So don't
-> do it even if we could say "screw 32-bit".
-> 
-> Anyway, the conditional thing could be fixed by just taking Nick's
-> patch 1/2, and your patch (with the conditional bits stripped out).
+On Thu, 22 Dec 2016, Nicholas Piggin wrote:
 
-Yup.
+I agree with every word of that changelog ;)
 
-> 
-> I do think your approach of just re-using the existing bit waiting
-> with just a page-specific waiting function is nicer than Nick's "let's
-> just roll new waiting functions" approach. It also avoids the extra
-> initcall.
-> 
-> Nick, comments?
-> 
-> Hugh - mind testing PeterZ's patch too? My comments about the
-> conditional PG_waiters bit and page bit overflow are not relevant for
-> your particular scenario, so you can ignore that part, and just take
-> PaterZ's patch directly.
+And I'll stamp this with
+Acked-by: Hugh Dickins <hughd@google.com>
 
-Right, I put them both through some loads yesterday and overnight:
-Peter's patch and Nick's patch each work fine here, no issues seen
-with either (but I didn't attempt to compare them, aesthetically
-nor in performance).
+The thing that Peter remembers I commented on (which 0day caught too),
+was to remove PG_swapcache from PAGE_FLAGS_CHECK_AT_FREE: you've done
+that now, so this is good.  (Note in passing: wouldn't it be good to
+add PG_waiters to PAGE_FLAGS_CHECK_AT_FREE in the 2/2?)
+
+Though I did yesterday notice a few more problematic uses of
+PG_swapcache, which you'll probably need to refine to exclude
+other uses of PG_owner_priv_1; though no great hurry for those,
+so not necessarily in this same patch.  Do your own grep, but
+
+fs/proc/page.c derives its KPF_SWAPCACHE from PG_swapcache,
+needs refining.
+
+kernel/kexec_core.c says VMCOREINFO_NUMBER(PG_swapcache):
+I haven't looked into what that's about, it will probably just
+have to be commented as now including other uses of the same bit.
+
+mm/memory-failure.c has an error_states[] table that involves
+testing PG_swapcache as "sc", but looks as if it can be changed
+to factor in "swapbacked" too.
 
 Hugh
+
+> ---
+>  include/linux/page-flags.h     | 24 ++++++++++++++++--------
+>  include/trace/events/mmflags.h |  1 -
+>  2 files changed, 16 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index 74e4dda91238..a57c909a15e4 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -87,7 +87,6 @@ enum pageflags {
+>  	PG_private_2,		/* If pagecache, has fs aux data */
+>  	PG_writeback,		/* Page is under writeback */
+>  	PG_head,		/* A head page */
+> -	PG_swapcache,		/* Swap page: swp_entry_t in private */
+>  	PG_mappedtodisk,	/* Has blocks allocated on-disk */
+>  	PG_reclaim,		/* To be reclaimed asap */
+>  	PG_swapbacked,		/* Page is backed by RAM/swap */
+> @@ -110,6 +109,9 @@ enum pageflags {
+>  	/* Filesystems */
+>  	PG_checked = PG_owner_priv_1,
+>  
+> +	/* SwapBacked */
+> +	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
+> +
+>  	/* Two page bits are conscripted by FS-Cache to maintain local caching
+>  	 * state.  These bits are set on pages belonging to the netfs's inodes
+>  	 * when those inodes are being locally cached.
+> @@ -314,7 +316,13 @@ PAGEFLAG_FALSE(HighMem)
+>  #endif
+>  
+>  #ifdef CONFIG_SWAP
+> -PAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
+> +static __always_inline int PageSwapCache(struct page *page)
+> +{
+> +	return PageSwapBacked(page) && test_bit(PG_swapcache, &page->flags);
+> +
+> +}
+> +SETPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
+> +CLEARPAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
+>  #else
+>  PAGEFLAG_FALSE(SwapCache)
+>  #endif
+> @@ -701,12 +709,12 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+>   * Flags checked when a page is freed.  Pages being freed should not have
+>   * these flags set.  It they are, there is a problem.
+>   */
+> -#define PAGE_FLAGS_CHECK_AT_FREE \
+> -	(1UL << PG_lru	 | 1UL << PG_locked    | \
+> -	 1UL << PG_private | 1UL << PG_private_2 | \
+> -	 1UL << PG_writeback | 1UL << PG_reserved | \
+> -	 1UL << PG_slab	 | 1UL << PG_swapcache | 1UL << PG_active | \
+> -	 1UL << PG_unevictable | __PG_MLOCKED)
+> +#define PAGE_FLAGS_CHECK_AT_FREE				\
+> +	(1UL << PG_lru		| 1UL << PG_locked	|	\
+> +	 1UL << PG_private	| 1UL << PG_private_2	|	\
+> +	 1UL << PG_writeback	| 1UL << PG_reserved	|	\
+> +	 1UL << PG_slab		| 1UL << PG_active 	|	\
+> +	 1UL << PG_unevictable	| __PG_MLOCKED)
+>  
+>  /*
+>   * Flags checked when a page is prepped for return by the page allocator.
+> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+> index 5a81ab48a2fb..30c2adbdebe8 100644
+> --- a/include/trace/events/mmflags.h
+> +++ b/include/trace/events/mmflags.h
+> @@ -95,7 +95,6 @@
+>  	{1UL << PG_private_2,		"private_2"	},		\
+>  	{1UL << PG_writeback,		"writeback"	},		\
+>  	{1UL << PG_head,		"head"		},		\
+> -	{1UL << PG_swapcache,		"swapcache"	},		\
+>  	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
+>  	{1UL << PG_reclaim,		"reclaim"	},		\
+>  	{1UL << PG_swapbacked,		"swapbacked"	},		\
+> -- 
+> 2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
