@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FBDA28025E
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 09:30:24 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g1so414097775pgn.3
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 06:30:24 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id x27si30969215pff.112.2016.12.22.06.30.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 06:30:23 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id w68so14320565pgw.3
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 06:30:23 -0800 (PST)
-Date: Thu, 22 Dec 2016 23:30:08 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161222143008.GG413@tigerII.localdomain>
-References: <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
- <20161219122738.GB427@tigerII.localdomain>
- <20161220153948.GA575@tigerII.localdomain>
- <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
- <20161222134250.GE413@tigerII.localdomain>
- <201612222301.AFG57832.QOFMSVFOJHLOtF@I-love.SAKURA.ne.jp>
- <20161222140930.GF413@tigerII.localdomain>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F40C6B037A
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 09:52:08 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id n189so62217186pga.4
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 06:52:08 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id e85si30982152pfj.218.2016.12.22.06.52.06
+        for <linux-mm@kvack.org>;
+        Thu, 22 Dec 2016 06:52:07 -0800 (PST)
+Date: Thu, 22 Dec 2016 23:52:03 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
+Message-ID: <20161222145203.GA18970@bbox>
+References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
+ <20161222081713.GA32480@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161222140930.GF413@tigerII.localdomain>
+In-Reply-To: <20161222081713.GA32480@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com, linux-mm@kvack.org, pmladek@suse.cz
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, Andreas Schwab <schwab@suse.de>
 
-On (12/22/16 23:09), Sergey Senozhatsky wrote:
-> > "404 The page you're looking for could not be found."
-> > 
-> > Anonymous access not supported?
+Hello,
 
-https://github.com/sergey-senozhatsky/linux-next-ss/commits/printk-safe-deferred
+On Thu, Dec 22, 2016 at 11:17:13AM +0300, Kirill A. Shutemov wrote:
 
-	-ss
+< snip >
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 36c774f..7408ddc 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -3637,18 +3637,20 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+> >  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+> >  				return do_huge_pmd_numa_page(&vmf, orig_pmd);
+> >  
+> > -			if ((vmf.flags & FAULT_FLAG_WRITE) &&
+> > -					!pmd_write(orig_pmd)) {
+> > -				ret = wp_huge_pmd(&vmf, orig_pmd);
+> > -				if (!(ret & VM_FAULT_FALLBACK))
+> > +			if (vmf.flags & FAULT_FLAG_WRITE) {
+> > +				if (!pmd_write(orig_pmd)) {
+> > +					ret = wp_huge_pmd(&vmf, orig_pmd);
+> > +					if (ret == VM_FAULT_FALLBACK)
+> 
+> In theory, more than one flag can be set and it would lead to
+> false-negative. Bit check was the right thing.
+> 
+> And I don't understand why do you need to change code in
+> __handle_mm_fault() at all.
+> From what I see change to huge_pmd_set_accessed() should be enough.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yeb. Thanks for the review. Here v2 goes.
