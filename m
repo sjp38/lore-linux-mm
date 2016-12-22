@@ -1,154 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 44BA128026B
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:27:00 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id n189so89423414pga.4
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:27:00 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id j68si32050505pfj.291.2016.12.22.14.26.59
+	by kanga.kvack.org (Postfix) with ESMTP id A686028026B
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:37:36 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so483387231pgi.2
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:37:36 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id b31si32147518pli.65.2016.12.22.14.37.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 14:26:59 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id i88so41275521pfk.2
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:26:59 -0800 (PST)
-Date: Thu, 22 Dec 2016 14:26:50 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: A small window for a race condition in
- mm/rmap.c:page_lock_anon_vma_read
-In-Reply-To: <20161222135106.GY3124@twins.programming.kicks-ass.net>
-Message-ID: <alpine.LSU.2.11.1612221351340.1744@eggly.anvils>
-References: <23B7B563BA4E9446B962B142C86EF24ADBD62C@CNMAILEX03.lenovo.com> <20161221144343.GD593@dhcp22.suse.cz> <20161222135106.GY3124@twins.programming.kicks-ass.net>
+        Thu, 22 Dec 2016 14:37:35 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id i5so11899335pgh.2
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:37:35 -0800 (PST)
+Date: Thu, 22 Dec 2016 22:37:33 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/2] mm/memblock.c: check return value of
+ memblock_reserve() in memblock_virt_alloc_internal()
+Message-ID: <20161222223733.GA27208@vultr.guest>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <1482363033-24754-1-git-send-email-richard.weiyang@gmail.com>
+ <1482363033-24754-3-git-send-email-richard.weiyang@gmail.com>
+ <20161222091519.GC6048@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161222091519.GC6048@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Dashi DS1 Cao <caods1@lenovo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, trivial@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 22 Dec 2016, Peter Zijlstra wrote:
-> On Wed, Dec 21, 2016 at 03:43:43PM +0100, Michal Hocko wrote:
-> > anon_vma locking is clever^Wsubtle as hell. CC Peter...
-> > 
-> > On Tue 20-12-16 09:32:27, Dashi DS1 Cao wrote:
-> > > I've collected four crash dumps with similar backtrace. 
-> > > 
-> > > PID: 247    TASK: ffff881fcfad8000  CPU: 14  COMMAND: "kswapd1"
-> > >  #0 [ffff881fcfad7978] machine_kexec at ffffffff81051e9b
-> > >  #1 [ffff881fcfad79d8] crash_kexec at ffffffff810f27e2
-> > >  #2 [ffff881fcfad7aa8] oops_end at ffffffff8163f448
-> > >  #3 [ffff881fcfad7ad0] die at ffffffff8101859b
-> > >  #4 [ffff881fcfad7b00] do_general_protection at ffffffff8163ed3e
-> > >  #5 [ffff881fcfad7b30] general_protection at ffffffff8163e5e8
-> > >     [exception RIP: down_read_trylock+9]
-> > >     RIP: ffffffff810aa9f9  RSP: ffff881fcfad7be0  RFLAGS: 00010286
-> > >     RAX: 0000000000000000  RBX: ffff882b47ddadc0  RCX: 0000000000000000
-> > >     RDX: 0000000000000000  RSI: 0000000000000000  RDI: 91550b2b32f5a3e8
-> > 
-> > rdi is obviously a mess - smells like a string. So either sombody has
-> > overwritten root_anon_vma or this is really a use after free...
-> 
-> e8 - ???
-> a3 - ???
-> f5 - ???
-> 32 - 2
-> 2b - +
->  b - 
-> 
-> 55 - U
-> 91 - ???
-> 
-> Not a string..
-> 
-> > >     RBP: ffff881fcfad7be0   R8: ffffea00ecc28860   R9: ffff883fcffeae28
-> > >     R10: ffffffff81a691a0  R11: 0000000000000001  R12: ffff882b47ddadc1
-> > >     R13: ffffea00ecc28840  R14: 91550b2b32f5a3e8  R15: ffffea00ecc28840
-> > >     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
-> > >  #6 [ffff881fcfad7be8] page_lock_anon_vma_read at ffffffff811a3365
-> > >  #7 [ffff881fcfad7c18] page_referenced at ffffffff811a35e7
-> > >  #8 [ffff881fcfad7c90] shrink_active_list at ffffffff8117e8cc
-> > >  #9 [ffff881fcfad7d48] balance_pgdat at ffffffff81180288
-> > > #10 [ffff881fcfad7e20] kswapd at ffffffff81180813
-> > > #11 [ffff881fcfad7ec8] kthread at ffffffff810a5b8f
-> > > #12 [ffff881fcfad7f50] ret_from_fork at ffffffff81646a98
-> > > 
-> > > I suspect my customer hits into a small window of a race condition in mm/rmap.c: page_lock_anon_vma_read.
-> > > struct anon_vma *page_lock_anon_vma_read(struct page *page)
-> > > {
-> > >         struct anon_vma *anon_vma = NULL;
-> > >         struct anon_vma *root_anon_vma;
-> > >         unsigned long anon_mapping;
-> > > 
-> > >         rcu_read_lock();
-> > >         anon_mapping = (unsigned long)READ_ONCE(page->mapping);
-> > >         if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
-> > >                 goto out;
-> > >         if (!page_mapped(page))
-> > >                 goto out;
-> > > 
-> > >         anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> > >         root_anon_vma = READ_ONCE(anon_vma->root);
-> > 
-> > Could you dump the anon_vma and struct page as well?
-> > 
-> > >         if (down_read_trylock(&root_anon_vma->rwsem)) {
-> > >                 /*
-> > >                  * If the page is still mapped, then this anon_vma is still
-> > >                  * its anon_vma, and holding the mutex ensures that it will
-> > >                  * not go away, see anon_vma_free().
-> > >                  */
-> > >                 if (!page_mapped(page)) {
-> > >                         up_read(&root_anon_vma->rwsem);
-> > >                         anon_vma = NULL;
-> > >                 }
-> > >                 goto out;
-> > >         }
-> > > ...
-> > > }
-> > > 
-> > > Between the time the two "page_mapped(page)" are checked, the address
-> > > (anon_mapping - PAGE_MAPPING_ANON) is unmapped! However it seems
-> > > that anon_vma->root could still be read in but the value is wild. So
-> > > the kernel crashes in down_read_trylock. But it's weird that all the
-> > > "struct page" has its member "_mapcount" still with value 0, not -1,
-> > > in the four crashes.
-> 
-> So the point is that while we hold rcu_read_lock() the actual memory
-> backing the anon_vmas cannot be freed. It can be reused, but only for
-> another anon_vma.
-> 
-> Now, anon_vma_alloc() sets ->root to self, while anon_vma_free() leaves
-> ->root set to whatever. And any other ->root assignment is to a valid
-> anon_vma.
-> 
-> Therefore, the same rules that ensure anon_vma stays valid, should also
-> ensure anon_vma->root stays valid.
-> 
-> Now, one thing that might go wobbly is that ->root assignments are not
-> done using WRITE_ONCE(), this means a naughty compiler can miscompile
-> those stores and introduce store-tearing, if our READ_ONCE() would
-> observe such a tear, we'd be up some creek without a paddle.
+On Thu, Dec 22, 2016 at 10:15:20AM +0100, Michal Hocko wrote:
+>On Wed 21-12-16 23:30:33, Wei Yang wrote:
+>> memblock_reserve() would add a new range to memblock.reserved in case the
+>> new range is not totally covered by any of the current memblock.reserved
+>> range. If the memblock.reserved is full and can't resize,
+>> memblock_reserve() would fail.
+>> 
+>> This doesn't happen in real world now, I observed this during code review.
+>> While theoretically, it has the chance to happen. And if it happens, others
+>> would think this range of memory is still available and may corrupt the
+>> memory.
+>
+>OK, this explains it much better than the previous version! The silent
+>memory corruption is indeed too hard to debug to have this open even
+>when the issue is theoretical.
+>
 
-We would indeed.  And this being the season of goodwill, I'm biting
-my tongue not to say what I think of the prospect of store tearing.
-But that zeroed anon_vma implies tearing not the problem here anyway.
+Thanks~ Have a nice day:-)
 
-> 
-> Now, its been a long time since I looked at any of this code, and I see
-> that Hugh has fixed at least two wobblies in my original code.
+>> This patch checks the return value and goto "done" after it succeeds.
+>> 
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>
+>Acked-by: Michal Hocko <mhocko@suse.com>
+>
+>Thanks!
+>
+>> ---
+>>  mm/memblock.c | 6 ++----
+>>  1 file changed, 2 insertions(+), 4 deletions(-)
+>> 
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index 4929e06..d0f2c96 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -1274,18 +1274,17 @@ static void * __init memblock_virt_alloc_internal(
+>>  
+>>  	if (max_addr > memblock.current_limit)
+>>  		max_addr = memblock.current_limit;
+>> -
+>>  again:
+>>  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
+>>  					    nid, flags);
+>> -	if (alloc)
+>> +	if (alloc && !memblock_reserve(alloc, size))
+>>  		goto done;
+>>  
+>>  	if (nid != NUMA_NO_NODE) {
+>>  		alloc = memblock_find_in_range_node(size, align, min_addr,
+>>  						    max_addr, NUMA_NO_NODE,
+>>  						    flags);
+>> -		if (alloc)
+>> +		if (alloc && !memblock_reserve(alloc, size))
+>>  			goto done;
+>>  	}
+>>  
+>> @@ -1303,7 +1302,6 @@ static void * __init memblock_virt_alloc_internal(
+>>  
+>>  	return NULL;
+>>  done:
+>> -	memblock_reserve(alloc, size);
+>>  	ptr = phys_to_virt(alloc);
+>>  	memset(ptr, 0, size);
+>>  
+>> -- 
+>> 2.5.0
+>
+>-- 
+>Michal Hocko
+>SUSE Labs
 
-Nothing much, and this (admittedly subtle) technique has been working
-well for years, so I'm sceptical about "a small window for a race
-condition".
-
-But Dashi's right to point out that the struct page has _mapcount 0
-(not -1 for logical 0) in these cases: it looks as if something is
-freeing (or corrupting) the anon_vma despite it still having pages
-mapped, or something is misaccounting (or corrupting) the _mapcount.
-
-But I've no idea what, and we have not heard such reports elsewhere.
-We don't even know what kernel this is - something special, perhaps?
-
-Hugh
+-- 
+Wei Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
