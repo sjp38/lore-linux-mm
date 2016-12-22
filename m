@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FEC228025E
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:27:57 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id xr1so67236498wjb.7
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:27:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cv5si32875112wjc.141.2016.12.22.11.27.56
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E94280264
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:28:40 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so662529680pgc.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:28:40 -0800 (PST)
+Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
+        by mx.google.com with ESMTPS id r79si8611594pfl.8.2016.12.22.11.28.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 11:27:56 -0800 (PST)
-Date: Thu, 22 Dec 2016 20:27:53 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, oom_reaper: Update rationale comment for holding
- oom_lock.
-Message-ID: <20161222192752.GC19898@dhcp22.suse.cz>
-References: <1482411450-8097-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Dec 2016 11:28:39 -0800 (PST)
+Received: by mail-pg0-x236.google.com with SMTP id y62so48718725pgy.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 11:28:39 -0800 (PST)
+Date: Thu, 22 Dec 2016 11:28:31 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
+In-Reply-To: <CA+55aFx-YmpZ4NBU0oSw_iJV8jEMaL8qX-HCH=DrutQ65UYR5A@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1612221120230.4215@eggly.anvils>
+References: <20161219225826.F8CB356F@viggo.jf.intel.com> <CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com> <156a5b34-ad3b-d0aa-83c9-109b366c1bdf@linux.intel.com> <CA+55aFxVzes5Jt-hC9BLVSb99x6K-_WkLO-_JTvCjhf5wuK_4w@mail.gmail.com>
+ <CA+55aFwy6+ya_E8N3DFbrq2XjbDs8LWe=W_qW8awimbxw26bJw@mail.gmail.com> <20161221080931.GQ3124@twins.programming.kicks-ass.net> <20161221083247.GW3174@twins.programming.kicks-ass.net> <CA+55aFx-YmpZ4NBU0oSw_iJV8jEMaL8qX-HCH=DrutQ65UYR5A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1482411450-8097-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Nick Piggin <npiggin@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Thu 22-12-16 21:57:30, Tetsuo Handa wrote:
-> Since commit 862e3073b3eed13f
-> ("mm, oom: get rid of signal_struct::oom_victims")
-> changed to wait until MMF_OOM_SKIP is set rather than wait while
-> TIF_MEMDIE is set, rationale comment for commit e2fe14564d3316d1
-> ("oom_reaper: close race with exiting task") needs to be updated.
+On Wed, 21 Dec 2016, Linus Torvalds wrote:
+> On Wed, Dec 21, 2016 at 12:32 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >
+> > FWIW, here's mine.. compiles and boots on a NUMA x86_64 machine.
 > 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/oom_kill.c | 15 +++------------
->  1 file changed, 3 insertions(+), 12 deletions(-)
+> So I like how your patch is smaller, but your patch is also broken.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index ec9f11d..6fd076b 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -470,18 +470,9 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  	bool ret = true;
->  
->  	/*
-> -	 * We have to make sure to not race with the victim exit path
-> -	 * and cause premature new oom victim selection:
-> -	 * __oom_reap_task_mm		exit_mm
-> -	 *   mmget_not_zero
-> -	 *				  mmput
-> -	 *				    atomic_dec_and_test
-> -	 *				  exit_oom_victim
-> -	 *				[...]
-> -	 *				out_of_memory
-> -	 *				  select_bad_process
-> -	 *				    # no TIF_MEMDIE task selects new victim
-> -	 *  unmap_page_range # frees some memory
-> +	 * Make sure that other threads waiting for oom_lock at
-> +	 * __alloc_pages_may_oom() are given a chance to call
-> +	 * get_page_from_freelist() after MMF_OOM_SKIP is set.
->  	 */
->  	mutex_lock(&oom_lock);
+> First off, the whole contention bit is *not* NUMA-specific. It should
+> help non-NUMA too, by avoiding the stupid extra cache miss.
+> 
+> Secondly, CONFIG_NUMA is a broken thing to test anyway, since adding a
+> bit for the NUMA case can overflow the page flags as far as I can tell
+> (MIPS seems to support NUMA on 32-bit, for example, but I didn't
+> really check the Kconfig details). Making it dependent on 64-bit might
+> be ok (and would fix the issue above - I don't think we really need to
+> care too much about 32-bit any more)
+> 
+> But making it conditional at all means that now you have those two
+> different cases for this, which is a maintenance nightmare. So don't
+> do it even if we could say "screw 32-bit".
+> 
+> Anyway, the conditional thing could be fixed by just taking Nick's
+> patch 1/2, and your patch (with the conditional bits stripped out).
 
-I am not sure the comment clarifies things. I would either remove the
-comment completely or write something like the below
+Yup.
 
-	/*
-	 * Exclude any oom actions while we are reaping the oom
-	 * victim. This will save us from pointless searching of the
-	 * new oom victim.
-	 */
+> 
+> I do think your approach of just re-using the existing bit waiting
+> with just a page-specific waiting function is nicer than Nick's "let's
+> just roll new waiting functions" approach. It also avoids the extra
+> initcall.
+> 
+> Nick, comments?
+> 
+> Hugh - mind testing PeterZ's patch too? My comments about the
+> conditional PG_waiters bit and page bit overflow are not relevant for
+> your particular scenario, so you can ignore that part, and just take
+> PaterZ's patch directly.
 
--- 
-Michal Hocko
-SUSE Labs
+Right, I put them both through some loads yesterday and overnight:
+Peter's patch and Nick's patch each work fine here, no issues seen
+with either (but I didn't attempt to compare them, aesthetically
+nor in performance).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
