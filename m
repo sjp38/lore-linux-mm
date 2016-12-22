@@ -1,62 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C2E4E6B02CB
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:05:29 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id u5so49867224pgi.7
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:05:29 -0800 (PST)
-Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
-        by mx.google.com with ESMTPS id u28si4013993pfl.22.2016.12.22.13.05.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AC396B0348
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:19:06 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 83so373602569pfx.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:19:06 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id b10si31949871pfd.39.2016.12.22.13.19.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 13:05:28 -0800 (PST)
-Received: by mail-pg0-x22f.google.com with SMTP id i5so36476510pgh.2
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:05:28 -0800 (PST)
-Date: Thu, 22 Dec 2016 13:05:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-In-Reply-To: <20161222100009.GA6055@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 22 Dec 2016 13:19:05 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 0/4] Write protect DAX PMDs in *sync path
+Date: Thu, 22 Dec 2016 14:18:52 -0700
+Message-Id: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Thu, 22 Dec 2016, Michal Hocko wrote:
+Currently dax_mapping_entry_mkclean() fails to clean and write protect the
+pmd_t of a DAX PMD entry during an *sync operation.  This can result in
+data loss, as detailed in patch 4.
 
-> > Currently, when defrag is set to "madvise", thp allocations will direct
-> > reclaim.  However, when defrag is set to "defer", all thp allocations do
-> > not attempt reclaim regardless of MADV_HUGEPAGE.
-> > 
-> > This patch always directly reclaims for MADV_HUGEPAGE regions when defrag
-> > is not set to "never."  The idea is that MADV_HUGEPAGE regions really
-> > want to be backed by hugepages and are willing to endure the latency at
-> > fault as it was the default behavior prior to commit 444eb2a449ef ("mm:
-> > thp: set THP defrag by default to madvise and add a stall-free defrag
-> > option").
-> 
-> AFAIR "defer" is implemented exactly as intended. To offer a never-stall
-> but allow to form THP in the background option. The patch description
-> doesn't explain why this is not good anymore. Could you give us more
-> details about the motivation and why "madvise" doesn't work for
-> you? This is a user visible change so the reason should better be really
-> documented and strong.
-> 
+You can find a working tree here:
 
-The offering of defer breaks backwards compatibility with previous 
-settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
-.text segment remap and try to force thp backing if available but not 
-directly reclaim for non VM_HUGEPAGE vmas.  This was very advantageous.  
-We prefer that to stay unchanged and allow kcompactd compaction to be 
-triggered in background by everybody else as opposed to direct reclaim.  
-We do not have that ability without this patch.
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_clean_v2
 
-Without this patch, we will be forced to offer multiple sysfs tunables to 
-define (1) direct vs background compact, (2) madvise behavior, (3) always, 
-(4) never and we cannot have 2^4 settings for "defrag" alone.
+This series applies cleanly to mmotm-2016-12-19-16-31.
+
+Changes since v1:
+ - Included Dan's patch to kill DAX support for UML.
+ - Instead of wrapping the DAX PMD code in dax_mapping_entry_mkclean() in
+   an #ifdef, we now create a stub for pmdp_huge_clear_flush() for the case
+   when CONFIG_TRANSPARENT_HUGEPAGE isn't defined. (Dan & Jan)
+
+Dan Williams (1):
+  dax: kill uml support
+
+Ross Zwisler (3):
+  dax: add stub for pmdp_huge_clear_flush()
+  mm: add follow_pte_pmd()
+  dax: wrprotect pmd_t in dax_mapping_entry_mkclean
+
+ fs/Kconfig                    |  2 +-
+ fs/dax.c                      | 49 ++++++++++++++++++++++++++++++-------------
+ include/asm-generic/pgtable.h | 10 +++++++++
+ include/linux/mm.h            |  4 ++--
+ mm/memory.c                   | 41 ++++++++++++++++++++++++++++--------
+ 5 files changed, 79 insertions(+), 27 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
