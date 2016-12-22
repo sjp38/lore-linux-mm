@@ -1,48 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6980E6B03EF
-	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 20:32:16 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id n189so21839859pga.4
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 17:32:16 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id g84si28719274pfg.42.2016.12.21.17.32.15
+	by kanga.kvack.org (Postfix) with ESMTP id 3830582F64
+	for <linux-mm@kvack.org>; Wed, 21 Dec 2016 21:07:59 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b1so421514729pgc.5
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 18:07:59 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id f5si28816440plm.37.2016.12.21.18.07.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Dec 2016 17:32:15 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id y68so11546787pfb.1
-        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 17:32:15 -0800 (PST)
-Date: Thu, 22 Dec 2016 10:32:23 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v4 2/3] zram: revalidate disk under init_lock
-Message-ID: <20161222013223.GD644@jagdpanzerIV.localdomain>
-References: <1482366980-3782-1-git-send-email-minchan@kernel.org>
- <1482366980-3782-3-git-send-email-minchan@kernel.org>
+        Wed, 21 Dec 2016 18:07:58 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id w68so12251900pgw.3
+        for <linux-mm@kvack.org>; Wed, 21 Dec 2016 18:07:58 -0800 (PST)
+Date: Thu, 22 Dec 2016 12:07:40 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC][PATCH] make global bitlock waitqueues per-node
+Message-ID: <20161222120740.024eba5a@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFwQtaKGDzNFsanMavTH=TBoHgjGqQbwqbLvbjs7Y0EWCw@mail.gmail.com>
+References: <20161219225826.F8CB356F@viggo.jf.intel.com>
+	<CA+55aFwK6JdSy9v_BkNYWNdfK82sYA1h3qCSAJQ0T45cOxeXmQ@mail.gmail.com>
+	<156a5b34-ad3b-d0aa-83c9-109b366c1bdf@linux.intel.com>
+	<CA+55aFxVzes5Jt-hC9BLVSb99x6K-_WkLO-_JTvCjhf5wuK_4w@mail.gmail.com>
+	<CA+55aFwy6+ya_E8N3DFbrq2XjbDs8LWe=W_qW8awimbxw26bJw@mail.gmail.com>
+	<20161221080931.GQ3124@twins.programming.kicks-ass.net>
+	<20161221083247.GW3174@twins.programming.kicks-ass.net>
+	<CA+55aFx-YmpZ4NBU0oSw_iJV8jEMaL8qX-HCH=DrutQ65UYR5A@mail.gmail.com>
+	<20161222043331.31aab9cc@roar.ozlabs.ibm.com>
+	<20161222050130.49d93982@roar.ozlabs.ibm.com>
+	<CA+55aFwQtaKGDzNFsanMavTH=TBoHgjGqQbwqbLvbjs7Y0EWCw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1482366980-3782-3-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Takashi Iwai <tiwai@suse.de>, Hyeoncheol Lee <cheol.lee@lge.com>, yjay.kim@lge.com, Sangseok Lee <sangseok.lee@lge.com>, Hugh Dickins <hughd@google.com>, "[4.7+]" <stable@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On (12/22/16 09:36), Minchan Kim wrote:
-> [1] moved revalidate_disk call out of init_lock to avoid lockdep
-> false-positive splat. However, [2] remove init_lock in IO path
-> so there is no worry about lockdep splat. So, let's restore it.
-> This patch need to set BDI_CAP_STABLE_WRITES atomically in
-> next patch.
+On Wed, 21 Dec 2016 11:50:49 -0800
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Wed, Dec 21, 2016 at 11:01 AM, Nicholas Piggin <npiggin@gmail.com> wrote:
+> > Peter's patch is less code and in that regard a bit nicer. I tried
+> > going that way once, but I just thought it was a bit too sloppy to
+> > do nicely with wait bit APIs.  
 > 
-> [1] b4c5c60920e3: zram: avoid lockdep splat by revalidate_disk
-> [2] 08eee69fcf6b: zram: remove init_lock in zram_make_request
+> So I have to admit that when I read through your and PeterZ's patches
+> back-to-back, yours was easier to understand.
 > 
-> Fixes: da9556a2367c ("zram: user per-cpu compression streams")
-> Cc: <stable@vger.kernel.org> [4.7+]
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> PeterZ's is smaller but kind of subtle. The whole "return zero from
+> lock_page_wait() and go around again" and the locking around that
+> isn't exactly clear. In contrast, yours has the obvious waitqueue
+> spinlock.
+> 
+> I'll think about it.  And yes, it would be good to have more testing,
+> but at the same time xmas is imminent, and waiting around too much
+> isn't going to help either..
 
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Sure. Let's see if Dave and Mel get a chance to do some testing.
 
-	-ss
+It might be a squeeze before Christmas. I realize we're going to fix
+it anyway so on one hand might as well get something in. On the other
+I didn't want to add a subtle bug then have everyone go on vacation.
+
+How about I send up the page flag patch by Friday and that can bake
+while the main patch gets more testing / review?
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
