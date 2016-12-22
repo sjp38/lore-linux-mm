@@ -1,67 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9D3280258
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:46:29 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id dh1so4836642wjb.0
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:46:29 -0800 (PST)
-Received: from celine.tisys.org (celine.tisys.org. [85.25.117.166])
-        by mx.google.com with ESMTPS id x69si29502816wme.157.2016.12.22.13.46.27
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 86955280258
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:56:36 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id i145so78329201qke.5
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:56:36 -0800 (PST)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id w143si9542708qka.155.2016.12.22.13.56.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 13:46:28 -0800 (PST)
-Date: Thu, 22 Dec 2016 22:46:11 +0100
-From: Nils Holland <nholland@tisys.org>
-Subject: Re: OOM: Better, but still there on
-Message-ID: <20161222214611.GA3015@boerne.fritz.box>
-References: <20161216184655.GA5664@boerne.fritz.box>
- <20161217000203.GC23392@dhcp22.suse.cz>
- <20161217125950.GA3321@boerne.fritz.box>
- <862a1ada-17f1-9cff-c89b-46c47432e89f@I-love.SAKURA.ne.jp>
- <20161217210646.GA11358@boerne.fritz.box>
- <20161219134534.GC5164@dhcp22.suse.cz>
- <20161220020829.GA5449@boerne.fritz.box>
- <20161221073658.GC16502@dhcp22.suse.cz>
- <20161222101028.GA11105@ppc-nas.fritz.box>
- <20161222191719.GA19898@dhcp22.suse.cz>
+        Thu, 22 Dec 2016 13:56:35 -0800 (PST)
+Received: by mail-qt0-x244.google.com with SMTP id 41so3377468qtn.0
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 13:56:35 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161222191719.GA19898@dhcp22.suse.cz>
+In-Reply-To: <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com>
+References: <20161126201534.5d5e338f678b478e7a7b8dc3@gmail.com>
+ <CALZtONCzseKs22189B3b+TEPKu8JPQ4WcGGB0zPj4KNuKiUAig@mail.gmail.com>
+ <20161129143916.f24c141c1a264bad1220031e@linux-foundation.org> <CAMJBoFNDw6gpnxrk35o9OW4qLJ87RHDfbYzhA9fqWr9WnuTVWw@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 22 Dec 2016 16:55:54 -0500
+Message-ID: <CALZtONCCkp8ZhZ29f1FK5DsOyhkyM3_25ZXmr0QGfTbrBxFysw@mail.gmail.com>
+Subject: Re: [PATCH 0/2] z3fold fixes
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Dan Carpenter <dan.carpenter@oracle.com>
 
-On Thu, Dec 22, 2016 at 08:17:19PM +0100, Michal Hocko wrote:
-> TL;DR I still do not see what is going on here and it still smells like
-> multiple issues. Please apply the patch below on _top_ of what you had.
+On Sun, Dec 18, 2016 at 3:15 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> On Tue, Nov 29, 2016 at 11:39 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Tue, 29 Nov 2016 17:33:19 -0500 Dan Streetman <ddstreet@ieee.org> wro=
+te:
+>>
+>>> On Sat, Nov 26, 2016 at 2:15 PM, Vitaly Wool <vitalywool@gmail.com> wro=
+te:
+>>> > Here come 2 patches with z3fold fixes for chunks counting and locking=
+. As commit 50a50d2 ("z3fold: don't fail kernel build is z3fold_header is t=
+oo big") was NAK'ed [1], I would suggest that we removed that one and the n=
+ext z3fold commit cc1e9c8 ("z3fold: discourage use of pages that weren't co=
+mpacted") and applied the coming 2 instead.
+>>>
+>>> Instead of adding these onto all the previous ones, could you redo the
+>>> entire z3fold series?  I think it'll be simpler to review the series
+>>> all at once and that would remove some of the stuff from previous
+>>> patches that shouldn't be there.
+>>>
+>>> If that's ok with Andrew, of course, but I don't think any of the
+>>> z3fold patches have been pushed to Linus yet.
+>>
+>> Sounds good to me.  I had a few surprise rejects when merging these
+>> two, which indicates that things might be out of sync.
+>>
+>> I presently have:
+>>
+>> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.pat=
+ch
+>> z3fold-make-pages_nr-atomic.patch
+>> z3fold-extend-compaction-function.patch
+>> z3fold-use-per-page-spinlock.patch
+>> z3fold-discourage-use-of-pages-that-werent-compacted.patch
+>> z3fold-fix-header-size-related-issues.patch
+>> z3fold-fix-locking-issues.patch
+>
+> My initial suggestion was to have it the following way:
+> z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patc=
+h
 
-I've run the usual procedure again with the new patch on top and the
-log is now up at:
+this is a good one, acked by both of us; it should stay and go upstream to =
+Linus
 
-http://ftp.tisys.org/pub/misc/boerne_2016-12-22_2.log.xz
+> z3fold-make-pages_nr-atomic.patch
 
-As a little side note: It is likely, but I cannot completely say for
-sure yet, that this issue is rather easy to reproduce. When I had some
-time today at work, I set up a fresh Debian Sid installation in a VM
-(32 bit PAE kernel, 4 GB RAM, btrfs as root fs). I used some late 4.9rc(8?)
-kernel supplied by Debian - they don't seem to have 4.9 final yet and I
-didn't come around to build and use a custom 4.9 final kernel, probably
-even with your patches. But the 4.9rc kernel there seemed to behave very much
-the same as the 4.9 kernel on my real 32 bit machines does: All I had
-to do was unpack a few big tarballs - firefox, libreoffice and the
-kernel are my favorites - and the machine would start OOMing.
+the change itself looks ok and I acked it, but as Andrew commented the
+log says nothing about why it's being changed; the atomic function is
+slower so the log should explain why it's being changed; anyone
+reviewing the log history won't know why you made the change, and the
+change all by itself is a step backwards in performance.
 
-This might suggest - although I have to admit, again, that this is
-inconclusive, as I've not used a final 4.9 kernel - that you could
-very easily reproduce the issue yourself by just setting up a 32 bit
-system with a btrfs filesystem and then unpacking a few huge tarballs.
-Of course, I'm more than happy to continue giving any patches sent to
-me a spin, but I thought I'd still mention this in case it makes
-things easier for you. :-)
+> z3fold-extend-compaction-function.patch
 
-Greetings
-Nils
+this explictly has a bug in it that's fixed in one of the later
+patches; instead, this should be fixed up and resent.
+
+> z3fold-use-per-page-spinlock.patch
+
+i should have explicitly nak'ed this, as not only did it add a bug
+(fixed by the the other 'fix-' patch below) but its design should be
+replaced by kref counting, which your latest patch is working
+towards...
+
+> z3fold-fix-header-size-related-issues.patch
+> z3fold-fix-locking-issues.patch
+
+and these fix the known problems in the previous patches.
+
+>
+> I would prefer to keep the fix-XXX patches separate since e. g.
+> z3fold-fix-header-size-related-issues.patch concerns also the problems
+> that have been in the code for a while now. I am ok with folding these
+> into the relevant main patches but once again, given that some fixes
+> are related to the code that is already merged, I don't see why it
+> would be better.
+
+none of those patches are "merged", the last z3fold patch in Linus'
+tree is 43afc194 from June.  Just because they're in Andrew's mmotm
+queue (and/or linux-next) doesn't mean they are going to be
+merged...(correct me please if I'm wrong there Andrew)
+
+So as you can see by my patch-by-patch breakdown, almost all of them
+need changes based on feedback from various people.  And they are all
+related - your goal is to improve z3fold performance, right?  IMHO
+they should be sent as a single patch series with that goal in the
+cover letter, including specific details and numbers about how the
+series does improve performance.
+
+>
+> ~vitaly
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
