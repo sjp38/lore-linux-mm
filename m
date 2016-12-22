@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E1942280258
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:03:54 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 83so374940447pfx.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:03:54 -0800 (PST)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id e72si32016815pfd.125.2016.12.22.14.03.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CFA0280258
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 17:12:36 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id u144so38337873wmu.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:12:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o4si29579256wmb.73.2016.12.22.14.12.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 14:03:54 -0800 (PST)
-Received: by mail-pf0-x22e.google.com with SMTP id d2so41464111pfd.0
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 14:03:54 -0800 (PST)
-Date: Thu, 22 Dec 2016 14:03:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/4] mm: add new mmgrab() helper
-In-Reply-To: <20161218123229.22952-1-vegard.nossum@oracle.com>
-Message-ID: <alpine.DEB.2.10.1612221403340.108886@chino.kir.corp.google.com>
-References: <20161218123229.22952-1-vegard.nossum@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Dec 2016 14:12:35 -0800 (PST)
+From: Andreas Schwab <schwab@suse.de>
+Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
+References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
+	<20161222081713.GA32480@node.shutemov.name>
+	<20161222145203.GA18970@bbox>
+Date: Thu, 22 Dec 2016 23:12:32 +0100
+In-Reply-To: <20161222145203.GA18970@bbox> (Minchan Kim's message of "Thu, 22
+	Dec 2016 23:52:03 +0900")
+Message-ID: <8737hftxyn.fsf@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>
 
-On Sun, 18 Dec 2016, Vegard Nossum wrote:
+On Dez 22 2016, Minchan Kim <minchan@kernel.org> wrote:
 
-> Apart from adding the helper function itself, the rest of the kernel is
-> converted mechanically using:
-> 
->   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)->mm_count);/mmgrab\(\1\);/'
->   git grep -l 'atomic_inc.*mm_count' | xargs sed -i 's/atomic_inc(&\(.*\)\.mm_count);/mmgrab\(\&\1\);/'
-> 
-> This is needed for a later patch that hooks into the helper, but might be
-> a worthwhile cleanup on its own.
-> 
-> (Michal Hocko provided most of the kerneldoc comment.)
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
+> From b3ec95c0df91ad113525968a4a6b53030fd0b48d Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Thu, 22 Dec 2016 23:43:49 +0900
+> Subject: [PATCH v2] mm: pmd dirty emulation in page fault handler
+>
+> Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
+> http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
+>
+> The problem is page fault handler supports only accessed flag emulation
+> for THP page of SW-dirty/accessed architecture.
+>
+> This patch enables dirty-bit emulation for those architectures.
+> Without it, MADV_FREE makes application hang by repeated fault forever.
+>
+> [1] b8d3c4c3009d, mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called
 
-Acked-by: David Rientjes <rientjes@google.com>
+Successfully tested a backport to 4.9.
 
-for the series
+Andreas.
+
+-- 
+Andreas Schwab, SUSE Labs, schwab@suse.de
+GPG Key fingerprint = 0196 BAD8 1CE9 1970 F4BE  1748 E4D4 88E3 0EEA B9D7
+"And now for something completely different."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
