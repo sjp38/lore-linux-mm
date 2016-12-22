@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B2756B03F0
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 05:46:26 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 26so288456012pgy.6
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 02:46:26 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u4si2618025plj.12.2016.12.22.02.46.24
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ECDD6B03F5
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 05:53:53 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so35331742wmw.0
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 02:53:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n1si31333425wjf.235.2016.12.22.02.53.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Dec 2016 02:46:24 -0800 (PST)
-Subject: Re: OOM: Better, but still there on
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20161220020829.GA5449@boerne.fritz.box>
-	<20161221073658.GC16502@dhcp22.suse.cz>
-	<20161222101028.GA11105@ppc-nas.fritz.box>
-	<20161222102725.GG6048@dhcp22.suse.cz>
-	<20161222103524.GA14020@ppc-nas.fritz.box>
-In-Reply-To: <20161222103524.GA14020@ppc-nas.fritz.box>
-Message-Id: <201612221946.EHB81270.FVHFMLSQOOtJFO@I-love.SAKURA.ne.jp>
-Date: Thu, 22 Dec 2016 19:46:14 +0900
-Mime-Version: 1.0
+        Thu, 22 Dec 2016 02:53:52 -0800 (PST)
+Date: Thu, 22 Dec 2016 11:53:50 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20161222105350.GJ25166@pathway.suse.cz>
+References: <20161214181850.GC16763@dhcp22.suse.cz>
+ <201612151921.CBE43202.SFLtOFJMOFOQVH@I-love.SAKURA.ne.jp>
+ <201612192025.IFF13034.HJSFLtOFFMQOOV@I-love.SAKURA.ne.jp>
+ <20161219122738.GB427@tigerII.localdomain>
+ <20161220153948.GA575@tigerII.localdomain>
+ <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nholland@tisys.org, mhocko@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, clm@fb.com, dsterba@suse.cz, linux-btrfs@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: sergey.senozhatsky@gmail.com, mhocko@suse.com, linux-mm@kvack.org
 
-Nils Holland wrote:
-> Well, the issue is that I could only do everything via ssh today and
-> don't have any physical access to the machines. In fact, both seem to
-> have suffered a genuine kernel panic, which is also visible in the
-> last few lines of the log I provided today. So, basically, both
-> machines are now sitting at my home in panic state and I'll only be
-> able to resurrect them wheh I'm physically there again tonight.
+On Thu 2016-12-22 19:27:17, Tetsuo Handa wrote:
+> Sergey Senozhatsky wrote:
+> > On (12/19/16 21:27), Sergey Senozhatsky wrote:
+> > [..]
+> > >
+> > > I'll finish re-basing the patch set tomorrow.
+> > >
+> > 
+> > pushed
+> > 
+> > https://gitlab.com/senozhatsky/linux-next-ss/commits/printk-safe-deferred
+> > 
+> > not tested. will test and send out the patch set tomorrow.
+> > 
+> >      -ss
+> 
+> Thank you. I tried "[PATCHv6 0/7] printk: use printk_safe to handle printk()
+> recursive calls" at https://lkml.org/lkml/2016/12/21/232 on top of linux.git
+> as of commit 52bce91165e5f2db "splice: reinstate SIGPIPE/EPIPE handling", but
+> it turned out that your patch set does not solve this problem.
+>
+> I was assuming that sending to consoles from printk() is offloaded to a kernel
+> thread dedicated for that purpose, but your patch set does not do it. As a result,
+> somebody who called out_of_memory() is still preempted by other threads consuming
+> CPU time due to cond_resched() from console_unlock() as demonstrated by below patch.
 
-# echo 10 > /proc/sys/kernel/panic
+Ah, it was a misunderstanding. The "printk_safe" patchset allows to
+call printk() from inside some areas guarded by logbuf_lock. By other
+words, it allows to print errors from inside printk() code. I does
+not solve the soft-/live-locks.
+
+We need the async printk patchset here. It will allow to offload the
+console handling to the kthread. AFAIK, Sergey wanted to rebase it
+on top of the printk_safe patchset. I am not sure when he want or
+will have time to do so, though.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
