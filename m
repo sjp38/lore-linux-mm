@@ -1,91 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F3F56280264
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 10:15:10 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id n189so141879223pga.4
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 07:15:10 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 33si34401161pli.217.2016.12.23.07.15.09
-        for <linux-mm@kvack.org>;
-        Fri, 23 Dec 2016 07:15:09 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4] mm: pmd dirty emulation in page fault handler
-Date: Sat, 24 Dec 2016 00:14:58 +0900
-Message-Id: <1482506098-6149-1-git-send-email-minchan@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 125F128027E
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 12:16:42 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b1so547019191pgc.5
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 09:16:42 -0800 (PST)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id j62si34632166pgc.184.2016.12.23.09.16.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Dec 2016 09:16:41 -0800 (PST)
+Received: by mail-pf0-x243.google.com with SMTP id 127so4200869pfg.0
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 09:16:40 -0800 (PST)
+Subject: [net/mm PATCH v2 0/3] Page fragment updates
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 23 Dec 2016 09:16:39 -0800
+Message-ID: <20161223170756.14573.74139.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andreas Schwab <schwab@suse.de>, Minchan Kim <minchan@kernel.org>, Jason Evans <je@fb.com>, Michal Hocko <mhocko@suse.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org, davem@davemloft.net, netdev@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, jeffrey.t.kirsher@intel.com
 
-Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
+This patch series takes care of a few cleanups for the page fragments API.
 
-The problem is currently page fault handler doesn't supports dirty bit
-emulation of pmd for non-HW dirty-bit architecture so that application
-stucks until VM marked the pmd dirty.
+First we do some renames so that things are much more consistent.  First we
+move the page_frag_ portion of the name to the front of the functions
+names.  Secondly we split out the cache specific functions from the other
+page fragment functions by adding the word "cache" to the name.
 
-How the emulation work depends on the architecture. In case of arm64,
-when it set up pte firstly, it sets pte PTE_RDONLY to get a chance to
-mark the pte dirty via triggering page fault when store access happens.
-Once the page fault occurs, VM marks the pmd dirty and arch code for
-setting pmd will clear PTE_RDONLY for application to proceed.
+Second I did some minor clean-up on the function calls so that they are
+more inline with the existing __free_pages calls in terms of how they
+operate.
 
-IOW, if VM doesn't mark the pmd dirty, application hangs forever by
-repeated fault(i.e., store op but the pmd is PTE_RDONLY).
+Finally I added a bit of documentation that will hopefully help to explain
+some of this.  I plan to revisit this later as we get things more ironed
+out in the near future with the changes planned for the DMA setup to
+support eXpress Data Path.
 
-This patch enables pmd dirty-bit emulation for those architectures.
-
-[1] b8d3c4c3009d, mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called
-
-Cc: Jason Evans <je@fb.com>
-Cc: Michal Hocko <mhocko@suse.com> 
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-arch@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: <stable@vger.kernel.org> [4.5+]
-Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
-Reported-and-Tested-by: Andreas Schwab <schwab@suse.de>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
-  Merry Xmas!
 
-* from v3
-  * Elaborate description
-* from v2
-  * Add acked-by/tested-by
-* from v1
-  * Remove __handle_mm_fault part - Kirill
- mm/huge_memory.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+v2: Fixed a comparison between a void* and 0 due to copy/paste from free_pages
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 10eedbf..29ec8a4 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -883,15 +883,17 @@ void huge_pmd_set_accessed(struct vm_fault *vmf, pmd_t orig_pmd)
- {
- 	pmd_t entry;
- 	unsigned long haddr;
-+	bool write = vmf->flags & FAULT_FLAG_WRITE;
- 
- 	vmf->ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
- 	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
- 		goto unlock;
- 
- 	entry = pmd_mkyoung(orig_pmd);
-+	if (write)
-+		entry = pmd_mkdirty(entry);
- 	haddr = vmf->address & HPAGE_PMD_MASK;
--	if (pmdp_set_access_flags(vmf->vma, haddr, vmf->pmd, entry,
--				vmf->flags & FAULT_FLAG_WRITE))
-+	if (pmdp_set_access_flags(vmf->vma, haddr, vmf->pmd, entry, write))
- 		update_mmu_cache_pmd(vmf->vma, vmf->address, vmf->pmd);
- 
- unlock:
--- 
-2.7.4
+I'm listing this as a patch for net or mm since I had originally submitted
+it against mm as that was where the patches for the __page_frag functions
+has previously resided.  However they are now also in net, and I wanted to
+get this fixed before the merge window closed as I was hoping to make use
+of these APIs in net-next and I already have about 20 patches that are
+waiting on these patches to be accepted.
+
+I tried to get in touch with Andrew about this fix but I haven't heard any
+reply to the email I sent out on Tuesday.  The last comment I had from
+Andrew against v1 was "Looks good to me.  I have it all queued for post-4.9
+processing.", but I haven't received any notice they were applied.
+
+Alexander Duyck (3):
+      mm: Rename __alloc_page_frag to page_frag_alloc and __free_page_frag to page_frag_free
+      mm: Rename __page_frag functions to __page_frag_cache, drop order from drain
+      mm: Add documentation for page fragment APIs
+
+
+ Documentation/vm/page_frags               |   42 +++++++++++++++++++++++++++++
+ drivers/net/ethernet/intel/igb/igb_main.c |    6 ++--
+ include/linux/gfp.h                       |    9 +++---
+ include/linux/skbuff.h                    |    2 +
+ mm/page_alloc.c                           |   33 +++++++++++++----------
+ net/core/skbuff.c                         |    8 +++---
+ 6 files changed, 73 insertions(+), 27 deletions(-)
+ create mode 100644 Documentation/vm/page_frags
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
