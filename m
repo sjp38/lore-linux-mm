@@ -1,123 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D68866B0304
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 17:26:08 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id m203so43109248wma.2
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 14:26:08 -0800 (PST)
-Received: from celine.tisys.org (celine.tisys.org. [85.25.117.166])
-        by mx.google.com with ESMTPS id m14si4140822wjw.246.2016.12.23.14.26.06
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 803006B036C
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 17:46:46 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so55160010pgj.6
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 14:46:46 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id 12si35380827pfi.251.2016.12.23.14.46.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Dec 2016 14:26:07 -0800 (PST)
-Date: Fri, 23 Dec 2016 23:26:00 +0100
-From: Nils Holland <nholland@tisys.org>
-Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
-Message-ID: <20161223222559.GA5568@teela.multi.box>
-References: <20161219134534.GC5164@dhcp22.suse.cz>
- <20161220020829.GA5449@boerne.fritz.box>
- <20161221073658.GC16502@dhcp22.suse.cz>
- <20161222101028.GA11105@ppc-nas.fritz.box>
- <20161222191719.GA19898@dhcp22.suse.cz>
- <20161222214611.GA3015@boerne.fritz.box>
- <20161223105157.GB23109@dhcp22.suse.cz>
- <20161223121851.GA27413@ppc-nas.fritz.box>
- <20161223125728.GE23109@dhcp22.suse.cz>
- <20161223144738.GB23117@dhcp22.suse.cz>
+        Fri, 23 Dec 2016 14:46:45 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id y62so61310023pgy.1
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 14:46:45 -0800 (PST)
+Date: Fri, 23 Dec 2016 14:46:43 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <20161223111817.GC23109@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz> <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com> <20161223085150.GA23109@dhcp22.suse.cz> <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+ <20161223111817.GC23109@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161223144738.GB23117@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+On Fri, 23 Dec 2016, Michal Hocko wrote:
+
+> > We have no way to compact memory for users who are not using 
+> > MADV_HUGEPAGE,
 > 
-> Nils, even though this is still highly experimental, could you give it a
-> try please?
+> yes we have. it is defrag=always. If you do not want direct compaction
+> and the resulting allocation stalls then you have to rely on kcompactd
+> which is something we should work longterm.
+> 
 
-Yes, no problem! So I kept the very first patch you sent but had to
-revert the latest version of the debugging patch (the one in
-which you added the "mm_vmscan_inactive_list_is_low" event) because
-otherwise the patch you just sent wouldn't apply. Then I rebooted with
-memory cgroups enabled again, and the first thing that strikes the eye
-is that I get this during boot:
+No, the point of madvise(MADV_HUGEPAGE) is for applications to tell the 
+kernel that they really want hugepages.  Really.  Everybody else either 
+never did direct compaction or did a substantially watered down version of 
+it.  Now, we have a situation where you can either do direct compaction 
+for MADV_HUGEPAGE and nothing for anybody else, or direct compaction for 
+everybody.  In our usecase, we want everybody to kick off background 
+compaction because order=9 gfp_mask & __GFP_KSWAPD_RECLAIM is the only 
+thing that is going to trigger background compaction but are unable to do 
+so without still incurring lengthy pagefaults for non MADV_HUGEPAGE users.
 
-[    1.568174] ------------[ cut here ]------------
-[    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
-[    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
-[    1.568754] Modules linked in:
-[    1.568922] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.9.0-gentoo #6
-[    1.569052] Hardware name: Hewlett-Packard Compaq 15 Notebook PC/21F7, BIOS F.22 08/06/2014
-[    1.571750]  f44e5b84 c142bdee f44e5bc8 c1b5ade0 f44e5bb4 c103ab1d c1b583e4 f44e5be4
-[    1.572262]  00000001 c1b5ade0 00000408 c11603d8 00000408 00000000 c1b5af73 00000001
-[    1.572774]  f44e5bd0 c103ab76 00000009 00000000 f44e5bc8 c1b583e4 f44e5be4 f44e5c18
-[    1.573285] Call Trace:
-[    1.573419]  [<c142bdee>] dump_stack+0x47/0x69
-[    1.573551]  [<c103ab1d>] __warn+0xed/0x110
-[    1.573681]  [<c11603d8>] ? mem_cgroup_update_lru_size+0x118/0x130
-[    1.573812]  [<c103ab76>] warn_slowpath_fmt+0x36/0x40
-[    1.573942]  [<c11603d8>] mem_cgroup_update_lru_size+0x118/0x130
-[    1.574076]  [<c1111467>] __pagevec_lru_add_fn+0xd7/0x1b0
-[    1.574206]  [<c1111390>] ? perf_trace_mm_lru_insertion+0x150/0x150
-[    1.574336]  [<c111239d>] pagevec_lru_move_fn+0x4d/0x80
-[    1.574465]  [<c1111390>] ? perf_trace_mm_lru_insertion+0x150/0x150
-[    1.574595]  [<c11127e5>] __lru_cache_add+0x45/0x60
-[    1.574724]  [<c1112848>] lru_cache_add+0x8/0x10
-[    1.574852]  [<c1102fc1>] add_to_page_cache_lru+0x61/0xc0
-[    1.574982]  [<c110418e>] pagecache_get_page+0xee/0x270
-[    1.575111]  [<c11060f0>] grab_cache_page_write_begin+0x20/0x40
-[    1.575243]  [<c118b955>] simple_write_begin+0x25/0xd0
-[    1.575372]  [<c11061b8>] generic_perform_write+0xa8/0x1a0
-[    1.575503]  [<c1106447>] __generic_file_write_iter+0x197/0x1f0
-[    1.575634]  [<c110663f>] generic_file_write_iter+0x19f/0x2b0
-[    1.575766]  [<c11669c1>] __vfs_write+0xd1/0x140
-[    1.575897]  [<c1166bc5>] vfs_write+0x95/0x1b0
-[    1.576026]  [<c1166daf>] SyS_write+0x3f/0x90
-[    1.576157]  [<c1ce4474>] xwrite+0x1c/0x4b
-[    1.576285]  [<c1ce44c5>] do_copy+0x22/0xac
-[    1.576413]  [<c1ce42c3>] write_buffer+0x1d/0x2c
-[    1.576540]  [<c1ce42f0>] flush_buffer+0x1e/0x70
-[    1.576670]  [<c1d0eae8>] unxz+0x149/0x211
-[    1.576798]  [<c1d0e99f>] ? unlzo+0x359/0x359
-[    1.576926]  [<c1ce4946>] unpack_to_rootfs+0x14f/0x246
-[    1.577054]  [<c1ce42d2>] ? write_buffer+0x2c/0x2c
-[    1.577183]  [<c1ce4216>] ? initrd_load+0x3b/0x3b
-[    1.577312]  [<c1ce4b20>] ? maybe_link.part.3+0xe3/0xe3
-[    1.577443]  [<c1ce4b67>] populate_rootfs+0x47/0x8f
-[    1.577573]  [<c1000456>] do_one_initcall+0x36/0x150
-[    1.577701]  [<c1ce351e>] ? repair_env_string+0x12/0x54
-[    1.577832]  [<c1054ded>] ? parse_args+0x25d/0x400
-[    1.577962]  [<c1ce3baf>] ? kernel_init_freeable+0x101/0x19e
-[    1.578092]  [<c1ce3bcf>] kernel_init_freeable+0x121/0x19e
-[    1.578222]  [<c19b0700>] ? rest_init+0x60/0x60
-[    1.578350]  [<c19b070b>] kernel_init+0xb/0x100
-[    1.578480]  [<c1060c7c>] ? schedule_tail+0xc/0x50
-[    1.578608]  [<c19b0700>] ? rest_init+0x60/0x60
-[    1.578737]  [<c19b5db7>] ret_from_fork+0x1b/0x28
-[    1.578871] ---[ end trace cf6f1adac9dfe60e ]---
+> > which is some customers, others require MADV_HUGEPAGE for 
+> > .text segment remap while loading their binary, without defrag=always or 
+> > defrag=defer.  The problem is that we want to demand direct compact for 
+> > MADV_HUGEPAGE: they _really_ want hugepages, it's the point of the 
+> > madvise.
+> 
+> and that is the point of defrag=madvise to give them this direct
+> compaction.
+> 
 
-The machine then continued to boot just normally, however, so I
-started my ordinary tests. And in fact, they were working just fine,
-i.e. no OOMing anymore, even during heavy tarball unpacking.
+Do you see the problem by first suggesting defrag=always at the top of 
+your reply and then defrag=madvise now?  We cannot set both at once, it's 
+the entire problem with the tristate and now quadstate setting.  We want a 
+combination: EVERYBODY kicks off background compaction and applications 
+that really want hugepages and are fine with incuring lengthy page fault, 
+such as those (for the third time) remapping .text segment and doing 
+madvise(MADV_HUGEPAGE) before fault, can use the madvise.
 
-Would it make sense to capture more trace data for you at this point?
-As I'm on the go, I don't currently have a second machine for
-capturing over the network, but since we're not having OOMs or other
-issues now, capturing to file should probably work just fine.
+> > We have no setting, without this patch, to ask for background 
+> > compaction for everybody so that their fault does not have long latency 
+> > and for some customers to demand compaction.
+> 
+> that is true and what I am trying to say is that we should aim to give
+> this background compaction for everybody via kcompactd because there are
+> more users than THP who might benefit from low latency high order pages
+> availability. 
 
-I'll keep the patch applied and see if I notice anything else that
-doesn't look normal during day to day usage, especially during my
-ordinary Gentoo updates, which consist of a lot of fetching /
-unpacking / building, and in the recent past had been very problematic
-(in fact, that was where the problem first struck me and the "heavy
-tarball unpacking" test was then just what I distilled it down to
-in order to manually reproduce this with the least time and effort
-possible).
+My patch does that, we _defer_ for everybody unless you're using 
+madvise(MADV_HUGEPAGE) and really want hugepages.  Forget defrag=never 
+exists, it's not important in the discussion.  Forget defrag=always exists 
+because all apps, like batch jobs, don't want lengthy pagefaults.  We have 
+two options remaining:
 
-Greetings
-Nils
+ - defrag=defer: everybody kicks off background compaction, _nobody_ does
+   direct compaction
+
+ - defrag=madvise: madvise(MADV_HUGEPAGE) does direct compaction,
+   everybody else does nothing
+
+The point you're missing is that we _want_ defrag=defer.  We really do.  
+We don't want to stall in the page allocator to get thp, but we want to 
+try to make it available in the short term.  However, apps that do 
+madvise(MADV_HUGEPAGE), like remapping your .text segment and wanting your 
+text backed by hugepages and incurring the expense up front, or a 
+database, or a vm, _want_ hugepages now and don't care about lengthy page 
+faults.
+
+The point is that I HAVE NO SETTING to get that behavior and 
+defrag=madvise is _not_ a solution because it requires the presence of an 
+app that is doing madvise(MADV_HUGEPAGE) AND faulting memory to get any 
+order=9 compaction.
+
+> > ?????? Why does the admin care if a user's page fault wants to reclaim to 
+> > get high order memory?
+> 
+> Because the whole point of the defrag knob is to allow _administrator_
+> control how much we try to fault in THP. And the primary motivation were
+> latencies. The whole point of introducing defer option was to _never_
+> stall in the page fault while it still allows to kick the background
+> compaction. If you really want to tweak any option then madvise would be
+> more appropriate IMHO because the semantic would be still clear. Use
+> direct compaction for MADV_HUGEPAGE vmas and kick in kswapd/kcompactd
+> for others.
+> 
+
+You want defrag=madvise to start doing background compaction for 
+everybody, which was never done before for existing users of 
+defrag=madvise?  That might be possible, I don't really care, I just think 
+it's riskier because there are existing users of defrag=madvise who are 
+opting in to new behavior because of the kernel change.  This patch 
+changes defrag=defer because it's the new option and people setting the 
+mode know what they are getting.
+
+I disagree with your description of what the defrag setting is intended 
+for.  The setting of thp defrag is to optimize for apps that truly want 
+transparent behavior, i.e. they aren't doing madvise(MADV_HUGEPAGE).  Are 
+they willing to incur lengthy pagefaults for thp when not doing any 
+madvise(2)?  defrag=defer should not mean that users of 
+madvise(MADV_HUGEPAGE) that have clearly specified their intent should not 
+be allowed to try compacting memory themselves because they have indicated 
+they are fine with such an expense by doing the madvise(2).
+
+This is obviously fine for Kirill, and I have users who remap their .text 
+segment and do madvise(MADV_DONTNEED) because they really want hugepages 
+when they are exec'd, so I'd kindly ask you to consider the real-world use 
+cases that require background compaction to make hugepages available for 
+everybody but allow apps to opt-in to take the expense of compaction on 
+themselves rather than your own theory of what users want.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
