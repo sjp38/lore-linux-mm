@@ -1,104 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C0999280276
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 09:01:34 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id 34so238356600uac.6
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 06:01:34 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id j10si34243211plg.64.2016.12.23.06.01.32
-        for <linux-mm@kvack.org>;
-        Fri, 23 Dec 2016 06:01:33 -0800 (PST)
-Date: Fri, 23 Dec 2016 23:01:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
-Message-ID: <20161223140131.GA5724@bbox>
-References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
- <20161222081713.GA32480@node.shutemov.name>
- <20161222145203.GA18970@bbox>
- <20161223091725.GA23117@dhcp22.suse.cz>
- <20161223095336.GA5305@bbox>
- <20161223115421.GD23109@dhcp22.suse.cz>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DFF23280276
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 09:19:59 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id n68so189043878itn.4
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 06:19:59 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 2si12936372itc.59.2016.12.23.06.19.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Dec 2016 06:19:59 -0800 (PST)
+Date: Fri, 23 Dec 2016 15:19:57 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: A small window for a race condition in
+ mm/rmap.c:page_lock_anon_vma_read
+Message-ID: <20161223141957.GT3107@twins.programming.kicks-ass.net>
+References: <23B7B563BA4E9446B962B142C86EF24ADBD62C@CNMAILEX03.lenovo.com>
+ <20161221144343.GD593@dhcp22.suse.cz>
+ <20161222135106.GY3124@twins.programming.kicks-ass.net>
+ <alpine.LSU.2.11.1612221351340.1744@eggly.anvils>
+ <23B7B563BA4E9446B962B142C86EF24ADBF309@CNMAILEX03.lenovo.com>
 MIME-Version: 1.0
-In-Reply-To: <20161223115421.GD23109@dhcp22.suse.cz>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <23B7B563BA4E9446B962B142C86EF24ADBF309@CNMAILEX03.lenovo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, Andreas Schwab <schwab@suse.de>
+To: Dashi DS1 Cao <caods1@lenovo.com>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 23, 2016 at 12:54:21PM +0100, Michal Hocko wrote:
-> On Fri 23-12-16 18:53:36, Minchan Kim wrote:
-> > Hi,
-> > 
-> > On Fri, Dec 23, 2016 at 10:17:25AM +0100, Michal Hocko wrote:
-> > > On Thu 22-12-16 23:52:03, Minchan Kim wrote:
-> > > [...]
-> > > > >From b3ec95c0df91ad113525968a4a6b53030fd0b48d Mon Sep 17 00:00:00 2001
-> > > > From: Minchan Kim <minchan@kernel.org>
-> > > > Date: Thu, 22 Dec 2016 23:43:49 +0900
-> > > > Subject: [PATCH v2] mm: pmd dirty emulation in page fault handler
-> > > > 
-> > > > Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-> > > > http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
-> > > > 
-> > > > The problem is page fault handler supports only accessed flag emulation
-> > > > for THP page of SW-dirty/accessed architecture.
-> > > > 
-> > > > This patch enables dirty-bit emulation for those architectures.
-> > > > Without it, MADV_FREE makes application hang by repeated fault forever.
-> > > 
-> > > The changelog is rather terse and considering the issue is rather subtle
-> > > and it aims the stable tree I think it could see more information. How
-> > > do we end up looping in the page fault and why the dirty pmd stops it.
-> > > Could you update the changelog to be more verbose, please? I am still
-> > > digesting this patch but I believe it is correct fwiw...
-> > > 
-> > 
-> > How about this? Feel free to suggest better wording.
-> > 
-> > Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-> > http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
-> > 
-> > The problem is currently page fault handler doesn't supports dirty bit
-> > emulation of pte for non-HW dirty-bit architecture so that application
-> 
-> s@pte@pmd@ ?
+On Fri, Dec 23, 2016 at 02:02:14AM +0000, Dashi DS1 Cao wrote:
+> The kernel version is "RELEASE: 3.10.0-327.36.3.el7.x86_64". It was the latest kernel release of CentOS 7.2 at that time, or maybe still now.
 
-It would be more clear. Will update with it.
-
-> 
-> > stucks until VM marked the pmd dirty.
-> > 
-> > How the emulation work depends on the architecture. In case of arm64,
-> > when it set up pte firstly, it sets pte PTE_RDONLY to get a chance to
-> > mark the pte dirty via triggering page fault when store access happens.
-> > Once the page fault occurs, VM marks the pte dirty and arch code for
-> > setting pte will clear PTE_RDONLY for application to proceed.
-> > 
-> > IOW, if VM doesn't mark the pte dirty, application hangs forever by
-> > repeated fault(i.e., store op but the pte is PTE_RDONLY).
-> > 
-> > This patch enables dirty-bit emulation for those architectures.
-> 
-> Yes this is helpful and much more clear, thank you. One thing that is
-> still not clear to me is why cannot we handle that in the arch specific
-> code. I mean what is the side effect of doing pmd_mkdirty for
-> architectures which do not need it?
-
-For architecture which supports H/W access/dirty bit, it couldn't be
-reached there code path so there is no side effect, I think. A thing
-I can think of is just increasing code size little bit. Maybe, we
-could optimize away some ifdef magic but not sure worth it. We have
-been same way pte(not pmd) emulation handling for several decacdes.
-Anyway, it should be off-topic, I think.
-
-Thanks.
-
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+This would be the point where we ask you to run a recent upstream kernel
+and try and reproduce the problem with that, or contact RHT for support
+on their franken-kernel ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
