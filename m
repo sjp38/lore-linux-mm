@@ -1,60 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AEC16B030E
-	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 19:00:05 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id b14so77525131lfg.6
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:00:05 -0800 (PST)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id p21si18042523lfj.229.2016.12.22.16.00.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Dec 2016 16:00:03 -0800 (PST)
-Received: by mail-lf0-x244.google.com with SMTP id d16so5727798lfb.1
-        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 16:00:03 -0800 (PST)
-Date: Fri, 23 Dec 2016 00:59:59 +0100
-From: Grygorii Maistrenko <grygoriimkd@gmail.com>
-Subject: [PATCH] slub: do not merge cache if slub_debug contains a
- never-merge flag
-Message-ID: <20161222235959.GC6871@lp-laptop-d>
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 050916B02D4
+	for <linux-mm@kvack.org>; Thu, 22 Dec 2016 21:05:48 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id m123so59864665qke.1
+        for <linux-mm@kvack.org>; Thu, 22 Dec 2016 18:05:47 -0800 (PST)
+Received: from mail1.bemta8.messagelabs.com (mail1.bemta8.messagelabs.com. [216.82.243.200])
+        by mx.google.com with ESMTP id r193si9050523qke.215.2016.12.22.18.05.47
+        for <linux-mm@kvack.org>;
+        Thu, 22 Dec 2016 18:05:47 -0800 (PST)
+From: Dashi DS1 Cao <caods1@lenovo.com>
+Subject: RE: A small window for a race condition in
+ mm/rmap.c:page_lock_anon_vma_read
+Date: Fri, 23 Dec 2016 02:02:14 +0000
+Message-ID: <23B7B563BA4E9446B962B142C86EF24ADBF309@CNMAILEX03.lenovo.com>
+References: <23B7B563BA4E9446B962B142C86EF24ADBD62C@CNMAILEX03.lenovo.com>
+ <20161221144343.GD593@dhcp22.suse.cz>
+ <20161222135106.GY3124@twins.programming.kicks-ass.net>
+ <alpine.LSU.2.11.1612221351340.1744@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1612221351340.1744@eggly.anvils>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-In case CONFIG_SLUB_DEBUG_ON=n find_mergeable() gets debug features
-from commandline but never checks if there are features from the
-SLAB_NEVER_MERGE set.
-As a result selected by slub_debug caches are always mergeable if they
-have been created without a custom constructor set or without one of the
-SLAB_* debug features on.
+The kernel version is "RELEASE: 3.10.0-327.36.3.el7.x86_64". It was the lat=
+est kernel release of CentOS 7.2 at that time, or maybe still now.
+I've tried to print the value of anon_vma from other three dumps, but the c=
+ontent is not available in the dump.=20
+"gdb: page excluded: kernel virtual address: ffff882b47ddadc0"
+I guess it is not copied out because it has already been put into some unus=
+ed list.
 
-This adds the necessary check and makes selected slab caches unmergeable
-if one of the SLAB_NEVER_MERGE features is set from commandline.
+Dashi Cao
 
-Signed-off-by: Grygorii Maistrenko <grygoriimkd@gmail.com>
----
- mm/slab_common.c | 3 +++
- 1 file changed, 3 insertions(+)
+-----Original Message-----
+From: Hugh Dickins [mailto:hughd@google.com]=20
+Sent: Friday, December 23, 2016 6:27 AM
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>; Dashi DS1 Cao <caods1@lenovo.com>; li=
+nux-mm@kvack.org; linux-kernel@vger.kernel.org; Hugh Dickins <hughd@google.=
+com>
+Subject: Re: A small window for a race condition in mm/rmap.c:page_lock_ano=
+n_vma_read
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 329b03843863..7341cba8c58b 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -266,6 +266,9 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
- 	size = ALIGN(size, align);
- 	flags = kmem_cache_flags(size, flags, name, NULL);
- 
-+	if (flags & SLAB_NEVER_MERGE)
-+		return NULL;
-+
- 	list_for_each_entry_reverse(s, &slab_caches, list) {
- 		if (slab_unmergeable(s))
- 			continue;
--- 
-2.11.0
+On Thu, 22 Dec 2016, Peter Zijlstra wrote:
+> On Wed, Dec 21, 2016 at 03:43:43PM +0100, Michal Hocko wrote:
+> > anon_vma locking is clever^Wsubtle as hell. CC Peter...
+> >=20
+> > On Tue 20-12-16 09:32:27, Dashi DS1 Cao wrote:
+> > > I've collected four crash dumps with similar backtrace.=20
+> > >=20
+> > > PID: 247    TASK: ffff881fcfad8000  CPU: 14  COMMAND: "kswapd1"
+> > >  #0 [ffff881fcfad7978] machine_kexec at ffffffff81051e9b
+> > >  #1 [ffff881fcfad79d8] crash_kexec at ffffffff810f27e2
+> > >  #2 [ffff881fcfad7aa8] oops_end at ffffffff8163f448
+> > >  #3 [ffff881fcfad7ad0] die at ffffffff8101859b
+> > >  #4 [ffff881fcfad7b00] do_general_protection at ffffffff8163ed3e
+> > >  #5 [ffff881fcfad7b30] general_protection at ffffffff8163e5e8
+> > >     [exception RIP: down_read_trylock+9]
+> > >     RIP: ffffffff810aa9f9  RSP: ffff881fcfad7be0  RFLAGS: 00010286
+> > >     RAX: 0000000000000000  RBX: ffff882b47ddadc0  RCX: 00000000000000=
+00
+> > >     RDX: 0000000000000000  RSI: 0000000000000000  RDI:=20
+> > > 91550b2b32f5a3e8
+> >=20
+> > rdi is obviously a mess - smells like a string. So either sombody=20
+> > has overwritten root_anon_vma or this is really a use after free...
+>=20
+> e8 - ???
+> a3 - ???
+> f5 - ???
+> 32 - 2
+> 2b - +
+>  b -
+>=20
+> 55 - U
+> 91 - ???
+>=20
+> Not a string..
+>=20
+> > >     RBP: ffff881fcfad7be0   R8: ffffea00ecc28860   R9: ffff883fcffeae=
+28
+> > >     R10: ffffffff81a691a0  R11: 0000000000000001  R12: ffff882b47ddad=
+c1
+> > >     R13: ffffea00ecc28840  R14: 91550b2b32f5a3e8  R15: ffffea00ecc288=
+40
+> > >     ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
+> > >  #6 [ffff881fcfad7be8] page_lock_anon_vma_read at ffffffff811a3365
+> > >  #7 [ffff881fcfad7c18] page_referenced at ffffffff811a35e7
+> > >  #8 [ffff881fcfad7c90] shrink_active_list at ffffffff8117e8cc
+> > >  #9 [ffff881fcfad7d48] balance_pgdat at ffffffff81180288
+> > > #10 [ffff881fcfad7e20] kswapd at ffffffff81180813
+> > > #11 [ffff881fcfad7ec8] kthread at ffffffff810a5b8f
+> > > #12 [ffff881fcfad7f50] ret_from_fork at ffffffff81646a98
+> > >=20
+> > > I suspect my customer hits into a small window of a race condition in=
+ mm/rmap.c: page_lock_anon_vma_read.
+> > > struct anon_vma *page_lock_anon_vma_read(struct page *page) {
+> > >         struct anon_vma *anon_vma =3D NULL;
+> > >         struct anon_vma *root_anon_vma;
+> > >         unsigned long anon_mapping;
+> > >=20
+> > >         rcu_read_lock();
+> > >         anon_mapping =3D (unsigned long)READ_ONCE(page->mapping);
+> > >         if ((anon_mapping & PAGE_MAPPING_FLAGS) !=3D PAGE_MAPPING_ANO=
+N)
+> > >                 goto out;
+> > >         if (!page_mapped(page))
+> > >                 goto out;
+> > >=20
+> > >         anon_vma =3D (struct anon_vma *) (anon_mapping - PAGE_MAPPING=
+_ANON);
+> > >         root_anon_vma =3D READ_ONCE(anon_vma->root);
+> >=20
+> > Could you dump the anon_vma and struct page as well?
+> >=20
+> > >         if (down_read_trylock(&root_anon_vma->rwsem)) {
+> > >                 /*
+> > >                  * If the page is still mapped, then this anon_vma is=
+ still
+> > >                  * its anon_vma, and holding the mutex ensures that i=
+t will
+> > >                  * not go away, see anon_vma_free().
+> > >                  */
+> > >                 if (!page_mapped(page)) {
+> > >                         up_read(&root_anon_vma->rwsem);
+> > >                         anon_vma =3D NULL;
+> > >                 }
+> > >                 goto out;
+> > >         }
+> > > ...
+> > > }
+> > >=20
+> > > Between the time the two "page_mapped(page)" are checked, the=20
+> > > address (anon_mapping - PAGE_MAPPING_ANON) is unmapped! However it=20
+> > > seems that anon_vma->root could still be read in but the value is=20
+> > > wild. So the kernel crashes in down_read_trylock. But it's weird=20
+> > > that all the "struct page" has its member "_mapcount" still with=20
+> > > value 0, not -1, in the four crashes.
+>=20
+> So the point is that while we hold rcu_read_lock() the actual memory=20
+> backing the anon_vmas cannot be freed. It can be reused, but only for=20
+> another anon_vma.
+>=20
+> Now, anon_vma_alloc() sets ->root to self, while anon_vma_free()=20
+> leaves
+> ->root set to whatever. And any other ->root assignment is to a valid
+> anon_vma.
+>=20
+> Therefore, the same rules that ensure anon_vma stays valid, should=20
+> also ensure anon_vma->root stays valid.
+>=20
+> Now, one thing that might go wobbly is that ->root assignments are not=20
+> done using WRITE_ONCE(), this means a naughty compiler can miscompile=20
+> those stores and introduce store-tearing, if our READ_ONCE() would=20
+> observe such a tear, we'd be up some creek without a paddle.
+
+We would indeed.  And this being the season of goodwill, I'm biting my tong=
+ue not to say what I think of the prospect of store tearing.
+But that zeroed anon_vma implies tearing not the problem here anyway.
+
+>=20
+> Now, its been a long time since I looked at any of this code, and I=20
+> see that Hugh has fixed at least two wobblies in my original code.
+
+Nothing much, and this (admittedly subtle) technique has been working well =
+for years, so I'm sceptical about "a small window for a race condition".
+
+But Dashi's right to point out that the struct page has _mapcount 0 (not -1=
+ for logical 0) in these cases: it looks as if something is freeing (or cor=
+rupting) the anon_vma despite it still having pages mapped, or something is=
+ misaccounting (or corrupting) the _mapcount.
+
+But I've no idea what, and we have not heard such reports elsewhere.
+We don't even know what kernel this is - something special, perhaps?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
