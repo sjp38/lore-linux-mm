@@ -1,83 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4D76B039F
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 05:01:36 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 17so390534674pfy.2
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 02:01:36 -0800 (PST)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id z43si7890342plh.111.2016.12.23.02.01.35
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3142280270
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 05:52:02 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id w13so40489608wmw.0
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 02:52:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jj1si35210218wjb.195.2016.12.23.02.52.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Dec 2016 02:01:35 -0800 (PST)
-Received: by mail-pg0-x229.google.com with SMTP id i5so43052218pgh.2
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 02:01:35 -0800 (PST)
-Date: Fri, 23 Dec 2016 02:01:33 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-In-Reply-To: <20161223085150.GA23109@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz> <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com> <20161223085150.GA23109@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Dec 2016 02:52:01 -0800 (PST)
+Date: Fri, 23 Dec 2016 11:51:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: OOM: Better, but still there on
+Message-ID: <20161223105157.GB23109@dhcp22.suse.cz>
+References: <20161217000203.GC23392@dhcp22.suse.cz>
+ <20161217125950.GA3321@boerne.fritz.box>
+ <862a1ada-17f1-9cff-c89b-46c47432e89f@I-love.SAKURA.ne.jp>
+ <20161217210646.GA11358@boerne.fritz.box>
+ <20161219134534.GC5164@dhcp22.suse.cz>
+ <20161220020829.GA5449@boerne.fritz.box>
+ <20161221073658.GC16502@dhcp22.suse.cz>
+ <20161222101028.GA11105@ppc-nas.fritz.box>
+ <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161222214611.GA3015@boerne.fritz.box>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nils Holland <nholland@tisys.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Fri, 23 Dec 2016, Michal Hocko wrote:
+TL;DR
+drop the last patch, check whether memory cgroup is enabled and retest
+with cgroup_disable=memory to see whether this is memcg related and if
+it is _not_ then try to test with the patch below
 
-> > The offering of defer breaks backwards compatibility with previous 
-> > settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
-> > .text segment remap and try to force thp backing if available but not 
-> > directly reclaim for non VM_HUGEPAGE vmas.
+On Thu 22-12-16 22:46:11, Nils Holland wrote:
+> On Thu, Dec 22, 2016 at 08:17:19PM +0100, Michal Hocko wrote:
+> > TL;DR I still do not see what is going on here and it still smells like
+> > multiple issues. Please apply the patch below on _top_ of what you had.
 > 
-> I do not understand the backwards compatibility issue part here. Maybe I
-> am missing something but the semantic of defrag=madvise hasn't changed
-> and a new flag can hardly break backward compatibility.
+> I've run the usual procedure again with the new patch on top and the
+> log is now up at:
 > 
+> http://ftp.tisys.org/pub/misc/boerne_2016-12-22_2.log.xz
 
-We have no way to compact memory for users who are not using 
-MADV_HUGEPAGE, which is some customers, others require MADV_HUGEPAGE for 
-.text segment remap while loading their binary, without defrag=always or 
-defrag=defer.  The problem is that we want to demand direct compact for 
-MADV_HUGEPAGE: they _really_ want hugepages, it's the point of the 
-madvise.  We have no setting, without this patch, to ask for background 
-compaction for everybody so that their fault does not have long latency 
-and for some customers to demand compaction.  It's a userspace decision, 
-not a kernel decision, and we have lost that ability.
+OK, so there are still large page cache fluctuations even with the
+locking applied:
+472.042409 kswapd0-32 mm_vmscan_inactive_list_is_low: nid=0 total_inactive=450451 inactive=0 total_active=210056 active=0 ratio=1 flags=RECLAIM_WB_FILE|RECLAIM_WB_ASYNC
+472.042442 kswapd0-32 mm_vmscan_inactive_list_is_low: nid=0 total_inactive=0 inactive=0 total_active=0 active=0 ratio=1 flags=RECLAIM_WB_FILE|RECLAIM_WB_ASYNC
+472.042451 kswapd0-32 mm_vmscan_inactive_list_is_low: nid=0 total_inactive=0 inactive=0 total_active=12 active=0 ratio=1 flags=RECLAIM_WB_FILE|RECLAIM_WB_ASYNC
+472.042484 kswapd0-32 mm_vmscan_inactive_list_is_low: nid=0 total_inactive=11944 inactive=0 total_active=117286 active=0 ratio=1 flags=RECLAIM_WB_FILE|RECLAIM_WB
 
-> > This was very advantageous.  
-> > We prefer that to stay unchanged and allow kcompactd compaction to be 
-> > triggered in background by everybody else as opposed to direct reclaim.  
-> > We do not have that ability without this patch.
-> 
-> So why don't you use defrag=madvise?
-> 
+One thing that didn't occure to me previously was that this might be an
+effect of the memory cgroups. Do you have memory cgroups enabled? If
+yes then reruning with cgroup_disable=memory would be interesting
+as well.
 
-Um, wtf?  Prior to the patch, we used defrag=always because we do not have 
-low latency option; everybody was forced into it.  Now that we do have 
-the option, we wish to use deferred compaction so that we have opportunity 
-to fault hugepages in near future.  We also have userspace apps, and 
-others have database apps, which want hugepages and are ok with any 
-latency.  This should not be a difficult point to understand.  Allow the 
-user to define if they are willing to accept latency with MADV_HUGEPAGE.
+Anyway, now I am looking at get_scan_count which determines how many pages
+we should scan on each LRU list. The problem I can see there is that
+it doesn't reflect eligible zones (or at least it doesn't do that
+consistently). So it might happen we simply decide to scan the whole LRU
+list (when we get down to prio 0 because we cannot make any progress)
+and then _slowly_ scan through it in SWAP_CLUSTER_MAX chunks each
+time. This can take a lot of time and who knows what might have happened
+if there are many such reclaimers in parallel.
 
-> I disagree. I think the current set of defrag values should be
-> sufficient. We can completely disable direct reclaim, enable it only for
-> opt-in, enable for all and never allow to stall. The advantage of this
-> set of values is that they have _clear_ semantic and behave
-> consistently. If you change defer to "almost never stall except when
-> MADV_HUGEPAGE" then the semantic is less clear. Admin might have a good
-> reason to never allow stalls - especially when he doesn't have a control
-> over the code he is running. Your patch would break this usecase.
-> 
+[...]
 
-?????? Why does the admin care if a user's page fault wants to reclaim to 
-get high order memory?  The user incurs the penalty for MADV_HUGEPAGE, it 
-always has.  Lol.
+> This might suggest - although I have to admit, again, that this is
+> inconclusive, as I've not used a final 4.9 kernel - that you could
+> very easily reproduce the issue yourself by just setting up a 32 bit
+> system with a btrfs filesystem and then unpacking a few huge tarballs.
+> Of course, I'm more than happy to continue giving any patches sent to
+> me a spin, but I thought I'd still mention this in case it makes
+> things easier for you. :-)
 
-This objection is nonsensical.
+I would appreciate to stick with your setup to not pull new unknows into
+the picture.
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index cb82913b62bb..533bb591b0be 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -243,6 +243,35 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru)
+ }
+ 
+ /*
++ * Return the number of pages on the given lru which are eligibne for the
++ * given zone_idx
++ */
++static unsigned long lruvec_lru_size_zone_idx(struct lruvec *lruvec,
++		enum lru_list lru, int zone_idx)
++{
++	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
++	unsigned long lru_size;
++	int zid;
++
++	if (!mem_cgroup_disabled())
++		return mem_cgroup_get_lru_size(lruvec, lru);
++
++	lru_size = lruvec_lru_size(lruvec, lru);
++	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
++		struct zone *zone = &pgdat->node_zones[zid];
++		unsigned long size;
++
++		if (!managed_zone(zone))
++			continue;
++
++		size = zone_page_state(zone, NR_ZONE_LRU_BASE + lru);
++		lru_size -= min(size, lru_size);
++	}
++
++	return lru_size;
++}
++
++/*
+  * Add a shrinker callback to be called from the vm.
+  */
+ int register_shrinker(struct shrinker *shrinker)
+@@ -2228,7 +2257,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * system is under heavy pressure.
+ 	 */
+ 	if (!inactive_list_is_low(lruvec, true, sc) &&
+-	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
++	    lruvec_lru_size_zone_idx(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
+@@ -2295,7 +2324,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			unsigned long size;
+ 			unsigned long scan;
+ 
+-			size = lruvec_lru_size(lruvec, lru);
++			size = lruvec_lru_size_zone_idx(lruvec, lru, sc->reclaim_idx);
+ 			scan = size >> sc->priority;
+ 
+ 			if (!scan && pass && force_scan)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
