@@ -1,75 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FC6C6B039A
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 04:53:40 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id n189so123183671pga.4
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 01:53:40 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v3si33629151plb.121.2016.12.23.01.53.39
-        for <linux-mm@kvack.org>;
-        Fri, 23 Dec 2016 01:53:39 -0800 (PST)
-Date: Fri, 23 Dec 2016 18:53:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
-Message-ID: <20161223095336.GA5305@bbox>
-References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
- <20161222081713.GA32480@node.shutemov.name>
- <20161222145203.GA18970@bbox>
- <20161223091725.GA23117@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B4D76B039F
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 05:01:36 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 17so390534674pfy.2
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 02:01:36 -0800 (PST)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id z43si7890342plh.111.2016.12.23.02.01.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Dec 2016 02:01:35 -0800 (PST)
+Received: by mail-pg0-x229.google.com with SMTP id i5so43052218pgh.2
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 02:01:35 -0800 (PST)
+Date: Fri, 23 Dec 2016 02:01:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <20161223085150.GA23109@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz> <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com> <20161223085150.GA23109@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161223091725.GA23117@dhcp22.suse.cz>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, Andreas Schwab <schwab@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+On Fri, 23 Dec 2016, Michal Hocko wrote:
 
-On Fri, Dec 23, 2016 at 10:17:25AM +0100, Michal Hocko wrote:
-> On Thu 22-12-16 23:52:03, Minchan Kim wrote:
-> [...]
-> > >From b3ec95c0df91ad113525968a4a6b53030fd0b48d Mon Sep 17 00:00:00 2001
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Thu, 22 Dec 2016 23:43:49 +0900
-> > Subject: [PATCH v2] mm: pmd dirty emulation in page fault handler
-> > 
-> > Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-> > http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
-> > 
-> > The problem is page fault handler supports only accessed flag emulation
-> > for THP page of SW-dirty/accessed architecture.
-> > 
-> > This patch enables dirty-bit emulation for those architectures.
-> > Without it, MADV_FREE makes application hang by repeated fault forever.
+> > The offering of defer breaks backwards compatibility with previous 
+> > settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
+> > .text segment remap and try to force thp backing if available but not 
+> > directly reclaim for non VM_HUGEPAGE vmas.
 > 
-> The changelog is rather terse and considering the issue is rather subtle
-> and it aims the stable tree I think it could see more information. How
-> do we end up looping in the page fault and why the dirty pmd stops it.
-> Could you update the changelog to be more verbose, please? I am still
-> digesting this patch but I believe it is correct fwiw...
+> I do not understand the backwards compatibility issue part here. Maybe I
+> am missing something but the semantic of defrag=madvise hasn't changed
+> and a new flag can hardly break backward compatibility.
 > 
 
-How about this? Feel free to suggest better wording.
+We have no way to compact memory for users who are not using 
+MADV_HUGEPAGE, which is some customers, others require MADV_HUGEPAGE for 
+.text segment remap while loading their binary, without defrag=always or 
+defrag=defer.  The problem is that we want to demand direct compact for 
+MADV_HUGEPAGE: they _really_ want hugepages, it's the point of the 
+madvise.  We have no setting, without this patch, to ask for background 
+compaction for everybody so that their fault does not have long latency 
+and for some customers to demand compaction.  It's a userspace decision, 
+not a kernel decision, and we have lost that ability.
 
-Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
-http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
+> > This was very advantageous.  
+> > We prefer that to stay unchanged and allow kcompactd compaction to be 
+> > triggered in background by everybody else as opposed to direct reclaim.  
+> > We do not have that ability without this patch.
+> 
+> So why don't you use defrag=madvise?
+> 
 
-The problem is currently page fault handler doesn't supports dirty bit
-emulation of pte for non-HW dirty-bit architecture so that application
-stucks until VM marked the pmd dirty.
+Um, wtf?  Prior to the patch, we used defrag=always because we do not have 
+low latency option; everybody was forced into it.  Now that we do have 
+the option, we wish to use deferred compaction so that we have opportunity 
+to fault hugepages in near future.  We also have userspace apps, and 
+others have database apps, which want hugepages and are ok with any 
+latency.  This should not be a difficult point to understand.  Allow the 
+user to define if they are willing to accept latency with MADV_HUGEPAGE.
 
-How the emulation work depends on the architecture. In case of arm64,
-when it set up pte firstly, it sets pte PTE_RDONLY to get a chance to
-mark the pte dirty via triggering page fault when store access happens.
-Once the page fault occurs, VM marks the pte dirty and arch code for
-setting pte will clear PTE_RDONLY for application to proceed.
+> I disagree. I think the current set of defrag values should be
+> sufficient. We can completely disable direct reclaim, enable it only for
+> opt-in, enable for all and never allow to stall. The advantage of this
+> set of values is that they have _clear_ semantic and behave
+> consistently. If you change defer to "almost never stall except when
+> MADV_HUGEPAGE" then the semantic is less clear. Admin might have a good
+> reason to never allow stalls - especially when he doesn't have a control
+> over the code he is running. Your patch would break this usecase.
+> 
 
-IOW, if VM doesn't mark the pte dirty, application hangs forever by
-repeated fault(i.e., store op but the pte is PTE_RDONLY).
+?????? Why does the admin care if a user's page fault wants to reclaim to 
+get high order memory?  The user incurs the penalty for MADV_HUGEPAGE, it 
+always has.  Lol.
 
-This patch enables dirty-bit emulation for those architectures.
+This objection is nonsensical.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
