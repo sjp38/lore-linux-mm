@@ -1,122 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0742D280276
-	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 06:18:27 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id dh1so7357022wjb.0
-        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 03:18:26 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C01986B02BE
+	for <linux-mm@kvack.org>; Fri, 23 Dec 2016 06:54:26 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id k184so2689396wme.4
+        for <linux-mm@kvack.org>; Fri, 23 Dec 2016 03:54:26 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k9si31632090wmk.86.2016.12.23.03.18.25
+        by mx.google.com with ESMTPS id kv9si35407033wjb.50.2016.12.23.03.54.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Dec 2016 03:18:25 -0800 (PST)
-Date: Fri, 23 Dec 2016 12:18:17 +0100
+        Fri, 23 Dec 2016 03:54:25 -0800 (PST)
+Date: Fri, 23 Dec 2016 12:54:21 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-Message-ID: <20161223111817.GC23109@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
- <20161222100009.GA6055@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
- <20161223085150.GA23109@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: pmd dirty emulation in page fault handler
+Message-ID: <20161223115421.GD23109@dhcp22.suse.cz>
+References: <1482364101-16204-1-git-send-email-minchan@kernel.org>
+ <20161222081713.GA32480@node.shutemov.name>
+ <20161222145203.GA18970@bbox>
+ <20161223091725.GA23117@dhcp22.suse.cz>
+ <20161223095336.GA5305@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+In-Reply-To: <20161223095336.GA5305@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jason Evans <je@fb.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, Andreas Schwab <schwab@suse.de>
 
-On Fri 23-12-16 02:01:33, David Rientjes wrote:
-> On Fri, 23 Dec 2016, Michal Hocko wrote:
+On Fri 23-12-16 18:53:36, Minchan Kim wrote:
+> Hi,
 > 
-> > > The offering of defer breaks backwards compatibility with previous 
-> > > settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
-> > > .text segment remap and try to force thp backing if available but not 
-> > > directly reclaim for non VM_HUGEPAGE vmas.
+> On Fri, Dec 23, 2016 at 10:17:25AM +0100, Michal Hocko wrote:
+> > On Thu 22-12-16 23:52:03, Minchan Kim wrote:
+> > [...]
+> > > >From b3ec95c0df91ad113525968a4a6b53030fd0b48d Mon Sep 17 00:00:00 2001
+> > > From: Minchan Kim <minchan@kernel.org>
+> > > Date: Thu, 22 Dec 2016 23:43:49 +0900
+> > > Subject: [PATCH v2] mm: pmd dirty emulation in page fault handler
+> > > 
+> > > Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
+> > > http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
+> > > 
+> > > The problem is page fault handler supports only accessed flag emulation
+> > > for THP page of SW-dirty/accessed architecture.
+> > > 
+> > > This patch enables dirty-bit emulation for those architectures.
+> > > Without it, MADV_FREE makes application hang by repeated fault forever.
 > > 
-> > I do not understand the backwards compatibility issue part here. Maybe I
-> > am missing something but the semantic of defrag=madvise hasn't changed
-> > and a new flag can hardly break backward compatibility.
-> > 
-> 
-> We have no way to compact memory for users who are not using 
-> MADV_HUGEPAGE,
-
-yes we have. it is defrag=always. If you do not want direct compaction
-and the resulting allocation stalls then you have to rely on kcompactd
-which is something we should work longterm.
-
-> which is some customers, others require MADV_HUGEPAGE for 
-> .text segment remap while loading their binary, without defrag=always or 
-> defrag=defer.  The problem is that we want to demand direct compact for 
-> MADV_HUGEPAGE: they _really_ want hugepages, it's the point of the 
-> madvise.
-
-and that is the point of defrag=madvise to give them this direct
-compaction.
-
-> We have no setting, without this patch, to ask for background 
-> compaction for everybody so that their fault does not have long latency 
-> and for some customers to demand compaction.
-
-that is true and what I am trying to say is that we should aim to give
-this background compaction for everybody via kcompactd because there are
-more users than THP who might benefit from low latency high order pages
-availability. We shouldn't tweak the defer option for that purpose.
-
-> It's a userspace decision, not a kernel decision, and we have lost
-> that ability.
-
-I must be missing something but which setting did allow this before?
- 
-> > > This was very advantageous.  
-> > > We prefer that to stay unchanged and allow kcompactd compaction to be 
-> > > triggered in background by everybody else as opposed to direct reclaim.  
-> > > We do not have that ability without this patch.
-> > 
-> > So why don't you use defrag=madvise?
+> > The changelog is rather terse and considering the issue is rather subtle
+> > and it aims the stable tree I think it could see more information. How
+> > do we end up looping in the page fault and why the dirty pmd stops it.
+> > Could you update the changelog to be more verbose, please? I am still
+> > digesting this patch but I believe it is correct fwiw...
 > > 
 > 
-> Um, wtf?  Prior to the patch, we used defrag=always because we do not have 
-> low latency option; everybody was forced into it.  Now that we do have 
-> the option, we wish to use deferred compaction so that we have opportunity 
-> to fault hugepages in near future. We also have userspace apps, and 
-> others have database apps, which want hugepages and are ok with any 
-> latency.  This should not be a difficult point to understand.  Allow the 
-> user to define if they are willing to accept latency with MADV_HUGEPAGE.
+> How about this? Feel free to suggest better wording.
 > 
-> > I disagree. I think the current set of defrag values should be
-> > sufficient. We can completely disable direct reclaim, enable it only for
-> > opt-in, enable for all and never allow to stall. The advantage of this
-> > set of values is that they have _clear_ semantic and behave
-> > consistently. If you change defer to "almost never stall except when
-> > MADV_HUGEPAGE" then the semantic is less clear. Admin might have a good
-> > reason to never allow stalls - especially when he doesn't have a control
-> > over the code he is running. Your patch would break this usecase.
-> > 
+> Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
+> http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
 > 
-> ?????? Why does the admin care if a user's page fault wants to reclaim to 
-> get high order memory?
+> The problem is currently page fault handler doesn't supports dirty bit
+> emulation of pte for non-HW dirty-bit architecture so that application
 
-Because the whole point of the defrag knob is to allow _administrator_
-control how much we try to fault in THP. And the primary motivation were
-latencies. The whole point of introducing defer option was to _never_
-stall in the page fault while it still allows to kick the background
-compaction. If you really want to tweak any option then madvise would be
-more appropriate IMHO because the semantic would be still clear. Use
-direct compaction for MADV_HUGEPAGE vmas and kick in kswapd/kcompactd
-for others.
+s@pte@pmd@ ?
 
-That being said, I understand your usecase and agree that it is useful
-to allow background compaction to allow smooth THP deferred allocations
-while madvise users can tolerate stalls from the direct compaction. I
-just disagree with tweaking defer option to allow for that because I
-_believe_ that we should accomplish this in a more generic way and allow
-kcompactd to be more configurable and proactive. We definitely need
-background compaction for other users than THP. So please try to think
-about it some more before sending more wtf replies...
+> stucks until VM marked the pmd dirty.
+> 
+> How the emulation work depends on the architecture. In case of arm64,
+> when it set up pte firstly, it sets pte PTE_RDONLY to get a chance to
+> mark the pte dirty via triggering page fault when store access happens.
+> Once the page fault occurs, VM marks the pte dirty and arch code for
+> setting pte will clear PTE_RDONLY for application to proceed.
+> 
+> IOW, if VM doesn't mark the pte dirty, application hangs forever by
+> repeated fault(i.e., store op but the pte is PTE_RDONLY).
+> 
+> This patch enables dirty-bit emulation for those architectures.
+
+Yes this is helpful and much more clear, thank you. One thing that is
+still not clear to me is why cannot we handle that in the arch specific
+code. I mean what is the side effect of doing pmd_mkdirty for
+architectures which do not need it?
+
 -- 
 Michal Hocko
 SUSE Labs
