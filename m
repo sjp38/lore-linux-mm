@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B686B0038
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 04:11:24 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id l2so20801649wml.5
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 01:11:24 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
-        by mx.google.com with ESMTPS id uz2si42220545wjb.9.2016.12.25.01.11.23
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DEE616B0038
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:51:18 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id j76so126516074ioe.3
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 13:51:18 -0800 (PST)
+Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
+        by mx.google.com with ESMTPS id l195si28969216ioe.182.2016.12.25.13.51.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Dec 2016 01:11:23 -0800 (PST)
-From: Heinrich Schuchardt <xypron.glpk@gmx.de>
-Subject: Re: [PATCH v6 4/4] of/fdt: mark hotpluggable memory
-Date: Sun, 25 Dec 2016 10:02:22 +0100
-Message-Id: <20161225090222.3703-1-xypron.glpk@gmx.de>
-In-Reply-To: <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1478562276-25539-5-git-send-email-arbab@linux.vnet.ibm.com>
+        Sun, 25 Dec 2016 13:51:18 -0800 (PST)
+Received: by mail-it0-x244.google.com with SMTP id 75so29648882ite.1
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 13:51:18 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20161225030030.23219-3-npiggin@gmail.com>
+References: <20161225030030.23219-1-npiggin@gmail.com> <20161225030030.23219-3-npiggin@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 25 Dec 2016 13:51:17 -0800
+Message-ID: <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
+ a page bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "H . Peter Anvin" <hpa@zytor.com>, Alistair Popple <apopple@au1.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Frank Rowand <frowand.list@gmail.com>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Stewart Smith <stewart@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Heinrich Schuchardt <xypron.glpk@gmx.de>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The patch adds a new property "linux,hotpluggable" to memory nodes of the
-device tree.
+On Sat, Dec 24, 2016 at 7:00 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
+> Add a new page flag, PageWaiters, to indicate the page waitqueue has
+> tasks waiting. This can be tested rather than testing waitqueue_active
+> which requires another cacheline load.
 
-memory@0 {
-	reg = <0x0 0x01000000 0x0 0x7f000000>;
-	linux,hotpluggable;
-}
+Ok, I applied this one too. I think there's room for improvement, but
+I don't think it's going to help to just wait another release cycle
+and hope something happens.
 
-Memory areas marked by this property can later be disabled using the hotplugging
-API. Especially for virtual machines this is a very useful capability.
+Example room for improvement from a profile of unlock_page():
 
-Unfortunately the notation chosen does not fit well with the concept of
-devicetree overlays which allow to change the devicetree during runtime.
+   46.44 =E2=94=82      lock   andb $0xfe,(%rdi)
+   34.22 =E2=94=82      mov    (%rdi),%rax
 
-I suggest to use the following notation
+this has the old "do atomic op on a byte, then load the whole word"
+issue that we used to have with the nasty zone lookup code too. And it
+causes a horrible pipeline hickup because the load will not forward
+the data from the (partial) store.
 
-memory@0 {
-	compatible = "linux,hotpluggable-memory";
-	reg = <0x0 0x01000000 0x0 0x7f000000>;
-	status = "disabled";
-}
+ Its' really a misfeature of our asm optimizations of the atomic bit
+ops. Using "andb" is slightly smaller, but in this case in particular,
+an "andq" would be a ton faster, and the mask still fits in an imm8,
+so it's not even hugely larger.
 
-This will allow us to write a device driver that can react to changes of the
-devicetree made via devicetree overlays.
+But it might also be a good idea to simply use a "cmpxchg" loop here.
+That also gives atomicity guarantees that we don't have with the
+"clear bit and then load the value".
 
-This driver could react to the change of the status between "okay" and
-"disabled" and update the memory status accordingly.
+Regardless, I think this is worth more people looking at and testing.
+And merging it is probably the best way for that to happen.
 
-Further we could use devicetree overlays to provide additional hotpluggable
-memory.
-
-The referenced patch has already been pulled for 4.10. But I hope it is not
-too late for this design change.
-
-Best regards
-
-Heinrich Schuchardt
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
