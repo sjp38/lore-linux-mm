@@ -1,101 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9B2A6B0038
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 04:02:17 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id u144so49651418wmu.1
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 01:02:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bf6si45340967wjb.201.2016.12.26.01.02.15
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C16286B0038
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 04:12:22 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id a190so634083990pgc.0
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 01:12:22 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k9si42529103pli.242.2016.12.26.01.12.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Dec 2016 01:02:16 -0800 (PST)
-Date: Mon, 26 Dec 2016 10:02:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-Message-ID: <20161226090211.GA11455@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
- <20161222100009.GA6055@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
- <20161223085150.GA23109@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
- <20161223111817.GC23109@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Dec 2016 01:12:21 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id uBQ993eq110003
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 04:12:21 -0500
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 27jy6521y7-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 04:12:20 -0500
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 26 Dec 2016 19:12:18 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 5DF9B2CE8057
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:12:16 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id uBQ9CGEo23593070
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:12:16 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id uBQ9CGUX015052
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:12:16 +1100
+Subject: Re: [HMM v14 05/16] mm/ZONE_DEVICE/unaddressable: add support for
+ un-addressable device memory
+References: <1481215184-18551-1-git-send-email-jglisse@redhat.com>
+ <1481215184-18551-6-git-send-email-jglisse@redhat.com>
+ <be2861b4-d830-fbd7-e9eb-ebc8e4d913a2@intel.com>
+ <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com>
+ <7df66ace-ef29-c76b-d61c-88263a61c6d0@intel.com>
+ <2093258630.3273244.1481229443563.JavaMail.zimbra@redhat.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 26 Dec 2016 14:42:07 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com>
+In-Reply-To: <2093258630.3273244.1481229443563.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Message-Id: <5860DEE7.5040505@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <jglisse@redhat.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Fri 23-12-16 14:46:43, David Rientjes wrote:
-[...]
-> You want defrag=madvise to start doing background compaction for 
-> everybody, which was never done before for existing users of 
-> defrag=madvise?  That might be possible, I don't really care, I just think 
-> it's riskier because there are existing users of defrag=madvise who are 
-> opting in to new behavior because of the kernel change.  This patch 
-> changes defrag=defer because it's the new option and people setting the 
-> mode know what they are getting.
+On 12/09/2016 02:07 AM, Jerome Glisse wrote:
+>> On 12/08/2016 08:39 AM, Jerome Glisse wrote:
+>>>> > >> On 12/08/2016 08:39 AM, JA(C)rA'me Glisse wrote:
+>>>>>>> > >>> > > Architecture that wish to support un-addressable device memory should
+>>>>>>> > >>> > > make
+>>>>>>> > >>> > > sure to never populate the kernel linar mapping for the physical
+>>>>>>> > >>> > > range.
+>>>>> > >> > 
+>>>>> > >> > Does the platform somehow provide a range of physical addresses for this
+>>>>> > >> > unaddressable area?  How do we know no memory will be hot-added in a
+>>>>> > >> > range we're using for unaddressable device memory, for instance?
+>>> > > That's what one of the big issue. No platform does not reserve any range so
+>>> > > there is a possibility that some memory get hotpluged and assign this
+>>> > > range.
+>>> > > 
+>>> > > I pushed the range decision to higher level (ie it is the device driver
+>>> > > that
+>>> > > pick one) so right now for device driver using HMM (NVidia close driver as
+>>> > > we don't have nouveau ready for that yet) it goes from the highest physical
+>>> > > address and scan down until finding an empty range big enough.
+>> > 
+>> > I don't think you should be stealing physical address space for things
+>> > that don't and can't have physical addresses.  Delegating this to
+>> > individual device drivers and hoping that they all get it right seems
+>> > like a recipe for disaster.
+> Well i expected device driver to use hmm_devmem_add() which does not take
+> physical address but use the above logic to pick one.
+> 
+>> > 
+>> > Maybe worth adding to the changelog:
+>> > 
+>> > 	This feature potentially breaks memory hotplug unless every
+>> > 	driver using it magically predicts the future addresses of
+>> > 	where memory will be hotplugged.
+> I will add debug printk to memory hotplug in case it fails because of some
+> un-addressable resource. If you really dislike memory hotplug being broken
+> then i can go down the way of allowing to hotplug memory above the max
+> physical memory limit. This require more changes but i believe this is
+> doable for some of the memory model (sparsemem and sparsemem extreme).
 
-But my primary argument is that if you tweak "defer" value behavior
-then you lose the only "stall free yet allow background compaction"
-option. That option is really important. You seem to think that it
-is the application which is under the control. And I am not all that
-surprised because you are under control of the whole userspace in your
-deployments. But there are others where the administrator is not under
-the control of what application asks for yet he is responsible for the
-overal "experience" if you will. Long stalls during the page faults are
-often seen as bugs and users might not really care whether the
-application writer really wanted THP or not...
-
-[...]
-
-> This is obviously fine for Kirill, and I have users who remap their .text 
-> segment and do madvise(MADV_DONTNEED) because they really want hugepages 
-> when they are exec'd, so I'd kindly ask you to consider the real-world use 
-> cases that require background compaction to make hugepages available for 
-> everybody but allow apps to opt-in to take the expense of compaction on 
-> themselves rather than your own theory of what users want.
-
-I definitely _agree_ that this is a very important usecase! I am just
-trying to think long term and a more sophisticated background compaction
-is something that we definitely lack and _want_ longterm. There are more
-high order users than THP. I believe we really want to teach kcompactd
-to maintain configurable amount of highorder pages.
-
-If there is really a need for an immediate solution^Wworkaround then I
-think that tweaking the madvise option should be reasonably safe. Admins
-are really prepared for stalls because they are explicitly opting in for
-madvise behavior and they will get a background compaction on top. This
-is a new behavior but I do not see how it would be harmful. If an
-excessive compaction is a problem then THP can be reduced to madvise
-only vmas.
-
-But, I really _do_ care about having a stall free option which is not a
-complete disable of the background compaction for THP.
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index f3c2040edbb1..3679c47faef4 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -622,8 +622,8 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- 	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
- 
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
--				&transparent_hugepage_flags) && vma_madvised)
--		return GFP_TRANSHUGE;
-+				&transparent_hugepage_flags))
-+		return (vma_madvise) ? GFP_TRANSHUGE : GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
- 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
- 						&transparent_hugepage_flags))
- 		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
-
--- 
-Michal Hocko
-SUSE Labs
+Did not get that. Hotplug memory request will come within the max physical
+memory limit as they are real RAM. The address range also would have been
+specified. How it can be added beyond the physical limit irrespective of
+which we memory model we use.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
