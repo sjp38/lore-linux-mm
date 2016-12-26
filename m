@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A64D6B0038
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 19:36:02 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id l68so103138827lfb.1
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:36:02 -0800 (PST)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0109B6B0069
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 19:36:33 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id x140so30994204lfa.2
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:36:32 -0800 (PST)
 Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id n74si3519292lfi.135.2016.12.25.16.36.00
+        by mx.google.com with ESMTPS id 142si10159383lfe.154.2016.12.25.16.36.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Dec 2016 16:36:00 -0800 (PST)
-Received: by mail-lf0-x242.google.com with SMTP id x140so9970554lfa.2
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:36:00 -0800 (PST)
-Date: Mon, 26 Dec 2016 01:34:48 +0100
+        Sun, 25 Dec 2016 16:36:31 -0800 (PST)
+Received: by mail-lf0-x242.google.com with SMTP id y21so24287482lfa.0
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:36:31 -0800 (PST)
+Date: Mon, 26 Dec 2016 01:36:02 +0100
 From: Vitaly Wool <vitalywool@gmail.com>
 Subject: [PATCH/RESEND 2/5] mm/z3fold.c: extend compaction function
-Message-Id: <20161226013448.d02b73ea0fca7edf0537162b@gmail.com>
+Message-Id: <20161226013602.b77431190e756581bb8987f9@gmail.com>
 In-Reply-To: <20161226013016.968004f3db024ef2111dc458@gmail.com>
 References: <20161226013016.968004f3db024ef2111dc458@gmail.com>
 Mime-Version: 1.0
