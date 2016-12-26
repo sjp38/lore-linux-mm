@@ -1,136 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 192246B0038
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 14:02:53 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id iq1so20802713wjb.1
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:02:53 -0800 (PST)
-Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
-        by mx.google.com with ESMTPS id w3si39030117wjp.149.2016.12.26.11.02.51
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE196B0038
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 14:07:54 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id o141so261661838itc.1
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:07:54 -0800 (PST)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id l8si30529428ioa.2.2016.12.26.11.07.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Dec 2016 11:02:51 -0800 (PST)
-Date: Mon, 26 Dec 2016 14:02:46 -0500 (EST)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <897363324.7325313.1482778965996.JavaMail.zimbra@redhat.com>
-In-Reply-To: <5860DEE7.5040505@linux.vnet.ibm.com>
-References: <1481215184-18551-1-git-send-email-jglisse@redhat.com> <1481215184-18551-6-git-send-email-jglisse@redhat.com> <be2861b4-d830-fbd7-e9eb-ebc8e4d913a2@intel.com> <152004793.3187283.1481215199204.JavaMail.zimbra@redhat.com> <7df66ace-ef29-c76b-d61c-88263a61c6d0@intel.com> <2093258630.3273244.1481229443563.JavaMail.zimbra@redhat.com> <5860DEE7.5040505@linux.vnet.ibm.com>
-Subject: Re: [HMM v14 05/16] mm/ZONE_DEVICE/unaddressable: add support for
- un-addressable device memory
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Dec 2016 11:07:53 -0800 (PST)
+Received: by mail-it0-x242.google.com with SMTP id 75so31639743ite.1
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:07:53 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20161226111654.76ab0957@roar.ozlabs.ibm.com>
+References: <20161225030030.23219-1-npiggin@gmail.com> <20161225030030.23219-3-npiggin@gmail.com>
+ <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com> <20161226111654.76ab0957@roar.ozlabs.ibm.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 26 Dec 2016 11:07:52 -0800
+Message-ID: <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
+ a page bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-> On 12/09/2016 02:07 AM, Jerome Glisse wrote:
-> >> On 12/08/2016 08:39 AM, Jerome Glisse wrote:
-> >>>> > >> On 12/08/2016 08:39 AM, J=C3=A9r=C3=B4me Glisse wrote:
-> >>>>>>> > >>> > > Architecture that wish to support un-addressable device
-> >>>>>>> > >>> > > memory should
-> >>>>>>> > >>> > > make
-> >>>>>>> > >>> > > sure to never populate the kernel linar mapping for the
-> >>>>>>> > >>> > > physical
-> >>>>>>> > >>> > > range.
-> >>>>> > >> >=20
-> >>>>> > >> > Does the platform somehow provide a range of physical addres=
-ses
-> >>>>> > >> > for this
-> >>>>> > >> > unaddressable area?  How do we know no memory will be hot-ad=
-ded
-> >>>>> > >> > in a
-> >>>>> > >> > range we're using for unaddressable device memory, for insta=
-nce?
-> >>> > > That's what one of the big issue. No platform does not reserve an=
-y
-> >>> > > range so
-> >>> > > there is a possibility that some memory get hotpluged and assign =
-this
-> >>> > > range.
-> >>> > >=20
-> >>> > > I pushed the range decision to higher level (ie it is the device
-> >>> > > driver
-> >>> > > that
-> >>> > > pick one) so right now for device driver using HMM (NVidia close
-> >>> > > driver as
-> >>> > > we don't have nouveau ready for that yet) it goes from the highes=
-t
-> >>> > > physical
-> >>> > > address and scan down until finding an empty range big enough.
-> >> >=20
-> >> > I don't think you should be stealing physical address space for thin=
-gs
-> >> > that don't and can't have physical addresses.  Delegating this to
-> >> > individual device drivers and hoping that they all get it right seem=
-s
-> >> > like a recipe for disaster.
-> > Well i expected device driver to use hmm_devmem_add() which does not ta=
-ke
-> > physical address but use the above logic to pick one.
-> >=20
-> >> >=20
-> >> > Maybe worth adding to the changelog:
-> >> >=20
-> >> > =09This feature potentially breaks memory hotplug unless every
-> >> > =09driver using it magically predicts the future addresses of
-> >> > =09where memory will be hotplugged.
-> > I will add debug printk to memory hotplug in case it fails because of s=
-ome
-> > un-addressable resource. If you really dislike memory hotplug being bro=
-ken
-> > then i can go down the way of allowing to hotplug memory above the max
-> > physical memory limit. This require more changes but i believe this is
-> > doable for some of the memory model (sparsemem and sparsemem extreme).
->=20
-> Did not get that. Hotplug memory request will come within the max physica=
-l
-> memory limit as they are real RAM. The address range also would have been
-> specified. How it can be added beyond the physical limit irrespective of
-> which we memory model we use.
->=20
+On Sun, Dec 25, 2016 at 5:16 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
+>
+> I did actually play around with that. I could not get my skylake
+> to forward the result from a lock op to a subsequent load (the
+> latency was the same whether you use lock ; andb or lock ; andl
+> (32 cycles for my test loop) whereas with non-atomic versions I
+> was getting about 15 cycles for andb vs 2 for andl.
 
-Maybe what you do not know is that on x86 we do not have resource reserve b=
-y the
-patform for the device memory (the PCIE bar never cover the whole memory so=
- this
-range can not be use).
+Yes, interesting. It does look like the locked ops don't end up having
+the partial write issue and the size of the op doesn't matter.
 
-Right now i pick random unuse physical address range for device memory and =
-thus
-real memory might later be hotplug just inside the range i took and hotplug=
- will
-fail because i already registered a resource for my device memory. This is =
-an
-x86 platform limitation.
+But it's definitely the case that the write buffer hit immediately
+after the atomic read-modify-write ends up slowing things down, so the
+profile oddity isn't just a profile artifact. I wrote a stupid test
+program that did an atomic increment, and then read either the same
+value, or an adjacent value in memory (so same instruvtion sequence,
+the difference just being what memory location the read accessed).
 
-Now if i bump the maximum physical memory by one bit than i can hotplug dev=
-ice
-memory inside that extra bit range and be sure that i will never have any r=
-eal
-memory conflict (as i am above the architectural limit).
+Reading the same value after the atomic update was *much* more
+expensive than reading the adjacent value, so it causes some kind of
+pipeline hickup (by about 50% of the cost of the atomic op itself:
+iow, the "atomic-op followed by read same location" was over 1.5x
+slower than "atomic op followed by read of another location").
 
-Allowing to bump the maximum physical memory have implication and i can not=
- just
-bump MAX_PHYSMEM_BITS as it will have repercusion that i don't want. Now in=
- some
-memory model i can allow hotplug to happen above the MAX_PHYSMEM_BITS witho=
-ut
-having to change MAX_PHYSMEM_BITS and allowing page_to_pfn() and pfn_to_pag=
-e()
-to work above MAX_PHYSMEM_BITS again without changing it.
+So the atomic ops don't serialize things entirely, but they *hate*
+having the value read (regardless of size) right after being updated,
+because it causes some kind of nasty pipeline issue.
 
-Memory model like SPARSEMEM_VMEMMAP are problematic as i would need to chan=
-ge the
-kernel virtual memory map for the architecture and it is not something i wa=
-nt to
-do.
+A cmpxchg does seem to avoid the issue.
 
-In the meantime people using HMM are "~happy~" enough with memory hotplug f=
-ailing.
-
-Cheers,
-J=C3=A9r=C3=B4me
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
