@@ -1,53 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F076B0038
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 07:51:00 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id k184so12266773wme.4
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 04:50:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s7si41375399wjz.203.2016.12.26.04.50.58
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 14B826B0038
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 13:57:12 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id k184so13353697wme.4
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 10:57:12 -0800 (PST)
+Received: from celine.tisys.org (celine.tisys.org. [85.25.117.166])
+        by mx.google.com with ESMTPS id e70si43246794wmc.129.2016.12.26.10.57.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Dec 2016 04:50:58 -0800 (PST)
-Date: Mon, 26 Dec 2016 13:50:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [lkp-developer] [mm, memcg]  d18e2b2aca:
- WARNING:at_mm/memcontrol.c:#mem_cgroup_update_lru_size
-Message-ID: <20161226125055.GC20715@dhcp22.suse.cz>
-References: <20161223144738.GB23117@dhcp22.suse.cz>
- <20161225222556.GH19366@yexl-desktop>
- <20161226122651.GA20715@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Dec 2016 10:57:10 -0800 (PST)
+Date: Mon, 26 Dec 2016 19:57:03 +0100
+From: Nils Holland <nholland@tisys.org>
+Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
+Message-ID: <20161226185701.GA17030@boerne.fritz.box>
+References: <20161221073658.GC16502@dhcp22.suse.cz>
+ <20161222101028.GA11105@ppc-nas.fritz.box>
+ <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
+ <20161223105157.GB23109@dhcp22.suse.cz>
+ <20161223121851.GA27413@ppc-nas.fritz.box>
+ <20161223125728.GE23109@dhcp22.suse.cz>
+ <20161223144738.GB23117@dhcp22.suse.cz>
+ <20161223222559.GA5568@teela.multi.box>
+ <20161226124839.GB20715@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161226122651.GA20715@dhcp22.suse.cz>
+In-Reply-To: <20161226124839.GB20715@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel test robot <xiaolong.ye@intel.com>
-Cc: Nils Holland <nholland@tisys.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, lkp@01.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Mon 26-12-16 13:26:51, Michal Hocko wrote:
-> On Mon 26-12-16 06:25:56, kernel test robot wrote:
-[...]
-> > [   95.226364] init: tty6 main process (990) killed by TERM signal
-> > [   95.314020] init: plymouth-upstart-bridge main process (1039) terminated with status 1
-> > [   97.588568] ------------[ cut here ]------------
-> > [   97.594364] WARNING: CPU: 0 PID: 1055 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0xdd/0x12b
-> > [   97.606654] mem_cgroup_update_lru_size(40297f00, 0, -1): lru_size 1 but empty
-> > [   97.615140] Modules linked in:
-> > [   97.618834] CPU: 0 PID: 1055 Comm: killall5 Not tainted 4.9.0-mm1-00095-gd18e2b2 #82
-> > [   97.628008] Call Trace:
-> > [   97.631025]  dump_stack+0x16/0x18
-> > [   97.635107]  __warn+0xaf/0xc6
-> > [   97.638729]  ? mem_cgroup_update_lru_size+0xdd/0x12b
+On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
+> On Fri 23-12-16 23:26:00, Nils Holland wrote:
+> > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+> > > 
+> > > Nils, even though this is still highly experimental, could you give it a
+> > > try please?
+> > 
+> > Yes, no problem! So I kept the very first patch you sent but had to
+> > revert the latest version of the debugging patch (the one in
+> > which you added the "mm_vmscan_inactive_list_is_low" event) because
+> > otherwise the patch you just sent wouldn't apply. Then I rebooted with
+> > memory cgroups enabled again, and the first thing that strikes the eye
+> > is that I get this during boot:
+> > 
+> > [    1.568174] ------------[ cut here ]------------
+> > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
+> > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
 > 
-> Do you have the full backtrace?
+> Ohh, I can see what is wrong! a) there is a bug in the accounting in
+> my patch (I double account) and b) the detection for the empty list
+> cannot work after my change because per node zone will not match per
+> zone statistics. The updated patch is below. So I hope my brain already
+> works after it's been mostly off last few days...
 
-It's not needed. I found the bug in my patch and it should be fixed by
-the updated patch http://lkml.kernel.org/r/20161226124839.GB20715@dhcp22.suse.cz
--- 
-Michal Hocko
-SUSE Labs
+I tried the updated patch, and I can confirm that the warning during
+boot is gone. Also, I've tried my ordinary procedure to reproduce my
+testcase, and I can say that a kernel with this new patch also works
+fine and doesn't produce OOMs or similar issues.
+
+I had the previous version of the patch in use on a machine non-stop
+for the last few days during normal day-to-day workloads and didn't
+notice any issues. Now I'll keep a machine running during the next few
+days with this patch, and in case I notice something that doesn't look
+normal, I'll of course report back!
+
+Greetings
+Nils
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
