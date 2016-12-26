@@ -1,62 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE196B0038
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 14:07:54 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id o141so261661838itc.1
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:07:54 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id l8si30529428ioa.2.2016.12.26.11.07.53
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 977F86B0253
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 14:09:00 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id t196so110875998lff.3
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:09:00 -0800 (PST)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id d18si25320848lfb.397.2016.12.26.11.08.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Dec 2016 11:07:53 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id 75so31639743ite.1
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:07:53 -0800 (PST)
+        Mon, 26 Dec 2016 11:08:59 -0800 (PST)
+Received: by mail-lf0-x244.google.com with SMTP id d16so13637080lfb.1
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 11:08:58 -0800 (PST)
+Date: Mon, 26 Dec 2016 20:08:55 +0100
+From: Grygorii Maistrenko <grygoriimkd@gmail.com>
+Subject: [PATCH v2] slub: do not merge cache if slub_debug contains a
+ never-merge flag
+Message-ID: <20161226190855.GB2600@lp-laptop-d>
+References: <20161222235959.GC6871@lp-laptop-d>
+ <alpine.DEB.2.20.1612231228340.21172@east.gentwo.org>
+ <20161223190023.GA9644@lp-laptop-d>
+ <alpine.DEB.2.20.1612241708280.9536@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20161226111654.76ab0957@roar.ozlabs.ibm.com>
-References: <20161225030030.23219-1-npiggin@gmail.com> <20161225030030.23219-3-npiggin@gmail.com>
- <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com> <20161226111654.76ab0957@roar.ozlabs.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 26 Dec 2016 11:07:52 -0800
-Message-ID: <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
- a page bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1612241708280.9536@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, Dec 25, 2016 at 5:16 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
->
-> I did actually play around with that. I could not get my skylake
-> to forward the result from a lock op to a subsequent load (the
-> latency was the same whether you use lock ; andb or lock ; andl
-> (32 cycles for my test loop) whereas with non-atomic versions I
-> was getting about 15 cycles for andb vs 2 for andl.
+In case CONFIG_SLUB_DEBUG_ON=n, find_mergeable() gets debug features
+from commandline but never checks if there are features from the
+SLAB_NEVER_MERGE set.
+As a result selected by slub_debug caches are always mergeable if they
+have been created without a custom constructor set or without one of the
+SLAB_* debug features on.
 
-Yes, interesting. It does look like the locked ops don't end up having
-the partial write issue and the size of the op doesn't matter.
+This moves the SLAB_NEVER_MERGE check below the flags update from
+commandline to make sure it won't merge the slab cache if one of the
+debug features is on.
 
-But it's definitely the case that the write buffer hit immediately
-after the atomic read-modify-write ends up slowing things down, so the
-profile oddity isn't just a profile artifact. I wrote a stupid test
-program that did an atomic increment, and then read either the same
-value, or an adjacent value in memory (so same instruvtion sequence,
-the difference just being what memory location the read accessed).
+Signed-off-by: Grygorii Maistrenko <grygoriimkd@gmail.com>
+---
+ mm/slab_common.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Reading the same value after the atomic update was *much* more
-expensive than reading the adjacent value, so it causes some kind of
-pipeline hickup (by about 50% of the cost of the atomic op itself:
-iow, the "atomic-op followed by read same location" was over 1.5x
-slower than "atomic op followed by read of another location").
+New in v2:
+	- (flags & SLAB_NEVER_MERGE) check is moved down below the flags update
+	  as suggested by Christoph Lameter
 
-So the atomic ops don't serialize things entirely, but they *hate*
-having the value read (regardless of size) right after being updated,
-because it causes some kind of nasty pipeline issue.
-
-A cmpxchg does seem to avoid the issue.
-
-             Linus
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 329b03843863..a85a01439490 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -255,7 +255,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
+ {
+ 	struct kmem_cache *s;
+ 
+-	if (slab_nomerge || (flags & SLAB_NEVER_MERGE))
++	if (slab_nomerge)
+ 		return NULL;
+ 
+ 	if (ctor)
+@@ -266,6 +266,9 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
+ 	size = ALIGN(size, align);
+ 	flags = kmem_cache_flags(size, flags, name, NULL);
+ 
++	if (flags & SLAB_NEVER_MERGE)
++		return NULL;
++
+ 	list_for_each_entry_reverse(s, &slab_caches, list) {
+ 		if (slab_unmergeable(s))
+ 			continue;
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
