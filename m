@@ -1,63 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE616B0038
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:51:18 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id j76so126516074ioe.3
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 13:51:18 -0800 (PST)
-Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
-        by mx.google.com with ESMTPS id l195si28969216ioe.182.2016.12.25.13.51.18
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F24906B0038
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 19:30:31 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id g12so103225226lfe.5
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:30:31 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id k62si23849408lfe.261.2016.12.25.16.30.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Dec 2016 13:51:18 -0800 (PST)
-Received: by mail-it0-x244.google.com with SMTP id 75so29648882ite.1
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 13:51:18 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161225030030.23219-3-npiggin@gmail.com>
-References: <20161225030030.23219-1-npiggin@gmail.com> <20161225030030.23219-3-npiggin@gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 25 Dec 2016 13:51:17 -0800
-Message-ID: <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
- a page bit
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Sun, 25 Dec 2016 16:30:30 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id x140so9964924lfa.2
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 16:30:30 -0800 (PST)
+Date: Mon, 26 Dec 2016 01:30:16 +0100
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH/RESEND 0/5] z3fold optimizations and fixes
+Message-Id: <20161226013016.968004f3db024ef2111dc458@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Dec 24, 2016 at 7:00 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> Add a new page flag, PageWaiters, to indicate the page waitqueue has
-> tasks waiting. This can be tested rather than testing waitqueue_active
-> which requires another cacheline load.
+This is a consolidation of z3fold optimizations and fixes done so far, revised after comments from Dan [1].
+The coming patches are to be applied on top of the following commit:
 
-Ok, I applied this one too. I think there's room for improvement, but
-I don't think it's going to help to just wait another release cycle
-and hope something happens.
+commit 07cfe852286d5e314f8cd19781444e12a2b6cdf3
+Author: zhong jiang <zhongjiang@huawei.com>
+Date:   Tue Dec 20 11:53:40 2016 +1100
 
-Example room for improvement from a profile of unlock_page():
+    mm/z3fold.c: limit first_num to the actual range of possible buddy indexes
 
-   46.44 =E2=94=82      lock   andb $0xfe,(%rdi)
-   34.22 =E2=94=82      mov    (%rdi),%rax
+All the z3fold patches newer than this one are considered obsolete and should be substituted with this patch series. The coming patches have been verified with linux-next tree.
 
-this has the old "do atomic op on a byte, then load the whole word"
-issue that we used to have with the nasty zone lookup code too. And it
-causes a horrible pipeline hickup because the load will not forward
-the data from the (partial) store.
-
- Its' really a misfeature of our asm optimizations of the atomic bit
-ops. Using "andb" is slightly smaller, but in this case in particular,
-an "andq" would be a ton faster, and the mask still fits in an imm8,
-so it's not even hugely larger.
-
-But it might also be a good idea to simply use a "cmpxchg" loop here.
-That also gives atomicity guarantees that we don't have with the
-"clear bit and then load the value".
-
-Regardless, I think this is worth more people looking at and testing.
-And merging it is probably the best way for that to happen.
-
-                Linus
+[1] https://lkml.org/lkml/2016/11/29/969
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
