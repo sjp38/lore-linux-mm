@@ -1,61 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FAD76B0038
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 06:41:25 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 17so482120009pfy.2
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 03:41:25 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id k74si16607867pfj.185.2016.12.26.03.41.24
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A2306B0038
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 06:49:40 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id qs7so26706399wjc.4
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 03:49:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 193si42125175wmu.34.2016.12.26.03.49.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Dec 2016 03:41:24 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id g1so9078871pgn.0
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 03:41:24 -0800 (PST)
-Date: Mon, 26 Dec 2016 20:41:06 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Dec 2016 03:49:38 -0800 (PST)
+Date: Mon, 26 Dec 2016 12:49:35 +0100
+From: Michal Hocko <mhocko@suse.com>
 Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161226114106.GB515@tigerII.localdomain>
-References: <20161220153948.GA575@tigerII.localdomain>
+Message-ID: <20161226114935.GB16042@dhcp22.suse.cz>
+References: <20161219122738.GB427@tigerII.localdomain>
+ <20161220153948.GA575@tigerII.localdomain>
  <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
- <20161222134250.GE413@tigerII.localdomain>
- <201612222301.AFG57832.QOFMSVFOJHLOtF@I-love.SAKURA.ne.jp>
- <20161222140930.GF413@tigerII.localdomain>
- <201612261954.FJE69201.OFLVtFJSQFOHMO@I-love.SAKURA.ne.jp>
+ <201612222233.CBC56295.LFOtMOVQSJOFHF@I-love.SAKURA.ne.jp>
+ <20161222192406.GB19898@dhcp22.suse.cz>
+ <201612241525.EDB52697.OQSFOLJFFOHVMt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201612261954.FJE69201.OFLVtFJSQFOHMO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201612241525.EDB52697.OQSFOLJFFOHVMt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sergey.senozhatsky@gmail.com, mhocko@suse.com, linux-mm@kvack.org, pmladek@suse.cz
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, pmladek@suse.cz
 
-On (12/26/16 19:54), Tetsuo Handa wrote:
-> I tried these 9 patches. Generally OK.
+On Sat 24-12-16 15:25:43, Tetsuo Handa wrote:
+[...]
+> Michal Hocko wrote:
+> > On Thu 22-12-16 22:33:40, Tetsuo Handa wrote:
+> > > Tetsuo Handa wrote:
+> > > > Now, what options are left other than replacing !mutex_trylock(&oom_lock)
+> > > > with mutex_lock_killable(&oom_lock) which also stops wasting CPU time?
+> > > > Are we waiting for offloading sending to consoles?
+> > > 
+> > >  From http://lkml.kernel.org/r/20161222115057.GH6048@dhcp22.suse.cz :
+> > > > > Although I don't know whether we agree with mutex_lock_killable(&oom_lock)
+> > > > > change, I think this patch alone can go as a cleanup.
+> > > > 
+> > > > No, we don't agree on that part. As this is a printk issue I do not want
+> > > > to workaround it in the oom related code. That is just ridiculous. The
+> > > > very same issue would be possible due to other continous source of log
+> > > > messages.
+> > > 
+> > > I don't think so. Lockup caused by printk() is printk's problem. But printk
+> > > is not the only source of lockup. If CONFIG_PREEMPT=y, it is possible that
+> > > a thread which held oom_lock can sleep for unbounded period depending on
+> > > scheduling priority.
+> > 
+> > Unless there is some runaway realtime process then the holder of the oom
+> > lock shouldn't be preempted for the _unbounded_ amount of time. It might
+> > take quite some time, though. But that is not reduced to the OOM killer.
+> > Any important part of the system (IO flushers and what not) would suffer
+> > from the same issue.
 > 
-> Although there is still "schedule_timeout_killable() lockup with oom_lock held"
-> problem, async-printk patches help avoiding "printk() lockup with oom_lock held"
-> problem. Thank you.
-> 
-> Three comments from me.
-> 
-> (1) Messages from e.g. SysRq-b is not waited for sent to consoles.
->     "SysRq : Resetting" line is needed as a note that I gave up waiting.
-> 
-> (2) Messages from e.g. SysRq-t should be sent to consoles synchronously?
->     "echo t > /proc/sysrq-trigger" case can use asynchronous printing.
->     But since ALT-SysRq-T sequence from keyboard may be used when scheduler
->     is not responding, it might be better to use synchronous printing.
->     (Or define a magic key sequence to toggle synchronous/asynchronous?)
+> I fail to understand why you assume "realtime process".
 
-it's really hard to tell if the message comes from sysrq or from
-somewhere else. the current approach -- switch to *always* sync printk
-once we see the first LOGLEVEL_EMERG message. so you can add
-printk(LOGLEVEL_EMERG "sysrq-t\n"); for example, and printk will
-switch to sync mode. sync mode, is might be a bit dangerous though,
-since we printk from IRQ.
+Because then a standard process should get its time slice eventually. It
+can take some time, especially with many cpu hogs....
 
-	-ss
+> This lockup is still triggerable using "normal process" and "idle process".
+
+if you have too many of them then you are just out of luck and
+everything will take ages.
+
+[...]
+
+> See? The runaway is occurring inside kernel space due to almost-busy looping
+> direct reclaim against a thread with idle priority with oom_lock held.
+> 
+> My assertion is that we need to make sure that the OOM killer/reaper are given
+> enough CPU time so that they can perform memory reclaim operation and release
+> oom_lock. We can't solve CPU time consumption by sleep-with-oom_lock1.c case
+> but we can solve CPU time consumption by sleep-with-oom_lock2.c case.
+
+What I am trying to tell you is that it is really hard to do something
+about these situations in general. It is not all that hard to construct
+workloads which will constantly preempt the sync oom path and we can do
+hardly anything about that. OOM handling is quite complex and takes
+considerable amount of time as long as we want to have some
+deterministic behavior (unless that deterministic thing is to
+immediately raboot which is not something everybody would like to see).
+
+> I think it is waste of CPU time to let all threads try direct reclaim
+> which also bothers them with consistent __GFP_NOFS/__GFP_NOIO usage which
+> might involve dependency to other threads. But changing it is not easy.
+
+Exactly.
+
+> Thus, I'm proposing to save CPU time if waiting for the OOM killer/reaper
+> when direct reclaim did not help.
+
+Which will just move problem somewhere else I am afraid. Now you will
+have hundreds of tasks bouncing on the global mutex. That never turned
+out to be a good thing in the past and I am worried that it will just
+bite us from a different side. What is worse it might hit us in cases
+which do actually happen in the real life.
+
+I am not saying that the current code works perfectly when we are
+hitting the direct reclaim close to the OOM but improving that requires
+much more than slapping a global lock there.
+ 
+> > > Then, you call such latency as scheduler's problem?
+> > > mutex_lock_killable(&oom_lock) change helps coping with whatever delays
+> > > OOM killer/reaper might encounter.
+> > 
+> > It helps _your_ particular insane workload. I believe you can construct
+> > many others which which would cause a similar problem and the above
+> > suggestion wouldn't help a bit. Until I can see this is easily
+> > triggerable on a reasonably configured system then I am not convinced
+> > we should add more non trivial changes to the oom killer path.
+> 
+> I'm not using root privileges nor realtime priority nor CONFIG_PREEMPT=y.
+> Why you don't care about the worst situation / corner cases?
+
+I do care about them! I just do not want to put random hacks which might
+seem to work on this _particular_ workload while it brings risks for
+others. Look, those corner cases you are simulating are _interesting_ to
+see how robust we are but they are no way close to what really happens
+in the real life out there - we call those situations DoS from any
+practical POV. Admins usually do everything to prevent from them by
+configuring their systems and limiting untrusted users as much as
+possible.
+
+So please try to step back, try to understand that there is a difference
+between interesting and matters_in_the_real_life and do not try to
+_design_ the code on _corner cases_ because that might be more harmful
+then useful.
+
+Just try to remember how you were pushing really hard for oom timeouts
+one year back because the OOM killer was suboptimal and could lockup. It
+took some redesign and many changes to fix that. The result is
+imho a better, more predictable and robust code which wouldn't be the
+case if we just went your way to have a fix quickly...
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
