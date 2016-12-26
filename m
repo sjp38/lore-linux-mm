@@ -1,81 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E06186B0038
-	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 20:17:14 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id b1so706955730pgc.5
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 17:17:14 -0800 (PST)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id a96si41511517pli.200.2016.12.25.17.17.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B56FB6B0038
+	for <linux-mm@kvack.org>; Sun, 25 Dec 2016 23:18:12 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id b22so149809345pfd.0
+        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 20:18:12 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id r12si14432852pli.82.2016.12.25.20.18.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Dec 2016 17:17:14 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id 127so6202524pfg.0
-        for <linux-mm@kvack.org>; Sun, 25 Dec 2016 17:17:13 -0800 (PST)
-Date: Mon, 26 Dec 2016 11:16:54 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting
- for a page bit
-Message-ID: <20161226111654.76ab0957@roar.ozlabs.ibm.com>
-In-Reply-To: <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
-References: <20161225030030.23219-1-npiggin@gmail.com>
-	<20161225030030.23219-3-npiggin@gmail.com>
-	<CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 25 Dec 2016 20:18:11 -0800 (PST)
+Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OIR00Q82YM9Q400@mailout2.samsung.com> for linux-mm@kvack.org;
+ Mon, 26 Dec 2016 13:18:09 +0900 (KST)
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Subject: [PATCH] lib: bitmap: introduce bitmap_find_next_zero_area_and_size
+Date: Mon, 26 Dec 2016 13:18:11 +0900
+Message-id: <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
+References: 
+ <CGME20161226041809epcas5p1981244de55764c10f1a80d80346f3664@epcas5p1.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+To: gregkh@linuxfoundation.org, akpm@linux-foundation.org
+Cc: labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, gregory.0xf0@gmail.com, laurent.pinchart@ideasonboard.com, akinobu.mita@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
 
-On Sun, 25 Dec 2016 13:51:17 -0800
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+There was no bitmap API which returns both next zero index and size of zeros
+from that index.
 
-> On Sat, Dec 24, 2016 at 7:00 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> > Add a new page flag, PageWaiters, to indicate the page waitqueue has
-> > tasks waiting. This can be tested rather than testing waitqueue_active
-> > which requires another cacheline load.  
-> 
-> Ok, I applied this one too. I think there's room for improvement, but
-> I don't think it's going to help to just wait another release cycle
-> and hope something happens.
-> 
-> Example room for improvement from a profile of unlock_page():
-> 
->    46.44 a??      lock   andb $0xfe,(%rdi)
->    34.22 a??      mov    (%rdi),%rax
-> 
-> this has the old "do atomic op on a byte, then load the whole word"
-> issue that we used to have with the nasty zone lookup code too. And it
-> causes a horrible pipeline hickup because the load will not forward
-> the data from the (partial) store.
-> 
->  Its' really a misfeature of our asm optimizations of the atomic bit
-> ops. Using "andb" is slightly smaller, but in this case in particular,
-> an "andq" would be a ton faster, and the mask still fits in an imm8,
-> so it's not even hugely larger.
+This is helpful to look fragmentation. This is an test code to look size of zeros.
+Test result is '10+9+994=>1013 found of total: 1024'
 
-I did actually play around with that. I could not get my skylake
-to forward the result from a lock op to a subsequent load (the
-latency was the same whether you use lock ; andb or lock ; andl
-(32 cycles for my test loop) whereas with non-atomic versions I
-was getting about 15 cycles for andb vs 2 for andl.
+unsigned long search_idx, found_idx, nr_found_tot;
+unsigned long bitmap_max;
+unsigned int nr_found;
+unsigned long *bitmap;
 
-I guess the lock op drains the store queue to coherency and does
-not allow forwarding so as to provide the memory ordering
-semantics.
+search_idx = nr_found_tot = 0;
+bitmap_max = 1024;
+bitmap = kzalloc(BITS_TO_LONGS(bitmap_max) * sizeof(long),
+		 GFP_KERNEL);
 
-> But it might also be a good idea to simply use a "cmpxchg" loop here.
-> That also gives atomicity guarantees that we don't have with the
-> "clear bit and then load the value".
+/* test bitmap_set offset, count */
+bitmap_set(bitmap, 10, 1);
+bitmap_set(bitmap, 20, 10);
 
-cmpxchg ends up at 19 cycles including the initial load, so it
-may be worthwhile. Powerpc has a similar problem with doing a
-clear_bit; test_bit (not the size mismatch, but forwarding from
-atomic ops being less capable).
+for (;;) {
+	found_idx = bitmap_find_next_zero_area_and_size(bitmap,
+				bitmap_max, search_idx, &nr_found);
+	if (found_idx >= bitmap_max)
+		break;
+	if (nr_found_tot == 0)
+		printk("%u", nr_found);
+	else
+		printk("+%u", nr_found);
+	nr_found_tot += nr_found;
+	search_idx = found_idx + nr_found;
+}
+printk("=>%lu found of total: %lu\n", nr_found_tot, bitmap_max);
 
-Thanks,
-Nick
+Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+---
+ include/linux/bitmap.h |  6 ++++++
+ lib/bitmap.c           | 25 +++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)
+
+diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
+index 3b77588..b724a6c 100644
+--- a/include/linux/bitmap.h
++++ b/include/linux/bitmap.h
+@@ -46,6 +46,7 @@
+  * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+  * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
+  * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
++ * bitmap_find_next_zero_area_and_size(buf, len, pos, n, mask)	Find bit free area and its size
+  * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
+  * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
+  * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
+@@ -123,6 +124,11 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+ 						    unsigned long align_mask,
+ 						    unsigned long align_offset);
+ 
++extern unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
++							 unsigned long size,
++							 unsigned long start,
++							 unsigned int *nr);
++
+ /**
+  * bitmap_find_next_zero_area - find a contiguous aligned zero area
+  * @map: The address to base the search on
+diff --git a/lib/bitmap.c b/lib/bitmap.c
+index 0b66f0e..d02817c 100644
+--- a/lib/bitmap.c
++++ b/lib/bitmap.c
+@@ -332,6 +332,31 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+ }
+ EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
+ 
++/**
++ * bitmap_find_next_zero_area_and_size - find a contiguous aligned zero area
++ * @map: The address to base the search on
++ * @size: The bitmap size in bits
++ * @start: The bitnumber to start searching at
++ * @nr: The number of zeroed bits we've found
++ */
++unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
++					     unsigned long size,
++					     unsigned long start,
++					     unsigned int *nr)
++{
++	unsigned long index, i;
++
++	*nr = 0;
++	index = find_next_zero_bit(map, size, start);
++
++	if (index >= size)
++		return index;
++	i = find_next_bit(map, size, index);
++	*nr = i - index;
++	return index;
++}
++EXPORT_SYMBOL(bitmap_find_next_zero_area_and_size);
++
+ /*
+  * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
+  * second version by Paul Jackson, third by Joe Korty.
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
