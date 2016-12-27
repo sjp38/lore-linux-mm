@@ -1,76 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A9FEF6B0069
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 15:17:35 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id b123so285329069itb.3
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 12:17:35 -0800 (PST)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id l74si29341161ita.30.2016.12.27.12.17.35
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 754326B0069
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 16:36:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id n189so446199923pga.4
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 13:36:57 -0800 (PST)
+Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
+        by mx.google.com with ESMTPS id b69si47693162pli.222.2016.12.27.13.36.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Dec 2016 12:17:35 -0800 (PST)
-Received: by mail-it0-x242.google.com with SMTP id n68so34398490itn.3
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 12:17:35 -0800 (PST)
+        Tue, 27 Dec 2016 13:36:56 -0800 (PST)
+Received: by mail-pg0-x229.google.com with SMTP id y62so96424641pgy.1
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 13:36:56 -0800 (PST)
+Date: Tue, 27 Dec 2016 13:36:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <20161227094008.GC1308@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1612271324300.67790@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz> <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com> <20161223085150.GA23109@dhcp22.suse.cz> <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+ <20161223111817.GC23109@dhcp22.suse.cz> <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com> <20161226090211.GA11455@dhcp22.suse.cz> <alpine.DEB.2.10.1612261639550.99744@chino.kir.corp.google.com> <20161227094008.GC1308@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFyXXKdjbidzVC=waiaAaUJpwqZQZv-kKoZfaiWtYy3z=A@mail.gmail.com>
-References: <20161225030030.23219-1-npiggin@gmail.com> <20161225030030.23219-3-npiggin@gmail.com>
- <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
- <20161226111654.76ab0957@roar.ozlabs.ibm.com> <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
- <20161227211946.3770b6ce@roar.ozlabs.ibm.com> <CA+55aFw22e6njM9L4sareRRJw3RjW9XwGH3B7p-ND86EtTWWDQ@mail.gmail.com>
- <CA+55aFzKuiLS0CvTTqo5=8eyoksC1==30+XMiXZhQqzXr9JM3A@mail.gmail.com>
- <CA+55aFzNU53+9PT_xzrPRYdbUYP6V4Y52wCo8V_tANB0tLStnw@mail.gmail.com> <CA+55aFyXXKdjbidzVC=waiaAaUJpwqZQZv-kKoZfaiWtYy3z=A@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 27 Dec 2016 12:17:34 -0800
-Message-ID: <CA+55aFwjcEmtWjNXhugX3GfH0zvypLVi0r90PWL3DCD-jA4v5Q@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
- a page bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Dec 27, 2016 at 11:40 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> This patch at least might have a chance in hell of working. Let's see..
+On Tue, 27 Dec 2016, Michal Hocko wrote:
 
-Ok, with that fixed, things do indeed seem to work.
+> > Important to who?
+> 
+> To all users who want to have THP without stalls experience. This was
+> the whole point of 444eb2a449ef ("mm: thp: set THP defrag by default to
+> madvise and add a stall-free defrag option").
+> 
 
-And things also look fairly good on my "lots of nasty little
-shortlived scripts" benchmark ("make -j32 test" for git, in case
-people care).
+THEY DO NOT STALL.  If the application is not using 
+madvise(MADV_HUGEPAGE), all we do is kick kcompactd.  Nothing else.  We 
+don't need any kernel tunable for an admin to override an application 
+doing madvise(MADV_HUGEPAGE) when it wants hugepages and is perfectly 
+happy stalling for them.
 
-That benchmark used to have "unlock_page()" and "__wake_up_bit()"
-together using about 3% of all CPU time.
+> > > You seem to think that it
+> > > is the application which is under the control. And I am not all that
+> > > surprised because you are under control of the whole userspace in your
+> > > deployments.
+> > 
+> > I have no control over the userspace that runs on my "deployments," I 
+> > caution you to not make any inferences.
+> 
+> the usecase you have described suggested otherwise. The way how you are
+> using madvise sounds pretty much intentional to me. This is quite a
+> different thing than running an application which uses madivise because
+> it _thinks_ it is a good idea and you are left with that decision and
+> cannot do anything about that.
+> 
 
-Now __wake_up_bit() doesn't show up at all (ok, it's something like
-0.02%, so it's technically still there, but..) and "unlock_page()" is
-at 0.66% of CPU time. So it's about a quarter of where it used to be.
-And now it's about the same cost as the "try_lock_page() that is
-inlined into filemap_map_pages() - it used to be that unlocking the
-page was much more expensive than locking it because of all the
-unnecessary waitqueue games.
+I literally cannot believe I am reading this on lkml.  I am legitimately 
+stunned by this.  You are saying that the admin thinks it knows better 
+than the application writer and that its madvise(MADV_HUGEPAGE) wasn't 
+actually intentional?  We don't introduce tunables so that admins can 
+control the intentional behavior of an application, unless that behavior 
+is a security concern.  The application has specified it wants to wait for 
+hugepages and has backwards compatibility with defrag=madvise settings 
+since thp was introduced, which introduced MADV_HUGEPAGE.  It's the entire 
+point of MADV_HUGEPAGE existing.
 
-So the benchmark still does a ton of page lock/unlock action, but it
-doesn't stand out in the profiles as some kind of WTF thing any more.
-And the profiles really show that the cost is the atomic op itself
-rather than bad effects from bad code generation, which is what you
-want to see.
+> > > Long stalls during the page faults are
+> > > often seen as bugs and users might not really care whether the
+> > > application writer really wanted THP or not...
+> > > 
+> > 
+> > There are no long stalls during page faults introduced by this patch, we 
+> > are waking up a kthread to do the work.
+> 
+> Yes there _are_. All madvised vmas can stall now which was not the case
+> before. This is breaking the semantic of the defer option as it was
+> introduced and intended (which should be pretty clear from its name).
+>  
 
-Would I love to fix this all by not taking the page lock at all? Yes I
-would. I suspect we should be able to do something clever and lockless
-at least in theory.
+All madvised VMAs stall now because THEY WANT TO STALL.  It is 
+unbelievable that you would claim otherwise or think that you know better 
+than the application writer about their application.
 
-But in the meantime, I'm happy with where our page locking overhead
-is. And while I haven't seen the NUMA numbers from Dave Hansen with
-this all, the early testing from Dave was that the original patch from
-Nick already fixed the regression and was the fastest one anyway. And
-this optimization will only have improved on things further, although
-it might not be as noticeable on NUMA as it is on just a regular
-single socket system.
+> > We are addressing thp defrag here, not any other use for background 
+> > compaction for other high-order allocations.  I'd prefer that we stay on 
+> > topic, please.  This is only about setting thp defrag to "defer" and if it 
+> > is possible to kick background compaction and defer direct compaction.  We 
+> > need this patch, Kirill has acked it, and I simply have no more time to 
+> > talk in circles.
+> 
+> You seem to completely ignore the review feedback and given arguments
+> which is really sad...
+> 
 
-                   Linus
+I am perfectly satisfied with Kirill's review feedback because (1) it 
+makes sense and (2) it supports allowing users who do MADV_HUGEPAGE to 
+actually try to get hugepages, which is the point of the madvise.
+
+> > That said, I simply don't have the time to continue in circular arguments 
+> > and would respectfully ask Andrew to apply this acked patch.
+> 
+> for reasons mentioned already
+> Nacked-by: Michal Hocko <mhocko@suse.com>
+
+I hope I'm not being unrealistically optimistic in assuming that this will 
+be the end of this thread.  The patch should be merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
