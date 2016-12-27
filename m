@@ -1,142 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D6EBC6B025E
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 05:05:40 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id j10so84509616wjb.3
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 02:05:40 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1A86B0038
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 05:18:00 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id l2so27791812wml.5
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 02:18:00 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z3si49333278wjt.212.2016.12.27.02.05.39
+        by mx.google.com with ESMTPS id gs7si49403539wjc.209.2016.12.27.02.17.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Dec 2016 02:05:39 -0800 (PST)
-Date: Tue, 27 Dec 2016 11:05:35 +0100
+        Tue, 27 Dec 2016 02:17:59 -0800 (PST)
+Date: Tue, 27 Dec 2016 11:17:56 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] lib: bitmap: introduce
- bitmap_find_next_zero_area_and_size
-Message-ID: <20161227100535.GB7662@dhcp22.suse.cz>
-References: <CGME20161226041809epcas5p1981244de55764c10f1a80d80346f3664@epcas5p1.samsung.com>
- <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
+Subject: Re: [PATCH v4] mm: pmd dirty emulation in page fault handler
+Message-ID: <20161227101755.GD1308@dhcp22.suse.cz>
+References: <1482506098-6149-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
+In-Reply-To: <1482506098-6149-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaewon Kim <jaewon31.kim@samsung.com>
-Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, gregory.0xf0@gmail.com, laurent.pinchart@ideasonboard.com, akinobu.mita@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andreas Schwab <schwab@suse.de>, Jason Evans <je@fb.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "[4.5+]" <stable@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 26-12-16 13:18:11, Jaewon Kim wrote:
-> There was no bitmap API which returns both next zero index and size of zeros
-> from that index.
+On Sat 24-12-16 00:14:58, Minchan Kim wrote:
+> Andreas reported [1] made a test in jemalloc hang in THP mode in arm64.
+> http://lkml.kernel.org/r/mvmmvfy37g1.fsf@hawking.suse.de
 > 
-> This is helpful to look fragmentation. This is an test code to look size of zeros.
-> Test result is '10+9+994=>1013 found of total: 1024'
+> The problem is currently page fault handler doesn't supports dirty bit
+> emulation of pmd for non-HW dirty-bit architecture so that application
+> stucks until VM marked the pmd dirty.
 > 
-> unsigned long search_idx, found_idx, nr_found_tot;
-> unsigned long bitmap_max;
-> unsigned int nr_found;
-> unsigned long *bitmap;
+> How the emulation work depends on the architecture. In case of arm64,
+> when it set up pte firstly, it sets pte PTE_RDONLY to get a chance to
+> mark the pte dirty via triggering page fault when store access happens.
+> Once the page fault occurs, VM marks the pmd dirty and arch code for
+> setting pmd will clear PTE_RDONLY for application to proceed.
 > 
-> search_idx = nr_found_tot = 0;
-> bitmap_max = 1024;
-> bitmap = kzalloc(BITS_TO_LONGS(bitmap_max) * sizeof(long),
-> 		 GFP_KERNEL);
+> IOW, if VM doesn't mark the pmd dirty, application hangs forever by
+> repeated fault(i.e., store op but the pmd is PTE_RDONLY).
 > 
-> /* test bitmap_set offset, count */
-> bitmap_set(bitmap, 10, 1);
-> bitmap_set(bitmap, 20, 10);
-> 
-> for (;;) {
-> 	found_idx = bitmap_find_next_zero_area_and_size(bitmap,
-> 				bitmap_max, search_idx, &nr_found);
-> 	if (found_idx >= bitmap_max)
-> 		break;
-> 	if (nr_found_tot == 0)
-> 		printk("%u", nr_found);
-> 	else
-> 		printk("+%u", nr_found);
-> 	nr_found_tot += nr_found;
-> 	search_idx = found_idx + nr_found;
-> }
-> printk("=>%lu found of total: %lu\n", nr_found_tot, bitmap_max);
+> This patch enables pmd dirty-bit emulation for those architectures.
 
-Who is going to use this function? I do not see any caller introduced by
-this patch.
+Thanks for extending the patch description again!
 
-> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+> [1] b8d3c4c3009d, mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called
+> 
+> Cc: Jason Evans <je@fb.com>
+> Cc: Michal Hocko <mhocko@suse.com> 
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: linux-arch@vger.kernel.org
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: <stable@vger.kernel.org> [4.5+]
+> Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
+> Reported-and-Tested-by: Andreas Schwab <schwab@suse.de>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  include/linux/bitmap.h |  6 ++++++
->  lib/bitmap.c           | 25 +++++++++++++++++++++++++
->  2 files changed, 31 insertions(+)
+>   Merry Xmas!
 > 
-> diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
-> index 3b77588..b724a6c 100644
-> --- a/include/linux/bitmap.h
-> +++ b/include/linux/bitmap.h
-> @@ -46,6 +46,7 @@
->   * bitmap_clear(dst, pos, nbits)		Clear specified bit area
->   * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
->   * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
-> + * bitmap_find_next_zero_area_and_size(buf, len, pos, n, mask)	Find bit free area and its size
->   * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
->   * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
->   * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
-> @@ -123,6 +124,11 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
->  						    unsigned long align_mask,
->  						    unsigned long align_offset);
+> * from v3
+>   * Elaborate description
+> * from v2
+>   * Add acked-by/tested-by
+> * from v1
+>   * Remove __handle_mm_fault part - Kirill
+>  mm/huge_memory.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 10eedbf..29ec8a4 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -883,15 +883,17 @@ void huge_pmd_set_accessed(struct vm_fault *vmf, pmd_t orig_pmd)
+>  {
+>  	pmd_t entry;
+>  	unsigned long haddr;
+> +	bool write = vmf->flags & FAULT_FLAG_WRITE;
 >  
-> +extern unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
-> +							 unsigned long size,
-> +							 unsigned long start,
-> +							 unsigned int *nr);
-> +
->  /**
->   * bitmap_find_next_zero_area - find a contiguous aligned zero area
->   * @map: The address to base the search on
-> diff --git a/lib/bitmap.c b/lib/bitmap.c
-> index 0b66f0e..d02817c 100644
-> --- a/lib/bitmap.c
-> +++ b/lib/bitmap.c
-> @@ -332,6 +332,31 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
->  }
->  EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
+>  	vmf->ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
+>  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
+>  		goto unlock;
 >  
-> +/**
-> + * bitmap_find_next_zero_area_and_size - find a contiguous aligned zero area
-> + * @map: The address to base the search on
-> + * @size: The bitmap size in bits
-> + * @start: The bitnumber to start searching at
-> + * @nr: The number of zeroed bits we've found
-> + */
-> +unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
-> +					     unsigned long size,
-> +					     unsigned long start,
-> +					     unsigned int *nr)
-> +{
-> +	unsigned long index, i;
-> +
-> +	*nr = 0;
-> +	index = find_next_zero_bit(map, size, start);
-> +
-> +	if (index >= size)
-> +		return index;
-> +	i = find_next_bit(map, size, index);
-> +	*nr = i - index;
-> +	return index;
-> +}
-> +EXPORT_SYMBOL(bitmap_find_next_zero_area_and_size);
-> +
->  /*
->   * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
->   * second version by Paul Jackson, third by Joe Korty.
+>  	entry = pmd_mkyoung(orig_pmd);
+> +	if (write)
+> +		entry = pmd_mkdirty(entry);
+>  	haddr = vmf->address & HPAGE_PMD_MASK;
+> -	if (pmdp_set_access_flags(vmf->vma, haddr, vmf->pmd, entry,
+> -				vmf->flags & FAULT_FLAG_WRITE))
+> +	if (pmdp_set_access_flags(vmf->vma, haddr, vmf->pmd, entry, write))
+>  		update_mmu_cache_pmd(vmf->vma, vmf->address, vmf->pmd);
+>  
+>  unlock:
 > -- 
-> 1.9.1
+> 2.7.4
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
