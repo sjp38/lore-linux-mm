@@ -1,107 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2986B0271
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 22:22:25 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id s34so201035398uas.2
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 19:22:25 -0800 (PST)
-Received: from mail-ua0-x234.google.com (mail-ua0-x234.google.com. [2607:f8b0:400c:c08::234])
-        by mx.google.com with ESMTPS id 3si11076704uap.118.2016.12.26.19.22.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E9C2F6B0266
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 23:13:41 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 127so205637468pfg.5
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:13:41 -0800 (PST)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id n77si13168726pfj.225.2016.12.26.20.13.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Dec 2016 19:22:24 -0800 (PST)
-Received: by mail-ua0-x234.google.com with SMTP id i68so70096906uad.0
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 19:22:24 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20161227022405.GA8780@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com> <20161227022405.GA8780@node.shutemov.name>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 26 Dec 2016 19:22:03 -0800
-Message-ID: <CALCETrU2pmAawB1KZWDBA4uMeh0W_YgKGGQchhhx0VgbS-RcnQ@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Dec 2016 20:13:40 -0800 (PST)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Received: from epcas1p3.samsung.com (unknown [182.195.41.47])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OIT013IVT2RHL70@mailout3.samsung.com> for linux-mm@kvack.org;
+ Tue, 27 Dec 2016 13:13:39 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Subject: Re: [PATCH] lib: bitmap: introduce bitmap_find_next_zero_area_and_size
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Message-id: <5861EA98.50606@samsung.com>
+Date: Tue, 27 Dec 2016 13:14:16 +0900
+In-reply-to: <xa1tpokev1m3.fsf@mina86.com>
+References: 
+ <CGME20161226041809epcas5p1981244de55764c10f1a80d80346f3664@epcas5p1.samsung.com>
+ <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
+ <xa1tpokev1m3.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Michal Nazarewicz <mina86@mina86.com>, gregkh@linuxfoundation.org, akpm@linux-foundation.org
+Cc: labbott@redhat.com, m.szyprowski@samsung.com, gregory.0xf0@gmail.com, laurent.pinchart@ideasonboard.com, akinobu.mita@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-On Mon, Dec 26, 2016 at 6:24 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Mon, Dec 26, 2016 at 06:06:01PM -0800, Andy Lutomirski wrote:
->> On Mon, Dec 26, 2016 at 5:54 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> > This patch introduces new rlimit resource to manage maximum virtual
->> > address available to userspace to map.
->> >
->> > On x86, 5-level paging enables 56-bit userspace virtual address space.
->> > Not all user space is ready to handle wide addresses. It's known that
->> > at least some JIT compilers use high bit in pointers to encode their
->> > information. It collides with valid pointers with 5-level paging and
->> > leads to crashes.
->> >
->> > The patch aims to address this compatibility issue.
->> >
->> > MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
->> > address available to map by userspace.
->> >
->> > The default hard limit will be RLIM_INFINITY, which basically means th=
-at
->> > TASK_SIZE limits available address space.
->> >
->> > The soft limit will also be RLIM_INFINITY everywhere, but the machine
->> > with 5-level paging enabled. In this case, soft limit would be
->> > (1UL << 47) - PAGE_SIZE. It=E2=80=99s current x86-64 TASK_SIZE_MAX wit=
-h 4-level
->> > paging which known to be safe
->> >
->> > New rlimit resource would follow usual semantics with regards to
->> > inheritance: preserved on fork(2) and exec(2). This has potential to
->> > break application if limits set too wide or too narrow, but this is no=
-t
->> > uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
->> >
->> > As with other resources you can set the limit lower than current usage=
-.
->> > It would affect only future virtual address space allocations.
->> >
->> > Use-cases for new rlimit:
->> >
->> >   - Bumping the soft limit to RLIM_INFINITY, allows current process al=
-l
->> >     its children to use addresses above 47-bits.
->> >
->> >   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
->> >     exec(2) allows the child to use addresses above 47-bits.
->> >
->> >   - Lowering the hard limit to 47-bits would prevent current process a=
-ll
->> >     its children to use addresses above 47-bits, unless a process has
->> >     CAP_SYS_RESOURCES.
->> >
->> >   - It=E2=80=99s also can be handy to lower hard or soft limit to arbi=
-trary
->> >     address. User-mode emulation in QEMU may lower the limit to 32-bit
->> >     to emulate 32-bit machine on 64-bit host.
+
+
+On 2016e?? 12i?? 27i? 1/4  06:09, Michal Nazarewicz wrote:
+> On Mon, Dec 26 2016, Jaewon Kim wrote:
+>> There was no bitmap API which returns both next zero index and size of zeros
+>> from that index.
+> Is it really needed?  Does it noticeably simplifies callers?  Why cana??t
+> caller get the size by themselves if they need it?
+Hi thank you for your comment.
+As some other functions, this is a helper function to use easily.
+Without this patch, we can get the size by using two bitmap functions.
+>> This is helpful to look fragmentation. This is an test code to look size of zeros.
+>> Test result is '10+9+994=>1013 found of total: 1024'
 >>
->> I tend to think that this should be a personality or an ELF flag, not
->> an rlimit.
->
-> My plan was to implement ELF flag on top. Basically, ELF flag would mean
-> that we bump soft limit to hard limit on exec.
->
->> That way setuid works right.
->
-> Um.. I probably miss background here.
->
-
-If a setuid program depends on the lower limit, then a malicious
-program shouldn't be able to cause it to run with the higher limit.
-The personality code should already get this case right because
-personalities are reset when setuid happens.
-
---Andy
+>> unsigned long search_idx, found_idx, nr_found_tot;
+>> unsigned long bitmap_max;
+>> unsigned int nr_found;
+>> unsigned long *bitmap;
+>>
+>> search_idx = nr_found_tot = 0;
+>> bitmap_max = 1024;
+>> bitmap = kzalloc(BITS_TO_LONGS(bitmap_max) * sizeof(long),
+>> 		 GFP_KERNEL);
+>>
+>> /* test bitmap_set offset, count */
+>> bitmap_set(bitmap, 10, 1);
+>> bitmap_set(bitmap, 20, 10);
+>>
+>> for (;;) {
+>> 	found_idx = bitmap_find_next_zero_area_and_size(bitmap,
+>> 				bitmap_max, search_idx, &nr_found);
+>> 	if (found_idx >= bitmap_max)
+>> 		break;
+>> 	if (nr_found_tot == 0)
+>> 		printk("%u", nr_found);
+>> 	else
+>> 		printk("+%u", nr_found);
+>> 	nr_found_tot += nr_found;
+>> 	search_idx = found_idx + nr_found;
+>> }
+>> printk("=>%lu found of total: %lu\n", nr_found_tot, bitmap_max);
+>>
+>> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+>> ---
+>>  include/linux/bitmap.h |  6 ++++++
+>>  lib/bitmap.c           | 25 +++++++++++++++++++++++++
+>>  2 files changed, 31 insertions(+)
+>>
+>> diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
+>> index 3b77588..b724a6c 100644
+>> --- a/include/linux/bitmap.h
+>> +++ b/include/linux/bitmap.h
+>> @@ -46,6 +46,7 @@
+>>   * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+>>   * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
+>>   * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
+>> + * bitmap_find_next_zero_area_and_size(buf, len, pos, n, mask)	Find bit free area and its size
+>>   * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
+>>   * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
+>>   * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
+>> @@ -123,6 +124,11 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+>>  						    unsigned long align_mask,
+>>  						    unsigned long align_offset);
+>>  
+>> +extern unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
+>> +							 unsigned long size,
+>> +							 unsigned long start,
+>> +							 unsigned int *nr);
+>> +
+>>  /**
+>>   * bitmap_find_next_zero_area - find a contiguous aligned zero area
+>>   * @map: The address to base the search on
+>> diff --git a/lib/bitmap.c b/lib/bitmap.c
+>> index 0b66f0e..d02817c 100644
+>> --- a/lib/bitmap.c
+>> +++ b/lib/bitmap.c
+>> @@ -332,6 +332,31 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+>>  }
+>>  EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
+>>  
+>> +/**
+>> + * bitmap_find_next_zero_area_and_size - find a contiguous aligned zero area
+>> + * @map: The address to base the search on
+>> + * @size: The bitmap size in bits
+>> + * @start: The bitnumber to start searching at
+>> + * @nr: The number of zeroed bits we've found
+>> + */
+>> +unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
+>> +					     unsigned long size,
+>> +					     unsigned long start,
+>> +					     unsigned int *nr)
+>> +{
+>> +	unsigned long index, i;
+>> +
+>> +	*nr = 0;
+>> +	index = find_next_zero_bit(map, size, start);
+>> +
+>> +	if (index >= size)
+>> +		return index;
+>> +	i = find_next_bit(map, size, index);
+>> +	*nr = i - index;
+>> +	return index;
+>> +}
+>> +EXPORT_SYMBOL(bitmap_find_next_zero_area_and_size);
+>> +
+>>  /*
+>>   * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
+>>   * second version by Paul Jackson, third by Joe Korty.
+>> -- 
+>> 1.9.1
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
