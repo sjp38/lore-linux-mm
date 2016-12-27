@@ -1,589 +1,993 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 279E56B0273
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:54:53 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 5so776892261pgi.2
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 17:54:53 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r7si44810019ple.282.2016.12.26.17.54.51
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0996B0279
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 20:55:06 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so776903315pgi.2
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 17:55:06 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id n187si26679909pga.63.2016.12.26.17.54.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Dec 2016 17:54:51 -0800 (PST)
+        Mon, 26 Dec 2016 17:54:47 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Date: Tue, 27 Dec 2016 04:54:13 +0300
-Message-Id: <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 15/29] x86: convert the rest of the code to support p4d_t
+Date: Tue, 27 Dec 2016 04:53:59 +0300
+Message-Id: <20161227015413.187403-16-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
 References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch introduces new rlimit resource to manage maximum virtual
-address available to userspace to map.
+This patch converts x86 to use proper folding of new page table level
+with <asm-generic/pgtable-nop4d.h>.
 
-On x86, 5-level paging enables 56-bit userspace virtual address space.
-Not all user space is ready to handle wide addresses. It's known that
-at least some JIT compilers use high bit in pointers to encode their
-information. It collides with valid pointers with 5-level paging and
-leads to crashes.
+TODO: split it up futher.
+FIXME: XEN is broken.
 
-The patch aims to address this compatibility issue.
-
-MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
-address available to map by userspace.
-
-The default hard limit will be RLIM_INFINITY, which basically means that
-TASK_SIZE limits available address space.
-
-The soft limit will also be RLIM_INFINITY everywhere, but the machine
-with 5-level paging enabled. In this case, soft limit would be
-(1UL << 47) - PAGE_SIZE. Ita??s current x86-64 TASK_SIZE_MAX with 4-level
-paging which known to be safe
-
-New rlimit resource would follow usual semantics with regards to
-inheritance: preserved on fork(2) and exec(2). This has potential to
-break application if limits set too wide or too narrow, but this is not
-uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
-
-As with other resources you can set the limit lower than current usage.
-It would affect only future virtual address space allocations.
-
-Use-cases for new rlimit:
-
-  - Bumping the soft limit to RLIM_INFINITY, allows current process all
-    its children to use addresses above 47-bits.
-
-  - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
-    exec(2) allows the child to use addresses above 47-bits.
-
-  - Lowering the hard limit to 47-bits would prevent current process all
-    its children to use addresses above 47-bits, unless a process has
-    CAP_SYS_RESOURCES.
-
-  - Ita??s also can be handy to lower hard or soft limit to arbitrary
-    address. User-mode emulation in QEMU may lower the limit to 32-bit
-    to emulate 32-bit machine on 64-bit host.
-
-TODO:
-  - port to non-x86;
-
-Not-yet-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: linux-api@vger.kernel.org
+Not-yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/elf.h          |  2 +-
- arch/x86/include/asm/processor.h    | 17 ++++++++++++-----
- arch/x86/kernel/sys_x86_64.c        |  6 +++---
- arch/x86/mm/hugetlbpage.c           |  8 ++++----
- arch/x86/mm/mmap.c                  |  4 ++--
- fs/binfmt_aout.c                    |  2 --
- fs/binfmt_elf.c                     | 10 +++++-----
- fs/hugetlbfs/inode.c                |  6 +++---
- fs/proc/base.c                      |  1 +
- include/asm-generic/resource.h      |  4 ++++
- include/linux/sched.h               |  5 +++++
- include/uapi/asm-generic/resource.h |  3 ++-
- kernel/events/uprobes.c             |  5 +++--
- kernel/sys.c                        |  6 +++---
- mm/mmap.c                           | 20 +++++++++++---------
- mm/mremap.c                         |  3 ++-
- mm/nommu.c                          |  2 +-
- mm/shmem.c                          |  8 ++++----
- 18 files changed, 66 insertions(+), 46 deletions(-)
+ arch/x86/include/asm/paravirt.h       |  33 +++++--
+ arch/x86/include/asm/paravirt_types.h |  12 ++-
+ arch/x86/include/asm/pgalloc.h        |  35 +++++++-
+ arch/x86/include/asm/pgtable.h        |  75 +++++++++++++---
+ arch/x86/include/asm/pgtable_64.h     |  12 ++-
+ arch/x86/include/asm/pgtable_types.h  |  10 +--
+ arch/x86/kernel/paravirt.c            |  10 ++-
+ arch/x86/mm/init_64.c                 | 162 +++++++++++++++++++++++++++-------
+ arch/x86/mm/kasan_init_64.c           |  12 ++-
+ arch/x86/mm/pageattr.c                |  56 ++++++++----
+ arch/x86/platform/efi/efi_64.c        |   8 +-
+ arch/x86/xen/Kconfig                  |   1 +
+ 12 files changed, 342 insertions(+), 84 deletions(-)
 
-diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-index e7f155c3045e..5ce6f2b2b105 100644
---- a/arch/x86/include/asm/elf.h
-+++ b/arch/x86/include/asm/elf.h
-@@ -250,7 +250,7 @@ extern int force_personality32;
-    the loader.  We need to make sure that it is out of the way of the program
-    that it will "exec", and that there is sufficient room for the brk.  */
- 
--#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
-+#define ELF_ET_DYN_BASE		(mmap_max_addr() / 3 * 2)
- 
- /* This yields a mask that user programs can use to figure out what
-    instruction set this CPU supports.  This could be done in user space,
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index eaf100508c36..e02917126859 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -770,8 +770,8 @@ static inline void spin_lock_prefetch(const void *x)
-  */
- #define TASK_SIZE		PAGE_OFFSET
- #define TASK_SIZE_MAX		TASK_SIZE
--#define STACK_TOP		TASK_SIZE
--#define STACK_TOP_MAX		STACK_TOP
-+#define STACK_TOP		mmap_max_addr()
-+#define STACK_TOP_MAX		TASK_SIZE
- 
- #define INIT_THREAD  {							  \
- 	.sp0			= TOP_OF_INIT_STACK,			  \
-@@ -809,7 +809,14 @@ static inline void spin_lock_prefetch(const void *x)
-  * particular problem by preventing anything from being mapped
-  * at the maximum canonical address.
-  */
--#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
-+#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
-+
-+/*
-+ * Default limit on maximum virtual address. This is required for
-+ * compatibility with applications that assumes 47-bit VA.
-+ * The limit be overrided with setrlimit(2).
-+ */
-+#define USER_VADDR_LIM	((1UL << 47) - PAGE_SIZE)
- 
- /* This decides where the kernel will search for a free chunk of vm
-  * space during mmap's.
-@@ -822,7 +829,7 @@ static inline void spin_lock_prefetch(const void *x)
- #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
- 
--#define STACK_TOP		TASK_SIZE
-+#define STACK_TOP		mmap_max_addr()
- #define STACK_TOP_MAX		TASK_SIZE_MAX
- 
- #define INIT_THREAD  {						\
-@@ -844,7 +851,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
-  * This decides where the kernel will search for a free chunk of vm
-  * space during mmap's.
-  */
--#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
-+#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(mmap_max_addr() / 3))
- 
- #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
- 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index a55ed63b9f91..e31f5b0c5468 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -115,7 +115,7 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
- 		}
- 	} else {
- 		*begin = current->mm->mmap_legacy_base;
--		*end = TASK_SIZE;
-+		*end = mmap_max_addr();
- 	}
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 1eea6ca40694..432c6e730ed1 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -525,7 +525,7 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
+ 		PVOP_VCALL2(pv_mmu_ops.set_pud, pudp,
+ 			    val);
+ }
+-#if CONFIG_PGTABLE_LEVELS == 4
++#if CONFIG_PGTABLE_LEVELS >= 4
+ static inline pud_t __pud(pudval_t val)
+ {
+ 	pudval_t ret;
+@@ -554,6 +554,32 @@ static inline pudval_t pud_val(pud_t pud)
+ 	return ret;
  }
  
-@@ -168,7 +168,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	struct vm_unmapped_area_info info;
- 
- 	/* requested length too big for entire address space */
--	if (len > TASK_SIZE)
-+	if (len > mmap_max_addr())
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED)
-@@ -182,7 +182,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
-+		if (mmap_max_addr() - len >= addr &&
- 				(!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 2ae8584b44c7..b55b04b82097 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -82,7 +82,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
- 	info.flags = 0;
- 	info.length = len;
- 	info.low_limit = current->mm->mmap_legacy_base;
--	info.high_limit = TASK_SIZE;
-+	info.high_limit = mmap_max_addr();
- 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
- 	info.align_offset = 0;
- 	return vm_unmapped_area(&info);
-@@ -114,7 +114,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
- 		VM_BUG_ON(addr != -ENOMEM);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
--		info.high_limit = TASK_SIZE;
-+		info.high_limit = mmap_max_addr();
- 		addr = vm_unmapped_area(&info);
- 	}
- 
-@@ -131,7 +131,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 
- 	if (len & ~huge_page_mask(h))
- 		return -EINVAL;
--	if (len > TASK_SIZE)
-+	if (len > mmap_max_addr())
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED) {
-@@ -143,7 +143,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 	if (addr) {
- 		addr = ALIGN(addr, huge_page_size(h));
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
-+		if (mmap_max_addr() - len >= addr &&
- 		    (!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index d2dc0438d654..c22f0b802576 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -52,7 +52,7 @@ static unsigned long stack_maxrandom_size(void)
-  * Leave an at least ~128 MB hole with possible stack randomization.
-  */
- #define MIN_GAP (128*1024*1024UL + stack_maxrandom_size())
--#define MAX_GAP (TASK_SIZE/6*5)
-+#define MAX_GAP (mmap_max_addr()/6*5)
- 
- static int mmap_is_legacy(void)
- {
-@@ -90,7 +90,7 @@ static unsigned long mmap_base(unsigned long rnd)
- 	else if (gap > MAX_GAP)
- 		gap = MAX_GAP;
- 
--	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
-+	return PAGE_ALIGN(mmap_max_addr() - gap - rnd);
- }
- 
- /*
-diff --git a/fs/binfmt_aout.c b/fs/binfmt_aout.c
-index 2a59139f520b..7a7f6dba6b00 100644
---- a/fs/binfmt_aout.c
-+++ b/fs/binfmt_aout.c
-@@ -121,8 +121,6 @@ static struct linux_binfmt aout_format = {
- 	.min_coredump	= PAGE_SIZE
- };
- 
--#define BAD_ADDR(x)	((unsigned long)(x) >= TASK_SIZE)
--
- static int set_brk(unsigned long start, unsigned long end)
- {
- 	start = PAGE_ALIGN(start);
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 29a02daf08a9..1f8034aed298 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -89,7 +89,7 @@ static struct linux_binfmt elf_format = {
- 	.min_coredump	= ELF_EXEC_PAGESIZE,
- };
- 
--#define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
-+#define BAD_ADDR(x) ((unsigned long)(x) >= mmap_max_addr())
- 
- static int set_brk(unsigned long start, unsigned long end)
- {
-@@ -587,8 +587,8 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
- 			k = load_addr + eppnt->p_vaddr;
- 			if (BAD_ADDR(k) ||
- 			    eppnt->p_filesz > eppnt->p_memsz ||
--			    eppnt->p_memsz > TASK_SIZE ||
--			    TASK_SIZE - eppnt->p_memsz < k) {
-+			    eppnt->p_memsz > mmap_max_addr() ||
-+			    mmap_max_addr() - eppnt->p_memsz < k) {
- 				error = -ENOMEM;
- 				goto out;
- 			}
-@@ -960,8 +960,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
- 		 * <= p_memsz so it is only necessary to check p_memsz.
- 		 */
- 		if (BAD_ADDR(k) || elf_ppnt->p_filesz > elf_ppnt->p_memsz ||
--		    elf_ppnt->p_memsz > TASK_SIZE ||
--		    TASK_SIZE - elf_ppnt->p_memsz < k) {
-+		    elf_ppnt->p_memsz > mmap_max_addr() ||
-+		    mmap_max_addr() - elf_ppnt->p_memsz < k) {
- 			/* set_brk can never work. Avoid overflows. */
- 			retval = -EINVAL;
- 			goto out_free_dentry;
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 54de77e78775..e132e93b85fb 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -178,7 +178,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 
- 	if (len & ~huge_page_mask(h))
- 		return -EINVAL;
--	if (len > TASK_SIZE)
-+	if (len > mmap_max_addr())
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED) {
-@@ -190,7 +190,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 	if (addr) {
- 		addr = ALIGN(addr, huge_page_size(h));
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
-+		if (mmap_max_addr() - len >= addr &&
- 		    (!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
-@@ -198,7 +198,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 	info.flags = 0;
- 	info.length = len;
- 	info.low_limit = TASK_UNMAPPED_BASE;
--	info.high_limit = TASK_SIZE;
-+	info.high_limit = mmap_max_addr();
- 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
- 	info.align_offset = 0;
- 	return vm_unmapped_area(&info);
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 8e7e61b28f31..b91247cd171d 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -594,6 +594,7 @@ static const struct limit_names lnames[RLIM_NLIMITS] = {
- 	[RLIMIT_NICE] = {"Max nice priority", NULL},
- 	[RLIMIT_RTPRIO] = {"Max realtime priority", NULL},
- 	[RLIMIT_RTTIME] = {"Max realtime timeout", "us"},
-+	[RLIMIT_VADDR] = {"Max virtual address", NULL},
- };
- 
- /* Display limits for a process */
-diff --git a/include/asm-generic/resource.h b/include/asm-generic/resource.h
-index 5e752b959054..d24c978103e5 100644
---- a/include/asm-generic/resource.h
-+++ b/include/asm-generic/resource.h
-@@ -3,6 +3,9 @@
- 
- #include <uapi/asm-generic/resource.h>
- 
-+#ifndef USER_VADDR_LIM
-+#define USER_VADDR_LIM RLIM_INFINITY
-+#endif
- 
- /*
-  * boot-time rlimit defaults for the init task:
-@@ -25,6 +28,7 @@
- 	[RLIMIT_NICE]		= { 0, 0 },				\
- 	[RLIMIT_RTPRIO]		= { 0, 0 },				\
- 	[RLIMIT_RTTIME]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
-+	[RLIMIT_VADDR]		= { USER_VADDR_LIM,  RLIM_INFINITY },   \
- }
- 
- #endif
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 4d1905245c7a..f0f23afe0838 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -3661,4 +3661,9 @@ void cpufreq_add_update_util_hook(int cpu, struct update_util_data *data,
- void cpufreq_remove_update_util_hook(int cpu);
- #endif /* CONFIG_CPU_FREQ */
- 
-+static inline unsigned long mmap_max_addr(void)
++static inline void pud_clear(pud_t *pudp)
 +{
-+	return min(TASK_SIZE, rlimit(RLIMIT_VADDR));
++	set_pud(pudp, __pud(0));
 +}
 +
- #endif
-diff --git a/include/uapi/asm-generic/resource.h b/include/uapi/asm-generic/resource.h
-index c6d10af50123..7843ed0ed7a7 100644
---- a/include/uapi/asm-generic/resource.h
-+++ b/include/uapi/asm-generic/resource.h
-@@ -45,7 +45,8 @@
- 					   0-39 for nice level 19 .. -20 */
- #define RLIMIT_RTPRIO		14	/* maximum realtime priority */
- #define RLIMIT_RTTIME		15	/* timeout for RT tasks in us */
--#define RLIM_NLIMITS		16
-+#define RLIMIT_VADDR		16	/* maximum virtual address */
-+#define RLIM_NLIMITS		17
- 
- /*
-  * SuS says limits have to be unsigned.
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index d416f3baf392..651f571a1a79 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -1142,8 +1142,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
- 
- 	if (!area->vaddr) {
- 		/* Try to map as high as possible, this is only a hint. */
--		area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
--						PAGE_SIZE, 0, 0);
-+		area->vaddr = get_unmapped_area(NULL,
-+				mmap_max_addr() - PAGE_SIZE,
-+				PAGE_SIZE, 0, 0);
- 		if (area->vaddr & ~PAGE_MASK) {
- 			ret = area->vaddr;
- 			goto fail;
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 842914ef7de4..a5ee7f23beda 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -1718,7 +1718,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
-  */
- static int validate_prctl_map(struct prctl_mm_map *prctl_map)
++static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
++{
++	p4dval_t val = native_p4d_val(p4d);
++
++	if (sizeof(p4dval_t) > sizeof(long))
++		PVOP_VCALL3(pv_mmu_ops.set_p4d, p4dp,
++			    val, (u64)val >> 32);
++	else
++		PVOP_VCALL2(pv_mmu_ops.set_p4d, p4dp,
++			    val);
++}
++
++static inline void p4d_clear(p4d_t *p4dp)
++{
++	set_p4d(p4dp, __p4d(0));
++}
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++
++#error FIXME
++
+ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
  {
--	unsigned long mmap_max_addr = TASK_SIZE;
-+	unsigned long max_addr = mmap_max_addr();
- 	struct mm_struct *mm = current->mm;
- 	int error = -EINVAL, i;
- 
-@@ -1743,7 +1743,7 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
- 	for (i = 0; i < ARRAY_SIZE(offsets); i++) {
- 		u64 val = *(u64 *)((char *)prctl_map + offsets[i]);
- 
--		if ((unsigned long)val >= mmap_max_addr ||
-+		if ((unsigned long)val >= max_addr ||
- 		    (unsigned long)val < mmap_min_addr)
- 			goto out;
- 	}
-@@ -1949,7 +1949,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 	if (opt == PR_SET_MM_AUXV)
- 		return prctl_set_auxv(mm, addr, arg4);
- 
--	if (addr >= TASK_SIZE || addr < mmap_min_addr)
-+	if (addr >= mmap_max_addr() || addr < mmap_min_addr)
- 		return -EINVAL;
- 
- 	error = -EINVAL;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index dc4291dcc99b..a3384f23359e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1966,7 +1966,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 	struct vm_area_struct *vma;
- 	struct vm_unmapped_area_info info;
- 
--	if (len > TASK_SIZE - mmap_min_addr)
-+	if (len > mmap_max_addr() - mmap_min_addr)
- 		return -ENOMEM;
- 
- 	if (flags & MAP_FIXED)
-@@ -1975,15 +1975,16 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
--		    (!vma || addr + len <= vma->vm_start))
-+		if (mmap_max_addr() - len >= addr &&
-+				addr >= mmap_min_addr &&
-+				(!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
- 
- 	info.flags = 0;
- 	info.length = len;
- 	info.low_limit = mm->mmap_base;
--	info.high_limit = TASK_SIZE;
-+	info.high_limit = mmap_max_addr();
- 	info.align_mask = 0;
- 	return vm_unmapped_area(&info);
+ 	pgdval_t val = native_pgd_val(pgd);
+@@ -571,10 +597,7 @@ static inline void pgd_clear(pgd_t *pgdp)
+ 	set_pgd(pgdp, __pgd(0));
  }
-@@ -2005,7 +2006,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	struct vm_unmapped_area_info info;
  
- 	/* requested length too big for entire address space */
--	if (len > TASK_SIZE - mmap_min_addr)
-+	if (len > mmap_max_addr() - mmap_min_addr)
- 		return -ENOMEM;
+-static inline void pud_clear(pud_t *pudp)
+-{
+-	set_pud(pudp, __pud(0));
+-}
++#endif  /* CONFIG_PGTABLE_LEVELS == 5 */
  
- 	if (flags & MAP_FIXED)
-@@ -2015,7 +2016,8 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-+		if (mmap_max_addr() - len >= addr &&
-+				addr >= mmap_min_addr &&
- 				(!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
-@@ -2037,7 +2039,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 		VM_BUG_ON(addr != -ENOMEM);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
--		info.high_limit = TASK_SIZE;
-+		info.high_limit = mmap_max_addr();
- 		addr = vm_unmapped_area(&info);
- 	}
+ #endif	/* CONFIG_PGTABLE_LEVELS == 4 */
  
-@@ -2057,7 +2059,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
- 		return error;
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index bb2de45a60f2..3982c200845f 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -277,12 +277,18 @@ struct pv_mmu_ops {
+ 	struct paravirt_callee_save pmd_val;
+ 	struct paravirt_callee_save make_pmd;
  
- 	/* Careful about overflows.. */
--	if (len > TASK_SIZE)
-+	if (len > mmap_max_addr())
- 		return -ENOMEM;
+-#if CONFIG_PGTABLE_LEVELS == 4
++#if CONFIG_PGTABLE_LEVELS >= 4
+ 	struct paravirt_callee_save pud_val;
+ 	struct paravirt_callee_save make_pud;
  
- 	get_area = current->mm->get_unmapped_area;
-@@ -2078,7 +2080,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
- 	if (IS_ERR_VALUE(addr))
- 		return addr;
+-	void (*set_pgd)(pgd_t *pudp, pgd_t pgdval);
+-#endif	/* CONFIG_PGTABLE_LEVELS == 4 */
++	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++#error FIXME
++#endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
++
++#endif	/* CONFIG_PGTABLE_LEVELS >= 4 */
++
+ #endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
  
--	if (addr > TASK_SIZE - len)
-+	if (addr > mmap_max_addr() - len)
- 		return -ENOMEM;
- 	if (offset_in_page(addr))
- 		return -EINVAL;
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 2b3bfcd51c75..a8b4fba3dce6 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -433,7 +433,8 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
- 	if (offset_in_page(new_addr))
- 		goto out;
+ 	struct pv_lazy_ops lazy_mode;
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index b6d425999f99..2f585054c63c 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -121,10 +121,10 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+ #endif	/* CONFIG_X86_PAE */
  
--	if (new_len > TASK_SIZE || new_addr > TASK_SIZE - new_len)
-+	if (new_len > mmap_max_addr() ||
-+			new_addr > mmap_max_addr() - new_len)
- 		goto out;
- 
- 	/* Ensure the old/new locations do not overlap */
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 24f9f5f39145..6043b8b82083 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -905,7 +905,7 @@ static int validate_mmap_request(struct file *file,
- 
- 	/* Careful about overflows.. */
- 	rlen = PAGE_ALIGN(len);
--	if (!rlen || rlen > TASK_SIZE)
-+	if (!rlen || rlen > mmap_max_addr())
- 		return -ENOMEM;
- 
- 	/* offset overflow? */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index bb53285a1d99..3c9be716083f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1976,7 +1976,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
- 	unsigned long inflated_addr;
- 	unsigned long inflated_offset;
- 
--	if (len > TASK_SIZE)
-+	if (len > mmap_max_addr())
- 		return -ENOMEM;
- 
- 	get_area = current->mm->get_unmapped_area;
-@@ -1988,7 +1988,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
- 		return addr;
- 	if (addr & ~PAGE_MASK)
- 		return addr;
--	if (addr > TASK_SIZE - len)
-+	if (addr > mmap_max_addr() - len)
- 		return addr;
- 
- 	if (shmem_huge == SHMEM_HUGE_DENY)
-@@ -2031,7 +2031,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
- 		return addr;
- 
- 	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
--	if (inflated_len > TASK_SIZE)
-+	if (inflated_len > mmap_max_addr())
- 		return addr;
- 	if (inflated_len < len)
- 		return addr;
-@@ -2047,7 +2047,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
- 	if (inflated_offset > offset)
- 		inflated_addr += HPAGE_PMD_SIZE;
- 
--	if (inflated_addr > TASK_SIZE - len)
-+	if (inflated_addr > mmap_max_addr() - len)
- 		return addr;
- 	return inflated_addr;
+ #if CONFIG_PGTABLE_LEVELS > 3
+-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
++static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
+ {
+ 	paravirt_alloc_pud(mm, __pa(pud) >> PAGE_SHIFT);
+-	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pud)));
++	set_p4d(p4d, __p4d(_PAGE_TABLE | __pa(pud)));
  }
+ 
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+@@ -150,6 +150,37 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+ 	___pud_free_tlb(tlb, pud);
+ }
+ 
++#if CONFIG_PGTABLE_LEVELS > 4
++static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
++{
++	paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
++	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
++}
++
++static inline p4d_t *p4d_alloc_one(struct mm_struct *mm, unsigned long addr)
++{
++	gfp_t gfp = GFP_KERNEL_ACCOUNT;
++
++	if (mm == &init_mm)
++		gfp &= ~__GFP_ACCOUNT;
++	return (p4d_t *)get_zeroed_page(gfp);
++}
++
++static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
++{
++	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
++	free_page((unsigned long)p4d);
++}
++
++extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);
++
++static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
++				  unsigned long address)
++{
++	___p4d_free_tlb(tlb, p4d);
++}
++
++#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
+ #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+ #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 54b6632723d5..398adab9a167 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -52,11 +52,19 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
+ 
+ #define set_pmd(pmdp, pmd)		native_set_pmd(pmdp, pmd)
+ 
+-#ifndef __PAGETABLE_PUD_FOLDED
++#ifndef __PAGETABLE_P4D_FOLDED
+ #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
+ #define pgd_clear(pgd)			native_pgd_clear(pgd)
+ #endif
+ 
++#ifndef set_p4d
++# define set_p4d(p4dp, p4d)		native_set_p4d(p4dp, p4d)
++#endif
++
++#ifndef __PAGETABLE_PUD_FOLDED
++#define p4d_clear(p4d)			native_p4d_clear(p4d)
++#endif
++
+ #ifndef set_pud
+ # define set_pud(pudp, pud)		native_set_pud(pudp, pud)
+ #endif
+@@ -73,6 +81,11 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
+ #define pgd_val(x)	native_pgd_val(x)
+ #define __pgd(x)	native_make_pgd(x)
+ 
++#ifndef __PAGETABLE_P4D_FOLDED
++#define p4d_val(x)	native_p4d_val(x)
++#define __p4d(x)	native_make_p4d(x)
++#endif
++
+ #ifndef __PAGETABLE_PUD_FOLDED
+ #define pud_val(x)	native_pud_val(x)
+ #define __pud(x)	native_make_pud(x)
+@@ -439,6 +452,7 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+ #define pte_pgprot(x) __pgprot(pte_flags(x))
+ #define pmd_pgprot(x) __pgprot(pmd_flags(x))
+ #define pud_pgprot(x) __pgprot(pud_flags(x))
++#define p4d_pgprot(x) __pgprot(p4d_flags(x))
+ 
+ #define canon_pgprot(p) __pgprot(massage_pgprot(p))
+ 
+@@ -671,12 +685,58 @@ static inline int pud_large(pud_t pud)
+ }
+ #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
++#if CONFIG_PGTABLE_LEVELS > 3
++static inline int p4d_none(p4d_t p4d)
++{
++	return (native_p4d_val(p4d) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
++}
++
++static inline int p4d_present(p4d_t p4d)
++{
++	return p4d_flags(p4d) & _PAGE_PRESENT;
++}
++
++static inline unsigned long p4d_page_vaddr(p4d_t p4d)
++{
++	return (unsigned long)__va(p4d_val(p4d) & p4d_pfn_mask(p4d));
++}
++
++/*
++ * Currently stuck as a macro due to indirect forward reference to
++ * linux/mmzone.h's __section_mem_map_addr() definition:
++ */
++#define p4d_page(p4d)		\
++	pfn_to_page((p4d_val(p4d) & p4d_pfn_mask(p4d)) >> PAGE_SHIFT)
++
++/*
++ * the pud page can be thought of an array like this: pud_t[PTRS_PER_PUD]
++ *
++ * this macro returns the index of the entry in the pud page which would
++ * control the given virtual address
++ */
++static inline unsigned long pud_index(unsigned long address)
++{
++	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
++}
++
++/* Find an entry in the third-level page table.. */
++static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
++{
++	return (pud_t *)p4d_page_vaddr(*p4d) + pud_index(address);
++}
++
++static inline int p4d_bad(p4d_t p4d)
++{
++	return (p4d_flags(p4d) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
++}
++#endif  /* CONFIG_PGTABLE_LEVELS > 3 */
++
+ static inline unsigned long p4d_index(unsigned long address)
+ {
+ 	return (address >> P4D_SHIFT) & (PTRS_PER_P4D - 1);
+ }
+ 
+-#if CONFIG_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 4
+ static inline int pgd_present(pgd_t pgd)
+ {
+ 	return pgd_flags(pgd) & _PAGE_PRESENT;
+@@ -694,14 +754,9 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+ #define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
+ 
+ /* to find an entry in a page-table-directory. */
+-static inline unsigned long pud_index(unsigned long address)
+-{
+-	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
+-}
+-
+-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
++static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
+ {
+-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
++	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
+ }
+ 
+ static inline int pgd_bad(pgd_t pgd)
+@@ -719,7 +774,7 @@ static inline int pgd_none(pgd_t pgd)
+ 	 */
+ 	return !native_pgd_val(pgd);
+ }
+-#endif	/* CONFIG_PGTABLE_LEVELS > 3 */
++#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
+ 
+ #endif	/* __ASSEMBLY__ */
+ 
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 62b775926045..dff070a6d27e 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -41,7 +41,7 @@ extern void paging_init(void);
+ 
+ struct mm_struct;
+ 
+-void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
++void set_pte_vaddr_pud(pud_t *pud, unsigned long vaddr, pte_t new_pte);
+ 
+ 
+ static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
+@@ -106,6 +106,16 @@ static inline void native_pud_clear(pud_t *pud)
+ 	native_set_pud(pud, native_make_pud(0));
+ }
+ 
++static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
++{
++	*p4dp = p4d;
++}
++
++static inline void native_p4d_clear(p4d_t *p4d)
++{
++	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
++}
++
+ static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+ 	*pgdp = pgd;
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index df08535f774a..4930afe9df0a 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -277,11 +277,11 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
+ #error FIXME
+ 
+ #else
+-#include <asm-generic/5level-fixup.h>
++#include <asm-generic/pgtable-nop4d.h>
+ 
+ static inline p4dval_t native_p4d_val(p4d_t p4d)
+ {
+-	return native_pgd_val(p4d);
++	return native_pgd_val(p4d.pgd);
+ }
+ #endif
+ 
+@@ -298,12 +298,11 @@ static inline pudval_t native_pud_val(pud_t pud)
+ 	return pud.pud;
+ }
+ #else
+-#define __ARCH_USE_5LEVEL_HACK
+ #include <asm-generic/pgtable-nopud.h>
+ 
+ static inline pudval_t native_pud_val(pud_t pud)
+ {
+-	return native_pgd_val(pud.pgd);
++	return native_pgd_val(pud.p4d.pgd);
+ }
+ #endif
+ 
+@@ -320,12 +319,11 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ 	return pmd.pmd;
+ }
+ #else
+-#define __ARCH_USE_5LEVEL_HACK
+ #include <asm-generic/pgtable-nopmd.h>
+ 
+ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ {
+-	return native_pgd_val(pmd.pud.pgd);
++	return native_pgd_val(pmd.pud.p4d.pgd);
+ }
+ #endif
+ 
+diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+index a1bfba0f7234..f8aedc112d5e 100644
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -429,12 +429,16 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
+ 	.pmd_val = PTE_IDENT,
+ 	.make_pmd = PTE_IDENT,
+ 
+-#if CONFIG_PGTABLE_LEVELS == 4
++#if CONFIG_PGTABLE_LEVELS >= 4
+ 	.pud_val = PTE_IDENT,
+ 	.make_pud = PTE_IDENT,
+ 
+-	.set_pgd = native_set_pgd,
+-#endif
++	.set_p4d = native_set_p4d,
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++#error FIXME
++#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
++#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
+ #endif /* CONFIG_PGTABLE_LEVELS >= 3 */
+ 
+ 	.pte_val = PTE_IDENT,
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index af85b686a7b0..72527ece6130 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -97,28 +97,38 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+ 	unsigned long address;
+ 
+ 	for (address = start; address <= end; address += PGDIR_SIZE) {
+-		const pgd_t *pgd_ref = pgd_offset_k(address);
++		pgd_t *pgd_ref = pgd_offset_k(address);
++		const p4d_t *p4d_ref;
+ 		struct page *page;
+ 
+-		if (pgd_none(*pgd_ref))
++		/*
++		 * With folded p4d, pgd_none() is always false, we need to
++		 * handle synchonization on p4d level.
++		 */
++		BUILD_BUG_ON(pgd_none(*pgd_ref));
++		p4d_ref = p4d_offset(pgd_ref, address);
++
++		if (p4d_none(*p4d_ref))
+ 			continue;
+ 
+ 		spin_lock(&pgd_lock);
+ 		list_for_each_entry(page, &pgd_list, lru) {
+ 			pgd_t *pgd;
++			p4d_t *p4d;
+ 			spinlock_t *pgt_lock;
+ 
+ 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
++			p4d = p4d_offset(pgd, address);
+ 			/* the pgt_lock only for Xen */
+ 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+ 			spin_lock(pgt_lock);
+ 
+-			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
+-				BUG_ON(pgd_page_vaddr(*pgd)
+-				       != pgd_page_vaddr(*pgd_ref));
++			if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
++				BUG_ON(p4d_page_vaddr(*p4d)
++				       != p4d_page_vaddr(*p4d_ref));
+ 
+-			if (pgd_none(*pgd))
+-				set_pgd(pgd, *pgd_ref);
++			if (p4d_none(*p4d))
++				set_p4d(p4d, *p4d_ref);
+ 
+ 			spin_unlock(pgt_lock);
+ 		}
+@@ -149,16 +159,28 @@ static __ref void *spp_getpage(void)
+ 	return ptr;
+ }
+ 
+-static pud_t *fill_pud(pgd_t *pgd, unsigned long vaddr)
++static p4d_t *fill_p4d(pgd_t *pgd, unsigned long vaddr)
+ {
+ 	if (pgd_none(*pgd)) {
+-		pud_t *pud = (pud_t *)spp_getpage();
+-		pgd_populate(&init_mm, pgd, pud);
+-		if (pud != pud_offset(pgd, 0))
++		p4d_t *p4d = (p4d_t *)spp_getpage();
++		pgd_populate(&init_mm, pgd, p4d);
++		if (p4d != p4d_offset(pgd, 0))
+ 			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
+-			       pud, pud_offset(pgd, 0));
++			       p4d, p4d_offset(pgd, 0));
+ 	}
+-	return pud_offset(pgd, vaddr);
++	return p4d_offset(pgd, vaddr);
++}
++
++static pud_t *fill_pud(p4d_t *p4d, unsigned long vaddr)
++{
++	if (p4d_none(*p4d)) {
++		pud_t *pud = (pud_t *)spp_getpage();
++		p4d_populate(&init_mm, p4d, pud);
++		if (pud != pud_offset(p4d, 0))
++			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
++			       pud, pud_offset(p4d, 0));
++	}
++	return pud_offset(p4d, vaddr);
+ }
+ 
+ static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
+@@ -167,7 +189,7 @@ static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
+ 		pmd_t *pmd = (pmd_t *) spp_getpage();
+ 		pud_populate(&init_mm, pud, pmd);
+ 		if (pmd != pmd_offset(pud, 0))
+-			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
++			printk(KERN_ERR "PAGETABLE BUG #02! %p <-> %p\n",
+ 			       pmd, pmd_offset(pud, 0));
+ 	}
+ 	return pmd_offset(pud, vaddr);
+@@ -179,18 +201,16 @@ static pte_t *fill_pte(pmd_t *pmd, unsigned long vaddr)
+ 		pte_t *pte = (pte_t *) spp_getpage();
+ 		pmd_populate_kernel(&init_mm, pmd, pte);
+ 		if (pte != pte_offset_kernel(pmd, 0))
+-			printk(KERN_ERR "PAGETABLE BUG #02!\n");
++			printk(KERN_ERR "PAGETABLE BUG #03!\n");
+ 	}
+ 	return pte_offset_kernel(pmd, vaddr);
+ }
+ 
+-void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
++void set_pte_vaddr_pud(pud_t *pud, unsigned long vaddr, pte_t new_pte)
+ {
+-	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+ 
+-	pud = pud_page + pud_index(vaddr);
+ 	pmd = fill_pmd(pud, vaddr);
+ 	pte = fill_pte(pmd, vaddr);
+ 
+@@ -206,7 +226,8 @@ void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
+ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+ {
+ 	pgd_t *pgd;
+-	pud_t *pud_page;
++	p4d_t *p4d;
++	pud_t *pud;
+ 
+ 	pr_debug("set_pte_vaddr %lx to %lx\n", vaddr, native_pte_val(pteval));
+ 
+@@ -216,17 +237,20 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
+ 			"PGD FIXMAP MISSING, it should be setup in head.S!\n");
+ 		return;
+ 	}
+-	pud_page = (pud_t*)pgd_page_vaddr(*pgd);
+-	set_pte_vaddr_pud(pud_page, vaddr, pteval);
++	p4d = fill_p4d(pgd, vaddr);
++	pud = fill_pud(p4d, vaddr);
++	set_pte_vaddr_pud(pud, vaddr, pteval);
+ }
+ 
+ pmd_t * __init populate_extra_pmd(unsigned long vaddr)
+ {
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 
+ 	pgd = pgd_offset_k(vaddr);
+-	pud = fill_pud(pgd, vaddr);
++	p4d = fill_p4d(pgd, vaddr);
++	pud = fill_pud(p4d, vaddr);
+ 	return fill_pmd(pud, vaddr);
+ }
+ 
+@@ -245,6 +269,7 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
+ 					enum page_cache_mode cache)
+ {
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pgprot_t prot;
+@@ -255,11 +280,17 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
+ 	for (; size; phys += PMD_SIZE, size -= PMD_SIZE) {
+ 		pgd = pgd_offset_k((unsigned long)__va(phys));
+ 		if (pgd_none(*pgd)) {
++			p4d = (p4d_t *) spp_getpage();
++			set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE |
++						_PAGE_USER));
++		}
++		p4d = p4d_offset(pgd, (unsigned long)__va(phys));
++		if (p4d_none(*p4d)) {
+ 			pud = (pud_t *) spp_getpage();
+-			set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE |
++			set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE |
+ 						_PAGE_USER));
+ 		}
+-		pud = pud_offset(pgd, (unsigned long)__va(phys));
++		pud = pud_offset(p4d, (unsigned long)__va(phys));
+ 		if (pud_none(*pud)) {
+ 			pmd = (pmd_t *) spp_getpage();
+ 			set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE |
+@@ -563,12 +594,15 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+ 
+ 	for (; vaddr < vaddr_end; vaddr = vaddr_next) {
+ 		pgd_t *pgd = pgd_offset_k(vaddr);
++		p4d_t *p4d;
+ 		pud_t *pud;
+ 
+ 		vaddr_next = (vaddr & PGDIR_MASK) + PGDIR_SIZE;
+ 
+-		if (pgd_val(*pgd)) {
+-			pud = (pud_t *)pgd_page_vaddr(*pgd);
++		BUILD_BUG_ON(pgd_none(*pgd));
++		p4d = p4d_offset(pgd, vaddr);
++		if (p4d_val(*p4d)) {
++			pud = (pud_t *)p4d_page_vaddr(*p4d);
+ 			paddr_last = phys_pud_init(pud, __pa(vaddr),
+ 						   __pa(vaddr_end),
+ 						   page_size_mask);
+@@ -580,7 +614,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+ 					   page_size_mask);
+ 
+ 		spin_lock(&init_mm.page_table_lock);
+-		pgd_populate(&init_mm, pgd, pud);
++		p4d_populate(&init_mm, p4d, pud);
+ 		spin_unlock(&init_mm.page_table_lock);
+ 		pgd_changed = true;
+ 	}
+@@ -726,6 +760,24 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
+ 	spin_unlock(&init_mm.page_table_lock);
+ }
+ 
++static void __meminit free_pud_table(pud_t *pud_start, p4d_t *p4d)
++{
++	pud_t *pud;
++	int i;
++
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		pud = pud_start + i;
++		if (!pud_none(*pud))
++			return;
++	}
++
++	/* free a pud talbe */
++	free_pagetable(p4d_page(*p4d), 0);
++	spin_lock(&init_mm.page_table_lock);
++	p4d_clear(p4d);
++	spin_unlock(&init_mm.page_table_lock);
++}
++
+ static void __meminit
+ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
+ 		 bool direct)
+@@ -908,6 +960,32 @@ remove_pud_table(pud_t *pud_start, unsigned long addr, unsigned long end,
+ 		update_page_count(PG_LEVEL_1G, -pages);
+ }
+ 
++static void __meminit
++remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
++		 bool direct)
++{
++	unsigned long next, pages = 0;
++	pud_t *pud_base;
++	p4d_t *p4d;
++
++	p4d = p4d_start + p4d_index(addr);
++	for (; addr < end; addr = next, p4d++) {
++		next = p4d_addr_end(addr, end);
++
++		if (!p4d_present(*p4d))
++			continue;
++
++		BUILD_BUG_ON(p4d_large(*p4d));
++
++		pud_base = (pud_t *)p4d_page_vaddr(*p4d);
++		remove_pud_table(pud_base, addr, next, direct);
++		free_pud_table(pud_base, p4d);
++	}
++
++	if (direct)
++		update_page_count(PG_LEVEL_512G, -pages);
++}
++
+ /* start and end are both virtual address. */
+ static void __meminit
+ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+@@ -915,7 +993,7 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 	unsigned long next;
+ 	unsigned long addr;
+ 	pgd_t *pgd;
+-	pud_t *pud;
++	p4d_t *p4d;
+ 
+ 	for (addr = start; addr < end; addr = next) {
+ 		next = pgd_addr_end(addr, end);
+@@ -924,8 +1002,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 		if (!pgd_present(*pgd))
+ 			continue;
+ 
+-		pud = (pud_t *)pgd_page_vaddr(*pgd);
+-		remove_pud_table(pud, addr, next, direct);
++		p4d = (p4d_t *)pgd_page_vaddr(*pgd);
++		remove_p4d_table(p4d, addr, next, direct);
+ 	}
+ 
+ 	flush_tlb_all();
+@@ -1095,6 +1173,7 @@ int kern_addr_valid(unsigned long addr)
+ {
+ 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+@@ -1106,7 +1185,11 @@ int kern_addr_valid(unsigned long addr)
+ 	if (pgd_none(*pgd))
+ 		return 0;
+ 
+-	pud = pud_offset(pgd, addr);
++	p4d = p4d_offset(pgd, addr);
++	if (p4d_none(*p4d))
++		return 0;
++
++	pud = pud_offset(p4d, addr);
+ 	if (pud_none(*pud))
+ 		return 0;
+ 
+@@ -1163,6 +1246,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+ 	unsigned long addr;
+ 	unsigned long next;
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 
+@@ -1173,7 +1257,11 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+ 		if (!pgd)
+ 			return -ENOMEM;
+ 
+-		pud = vmemmap_pud_populate(pgd, addr, node);
++		p4d = vmemmap_p4d_populate(pgd, addr, node);
++		if (!p4d)
++			return -ENOMEM;
++
++		pud = vmemmap_pud_populate(p4d, addr, node);
+ 		if (!pud)
+ 			return -ENOMEM;
+ 
+@@ -1241,6 +1329,7 @@ void register_page_bootmem_memmap(unsigned long section_nr,
+ 	unsigned long end = (unsigned long)(start_page + size);
+ 	unsigned long next;
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	unsigned int nr_pages;
+@@ -1256,7 +1345,14 @@ void register_page_bootmem_memmap(unsigned long section_nr,
+ 		}
+ 		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
+ 
+-		pud = pud_offset(pgd, addr);
++		p4d = p4d_offset(pgd, addr);
++		if (p4d_none(*p4d)) {
++			next = (addr + PAGE_SIZE) & PAGE_MASK;
++			continue;
++		}
++		get_page_bootmem(section_nr, p4d_page(*p4d), MIX_SECTION_INFO);
++
++		pud = pud_offset(p4d, addr);
+ 		if (pud_none(*pud)) {
+ 			next = (addr + PAGE_SIZE) & PAGE_MASK;
+ 			continue;
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 0493c17b8a51..2964de48e177 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -31,8 +31,16 @@ static int __init map_range(struct range *range)
+ static void __init clear_pgds(unsigned long start,
+ 			unsigned long end)
+ {
+-	for (; start < end; start += PGDIR_SIZE)
+-		pgd_clear(pgd_offset_k(start));
++	pgd_t *pgd;
++
++	for (; start < end; start += PGDIR_SIZE) {
++		pgd = pgd_offset_k(start);
++#ifdef __PAGETABLE_P4D_FOLDED
++		p4d_clear(p4d_offset(pgd, start));
++#else
++		pgd_clear(pgd);
++#endif
++	}
+ }
+ 
+ static void __init kasan_map_early_shadow(pgd_t *pgd)
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 5a287e523eab..8ec4baa84526 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -333,6 +333,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
+ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
+ 			     unsigned int *level)
+ {
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 
+@@ -341,7 +342,15 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
+ 	if (pgd_none(*pgd))
+ 		return NULL;
+ 
+-	pud = pud_offset(pgd, address);
++	p4d = p4d_offset(pgd, address);
++	if (p4d_none(*p4d))
++		return NULL;
++
++	*level = PG_LEVEL_512G;
++	if (p4d_large(*p4d) || !p4d_present(*p4d))
++		return (pte_t *)p4d;
++
++	pud = pud_offset(p4d, address);
+ 	if (pud_none(*pud))
+ 		return NULL;
+ 
+@@ -393,13 +402,18 @@ static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
+ pmd_t *lookup_pmd_address(unsigned long address)
+ {
+ 	pgd_t *pgd;
++	p4d_t *p4d;
+ 	pud_t *pud;
+ 
+ 	pgd = pgd_offset_k(address);
+ 	if (pgd_none(*pgd))
+ 		return NULL;
+ 
+-	pud = pud_offset(pgd, address);
++	p4d = p4d_offset(pgd, address);
++	if (p4d_none(*p4d) || p4d_large(*p4d) || !p4d_present(*p4d))
++		return NULL;
++
++	pud = pud_offset(p4d, address);
+ 	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
+ 		return NULL;
+ 
+@@ -464,11 +478,13 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+ 
+ 		list_for_each_entry(page, &pgd_list, lru) {
+ 			pgd_t *pgd;
++			p4d_t *p4d;
+ 			pud_t *pud;
+ 			pmd_t *pmd;
+ 
+ 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+-			pud = pud_offset(pgd, address);
++			p4d = p4d_offset(pgd, address);
++			pud = pud_offset(p4d, address);
+ 			pmd = pmd_offset(pud, address);
+ 			set_pte_atomic((pte_t *)pmd, pte);
+ 		}
+@@ -823,9 +839,9 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
+ 			pud_clear(pud);
+ }
+ 
+-static void unmap_pud_range(pgd_t *pgd, unsigned long start, unsigned long end)
++static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
+ {
+-	pud_t *pud = pud_offset(pgd, start);
++	pud_t *pud = pud_offset(p4d, start);
+ 
+ 	/*
+ 	 * Not on a GB page boundary?
+@@ -991,8 +1007,8 @@ static long populate_pmd(struct cpa_data *cpa,
+ 	return num_pages;
+ }
+ 
+-static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+-			 pgprot_t pgprot)
++static int populate_pud(struct cpa_data *cpa, unsigned long start, p4d_t *p4d,
++			pgprot_t pgprot)
+ {
+ 	pud_t *pud;
+ 	unsigned long end;
+@@ -1013,7 +1029,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 		cur_pages = (pre_end - start) >> PAGE_SHIFT;
+ 		cur_pages = min_t(int, (int)cpa->numpages, cur_pages);
+ 
+-		pud = pud_offset(pgd, start);
++		pud = pud_offset(p4d, start);
+ 
+ 		/*
+ 		 * Need a PMD page?
+@@ -1034,7 +1050,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 	if (cpa->numpages == cur_pages)
+ 		return cur_pages;
+ 
+-	pud = pud_offset(pgd, start);
++	pud = pud_offset(p4d, start);
+ 	pud_pgprot = pgprot_4k_2_large(pgprot);
+ 
+ 	/*
+@@ -1054,7 +1070,7 @@ static long populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
+ 	if (start < end) {
+ 		long tmp;
+ 
+-		pud = pud_offset(pgd, start);
++		pud = pud_offset(p4d, start);
+ 		if (pud_none(*pud))
+ 			if (alloc_pmd_page(pud))
+ 				return -1;
+@@ -1077,33 +1093,43 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
+ {
+ 	pgprot_t pgprot = __pgprot(_KERNPG_TABLE);
+ 	pud_t *pud = NULL;	/* shut up gcc */
++	p4d_t *p4d;
+ 	pgd_t *pgd_entry;
+ 	long ret;
+ 
+ 	pgd_entry = cpa->pgd + pgd_index(addr);
+ 
++	if (pgd_none(*pgd_entry)) {
++		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
++		if (!p4d)
++			return -1;
++
++		set_p4d(p4d, __p4d(__pa(p4d) | _KERNPG_TABLE));
++	}
++
+ 	/*
+-	 * Allocate a PUD page and hand it down for mapping.
++	 * Allocate a P4D page and hand it down for mapping.
+ 	 */
+-	if (pgd_none(*pgd_entry)) {
++	p4d = p4d_offset(pgd_entry, addr);
++	if (p4d_none(*p4d)) {
+ 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+ 		if (!pud)
+ 			return -1;
+ 
+-		set_pgd(pgd_entry, __pgd(__pa(pud) | _KERNPG_TABLE));
++		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
+ 	}
+ 
+ 	pgprot_val(pgprot) &= ~pgprot_val(cpa->mask_clr);
+ 	pgprot_val(pgprot) |=  pgprot_val(cpa->mask_set);
+ 
+-	ret = populate_pud(cpa, addr, pgd_entry, pgprot);
++	ret = populate_pud(cpa, addr, p4d, pgprot);
+ 	if (ret < 0) {
+ 		/*
+ 		 * Leave the PUD page in place in case some other CPU or thread
+ 		 * already found it, but remove any useless entries we just
+ 		 * added to it.
+ 		 */
+-		unmap_pud_range(pgd_entry, addr,
++		unmap_pud_range(p4d, addr,
+ 				addr + (cpa->numpages << PAGE_SHIFT));
+ 		return ret;
+ 	}
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 5aabfa3690dd..67bccd946071 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -135,7 +135,7 @@ static pgd_t *efi_pgd;
+ int __init efi_alloc_page_tables(void)
+ {
+ 	pgd_t *pgd;
+-	pud_t *pud;
++	p4d_t *p4d;
+ 	gfp_t gfp_mask;
+ 
+ 	if (efi_enabled(EFI_OLD_MEMMAP))
+@@ -148,13 +148,13 @@ int __init efi_alloc_page_tables(void)
+ 
+ 	pgd = efi_pgd + pgd_index(EFI_VA_END);
+ 
+-	pud = pud_alloc_one(NULL, 0);
+-	if (!pud) {
++	p4d = p4d_alloc_one(NULL, 0);
++	if (!p4d) {
+ 		free_page((unsigned long)efi_pgd);
+ 		return -ENOMEM;
+ 	}
+ 
+-	pgd_populate(NULL, pgd, pud);
++	pgd_populate(NULL, pgd, p4d);
+ 
+ 	return 0;
+ }
+diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+index c7b15f3e2cf3..2aecee939095 100644
+--- a/arch/x86/xen/Kconfig
++++ b/arch/x86/xen/Kconfig
+@@ -4,6 +4,7 @@
+ 
+ config XEN
+ 	bool "Xen guest support"
++	depends on BROKEN
+ 	depends on PARAVIRT
+ 	select PARAVIRT_CLOCK
+ 	select XEN_HAVE_PVMMU
 -- 
 2.11.0
 
