@@ -1,262 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EDAF6B0038
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 06:20:02 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 5so803446995pgi.2
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:20:02 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id t4si26858621pgb.161.2016.12.27.03.20.00
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D0C646B025E
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 06:23:20 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id dh1so21960322wjb.0
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:23:20 -0800 (PST)
+Received: from celine.tisys.org (celine.tisys.org. [85.25.117.166])
+        by mx.google.com with ESMTPS id dh9si49620884wjc.125.2016.12.27.03.23.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Dec 2016 03:20:01 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id g1so12176260pgn.0
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:20:00 -0800 (PST)
-Date: Tue, 27 Dec 2016 21:19:46 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting
- for a page bit
-Message-ID: <20161227211946.3770b6ce@roar.ozlabs.ibm.com>
-In-Reply-To: <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
-References: <20161225030030.23219-1-npiggin@gmail.com>
-	<20161225030030.23219-3-npiggin@gmail.com>
-	<CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
-	<20161226111654.76ab0957@roar.ozlabs.ibm.com>
-	<CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
+        Tue, 27 Dec 2016 03:23:19 -0800 (PST)
+Date: Tue, 27 Dec 2016 12:23:13 +0100
+From: Nils Holland <nholland@tisys.org>
+Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
+Message-ID: <20161227112313.GA23101@boerne.fritz.box>
+References: <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
+ <20161223105157.GB23109@dhcp22.suse.cz>
+ <20161223121851.GA27413@ppc-nas.fritz.box>
+ <20161223125728.GE23109@dhcp22.suse.cz>
+ <20161223144738.GB23117@dhcp22.suse.cz>
+ <20161223222559.GA5568@teela.multi.box>
+ <20161226124839.GB20715@dhcp22.suse.cz>
+ <20161226185701.GA17030@boerne.fritz.box>
+ <20161227080837.GA1308@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161227080837.GA1308@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Mon, 26 Dec 2016 11:07:52 -0800
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Sun, Dec 25, 2016 at 5:16 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> >
-> > I did actually play around with that. I could not get my skylake
-> > to forward the result from a lock op to a subsequent load (the
-> > latency was the same whether you use lock ; andb or lock ; andl
-> > (32 cycles for my test loop) whereas with non-atomic versions I
-> > was getting about 15 cycles for andb vs 2 for andl.  
+On Tue, Dec 27, 2016 at 09:08:38AM +0100, Michal Hocko wrote:
+> On Mon 26-12-16 19:57:03, Nils Holland wrote:
+> > On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
+> > > On Fri 23-12-16 23:26:00, Nils Holland wrote:
+> > > > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+> > > > > 
+> > > > > Nils, even though this is still highly experimental, could you give it a
+> > > > > try please?
+> > > > 
+> > > > Yes, no problem! So I kept the very first patch you sent but had to
+> > > > revert the latest version of the debugging patch (the one in
+> > > > which you added the "mm_vmscan_inactive_list_is_low" event) because
+> > > > otherwise the patch you just sent wouldn't apply. Then I rebooted with
+> > > > memory cgroups enabled again, and the first thing that strikes the eye
+> > > > is that I get this during boot:
+> > > > 
+> > > > [    1.568174] ------------[ cut here ]------------
+> > > > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
+> > > > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
+> > > 
+> > > Ohh, I can see what is wrong! a) there is a bug in the accounting in
+> > > my patch (I double account) and b) the detection for the empty list
+> > > cannot work after my change because per node zone will not match per
+> > > zone statistics. The updated patch is below. So I hope my brain already
+> > > works after it's been mostly off last few days...
+> > 
+> > I tried the updated patch, and I can confirm that the warning during
+> > boot is gone. Also, I've tried my ordinary procedure to reproduce my
+> > testcase, and I can say that a kernel with this new patch also works
+> > fine and doesn't produce OOMs or similar issues.
+> > 
+> > I had the previous version of the patch in use on a machine non-stop
+> > for the last few days during normal day-to-day workloads and didn't
+> > notice any issues. Now I'll keep a machine running during the next few
+> > days with this patch, and in case I notice something that doesn't look
+> > normal, I'll of course report back!
 > 
-> Yes, interesting. It does look like the locked ops don't end up having
-> the partial write issue and the size of the op doesn't matter.
-> 
-> But it's definitely the case that the write buffer hit immediately
-> after the atomic read-modify-write ends up slowing things down, so the
-> profile oddity isn't just a profile artifact. I wrote a stupid test
-> program that did an atomic increment, and then read either the same
-> value, or an adjacent value in memory (so same instruvtion sequence,
-> the difference just being what memory location the read accessed).
-> 
-> Reading the same value after the atomic update was *much* more
-> expensive than reading the adjacent value, so it causes some kind of
-> pipeline hickup (by about 50% of the cost of the atomic op itself:
-> iow, the "atomic-op followed by read same location" was over 1.5x
-> slower than "atomic op followed by read of another location").
-> 
-> So the atomic ops don't serialize things entirely, but they *hate*
-> having the value read (regardless of size) right after being updated,
-> because it causes some kind of nasty pipeline issue.
+> Thanks for your testing! Can I add your
+> Tested-by: Nils Holland <nholland@tisys.org>
 
-Sure, I would expect independent operations to be able to run ahead
-of the atomic op, and this might point to speculation of consistency
-for loads -- an independent younger load can be executed speculatively
-before the atomic op and flushed if the cacheline was lost before the
-load is completed in order.
+Yes, I think so! The patch has now been running for 16 hours on my two
+machines, and that's an uptime that was hard to achieve since 4.8 for
+me. ;-) So my tests clearly suggest that the patch is good! :-)
 
-I bet forwarding from the store queue in case of a locked op is more
-difficult. I guess it could be done in the same way, but the load hits
-the store queue ahead of the cache then it's more work to then have
-the load go to the cache so it can find the line to speculate on while
-the flush is in progress. Common case of load hit non-atomic store
-would not require this case so it may just not be worthwhile.
-
-Anyway that's speculation (ha). What matters is we know the load is
-nasty.
-
-> 
-> A cmpxchg does seem to avoid the issue.
-
-Yes, I wonder what to do. POWER CPUs have very similar issues and we
-have noticed unlock_page and several other cases where atomic ops cause
-load stalls. With its ll/sc, POWER would prefer not to do a cmpxchg.
-
-Attached is part of a patch I've been mulling over for a while. I
-expect you to hate it, and it does not solve this problem for x86,
-but I like being able to propagate values from atomic ops back
-to the compiler. Of course, volatile then can't be used either which
-is another spanner...
-
-Short term option is to just have a specific primitive for
-clear-unlock-and-test, which we kind of need anyway here to avoid the
-memory barrier in an arch-independent way.
-
-Thanks,
-Nick
-
----
-
-After removing the smp_mb__after_atomic and volatile from test_bit,
-applying this directive to atomic primitives results in test_bit able
-to recognise if the value is in a register. unlock_page improves:
-
-     lwsync
-     ldarx   r10,0,r3
-     andc    r10,r10,r9
-     stdcx.  r10,0,r3
-     bne-    99c <unlock_page+0x5c>
--    ld      r9,0(r3)
--    andi.   r10,r9,2
-+    andi.   r10,r10,2
-     beqlr
-     b       97c <unlock_page+0x3c>
----
- arch/powerpc/include/asm/bitops.h       |  2 ++
- arch/powerpc/include/asm/local.h        | 12 ++++++++++++
- include/asm-generic/bitops/non-atomic.h |  2 +-
- include/linux/compiler.h                | 19 +++++++++++++++++++
- mm/filemap.c                            |  2 +-
- 5 files changed, 35 insertions(+), 2 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/bitops.h b/arch/powerpc/include/asm/bitops.h
-index 59abc620f8e8..0c3e0c384b7d 100644
---- a/arch/powerpc/include/asm/bitops.h
-+++ b/arch/powerpc/include/asm/bitops.h
-@@ -70,6 +70,7 @@ static __inline__ void fn(unsigned long mask,	\
- 	: "=&r" (old), "+m" (*p)		\
- 	: "r" (mask), "r" (p)			\
- 	: "cc", "memory");			\
-+	compiler_assign_ptr_val(p, old);	\
- }
- 
- DEFINE_BITOP(set_bits, or, "")
-@@ -117,6 +118,7 @@ static __inline__ unsigned long fn(			\
- 	: "=&r" (old), "=&r" (t)			\
- 	: "r" (mask), "r" (p)				\
- 	: "cc", "memory");				\
-+	compiler_assign_ptr_val(p, old);		\
- 	return (old & mask);				\
- }
- 
-diff --git a/arch/powerpc/include/asm/local.h b/arch/powerpc/include/asm/local.h
-index b8da91363864..be965e6c428a 100644
---- a/arch/powerpc/include/asm/local.h
-+++ b/arch/powerpc/include/asm/local.h
-@@ -33,6 +33,8 @@ static __inline__ long local_add_return(long a, local_t *l)
- 	: "r" (a), "r" (&(l->a.counter))
- 	: "cc", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t;
- }
- 
-@@ -52,6 +54,8 @@ static __inline__ long local_sub_return(long a, local_t *l)
- 	: "r" (a), "r" (&(l->a.counter))
- 	: "cc", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t;
- }
- 
-@@ -69,6 +73,8 @@ static __inline__ long local_inc_return(local_t *l)
- 	: "r" (&(l->a.counter))
- 	: "cc", "xer", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t;
- }
- 
-@@ -96,6 +102,8 @@ static __inline__ long local_dec_return(local_t *l)
- 	: "r" (&(l->a.counter))
- 	: "cc", "xer", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t;
- }
- 
-@@ -130,6 +138,8 @@ static __inline__ int local_add_unless(local_t *l, long a, long u)
- 	: "r" (&(l->a.counter)), "r" (a), "r" (u)
- 	: "cc", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t != u;
- }
- 
-@@ -159,6 +169,8 @@ static __inline__ long local_dec_if_positive(local_t *l)
- 	: "r" (&(l->a.counter))
- 	: "cc", "memory");
- 
-+	compiler_assign_ptr_val(&(l->a.counter), t);
-+
- 	return t;
- }
- 
-diff --git a/include/asm-generic/bitops/non-atomic.h b/include/asm-generic/bitops/non-atomic.h
-index 697cc2b7e0f0..e8b388b98309 100644
---- a/include/asm-generic/bitops/non-atomic.h
-+++ b/include/asm-generic/bitops/non-atomic.h
-@@ -100,7 +100,7 @@ static inline int __test_and_change_bit(int nr,
-  * @nr: bit number to test
-  * @addr: Address to start counting from
-  */
--static inline int test_bit(int nr, const volatile unsigned long *addr)
-+static inline int test_bit(int nr, const unsigned long *addr)
- {
- 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
- }
-diff --git a/include/linux/compiler.h b/include/linux/compiler.h
-index cf0fa5d86059..b31353934c6a 100644
---- a/include/linux/compiler.h
-+++ b/include/linux/compiler.h
-@@ -205,6 +205,25 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
- 	= (unsigned long)&sym;
- #endif
- 
-+/*
-+ * Inform the compiler when the value of a pointer is known.
-+ * This can be useful when the caller knows the value but the compiler does
-+ * not. Typically, when assembly is used.
-+ *
-+ * val should be a variable that's likely to be in a register or an immediate,
-+ * or a constant.
-+ *
-+ * This should be used carefully, verifying improvements in generated code.
-+ * This is not a hint. It will cause bugs if it is used incorrectly.
-+ */
-+#ifndef compiler_assign_ptr_val
-+# define compiler_assign_ptr_val(ptr, val)			\
-+do {								\
-+	if (*(ptr) != (val))					\
-+		unreachable();					\
-+} while (0)
-+#endif
-+
- #ifndef RELOC_HIDE
- # define RELOC_HIDE(ptr, off)					\
-   ({ unsigned long __ptr;					\
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 82f26cde830c..0e7d9008e95f 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -929,7 +929,7 @@ void unlock_page(struct page *page)
- 	page = compound_head(page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	clear_bit_unlock(PG_locked, &page->flags);
--	smp_mb__after_atomic();
-+	// smp_mb__after_atomic();
- 	wake_up_page(page, PG_locked);
- }
- EXPORT_SYMBOL(unlock_page);
--- 
-2.11.0
+Greetings
+Nils
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
