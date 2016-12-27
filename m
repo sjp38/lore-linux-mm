@@ -1,91 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1136B0253
-	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 21:24:09 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id dh1so20057499wjb.0
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 18:24:09 -0800 (PST)
-Received: from mail-wj0-x242.google.com (mail-wj0-x242.google.com. [2a00:1450:400c:c01::242])
-        by mx.google.com with ESMTPS id x5si44370502wmx.163.2016.12.26.18.24.07
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 53AA36B0289
+	for <linux-mm@kvack.org>; Mon, 26 Dec 2016 21:32:12 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so52467415wmw.0
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 18:32:12 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id kn2si48132190wjc.158.2016.12.26.18.32.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Dec 2016 18:24:08 -0800 (PST)
-Received: by mail-wj0-x242.google.com with SMTP id qs7so12319747wjc.1
-        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 18:24:07 -0800 (PST)
-Date: Tue, 27 Dec 2016 05:24:05 +0300
+        Mon, 26 Dec 2016 18:32:11 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id u144so55249235wmu.0
+        for <linux-mm@kvack.org>; Mon, 26 Dec 2016 18:32:11 -0800 (PST)
+Date: Tue, 27 Dec 2016 05:32:08 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Message-ID: <20161227022405.GA8780@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+Message-ID: <20161227023208.GB8780@node.shutemov.name>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
+ <20161222100009.GA6055@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+ <20161223085150.GA23109@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+ <20161223111817.GC23109@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com>
+ <20161226090211.GA11455@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612261639550.99744@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1612261639550.99744@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Dec 26, 2016 at 06:06:01PM -0800, Andy Lutomirski wrote:
-> On Mon, Dec 26, 2016 at 5:54 PM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > This patch introduces new rlimit resource to manage maximum virtual
-> > address available to userspace to map.
-> >
-> > On x86, 5-level paging enables 56-bit userspace virtual address space.
-> > Not all user space is ready to handle wide addresses. It's known that
-> > at least some JIT compilers use high bit in pointers to encode their
-> > information. It collides with valid pointers with 5-level paging and
-> > leads to crashes.
-> >
-> > The patch aims to address this compatibility issue.
-> >
-> > MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
-> > address available to map by userspace.
-> >
-> > The default hard limit will be RLIM_INFINITY, which basically means that
-> > TASK_SIZE limits available address space.
-> >
-> > The soft limit will also be RLIM_INFINITY everywhere, but the machine
-> > with 5-level paging enabled. In this case, soft limit would be
-> > (1UL << 47) - PAGE_SIZE. Ita??s current x86-64 TASK_SIZE_MAX with 4-level
-> > paging which known to be safe
-> >
-> > New rlimit resource would follow usual semantics with regards to
-> > inheritance: preserved on fork(2) and exec(2). This has potential to
-> > break application if limits set too wide or too narrow, but this is not
-> > uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
-> >
-> > As with other resources you can set the limit lower than current usage.
-> > It would affect only future virtual address space allocations.
-> >
-> > Use-cases for new rlimit:
-> >
-> >   - Bumping the soft limit to RLIM_INFINITY, allows current process all
-> >     its children to use addresses above 47-bits.
-> >
-> >   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
-> >     exec(2) allows the child to use addresses above 47-bits.
-> >
-> >   - Lowering the hard limit to 47-bits would prevent current process all
-> >     its children to use addresses above 47-bits, unless a process has
-> >     CAP_SYS_RESOURCES.
-> >
-> >   - Ita??s also can be handy to lower hard or soft limit to arbitrary
-> >     address. User-mode emulation in QEMU may lower the limit to 32-bit
-> >     to emulate 32-bit machine on 64-bit host.
+On Mon, Dec 26, 2016 at 04:53:39PM -0800, David Rientjes wrote:
+> > If there is really a need for an immediate solution^Wworkaround then I
+> > think that tweaking the madvise option should be reasonably safe. Admins
+> > are really prepared for stalls because they are explicitly opting in for
+> > madvise behavior and they will get a background compaction on top. This
+> > is a new behavior but I do not see how it would be harmful. If an
+> > excessive compaction is a problem then THP can be reduced to madvise
+> > only vmas.
+> > 
+> > But, I really _do_ care about having a stall free option which is not a
+> > complete disable of the background compaction for THP.
+> > 
 > 
-> I tend to think that this should be a personality or an ELF flag, not
-> an rlimit.
+> This is completely wrong.  Before the "defer" option has been introduced, 
+> we had "madvise" and should maintain its behavior as much as possible so 
+> there are no surprises.  We don't change behavior for a tunable out from 
+> under existing users because you think you know better.  With the new 
+> "defer" option, we can make this a stronger variant of "madvise", which 
+> Kirill acked, so that existing users of MADV_HUGEPAGE have no change in 
+> behavior and we can configure whether we do direct or background 
+> compaction for everybody else.  If people don't want background 
+> compaction, they can set defrag to "madvise".  If they want it, they can 
+> set it to "defer".  It's very simple.
+> 
+> That said, I simply don't have the time to continue in circular arguments 
+> and would respectfully ask Andrew to apply this acked patch.
 
-My plan was to implement ELF flag on top. Basically, ELF flag would mean
-that we bump soft limit to hard limit on exec.
++1.
 
-> That way setuid works right.
-
-Um.. I probably miss background here.
+I don't see a point to make "defer" weaker than "madvise". MADV_HUGEPAGE
+is a way for an application to say that it's okay with paying price for
+huge page allocation.
 
 -- 
  Kirill A. Shutemov
