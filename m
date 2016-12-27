@@ -1,80 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 51DF96B025E
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 04:50:47 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id 41so245031010qtn.7
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 01:50:47 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id 5si27494802qtn.280.2016.12.27.01.50.46
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6EBC6B025E
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 05:05:40 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id j10so84509616wjb.3
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 02:05:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z3si49333278wjt.212.2016.12.27.02.05.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Dec 2016 01:50:46 -0800 (PST)
-Subject: Re: [PATCH v2] slub: do not merge cache if slub_debug contains a
- never-merge flag
-References: <20161222235959.GC6871@lp-laptop-d>
- <alpine.DEB.2.20.1612231228340.21172@east.gentwo.org>
- <20161223190023.GA9644@lp-laptop-d>
- <alpine.DEB.2.20.1612241708280.9536@east.gentwo.org>
- <20161226190855.GB2600@lp-laptop-d>
-From: Pekka Enberg <penberg@iki.fi>
-Message-ID: <2fbcdb6a-f3b6-fc33-653a-6e7162b8513f@iki.fi>
-Date: Tue, 27 Dec 2016 11:50:43 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 27 Dec 2016 02:05:39 -0800 (PST)
+Date: Tue, 27 Dec 2016 11:05:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] lib: bitmap: introduce
+ bitmap_find_next_zero_area_and_size
+Message-ID: <20161227100535.GB7662@dhcp22.suse.cz>
+References: <CGME20161226041809epcas5p1981244de55764c10f1a80d80346f3664@epcas5p1.samsung.com>
+ <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <20161226190855.GB2600@lp-laptop-d>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Grygorii Maistrenko <grygoriimkd@gmail.com>, Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jaewon Kim <jaewon31.kim@samsung.com>
+Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, gregory.0xf0@gmail.com, laurent.pinchart@ideasonboard.com, akinobu.mita@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-On 12/26/2016 09:08 PM, Grygorii Maistrenko wrote:
-> In case CONFIG_SLUB_DEBUG_ON=n, find_mergeable() gets debug features
-> from commandline but never checks if there are features from the
-> SLAB_NEVER_MERGE set.
-> As a result selected by slub_debug caches are always mergeable if they
-> have been created without a custom constructor set or without one of the
-> SLAB_* debug features on.
->
-> This moves the SLAB_NEVER_MERGE check below the flags update from
-> commandline to make sure it won't merge the slab cache if one of the
-> debug features is on.
->
-> Signed-off-by: Grygorii Maistrenko <grygoriimkd@gmail.com>
+On Mon 26-12-16 13:18:11, Jaewon Kim wrote:
+> There was no bitmap API which returns both next zero index and size of zeros
+> from that index.
+> 
+> This is helpful to look fragmentation. This is an test code to look size of zeros.
+> Test result is '10+9+994=>1013 found of total: 1024'
+> 
+> unsigned long search_idx, found_idx, nr_found_tot;
+> unsigned long bitmap_max;
+> unsigned int nr_found;
+> unsigned long *bitmap;
+> 
+> search_idx = nr_found_tot = 0;
+> bitmap_max = 1024;
+> bitmap = kzalloc(BITS_TO_LONGS(bitmap_max) * sizeof(long),
+> 		 GFP_KERNEL);
+> 
+> /* test bitmap_set offset, count */
+> bitmap_set(bitmap, 10, 1);
+> bitmap_set(bitmap, 20, 10);
+> 
+> for (;;) {
+> 	found_idx = bitmap_find_next_zero_area_and_size(bitmap,
+> 				bitmap_max, search_idx, &nr_found);
+> 	if (found_idx >= bitmap_max)
+> 		break;
+> 	if (nr_found_tot == 0)
+> 		printk("%u", nr_found);
+> 	else
+> 		printk("+%u", nr_found);
+> 	nr_found_tot += nr_found;
+> 	search_idx = found_idx + nr_found;
+> }
+> printk("=>%lu found of total: %lu\n", nr_found_tot, bitmap_max);
 
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
+Who is going to use this function? I do not see any caller introduced by
+this patch.
 
+> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
 > ---
->   mm/slab_common.c | 5 ++++-
->   1 file changed, 4 insertions(+), 1 deletion(-)
->
-> New in v2:
-> 	- (flags & SLAB_NEVER_MERGE) check is moved down below the flags update
-> 	  as suggested by Christoph Lameter
->
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 329b03843863..a85a01439490 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -255,7 +255,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
->   {
->   	struct kmem_cache *s;
->   
-> -	if (slab_nomerge || (flags & SLAB_NEVER_MERGE))
-> +	if (slab_nomerge)
->   		return NULL;
->   
->   	if (ctor)
-> @@ -266,6 +266,9 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
->   	size = ALIGN(size, align);
->   	flags = kmem_cache_flags(size, flags, name, NULL);
->   
-> +	if (flags & SLAB_NEVER_MERGE)
-> +		return NULL;
+>  include/linux/bitmap.h |  6 ++++++
+>  lib/bitmap.c           | 25 +++++++++++++++++++++++++
+>  2 files changed, 31 insertions(+)
+> 
+> diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
+> index 3b77588..b724a6c 100644
+> --- a/include/linux/bitmap.h
+> +++ b/include/linux/bitmap.h
+> @@ -46,6 +46,7 @@
+>   * bitmap_clear(dst, pos, nbits)		Clear specified bit area
+>   * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
+>   * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
+> + * bitmap_find_next_zero_area_and_size(buf, len, pos, n, mask)	Find bit free area and its size
+>   * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
+>   * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
+>   * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
+> @@ -123,6 +124,11 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+>  						    unsigned long align_mask,
+>  						    unsigned long align_offset);
+>  
+> +extern unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
+> +							 unsigned long size,
+> +							 unsigned long start,
+> +							 unsigned int *nr);
 > +
->   	list_for_each_entry_reverse(s, &slab_caches, list) {
->   		if (slab_unmergeable(s))
->   			continue;
+>  /**
+>   * bitmap_find_next_zero_area - find a contiguous aligned zero area
+>   * @map: The address to base the search on
+> diff --git a/lib/bitmap.c b/lib/bitmap.c
+> index 0b66f0e..d02817c 100644
+> --- a/lib/bitmap.c
+> +++ b/lib/bitmap.c
+> @@ -332,6 +332,31 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
+>  }
+>  EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
+>  
+> +/**
+> + * bitmap_find_next_zero_area_and_size - find a contiguous aligned zero area
+> + * @map: The address to base the search on
+> + * @size: The bitmap size in bits
+> + * @start: The bitnumber to start searching at
+> + * @nr: The number of zeroed bits we've found
+> + */
+> +unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
+> +					     unsigned long size,
+> +					     unsigned long start,
+> +					     unsigned int *nr)
+> +{
+> +	unsigned long index, i;
+> +
+> +	*nr = 0;
+> +	index = find_next_zero_bit(map, size, start);
+> +
+> +	if (index >= size)
+> +		return index;
+> +	i = find_next_bit(map, size, index);
+> +	*nr = i - index;
+> +	return index;
+> +}
+> +EXPORT_SYMBOL(bitmap_find_next_zero_area_and_size);
+> +
+>  /*
+>   * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
+>   * second version by Paul Jackson, third by Joe Korty.
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
