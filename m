@@ -1,120 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C47436B0038
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 05:57:19 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so22457814wmi.6
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 02:57:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y4si49505475wjc.180.2016.12.27.02.57.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EDAF6B0038
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 06:20:02 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 5so803446995pgi.2
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:20:02 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id t4si26858621pgb.161.2016.12.27.03.20.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Dec 2016 02:57:18 -0800 (PST)
-Date: Tue, 27 Dec 2016 11:57:15 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20161227105715.GE1308@dhcp22.suse.cz>
-References: <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
- <201612222233.CBC56295.LFOtMOVQSJOFHF@I-love.SAKURA.ne.jp>
- <20161222192406.GB19898@dhcp22.suse.cz>
- <201612241525.EDB52697.OQSFOLJFFOHVMt@I-love.SAKURA.ne.jp>
- <20161226114935.GB16042@dhcp22.suse.cz>
- <201612271939.FFF56780.tOFQOHJSVLMOFF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Dec 2016 03:20:01 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id g1so12176260pgn.0
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:20:00 -0800 (PST)
+Date: Tue, 27 Dec 2016 21:19:46 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting
+ for a page bit
+Message-ID: <20161227211946.3770b6ce@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
+References: <20161225030030.23219-1-npiggin@gmail.com>
+	<20161225030030.23219-3-npiggin@gmail.com>
+	<CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
+	<20161226111654.76ab0957@roar.ozlabs.ibm.com>
+	<CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201612271939.FFF56780.tOFQOHJSVLMOFF@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, pmladek@suse.cz
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue 27-12-16 19:39:28, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sat 24-12-16 15:25:43, Tetsuo Handa wrote:
-[...]
-> > > Thus, I'm proposing to save CPU time if waiting for the OOM killer/reaper
-> > > when direct reclaim did not help.
-> > 
-> > Which will just move problem somewhere else I am afraid. Now you will
-> > have hundreds of tasks bouncing on the global mutex. That never turned
-> > out to be a good thing in the past and I am worried that it will just
-> > bite us from a different side. What is worse it might hit us in cases
-> > which do actually happen in the real life.
-> > 
-> > I am not saying that the current code works perfectly when we are
-> > hitting the direct reclaim close to the OOM but improving that requires
-> > much more than slapping a global lock there.
+On Mon, 26 Dec 2016 11:07:52 -0800
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Sun, Dec 25, 2016 at 5:16 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
+> >
+> > I did actually play around with that. I could not get my skylake
+> > to forward the result from a lock op to a subsequent load (the
+> > latency was the same whether you use lock ; andb or lock ; andl
+> > (32 cycles for my test loop) whereas with non-atomic versions I
+> > was getting about 15 cycles for andb vs 2 for andl.  
 > 
-> So, we finally agreed that there are problems when we are hitting the direct
-> reclaim close to the OOM. Good.
-
-There has never been a disagreement here. The point we seem to be
-disagreeing is how much those issues you are seeing matter. I do not
-consider them top priority because they are not happening in real life
-enough.
- 
-> > > > > Then, you call such latency as scheduler's problem?
-> > > > > mutex_lock_killable(&oom_lock) change helps coping with whatever delays
-> > > > > OOM killer/reaper might encounter.
-> > > > 
-> > > > It helps _your_ particular insane workload. I believe you can construct
-> > > > many others which which would cause a similar problem and the above
-> > > > suggestion wouldn't help a bit. Until I can see this is easily
-> > > > triggerable on a reasonably configured system then I am not convinced
-> > > > we should add more non trivial changes to the oom killer path.
-> > > 
-> > > I'm not using root privileges nor realtime priority nor CONFIG_PREEMPT=y.
-> > > Why you don't care about the worst situation / corner cases?
-> > 
-> > I do care about them! I just do not want to put random hacks which might
-> > seem to work on this _particular_ workload while it brings risks for
-> > others. Look, those corner cases you are simulating are _interesting_ to
-> > see how robust we are but they are no way close to what really happens
-> > in the real life out there - we call those situations DoS from any
-> > practical POV. Admins usually do everything to prevent from them by
-> > configuring their systems and limiting untrusted users as much as
-> > possible.
+> Yes, interesting. It does look like the locked ops don't end up having
+> the partial write issue and the size of the op doesn't matter.
 > 
-> I wonder why you introduce "untrusted users" concept. From my experience,
-> there was no "untrusted users". All users who use their systems are trusted
-> and innocent, but they _by chance_ hit problems when close to (or already)
-> the OOM.
-
-my experience is that innocent users are no way close to what you are
-simulating. And we tend to handle most OOMs just fine in my experience.
- 
-[...]
-
-> > Just try to remember how you were pushing really hard for oom timeouts
-> > one year back because the OOM killer was suboptimal and could lockup. It
-> > took some redesign and many changes to fix that. The result is
-> > imho a better, more predictable and robust code which wouldn't be the
-> > case if we just went your way to have a fix quickly...
+> But it's definitely the case that the write buffer hit immediately
+> after the atomic read-modify-write ends up slowing things down, so the
+> profile oddity isn't just a profile artifact. I wrote a stupid test
+> program that did an atomic increment, and then read either the same
+> value, or an adjacent value in memory (so same instruvtion sequence,
+> the difference just being what memory location the read accessed).
 > 
-> I agree that the result is good for users who can update kernels. But that
-> change was too large to backport. Any approach which did not in time for
-> customers' deadline of deciding their kernels to use for 10 years is
-> useless for them. Lack of catch-all reporting/triggering mechanism is
-> unhappy for both customers and troubleshooting staffs at support centers.
+> Reading the same value after the atomic update was *much* more
+> expensive than reading the adjacent value, so it causes some kind of
+> pipeline hickup (by about 50% of the cost of the atomic op itself:
+> iow, the "atomic-op followed by read same location" was over 1.5x
+> slower than "atomic op followed by read of another location").
+> 
+> So the atomic ops don't serialize things entirely, but they *hate*
+> having the value read (regardless of size) right after being updated,
+> because it causes some kind of nasty pipeline issue.
 
-Then implement whatever you find appropriate on those old kernels and
-deal with the follow up reports. This is the fair deal you have cope
-with when using and supporting old kernels.
+Sure, I would expect independent operations to be able to run ahead
+of the atomic op, and this might point to speculation of consistency
+for loads -- an independent younger load can be executed speculatively
+before the atomic op and flushed if the cacheline was lost before the
+load is completed in order.
+
+I bet forwarding from the store queue in case of a locked op is more
+difficult. I guess it could be done in the same way, but the load hits
+the store queue ahead of the cache then it's more work to then have
+the load go to the cache so it can find the line to speculate on while
+the flush is in progress. Common case of load hit non-atomic store
+would not require this case so it may just not be worthwhile.
+
+Anyway that's speculation (ha). What matters is we know the load is
+nasty.
+
+> 
+> A cmpxchg does seem to avoid the issue.
+
+Yes, I wonder what to do. POWER CPUs have very similar issues and we
+have noticed unlock_page and several other cases where atomic ops cause
+load stalls. With its ll/sc, POWER would prefer not to do a cmpxchg.
+
+Attached is part of a patch I've been mulling over for a while. I
+expect you to hate it, and it does not solve this problem for x86,
+but I like being able to propagate values from atomic ops back
+to the compiler. Of course, volatile then can't be used either which
+is another spanner...
+
+Short term option is to just have a specific primitive for
+clear-unlock-and-test, which we kind of need anyway here to avoid the
+memory barrier in an arch-independent way.
+
+Thanks,
+Nick
+
+---
+
+After removing the smp_mb__after_atomic and volatile from test_bit,
+applying this directive to atomic primitives results in test_bit able
+to recognise if the value is in a register. unlock_page improves:
+
+     lwsync
+     ldarx   r10,0,r3
+     andc    r10,r10,r9
+     stdcx.  r10,0,r3
+     bne-    99c <unlock_page+0x5c>
+-    ld      r9,0(r3)
+-    andi.   r10,r9,2
++    andi.   r10,r10,2
+     beqlr
+     b       97c <unlock_page+0x3c>
+---
+ arch/powerpc/include/asm/bitops.h       |  2 ++
+ arch/powerpc/include/asm/local.h        | 12 ++++++++++++
+ include/asm-generic/bitops/non-atomic.h |  2 +-
+ include/linux/compiler.h                | 19 +++++++++++++++++++
+ mm/filemap.c                            |  2 +-
+ 5 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/bitops.h b/arch/powerpc/include/asm/bitops.h
+index 59abc620f8e8..0c3e0c384b7d 100644
+--- a/arch/powerpc/include/asm/bitops.h
++++ b/arch/powerpc/include/asm/bitops.h
+@@ -70,6 +70,7 @@ static __inline__ void fn(unsigned long mask,	\
+ 	: "=&r" (old), "+m" (*p)		\
+ 	: "r" (mask), "r" (p)			\
+ 	: "cc", "memory");			\
++	compiler_assign_ptr_val(p, old);	\
+ }
  
-> Improving the direct reclaim close to the OOM requires a lot of effort.
-> We might add new bugs during that effort. So, where is valid reason that
-> we can not have asynchronous watchdog like kmallocwd? Please do explain
-> at kmallocwd thread. You have never persuaded me about keeping kmallocwd
-> out of tree.
-
-I am not going to repeat my arguments over again. I haven't nacked that
-patch and it seems there is no great interest in it so do not try to
-claim that it is me who is blocking this feature. I just do not think it
-is worth it.
-
+ DEFINE_BITOP(set_bits, or, "")
+@@ -117,6 +118,7 @@ static __inline__ unsigned long fn(			\
+ 	: "=&r" (old), "=&r" (t)			\
+ 	: "r" (mask), "r" (p)				\
+ 	: "cc", "memory");				\
++	compiler_assign_ptr_val(p, old);		\
+ 	return (old & mask);				\
+ }
+ 
+diff --git a/arch/powerpc/include/asm/local.h b/arch/powerpc/include/asm/local.h
+index b8da91363864..be965e6c428a 100644
+--- a/arch/powerpc/include/asm/local.h
++++ b/arch/powerpc/include/asm/local.h
+@@ -33,6 +33,8 @@ static __inline__ long local_add_return(long a, local_t *l)
+ 	: "r" (a), "r" (&(l->a.counter))
+ 	: "cc", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t;
+ }
+ 
+@@ -52,6 +54,8 @@ static __inline__ long local_sub_return(long a, local_t *l)
+ 	: "r" (a), "r" (&(l->a.counter))
+ 	: "cc", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t;
+ }
+ 
+@@ -69,6 +73,8 @@ static __inline__ long local_inc_return(local_t *l)
+ 	: "r" (&(l->a.counter))
+ 	: "cc", "xer", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t;
+ }
+ 
+@@ -96,6 +102,8 @@ static __inline__ long local_dec_return(local_t *l)
+ 	: "r" (&(l->a.counter))
+ 	: "cc", "xer", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t;
+ }
+ 
+@@ -130,6 +138,8 @@ static __inline__ int local_add_unless(local_t *l, long a, long u)
+ 	: "r" (&(l->a.counter)), "r" (a), "r" (u)
+ 	: "cc", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t != u;
+ }
+ 
+@@ -159,6 +169,8 @@ static __inline__ long local_dec_if_positive(local_t *l)
+ 	: "r" (&(l->a.counter))
+ 	: "cc", "memory");
+ 
++	compiler_assign_ptr_val(&(l->a.counter), t);
++
+ 	return t;
+ }
+ 
+diff --git a/include/asm-generic/bitops/non-atomic.h b/include/asm-generic/bitops/non-atomic.h
+index 697cc2b7e0f0..e8b388b98309 100644
+--- a/include/asm-generic/bitops/non-atomic.h
++++ b/include/asm-generic/bitops/non-atomic.h
+@@ -100,7 +100,7 @@ static inline int __test_and_change_bit(int nr,
+  * @nr: bit number to test
+  * @addr: Address to start counting from
+  */
+-static inline int test_bit(int nr, const volatile unsigned long *addr)
++static inline int test_bit(int nr, const unsigned long *addr)
+ {
+ 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
+ }
+diff --git a/include/linux/compiler.h b/include/linux/compiler.h
+index cf0fa5d86059..b31353934c6a 100644
+--- a/include/linux/compiler.h
++++ b/include/linux/compiler.h
+@@ -205,6 +205,25 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
+ 	= (unsigned long)&sym;
+ #endif
+ 
++/*
++ * Inform the compiler when the value of a pointer is known.
++ * This can be useful when the caller knows the value but the compiler does
++ * not. Typically, when assembly is used.
++ *
++ * val should be a variable that's likely to be in a register or an immediate,
++ * or a constant.
++ *
++ * This should be used carefully, verifying improvements in generated code.
++ * This is not a hint. It will cause bugs if it is used incorrectly.
++ */
++#ifndef compiler_assign_ptr_val
++# define compiler_assign_ptr_val(ptr, val)			\
++do {								\
++	if (*(ptr) != (val))					\
++		unreachable();					\
++} while (0)
++#endif
++
+ #ifndef RELOC_HIDE
+ # define RELOC_HIDE(ptr, off)					\
+   ({ unsigned long __ptr;					\
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 82f26cde830c..0e7d9008e95f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -929,7 +929,7 @@ void unlock_page(struct page *page)
+ 	page = compound_head(page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	clear_bit_unlock(PG_locked, &page->flags);
+-	smp_mb__after_atomic();
++	// smp_mb__after_atomic();
+ 	wake_up_page(page, PG_locked);
+ }
+ EXPORT_SYMBOL(unlock_page);
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
