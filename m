@@ -1,76 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D666B025E
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 03:08:43 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id iq1so22923114wjb.1
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 00:08:43 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8176B0038
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 04:41:38 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id i131so53760934wmf.3
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 01:41:38 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p75si45364301wmd.162.2016.12.27.00.08.41
+        by mx.google.com with ESMTPS id f10si49281114wjn.46.2016.12.27.01.41.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Dec 2016 00:08:42 -0800 (PST)
-Date: Tue, 27 Dec 2016 09:08:38 +0100
+        Tue, 27 Dec 2016 01:41:36 -0800 (PST)
+Date: Tue, 27 Dec 2016 10:41:33 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
-Message-ID: <20161227080837.GA1308@dhcp22.suse.cz>
-References: <20161222101028.GA11105@ppc-nas.fritz.box>
- <20161222191719.GA19898@dhcp22.suse.cz>
- <20161222214611.GA3015@boerne.fritz.box>
- <20161223105157.GB23109@dhcp22.suse.cz>
- <20161223121851.GA27413@ppc-nas.fritz.box>
- <20161223125728.GE23109@dhcp22.suse.cz>
- <20161223144738.GB23117@dhcp22.suse.cz>
- <20161223222559.GA5568@teela.multi.box>
- <20161226124839.GB20715@dhcp22.suse.cz>
- <20161226185701.GA17030@boerne.fritz.box>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+Message-ID: <20161227094008.GC1308@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
+ <20161222100009.GA6055@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+ <20161223085150.GA23109@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612230154450.88514@chino.kir.corp.google.com>
+ <20161223111817.GC23109@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612231428030.88276@chino.kir.corp.google.com>
+ <20161226090211.GA11455@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612261639550.99744@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161226185701.GA17030@boerne.fritz.box>
+In-Reply-To: <alpine.DEB.2.10.1612261639550.99744@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nils Holland <nholland@tisys.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 26-12-16 19:57:03, Nils Holland wrote:
-> On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
-> > On Fri 23-12-16 23:26:00, Nils Holland wrote:
-> > > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
-> > > > 
-> > > > Nils, even though this is still highly experimental, could you give it a
-> > > > try please?
-> > > 
-> > > Yes, no problem! So I kept the very first patch you sent but had to
-> > > revert the latest version of the debugging patch (the one in
-> > > which you added the "mm_vmscan_inactive_list_is_low" event) because
-> > > otherwise the patch you just sent wouldn't apply. Then I rebooted with
-> > > memory cgroups enabled again, and the first thing that strikes the eye
-> > > is that I get this during boot:
-> > > 
-> > > [    1.568174] ------------[ cut here ]------------
-> > > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
-> > > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
+On Mon 26-12-16 16:53:39, David Rientjes wrote:
+> On Mon, 26 Dec 2016, Michal Hocko wrote:
+> 
+> > But my primary argument is that if you tweak "defer" value behavior
+> > then you lose the only "stall free yet allow background compaction"
+> > option. That option is really important.
+> 
+> Important to who?
+
+To all users who want to have THP without stalls experience. This was
+the whole point of 444eb2a449ef ("mm: thp: set THP defrag by default to
+madvise and add a stall-free defrag option").
+
+> What regresses if we kick a background kthread to compact memory for 
+> order-9 pageblocks?
+
+I am not worried about this part. I am worried about the direct
+compaction part.
+
+> Why don't we allow userspace to clear __GFP_KSWAPD_RECLAIM if we don't 
+> want background reclaim for allocations?
+> 
+> > You seem to think that it
+> > is the application which is under the control. And I am not all that
+> > surprised because you are under control of the whole userspace in your
+> > deployments.
+> 
+> I have no control over the userspace that runs on my "deployments," I 
+> caution you to not make any inferences.
+
+the usecase you have described suggested otherwise. The way how you are
+using madvise sounds pretty much intentional to me. This is quite a
+different thing than running an application which uses madivise because
+it _thinks_ it is a good idea and you are left with that decision and
+cannot do anything about that.
+
+> > But there are others where the administrator is not under
+> > the control of what application asks for yet he is responsible for the
+> > overal "experience" if you will.
+> 
+> The administrator is in charge of an "experience" and wants to avoid 
+> background compaction for thp allocations but not background reclaim for 
+> any other allocation?
+
+I do not understand why you are mentioning the background
+reclaim/compaction again. All I am talking about here is the _direct_
+compaction and the way to prevent from it for _all_ THP requests
+regardless of the madvise status because that is not under the admin
+control.
+
+> (Why am I even replying to this?)  If the admin is 
+> concerned about anybody doing compaction, they can set defrag to "never".  
+> They have had this ability since thp was introduced.
+>
+> > Long stalls during the page faults are
+> > often seen as bugs and users might not really care whether the
+> > application writer really wanted THP or not...
 > > 
-> > Ohh, I can see what is wrong! a) there is a bug in the accounting in
-> > my patch (I double account) and b) the detection for the empty list
-> > cannot work after my change because per node zone will not match per
-> > zone statistics. The updated patch is below. So I hope my brain already
-> > works after it's been mostly off last few days...
 > 
-> I tried the updated patch, and I can confirm that the warning during
-> boot is gone. Also, I've tried my ordinary procedure to reproduce my
-> testcase, and I can say that a kernel with this new patch also works
-> fine and doesn't produce OOMs or similar issues.
-> 
-> I had the previous version of the patch in use on a machine non-stop
-> for the last few days during normal day-to-day workloads and didn't
-> notice any issues. Now I'll keep a machine running during the next few
-> days with this patch, and in case I notice something that doesn't look
-> normal, I'll of course report back!
+> There are no long stalls during page faults introduced by this patch, we 
+> are waking up a kthread to do the work.
 
-Thanks for your testing! Can I add your
-Tested-by: Nils Holland <nholland@tisys.org>
-?
+Yes there _are_. All madvised vmas can stall now which was not the case
+before. This is breaking the semantic of the defer option as it was
+introduced and intended (which should be pretty clear from its name).
+ 
+> > I definitely _agree_ that this is a very important usecase! I am just
+> > trying to think long term and a more sophisticated background compaction
+> > is something that we definitely lack and _want_ longterm. There are more
+> > high order users than THP. I believe we really want to teach kcompactd
+> > to maintain configurable amount of highorder pages.
+> > 
+> 
+> We are addressing thp defrag here, not any other use for background 
+> compaction for other high-order allocations.  I'd prefer that we stay on 
+> topic, please.  This is only about setting thp defrag to "defer" and if it 
+> is possible to kick background compaction and defer direct compaction.  We 
+> need this patch, Kirill has acked it, and I simply have no more time to 
+> talk in circles.
+
+You seem to completely ignore the review feedback and given arguments
+which is really sad...
+
+> > If there is really a need for an immediate solution^Wworkaround then I
+> > think that tweaking the madvise option should be reasonably safe. Admins
+> > are really prepared for stalls because they are explicitly opting in for
+> > madvise behavior and they will get a background compaction on top. This
+> > is a new behavior but I do not see how it would be harmful. If an
+> > excessive compaction is a problem then THP can be reduced to madvise
+> > only vmas.
+> > 
+> > But, I really _do_ care about having a stall free option which is not a
+> > complete disable of the background compaction for THP.
+> > 
+> 
+> This is completely wrong.  Before the "defer" option has been introduced, 
+> we had "madvise" and should maintain its behavior as much as possible so 
+> there are no surprises.  We don't change behavior for a tunable out from 
+> under existing users because you think you know better.  With the new 
+> "defer" option, we can make this a stronger variant of "madvise", which 
+
+I do not see why "defer" would be any different in that regards. The
+defer option is there for 3 releases already. It's not an rc thing...
+I fail to see why adding a background behavior to one existing knob is
+a problem while adding a _directly_ visible one to another is OK. This
+just doesn't make any sense to me.
+
+> Kirill acked, so that existing users of MADV_HUGEPAGE have no change in 
+> behavior and we can configure whether we do direct or background 
+> compaction for everybody else.  If people don't want background 
+> compaction, they can set defrag to "madvise".  If they want it, they can 
+> set it to "defer".  It's very simple.
+>
+>
+> That said, I simply don't have the time to continue in circular arguments 
+> and would respectfully ask Andrew to apply this acked patch.
+
+for reasons mentioned already
+Nacked-by: Michal Hocko <mhocko@suse.com>
 -- 
 Michal Hocko
 SUSE Labs
