@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8766B0069
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 09:57:37 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id k184so21321720wme.4
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 06:57:37 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 74si50591656wmh.144.2016.12.28.06.57.35
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5A96B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 10:30:41 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id xr1so90398196wjb.7
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 07:30:41 -0800 (PST)
+Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
+        by mx.google.com with ESMTPS id q185si50693441wmb.94.2016.12.28.07.30.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 06:57:36 -0800 (PST)
-Date: Wed, 28 Dec 2016 15:57:32 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Dec 2016 07:30:39 -0800 (PST)
+Received: by mail-wj0-f193.google.com with SMTP id j10so54868422wjb.3
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 07:30:39 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [LSF/MM TOPIC] plans for future swap changes
-Message-ID: <20161228145732.GE11470@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: [PATCH 0/7] vm, vmscan: enahance vmscan tracepoints
+Date: Wed, 28 Dec 2016 16:30:25 +0100
+Message-Id: <20161228153032.10821-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-This is something I would be interested to discuss even though I am not
-working on it directly. Sorry if I hijacked the topic from those who
-planned to post them.
+Hi,
+while debugging [1] I've realized that there is some room for
+improvements in the tracepoints set we offer currently. I had hard times
+to make any conclusion from the existing ones. The resulting problem
+turned out to be active list aging [2] and we are missing at least two
+tracepoints to debug such a problem.
 
-It seems that the time to reconsider our approach to the swap storage is
-come already and there are multiple areas to discuss. I would be
-interested at least in the following
-1) anon/file balancing. Johannes has posted some work already and I am
-   really interested in the future plans for it.
-2) swap trashing detection is something that we are lacking for a long
-   time and it would be great if we could do something to help
-   situations when the machine is effectively out of memory but still
-   hopelessly trying to swap in and out few pages while the machine is
-   basically unusable. I hope that 1) will give us some bases but I am
-   not sure how much we will need on top.
-3) optimizations for the swap out paths - Tim Chen and other guys from
-   Intel are already working on this. I didn't get time to review this
-   closely - mostly because I am not closely familiar with the swapout
-   code and it takes quite some time to get into all subtle details.
-   I mainly interested in what are the plans in this area and how they
-   should be coordinated with other swap related changes
-4) Do we want the native THP swap in/out support?
+Some existing tracepoints could export more information to see _why_ the
+reclaim progress cannot be made not only _how much_ we could reclaim.
+The later could be seen quite reasonably from the vmstat counters
+already. It can be argued that we are showing too many implementation
+details in those tracepoints but I consider them way too lowlevel
+already to be usable by any kernel independent userspace. I would be
+_really_ surprised if anything but debugging tools have used them.
 
-Other plans?
--- 
-Michal Hocko
-SUSE Labs
+Any feedback is highly appreciated.
+
+[1] http://lkml.kernel.org/r/20161215225702.GA27944@boerne.fritz.box
+[2] http://lkml.kernel.org/r/20161223105157.GB23109@dhcp22.suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
