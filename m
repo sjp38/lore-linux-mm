@@ -1,134 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0931A6B0069
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 03:58:04 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id l2so31783358wml.5
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 00:58:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ed5si53090024wjb.111.2016.12.28.00.58.02
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 94EB06B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 06:42:40 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 5so376233574pgj.6
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 03:42:40 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id n34si49740761pld.320.2016.12.28.03.42.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 00:58:02 -0800 (PST)
-Date: Wed, 28 Dec 2016 09:57:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
-Message-ID: <20161228085759.GD11470@dhcp22.suse.cz>
-References: <20161222191719.GA19898@dhcp22.suse.cz>
- <20161222214611.GA3015@boerne.fritz.box>
- <20161223105157.GB23109@dhcp22.suse.cz>
- <20161223121851.GA27413@ppc-nas.fritz.box>
- <20161223125728.GE23109@dhcp22.suse.cz>
- <20161223144738.GB23117@dhcp22.suse.cz>
- <20161223222559.GA5568@teela.multi.box>
- <20161226124839.GB20715@dhcp22.suse.cz>
- <20161227155532.GI1308@dhcp22.suse.cz>
- <20161227193308.GA17454@boerne.fritz.box>
-MIME-Version: 1.0
+        Wed, 28 Dec 2016 03:42:39 -0800 (PST)
+Subject: Re: [PATCH v6] mm: Add memory allocation watchdog kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1478416501-10104-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<201612151924.HJJ69799.VSFLHOQFFMOtOJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201612151924.HJJ69799.VSFLHOQFFMOtOJ@I-love.SAKURA.ne.jp>
+Message-Id: <201612282042.GDB17129.tOHFOFSQOFLVJM@I-love.SAKURA.ne.jp>
+Date: Wed, 28 Dec 2016 20:42:29 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161227193308.GA17454@boerne.fritz.box>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nils Holland <nholland@tisys.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+To: mgorman@suse.de, hannes@cmpxchg.org, vdavydov.dev@gmail.com, mhocko@suse.cz
+Cc: pmladek@suse.com, sergey.senozhatsky.work@gmail.com, vegard.nossum@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 27-12-16 20:33:09, Nils Holland wrote:
-> On Tue, Dec 27, 2016 at 04:55:33PM +0100, Michal Hocko wrote:
-> > Hi,
-> > could you try to run with the following patch on top of the previous
-> > one? I do not think it will make a large change in your workload but
-> > I think we need something like that so some testing under which is known
-> > to make a high lowmem pressure would be really appreciated. If you have
-> > more time to play with it then running with and without the patch with
-> > mm_vmscan_direct_reclaim_{start,end} tracepoints enabled could tell us
-> > whether it make any difference at all.
+Michal Hocko wrote at http://lkml.kernel.org/r/20161227105715.GE1308@dhcp22.suse.cz :
+> On Tue 27-12-16 19:39:28, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > I am not saying that the current code works perfectly when we are
+> > > hitting the direct reclaim close to the OOM but improving that requires
+> > > much more than slapping a global lock there.
+> > 
+> > So, we finally agreed that there are problems when we are hitting the direct
+> > reclaim close to the OOM. Good.
 > 
-> Of course, no problem!
+> There has never been a disagreement here. The point we seem to be
+> disagreeing is how much those issues you are seeing matter. I do not
+> consider them top priority because they are not happening in real life
+> enough.
+
+There is no evidence to prove "they are not happening in real life enough", for
+there is no catch-all reporting mechanism. I consider that offering a mean to
+find and report problems is top priority as a troubleshooting staff.
+
+> > > Just try to remember how you were pushing really hard for oom timeouts
+> > > one year back because the OOM killer was suboptimal and could lockup. It
+> > > took some redesign and many changes to fix that. The result is
+> > > imho a better, more predictable and robust code which wouldn't be the
+> > > case if we just went your way to have a fix quickly...
+> > 
+> > I agree that the result is good for users who can update kernels. But that
+> > change was too large to backport. Any approach which did not in time for
+> > customers' deadline of deciding their kernels to use for 10 years is
+> > useless for them. Lack of catch-all reporting/triggering mechanism is
+> > unhappy for both customers and troubleshooting staffs at support centers.
 > 
-> First, about the events to trace: mm_vmscan_direct_reclaim_start
-> doesn't seem to exist, but mm_vmscan_direct_reclaim_begin does. I'm
-> sure that's what you meant and so I took that one instead.
+> Then implement whatever you find appropriate on those old kernels and
+> deal with the follow up reports. This is the fair deal you have cope
+> with when using and supporting old kernels.
 
-yes, sorry about the confusion
+Customers are using distributor's kernels. Due to out-of-tree vendor's prebuilt
+modules which can be loaded into only prebuilt distributor's kernels, it is
+impossible for me to make changes to those old kernels. Also, that distributor's
+policy is that "offer no support even if just rebuilt from source" which prevents
+customers from testing changes made by me to those old kernels. Thus, implement
+whatever I find appropriate on those old kernels is not an option. Merging
+upstream-first, in accordance with that distributor's policy, is the only option.
 
-> Then I have to admit in both cases (once without the latest patch,
-> once with) very little trace data was actually produced. In the case
-> without the patch, the reclaim was started more often and reclaimed a
-> smaller number of pages each time, in the case with the patch it was
-> invoked less often, and with the last time it was invoked it reclaimed
-> a rather big number of pages. I have no clue, however, if that
-> happened "by chance" or if it was actually causes by the patch and
-> thus an expected change.
-
-yes that seems to be a variation of the workload I would say because if
-anything the patch should reduce the number of scanned pages.
-
-> In both cases, my test case was: Reboot, setup logging, do "emerge
-> firefox" (which unpacks and builds the firefox sources), then, when
-> the emerge had come so far that the unpacking was done and the
-> building had started, switch to another console and untar the latest
-> kernel, libreoffice and (once more) firefox sources there. After that
-> had completed, I aborted the emerge build process and stopped tracing.
+>  
+> > Improving the direct reclaim close to the OOM requires a lot of effort.
+> > We might add new bugs during that effort. So, where is valid reason that
+> > we can not have asynchronous watchdog like kmallocwd? Please do explain
+> > at kmallocwd thread. You have never persuaded me about keeping kmallocwd
+> > out of tree.
 > 
-> Here's the trace data captured without the latest patch applied:
-> 
-> khugepaged-22    [000] ....   566.123383: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [000] .N..   566.165520: mm_vmscan_direct_reclaim_end: nr_reclaimed=1100
-> khugepaged-22    [001] ....   587.515424: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [000] ....   587.596035: mm_vmscan_direct_reclaim_end: nr_reclaimed=1029
-> khugepaged-22    [001] ....   599.879536: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [000] ....   601.000812: mm_vmscan_direct_reclaim_end: nr_reclaimed=1100
-> khugepaged-22    [001] ....   601.228137: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   601.309952: mm_vmscan_direct_reclaim_end: nr_reclaimed=1081
-> khugepaged-22    [001] ....   694.935267: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] .N..   695.081943: mm_vmscan_direct_reclaim_end: nr_reclaimed=1071
-> khugepaged-22    [001] ....   701.370707: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   701.372798: mm_vmscan_direct_reclaim_end: nr_reclaimed=1089
-> khugepaged-22    [001] ....   764.752036: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [000] ....   771.047905: mm_vmscan_direct_reclaim_end: nr_reclaimed=1039
-> khugepaged-22    [000] ....   781.760515: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   781.826543: mm_vmscan_direct_reclaim_end: nr_reclaimed=1040
-> khugepaged-22    [001] ....   782.595575: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [000] ....   782.638591: mm_vmscan_direct_reclaim_end: nr_reclaimed=1040
-> khugepaged-22    [001] ....   782.930455: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   782.993608: mm_vmscan_direct_reclaim_end: nr_reclaimed=1040
-> khugepaged-22    [001] ....   783.330378: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   783.369653: mm_vmscan_direct_reclaim_end: nr_reclaimed=1040
-> 
-> And this is the same with the patch applied:
-> 
-> khugepaged-22    [001] ....   523.599997: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   523.683110: mm_vmscan_direct_reclaim_end: nr_reclaimed=1092
-> khugepaged-22    [001] ....   535.345477: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   535.401189: mm_vmscan_direct_reclaim_end: nr_reclaimed=1078
-> khugepaged-22    [000] ....   692.876716: mm_vmscan_direct_reclaim_begin: order=9 may_writepage=1 gfp_flags=GFP_TRANSHUGE classzone_idx=3
-> khugepaged-22    [001] ....   703.312399: mm_vmscan_direct_reclaim_end: nr_reclaimed=197759
+> I am not going to repeat my arguments over again. I haven't nacked that
+> patch and it seems there is no great interest in it so do not try to
+> claim that it is me who is blocking this feature. I just do not think it
+> is worth it.
 
-In these cases there is no real difference because this is not the
-lowmem pressure because those requests can go to the highmem zone.
+OK. I was assuming that Acked-by: or Reviewed-by: from you is essential.
 
-> If my test case and thus the results don't sound good, I could of
-> course try some other test cases ... like capturing for a longer
-> period of time or trying to produce more memory pressure by running
-> more processes at the same time, or something like that.
+So far, nobody has objections about having asynchronous watchdog.
+Mel, Johannes and Vladimir, what do you think about this version of
+kmallocwd? If no objections, I think we can start with this version
+with a fix shown below folded.
 
-yes, a stronger memory pressure would be needed. I suspect that your
-original issues was more about active list aging than a really strong
-memory pressure. So it might be possible that your workload will not
-notice. If you can collect those two tracepoints over a longer time it
-can still tell us something but I do not want you to burn a lot of time
-on this. The main issue seems to be fixed and the follow up fix can wait
-for a throughout review after both Mel and Johannes are back from
-holiday.
+----------------------------------------
+>From 5adc8d9bfb31dce1954667cabf65842df31d4ed7 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Wed, 28 Dec 2016 09:52:03 +0900
+Subject: [PATCH] mm: Don't check __GFP_KSWAPD_RECLAIM by memory allocation
+ watchdog.
 
-> Besides that I can say that the patch hasn't produced any warnings or
-> other issues so far, so at first glance, it doesn't seem to hurt
-> anything.
+There are some __GFP_KSWAPD_RECLAIM && !__GFP_DIRECT_RECLAIM callers.
+Since such callers do not sleep, we should check only __GFP_DIRECT_RECLAIM
+callers than __GFP_RECLAIM == (__GFP_KSWAPD_RECLAIM|__GFP_DIRECT_RECLAIM)
+callers.
 
-Thanks!
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/page_alloc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6478f44..58c1238 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3769,10 +3769,10 @@ static void start_memalloc_timer(const gfp_t gfp_mask, const int order)
+ {
+ 	struct memalloc_info *m = &current->memalloc;
+ 
+-	/* We don't check for stalls for !__GFP_RECLAIM allocations. */
+-	if (!(gfp_mask & __GFP_RECLAIM))
++	/* We don't check for stalls for !__GFP_DIRECT_RECLAIM allocations. */
++	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
+ 		return;
+-	/* We don't check for stalls for nested __GFP_RECLAIM allocations */
++	/* Check based on outermost __GFP_DIRECT_RECLAIM allocations. */
+ 	if (!m->valid) {
+ 		m->sequence++;
+ 		m->start = jiffies;
+@@ -3788,7 +3788,7 @@ static void stop_memalloc_timer(const gfp_t gfp_mask)
+ {
+ 	struct memalloc_info *m = &current->memalloc;
+ 
+-	if ((gfp_mask & __GFP_RECLAIM) && !--m->valid)
++	if ((gfp_mask & __GFP_DIRECT_RECLAIM) && !--m->valid)
+ 		this_cpu_dec(memalloc_in_flight[m->idx]);
+ }
+ #else
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
