@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B68216B025E
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 11:00:33 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so59281579wms.7
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 08:00:33 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ia3si54513070wjb.276.2016.12.28.08.00.32
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5D56B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 11:22:05 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f188so1085970837pgc.1
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 08:22:05 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id b187si50481543pgc.0.2016.12.28.08.22.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 08:00:32 -0800 (PST)
-Date: Wed, 28 Dec 2016 17:00:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
- tracepoint
-Message-ID: <20161228160029.GF11470@dhcp22.suse.cz>
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161228153032.10821-5-mhocko@kernel.org>
- <d957d4c5-3b58-c61f-0c95-c59e0326528c@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Dec 2016 08:22:04 -0800 (PST)
+Subject: [PATCH] mm: fix filemap.c kernel-doc warnings
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <a66fe492-518c-ad6c-5f03-5e8b721fb451@infradead.org>
+Date: Wed, 28 Dec 2016 08:22:03 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d957d4c5-3b58-c61f-0c95-c59e0326528c@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <n.borisov.lkml@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 28-12-16 17:50:31, Nikolay Borisov wrote:
-> 
-> 
-> On 28.12.2016 17:30, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-> > from is file or anonymous but we do not know which LRU this is. It is
-> > useful to know whether the list is file or anonymous as well. Change
->
-> Maybe you wanted to say whether the list is ACTIVE/INACTIVE ?
+From: Randy Dunlap <rdunlap@infradead.org>
 
-You are right. I will update the wording to:
-"
-mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-from is file or anonymous but we do not know which LRU this is. It is
-useful to know whether the list is active or inactive as well as we
-use the same function to isolate pages for both of them. Change
-the tracepoint to show symbolic names of the lru rather.
-"
+Fix kernel-doc warnings in mm/filemap.c:
 
-Does it sound better?
+..//mm/filemap.c:993: warning: No description found for parameter '__page'
+..//mm/filemap.c:993: warning: Excess function parameter 'page' description in '__lock_page'
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+---
+ mm/filemap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- lnx-410-rc1.orig/mm/filemap.c
++++ lnx-410-rc1/mm/filemap.c
+@@ -987,7 +987,7 @@ EXPORT_SYMBOL_GPL(page_endio);
+ 
+ /**
+  * __lock_page - get a lock on the page, assuming we need to sleep to get it
+- * @page: the page to lock
++ * @__page: the page to lock
+  */
+ void __lock_page(struct page *__page)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
