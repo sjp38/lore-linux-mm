@@ -1,136 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 94EB06B0069
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 06:42:40 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 5so376233574pgj.6
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 03:42:40 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n34si49740761pld.320.2016.12.28.03.42.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 90F8A6B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 08:09:55 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i131so58875278wmf.3
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 05:09:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d18si50233559wmd.16.2016.12.28.05.09.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 03:42:39 -0800 (PST)
-Subject: Re: [PATCH v6] mm: Add memory allocation watchdog kernel thread.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1478416501-10104-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<201612151924.HJJ69799.VSFLHOQFFMOtOJ@I-love.SAKURA.ne.jp>
-In-Reply-To: <201612151924.HJJ69799.VSFLHOQFFMOtOJ@I-love.SAKURA.ne.jp>
-Message-Id: <201612282042.GDB17129.tOHFOFSQOFLVJM@I-love.SAKURA.ne.jp>
-Date: Wed, 28 Dec 2016 20:42:29 +0900
-Mime-Version: 1.0
+        Wed, 28 Dec 2016 05:09:53 -0800 (PST)
+Date: Wed, 28 Dec 2016 14:09:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [LSF/MM TOPIC] slab reclaim
+Message-ID: <20161228130949.GA11480@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de, hannes@cmpxchg.org, vdavydov.dev@gmail.com, mhocko@suse.cz
-Cc: pmladek@suse.com, sergey.senozhatsky.work@gmail.com, vegard.nossum@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Michal Hocko wrote at http://lkml.kernel.org/r/20161227105715.GE1308@dhcp22.suse.cz :
-> On Tue 27-12-16 19:39:28, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > I am not saying that the current code works perfectly when we are
-> > > hitting the direct reclaim close to the OOM but improving that requires
-> > > much more than slapping a global lock there.
-> > 
-> > So, we finally agreed that there are problems when we are hitting the direct
-> > reclaim close to the OOM. Good.
-> 
-> There has never been a disagreement here. The point we seem to be
-> disagreeing is how much those issues you are seeing matter. I do not
-> consider them top priority because they are not happening in real life
-> enough.
+Hi,
+I would like to propose the following for LSF/MM discussion. Both MM and
+FS people should be involved.
 
-There is no evidence to prove "they are not happening in real life enough", for
-there is no catch-all reporting mechanism. I consider that offering a mean to
-find and report problems is top priority as a troubleshooting staff.
+The current way of the slab reclaim is rather suboptimal from 2
+perspectives.
 
-> > > Just try to remember how you were pushing really hard for oom timeouts
-> > > one year back because the OOM killer was suboptimal and could lockup. It
-> > > took some redesign and many changes to fix that. The result is
-> > > imho a better, more predictable and robust code which wouldn't be the
-> > > case if we just went your way to have a fix quickly...
-> > 
-> > I agree that the result is good for users who can update kernels. But that
-> > change was too large to backport. Any approach which did not in time for
-> > customers' deadline of deciding their kernels to use for 10 years is
-> > useless for them. Lack of catch-all reporting/triggering mechanism is
-> > unhappy for both customers and troubleshooting staffs at support centers.
-> 
-> Then implement whatever you find appropriate on those old kernels and
-> deal with the follow up reports. This is the fair deal you have cope
-> with when using and supporting old kernels.
+1) The slab allocator relies on shrinkers to release pages but shrinkers
+are object rather than page based. This means that the memory reclaim
+asks to free some pages, slab asks shrinkers to free some objects
+and the result might be that nothing really gets freed even though
+shrinkers do their jobs properly because some objects are still pinning
+the page. This is not a new problem and it has been discussed in the
+past. Dave Chinner has even suggested a solution [1] which sounds like
+the right approach. There was no follow up and I believe we should
+into implementing it.
 
-Customers are using distributor's kernels. Due to out-of-tree vendor's prebuilt
-modules which can be loaded into only prebuilt distributor's kernels, it is
-impossible for me to make changes to those old kernels. Also, that distributor's
-policy is that "offer no support even if just rebuilt from source" which prevents
-customers from testing changes made by me to those old kernels. Thus, implement
-whatever I find appropriate on those old kernels is not an option. Merging
-upstream-first, in accordance with that distributor's policy, is the only option.
+2) The way we scale slab reclaim pressure depends on the regular LRU
+reclaim. There are workloads which do not general a lot of pages on LRUs
+while they still consume a lot of slab memory. We can end up even going
+OOM because the slab reclaim doesn't free up enough. I am not really
+sure how the proper solution should look like but either we need some
+way of slab consumption throttling or we need a more clever slab
+pressure estimation.
 
->  
-> > Improving the direct reclaim close to the OOM requires a lot of effort.
-> > We might add new bugs during that effort. So, where is valid reason that
-> > we can not have asynchronous watchdog like kmallocwd? Please do explain
-> > at kmallocwd thread. You have never persuaded me about keeping kmallocwd
-> > out of tree.
-> 
-> I am not going to repeat my arguments over again. I haven't nacked that
-> patch and it seems there is no great interest in it so do not try to
-> claim that it is me who is blocking this feature. I just do not think it
-> is worth it.
-
-OK. I was assuming that Acked-by: or Reviewed-by: from you is essential.
-
-So far, nobody has objections about having asynchronous watchdog.
-Mel, Johannes and Vladimir, what do you think about this version of
-kmallocwd? If no objections, I think we can start with this version
-with a fix shown below folded.
-
-----------------------------------------
->From 5adc8d9bfb31dce1954667cabf65842df31d4ed7 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Wed, 28 Dec 2016 09:52:03 +0900
-Subject: [PATCH] mm: Don't check __GFP_KSWAPD_RECLAIM by memory allocation
- watchdog.
-
-There are some __GFP_KSWAPD_RECLAIM && !__GFP_DIRECT_RECLAIM callers.
-Since such callers do not sleep, we should check only __GFP_DIRECT_RECLAIM
-callers than __GFP_RECLAIM == (__GFP_KSWAPD_RECLAIM|__GFP_DIRECT_RECLAIM)
-callers.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/page_alloc.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6478f44..58c1238 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3769,10 +3769,10 @@ static void start_memalloc_timer(const gfp_t gfp_mask, const int order)
- {
- 	struct memalloc_info *m = &current->memalloc;
- 
--	/* We don't check for stalls for !__GFP_RECLAIM allocations. */
--	if (!(gfp_mask & __GFP_RECLAIM))
-+	/* We don't check for stalls for !__GFP_DIRECT_RECLAIM allocations. */
-+	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
- 		return;
--	/* We don't check for stalls for nested __GFP_RECLAIM allocations */
-+	/* Check based on outermost __GFP_DIRECT_RECLAIM allocations. */
- 	if (!m->valid) {
- 		m->sequence++;
- 		m->start = jiffies;
-@@ -3788,7 +3788,7 @@ static void stop_memalloc_timer(const gfp_t gfp_mask)
- {
- 	struct memalloc_info *m = &current->memalloc;
- 
--	if ((gfp_mask & __GFP_RECLAIM) && !--m->valid)
-+	if ((gfp_mask & __GFP_DIRECT_RECLAIM) && !--m->valid)
- 		this_cpu_dec(memalloc_in_flight[m->idx]);
- }
- #else
+[1] https://lkml.org/lkml/2010/2/8/329.
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
