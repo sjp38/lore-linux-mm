@@ -1,168 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB0C6B0069
-	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 23:40:46 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g1so822516129pgn.3
-        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 20:40:46 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id h16si48688363pli.122.2016.12.27.20.40.45
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFC76B0069
+	for <linux-mm@kvack.org>; Tue, 27 Dec 2016 23:56:29 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so862906687pgi.2
+        for <linux-mm@kvack.org>; Tue, 27 Dec 2016 20:56:29 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id r85si48625848pfr.254.2016.12.27.20.56.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Dec 2016 20:40:45 -0800 (PST)
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OIV00V57OZWTR40@mailout4.samsung.com> for linux-mm@kvack.org;
- Wed, 28 Dec 2016 13:40:44 +0900 (KST)
-Content-transfer-encoding: 8BIT
-Subject: Re: [PATCH] lib: bitmap: introduce bitmap_find_next_zero_area_and_size
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Message-id: <58634274.5060205@samsung.com>
-Date: Wed, 28 Dec 2016 13:41:24 +0900
-In-reply-to: <20161227100535.GB7662@dhcp22.suse.cz>
-References: 
- <CGME20161226041809epcas5p1981244de55764c10f1a80d80346f3664@epcas5p1.samsung.com>
- <1482725891-10866-1-git-send-email-jaewon31.kim@samsung.com>
- <20161227100535.GB7662@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Dec 2016 20:56:28 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH v4 0/9] mm/swap: Regular page swap optimizations
+References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
+	<20161227074503.GA10616@bbox> <87d1gc4y3w.fsf@yhuang-dev.intel.com>
+	<20161228023739.GA12634@bbox> <8760m43frm.fsf@yhuang-dev.intel.com>
+	<871sws3f2d.fsf@yhuang-dev.intel.com> <20161228035330.GA12769@bbox>
+Date: Wed, 28 Dec 2016 12:56:23 +0800
+In-Reply-To: <20161228035330.GA12769@bbox> (Minchan Kim's message of "Wed, 28
+	Dec 2016 12:53:30 +0900")
+Message-ID: <87wpek1wjs.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, gregory.0xf0@gmail.com, laurent.pinchart@ideasonboard.com, akinobu.mita@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, jack@suse.cz
 
+Minchan Kim <minchan@kernel.org> writes:
 
-
-On 2016e?? 12i?? 27i? 1/4  19:05, Michal Hocko wrote:
-> On Mon 26-12-16 13:18:11, Jaewon Kim wrote:
->> There was no bitmap API which returns both next zero index and size of zeros
->> from that index.
->>
->> This is helpful to look fragmentation. This is an test code to look size of zeros.
->> Test result is '10+9+994=>1013 found of total: 1024'
->>
->> unsigned long search_idx, found_idx, nr_found_tot;
->> unsigned long bitmap_max;
->> unsigned int nr_found;
->> unsigned long *bitmap;
->>
->> search_idx = nr_found_tot = 0;
->> bitmap_max = 1024;
->> bitmap = kzalloc(BITS_TO_LONGS(bitmap_max) * sizeof(long),
->> 		 GFP_KERNEL);
->>
->> /* test bitmap_set offset, count */
->> bitmap_set(bitmap, 10, 1);
->> bitmap_set(bitmap, 20, 10);
->>
->> for (;;) {
->> 	found_idx = bitmap_find_next_zero_area_and_size(bitmap,
->> 				bitmap_max, search_idx, &nr_found);
->> 	if (found_idx >= bitmap_max)
->> 		break;
->> 	if (nr_found_tot == 0)
->> 		printk("%u", nr_found);
->> 	else
->> 		printk("+%u", nr_found);
->> 	nr_found_tot += nr_found;
->> 	search_idx = found_idx + nr_found;
->> }
->> printk("=>%lu found of total: %lu\n", nr_found_tot, bitmap_max);
-> Who is going to use this function? I do not see any caller introduced by
-> this patch.
-Hi
-I did not add caller in this patch.
-I am using the patch in cma_alloc function like below to show available page status.
-+               printk("number of available pages: ");
-+               start = 0;
-+               for (;;) {
-+                       bitmap_no = bitmap_find_next_zero_area_and_size(cma->bitmap,
-+                                               cma->count, start, &nr);
-+                       if (bitmap_no >= cma->count)
-+                               break;
-+                       if (nr_total == 0)
-+                               printk("%u", nr);
-+                       else
-+                               printk("+%u", nr);
-+                       nr_total += nr;
-+                       start = bitmap_no + nr;
-+               }
-+               printk("=>%u pages, total: %lu pages\n", nr_total, cma->count);
+> On Wed, Dec 28, 2016 at 11:31:06AM +0800, Huang, Ying wrote:
 >
->> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->> ---
->>  include/linux/bitmap.h |  6 ++++++
->>  lib/bitmap.c           | 25 +++++++++++++++++++++++++
->>  2 files changed, 31 insertions(+)
->>
->> diff --git a/include/linux/bitmap.h b/include/linux/bitmap.h
->> index 3b77588..b724a6c 100644
->> --- a/include/linux/bitmap.h
->> +++ b/include/linux/bitmap.h
->> @@ -46,6 +46,7 @@
->>   * bitmap_clear(dst, pos, nbits)		Clear specified bit area
->>   * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
->>   * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
->> + * bitmap_find_next_zero_area_and_size(buf, len, pos, n, mask)	Find bit free area and its size
->>   * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
->>   * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
->>   * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
->> @@ -123,6 +124,11 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
->>  						    unsigned long align_mask,
->>  						    unsigned long align_offset);
->>  
->> +extern unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
->> +							 unsigned long size,
->> +							 unsigned long start,
->> +							 unsigned int *nr);
->> +
->>  /**
->>   * bitmap_find_next_zero_area - find a contiguous aligned zero area
->>   * @map: The address to base the search on
->> diff --git a/lib/bitmap.c b/lib/bitmap.c
->> index 0b66f0e..d02817c 100644
->> --- a/lib/bitmap.c
->> +++ b/lib/bitmap.c
->> @@ -332,6 +332,31 @@ unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
->>  }
->>  EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
->>  
->> +/**
->> + * bitmap_find_next_zero_area_and_size - find a contiguous aligned zero area
->> + * @map: The address to base the search on
->> + * @size: The bitmap size in bits
->> + * @start: The bitnumber to start searching at
->> + * @nr: The number of zeroed bits we've found
->> + */
->> +unsigned long bitmap_find_next_zero_area_and_size(unsigned long *map,
->> +					     unsigned long size,
->> +					     unsigned long start,
->> +					     unsigned int *nr)
->> +{
->> +	unsigned long index, i;
->> +
->> +	*nr = 0;
->> +	index = find_next_zero_bit(map, size, start);
->> +
->> +	if (index >= size)
->> +		return index;
->> +	i = find_next_bit(map, size, index);
->> +	*nr = i - index;
->> +	return index;
->> +}
->> +EXPORT_SYMBOL(bitmap_find_next_zero_area_and_size);
->> +
->>  /*
->>   * Bitmap printing & parsing functions: first version by Nadia Yvette Chambers,
->>   * second version by Paul Jackson, third by Joe Korty.
->> -- 
->> 1.9.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> < snip >
+>
+>> >>> > Frankly speaking, although I'm huge user of bit_spin_lock(zram/zsmalloc
+>> >>> > have used it heavily), I don't like swap subsystem uses it.
+>> >>> > During zram development, it really hurts debugging due to losing lockdep.
+>> >>> > The reason zram have used it is by size concern of embedded world but server
+>> >>> > would be not critical so please consider trade-off of spinlock vs. bit_spin_lock.
+>> >>> 
+>> >>> There will be one struct swap_cluster_info for every 1MB swap space.
+>> >>> So, for example, for 1TB swap space, the number of struct
+>> >>> swap_cluster_info will be one million.  To reduce the RAM usage, we
+>> >>> choose to use bit_spin_lock, otherwise, spinlock is better.  The code
+>> >>> will be used by embedded, PC and server, so the RAM usage is important.
+>> >>
+>> >> It seems you already increase swap_cluster_info 4 byte to support
+>> >> bit_spin_lock.
+>> >
+>> > The increment only occurs on 64bit platform.  On 32bit platform, the
+>> > size is the same as before.
+>> >
+>> >> Compared to that, how much memory does spin_lock increase?
+>> >
+>> > The size of struct swap_cluster_info will increase from 4 bytes to 16
+>> > bytes on 64bit platform.  I guess it will increase from 4 bytes to 8
+>> > bytes on 32bit platform at least, but I did not test that.
+>> 
+>> Sorry, I make a mistake during test.  The size of struct
+>> swap_cluster_info will increase from 4 bytes to 8 bytes on 64 bit
+>> platform.  I think it will increase from 4 bytes to 8 bytes on 32 bit
+>> platform too (not tested).
+>
+> Thanks for the information.
+> To me, it's not big when we consider spinlock's usefullness which helps
+> cache-line bouncing, lockdep and happy with RT people.
+
+Yes.  spinlock helps on lockdep and RT, but I don't think it helps
+cache-line bouncing.
+
+> So, I vote spin_lock but I'm not in charge of deciding on that and your
+> opinion might be different still. If so, let's pass the decision to
+> maintainer.
+
+I have no strong opinion for size change on 32bit platform.  But I want
+to know other people's opinion, especially maintainer's too.
+
+> Instead, please write down above content in description for maintainer to
+> judge it fairly.
+
+Sure.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
