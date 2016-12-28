@@ -1,44 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B5A96B0069
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5DA56B0069
 	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 10:30:41 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id xr1so90398196wjb.7
+Received: by mail-wm0-f71.google.com with SMTP id i131so59421896wmf.3
         for <linux-mm@kvack.org>; Wed, 28 Dec 2016 07:30:41 -0800 (PST)
-Received: from mail-wj0-f193.google.com (mail-wj0-f193.google.com. [209.85.210.193])
-        by mx.google.com with ESMTPS id q185si50693441wmb.94.2016.12.28.07.30.39
+Received: from mail-wj0-f195.google.com (mail-wj0-f195.google.com. [209.85.210.195])
+        by mx.google.com with ESMTPS id r4si21172098wme.125.2016.12.28.07.30.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Dec 2016 07:30:39 -0800 (PST)
-Received: by mail-wj0-f193.google.com with SMTP id j10so54868422wjb.3
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 07:30:39 -0800 (PST)
+        Wed, 28 Dec 2016 07:30:40 -0800 (PST)
+Received: by mail-wj0-f195.google.com with SMTP id kp2so54789230wjc.0
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 07:30:40 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/7] vm, vmscan: enahance vmscan tracepoints
-Date: Wed, 28 Dec 2016 16:30:25 +0100
-Message-Id: <20161228153032.10821-1-mhocko@kernel.org>
+Subject: [PATCH 1/7] mm, vmscan: remove unused mm_vmscan_memcg_isolate
+Date: Wed, 28 Dec 2016 16:30:26 +0100
+Message-Id: <20161228153032.10821-2-mhocko@kernel.org>
+In-Reply-To: <20161228153032.10821-1-mhocko@kernel.org>
+References: <20161228153032.10821-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-while debugging [1] I've realized that there is some room for
-improvements in the tracepoints set we offer currently. I had hard times
-to make any conclusion from the existing ones. The resulting problem
-turned out to be active list aging [2] and we are missing at least two
-tracepoints to debug such a problem.
+From: Michal Hocko <mhocko@suse.com>
 
-Some existing tracepoints could export more information to see _why_ the
-reclaim progress cannot be made not only _how much_ we could reclaim.
-The later could be seen quite reasonably from the vmstat counters
-already. It can be argued that we are showing too many implementation
-details in those tracepoints but I consider them way too lowlevel
-already to be usable by any kernel independent userspace. I would be
-_really_ surprised if anything but debugging tools have used them.
+the trace point is not used since 925b7673cce3 ("mm: make per-memcg LRU
+lists exclusive") so it can be removed.
 
-Any feedback is highly appreciated.
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ include/trace/events/vmscan.h | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)
 
-[1] http://lkml.kernel.org/r/20161215225702.GA27944@boerne.fritz.box
-[2] http://lkml.kernel.org/r/20161223105157.GB23109@dhcp22.suse.cz
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index c88fd0934e7e..39bad8921ca1 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -269,8 +269,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 		__entry->retval)
+ );
+ 
+-DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+-
++TRACE_EVENT(mm_vmscan_lru_isolate,
+ 	TP_PROTO(int classzone_idx,
+ 		int order,
+ 		unsigned long nr_requested,
+@@ -311,34 +310,6 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+ 		__entry->file)
+ );
+ 
+-DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
+-
+-	TP_PROTO(int classzone_idx,
+-		int order,
+-		unsigned long nr_requested,
+-		unsigned long nr_scanned,
+-		unsigned long nr_taken,
+-		isolate_mode_t isolate_mode,
+-		int file),
+-
+-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
+-
+-);
+-
+-DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
+-
+-	TP_PROTO(int classzone_idx,
+-		int order,
+-		unsigned long nr_requested,
+-		unsigned long nr_scanned,
+-		unsigned long nr_taken,
+-		isolate_mode_t isolate_mode,
+-		int file),
+-
+-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
+-
+-);
+-
+ TRACE_EVENT(mm_vmscan_writepage,
+ 
+ 	TP_PROTO(struct page *page),
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
