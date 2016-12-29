@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 83F636B0069
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 11:08:21 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id t184so208417218qkd.2
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 08:08:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e1si32559281qtg.139.2016.12.29.08.08.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Dec 2016 08:08:20 -0800 (PST)
-Message-ID: <1483027695.11006.97.camel@redhat.com>
-Subject: Re: [PATCH] mm, page_alloc: convert page_group_by_mobility_disable
- to static key
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 29 Dec 2016 11:08:15 -0500
-In-Reply-To: <20161220134312.17332-1-vbabka@suse.cz>
-References: <20161220134312.17332-1-vbabka@suse.cz>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-PHlqDmcUK1C/XOvmXfZ0"
-Mime-Version: 1.0
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 018776B0069
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 12:27:46 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f188so1165321670pgc.1
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 09:27:45 -0800 (PST)
+Received: from anholt.net (anholt.net. [50.246.234.109])
+        by mx.google.com with ESMTP id l78si54179812pfg.206.2016.12.29.09.27.44
+        for <linux-mm@kvack.org>;
+        Thu, 29 Dec 2016 09:27:44 -0800 (PST)
+From: Eric Anholt <eric@anholt.net>
+Subject: Re: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
+In-Reply-To: <20161229091256.GF29208@dhcp22.suse.cz>
+References: <20161229023131.506-1-eric@anholt.net> <20161229091256.GF29208@dhcp22.suse.cz>
+Date: Thu, 29 Dec 2016 09:27:42 -0800
+Message-ID: <87wpeitzld.fsf@eliezer.anholt.net>
+MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-stable <stable@vger.kernel.org>, "Robin H. Johnson" <robbat2@orbis-terrarum.net>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
 
+--=-=-=
+Content-Type: text/plain
 
---=-PHlqDmcUK1C/XOvmXfZ0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
+Michal Hocko <mhocko@kernel.org> writes:
 
-T24gVHVlLCAyMDE2LTEyLTIwIGF0IDE0OjQzICswMTAwLCBWbGFzdGltaWwgQmFia2Egd3JvdGU6
-Cj4gVGhlIGZsYWcgaXMgcmFyZWx5IGVuYWJsZWQgb3IgZXZlbiBjaGFuZ2VkLCBzbyBpdCdzIGFu
-IGlkZWFsIHN0YXRpYwo+IGtleQo+IGNhbmRpZGF0ZS4gU2luY2UgaXQncyBiZWluZyBjaGVja2Vk
-IGluIHRoZSBwYWdlIGFsbG9jYXRvciBmYXN0cGF0aAo+IHZpYQo+IGdmcGZsYWdzX3RvX21pZ3Jh
-dGV0eXBlKCksIGl0IG1heSBhY3R1YWxseSBzYXZlIHNvbWUgdmFsdWFibGUgY3ljbGVzLgo+IAo+
-IEhlcmUncyBhIGRpZmYgZXhjZXJwdCBmcm9tIF9fYWxsb2NfcGFnZXNfbm9kZW1hc2soKSBhc3Nl
-bWJseToKPiAKPiDCoMKgwqDCoMKgwqDCoMKgLW1vdmzCoMKgwqDCoHBhZ2VfZ3JvdXBfYnlfbW9i
-aWxpdHlfZGlzYWJsZWQoJXJpcCksICVlY3gKPiAJKy5ieXRlIDB4MGYsMHgxZiwweDQ0LDB4MDAs
-MAo+IMKgwqDCoMKgwqDCoMKgwqDCoG1vdmzCoMKgwqDCoCVyOWQsICVlYXgKPiDCoMKgwqDCoMKg
-wqDCoMKgwqBzaHJswqDCoMKgwqAkMywgJWVheAo+IMKgwqDCoMKgwqDCoMKgwqDCoGFuZGzCoMKg
-wqDCoCQzLCAlZWF4Cj4gwqDCoMKgwqDCoMKgwqDCoC10ZXN0bMKgwqDCoCVlY3gsICVlY3gKPiDC
-oMKgwqDCoMKgwqDCoMKgLW1vdmzCoMKgwqDCoCQwLCAlZWN4Cj4gwqDCoMKgwqDCoMKgwqDCoC1j
-bW92bmXCoMKgJWVjeCwgJWVheAo+IAo+IEkuZS4gYSBOT1AgaW5zdGVhZCBvZiB0ZXN0LCBjb25k
-aXRpb25hbCBtb3ZlIGFuZCBzb21lIGFzc2lzdGluZwo+IG1vdmVzLgo+IAo+IFNpZ25lZC1vZmYt
-Ynk6IFZsYXN0aW1pbCBCYWJrYSA8dmJhYmthQHN1c2UuY3o+CgpBY2tlZC1ieTogUmlrIHZhbiBS
-aWVsIDxyaWVsQHJlZGhhdC5jb20+CgotLSAKQWxsIFJpZ2h0cyBSZXZlcnNlZC4=
+> This has been already brought up
+> http://lkml.kernel.org/r/20161130092239.GD18437@dhcp22.suse.cz and there
+> was a proposed patch for that which ratelimited the output
+> http://lkml.kernel.org/r/20161130132848.GG18432@dhcp22.suse.cz resp.
+> http://lkml.kernel.org/r/robbat2-20161130T195244-998539995Z@orbis-terrarum.net
+>
+> then the email thread just died out because the issue turned out to be a
+> configuration issue. Michal indicated that the message might be useful
+> so dropping it completely seems like a bad idea. I do agree that
+> something has to be done about that though. Can we reconsider the
+> ratelimit thing?
 
+I agree that the rate of the message has gone up during 4.9 -- it used
+to be a few per second.  However, if this is an expected path during
+normal operation, we shouldn't be clogging dmesg with it at all.  So,
+I'd rather we go with this patch, that is unless the KERN_DEBUG in your
+ratelimit patch would keep it out of journald as well (un-ratelimited,
+journald was eating 10% of a CPU processing the message, and I'd rather
+it not be getting logged at all).
 
---=-PHlqDmcUK1C/XOvmXfZ0
+--=-=-=
 Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
 
-iQEcBAABCAAGBQJYZTTwAAoJEM553pKExN6DgdIH/RWBoappXuLM2fdNP42Qaf39
-8ebjekdyVc3rqEwMCcEsyzi6YkrrZ0+kvN7lLVbDJXa6oc+7i6ve2gPlFBy7FjJl
-IPsPYJY1IhzNzheFok7aVo7k4CkCLBtz4y2GkbLd8wCKCZ2Qy1uLqqOA8PNYuFaC
-LDqHW8eNHhBtzy0IahuADwuCrcwC4QEFO4Idrx4KefOBtOILKDxgyim2uaL0iioX
-XVwm7mePS3ufL7KwDsQ+2FgKwffKrVJD9eh04mV15s0hWv20iNbxjIrUDSDEBceU
-qgm3+TpawxZh/RrDN9dj4cxXI9fbZe9DLNWOvU/CVv3oFbzDVV9FE1yj5ZFTYcQ=
-=D9nH
+iQIzBAEBCgAdFiEE/JuuFDWp9/ZkuCBXtdYpNtH8nugFAlhlR44ACgkQtdYpNtH8
+nuiJGBAApHDO41sS1UPZnr48HMD1xcfrxDwS8R2I97vTy8azBnwhonv9Vitv+7Kk
+hyvnPEi+EJ+XDsVgw7c/4GraU/CxOTlu4fOCLPDHzyyXjH2FPyMtPrUvTVsx44pZ
+SS5byt9vvZxgN+suxte8ursNcTEGGeDZ6hve6w47KSSQZJ1fxn35cIhrsqwuOeXB
+MlokpuTvyWpQ4Kup3MownB+YxyKPuYKvue8RPap90cEoe0N7NU/cBAZQQ1nO65kR
+ngL2g4i8Ho9YtLlnLOF8fUXvBdpKNvnPRo+ER4b3kLMZOkILizd4Zfvz17Z1ArgD
+ybFLCOFKHtWty7PvD5AtC2v2B5JX9JBO5cmWMACpXmLJ1hNCQrwecx/8fT/FY+NF
+UjNB4VkPgK8Qt55+JjwiYvF7aRz4FUVHioNophUYdO7A6BONul3zAlSSaLLtb5HZ
+bjA98xRwWrTUdhtPH/7VaglI1s27lv1ZVdyWImW5wgOYoBz0dwBZz6B2T29iijlw
+dWqBfFh+hfQ9UYSN2uRwcnBZWvMKKYDsAq8ae5exZs6TuM9O/7ubyE2IdnzGRk95
+wys4IQ7eOA9t+f8XlaLpH56uj4VKgUsoSAqO4aOKTNhAqbKsJIoUVjZp9jyamjNt
+BOYg6v8k+L2N8qW/VZZxKBoyaC0aDNKO15u5oFIobCQPZgu4Lzk=
+=yK3q
 -----END PGP SIGNATURE-----
-
---=-PHlqDmcUK1C/XOvmXfZ0--
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
