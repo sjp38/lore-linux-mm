@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B07F6B0069
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 19:48:27 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b1so934067657pgc.5
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 16:48:27 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 3si51663038plx.43.2016.12.28.16.48.26
+	by kanga.kvack.org (Postfix) with ESMTP id 346A56B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 20:20:30 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id u5so504360361pgi.7
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 17:20:30 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id k1si51743314pld.26.2016.12.28.17.20.28
         for <linux-mm@kvack.org>;
-        Wed, 28 Dec 2016 16:48:26 -0800 (PST)
-Date: Thu, 29 Dec 2016 09:48:24 +0900
+        Wed, 28 Dec 2016 17:20:29 -0800 (PST)
+Date: Thu, 29 Dec 2016 10:20:26 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
-Message-ID: <20161229004824.GA15541@bbox>
+Message-ID: <20161229012026.GB15541@bbox>
 References: <20161222101028.GA11105@ppc-nas.fritz.box>
  <20161222191719.GA19898@dhcp22.suse.cz>
  <20161222214611.GA3015@boerne.fritz.box>
@@ -21,118 +21,144 @@ References: <20161222101028.GA11105@ppc-nas.fritz.box>
  <20161223144738.GB23117@dhcp22.suse.cz>
  <20161223222559.GA5568@teela.multi.box>
  <20161226124839.GB20715@dhcp22.suse.cz>
- <20161229003154.GA15160@bbox>
+ <20161227155532.GI1308@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161229003154.GA15160@bbox>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20161227155532.GI1308@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Nils Holland <nholland@tisys.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Thu, Dec 29, 2016 at 09:31:54AM +0900, Minchan Kim wrote:
-> On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
-> > On Fri 23-12-16 23:26:00, Nils Holland wrote:
-> > > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
-> > > > 
-> > > > Nils, even though this is still highly experimental, could you give it a
-> > > > try please?
-> > > 
-> > > Yes, no problem! So I kept the very first patch you sent but had to
-> > > revert the latest version of the debugging patch (the one in
-> > > which you added the "mm_vmscan_inactive_list_is_low" event) because
-> > > otherwise the patch you just sent wouldn't apply. Then I rebooted with
-> > > memory cgroups enabled again, and the first thing that strikes the eye
-> > > is that I get this during boot:
-> > > 
-> > > [    1.568174] ------------[ cut here ]------------
-> > > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
-> > > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
-> > 
-> > Ohh, I can see what is wrong! a) there is a bug in the accounting in
-> > my patch (I double account) and b) the detection for the empty list
-> > cannot work after my change because per node zone will not match per
-> > zone statistics. The updated patch is below. So I hope my brain already
-> > works after it's been mostly off last few days...
-> > ---
-> > From 397adf46917b2d9493180354a7b0182aee280a8b Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Fri, 23 Dec 2016 15:11:54 +0100
-> > Subject: [PATCH] mm, memcg: fix the active list aging for lowmem requests when
-> >  memcg is enabled
-> > 
-> > Nils Holland has reported unexpected OOM killer invocations with 32b
-> > kernel starting with 4.8 kernels
-> > 
-> > 	kworker/u4:5 invoked oom-killer: gfp_mask=0x2400840(GFP_NOFS|__GFP_NOFAIL), nodemask=0, order=0, oom_score_adj=0
-> > 	kworker/u4:5 cpuset=/ mems_allowed=0
-> > 	CPU: 1 PID: 2603 Comm: kworker/u4:5 Not tainted 4.9.0-gentoo #2
-> > 	[...]
-> > 	Mem-Info:
-> > 	active_anon:58685 inactive_anon:90 isolated_anon:0
-> > 	 active_file:274324 inactive_file:281962 isolated_file:0
-> > 	 unevictable:0 dirty:649 writeback:0 unstable:0
-> > 	 slab_reclaimable:40662 slab_unreclaimable:17754
-> > 	 mapped:7382 shmem:202 pagetables:351 bounce:0
-> > 	 free:206736 free_pcp:332 free_cma:0
-> > 	Node 0 active_anon:234740kB inactive_anon:360kB active_file:1097296kB inactive_file:1127848kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:29528kB dirty:2596kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 184320kB anon_thp: 808kB writeback_tmp:0kB unstable:0kB pages_scanned:0 all_unreclaimable? no
-> > 	DMA free:3952kB min:788kB low:984kB high:1180kB active_anon:0kB inactive_anon:0kB active_file:7316kB inactive_file:0kB unevictable:0kB writepending:96kB present:15992kB managed:15916kB mlocked:0kB slab_reclaimable:3200kB slab_unreclaimable:1408kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> > 	lowmem_reserve[]: 0 813 3474 3474
-> > 	Normal free:41332kB min:41368kB low:51708kB high:62048kB active_anon:0kB inactive_anon:0kB active_file:532748kB inactive_file:44kB unevictable:0kB writepending:24kB present:897016kB managed:836248kB mlocked:0kB slab_reclaimable:159448kB slab_unreclaimable:69608kB kernel_stack:1112kB pagetables:1404kB bounce:0kB free_pcp:528kB local_pcp:340kB free_cma:0kB
-> > 	lowmem_reserve[]: 0 0 21292 21292
-> > 	HighMem free:781660kB min:512kB low:34356kB high:68200kB active_anon:234740kB inactive_anon:360kB active_file:557232kB inactive_file:1127804kB unevictable:0kB writepending:2592kB present:2725384kB managed:2725384kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:800kB local_pcp:608kB free_cma:0kB
-> > 
-> > the oom killer is clearly pre-mature because there there is still a
-> > lot of page cache in the zone Normal which should satisfy this lowmem
-> > request. Further debugging has shown that the reclaim cannot make any
-> > forward progress because the page cache is hidden in the active list
-> > which doesn't get rotated because inactive_list_is_low is not memcg
-> > aware.
-> > It simply subtracts per-zone highmem counters from the respective
-> > memcg's lru sizes which doesn't make any sense. We can simply end up
-> > always seeing the resulting active and inactive counts 0 and return
-> > false. This issue is not limited to 32b kernels but in practice the
-> > effect on systems without CONFIG_HIGHMEM would be much harder to notice
-> > because we do not invoke the OOM killer for allocations requests
-> > targeting < ZONE_NORMAL.
-> > 
-> > Fix the issue by tracking per zone lru page counts in mem_cgroup_per_node
-> > and subtract per-memcg highmem counts when memcg is enabled. Introduce
-> > helper lruvec_zone_lru_size which redirects to either zone counters or
-> > mem_cgroup_get_zone_lru_size when appropriate.
-> > 
-> > We are loosing empty LRU but non-zero lru size detection introduced by
-> > ca707239e8a7 ("mm: update_lru_size warn and reset bad lru_size") because
-> > of the inherent zone vs. node discrepancy.
-> > 
-> > Fixes: f8d1a31163fc ("mm: consider whether to decivate based on eligible zones inactive ratio")
-> > Cc: stable # 4.8+
-> > Reported-by: Nils Holland <nholland@tisys.org>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
+On Tue, Dec 27, 2016 at 04:55:33PM +0100, Michal Hocko wrote:
+> Hi,
+> could you try to run with the following patch on top of the previous
+> one? I do not think it will make a large change in your workload but
+> I think we need something like that so some testing under which is known
+> to make a high lowmem pressure would be really appreciated. If you have
+> more time to play with it then running with and without the patch with
+> mm_vmscan_direct_reclaim_{start,end} tracepoints enabled could tell us
+> whether it make any difference at all.
+> 
+> I would also appreciate if Mel and Johannes had a look at it. I am not
+> yet sure whether we need the same thing for anon/file balancing in
+> get_scan_count. I suspect we need but need to think more about that.
+> 
+> Thanks a lot again!
+> ---
+> From b51f50340fe9e40b68be198b012f8ab9869c1850 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 27 Dec 2016 16:28:44 +0100
+> Subject: [PATCH] mm, vmscan: consider eligible zones in get_scan_count
+> 
+> get_scan_count considers the whole node LRU size when
+> - doing SCAN_FILE due to many page cache inactive pages
+> - calculating the number of pages to scan
+> 
+> in both cases this might lead to unexpected behavior especially on 32b
+> systems where we can expect lowmem memory pressure very often.
+> 
+> A large highmem zone can easily distort SCAN_FILE heuristic because
+> there might be only few file pages from the eligible zones on the node
+> lru and we would still enforce file lru scanning which can lead to
+> trashing while we could still scan anonymous pages.
+
+Nit:
+It doesn't make thrashing because isolate_lru_pages filter out them
+but I agree it makes pointless CPU burning to find eligible pages.
+
+> 
+> The later use of lruvec_lru_size can be problematic as well. Especially
+> when there are not many pages from the eligible zones. We would have to
+> skip over many pages to find anything to reclaim but shrink_node_memcg
+> would only reduce the remaining number to scan by SWAP_CLUSTER_MAX
+> at maximum. Therefore we can end up going over a large LRU many times
+> without actually having chance to reclaim much if anything at all. The
+> closer we are out of memory on lowmem zone the worse the problem will
+> be.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/vmscan.c | 30 ++++++++++++++++++++++++++++--
+>  1 file changed, 28 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c98b1a585992..785b4d7fb8a0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -252,6 +252,32 @@ unsigned long lruvec_zone_lru_size(struct lruvec *lruvec, enum lru_list lru, int
+>  }
+>  
+>  /*
+> + * Return the number of pages on the given lru which are eligibne for the
+                                                            eligible
+> + * given zone_idx
+> + */
+> +static unsigned long lruvec_lru_size_zone_idx(struct lruvec *lruvec,
+> +		enum lru_list lru, int zone_idx)
 
 Nit:
 
-WARNING: line over 80 characters
-#53: FILE: include/linux/memcontrol.h:689:
-+unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec, enum lru_list lru,
+Although there is a comment, function name is rather confusing when I compared
+it with lruvec_zone_lru_size.
 
-WARNING: line over 80 characters
-#147: FILE: mm/vmscan.c:248:
-+unsigned long lruvec_zone_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone_idx)
+lruvec_eligible_zones_lru_size is better?
 
-WARNING: line over 80 characters
-#177: FILE: mm/vmscan.c:1446:
-+               mem_cgroup_update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
 
-WARNING: line over 80 characters
-#201: FILE: mm/vmscan.c:2099:
-+               inactive_zone = lruvec_zone_lru_size(lruvec, file * LRU_FILE, zid);
+> +{
+> +	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> +	unsigned long lru_size;
+> +	int zid;
+> +
+> +	lru_size = lruvec_lru_size(lruvec, lru);
+> +	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
+> +		struct zone *zone = &pgdat->node_zones[zid];
+> +		unsigned long size;
+> +
+> +		if (!managed_zone(zone))
+> +			continue;
+> +
+> +		size = lruvec_zone_lru_size(lruvec, lru, zid);
+> +		lru_size -= min(size, lru_size);
+> +	}
+> +
+> +	return lru_size;
+> +}
+> +
+> +/*
+>   * Add a shrinker callback to be called from the vm.
+>   */
+>  int register_shrinker(struct shrinker *shrinker)
+> @@ -2207,7 +2233,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  	 * system is under heavy pressure.
+>  	 */
+>  	if (!inactive_list_is_low(lruvec, true, sc) &&
+> -	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
+> +	    lruvec_lru_size_zone_idx(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+>  		scan_balance = SCAN_FILE;
+>  		goto out;
+>  	}
+> @@ -2274,7 +2300,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  			unsigned long size;
+>  			unsigned long scan;
+>  
+> -			size = lruvec_lru_size(lruvec, lru);
+> +			size = lruvec_lru_size_zone_idx(lruvec, lru, sc->reclaim_idx);
+>  			scan = size >> sc->priority;
+>  
+>  			if (!scan && pass && force_scan)
+> -- 
+> 2.10.2
 
-WARNING: line over 80 characters
-#202: FILE: mm/vmscan.c:2100:
-+               active_zone = lruvec_zone_lru_size(lruvec, (file * LRU_FILE) + LRU_ACTIVE, zid);
+Nit:
+
+With this patch, inactive_list_is_low can use lruvec_lru_size_zone_idx rather than
+own custom calculation to filter out non-eligible pages. 
+
+Anyway, I think this patch does right things so I suppose this.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
