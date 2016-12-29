@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2956B025E
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 03:00:52 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id n189so557077295pga.4
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 00:00:52 -0800 (PST)
-Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
-        by mx.google.com with ESMTP id y61si21841228plh.236.2016.12.29.00.00.49
-        for <linux-mm@kvack.org>;
-        Thu, 29 Dec 2016 00:00:51 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20161228153032.10821-1-mhocko@kernel.org> <20161228153032.10821-6-mhocko@kernel.org>
-In-Reply-To: <20161228153032.10821-6-mhocko@kernel.org>
-Subject: Re: [PATCH 5/7] mm, vmscan: extract shrink_page_list reclaim counters into a struct
-Date: Thu, 29 Dec 2016 16:00:33 +0800
-Message-ID: <06d901d261a9$a2277d70$e6767850$@alibaba-inc.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E39A6B025E
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 03:03:45 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id u5so522571939pgi.7
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 00:03:45 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id b3si22387063pll.166.2016.12.29.00.03.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Dec 2016 00:03:44 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id i5so18224734pgh.2
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 00:03:44 -0800 (PST)
+Date: Thu, 29 Dec 2016 17:03:51 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: mm: fix typo of cache_alloc_zspage()
+Message-ID: <20161229080351.GC3892@jagdpanzerIV.localdomain>
+References: <58646FB7.2040502@huawei.com>
+ <20161229064457.GD1815@bbox>
+ <20161229065205.GA3892@jagdpanzerIV.localdomain>
+ <20161229065935.GE1815@bbox>
+ <20161229073403.GB3892@jagdpanzerIV.localdomain>
+ <20161229075654.GF1815@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161229075654.GF1815@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Rik van Riel' <riel@redhat.com>, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Xishi Qiu <qiuxishi@huawei.com>, ngupta@vflare.org, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+
+On (12/29/16 16:56), Minchan Kim wrote:
+> > for instance, we can have Xishi's fix up as part of this "fix documentation
+> > typos" patch. which can be counted in as trivial.
+> 
+> Xishi, Could you send your patch with fixing ones Sergey pointed out
+> if Sergey doesn't mind?
+
+I don't.
+  Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+will be more than enough (well, to me).
 
 
+> > - * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
+> > + * A single 'zspage' is composed of up to 2^N discontinuous 0-order (single)
+> 
+> Hmm, discontinuous is right?
+> I'm not a native but discontiguos is wrong? "contiguous" was used mm part widely.
 
-On Wednesday, December 28, 2016 11:31 PM Michal Hocko wrote: 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> shrink_page_list returns quite some counters back to its caller. Extract
-> the existing 5 into struct reclaim_stat because this makes the code
-> easier to follow and also allows further counters to be returned.
-> 
-> While we are at it, make all of them unsigned rather than unsigned long
-> as we do not really need full 64b for them (we never scan more than
-> SWAP_CLUSTER_MAX pages at once). This should reduce some stack space.
-> 
-> This patch shouldn't introduce any functional change.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
+oh, you're definitely much closer to native speaker than `aspell' tool!
+you're right. Xishi, please drop that 'discontiguous' "correction".
+sorry for that.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
