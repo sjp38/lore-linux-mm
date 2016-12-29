@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5028E6B0069
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 02:59:39 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id x140so62954575lfa.2
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 23:59:39 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id v126si30495034lfa.190.2016.12.28.23.59.35
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 23:59:37 -0800 (PST)
-Message-ID: <5864C12F.60709@huawei.com>
-Date: Thu, 29 Dec 2016 15:54:23 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2956B025E
+	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 03:00:52 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id n189so557077295pga.4
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 00:00:52 -0800 (PST)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTP id y61si21841228plh.236.2016.12.29.00.00.49
+        for <linux-mm@kvack.org>;
+        Thu, 29 Dec 2016 00:00:51 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161228153032.10821-1-mhocko@kernel.org> <20161228153032.10821-6-mhocko@kernel.org>
+In-Reply-To: <20161228153032.10821-6-mhocko@kernel.org>
+Subject: Re: [PATCH 5/7] mm, vmscan: extract shrink_page_list reclaim counters into a struct
+Date: Thu, 29 Dec 2016 16:00:33 +0800
+Message-ID: <06d901d261a9$a2277d70$e6767850$@alibaba-inc.com>
 MIME-Version: 1.0
-Subject: [PATCH V2] mm: fix typo of cache_alloc_zspage()
-References: <58646FB7.2040502@huawei.com>
-In-Reply-To: <58646FB7.2040502@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Rik van Riel' <riel@redhat.com>, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
 
-Delete extra semicolon, it was introduced in
-3783689 zsmalloc: introduce zspage structure
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/zsmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 9cc3c0b..2d6c92e 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -364,7 +364,7 @@ static struct zspage *cache_alloc_zspage(struct zs_pool *pool, gfp_t flags)
- {
- 	return kmem_cache_alloc(pool->zspage_cachep,
- 			flags & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
--};
-+}
- 
- static void cache_free_zspage(struct zs_pool *pool, struct zspage *zspage)
- {
--- 
-1.8.3.1
-
+On Wednesday, December 28, 2016 11:31 PM Michal Hocko wrote: 
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> shrink_page_list returns quite some counters back to its caller. Extract
+> the existing 5 into struct reclaim_stat because this makes the code
+> easier to follow and also allows further counters to be returned.
+> 
+> While we are at it, make all of them unsigned rather than unsigned long
+> as we do not really need full 64b for them (we never scan more than
+> SWAP_CLUSTER_MAX pages at once). This should reduce some stack space.
+> 
+> This patch shouldn't introduce any functional change.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
