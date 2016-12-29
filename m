@@ -1,94 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B7806B025E
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 21:54:02 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id d22so127482623qtd.3
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 18:54:02 -0800 (PST)
-Received: from mail-qt0-f182.google.com (mail-qt0-f182.google.com. [209.85.216.182])
-        by mx.google.com with ESMTPS id 4si2231118qkk.68.2016.12.28.18.54.01
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1756B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 23:09:04 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so1125519601pgc.1
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 20:09:04 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id h5si52079720pgg.22.2016.12.28.20.09.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Dec 2016 18:54:01 -0800 (PST)
-Received: by mail-qt0-f182.google.com with SMTP id c47so363806777qtc.2
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 18:54:01 -0800 (PST)
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com>
- <20161227022405.GA8780@node.shutemov.name>
-From: Carlos O'Donell <carlos@redhat.com>
-Message-ID: <3a168403-26f7-ac8d-3086-848178be6005@redhat.com>
-Date: Wed, 28 Dec 2016 21:53:58 -0500
+        Wed, 28 Dec 2016 20:09:03 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id b1so17615710pgc.1
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 20:09:03 -0800 (PST)
+Date: Thu, 29 Dec 2016 14:08:37 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting
+ for a page bit
+Message-ID: <20161229140837.5fff906d@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFz-evT+NiZY0GhO719M+=u==TbCqxTJTjp+pJevhDnRrw@mail.gmail.com>
+References: <20161225030030.23219-1-npiggin@gmail.com>
+	<20161225030030.23219-3-npiggin@gmail.com>
+	<CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
+	<20161226111654.76ab0957@roar.ozlabs.ibm.com>
+	<CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
+	<20161227211946.3770b6ce@roar.ozlabs.ibm.com>
+	<CA+55aFw22e6njM9L4sareRRJw3RjW9XwGH3B7p-ND86EtTWWDQ@mail.gmail.com>
+	<20161228135358.59f47204@roar.ozlabs.ibm.com>
+	<CA+55aFz-evT+NiZY0GhO719M+=u==TbCqxTJTjp+pJevhDnRrw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20161227022405.GA8780@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On 12/26/2016 09:24 PM, Kirill A. Shutemov wrote:
-> On Mon, Dec 26, 2016 at 06:06:01PM -0800, Andy Lutomirski wrote:
->> On Mon, Dec 26, 2016 at 5:54 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->>> This patch introduces new rlimit resource to manage maximum virtual
->>> address available to userspace to map.
->>>
->>> On x86, 5-level paging enables 56-bit userspace virtual address space.
->>> Not all user space is ready to handle wide addresses. It's known that
->>> at least some JIT compilers use high bit in pointers to encode their
->>> information. It collides with valid pointers with 5-level paging and
->>> leads to crashes.
->>>
->>> The patch aims to address this compatibility issue.
->>>
->>> MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
->>> address available to map by userspace.
->>>
->>> The default hard limit will be RLIM_INFINITY, which basically means that
->>> TASK_SIZE limits available address space.
->>>
->>> The soft limit will also be RLIM_INFINITY everywhere, but the machine
->>> with 5-level paging enabled. In this case, soft limit would be
->>> (1UL << 47) - PAGE_SIZE. Ita??s current x86-64 TASK_SIZE_MAX with 4-level
->>> paging which known to be safe
->>>
->>> New rlimit resource would follow usual semantics with regards to
->>> inheritance: preserved on fork(2) and exec(2). This has potential to
->>> break application if limits set too wide or too narrow, but this is not
->>> uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
->>>
->>> As with other resources you can set the limit lower than current usage.
->>> It would affect only future virtual address space allocations.
->>>
->>> Use-cases for new rlimit:
->>>
->>>   - Bumping the soft limit to RLIM_INFINITY, allows current process all
->>>     its children to use addresses above 47-bits.
->>>
->>>   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
->>>     exec(2) allows the child to use addresses above 47-bits.
->>>
->>>   - Lowering the hard limit to 47-bits would prevent current process all
->>>     its children to use addresses above 47-bits, unless a process has
->>>     CAP_SYS_RESOURCES.
->>>
->>>   - Ita??s also can be handy to lower hard or soft limit to arbitrary
->>>     address. User-mode emulation in QEMU may lower the limit to 32-bit
->>>     to emulate 32-bit machine on 64-bit host.
->>
->> I tend to think that this should be a personality or an ELF flag, not
->> an rlimit.
+On Wed, 28 Dec 2016 11:17:00 -0800
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Tue, Dec 27, 2016 at 7:53 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
+> >>
+> >> Yeah, that patch is disgusting, and doesn't even help x86.  
+> >
+> > No, although it would help some cases (but granted the bitops tend to
+> > be problematic in this regard). To be clear I'm not asking to merge it,
+> > just wondered your opinion. (We need something more for unlock_page
+> > anyway because the memory barrier in the way).  
 > 
-> My plan was to implement ELF flag on top. Basically, ELF flag would mean
-> that we bump soft limit to hard limit on exec.
+> The thing is, the patch seems pointless anyway. The "add_return()"
+> kind of cases already return the value, so any code that cares can
+> just use that. And the other cases are downright incorrect, like the
+> removal of "volatile" from the bit test ops.
 
-Could you clarify what you mean by an "ELF flag?"
+Yeah that's true, but you can't carry that over multiple multiple
+primitives. For bitops it's often the case you get several bitops
+on the same word close together.
 
--- 
-Cheers,
-Carlos.
+> 
+> >> It also
+> >> depends on the compiler doing the right thing in ways that are not
+> >> obviously true.  
+> >
+> > Can you elaborate on this? GCC will do the optimization (modulo a
+> > regression https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77647)  
+> 
+> So the removal of volatile is just one example of that. You're
+> basically forcing magical side effects. I've never seen this trick
+> _documented_, and quite frankly, the gcc people have had a history of
+> changing their own documentation when it came to their own extensions
+> (ie they've changed how inline functions work etc).
+> 
+> But I also worry about interactions with different gcc versions, or
+> with the LLVM people who try to build the kernel with non-gcc
+> compilers.
+> 
+> Finally, it fundamentally can't work on x86 anyway, except for the
+> add-return type of operations, which by definitions are pointless (see
+> above).
+> 
+> So everything just screams "this is a horrible approach" to me.
+
+You're probably right. The few cases where it matters may just be served
+with special primitives.
+
+> 
+> > Patch seems okay, but it's kind of a horrible primitive. What if you
+> > did clear_bit_unlock_and_test_bit, which does a __builtin_constant_p
+> > test on the bit numbers and if they are < 7 and == 7, then do the
+> > fastpath?  
+> 
+> So the problem with that is that it makes no sense *except* in the
+> case where the bit is 7. So why add a "generic" function for something
+> that really isn't generic?
+
+Yeah you're also right, I kind of realized after hitting send.
+
+> 
+> I agree that it's a hacky interface, but I also happen to believe that
+> being explicit about what you are actually doing causes less pain.
+> It's not magical, and it's not subtle. There's no question about what
+> it does behind your back, and people won't use it by mistake in the
+> wrong context where it doesn't actually work any better than just
+> doing the obvious thing.
+
+Okay. The name could be a bit better though I think, for readability.
+Just a BUILD_BUG_ON if it is not constant and correct bit numbers?
+
+BTW. I just notice in your patch too that you didn't use "nr" in the
+generic version.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
