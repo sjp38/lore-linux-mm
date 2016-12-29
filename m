@@ -1,92 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1CF6B0069
-	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 21:27:26 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 83so575251095pfx.1
-        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 18:27:26 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id m1si17526734plk.48.2016.12.28.18.27.25
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Dec 2016 18:27:25 -0800 (PST)
-Received: from epcas1p1.samsung.com (unknown [182.195.41.45])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OIX00R6JDHNIL30@mailout4.samsung.com> for linux-mm@kvack.org;
- Thu, 29 Dec 2016 11:27:23 +0900 (KST)
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Subject: [PATCH] mm: cma: print allocation failure reason and bitmap status
-Date: Thu, 29 Dec 2016 11:28:02 +0900
-Message-id: <1482978482-14007-1-git-send-email-jaewon31.kim@samsung.com>
-References: 
- <CGME20161229022722epcas5p4be0e1924f3c8d906cbfb461cab8f0374@epcas5p4.samsung.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 97F046B0069
+	for <linux-mm@kvack.org>; Wed, 28 Dec 2016 21:31:34 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f188so1121095551pgc.1
+        for <linux-mm@kvack.org>; Wed, 28 Dec 2016 18:31:34 -0800 (PST)
+Received: from anholt.net (anholt.net. [50.246.234.109])
+        by mx.google.com with ESMTP id g10si22946128plm.311.2016.12.28.18.31.33
+        for <linux-mm@kvack.org>;
+        Wed, 28 Dec 2016 18:31:33 -0800 (PST)
+From: Eric Anholt <eric@anholt.net>
+Subject: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
+Date: Wed, 28 Dec 2016 18:31:31 -0800
+Message-Id: <20161229023131.506-1-eric@anholt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, akpm@linux-foundation.org
-Cc: labbott@redhat.com, mhocko@kernel.org, mina86@mina86.com, m.szyprowski@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com, Jaewon Kim <jaewon31.kim@samsung.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Eric Anholt <eric@anholt.net>, linux-stable <stable@vger.kernel.org>
 
-There are many reasons of CMA allocation failure such as EBUSY, ENOMEM, EINTR.
-This patch prints the error value and bitmap status to know available pages
-regarding fragmentation.
+For CMA allocations, we expect to occasionally hit this error path, at
+which point CMA will retry.  Given that, we shouldn't be spamming
+dmesg about it.
 
-This is an ENOMEM example with this patch.
-[   11.616321]  [2:   Binder:711_1:  740] cma: cma_alloc: alloc failed, req-size: 256 pages, ret: -12
-[   11.616365]  [2:   Binder:711_1:  740] number of available pages: 4+7+7+8+38+166+127=>357 pages, total: 2048 pages
+The Raspberry Pi graphics driver does frequent CMA allocations, and
+during regression testing this printk was sometimes occurring 100s of
+times per second.
 
-Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+Signed-off-by: Eric Anholt <eric@anholt.net>
+Cc: linux-stable <stable@vger.kernel.org>
 ---
- mm/cma.c | 29 ++++++++++++++++++++++++++++-
- 1 file changed, 28 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/mm/cma.c b/mm/cma.c
-index c960459..535aa39 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -369,7 +369,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- 	unsigned long start = 0;
- 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
- 	struct page *page = NULL;
--	int ret;
-+	int ret = -ENOMEM;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6de9440e3ae2..bea7204c14a5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7289,8 +7289,6 @@ int alloc_contig_range(unsigned long start, unsigned long end,
  
- 	if (!cma || !cma->count)
- 		return NULL;
-@@ -427,6 +427,33 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- 	trace_cma_alloc(pfn, page, count, align);
- 
- 	pr_debug("%s(): returned %p\n", __func__, page);
-+
-+	if (ret != 0) {
-+		unsigned int nr, nr_total = 0;
-+		unsigned long next_set_bit;
-+
-+		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
-+			__func__, count, ret);
-+		mutex_lock(&cma->lock);
-+		printk("number of available pages: ");
-+		start = 0;
-+		for (;;) {
-+			bitmap_no = find_next_zero_bit(cma->bitmap, cma->count, start);
-+			next_set_bit = find_next_bit(cma->bitmap, cma->count, bitmap_no);
-+			nr = next_set_bit - bitmap_no;
-+			if (bitmap_no >= cma->count)
-+				break;
-+			if (nr_total == 0)
-+				printk("%u", nr);
-+			else
-+				printk("+%u", nr);
-+			nr_total += nr;
-+			start = bitmap_no + nr;
-+		}
-+		printk("=>%u pages, total: %lu pages\n", nr_total, cma->count);
-+		mutex_unlock(&cma->lock);
-+	}
-+
- 	return page;
- }
- 
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end, false)) {
+-		pr_info("%s: [%lx, %lx) PFNs busy\n",
+-			__func__, outer_start, end);
+ 		ret = -EBUSY;
+ 		goto done;
+ 	}
 -- 
-1.9.1
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
