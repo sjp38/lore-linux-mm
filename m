@@ -1,140 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE2E6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 01:27:16 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id u5so592071223pgi.7
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 22:27:16 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id s186si55859842pgb.6.2016.12.29.22.27.14
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D29716B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 02:11:18 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id y21so144226870lfa.0
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 23:11:18 -0800 (PST)
+Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
+        by mx.google.com with ESMTPS id p11si32477852lfd.170.2016.12.29.23.11.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Dec 2016 22:27:14 -0800 (PST)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OIZ00TK4J9CA3A0@mailout2.samsung.com> for linux-mm@kvack.org;
- Fri, 30 Dec 2016 15:27:12 +0900 (KST)
-Content-transfer-encoding: 8BIT
-Subject: Re: [PATCH] mm: cma: print allocation failure reason and bitmap status
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Message-id: <5865FE6D.5050500@samsung.com>
-Date: Fri, 30 Dec 2016 15:27:57 +0900
-In-reply-to: <20161229094335.GH29208@dhcp22.suse.cz>
-References: 
- <CGME20161229022722epcas5p4be0e1924f3c8d906cbfb461cab8f0374@epcas5p4.samsung.com>
- <1482978482-14007-1-git-send-email-jaewon31.kim@samsung.com>
- <20161229091449.GG29208@dhcp22.suse.cz> <5864D6CE.7070001@samsung.com>
- <20161229094335.GH29208@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Dec 2016 23:11:17 -0800 (PST)
+Received: by mail-lf0-x234.google.com with SMTP id b14so232707218lfg.2
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 23:11:16 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
+In-Reply-To: <8737h65nr5.fsf@eliezer.anholt.net>
+References: <20161229023131.506-1-eric@anholt.net> <20161229091256.GF29208@dhcp22.suse.cz> <87wpeitzld.fsf@eliezer.anholt.net> <xa1td1ga74v7.fsf@mina86.com> <8737h65nr5.fsf@eliezer.anholt.net>
+Date: Fri, 30 Dec 2016 08:11:12 +0100
+Message-ID: <xa1ta8bd7uy7.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Eric Anholt <eric@anholt.net>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-stable <stable@vger.kernel.org>, "Robin H. Johnson" <robbat2@orbis-terrarum.net>, Vlastimil Babka <vbabka@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-
-
-On 2016e?? 12i?? 29i? 1/4  18:43, Michal Hocko wrote:
-> On Thu 29-12-16 18:26:38, Jaewon Kim wrote:
+On Thu, Dec 29 2016, Eric Anholt wrote:
+> Michal Nazarewicz <mina86@mina86.com> writes:
+>
+>> On Thu, Dec 29 2016, Eric Anholt wrote:
+>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>
+>>>> This has been already brought up
+>>>> http://lkml.kernel.org/r/20161130092239.GD18437@dhcp22.suse.cz and the=
+re
+>>>> was a proposed patch for that which ratelimited the output
+>>>> http://lkml.kernel.org/r/20161130132848.GG18432@dhcp22.suse.cz resp.
+>>>> http://lkml.kernel.org/r/robbat2-20161130T195244-998539995Z@orbis-terr=
+arum.net
+>>>>
+>>>> then the email thread just died out because the issue turned out to be=
+ a
+>>>> configuration issue. Michal indicated that the message might be useful
+>>>> so dropping it completely seems like a bad idea. I do agree that
+>>>> something has to be done about that though. Can we reconsider the
+>>>> ratelimit thing?
+>>>
+>>> I agree that the rate of the message has gone up during 4.9 -- it used
+>>> to be a few per second.
 >>
->> On 2016e?? 12i?? 29i? 1/4  18:14, Michal Hocko wrote:
->>> On Thu 29-12-16 11:28:02, Jaewon Kim wrote:
->>>> There are many reasons of CMA allocation failure such as EBUSY, ENOMEM, EINTR.
->>>> This patch prints the error value and bitmap status to know available pages
->>>> regarding fragmentation.
->>>>
->>>> This is an ENOMEM example with this patch.
->>>> [   11.616321]  [2:   Binder:711_1:  740] cma: cma_alloc: alloc failed, req-size: 256 pages, ret: -12
->>>> [   11.616365]  [2:   Binder:711_1:  740] number of available pages: 4+7+7+8+38+166+127=>357 pages, total: 2048 pages
->>> Could you be more specific why this part is useful?
->> Hi
->> Without this patch we do not know why CMA allocation failed.
-> Yes, I understand the first part
+>> Sounds like a regression which should be fixed.
+>>
+>> This is why I don=E2=80=99t think removing the message is a good idea.  =
+If you
+>> suddenly see a lot of those messages, something changed for the worse.
+>> If you remove this message, you will never know.
+>>
+>>> However, if this is an expected path during normal operation,
+>>
+>> This depends on your definition of =E2=80=98expected=E2=80=99 and =E2=80=
+=98normal=E2=80=99.
+>>
+>> In general, I would argue that the fact those ever happen is a bug
+>> somewhere in the kernel =E2=80=93 if memory is allocated as movable, it =
+should
+>> be movable damn it!
 >
->> Additionally in case of ENOMEM, with bitmap status we can figure out that
-> The code doesn't seem to check for ENOMEM though
-Yes actually I wanted to look both ENOMEM case and EBUSY case.
-Even in EBUSY case, we can look how much available pages existed, but all failed on those region because of EBUSY.
-We may not need EINTR case, but I hope to look.
->
->> if it is too small CMA region issue or if it is fragmentation issue.
-> then please describe that in the changelog. If I got it right the above
-> would tell us that the fragmentation is the problem, right?
-Yes fragmentation can be A problem, but bitmap status will explain EBUSY case too as I explained above.
->
->>>  
->>>> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->>>> ---
->>>>  mm/cma.c | 29 ++++++++++++++++++++++++++++-
->>>>  1 file changed, 28 insertions(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/cma.c b/mm/cma.c
->>>> index c960459..535aa39 100644
->>>> --- a/mm/cma.c
->>>> +++ b/mm/cma.c
->>>> @@ -369,7 +369,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->>>>  	unsigned long start = 0;
->>>>  	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
->>>>  	struct page *page = NULL;
->>>> -	int ret;
->>>> +	int ret = -ENOMEM;
->>>>  
->>>>  	if (!cma || !cma->count)
->>>>  		return NULL;
->>>> @@ -427,6 +427,33 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->>>>  	trace_cma_alloc(pfn, page, count, align);
->>>>  
->>>>  	pr_debug("%s(): returned %p\n", __func__, page);
->>>> +
->>>> +	if (ret != 0) {
->>>> +		unsigned int nr, nr_total = 0;
->>>> +		unsigned long next_set_bit;
->>>> +
->>>> +		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
->>>> +			__func__, count, ret);
->>>> +		mutex_lock(&cma->lock);
->>>> +		printk("number of available pages: ");
-> I guess you want pr_info (or maybe pr_debug) here
-Thank you I will change as you and Michal Nazarewichz commented.
->
->>>> +		start = 0;
->>>> +		for (;;) {
->>>> +			bitmap_no = find_next_zero_bit(cma->bitmap, cma->count, start);
->>>> +			next_set_bit = find_next_bit(cma->bitmap, cma->count, bitmap_no);
->>>> +			nr = next_set_bit - bitmap_no;
->>>> +			if (bitmap_no >= cma->count)
->>>> +				break;
->>>> +			if (nr_total == 0)
->>>> +				printk("%u", nr);
->>>> +			else
->>>> +				printk("+%u", nr);
-> pr_cont
->
->>>> +			nr_total += nr;
->>>> +			start = bitmap_no + nr;
->>>> +		}
->>>> +		printk("=>%u pages, total: %lu pages\n", nr_total, cma->count);
-> pr_cont
->
->>>> +		mutex_unlock(&cma->lock);
->>>> +	}
->>>> +
->>>>  	return page;
->>>>  }
->>>>  
->>>> -- 
->>>> 1.9.1
->>>>
->>>> --
->>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>>> see: http://www.linux-mm.org/ .
->>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I was taking "expected" from dae803e165a11bc88ca8dbc07a11077caf97bbcb --
+> if this is a actually a bug, how do we go about debugging it?
+
+That=E2=80=99s why I=E2=80=99ve pointed out that this depends on the defini=
+tion.  In my
+opinion it=E2=80=99s a design bug which is now nearly impossible to fix in
+efficient way.
+
+The most likely issues is that some subsystem is allocating movable
+memory but then either does not provide a way to actually move it
+(that=E2=80=99s an obvious bug in the code IMO) or pins the memory while so=
+me
+transaction is performed and at the same time CMA tries to move it.
+
+The latter case is really unavoidable at this point which is why this
+message is =E2=80=98expected=E2=80=99.
+
+But if suddenly, the rate of the messages increases dramatically, you
+have yourself a performance regression.
+
+> I've had Raspbian carrying a patch downstream to remove the error
+> message for 2 years now, and I either need to get this fixed or get this
+> patch merged to Fedora and Debian as well, now that they're shipping
+> some support for Raspberry Pi.
+
+--=20
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
