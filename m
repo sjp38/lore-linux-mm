@@ -1,77 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CAA836B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 05:52:06 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id iq1so36853156wjb.1
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 02:52:06 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D87AF6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 06:05:49 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id iq1so36903885wjb.1
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 03:05:49 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dk11si61797244wjd.116.2016.12.30.02.52.05
+        by mx.google.com with ESMTPS id b205si34895882wmh.102.2016.12.30.03.05.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 02:52:05 -0800 (PST)
-Date: Fri, 30 Dec 2016 11:52:00 +0100
+        Fri, 30 Dec 2016 03:05:48 -0800 (PST)
+Date: Fri, 30 Dec 2016 12:05:45 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
-Message-ID: <20161230105200.GE13301@dhcp22.suse.cz>
-References: <20161229023131.506-1-eric@anholt.net>
- <20161229091256.GF29208@dhcp22.suse.cz>
- <87wpeitzld.fsf@eliezer.anholt.net>
- <xa1td1ga74v7.fsf@mina86.com>
+Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
+Message-ID: <20161230110545.GF13301@dhcp22.suse.cz>
+References: <20161222101028.GA11105@ppc-nas.fritz.box>
+ <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
+ <20161223105157.GB23109@dhcp22.suse.cz>
+ <20161223121851.GA27413@ppc-nas.fritz.box>
+ <20161223125728.GE23109@dhcp22.suse.cz>
+ <20161223144738.GB23117@dhcp22.suse.cz>
+ <20161223222559.GA5568@teela.multi.box>
+ <20161226124839.GB20715@dhcp22.suse.cz>
+ <20161230101926.jjjw76negqcvyaim@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <xa1td1ga74v7.fsf@mina86.com>
+In-Reply-To: <20161230101926.jjjw76negqcvyaim@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Eric Anholt <eric@anholt.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-stable <stable@vger.kernel.org>, "Robin H. Johnson" <robbat2@orbis-terrarum.net>, Vlastimil Babka <vbabka@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Nils Holland <nholland@tisys.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Thu 29-12-16 23:22:20, Michal Nazarewicz wrote:
-> On Thu, Dec 29 2016, Eric Anholt wrote:
-> > Michal Hocko <mhocko@kernel.org> writes:
-> >
-> >> This has been already brought up
-> >> http://lkml.kernel.org/r/20161130092239.GD18437@dhcp22.suse.cz and there
-> >> was a proposed patch for that which ratelimited the output
-> >> http://lkml.kernel.org/r/20161130132848.GG18432@dhcp22.suse.cz resp.
-> >> http://lkml.kernel.org/r/robbat2-20161130T195244-998539995Z@orbis-terrarum.net
-> >>
-> >> then the email thread just died out because the issue turned out to be a
-> >> configuration issue. Michal indicated that the message might be useful
-> >> so dropping it completely seems like a bad idea. I do agree that
-> >> something has to be done about that though. Can we reconsider the
-> >> ratelimit thing?
-> >
-> > I agree that the rate of the message has gone up during 4.9 -- it used
-> > to be a few per second.
+On Fri 30-12-16 10:19:26, Mel Gorman wrote:
+> On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
+> > On Fri 23-12-16 23:26:00, Nils Holland wrote:
+> > > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+> > > > 
+> > > > Nils, even though this is still highly experimental, could you give it a
+> > > > try please?
+> > > 
+> > > Yes, no problem! So I kept the very first patch you sent but had to
+> > > revert the latest version of the debugging patch (the one in
+> > > which you added the "mm_vmscan_inactive_list_is_low" event) because
+> > > otherwise the patch you just sent wouldn't apply. Then I rebooted with
+> > > memory cgroups enabled again, and the first thing that strikes the eye
+> > > is that I get this during boot:
+> > > 
+> > > [    1.568174] ------------[ cut here ]------------
+> > > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
+> > > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
+> > 
+> > Ohh, I can see what is wrong! a) there is a bug in the accounting in
+> > my patch (I double account) and b) the detection for the empty list
+> > cannot work after my change because per node zone will not match per
+> > zone statistics. The updated patch is below. So I hope my brain already
+> > works after it's been mostly off last few days...
+> > ---
+> > From 397adf46917b2d9493180354a7b0182aee280a8b Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Fri, 23 Dec 2016 15:11:54 +0100
+> > Subject: [PATCH] mm, memcg: fix the active list aging for lowmem requests when
+> >  memcg is enabled
+> > 
+> > Nils Holland has reported unexpected OOM killer invocations with 32b
+> > kernel starting with 4.8 kernels
+> > 
 > 
-> Sounds like a regression which should be fixed.
+> I think it's unfortunate that per-zone stats are reintroduced to the
+> memcg structure.
+
+the original patch I had didn't add per zone stats but rather did a
+nr_highmem counter to mem_cgroup_per_node (inside ifdeff CONFIG_HIGMEM).
+This would help for this particular case but it wouldn't work for other
+lowmem requests (e.g. GFP_DMA32) and with the kmem accounting this might
+be a problem in future. So I've decided to go with a more generic
+approach which requires per-zone tracking. I cannot say I would be
+overly happy about this at all.
+
+> I can't help but think that it would have also worked
+> to always rotate a small number of pages if !inactive_list_is_low and
+> reclaiming for memcg even if it distorted page aging.
+
+I am not really sure how that would work. Do you mean something like the
+following?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fa30010a5277..563ada3c02ac 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2044,6 +2044,9 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+ 	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+ 
++	if (!mem_cgroup_disabled())
++		goto out;
++
+ 	/*
+ 	 * For zone-constrained allocations, it is necessary to check if
+ 	 * deactivations are required for lowmem to be reclaimed. This
+@@ -2063,6 +2066,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 		active -= min(active, active_zone);
+ 	}
+ 
++out:
+ 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+ 	if (gb)
+ 		inactive_ratio = int_sqrt(10 * gb);
+
+The problem I see with such an approach is that chances are that this
+would reintroduce what f8d1a31163fc ("mm: consider whether to decivate
+based on eligible zones inactive ratio") tried to fix. But maybe I have
+missed your point.
+
+> However, given that such an approach would be less robust and this has
+> been heavily tested;
 > 
-> This is why I dona??t think removing the message is a good idea.  If you
-> suddenly see a lot of those messages, something changed for the worse.
-> If you remove this message, you will never know.
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-I agree, that removing the message completely is not going to help to
-find out regressions. Swamping logs with zillions of messages is,
-however, not acceptable. It just causes even more problems. See the
-previous report.
-
-> > However, if this is an expected path during normal operation,
-> 
-> This depends on your definition of a??expecteda?? and a??normala??.
-> 
-> In general, I would argue that the fact those ever happen is a bug
-> somewhere in the kernel a?? if memory is allocated as movable, it should
-> be movable damn it!
-
-Yes, it should be movable but there is no guarantee it is movable
-immediately. Those pages might be pinned for some time. This is
-unavoidable AFAICS.
-
-So while this might be a regression which should be investigated there
-should be another fix to prevent from swamping the logs as well.
-
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
