@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8036D6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 09:06:54 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id l2so41298555wml.5
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 06:06:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m19si58727336wmg.153.2016.12.30.06.06.53
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F02B6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 09:08:41 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id n3so43038950wjy.6
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 06:08:41 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id kr2si62279838wjc.288.2016.12.30.06.08.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 06:06:53 -0800 (PST)
-Date: Fri, 30 Dec 2016 14:06:51 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [LSF/MM TOPIC] wmark based pro-active compaction
-Message-ID: <20161230140651.nud2ozpmvmziqyx4@suse.de>
-References: <20161230131412.GI13301@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Dec 2016 06:08:40 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id CFBBA1C1398
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 14:08:39 +0000 (GMT)
+Date: Fri, 30 Dec 2016 14:08:39 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+Message-ID: <20161230140839.qg3maz4ifyf7nwgq@techsingularity.net>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
+ <20161222100009.GA6055@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+ <20161230123620.jcuquzof3bpxomdn@techsingularity.net>
+ <20161230125615.GH13301@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20161230131412.GI13301@dhcp22.suse.cz>
+In-Reply-To: <20161230125615.GH13301@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 30, 2016 at 02:14:12PM +0100, Michal Hocko wrote:
-> Hi,
-> I didn't originally want to send this proposal because Vlastimil is
-> planning to do some work in this area so I've expected him to send
-> something similar. But the recent discussion about the THP defrag
-> options pushed me to send out my thoughts.
+On Fri, Dec 30, 2016 at 01:56:16PM +0100, Michal Hocko wrote:
+> On Fri 30-12-16 12:36:20, Mel Gorman wrote:
+> [...]
+> > I'll neither ack nor nak this patch. However, I would much prefer an
+> > additional option be added to sysfs called defer-fault that would avoid
+> > all fault-based stalls but still potentially stall for MADV_HUGEPAGE.
 > 
-> So what is the problem? The demand for high order pages is growing and
-> that seems to be the general trend. The problem is that while they can
-> bring performance benefit they can get be really expensive to allocate
-> especially when we enter the direct compaction. So we really want to
-> prevent from expensive path and defer as much as possible to the
-> background. A huge step forward was kcompactd introduced by Vlastimil.
-> We are still not there yet though, because it might be already quite
-> late when we wakeup_kcompactd(). The memory might be already fragmented
-> when we hit there. Moreover we do not have any way to actually tell
-> which orders we do care about.
+> Would you consider changing the semantic of defer=madvise to invoke
+> KSWAPD for !madvised vmas as acceptable. It would be a change in
+> semantic but I am wondering what would be a risk and potential
+> regression space.
 > 
-> Therefore I believe we need a watermark based pro-active compaction
-> which would keep the background compaction busy as long as we have
-> less pages of the configured order. kcompactd should wake up
-> periodically, I think, and check for the status so that we can catch
-> the fragmentation before we get low on memory.
-> The interface could look something like:
-> /proc/sys/vm/compact_wmark
-> time_period order count
-> 
-> There are many details that would have to be solved of course - e.g. do
-> not burn cycles pointlessly when we know that no further progress can be
-> made etc... but in principle the idea show work.
 
-I'd be very interested in this. I'd also like to add to the list to revisit
-the concept of pre-emptively moving movable pages from pageblocks stolen for
-unmovable pages to reduce future events that degrade fragmentation. Before
-the Christmas I was mulling over whether it would be appropriate to have a
-workqueue of pageblocks that need "cleaning". This could be either instead
-of or in conjunction with wmark-based compaction.
+I'd worry a little, but not a lot. The concern would be that kswapd waking
+up would reclaim pages and cause major faults that would have remained
+resident with the current semantics.
 
 -- 
 Mel Gorman
