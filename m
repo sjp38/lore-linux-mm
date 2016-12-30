@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6B16B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 04:36:59 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c85so34908213wmi.6
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 01:36:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id yr4si61542378wjc.210.2016.12.30.01.36.57
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 01:36:57 -0800 (PST)
-Date: Fri, 30 Dec 2016 10:36:55 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/7] vm, vmscan: enahance vmscan tracepoints
-Message-ID: <20161230093654.GC13301@dhcp22.suse.cz>
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161230091117.nkxn3bnhle3bofhw@suse.de>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9106B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 04:38:47 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u5so601677194pgi.7
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 01:38:47 -0800 (PST)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id n77si24447624pfj.225.2016.12.30.01.38.45
+        for <linux-mm@kvack.org>;
+        Fri, 30 Dec 2016 01:38:46 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161228153032.10821-1-mhocko@kernel.org> <20161228153032.10821-3-mhocko@kernel.org> <20161229053359.GA1815@bbox> <20161229075243.GA29208@dhcp22.suse.cz> <20161230014853.GA4184@bbox> <20161230092636.GA13301@dhcp22.suse.cz>
+In-Reply-To: <20161230092636.GA13301@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
+Date: Fri, 30 Dec 2016 17:38:28 +0800
+Message-ID: <001b01d26280$7a5ee120$6f1ca360$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161230091117.nkxn3bnhle3bofhw@suse.de>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: 'Michal Hocko' <mhocko@kernel.org>, 'Minchan Kim' <minchan@kernel.org>
+Cc: linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Mel Gorman' <mgorman@suse.de>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Rik van Riel' <riel@redhat.com>, 'LKML' <linux-kernel@vger.kernel.org>
 
-On Fri 30-12-16 09:11:17, Mel Gorman wrote:
-> On Wed, Dec 28, 2016 at 04:30:25PM +0100, Michal Hocko wrote:
-> > Hi,
-> > while debugging [1] I've realized that there is some room for
-> > improvements in the tracepoints set we offer currently. I had hard times
-> > to make any conclusion from the existing ones. The resulting problem
-> > turned out to be active list aging [2] and we are missing at least two
-> > tracepoints to debug such a problem.
-> > 
-> > Some existing tracepoints could export more information to see _why_ the
-> > reclaim progress cannot be made not only _how much_ we could reclaim.
-> > The later could be seen quite reasonably from the vmstat counters
-> > already. It can be argued that we are showing too many implementation
-> > details in those tracepoints but I consider them way too lowlevel
-> > already to be usable by any kernel independent userspace. I would be
-> > _really_ surprised if anything but debugging tools have used them.
-> > 
-> > Any feedback is highly appreciated.
-> > 
+
+On Friday, December 30, 2016 5:27 PM Michal Hocko wrote: 
+> Anyway, what do you think about this updated patch? I have kept Hillf's
+> A-b so please let me know if it is no longer valid.
 > 
-> There is some minor overhead introduced in some paths regardless of
-> whether the tracepoints are active or not but I suspect it's negligible
-> in the context of the overhead of reclaim in general so;
+My mind is not changed:)
 
-I will work on improving some of them. E.g. I've dropped the change to
-free_hot_cold_page_list because that is indeed a hot path but other than
-that there shouldn't be any even medium hot path which should see any
-overhead I can see. If you are aware of any, please let me know and I
-will think about how to improve it.
- 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+Happy new year folks!
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
