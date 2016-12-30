@@ -1,120 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E63D86B0038
-	for <linux-mm@kvack.org>; Thu, 29 Dec 2016 21:05:25 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id u5so580616354pgi.7
-        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 18:05:25 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id h9si25327474pli.37.2016.12.29.18.05.24
-        for <linux-mm@kvack.org>;
-        Thu, 29 Dec 2016 18:05:25 -0800 (PST)
-Date: Fri, 30 Dec 2016 11:05:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
-Message-ID: <20161230020522.GC4184@bbox>
-References: <20161222214611.GA3015@boerne.fritz.box>
- <20161223105157.GB23109@dhcp22.suse.cz>
- <20161223121851.GA27413@ppc-nas.fritz.box>
- <20161223125728.GE23109@dhcp22.suse.cz>
- <20161223144738.GB23117@dhcp22.suse.cz>
- <20161223222559.GA5568@teela.multi.box>
- <20161226124839.GB20715@dhcp22.suse.cz>
- <20161227155532.GI1308@dhcp22.suse.cz>
- <20161229012026.GB15541@bbox>
- <20161229090432.GE29208@dhcp22.suse.cz>
-MIME-Version: 1.0
-In-Reply-To: <20161229090432.GE29208@dhcp22.suse.cz>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE2E6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 01:27:16 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id u5so592071223pgi.7
+        for <linux-mm@kvack.org>; Thu, 29 Dec 2016 22:27:16 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id s186si55859842pgb.6.2016.12.29.22.27.14
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Dec 2016 22:27:14 -0800 (PST)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OIZ00TK4J9CA3A0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Fri, 30 Dec 2016 15:27:12 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Subject: Re: [PATCH] mm: cma: print allocation failure reason and bitmap status
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Message-id: <5865FE6D.5050500@samsung.com>
+Date: Fri, 30 Dec 2016 15:27:57 +0900
+In-reply-to: <20161229094335.GH29208@dhcp22.suse.cz>
+References: 
+ <CGME20161229022722epcas5p4be0e1924f3c8d906cbfb461cab8f0374@epcas5p4.samsung.com>
+ <1482978482-14007-1-git-send-email-jaewon31.kim@samsung.com>
+ <20161229091449.GG29208@dhcp22.suse.cz> <5864D6CE.7070001@samsung.com>
+ <20161229094335.GH29208@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Nils Holland <nholland@tisys.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, mina86@mina86.com, m.szyprowski@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-On Thu, Dec 29, 2016 at 10:04:32AM +0100, Michal Hocko wrote:
-> On Thu 29-12-16 10:20:26, Minchan Kim wrote:
-> > On Tue, Dec 27, 2016 at 04:55:33PM +0100, Michal Hocko wrote:
-> > > Hi,
-> > > could you try to run with the following patch on top of the previous
-> > > one? I do not think it will make a large change in your workload but
-> > > I think we need something like that so some testing under which is known
-> > > to make a high lowmem pressure would be really appreciated. If you have
-> > > more time to play with it then running with and without the patch with
-> > > mm_vmscan_direct_reclaim_{start,end} tracepoints enabled could tell us
-> > > whether it make any difference at all.
-> > > 
-> > > I would also appreciate if Mel and Johannes had a look at it. I am not
-> > > yet sure whether we need the same thing for anon/file balancing in
-> > > get_scan_count. I suspect we need but need to think more about that.
-> > > 
-> > > Thanks a lot again!
-> > > ---
-> > > From b51f50340fe9e40b68be198b012f8ab9869c1850 Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > Date: Tue, 27 Dec 2016 16:28:44 +0100
-> > > Subject: [PATCH] mm, vmscan: consider eligible zones in get_scan_count
-> > > 
-> > > get_scan_count considers the whole node LRU size when
-> > > - doing SCAN_FILE due to many page cache inactive pages
-> > > - calculating the number of pages to scan
-> > > 
-> > > in both cases this might lead to unexpected behavior especially on 32b
-> > > systems where we can expect lowmem memory pressure very often.
-> > > 
-> > > A large highmem zone can easily distort SCAN_FILE heuristic because
-> > > there might be only few file pages from the eligible zones on the node
-> > > lru and we would still enforce file lru scanning which can lead to
-> > > trashing while we could still scan anonymous pages.
-> > 
-> > Nit:
-> > It doesn't make thrashing because isolate_lru_pages filter out them
-> > but I agree it makes pointless CPU burning to find eligible pages.
-> 
-> This is not about isolate_lru_pages. The trashing could happen if we had
-> lowmem pagecache user which would constantly reclaim recently faulted
-> in pages while there is anonymous memory in the lowmem which could be
-> reclaimed instead.
->  
-> [...]
-> > >  /*
-> > > + * Return the number of pages on the given lru which are eligibne for the
-> >                                                             eligible
-> 
-> fixed
-> 
-> > > + * given zone_idx
-> > > + */
-> > > +static unsigned long lruvec_lru_size_zone_idx(struct lruvec *lruvec,
-> > > +		enum lru_list lru, int zone_idx)
-> > 
-> > Nit:
-> > 
-> > Although there is a comment, function name is rather confusing when I compared
-> > it with lruvec_zone_lru_size.
-> 
-> I am all for a better name.
-> 
-> > lruvec_eligible_zones_lru_size is better?
-> 
-> this would be too easy to confuse with lruvec_eligible_zone_lru_size.
-> What about lruvec_lru_size_eligible_zones?
 
-Don't mind.
 
->  
-> > Nit:
-> > 
-> > With this patch, inactive_list_is_low can use lruvec_lru_size_zone_idx rather than
-> > own custom calculation to filter out non-eligible pages. 
-> 
-> Yes, that would be possible and I was considering that. But then I found
-> useful to see total and reduced numbers in the tracepoint
-> http://lkml.kernel.org/r/20161228153032.10821-8-mhocko@kernel.org
-> and didn't want to call lruvec_lru_size 2 times. But if you insist then
-> I can just do that.
-
-I don't mind either but I think we need to describe the reason if you want to
-go with your open-coded version. Otherwise, someone will try to fix it.
+On 2016e?? 12i?? 29i? 1/4  18:43, Michal Hocko wrote:
+> On Thu 29-12-16 18:26:38, Jaewon Kim wrote:
+>>
+>> On 2016e?? 12i?? 29i? 1/4  18:14, Michal Hocko wrote:
+>>> On Thu 29-12-16 11:28:02, Jaewon Kim wrote:
+>>>> There are many reasons of CMA allocation failure such as EBUSY, ENOMEM, EINTR.
+>>>> This patch prints the error value and bitmap status to know available pages
+>>>> regarding fragmentation.
+>>>>
+>>>> This is an ENOMEM example with this patch.
+>>>> [   11.616321]  [2:   Binder:711_1:  740] cma: cma_alloc: alloc failed, req-size: 256 pages, ret: -12
+>>>> [   11.616365]  [2:   Binder:711_1:  740] number of available pages: 4+7+7+8+38+166+127=>357 pages, total: 2048 pages
+>>> Could you be more specific why this part is useful?
+>> Hi
+>> Without this patch we do not know why CMA allocation failed.
+> Yes, I understand the first part
+>
+>> Additionally in case of ENOMEM, with bitmap status we can figure out that
+> The code doesn't seem to check for ENOMEM though
+Yes actually I wanted to look both ENOMEM case and EBUSY case.
+Even in EBUSY case, we can look how much available pages existed, but all failed on those region because of EBUSY.
+We may not need EINTR case, but I hope to look.
+>
+>> if it is too small CMA region issue or if it is fragmentation issue.
+> then please describe that in the changelog. If I got it right the above
+> would tell us that the fragmentation is the problem, right?
+Yes fragmentation can be A problem, but bitmap status will explain EBUSY case too as I explained above.
+>
+>>>  
+>>>> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+>>>> ---
+>>>>  mm/cma.c | 29 ++++++++++++++++++++++++++++-
+>>>>  1 file changed, 28 insertions(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/mm/cma.c b/mm/cma.c
+>>>> index c960459..535aa39 100644
+>>>> --- a/mm/cma.c
+>>>> +++ b/mm/cma.c
+>>>> @@ -369,7 +369,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+>>>>  	unsigned long start = 0;
+>>>>  	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
+>>>>  	struct page *page = NULL;
+>>>> -	int ret;
+>>>> +	int ret = -ENOMEM;
+>>>>  
+>>>>  	if (!cma || !cma->count)
+>>>>  		return NULL;
+>>>> @@ -427,6 +427,33 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+>>>>  	trace_cma_alloc(pfn, page, count, align);
+>>>>  
+>>>>  	pr_debug("%s(): returned %p\n", __func__, page);
+>>>> +
+>>>> +	if (ret != 0) {
+>>>> +		unsigned int nr, nr_total = 0;
+>>>> +		unsigned long next_set_bit;
+>>>> +
+>>>> +		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+>>>> +			__func__, count, ret);
+>>>> +		mutex_lock(&cma->lock);
+>>>> +		printk("number of available pages: ");
+> I guess you want pr_info (or maybe pr_debug) here
+Thank you I will change as you and Michal Nazarewichz commented.
+>
+>>>> +		start = 0;
+>>>> +		for (;;) {
+>>>> +			bitmap_no = find_next_zero_bit(cma->bitmap, cma->count, start);
+>>>> +			next_set_bit = find_next_bit(cma->bitmap, cma->count, bitmap_no);
+>>>> +			nr = next_set_bit - bitmap_no;
+>>>> +			if (bitmap_no >= cma->count)
+>>>> +				break;
+>>>> +			if (nr_total == 0)
+>>>> +				printk("%u", nr);
+>>>> +			else
+>>>> +				printk("+%u", nr);
+> pr_cont
+>
+>>>> +			nr_total += nr;
+>>>> +			start = bitmap_no + nr;
+>>>> +		}
+>>>> +		printk("=>%u pages, total: %lu pages\n", nr_total, cma->count);
+> pr_cont
+>
+>>>> +		mutex_unlock(&cma->lock);
+>>>> +	}
+>>>> +
+>>>>  	return page;
+>>>>  }
+>>>>  
+>>>> -- 
+>>>> 1.9.1
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
