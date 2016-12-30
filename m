@@ -1,111 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7523E6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 17:15:21 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id n189so680690733pga.4
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 14:15:21 -0800 (PST)
-Received: from anholt.net (anholt.net. [50.246.234.109])
-        by mx.google.com with ESMTP id o71si28663127pfi.157.2016.12.30.14.15.19
-        for <linux-mm@kvack.org>;
-        Fri, 30 Dec 2016 14:15:20 -0800 (PST)
-From: Eric Anholt <eric@anholt.net>
-Subject: Re: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
-In-Reply-To: <xa1ta8bd7uy7.fsf@mina86.com>
-References: <20161229023131.506-1-eric@anholt.net> <20161229091256.GF29208@dhcp22.suse.cz> <87wpeitzld.fsf@eliezer.anholt.net> <xa1td1ga74v7.fsf@mina86.com> <8737h65nr5.fsf@eliezer.anholt.net> <xa1ta8bd7uy7.fsf@mina86.com>
-Date: Fri, 30 Dec 2016 12:25:00 -0800
-Message-ID: <87bmvtxizn.fsf@eliezer.anholt.net>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6027C6B025E
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 17:30:35 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id n189so681482061pga.4
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 14:30:35 -0800 (PST)
+Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
+        by mx.google.com with ESMTPS id c128si58211834pfb.26.2016.12.30.14.30.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Dec 2016 14:30:34 -0800 (PST)
+Received: by mail-pg0-x22c.google.com with SMTP id y62so129258227pgy.1
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 14:30:34 -0800 (PST)
+Date: Fri, 30 Dec 2016 14:30:32 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <20161230123620.jcuquzof3bpxomdn@techsingularity.net>
+Message-ID: <alpine.DEB.2.10.1612301412390.85559@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <20161222100009.GA6055@dhcp22.suse.cz> <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com> <20161230123620.jcuquzof3bpxomdn@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-stable <stable@vger.kernel.org>, "Robin H. Johnson" <robbat2@orbis-terrarum.net>, Vlastimil Babka <vbabka@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Fri, 30 Dec 2016, Mel Gorman wrote:
 
-Michal Nazarewicz <mina86@mina86.com> writes:
+> Michal is correct in that my intent for defer was to have "never stall"
+> as the default behaviour.  This was because of the number of severe stalls
+> users experienced that lead to recommendations in tuning guides to always
+> disable THP. I'd also seen multiple instances in bug reports for stalls
+> where it was suggested that THP be disabled even when it could not have
+> been a factor. It would be preferred to keep the default behaviour to
+> avoid reintroducing such bugs.
+> 
 
-> On Thu, Dec 29 2016, Eric Anholt wrote:
->> Michal Nazarewicz <mina86@mina86.com> writes:
->>
->>> On Thu, Dec 29 2016, Eric Anholt wrote:
->>>> Michal Hocko <mhocko@kernel.org> writes:
->>>>
->>>>> This has been already brought up
->>>>> http://lkml.kernel.org/r/20161130092239.GD18437@dhcp22.suse.cz and th=
-ere
->>>>> was a proposed patch for that which ratelimited the output
->>>>> http://lkml.kernel.org/r/20161130132848.GG18432@dhcp22.suse.cz resp.
->>>>> http://lkml.kernel.org/r/robbat2-20161130T195244-998539995Z@orbis-ter=
-rarum.net
->>>>>
->>>>> then the email thread just died out because the issue turned out to b=
-e a
->>>>> configuration issue. Michal indicated that the message might be useful
->>>>> so dropping it completely seems like a bad idea. I do agree that
->>>>> something has to be done about that though. Can we reconsider the
->>>>> ratelimit thing?
->>>>
->>>> I agree that the rate of the message has gone up during 4.9 -- it used
->>>> to be a few per second.
->>>
->>> Sounds like a regression which should be fixed.
->>>
->>> This is why I don=E2=80=99t think removing the message is a good idea. =
- If you
->>> suddenly see a lot of those messages, something changed for the worse.
->>> If you remove this message, you will never know.
->>>
->>>> However, if this is an expected path during normal operation,
->>>
->>> This depends on your definition of =E2=80=98expected=E2=80=99 and =E2=
-=80=98normal=E2=80=99.
->>>
->>> In general, I would argue that the fact those ever happen is a bug
->>> somewhere in the kernel =E2=80=93 if memory is allocated as movable, it=
- should
->>> be movable damn it!
->>
->> I was taking "expected" from dae803e165a11bc88ca8dbc07a11077caf97bbcb --
->> if this is a actually a bug, how do we go about debugging it?
->
-> That=E2=80=99s why I=E2=80=99ve pointed out that this depends on the defi=
-nition.  In my
-> opinion it=E2=80=99s a design bug which is now nearly impossible to fix in
-> efficient way.
+I sympathize with that, I've dealt with a number of issues that we have 
+encountered where thp defrag was either at fault or wasn't, and there were 
+also suggestions to set defrag to "madvise" to rule it out and that 
+impacted other users.
 
-OK, so the design is bad.  When you said bug, I definitely thought you
-were saying that the message shouldn't happen in the design.
+I'm curious if you could show examples where there were severe stalls 
+being encountered by applications that did madvise(MADV_HUGEPAGE) and 
+users were forced to set madvise to "never".  That is, after all, the only 
+topic for consideration in this thread: the direct impact to users of 
+madvise(MADV_HUGEPAGE).  If an application does it, I believe that's a 
+demand for work to be done at allocation time to try to get hugepages.  
+They can certainly provide an application-level option to not do the 
+MADV_HUGEPAGE.  Qemu is no different, you can add options to do 
+madvise(MADV_HUGEPAGE) or not, and you can also do it after fault.
 
-Given CMA's current design, should everyone using CMA see their logs
-slowly growing with this message that is an secret code for "CMA's
-design hasn't yet changed"?  If you want to have people be able to track
-how often this is happening, let's make a perf event for it or something
-instead.
+The problem with the current option set is that we don't have the ability 
+to trigger background compaction for everybody, which only very minimally 
+impacts their page fault latency since it just wakes up kcompactd, and 
+allow MADV_HUGEPAGE users to accept that up-front cost by doing direct 
+compaction.  My usecase, remapping .text segment and faulting thp memory 
+at startup, demands that ability.  Setting defrag=madvise gets that 
+behavior, but nobody else triggers background compaction when thp memory 
+fails and we _want_ that behavior so work is being done to defrag.  
+Setting defrag=defer makes MADV_HUGEPAGE a no-op for page fault, and I 
+argue that's the wrong behavior.
 
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+> I'll neither ack nor nak this patch. However, I would much prefer an
+> additional option be added to sysfs called defer-fault that would avoid
+> all fault-based stalls but still potentially stall for MADV_HUGEPAGE. I
+> would also prefer that the default option is "defer" for both MADV_HUGEPAGE
+> and faults.
+> 
 
------BEGIN PGP SIGNATURE-----
+If you want a fifth option added to sysfs for thp defrag, that's fine, we 
+can easily do that.  I'm slightly concerned with more and more options 
+added that we will eventually approach the 2^4 option count that I 
+mentioned earlier and nobody will know what to select.  I'm fine with the 
+kernel default remaining as "madvise," we will just set it to whatever 
+gets us "direct for madvise, background for everybody else" behavior as we 
+were planning on using "defer."
 
-iQIzBAEBCgAdFiEE/JuuFDWp9/ZkuCBXtdYpNtH8nugFAlhmwpwACgkQtdYpNtH8
-nujh/xAArfUZW+F7uX/TMkYR+XCNon6ZYMObQe3HsNKYW6g5ij32hR0HSO7OnTNY
-WKdVMeTx6XvNMx7xGYmCHg/EFGJWSnEPR1A34/on5M1hCeJQQhl/ZZ7gOaQv2NMA
-igwr6X509/+WAY/wnKaBhDscnbGaBBXwcrS6E2fJdpmDBAOUD6Lf/js3ucqf5FVV
-uU9TQSH+KQaACLIvsEoMFSjAD+Q4UpDKFTQsYHOTspP3tX/+s2FsB2NU6QUfk511
-lVxx1ltN8hI1yYkEFkMQGm4PJfHTo1N5ikdWnorGjd4pQnRn2DGJWOpv1i0WrsGZ
-53Wv9ehPrHBWLrWmw8sH8YK/sypDpvANQhJaQr96/OOKjLHHrBZOhhJBWebcnyh9
-B4uxD3Gwby54wWK6krLUlddfV2uPn9b3KKQn9gw/PeWi0GByMcYkw+H6ctsw2Nu0
-HJpVpTOpMZjFQ7tDxNBrh9qJuQa2XQRgndYgkgoF6RoPCCBbhO0sntzSxLAd8MWa
-Xv0TUgY+mtC92sdtshocyHWZYbm5rgJFQ+vVqKXU5rIi213tkaD//XwvCVclR7JF
-egW2WQQ8sLKUmmOzgnyZ9A4lzjrJ8MtCkKx3ydLa+XeC2wDK3231xjjq1PWL28JB
-g8IRTpcSyo4lZ+E9ewyexA3UHwfZeWn5INP2RDgyElIKJF9PJLM=
-=+U63
------END PGP SIGNATURE-----
---=-=-=--
+We can either do
+
+ (1) merge this patch and allow madvise(MADV_HUGEPAGE) users to always try
+     to get hugepages, potentially adding options to qemu to suppress 
+     their MADV_HUGEPAGE if users have complained (would even fix the 
+     issue on 2.6 kernels) or do it after majority has been faulted, or
+
+ (2) add a fifth defrag option to do this suggested behavior and maintain
+     that option forever.
+
+I'd obviously prefer the former since I consider MADV_HUGEPAGE and not 
+willing to stall as a userspace issue that can _trivially_ be worked 
+around in userspace, but in the interest of moving forward on this we can 
+do the latter if you'd prefer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
