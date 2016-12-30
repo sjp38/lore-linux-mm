@@ -1,121 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7C26B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 04:44:17 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c85so34928540wmi.6
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 01:44:16 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BBEAF6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 05:19:30 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id hb5so97923890wjc.2
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 02:19:30 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v188si57843886wmb.168.2016.12.30.01.44.15
+        by mx.google.com with ESMTPS id 4si36719634wjg.34.2016.12.30.02.19.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 01:44:15 -0800 (PST)
-Date: Fri, 30 Dec 2016 10:44:12 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: cma: print allocation failure reason and bitmap
- status
-Message-ID: <20161230094411.GD13301@dhcp22.suse.cz>
-References: <CGME20161229022722epcas5p4be0e1924f3c8d906cbfb461cab8f0374@epcas5p4.samsung.com>
- <1482978482-14007-1-git-send-email-jaewon31.kim@samsung.com>
- <20161229091449.GG29208@dhcp22.suse.cz>
- <xa1th95m7r6w.fsf@mina86.com>
- <58660BBE.1040807@samsung.com>
+        Fri, 30 Dec 2016 02:19:29 -0800 (PST)
+Date: Fri, 30 Dec 2016 10:19:26 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
+Message-ID: <20161230101926.jjjw76negqcvyaim@suse.de>
+References: <20161221073658.GC16502@dhcp22.suse.cz>
+ <20161222101028.GA11105@ppc-nas.fritz.box>
+ <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
+ <20161223105157.GB23109@dhcp22.suse.cz>
+ <20161223121851.GA27413@ppc-nas.fritz.box>
+ <20161223125728.GE23109@dhcp22.suse.cz>
+ <20161223144738.GB23117@dhcp22.suse.cz>
+ <20161223222559.GA5568@teela.multi.box>
+ <20161226124839.GB20715@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <58660BBE.1040807@samsung.com>
+In-Reply-To: <20161226124839.GB20715@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaewon Kim <jaewon31.kim@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, m.szyprowski@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Nils Holland <nholland@tisys.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Fri 30-12-16 16:24:46, Jaewon Kim wrote:
-[...]
-> >From 7577cc94da3af27907aa6eec590d2ef51e4b9d80 Mon Sep 17 00:00:00 2001
-> From: Jaewon Kim <jaewon31.kim@samsung.com>
-> Date: Thu, 29 Dec 2016 11:00:16 +0900
-> Subject: [PATCH] mm: cma: print allocation failure reason and bitmap status
+On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
+> On Fri 23-12-16 23:26:00, Nils Holland wrote:
+> > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+> > > 
+> > > Nils, even though this is still highly experimental, could you give it a
+> > > try please?
+> > 
+> > Yes, no problem! So I kept the very first patch you sent but had to
+> > revert the latest version of the debugging patch (the one in
+> > which you added the "mm_vmscan_inactive_list_is_low" event) because
+> > otherwise the patch you just sent wouldn't apply. Then I rebooted with
+> > memory cgroups enabled again, and the first thing that strikes the eye
+> > is that I get this during boot:
+> > 
+> > [    1.568174] ------------[ cut here ]------------
+> > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
+> > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
 > 
-> There are many reasons of CMA allocation failure such as EBUSY, ENOMEM, EINTR.
-> But we did not know error reason so far. This patch prints the error value.
-> 
-> Additionally if CONFIG_CMA_DEBUG is enabled, this patch shows bitmap status to
-> know available pages. Actually CMA internally try all available regions because
-> some regions can be failed because of EBUSY. Bitmap status is useful to know in
-> detail on both ENONEM and EBUSY;
->  ENOMEM: not tried at all because of no available region
->          it could be too small total region or could be fragmentation issue
->  EBUSY:  tried some region but all failed
-> 
-> This is an ENOMEM example with this patch.
-> [   13.250961]  [1:   Binder:715_1:  846] cma: cma_alloc: alloc failed, req-size: 256 pages, ret: -12
-> Avabile pages also will be shown if CONFIG_CMA_DEBUG is enabled
-> [   13.251052]  [1:   Binder:715_1:  846] cma: number of available pages: 4@572+7@585+7@601+8@632+38@730+166@1114+127@1921=>357 pages, total: 2048 pages
-
-please mention how to interpret this information.
-
-some more style suggestions below
-> 
-> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+> Ohh, I can see what is wrong! a) there is a bug in the accounting in
+> my patch (I double account) and b) the detection for the empty list
+> cannot work after my change because per node zone will not match per
+> zone statistics. The updated patch is below. So I hope my brain already
+> works after it's been mostly off last few days...
 > ---
->  mm/cma.c | 29 ++++++++++++++++++++++++++++-
->  1 file changed, 28 insertions(+), 1 deletion(-)
+> From 397adf46917b2d9493180354a7b0182aee280a8b Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Fri, 23 Dec 2016 15:11:54 +0100
+> Subject: [PATCH] mm, memcg: fix the active list aging for lowmem requests when
+>  memcg is enabled
 > 
-> diff --git a/mm/cma.c b/mm/cma.c
-> index c960459..1bcd9db 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -369,7 +369,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->      unsigned long start = 0;
->      unsigned long bitmap_maxno, bitmap_no, bitmap_count;
->      struct page *page = NULL;
-> -    int ret;
-> +    int ret = -ENOMEM;
->  
->      if (!cma || !cma->count)
->          return NULL;
-> @@ -427,6 +427,33 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->      trace_cma_alloc(pfn, page, count, align);
->  
->      pr_debug("%s(): returned %p\n", __func__, page);
-> +
-> +    if (ret != 0)
+> Nils Holland has reported unexpected OOM killer invocations with 32b
+> kernel starting with 4.8 kernels
+> 
 
-you can simply do
-	if (!ret) {
+I think it's unfortunate that per-zone stats are reintroduced to the
+memcg structure. I can't help but think that it would have also worked
+to always rotate a small number of pages if !inactive_list_is_low and
+reclaiming for memcg even if it distorted page aging. However, given
+that such an approach would be less robust and this has been heavily
+tested;
 
-		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
-			__func__, count, ret);
-		debug_show_cma_areas();
-	}
-
-	return page;
-
-static void debug_show_cma_areas(void)
-{
-#ifdef CONFIG_CMA_DEBUG
-	unsigned int nr, nr_total = 0;
-	unsigned long next_set_bit;
-
-	mutex_lock(&cma->lock);
-	pr_info("number of available pages: ");
-	start = 0;
-	for (;;) {
-		bitmap_no = find_next_zero_bit(cma->bitmap, cma->count, start);
-		if (bitmap_no >= cma->count)
-		break;
-		next_set_bit = find_next_bit(cma->bitmap, cma->count, bitmap_no);
-		nr = next_set_bit - bitmap_no;
-		pr_cont("%s%u@%lu", nr_total ? "+" : "", nr, bitmap_no);
-		nr_total += nr;
-		start = bitmap_no + nr;
-	}
-	pr_cont("=>%u pages, total: %lu pages\n", nr_total, cma->count);
-	mutex_unlock(&cma->lock);
-#endif
-}
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
