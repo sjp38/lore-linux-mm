@@ -1,101 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DDAEB6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 11:37:47 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id hb5so99236804wjc.2
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 08:37:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 186si59180980wmu.126.2016.12.30.08.37.46
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E1B46B0038
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 11:52:37 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w13so68079097wmw.0
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 08:52:37 -0800 (PST)
+Received: from tschil.ethgen.ch (tschil.ethgen.ch. [5.9.7.51])
+        by mx.google.com with ESMTPS id bv17si48200823wjb.0.2016.12.30.08.52.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 08:37:46 -0800 (PST)
-Date: Fri, 30 Dec 2016 17:37:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
-Message-ID: <20161230163742.GK13301@dhcp22.suse.cz>
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161228153032.10821-3-mhocko@kernel.org>
- <20161229053359.GA1815@bbox>
- <20161229075243.GA29208@dhcp22.suse.cz>
- <20161230014853.GA4184@bbox>
- <20161230092636.GA13301@dhcp22.suse.cz>
- <20161230160456.GA7267@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Dec 2016 08:52:35 -0800 (PST)
+Date: Fri, 30 Dec 2016 17:52:30 +0100
+From: Klaus Ethgen <Klaus+lkml@ethgen.de>
+Subject: Re: [KERNEL] Re: Bug 4.9 and memorymanagement
+Message-ID: <20161230165230.th274as75pzjlzkk@ikki.ethgen.ch>
+References: <20161225205251.nny6k5wol2s4ufq7@ikki.ethgen.ch>
+ <20161226110053.GA16042@dhcp22.suse.cz>
+ <20161227112844.GG1308@dhcp22.suse.cz>
+ <20161230111135.GG13301@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161230160456.GA7267@bbox>
+Content-Type: text/plain; charset=iso-8859-1; x-action=pgp-signed
+In-Reply-To: <20161230111135.GG13301@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat 31-12-16 01:04:56, Minchan Kim wrote:
-[...]
-> > From 5f1bc22ad1e54050b4da3228d68945e70342ebb6 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Tue, 27 Dec 2016 13:18:20 +0100
-> > Subject: [PATCH] mm, vmscan: add active list aging tracepoint
-> > 
-> > Our reclaim process has several tracepoints to tell us more about how
-> > things are progressing. We are, however, missing a tracepoint to track
-> > active list aging. Introduce mm_vmscan_lru_shrink_active which reports
-> 
-> I agree this part.
-> 
-> > the number of
-> > 	- nr_scanned, nr_taken pages to tell us the LRU isolation
-> > 	  effectiveness.
-> 
-> I agree nr_taken for knowing shrinking effectiveness but don't
-> agree nr_scanned. If we want to know LRU isolation effectiveness
-> with nr_scanned and nr_taken, isolate_lru_pages will do.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
 
-Yes it will. On the other hand the number is there and there is no
-additional overhead, maintenance or otherwise, to provide that number.
-The inactive counterpart does that for quite some time already. So why
-exactly does that matter? Don't take me wrong but isn't this more on a
-nit picking side than necessary? Or do I just misunderstand your
-concenrs? It is not like we are providing a stable user API as the
-tracepoint is clearly implementation specific and not something to be
-used for anything other than debugging.
+Sorry, did reply only you..
 
-> > 	- nr_rotated pages which tells us that we are hitting referenced
-> > 	  pages which are deactivated. If this is a large part of the
-> > 	  reported nr_deactivated pages then the active list is too small
-> 
-> It might be but not exactly. If your goal is to know LRU size, it can be
-> done in get_scan_count. I tend to agree LRU size is helpful for
-> performance analysis because decreased LRU size signals memory shortage
-> then performance drop.
+Am Fr den 30. Dez 2016 um 12:11 schrieb Michal Hocko:
+> > If this turns out to be memory cgroup related then the patch from
+> > http://lkml.kernel.org/r/20161226124839.GB20715@dhcp22.suse.cz might
+> > help.
+>
+> Did you get chance to test the above patch? I would like to send it for
+> merging and having it tested on another system would be really helpeful
+> and much appreciated.
 
-No, I am not really interested in the exact size but rather to allow to
-find whether we are aging the active list too early...
+Sorry, no, I was a bit busy when coming back from X-mass. ;-)
 
-> 
-> > 	- nr_activated pages which tells us how many pages are keept on the
->                                                                kept
+Maybe I can do so today.
 
-fixed
+The only think is, how can I find out if the bug is fixed? Is 7 days
+enough? Or is there a change to force the bug to happen (or not)...?
 
-> 
-> > 	  active list - mostly exec pages. A high number can indicate
-> 
->                                file-based exec pages
+Am Fr den 30. Dez 2016 um 12:11 schrieb Michal Hocko:
+> > If this turns out to be memory cgroup related then the patch from
+> > http://lkml.kernel.org/r/20161226124839.GB20715@dhcp22.suse.cz might
+> > help.
 
-OK, fixed
+Which of the 3 patches is the one? All 3 or just one.
 
-> 
-> > 	  that we might be trashing on executables.
-> 
-> And welcome to drop nr_unevictable, nr_freed.
-> 
-> I will be off until next week monday so please understand if my response
-> is slow.
+Regards
+   Klaus
+- -- 
+Klaus Ethgen                                       http://www.ethgen.ch/
+pub  4096R/4E20AF1C 2011-05-16            Klaus Ethgen <Klaus@Ethgen.ch>
+Fingerprint: 85D4 CA42 952C 949B 1753  62B3 79D0 B06F 4E20 AF1C
+-----BEGIN PGP SIGNATURE-----
+Comment: Charset: ISO-8859-1
 
-There is no reason to hurry...
--- 
-Michal Hocko
-SUSE Labs
+iQGzBAEBCgAdFiEEMWF28vh4/UMJJLQEpnwKsYAZ9qwFAlhmkM4ACgkQpnwKsYAZ
+9qz18QwAtNNESyhqkpYaOss2Q6Ko1o+9eygil3X9MtAPWY/UP/d7MJ7q8lBrjQT7
+wetFM4yZtfS4lk2wnUXUDHT8r41QT/39YmZefZemdHjMwbPk+NpeX3J7Y+Agu117
+7x0NtWEpMM2mimSUcLpKxZjScx1lci572trlWVy8v8yPxTAeyPTxJ2Zun/W7vqS2
+so3o2OA9eMSv7s0zWvE/9X3UZowcWaZtNIx2EvIPdghg2zazYwFydNFFGqn6tPtR
+wlLj9Oxw3NTwKvFvHCGXz/xodw0t8Y1ZQa4yc5fYRzEy8PNJnxo6LNoboiycdcIw
+E8FgybmJM2eFshiwRuFp8pgrI+HU6Mubp2aUPaNKYUUhfc58T59fSfh+qEkEkgym
+kYCTiUA1f9SCSYVSkZrCaV1TuPnEmXANOTvQS5k4We7/kMbmk67UyWpSRCRSRYSX
+Ofr/rblMVQ+dqQIQTVNoufSZgAOmCJdSbCQO/RduVjhSPgM47lLajIcRM/EYizE/
+fBfHXomC
+=T2Gd
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
