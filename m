@@ -1,100 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6A86B0038
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 07:36:35 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id hb5so98383731wjc.2
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 04:36:35 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id ju1si62164595wjc.128.2016.12.30.04.36.33
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 14C196B025E
+	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 07:43:49 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id l2so41000544wml.5
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 04:43:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p6si32552054wji.227.2016.12.30.04.43.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Dec 2016 04:36:34 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 6FA031DC01D
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 12:36:33 +0000 (UTC)
-Date: Fri, 30 Dec 2016 12:36:20 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-Message-ID: <20161230123620.jcuquzof3bpxomdn@techsingularity.net>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
- <20161222100009.GA6055@dhcp22.suse.cz>
- <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+        Fri, 30 Dec 2016 04:43:47 -0800 (PST)
+Date: Fri, 30 Dec 2016 12:43:44 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] mm, memcg: fix (Re: OOM: Better, but still there on)
+Message-ID: <20161230124344.gvziyu5zwpoql37y@suse.de>
+References: <20161222191719.GA19898@dhcp22.suse.cz>
+ <20161222214611.GA3015@boerne.fritz.box>
+ <20161223105157.GB23109@dhcp22.suse.cz>
+ <20161223121851.GA27413@ppc-nas.fritz.box>
+ <20161223125728.GE23109@dhcp22.suse.cz>
+ <20161223144738.GB23117@dhcp22.suse.cz>
+ <20161223222559.GA5568@teela.multi.box>
+ <20161226124839.GB20715@dhcp22.suse.cz>
+ <20161230101926.jjjw76negqcvyaim@suse.de>
+ <20161230110545.GF13301@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+In-Reply-To: <20161230110545.GF13301@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Nils Holland <nholland@tisys.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
 
-On Thu, Dec 22, 2016 at 01:05:27PM -0800, David Rientjes wrote:
-> On Thu, 22 Dec 2016, Michal Hocko wrote:
-> 
-> > > Currently, when defrag is set to "madvise", thp allocations will direct
-> > > reclaim.  However, when defrag is set to "defer", all thp allocations do
-> > > not attempt reclaim regardless of MADV_HUGEPAGE.
+On Fri, Dec 30, 2016 at 12:05:45PM +0100, Michal Hocko wrote:
+> On Fri 30-12-16 10:19:26, Mel Gorman wrote:
+> > On Mon, Dec 26, 2016 at 01:48:40PM +0100, Michal Hocko wrote:
+> > > On Fri 23-12-16 23:26:00, Nils Holland wrote:
+> > > > On Fri, Dec 23, 2016 at 03:47:39PM +0100, Michal Hocko wrote:
+> > > > > 
+> > > > > Nils, even though this is still highly experimental, could you give it a
+> > > > > try please?
+> > > > 
+> > > > Yes, no problem! So I kept the very first patch you sent but had to
+> > > > revert the latest version of the debugging patch (the one in
+> > > > which you added the "mm_vmscan_inactive_list_is_low" event) because
+> > > > otherwise the patch you just sent wouldn't apply. Then I rebooted with
+> > > > memory cgroups enabled again, and the first thing that strikes the eye
+> > > > is that I get this during boot:
+> > > > 
+> > > > [    1.568174] ------------[ cut here ]------------
+> > > > [    1.568327] WARNING: CPU: 0 PID: 1 at mm/memcontrol.c:1032 mem_cgroup_update_lru_size+0x118/0x130
+> > > > [    1.568543] mem_cgroup_update_lru_size(f4406400, 2, 1): lru_size 0 but not empty
 > > > 
-> > > This patch always directly reclaims for MADV_HUGEPAGE regions when defrag
-> > > is not set to "never."  The idea is that MADV_HUGEPAGE regions really
-> > > want to be backed by hugepages and are willing to endure the latency at
-> > > fault as it was the default behavior prior to commit 444eb2a449ef ("mm:
-> > > thp: set THP defrag by default to madvise and add a stall-free defrag
-> > > option").
+> > > Ohh, I can see what is wrong! a) there is a bug in the accounting in
+> > > my patch (I double account) and b) the detection for the empty list
+> > > cannot work after my change because per node zone will not match per
+> > > zone statistics. The updated patch is below. So I hope my brain already
+> > > works after it's been mostly off last few days...
+> > > ---
+> > > From 397adf46917b2d9493180354a7b0182aee280a8b Mon Sep 17 00:00:00 2001
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > Date: Fri, 23 Dec 2016 15:11:54 +0100
+> > > Subject: [PATCH] mm, memcg: fix the active list aging for lowmem requests when
+> > >  memcg is enabled
+> > > 
+> > > Nils Holland has reported unexpected OOM killer invocations with 32b
+> > > kernel starting with 4.8 kernels
+> > > 
 > > 
-> > AFAIR "defer" is implemented exactly as intended. To offer a never-stall
-> > but allow to form THP in the background option. The patch description
-> > doesn't explain why this is not good anymore. Could you give us more
-> > details about the motivation and why "madvise" doesn't work for
-> > you? This is a user visible change so the reason should better be really
-> > documented and strong.
-> > 
+> > I think it's unfortunate that per-zone stats are reintroduced to the
+> > memcg structure.
+> 
+> the original patch I had didn't add per zone stats but rather did a
+> nr_highmem counter to mem_cgroup_per_node (inside ifdeff CONFIG_HIGMEM).
+> This would help for this particular case but it wouldn't work for other
+> lowmem requests (e.g. GFP_DMA32) and with the kmem accounting this might
+> be a problem in future.
+
+That did occur to me.
+
+> So I've decided to go with a more generic
+> approach which requires per-zone tracking. I cannot say I would be
+> overly happy about this at all.
+> 
+> > I can't help but think that it would have also worked
+> > to always rotate a small number of pages if !inactive_list_is_low and
+> > reclaiming for memcg even if it distorted page aging.
+> 
+> I am not really sure how that would work. Do you mean something like the
+> following?
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index fa30010a5277..563ada3c02ac 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2044,6 +2044,9 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+>  	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+>  	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+>  
+> +	if (!mem_cgroup_disabled())
+> +		goto out;
+> +
+>  	/*
+>  	 * For zone-constrained allocations, it is necessary to check if
+>  	 * deactivations are required for lowmem to be reclaimed. This
+> @@ -2063,6 +2066,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+>  		active -= min(active, active_zone);
+>  	}
+>  
+> +out:
+>  	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+>  	if (gb)
+>  		inactive_ratio = int_sqrt(10 * gb);
+> 
+> The problem I see with such an approach is that chances are that this
+> would reintroduce what f8d1a31163fc ("mm: consider whether to decivate
+> based on eligible zones inactive ratio") tried to fix. But maybe I have
+> missed your point.
 > 
 
-I ended up not reading this whole thread in detail because it went back
-and forth a lot.
-
-Michal is correct in that my intent for defer was to have "never stall"
-as the default behaviour.  This was because of the number of severe stalls
-users experienced that lead to recommendations in tuning guides to always
-disable THP. I'd also seen multiple instances in bug reports for stalls
-where it was suggested that THP be disabled even when it could not have
-been a factor. It would be preferred to keep the default behaviour to
-avoid reintroducing such bugs.
-
-That said;
-
-> The offering of defer breaks backwards compatibility with previous 
-> settings of defrag=madvise, where we could set madvise(MADV_HUGEPAGE) on 
-> .text segment remap and try to force thp backing if available but not 
-> directly reclaim for non VM_HUGEPAGE vmas.  This was very advantageous.  
-> We prefer that to stay unchanged and allow kcompactd compaction to be 
-> triggered in background by everybody else as opposed to direct reclaim.  
-> We do not have that ability without this patch.
-> 
-
-I accept the reasoning that applications that use MADV_HUGEPAGE really
-want huge pages and may be willing to incur a large stall to get them.
-It's impossible for the kernel to know in all cases which behaviour is
-desirable so something is needed.
-
-> Without this patch, we will be forced to offer multiple sysfs tunables to 
-> define (1) direct vs background compact, (2) madvise behavior, (3) always, 
-> (4) never and we cannot have 2^4 settings for "defrag" alone.
-
-In itself, I don't see this as a bad thing. I won't nak the patch as-is
-although I consider it unfortunate and worry that we'll see bugs again about
-slow start times for qemu (the most common application I'm aware of that
-uses MADV_HUGEPAGE). If that happens, we'd be forced to have a workaround
-like a systemtap script that intercepted MADV_HUGEPAGE and stripped it
-or LD_PRELOAD if a specific application can be controlled.
-
-I'll neither ack nor nak this patch. However, I would much prefer an
-additional option be added to sysfs called defer-fault that would avoid
-all fault-based stalls but still potentially stall for MADV_HUGEPAGE. I
-would also prefer that the default option is "defer" for both MADV_HUGEPAGE
-and faults.
+No, you didn't miss the point. It was something like that I had in mind
+but as I thought about it, I could see some cases where it might not work
+and still cause a premature OOM. The per-zone accounting is unfortunate
+but it's robust hence the Ack.
 
 -- 
 Mel Gorman
