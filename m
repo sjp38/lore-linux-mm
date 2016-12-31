@@ -1,104 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF226B0069
-	for <linux-mm@kvack.org>; Fri, 30 Dec 2016 21:08:48 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id s34so315622666uas.2
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 18:08:48 -0800 (PST)
-Received: from mail-vk0-x22d.google.com (mail-vk0-x22d.google.com. [2607:f8b0:400c:c05::22d])
-        by mx.google.com with ESMTPS id c4si14628883vkh.3.2016.12.30.18.08.47
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D3216B0069
+	for <linux-mm@kvack.org>; Sat, 31 Dec 2016 00:08:51 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id x140so80554219lfa.2
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 21:08:51 -0800 (PST)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id 142si20636080lfe.154.2016.12.30.21.08.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Dec 2016 18:08:47 -0800 (PST)
-Received: by mail-vk0-x22d.google.com with SMTP id p9so247582133vkd.3
-        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 18:08:47 -0800 (PST)
+        Fri, 30 Dec 2016 21:08:49 -0800 (PST)
+Received: by mail-lf0-x22c.google.com with SMTP id t196so246301986lff.3
+        for <linux-mm@kvack.org>; Fri, 30 Dec 2016 21:08:49 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: Drop "PFNs busy" printk in an expected path.
+In-Reply-To: <87bmvtxizn.fsf@eliezer.anholt.net>
+References: <20161229023131.506-1-eric@anholt.net> <20161229091256.GF29208@dhcp22.suse.cz> <87wpeitzld.fsf@eliezer.anholt.net> <xa1td1ga74v7.fsf@mina86.com> <8737h65nr5.fsf@eliezer.anholt.net> <xa1ta8bd7uy7.fsf@mina86.com> <87bmvtxizn.fsf@eliezer.anholt.net>
+Date: Sat, 31 Dec 2016 06:08:45 +0100
+Message-ID: <xa1t7f6g7kiq.fsf@mina86.com>
 MIME-Version: 1.0
-In-Reply-To: <3a168403-26f7-ac8d-3086-848178be6005@redhat.com>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com>
- <20161227022405.GA8780@node.shutemov.name> <3a168403-26f7-ac8d-3086-848178be6005@redhat.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 30 Dec 2016 18:08:27 -0800
-Message-ID: <CALCETrVHf-JJGqFoX_kmx2qyLdj78SDUfbvD+VPsSpPfDbYk1Q@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Carlos O'Donell <carlos@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Eric Anholt <eric@anholt.net>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-stable <stable@vger.kernel.org>, "Robin H. Johnson" <robbat2@orbis-terrarum.net>, Vlastimil Babka <vbabka@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, Dec 28, 2016 at 6:53 PM, Carlos O'Donell <carlos@redhat.com> wrote:
-> On 12/26/2016 09:24 PM, Kirill A. Shutemov wrote:
->> On Mon, Dec 26, 2016 at 06:06:01PM -0800, Andy Lutomirski wrote:
->>> On Mon, Dec 26, 2016 at 5:54 PM, Kirill A. Shutemov
->>> <kirill.shutemov@linux.intel.com> wrote:
->>>> This patch introduces new rlimit resource to manage maximum virtual
->>>> address available to userspace to map.
->>>>
->>>> On x86, 5-level paging enables 56-bit userspace virtual address space.
->>>> Not all user space is ready to handle wide addresses. It's known that
->>>> at least some JIT compilers use high bit in pointers to encode their
->>>> information. It collides with valid pointers with 5-level paging and
->>>> leads to crashes.
->>>>
->>>> The patch aims to address this compatibility issue.
->>>>
->>>> MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
->>>> address available to map by userspace.
->>>>
->>>> The default hard limit will be RLIM_INFINITY, which basically means th=
-at
->>>> TASK_SIZE limits available address space.
->>>>
->>>> The soft limit will also be RLIM_INFINITY everywhere, but the machine
->>>> with 5-level paging enabled. In this case, soft limit would be
->>>> (1UL << 47) - PAGE_SIZE. It=E2=80=99s current x86-64 TASK_SIZE_MAX wit=
-h 4-level
->>>> paging which known to be safe
->>>>
->>>> New rlimit resource would follow usual semantics with regards to
->>>> inheritance: preserved on fork(2) and exec(2). This has potential to
->>>> break application if limits set too wide or too narrow, but this is no=
-t
->>>> uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
->>>>
->>>> As with other resources you can set the limit lower than current usage=
-.
->>>> It would affect only future virtual address space allocations.
->>>>
->>>> Use-cases for new rlimit:
->>>>
->>>>   - Bumping the soft limit to RLIM_INFINITY, allows current process al=
-l
->>>>     its children to use addresses above 47-bits.
->>>>
->>>>   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
->>>>     exec(2) allows the child to use addresses above 47-bits.
->>>>
->>>>   - Lowering the hard limit to 47-bits would prevent current process a=
-ll
->>>>     its children to use addresses above 47-bits, unless a process has
->>>>     CAP_SYS_RESOURCES.
->>>>
->>>>   - It=E2=80=99s also can be handy to lower hard or soft limit to arbi=
-trary
->>>>     address. User-mode emulation in QEMU may lower the limit to 32-bit
->>>>     to emulate 32-bit machine on 64-bit host.
->>>
->>> I tend to think that this should be a personality or an ELF flag, not
->>> an rlimit.
->>
->> My plan was to implement ELF flag on top. Basically, ELF flag would mean
->> that we bump soft limit to hard limit on exec.
+On Fri, Dec 30 2016, Eric Anholt wrote:
+> OK, so the design is bad.  When you said bug, I definitely thought you
+> were saying that the message shouldn't happen in the design.
 >
-> Could you clarify what you mean by an "ELF flag?"
+> Given CMA's current design, should everyone using CMA see their logs
+> slowly growing with this message that is an secret code for "CMA's
+> design hasn't yet changed"?
 
-Some way to mark a binary as supporting a larger address space.  I
-don't have a precise solution in mind, but an ELF note might be a good
-way to go here.
+Just to be clear, it=E2=80=99s not CMA=E2=80=99s design; it=E2=80=99s movab=
+le page=E2=80=99s design that
+is bad (at least in the context of this discussion).
 
---Andy
+But yes, because of the way movable pages are, everyone is likely to see
+the message.
+
+> If you want to have people be able to track how often this is
+> happening, let's make a perf event for it or something instead.
+
+Sure.
+
+--=20
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
