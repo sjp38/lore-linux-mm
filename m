@@ -1,145 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 350596B0038
-	for <linux-mm@kvack.org>; Sat, 31 Dec 2016 20:51:14 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 5so1156199158pgi.2
-        for <linux-mm@kvack.org>; Sat, 31 Dec 2016 17:51:14 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c1si61577004pld.157.2016.12.31.17.51.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 447CC6B0038
+	for <linux-mm@kvack.org>; Sat, 31 Dec 2016 21:57:59 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 127so372419669pfg.5
+        for <linux-mm@kvack.org>; Sat, 31 Dec 2016 18:57:59 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r90si36734627pfk.118.2016.12.31.18.57.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 Dec 2016 17:51:13 -0800 (PST)
-Date: Sun, 1 Jan 2017 09:50:50 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: core.c:undefined reference to `fpu_save'
-Message-ID: <201701010941.BlPAx5oJ%fengguang.wu@intel.com>
+        Sat, 31 Dec 2016 18:57:58 -0800 (PST)
+From: "Williams, Dan J" <dan.j.williams@intel.com>
+Subject: [GIT PULL] dax final updates and fixes for 4.10-rc2
+Date: Sun, 1 Jan 2017 02:57:56 +0000
+Message-ID: <1483239473.2943.17.camel@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-7"
+Content-ID: <AF13CB2738A7EF44A4F4026C2D15AAF2@intel.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="DocE+STaALJfprDB"
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jack@suse.cz" <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
+Hi Linus, please pull from:
 
---DocE+STaALJfprDB
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+  git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm libnvdimm-fix=
+es
 
-Hi Andrew,
+...to receive the completion of Jan's DAX work for 4.10.
 
-It's probably a bug fix that unveils the link errors.
+As I mentioned in the libnvdimm-for-4.10 pull request +AFs-1+AF0-, these ar=
+e
+some final fixes for the DAX dirty-cacheline-tracking invalidation work
+that was merged through the -mm, ext4, and xfs trees in -rc1. These
+patches were prepared prior to the merge window, but we waited for
+4.10-rc1 to have a stable merge base after all the prerequisites were
+merged.
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   238d1d0f79f619d75c2cc741d6770fb0986aef24
-commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
-date:   10 months ago
-config: mn10300-allnoconfig (attached as .config)
-compiler: am33_2.0-linux-gcc (GCC) 6.2.0
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
-        # save the attached .config to linux build tree
-        make.cross ARCH=mn10300 
+Quoting Jan on the overall changes in these patches:
 
-All errors (new ones prefixed by >>):
+    So I'd like all these 6 patches to go for rc2. The first three
+    patches fix invalidation of exceptional DAX entries (a bug which is
+    there for a long time) - without these patches data loss can occur
+    on power failure even though user called fsync(2). The other three
+    patches change locking of DAX faults so that -+AD4-iomap+AF8-begin() is
+    called in a more relaxed locking context and we are safe to start a
+    transaction there for ext4.
 
-   kernel/built-in.o: In function `.L410':
->> core.c:(.sched.text+0x28a): undefined reference to `fpu_save'
+These have received a build success notification from the kbuild robot,
+and pass the latest libnvdimm unit tests. There have not been any -next
+releases since -rc1, so they have not appeared there.
+
++AFs-1+AF0-:+AKA-https://lists.01.org/pipermail/linux-nvdimm/2016-December/=
+008279.h
+tml
 
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---DocE+STaALJfprDB
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+The following changes since commit 7ce7d89f48834cefece7804d38fc5d85382edf77=
+:
 
-H4sICNBeaFgAAy5jb25maWcArVtbk9s6jn4/v0Kb7ENSNUn6kmTm7FQ/UBRl8VgSFZGyu3tr
-S+W41d2u+DaWfU763y9ISm3JAp15mFQlsQUIJEEQ+ADCb39765HDfrOa7Rfz2XL54j1V62o3
-21cP3uNiWf3TC4SXCuWxgKuPwBwv1oefn1bry4vriwvv88cvHy+8cbVbV0uPbtaPi6cDvLzY
-rH97+xsVachHZZIa3puX9gFJrq/LK/j+1us+ufYWtbfe7L262vdIn8urLqkVmxRdEREfRQlL
-UBlpkRBEQj6VLClHLGU5p6XMeBoLOj7Os6VQEnM/J4qVAYvJ3ZAhmjIYXR0J3wpOxzGXnUck
-p1EZEVnyWIyuyuK6p4BIqCwuRiXNCmSiAQubT0bmm0/LxfdPq83DYVnVn/67SEnCypzFjEj2
-6ePc7MKb32AD3nojs5lLLeywPW6Jn4sxS0uRljLJjnPkKVclSycwWT1UwtXN9VVLpLmQsqQi
-yXjMbt68OU6+eVYqJhUye1AqiScsl1ykvfe6hJIUSuBLJ0WsQEFS6XXevHm33qyr9x0x8k5O
-eEbRnbeTBrsQ+V1JlCI0QvnCiKRBzFBaIRnsf5dkVMvzb159+F6/1PtqdVRtaxNALmUkpog5
-aStjE5YqCUQjSy1W1a7GxEX3ZQZviYDTrr2kQlO4a8qGjFL0MQFbkaXiCWh+sCowwE9qVv/w
-9jAlb7Z+8Or9bF97s/l8c1jvF+un49wUGLm22JJQKopU8XTULiinhSeHqwGWuxJo3aXA15Ld
-wiIVOmFF5FhqJpSqX5aKxLE2wkSkuIicMcOpckJxhbWTACfHSl8IfC5+weOg9Hl6hVsbH9sP
-uCmOclFkEqdFjI4zwVOl90aJHJ+lBL7AnBQjC1+JdlH47OMxHKeJOeV5gM+DliIDy+D3rAxF
-Xkr4gBzKiExYWfDg8uvRuu0Wdjc2gXPL4fDk+FpGTCWwt/r4ghuIcaY7GcqzHGMgyLsEV2tL
-LIkvRVzA1sIcT1zsK3OWg/rHjn3Ht9QHh1uGhWNqIQx4i1JYJlwL5qOUxCG+O+bIOmjGnzho
-fhae17IzcBIu8OfBhMPSG6G48vXOG9/tmBWM6ZM85337aJeT+CwIWND6kwZhZNXucbNbzdbz
-ymN/VmtwTARcFNWuCRyo9WBWwiSxOimNazpxdb3QRRTEQ3zjZUx8ZHYyLvyupctY+C77VQAx
-AqJICYGOh5wSxR1uKstFyGNwoq4TJywH6w49hmc+c+zAGZoR+PWzDwEf0M0o1X6FUiala3CD
-X4wDjYQYn+CaKQFFQwwuM5KDXbTB/qXnWcBPUz1dxSh4OAzRiaCIITSB5ZQsDo0rOw6UjRTx
-AWXEsK2xvHnFJQJcMhwbWciMpcH18YWGQKiyc+lOGAIkFRHLtYEECQEwSbLW1kZUTD58n9WA
-gH9Ys9vuNoCFbew7noEW0Gn+ZvNATY4zZnTYIgA9Yjs8ogfjVmQCom4uO+fFasfh2gFSIJIA
-0fKUGWhbFgbdalzSBXyGnjMSNPRzNPTdaa5DpuPlLrF5++geISrf9w+/UW82W8/qzXox95rE
-wbMo4hTDNlSQrm1Y+lfXF9e98DOkf8Ed0YDx62fMOhs22Glqv7CLywtsRG0URImE62gqjVw8
-QKBgv5VCAauCBn1i9DoYpCGrKMfDWZ8v4FIfnuCX47HU8B13sk9OSEpGgJDuAJeNXEwcMojz
-HGFcyOjIg2rQcspUiOyXs7byuPkyHFPFvvEpGQ/y9pAn1Wqze/GWs5fNYe9ttjplrY/GNWZ5
-yuIyJ4k9jSQIAJjJm4ufv1/YP0dLh+CSF5kCr6f9muFH+BqJAAnUibTLIdc9T4ya+0N/ufh7
-T6TGqdarliIMJVPAE4av5AwOWALzSkXaCxnt8wlAolSRHEeLDdd52ypy40HBu7Cr82dLQlwr
-/4Dtxr3jfQlawELPfXn1pXfI4Ml1n/VECi7mBsScAuko1xnM2XnnCkf6LX0aWFSGq5BS0gfa
-1vQat7bQmGVtkvPdAv4bGGHP4+gjodSdTC6GBt5nuPwVwxV25AxlmOTqOe4O2723q/51qOo9
-xMLFZrfYv3Smazj/97/+T9eJ2P94xFtu/qp23vqw+l7tPi2rPyGELtYPi/lsX0Em6T0vnp6B
-/irpndky87Te/837qr9pEfX+fSu9hD/pZv1hBanp7PuyssozEzPya83QMqvnynvcLEEEhGxv
-dYBZf6/0mrz9Bhl+/zxbw3jz2bJc7P5VPixqPcK79yb7hTHnz4tts0f/4RFacR+6y0x+scTX
-SlBa3JY05hYQAR76d2YGmwiWBh83u2aX+pM8kdrN3MHKTVHDDve5JYQxUQDljzanH4DPCZhG
-+KXFVX0YpP2WpvE0FIYTg9hZDNE4UwY5QMomYcQ+aqduIB3dSeM2S2UhLiL/HpyiwWEw3dHN
-q89Mc1u7A+DV5hE8V6USkAPKHu7uH5bmaVut0nCyTMAt6lncfL74/evrAAwcD2Shpm4yTnoQ
-OWYkNSEMXdV9JgSOLe/9Ak+x7g2IFHSIsczWQx41e6pWkEZ1DvNRi0NvwH5W88PeGKdJw/a9
-F3zYz0Rp5I5jVEuWNOeOsGLzDFE4ii/2/YRLR6lP5CwoErwqkjI1WE1Q/bmAPDLYLf60ueOx
-Ygrg0z72xFAxhc0rIxZnDscfsIlKshDH6hCw04DEYH+uuGvEhzxPpiRntuiE48dpGQsSOCah
-d35qCj5nNRMwv4B/cz5xLsYwsEnuSD4gyS2jO9DFhEuBy3gtfYLRgyROHaL0gZQRrDqAZYch
-kh34h9p7MBvX25NE4SoSuC1CmpqJfGgSyaKeY+JBe8md9n547SWlsZAF7JXUSnAtTgKaxC33
-Cp0MYxC2E68+bLeb3b47HUspf7+mt18Hr6nq56yGwF3vd4eVKZHUz7MdJLP73Wxda1EepLKV
-B1Fovtjqj63pkyUEnJkXZiPiPS52q7/gNe9h89d6uZk9ePa+oeXVwGDpQYpjdsQelpYmKQ+R
-x8dXog2EJReRznYPmEAn/wbSc9ivGkKa3APE8JKjX3tHhUzed874UYc0wmtb9DY2wNtJbDA6
-ybiThbFosC+SSt7YVmdPXwGp5DrD71WV9LOgf3PVrH0LOctA1LEMnWbF0Jwi0KvZUf5JePqV
-njqkvmTAzy5JGGqfFMxqNgeTwU4MwEmXa3QVG4E0dtF4lvDS3tHgHiaaQrKWBgJ/3QXjwS85
-aYrCXyQI8iuKKt1xJyAdZiJhRfhKJB+MmWUSGzPLhhc4+llzhbsxV0rtW5aqMm8OSPTHKYGt
-TVgH6KTvujTyhZA5FflYoymD/iBuJZmuTgJ6rKsK8GLlzR4eFjo+AqY0UuuP3elNL3HnK6aA
-f2SRZbEj9TQMEG4YjgQsnUwclc2p8x4oYjkAIpQ2JYpGgcBqr1L6MKSU3DelV3uYdYGq9uRi
-uZhv1p4/m//YLmfGlR53WGK1Y59CjDsV5+/Aw843K6/eVvPFI8APkvikB64o4giSw3K/eDys
-53oPWofwMPR1SRgYEIDrS+myreQUv3/X745ZkjkwiCYn6uv17393kmXy5QK3BOLfftFlBNfU
-zNt3kjr2U5MVN80DX25LJSkJHNm6Zkwc/i1nowJSFgdySVjAiTFWzAWOdrPtszYE5HAG+dB3
-hLvZqvK+Hx4fwWsGQ68Z4tcIugYY6w6DMqYBNpnjrceIwDlVjutDUaRYBbAAAxcRhZyPKxXr
-GiCsuVMx1/Rm0P7D1xJ4RHuRq5DD63L9zICPhz7e1s+z55dad5948exFh5OhBevRwBHh2F5k
-hn5LGZ84rqJ8CGPByOFPiimu9iRxmBNLpLNylDJA5SzAfZO9YuE+B03ji4FoBIkgkU58fA4+
-k+I24JA5Oy6AC8cJMCmuzQCG8WSy2IF3wfZEv8YFaKkvtgHS892m3jzuvehlW+0+TLwnUz1C
-zgnY6+jk0quPV+R2sTYh68RyqHkoN4cd7vV0XSIuM0fxXUZNTYMmv2BIVIEXN185VILX4FnS
-MIC54JZEeOwL/JKYiyQpnJ4nr1abfaWRL7Z0qZhGkzB+rkt/w7e3q/rpVJ8SGN9Je9ci1gDv
-Ftv3x4CEQGhZpLfcndaAvNKx7izRaC/MmSOhulVOn29aeXCFOcw7m2KlGpIn5QhS0oTclmne
-vWjjma6o+wV+xgwsgZCVqlzELjQaJkjNBdxXtyVmkBy7/JsGYNktKa/+kSYaHeJOqccFDg83
-WYAR5VikxHC4R9QAixK8YJDQoXPv3suvABoB9MSOek6G/oWsH3abxUPv4KZBLjiON1Jn+iCV
-87nN351UiIs5ZXpPpXA0VOlbnhgA5DCi62S51/gImzxYuOEavLoAwG3NoQ8CpMaH/BaihaOx
-RF8068LoidvsSEiF4qEjAztD45ZWOrt2QnLm7W+FUMRNoQpfju5nCuXn0lEvC/XVnYMmIGRB
-tDshW2XO5s8n4EoOiqvWeOvq8LAx3a7IbpirE8fwhkYjHgc5w92VrhW46oC6twlH5AUglRgA
-Dxk5qhDmP7AThwBdIzVWYvtPcKY0HiqtabN5hnTGdjuYp9vdYr3/YZLCh1UFgWN4UwWoRl9Y
-xmJkrgfaQvjN52YzNqstqPeDaSqEfYFM0Yib2+c7rP5s6476jsBRdDPdIFOSp8Ca5YwC7HX0
-RlnWpJDKdtoh4SDMdROtlnZzeXHVuWuQKudZSSS4CVebmW6RMCMQibugIgUb1qlM4gtHt5Rd
-bYi23zBd45V26l2Ybd+RzNyE6E1PdBKLG9sJk9WbSB0ZuNWGaUg8WxUOhXacU0bG7Z2GA+bo
-SAvG2C+g9kTZqtrJ9XxQfT88PZ003uhjoSECS6XrBsiK1IyD+4++GFiiFKnLj1oxwv8DtHdu
-2+wdfCFd59VyTVxlL01sWpR5it5WmZuRzlja74WxaS7GptKSz005OqlmN1cioG8vBlx92NoT
-Gs3WT71jqeNOkYGUYRtXZwhNBD+W2v5dvOLyDS26dPYn1Q00YKUiw45Fj15OSFyw4z2eJWrw
-LQp1M7j5d3oVS7b7CWnw0F2cqFGPMGYswxIYrcajBXvv6iaPqf/mrQ776mcFH6r9/OPHj++H
-fq/9NcI5k9H9pa6LFMPRNCHJGGZ4hq2BErqiDY4iDnUfPy7W3MbCrit92XHa7n8idWzPzblx
-+VkBGf8Vhzx3bA1Q4a7GT8tDcxawVHGCxELdco77nxzOl7MjXdoWSN1Qfs5//lKJpl/932I6
-39T+Tdq1ntECnETryHO3C2+1WbI8FzkcoD+Y+wLeXoKjPFa1+pcEgARUVe9PlKuXarYdULmj
-xqWrYWbRxljPKMc3jf9Ouj0dXz+/2jy+UXpCEbt1XqAaBo0S0lFzJ4xbnOEbA6NyJPyGwXSh
-45eWhp5HREamERZxifb3CYGgMu/9WsS8WQTOXwZIkmQnraXdwGPKfONR0Ot51t9xsONLci4q
-B0y3b+iWtibmuxcLaMU0Jyfmvn14+2PLFtX8cNKQ1IHfdw7wzWiRc3VXBgBdTVIPG+hwVi0v
-Cs7ajo+jQEKPRdJTav9nU/ldpvAw5POUABoYGoMNLIvvuxmgo93mAMen6uDw1x8fiV5jSQ5Z
-CuUKXx5QL7+6KKW6vAg4bo+azBU4IBf1Gq9BAAW/LIi5b95y/ZSL/sORPwa6cVcbadPO36gB
-9wrmlvD66vypv73XdnqGVPr0D/S8SF246/ZD2Ue6iNc0Q3WeB0mnwb3dvNYvIb8dfHVZegY8
-NHUCxSe99k4q8sCx9iDAg5Fu63L/JKVpxsJ1385M6h8xEd47+P8PAat9Olw6AAA=
+  Linux 4.10-rc1 (2016-12-25 16:13:08 -0800)
 
---DocE+STaALJfprDB--
+are available in the git repository at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm libnvdimm-fix=
+es
+
+for you to fetch changes up to 1db175428ee374489448361213e9c3b749d14900:
+
+  ext4: Simplify DAX fault path (2016-12-26 20:29:25 -0800)
+
+----------------------------------------------------------------
+Jan Kara (6):
+      ext2: Return BH+AF8-New buffers for zeroed blocks
+      mm: Invalidate DAX radix tree entries only if appropriate
+      dax: Avoid page invalidation races and unnecessary radix tree travers=
+als
+      dax: Finish fault completely when loading holes
+      dax: Call -+AD4-iomap+AF8-begin without entry lock during dax fault
+      ext4: Simplify DAX fault path
+
+ fs/dax.c            +AHw- 243 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-=
++-+-+-+-+-+-+-+-+-+-+--------------------
+ fs/ext2/inode.c     +AHw-   3 +--
+ fs/ext4/file.c      +AHw-  48 +-+-+---------
+ include/linux/dax.h +AHw-   3 +-
+ mm/truncate.c       +AHw-  75 +-+-+-+-+-+-+-+-+-+-+-+-+----
+ 5 files changed, 229 insertions(+-), 143 deletions(-)
+
+commit e568df6b84ff05a22467503afc11bee7a6ba0700
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Wed Aug 10 16:42:53 2016 +-0200
+
+    ext2: Return BH+AF8-New buffers for zeroed blocks
+   =20
+    So far we did not return BH+AF8-New buffers from ext2+AF8-get+AF8-block=
+s() when we
+    allocated and zeroed-out a block for DAX inode to avoid racy zeroing in
+    DAX code. This zeroing is gone these days so we can remove the
+    workaround.
+   =20
+    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+    Reviewed-by: Christoph Hellwig +ADw-hch+AEA-lst.de+AD4-
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+
+commit c6dcf52c23d2d3fb5235cec42d7dd3f786b87d55
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Wed Aug 10 17:22:44 2016 +-0200
+
+    mm: Invalidate DAX radix tree entries only if appropriate
+   =20
+    Currently invalidate+AF8-inode+AF8-pages2+AF8-range() and invalidate+AF=
+8-mapping+AF8-pages()
+    just delete all exceptional radix tree entries they find. For DAX this
+    is not desirable as we track cache dirtiness in these entries and when
+    they are evicted, we may not flush caches although it is necessary. Thi=
+s
+    can for example manifest when we write to the same block both via mmap
+    and via write(2) (to different offsets) and fsync(2) then does not
+    properly flush CPU caches when modification via write(2) was the last
+    one.
+   =20
+    Create appropriate DAX functions to handle invalidation of DAX entries
+    for invalidate+AF8-inode+AF8-pages2+AF8-range() and invalidate+AF8-mapp=
+ing+AF8-pages() and
+    wire them up into the corresponding mm functions.
+   =20
+    Acked-by: Johannes Weiner +ADw-hannes+AEA-cmpxchg.org+AD4-
+    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+
+commit e3fce68cdbed297d927e993b3ea7b8b1cee545da
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Wed Aug 10 17:10:28 2016 +-0200
+
+    dax: Avoid page invalidation races and unnecessary radix tree traversal=
+s
+   =20
+    Currently dax+AF8-iomap+AF8-rw() takes care of invalidating page tables=
+ and
+    evicting hole pages from the radix tree when write(2) to the file
+    happens. This invalidation is only necessary when there is some block
+    allocation resulting from write(2). Furthermore in current place the
+    invalidation is racy wrt page fault instantiating a hole page just afte=
+r
+    we have invalidated it.
+   =20
+    So perform the page invalidation inside dax+AF8-iomap+AF8-actor() where=
+ we can
+    do it only when really necessary and after blocks have been allocated s=
+o
+    nobody will be instantiating new hole pages anymore.
+   =20
+    Reviewed-by: Christoph Hellwig +ADw-hch+AEA-lst.de+AD4-
+    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+
+commit f449b936f1aff7696b24a338f493d5cee8d48d55
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Wed Oct 19 14:48:38 2016 +-0200
+
+    dax: Finish fault completely when loading holes
+   =20
+    The only case when we do not finish the page fault completely is when w=
+e
+    are loading hole pages into a radix tree. Avoid this special case and
+    finish the fault in that case as well inside the DAX fault handler. It
+    will allow us for easier iomap handling.
+   =20
+    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+
+commit 9f141d6ef6258a3a37a045842d9ba7e68f368956
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Wed Oct 19 14:34:31 2016 +-0200
+
+    dax: Call -+AD4-iomap+AF8-begin without entry lock during dax fault
+   =20
+    Currently -+AD4-iomap+AF8-begin() handler is called with entry lock hel=
+d. If the
+    filesystem held any locks between -+AD4-iomap+AF8-begin() and -+AD4-iom=
+ap+AF8-end()
+    (such as ext4 which will want to hold transaction open), this would cau=
+se
+    lock inversion with the iomap+AF8-apply() from standard IO path which f=
+irst
+    calls -+AD4-iomap+AF8-begin() and only then calls -+AD4-actor() callbac=
+k which grabs
+    entry locks for DAX (if it faults when copying from/to user provided
+    buffers).
+   =20
+    Fix the problem by nesting grabbing of entry lock inside -+AD4-iomap+AF=
+8-begin()
+    - -+AD4-iomap+AF8-end() pair.
+   =20
+    Reviewed-by: Ross Zwisler +ADw-ross.zwisler+AEA-linux.intel.com+AD4-
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-
+
+commit 1db175428ee374489448361213e9c3b749d14900
+Author: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+Date:   Fri Oct 21 11:33:49 2016 +-0200
+
+    ext4: Simplify DAX fault path
+   =20
+    Now that dax+AF8-iomap+AF8-fault() calls -+AD4-iomap+AF8-begin() withou=
+t entry lock, we
+    can use transaction starting in ext4+AF8-iomap+AF8-begin() and thus sim=
+plify
+    ext4+AF8-dax+AF8-fault(). It also provides us proper retries in case of=
+ ENOSPC.
+   =20
+    Signed-off-by: Jan Kara +ADw-jack+AEA-suse.cz+AD4-
+    Signed-off-by: Dan Williams +ADw-dan.j.williams+AEA-intel.com+AD4-=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
