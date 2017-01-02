@@ -1,69 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F5BB6B0069
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2017 10:49:05 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so107765081wjb.3
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 07:49:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m75si70049809wmi.84.2017.01.02.07.49.04
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EAEFE6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2017 10:55:46 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id n68so415479720itn.4
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 07:55:46 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0217.hostedemail.com. [216.40.44.217])
+        by mx.google.com with ESMTPS id f127si24947406ite.15.2017.01.02.07.55.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Jan 2017 07:49:04 -0800 (PST)
-Date: Mon, 2 Jan 2017 16:49:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
-Message-ID: <20170102154858.GC18048@dhcp22.suse.cz>
-References: <20161220134904.21023-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161220134904.21023-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jan 2017 07:55:27 -0800 (PST)
+Message-ID: <1483372522.1955.20.camel@perches.com>
+Subject: Re: [PATCH] mm: introduce kv[mz]alloc helpers
+From: Joe Perches <joe@perches.com>
+Date: Mon, 02 Jan 2017 07:55:22 -0800
+In-Reply-To: <20170102133700.1734-1-mhocko@kernel.org>
+References: <20170102133700.1734-1-mhocko@kernel.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael
+ S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
 
-On Tue 20-12-16 14:49:01, Michal Hocko wrote:
-> Hi,
-> This has been posted [1] initially to later be reduced to a single patch
-> [2].  Johannes then suggested [3] to split up the second patch and make
-> the access to memory reserves by __GF_NOFAIL requests which do not
-> invoke the oom killer a separate change. This is patch 3 now.
+On Mon, 2017-01-02 at 14:37 +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Tetsuo has noticed [4] that recent changes have changed GFP_NOFAIL
-> semantic for costly order requests. I believe that the primary reason
-> why this happened is that our GFP_NOFAIL checks are too scattered
-> and it is really easy to forget about adding one. That's why I am
-> proposing patch 1 which consolidates all the nofail handling at a single
-> place. This should help to make this code better maintainable.
+> Using kmalloc with the vmalloc fallback for larger allocations is a
+> common pattern in the kernel code. Yet we do not have any common helper
+> for that and so users have invented their own helpers. Some of them are
+> really creative when doing so. Let's just add kv[mz]alloc and make sure
+> it is implemented properly. This implementation makes sure to not make
+> a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
+> to not warn about allocation failures. This also rules out the OOM
+> killer as the vmalloc is a more approapriate fallback than a disruptive
+> user visible action.
 > 
-> Patch 2 on top is a further attempt to make GFP_NOFAIL semantic less
-> surprising. As things stand currently GFP_NOFAIL overrides the oom killer
-> prevention code which is both subtle and not really needed. The patch 2
-> has more details about issues this might cause. We have also seen
-> a report where __GFP_NOFAIL|GFP_NOFS requests cause the oom killer which
-> is premature.
+> This patch also changes some existing users and removes helpers which
+> are specific for them. In some cases this is not possible (e.g.
+> ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
+> broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
+> in general (note that the page table allocation is GFP_KERNEL). Those
+> need to be fixed separately.
 > 
-> Patch 3 is an attempt to reduce chances of GFP_NOFAIL requests being
-> preempted by other memory consumers by giving them access to memory
-> reserves.
+> apparmor has already claimed kv[mz]alloc so remove those and use
+> __aa_kvmalloc instead to prevent from the naming clashes.
 
-a friendly ping on this
+I have no real objection but perhaps this would
+be better done as 3 or more patches
 
-> [1] http://lkml.kernel.org/r/20161123064925.9716-1-mhocko@kernel.org
-> [2] http://lkml.kernel.org/r/20161214150706.27412-1-mhocko@kernel.org
-> [3] http://lkml.kernel.org/r/20161216173151.GA23182@cmpxchg.org
-> [4] http://lkml.kernel.org/r/1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+o rename apparmor uses
+o introduce generic
+o conversions to generic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
