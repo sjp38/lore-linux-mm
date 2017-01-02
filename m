@@ -1,131 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF3F6B0069
-	for <linux-mm@kvack.org>; Mon,  2 Jan 2017 03:05:39 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id b1so1238446807pgc.5
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 00:05:39 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id a2si64919409pgf.207.2017.01.02.00.05.38
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B129D6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Jan 2017 03:35:04 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id d17so40444450wjx.5
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 00:35:04 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id hm2si72356711wjb.167.2017.01.02.00.35.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Jan 2017 00:05:39 -0800 (PST)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Received: from epcas1p1.samsung.com (unknown [182.195.41.45])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OJ5025S97TDW7B0@mailout4.samsung.com> for linux-mm@kvack.org;
- Mon, 02 Jan 2017 17:05:37 +0900 (KST)
-Content-transfer-encoding: 8BIT
-Subject: Re: [PATCH] mm: cma: print allocation failure reason and bitmap status
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Message-id: <586A0A05.4040708@samsung.com>
-Date: Mon, 02 Jan 2017 17:06:29 +0900
-In-reply-to: <xa1tmvfahscn.fsf@mina86.com>
-References: 
- <CGME20161229022722epcas5p4be0e1924f3c8d906cbfb461cab8f0374@epcas5p4.samsung.com>
- <1482978482-14007-1-git-send-email-jaewon31.kim@samsung.com>
- <20161229091449.GG29208@dhcp22.suse.cz> <xa1th95m7r6w.fsf@mina86.com>
- <58660BBE.1040807@samsung.com> <20161230094411.GD13301@dhcp22.suse.cz>
- <xa1tpok6igqb.fsf@mina86.com> <5869E849.1040605@samsung.com>
- <xa1tmvfahscn.fsf@mina86.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jan 2017 00:35:03 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id u144so81029510wmu.0
+        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 00:35:03 -0800 (PST)
+Date: Mon, 2 Jan 2017 11:35:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Message-ID: <20170102083500.GA30735@node.shutemov.name>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+ <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
+ <CALCETrV+3rO=CuPjpoU9iKnKiJ2toW6QZAKXEqDW-QJJrX2EgQ@mail.gmail.com>
+ <20161227022405.GA8780@node.shutemov.name>
+ <3a168403-26f7-ac8d-3086-848178be6005@redhat.com>
+ <CALCETrVHf-JJGqFoX_kmx2qyLdj78SDUfbvD+VPsSpPfDbYk1Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrVHf-JJGqFoX_kmx2qyLdj78SDUfbvD+VPsSpPfDbYk1Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>
-Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, labbott@redhat.com, m.szyprowski@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Andy Lutomirski <luto@amacapital.net>, "H.J. Lu" <hjl.tools@gmail.com>
+Cc: Carlos O'Donell <carlos@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
+On Fri, Dec 30, 2016 at 06:08:27PM -0800, Andy Lutomirski wrote:
+> On Wed, Dec 28, 2016 at 6:53 PM, Carlos O'Donell <carlos@redhat.com> wrote:
+> > On 12/26/2016 09:24 PM, Kirill A. Shutemov wrote:
+> >> On Mon, Dec 26, 2016 at 06:06:01PM -0800, Andy Lutomirski wrote:
+> >>> On Mon, Dec 26, 2016 at 5:54 PM, Kirill A. Shutemov
+> >>> <kirill.shutemov@linux.intel.com> wrote:
+> >>>> This patch introduces new rlimit resource to manage maximum virtual
+> >>>> address available to userspace to map.
+> >>>>
+> >>>> On x86, 5-level paging enables 56-bit userspace virtual address space.
+> >>>> Not all user space is ready to handle wide addresses. It's known that
+> >>>> at least some JIT compilers use high bit in pointers to encode their
+> >>>> information. It collides with valid pointers with 5-level paging and
+> >>>> leads to crashes.
+> >>>>
+> >>>> The patch aims to address this compatibility issue.
+> >>>>
+> >>>> MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
+> >>>> address available to map by userspace.
+> >>>>
+> >>>> The default hard limit will be RLIM_INFINITY, which basically means that
+> >>>> TASK_SIZE limits available address space.
+> >>>>
+> >>>> The soft limit will also be RLIM_INFINITY everywhere, but the machine
+> >>>> with 5-level paging enabled. In this case, soft limit would be
+> >>>> (1UL << 47) - PAGE_SIZE. Ita??s current x86-64 TASK_SIZE_MAX with 4-level
+> >>>> paging which known to be safe
+> >>>>
+> >>>> New rlimit resource would follow usual semantics with regards to
+> >>>> inheritance: preserved on fork(2) and exec(2). This has potential to
+> >>>> break application if limits set too wide or too narrow, but this is not
+> >>>> uncommon for other resources (consider RLIMIT_DATA or RLIMIT_AS).
+> >>>>
+> >>>> As with other resources you can set the limit lower than current usage.
+> >>>> It would affect only future virtual address space allocations.
+> >>>>
+> >>>> Use-cases for new rlimit:
+> >>>>
+> >>>>   - Bumping the soft limit to RLIM_INFINITY, allows current process all
+> >>>>     its children to use addresses above 47-bits.
+> >>>>
+> >>>>   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
+> >>>>     exec(2) allows the child to use addresses above 47-bits.
+> >>>>
+> >>>>   - Lowering the hard limit to 47-bits would prevent current process all
+> >>>>     its children to use addresses above 47-bits, unless a process has
+> >>>>     CAP_SYS_RESOURCES.
+> >>>>
+> >>>>   - Ita??s also can be handy to lower hard or soft limit to arbitrary
+> >>>>     address. User-mode emulation in QEMU may lower the limit to 32-bit
+> >>>>     to emulate 32-bit machine on 64-bit host.
+> >>>
+> >>> I tend to think that this should be a personality or an ELF flag, not
+> >>> an rlimit.
+> >>
+> >> My plan was to implement ELF flag on top. Basically, ELF flag would mean
+> >> that we bump soft limit to hard limit on exec.
+> >
+> > Could you clarify what you mean by an "ELF flag?"
+> 
+> Some way to mark a binary as supporting a larger address space.  I
+> don't have a precise solution in mind, but an ELF note might be a good
+> way to go here.
 
++ H.J.
 
-On 2017e?? 01i?? 02i? 1/4  15:46, Michal Nazarewicz wrote:
-> On Mon, Jan 02 2017, Jaewon Kim wrote:
->> There are many reasons of CMA allocation failure such as EBUSY, ENOMEM, EINTR.
->> But we did not know error reason so far. This patch prints the error value.
->>
->> Additionally if CONFIG_CMA_DEBUG is enabled, this patch shows bitmap status to
->> know available pages. Actually CMA internally tries on all available regions
->> because some regions can be failed because of EBUSY. Bitmap status is useful to
->> know in detail on both ENONEM and EBUSY;
->>  ENOMEM: not tried at all because of no available region
->>          it could be too small total region or could be fragmentation issue
->>  EBUSY:  tried some region but all failed
->>
->> This is an ENOMEM example with this patch.
->> [   12.415458]  [2:   Binder:714_1:  744] cma: cma_alloc: alloc failed, req-size: 256 pages, ret: -12
->> If CONFIG_CMA_DEBUG is enabled, avabile pages also will be shown as concatenated
->> size@position format. So 4@572 means that there are 4 available pages at 572
->> position starting from 0 position.
->> [   12.415503]  [2:   Binder:714_1:  744] cma: number of available pages: 4@572+7@585+7@601+8@632+38@730+166@1114+127@1921=> 357 free of 2048 total pages
->>
->> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->> Acked-by: Michal Nazarewicz <mina86@mina86.com>
->> ---
->>  mm/cma.c | 34 +++++++++++++++++++++++++++++++++-
->>  1 file changed, 33 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/cma.c b/mm/cma.c
->> index c960459..9e037541 100644
->> --- a/mm/cma.c
->> +++ b/mm/cma.c
->> @@ -353,6 +353,32 @@ int __init cma_declare_contiguous(phys_addr_t base,
->>      return ret;
->>  }
->>  
->> +#ifdef CONFIG_CMA_DEBUG
->> +static void debug_show_cma_areas(struct cma *cma)
-> Make it a??cma_debug_show_areasa??.  All other functions have a??cmaa?? as
-> prefix so thata??s more consistent.
-OK no problem.
->
->> +{
->> +    unsigned long next_zero_bit, next_set_bit;
->> +    unsigned long start = 0;
->> +    unsigned int nr_zero, nr_total = 0;
->> +
->> +    mutex_lock(&cma->lock);
->> +    pr_info("number of available pages: ");
->> +    for (;;) {
->> +        next_zero_bit = find_next_zero_bit(cma->bitmap, cma->count, start);
->> +        if (next_zero_bit >= cma->count)
->> +            break;
->> +        next_set_bit = find_next_bit(cma->bitmap, cma->count, next_zero_bit);
->> +        nr_zero = next_set_bit - next_zero_bit;
->> +        pr_cont("%s%u@%lu", nr_total ? "+" : "", nr_zero, next_zero_bit);
->> +        nr_total += nr_zero;
->> +        start = next_zero_bit + nr_zero;
->> +    }
->> +    pr_cont("=> %u free of %lu total pages\n", nr_total, cma->count);
->> +    mutex_unlock(&cma->lock);
->> +}
->> +#else
->> +static inline void debug_show_cma_areas(struct cma *cma) { }
->> +#endif
->> +
->>  /**
->>   * cma_alloc() - allocate pages from contiguous area
->>   * @cma:   Contiguous memory region for which the allocation is performed.
->> @@ -369,7 +395,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->>      unsigned long start = 0;
->>      unsigned long bitmap_maxno, bitmap_no, bitmap_count;
->>      struct page *page = NULL;
->> -    int ret;
->> +    int ret = -ENOMEM;
->>  
->>      if (!cma || !cma->count)
->>          return NULL;
->> @@ -426,6 +452,12 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
->>  
->>      trace_cma_alloc(pfn, page, count, align);
->>  
->> +    if (ret) {
->> +        pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
->> +            __func__, count, ret);
->> +        debug_show_cma_areas(cma);
->> +    }
->> +
->>      pr_debug("%s(): returned %p\n", __func__, page);
->>      return page;
->>  }
->> -- 
->>
+There's discussion of proposal of "Program Properties"[1]. It seems fits
+the purpose.
 
-Added the latest.
+[1] https://sourceware.org/ml/gnu-gabi/2016-q4/msg00000.html
+
+-- 
+ Kirill A. Shutemov
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
