@@ -1,94 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 031E46B0260
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:12:54 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b1so1339555546pgc.5
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:12:53 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id e3si69647263plj.316.2017.01.03.09.12.53
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E17F36B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:18:29 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id u144so80180963wmu.1
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:18:29 -0800 (PST)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id jw9si77921498wjb.145.2017.01.03.09.18.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 09:12:53 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id n5so34097025pgh.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:12:53 -0800 (PST)
-Subject: [next PATCH v3 3/3] mm: Add documentation for page fragment APIs
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 03 Jan 2017 09:12:51 -0800
-Message-ID: <20170103171242.5144.20890.stgit@localhost.localdomain>
-In-Reply-To: <20170103170057.5144.17621.stgit@localhost.localdomain>
-References: <20170103170057.5144.17621.stgit@localhost.localdomain>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 09:18:28 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 3DB4099122
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 17:18:28 +0000 (UTC)
+Date: Tue, 3 Jan 2017 17:18:27 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
+ a page bit
+Message-ID: <20170103171827.mj6bpclerz2xwesx@techsingularity.net>
+References: <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
+ <20161227211946.3770b6ce@roar.ozlabs.ibm.com>
+ <CA+55aFw22e6njM9L4sareRRJw3RjW9XwGH3B7p-ND86EtTWWDQ@mail.gmail.com>
+ <20161228135358.59f47204@roar.ozlabs.ibm.com>
+ <CA+55aFz-evT+NiZY0GhO719M+=u==TbCqxTJTjp+pJevhDnRrw@mail.gmail.com>
+ <20161229140837.5fff906d@roar.ozlabs.ibm.com>
+ <CA+55aFxGz8R8J9jLvKpLUgyhWVYcgtObhbHBP7eZzZyc05AODw@mail.gmail.com>
+ <20161229152615.2dad5402@roar.ozlabs.ibm.com>
+ <20170103102439.4fienez2fkgqwbrd@techsingularity.net>
+ <20170103222958.4a2ce0e6@roar.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170103222958.4a2ce0e6@roar.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-wired-lan@lists.osuosl.org, jeffrey.t.kirsher@intel.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 
-From: Alexander Duyck <alexander.h.duyck@intel.com>
+On Tue, Jan 03, 2017 at 10:29:58PM +1000, Nicholas Piggin wrote:
+> > kernel building showed nothing unusual on any machine
+> > 
+> > git checkout in a loop showed;
+> > 	o minor gains with Nick's patch
+> > 	o no impact from Linus's patch
+> > 	o flat performance from PeterZ's
+> > 
+> > git test suite showed
+> > 	o close to flat performance on all patches
+> > 	o Linus' patch on top showed increased variability but not serious
+> 
+> I'd be really surprised if Linus's patch is actually adding variability
+> unless it is just some random cache or branch predictor or similar change
+> due to changed code sizes. Testing on skylake CPU showed the old sequence
+> takes a big stall with the load-after-lock;op hazard.
+> 
+> So I wouldn't worry about it too much, but maybe something interesting to
+> look at for someone who knows x86 microarchitectures well.
+> 
 
-This is a first pass at trying to add documentation for the page_frag APIs.
-They may still change over time but for now I thought I would try to get
-these documented so that as more network drivers and stack calls make use
-of them we have one central spot to document how they are meant to be used.
+Agreed, it looked like a testing artifact. Later in the day it was obvious
+that different results were obtained between boots and minor changes
+in timing.
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
----
+It's compounded by the fact that this particular test is based on /tmp so
+different people will get different results depending on the filesystem. In
+my case, that was btrfs.
 
-v2,v3: No change
+> > 
+> > will-it-scale pagefault tests
+> > 	o page_fault1 and page_fault2 showed no differences in processes
+> > 
+> > 	o page_fault3 using processes did show some large losses at some
+> > 	  process counts on all patches. The losses were not consistent on
+> > 	  each run. There also was no consistently at loss with increasing
+> > 	  process counts. It did appear that Peter's patch had fewer
+> > 	  problems with only one thread count showing problems so it
+> > 	  *may* be more resistent to the problem but not completely and
+> > 	  it's not obvious why it might be so it could be a testing
+> > 	  anomaly
+> 
+> Okay. page_fault3 has each process doing repeated page faults on their
+> own 128MB file in /tmp. Unless they fill memory and start to reclaim,
+> (which I believe must be happening in Dave's case) there should be no
+> contention on page lock. After the patch, the uncontended case should
+> be strictly faster when there is no contention.
+> 
 
- Documentation/vm/page_frags |   42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
- create mode 100644 Documentation/vm/page_frags
+It's possible in the test that I setup that it's getting screwed by the
+filesystem used. It's writing that array and on a COW filesystem there
+is a whole bucket of variables such as new block allocations, writeback
+timing etc. The writeback timing alone means that this test is questionable
+because the results will depend on when background writeback triggers. I'm
+not sure how Dave is controlling for these factors.
 
-diff --git a/Documentation/vm/page_frags b/Documentation/vm/page_frags
-new file mode 100644
-index 000000000000..a6714565dbf9
---- /dev/null
-+++ b/Documentation/vm/page_frags
-@@ -0,0 +1,42 @@
-+Page fragments
-+--------------
-+
-+A page fragment is an arbitrary-length arbitrary-offset area of memory
-+which resides within a 0 or higher order compound page.  Multiple
-+fragments within that page are individually refcounted, in the page's
-+reference counter.
-+
-+The page_frag functions, page_frag_alloc and page_frag_free, provide a
-+simple allocation framework for page fragments.  This is used by the
-+network stack and network device drivers to provide a backing region of
-+memory for use as either an sk_buff->head, or to be used in the "frags"
-+portion of skb_shared_info.
-+
-+In order to make use of the page fragment APIs a backing page fragment
-+cache is needed.  This provides a central point for the fragment allocation
-+and tracks allows multiple calls to make use of a cached page.  The
-+advantage to doing this is that multiple calls to get_page can be avoided
-+which can be expensive at allocation time.  However due to the nature of
-+this caching it is required that any calls to the cache be protected by
-+either a per-cpu limitation, or a per-cpu limitation and forcing interrupts
-+to be disabled when executing the fragment allocation.
-+
-+The network stack uses two separate caches per CPU to handle fragment
-+allocation.  The netdev_alloc_cache is used by callers making use of the
-+__netdev_alloc_frag and __netdev_alloc_skb calls.  The napi_alloc_cache is
-+used by callers of the __napi_alloc_frag and __napi_alloc_skb calls.  The
-+main difference between these two calls is the context in which they may be
-+called.  The "netdev" prefixed functions are usable in any context as these
-+functions will disable interrupts, while the "napi" prefixed functions are
-+only usable within the softirq context.
-+
-+Many network device drivers use a similar methodology for allocating page
-+fragments, but the page fragments are cached at the ring or descriptor
-+level.  In order to enable these cases it is necessary to provide a generic
-+way of tearing down a page cache.  For this reason __page_frag_cache_drain
-+was implemented.  It allows for freeing multiple references from a single
-+page via a single call.  The advantage to doing this is that it allows for
-+cleaning up the multiple references that were added to a page in order to
-+avoid calling get_page per allocation.
-+
-+Alexander Duyck, Nov 29, 2016.
+As an aside, will-it-scale page_fault was one of the tests I had dropped way
+down on my list of priorities to watch a long time ago.  It's a short-lived
+filesystem-based test vunerable to timing issues and highly variable that
+didn't seem worth controlling for at the time. I queued the test for a look
+on the rough offchance your patches were falling over something obvious. If
+it is, I haven't spotted it yet. Profiles are very similar. Separate
+runs with lock stat show detectable but negligable contentions on
+page_wait_table. The bulk of the contention is within the filesystem.
+
+> When there is contention, there is an added cost of setting and clearing
+> page waiters bit. Maybe there is some other issue there... are you seeing
+> the losses in uncontended case, contended, or both?
+> 
+
+I couldn't determine from the profile whether it was uncontended or not.
+The fact that there are boot-to-boot variations makes it difficult
+to determine if a profile vs !profile run is equivalent without using
+debugging patches to gather stats. lock_stat does show large numbers of
+contentions all right but the vast bulk of them are internal to btrfs.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
