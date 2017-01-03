@@ -1,99 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1226B025E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 05:25:42 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i131so78512597wmf.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 02:25:42 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id z80si73008316wmd.57.2017.01.03.02.25.40
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D59B6B025E
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 05:33:36 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w13so78653885wmw.0
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 02:33:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x11si45069256wmb.59.2017.01.03.02.33.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 02:25:41 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id A50EC1C2509
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 10:25:40 +0000 (GMT)
-Date: Tue, 3 Jan 2017 10:24:39 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting for
- a page bit
-Message-ID: <20170103102439.4fienez2fkgqwbrd@techsingularity.net>
-References: <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
- <20161226111654.76ab0957@roar.ozlabs.ibm.com>
- <CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
- <20161227211946.3770b6ce@roar.ozlabs.ibm.com>
- <CA+55aFw22e6njM9L4sareRRJw3RjW9XwGH3B7p-ND86EtTWWDQ@mail.gmail.com>
- <20161228135358.59f47204@roar.ozlabs.ibm.com>
- <CA+55aFz-evT+NiZY0GhO719M+=u==TbCqxTJTjp+pJevhDnRrw@mail.gmail.com>
- <20161229140837.5fff906d@roar.ozlabs.ibm.com>
- <CA+55aFxGz8R8J9jLvKpLUgyhWVYcgtObhbHBP7eZzZyc05AODw@mail.gmail.com>
- <20161229152615.2dad5402@roar.ozlabs.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 02:33:35 -0800 (PST)
+Date: Tue, 3 Jan 2017 11:33:29 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: introduce kv[mz]alloc helpers
+Message-ID: <20170103103328.GE30111@dhcp22.suse.cz>
+References: <20170102133700.1734-1-mhocko@kernel.org>
+ <74a00631-ab1f-b818-6608-1554bcd7cbc1@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161229152615.2dad5402@roar.ozlabs.ibm.com>
+In-Reply-To: <74a00631-ab1f-b818-6608-1554bcd7cbc1@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Joe Perches <joe@perches.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
 
-On Thu, Dec 29, 2016 at 03:26:15PM +1000, Nicholas Piggin wrote:
-> > And I fixed that too.
+On Tue 03-01-17 11:23:04, Vlastimil Babka wrote:
+> On 01/02/2017 02:37 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > Of course, I didn't test the changes (apart from building it). But
-> > I've been running the previous version since yesterday, so far no
-> > issues.
+> > Using kmalloc with the vmalloc fallback for larger allocations is a
+> > common pattern in the kernel code. Yet we do not have any common helper
+> > for that and so users have invented their own helpers. Some of them are
+> > really creative when doing so. Let's just add kv[mz]alloc and make sure
+> > it is implemented properly. This implementation makes sure to not make
+> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
+> > to not warn about allocation failures. This also rules out the OOM
+> > killer as the vmalloc is a more approapriate fallback than a disruptive
+> > user visible action.
+> > 
+> > This patch also changes some existing users and removes helpers which
+> > are specific for them. In some cases this is not possible (e.g.
+> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
+> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
+> > in general (note that the page table allocation is GFP_KERNEL). Those
+> > need to be fixed separately.
+> > 
+> > apparmor has already claimed kv[mz]alloc so remove those and use
+> > __aa_kvmalloc instead to prevent from the naming clashes.
+> > 
+> > Changes since v1
+> > - define __vmalloc_node_flags for CONFIG_MMU=n
+> > 
+> > Cc: Anatoly Stepanov <astepanov@cloudlinux.com>
+> > Cc: Paolo Bonzini <pbonzini@redhat.com>
+> > Cc: Mike Snitzer <snitzer@redhat.com>
+> > Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> > Cc: "Theodore Ts'o" <tytso@mit.edu>
+> > Reviewed-by: Andreas Dilger <adilger@dilger.ca> # ext4 part
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> It looks good to me.
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> (but with a small fix and suggestion below)
+
+Thanks!
+
 > 
+> > --- a/mm/util.c
+> > +++ b/mm/util.c
+> > @@ -346,6 +346,46 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
+> >  }
+> >  EXPORT_SYMBOL(vm_mmap);
+> > 
+> > +/**
+> > + * kvmalloc_node - allocate contiguous memory from SLAB with vmalloc fallback
+> > + * @size: size of the request.
+> > + * @flags: gfp mask for the allocation - must be compatible with GFP_KERNEL.
+> > + * @node: numa node to allocate from
+> > + *
+> > + * Uses kmalloc to get the memory but if the allocation fails then falls back
+> > + * to the vmalloc allocator. Use kvfree for freeing the memory.
+> > + */
+> > +void *kvmalloc_node(size_t size, gfp_t flags, int node)
+> > +{
+> > +	gfp_t kmalloc_flags = flags;
+> > +	void *ret;
+> > +
+> > +	/*
+> > +	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+> > +	 * so the given set of flags has to be compatible.
+> > +	 */
+> > +	WARN_ON((flags & GFP_KERNEL) != GFP_KERNEL);
+> 
+> Wouldn't a _ONCE be sufficient? It's unlikely that multiple wrong call sites
+> appear out of the blue, but we don't want to flood the log from a single
+> frequently called site. No strong feelings though.
 
-FWIW, I blindly queued a test of Nick's patch, Linus' patch on top and
-PeterZ's patch using 4.9 as a baseline so all could be applied cleanly.
-3 machines were used, one one of them NUMA with 2 sockets. The UMA
-machines showed nothing unusual.
+Fair enough, I will make it WARN_ON_ONCE. I wish WARN_ON_ONCE would be
+more clever, though. We can lose information about different call sites.
+I was thinking about how to deal with it and I stackdepot sounds like it
+could help here. But this is off-topic...
 
-kernel building showed nothing unusual on any machine
+> > +
+> > +	/*
+> > +	 * Make sure that larger requests are not too disruptive - no OOM
+> > +	 * killer and no allocation failure warnings as we have a fallback
+> > +	 */
+> > +	if (size > PAGE_SIZE)
+> > +		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> > +
+> > +	ret = kmalloc_node(size, kmalloc_flags, node);
+> > +
+> > +	/*
+> > +	 * It doesn't really make sense to fallback to vmalloc for sub page
+> > +	 * requests
+> > +	 */
+> > +	if (ret || size < PAGE_SIZE)
+> 
+> This should be size <= PAGE_SIZE.
 
-git checkout in a loop showed;
-	o minor gains with Nick's patch
-	o no impact from Linus's patch
-	o flat performance from PeterZ's
-
-git test suite showed
-	o close to flat performance on all patches
-	o Linus' patch on top showed increased variability but not serious
-
-will-it-scale pagefault tests
-	o page_fault1 and page_fault2 showed no differences in processes
-
-	o page_fault3 using processes did show some large losses at some
-	  process counts on all patches. The losses were not consistent on
-	  each run. There also was no consistently at loss with increasing
-	  process counts. It did appear that Peter's patch had fewer
-	  problems with only one thread count showing problems so it
-	  *may* be more resistent to the problem but not completely and
-	  it's not obvious why it might be so it could be a testing
-	  anomaly
-
-	o page_fault3 using threads didn't show anything unusual. It's
-	  possible that any problem with the waitqueue lookups is hidden
-	  by mmap_sem
-
-I think I can see something similar to Dave but not consistently and not as
-severe and only using processes for page_fault3. Linus's patch appears to
-help a little but not eliminate the problem. Given the machine only had 2
-sockets, it's prefectly possible that Dave can see a consistent problem that
-I cannot. During the test run, I hadn't collected the profiles to see what
-is going on as the test queueing was a drive-by bit of work while on holiday.
-
-Reading both Nick's (which is already merged so somewhat moot) and
-PeterZ's patch, I did find Nick's easier to understand with some minor
-gripes about naming. 
-
-None of the patches showed the same lost wakeup I'd seen once on earlier
-prototypes.
-
+You are right of course!
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
