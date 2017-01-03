@@ -1,128 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A490C6B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:09:01 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id m203so80185348wma.2
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:09:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w62si74244876wme.143.2017.01.03.09.09.00
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F142E6B0253
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:10:20 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id b1so1339420362pgc.5
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:10:20 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id k1si69638592pld.296.2017.01.03.09.10.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 09:09:00 -0800 (PST)
-Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
- tracepoint
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161228153032.10821-5-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
-Date: Tue, 3 Jan 2017 18:08:58 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jan 2017 09:10:20 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id c4so25924720pfb.3
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:10:19 -0800 (PST)
+Subject: [next PATCH v3 0/3] Page fragment updates
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 03 Jan 2017 09:10:18 -0800
+Message-ID: <20170103170057.5144.17621.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20161228153032.10821-5-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: intel-wired-lan@lists.osuosl.org, jeffrey.t.kirsher@intel.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 12/28/2016 04:30 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-> from is file or anonymous but we do not know which LRU this is. It is
-> useful to know whether the list is file or anonymous as well. Change
-> the tracepoint to show symbolic names of the lru rather.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  include/trace/events/vmscan.h | 20 ++++++++++++++------
->  mm/vmscan.c                   |  2 +-
->  2 files changed, 15 insertions(+), 7 deletions(-)
->
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index 6af4dae46db2..cc0b4c456c78 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -36,6 +36,14 @@
->  		(RECLAIM_WB_ASYNC) \
->  	)
->
-> +#define show_lru_name(lru) \
-> +	__print_symbolic(lru, \
-> +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
-> +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
-> +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
-> +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
-> +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
-> +
+This patch series takes care of a few cleanups for the page fragments API.
 
-Does this work with external tools such as trace-cmd, i.e. does it export the 
-correct format file? I wouldn't expect it to be that easy to avoid the 
-EM()/EMe() dance :)
+First we do some renames so that things are much more consistent.  First we
+move the page_frag_ portion of the name to the front of the functions
+names.  Secondly we split out the cache specific functions from the other
+page fragment functions by adding the word "cache" to the name.
 
-Also can we make the symbolic names lower_case and without the LRU_ prefix? I 
-think it's more consistent with other mm tracepoints, shorter and nicer.
+Finally I added a bit of documentation that will hopefully help to explain
+some of this.  I plan to revisit this later as we get things more ironed
+out in the near future with the changes planned for the DMA setup to
+support eXpress Data Path.
 
->  TRACE_EVENT(mm_vmscan_kswapd_sleep,
->
->  	TP_PROTO(int nid),
-> @@ -277,9 +285,9 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
->  		unsigned long nr_skipped,
->  		unsigned long nr_taken,
->  		isolate_mode_t isolate_mode,
-> -		int file),
-> +		int lru),
->
-> -	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, file),
-> +	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, lru),
->
->  	TP_STRUCT__entry(
->  		__field(int, classzone_idx)
-> @@ -289,7 +297,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
->  		__field(unsigned long, nr_skipped)
->  		__field(unsigned long, nr_taken)
->  		__field(isolate_mode_t, isolate_mode)
-> -		__field(int, file)
-> +		__field(int, lru)
->  	),
->
->  	TP_fast_assign(
-> @@ -300,10 +308,10 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
->  		__entry->nr_skipped = nr_skipped;
->  		__entry->nr_taken = nr_taken;
->  		__entry->isolate_mode = isolate_mode;
-> -		__entry->file = file;
-> +		__entry->lru = lru;
->  	),
->
-> -	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu file=%d",
-> +	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s",
->  		__entry->isolate_mode,
->  		__entry->classzone_idx,
->  		__entry->order,
-> @@ -311,7 +319,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
->  		__entry->nr_scanned,
->  		__entry->nr_skipped,
->  		__entry->nr_taken,
-> -		__entry->file)
-> +		show_lru_name(__entry->lru))
->  );
->
->  TRACE_EVENT(mm_vmscan_writepage,
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 4f7c0d66d629..3f0774f30a42 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1500,7 +1500,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	}
->  	*nr_scanned = scan + total_skipped;
->  	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
-> -				    skipped, nr_taken, mode, is_file_lru(lru));
-> +				    skipped, nr_taken, mode, lru);
->  	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
->  	return nr_taken;
->  }
->
+---
+
+v2: Fixed a comparison between a void* and 0 due to copy/paste from free_pages
+v3: Updated first rename patch so that it is just a rename and doesn't impact
+    the actual functionality to avoid performance regression.
+
+I'm submitting this to Intel Wired Lan and Jeff Kirsher's "next-queue" for
+acceptance as I have a series of other patches for igb that are blocked by
+by these patches since I had to rename the functionality fo draining extra
+references.
+
+This series was going to be accepted for mmotm back when it was v1, however
+since then I found a few minor issues that needed to be fixed.
+
+I am hoping to get an Acked-by from Andrew Morton for these patches and
+then have them submitted to David Miller as he has said he will accept them
+if I get the Acked-by.  In the meantime if these can be applied to
+next-queue while waiting on that Acked-by then I can submit the other
+patches for igb and ixgbe for testing.
+
+Alexander Duyck (3):
+      mm: Rename __alloc_page_frag to page_frag_alloc and __free_page_frag to page_frag_free
+      mm: Rename __page_frag functions to __page_frag_cache, drop order from drain
+      mm: Add documentation for page fragment APIs
+
+
+ Documentation/vm/page_frags               |   42 +++++++++++++++++++++++++++++
+ drivers/net/ethernet/intel/igb/igb_main.c |    6 ++--
+ include/linux/gfp.h                       |    9 +++---
+ include/linux/skbuff.h                    |    2 +
+ mm/page_alloc.c                           |   23 ++++++++--------
+ net/core/skbuff.c                         |    8 +++---
+ 6 files changed, 66 insertions(+), 24 deletions(-)
+ create mode 100644 Documentation/vm/page_frags
+
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
