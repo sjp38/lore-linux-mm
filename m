@@ -1,159 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D542B6B026E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:22:39 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id 41so362989239qtn.7
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:39 -0800 (PST)
-Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com. [209.85.220.177])
-        by mx.google.com with ESMTPS id i17si19114408qta.99.2017.01.03.09.22.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA8A6B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:47:31 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u5so911302616pgi.7
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:47:31 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id n21si69620480pgj.254.2017.01.03.09.47.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 09:22:39 -0800 (PST)
-Received: by mail-qk0-f177.google.com with SMTP id h201so242113953qke.1
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:39 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv6 11/11] arm64: Add support for CONFIG_DEBUG_VIRTUAL
-Date: Tue,  3 Jan 2017 09:21:53 -0800
-Message-Id: <1483464113-1587-12-git-send-email-labbott@redhat.com>
-In-Reply-To: <1483464113-1587-1-git-send-email-labbott@redhat.com>
-References: <1483464113-1587-1-git-send-email-labbott@redhat.com>
+        Tue, 03 Jan 2017 09:47:30 -0800 (PST)
+Message-ID: <1483465649.3064.88.camel@linux.intel.com>
+Subject: Re: [PATCH v4 0/9] mm/swap: Regular page swap optimizations
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Tue, 03 Jan 2017 09:47:29 -0800
+In-Reply-To: <20170103043411.GA15657@bbox>
+References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
+	 <20161227074503.GA10616@bbox> <20170102154841.GG18058@quack2.suse.cz>
+	 <20170103043411.GA15657@bbox>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Minchan Kim <minchan@kernel.org>, Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Nicholas Piggin <npiggin@gmail.com>
 
+On Tue, 2017-01-03 at 13:34 +0900, Minchan Kim wrote:
+> Hi Jan,
+> 
+> On Mon, Jan 02, 2017 at 04:48:41PM +0100, Jan Kara wrote:
+> > 
+> > Hi,
+> > 
+> > On Tue 27-12-16 16:45:03, Minchan Kim wrote:
+> > > 
+> > > > 
+> > > > Patch 3 splits the swap cache radix tree into 64MB chunks, reducing
+> > > > A A A A A A A A the rate that we have to contende for the radix tree.
+> > > To me, it's rather hacky. I think it might be common problem for page cache
+> > > so can we think another generalized way like range_lock? Ccing Jan.
+> > I agree on the hackyness of the patch and that page cache would suffer with
+> > the same contention (although the files are usually smaller than swap so it
+> > would not be that visible I guess). But I don't see how range lock would
+> > help here - we need to serialize modifications of the tree structure itself
+> > and that is difficult to achieve with the range lock. So what you would
+> > need is either a different data structure for tracking swap cache entries
+> > or a finer grained locking of the radix tree.
+> Thanks for the comment, Jan.
+> 
+> I think there are more general options. One is to shrink batching pages like
+> Mel and Tim had approached.
+> 
+> https://patchwork.kernel.org/patch/9008421/
+> https://patchwork.kernel.org/patch/9322793/
 
-x86 has an option CONFIG_DEBUG_VIRTUAL to do additional checks
-on virt_to_phys calls. The goal is to catch users who are calling
-virt_to_phys on non-linear addresses immediately. This inclues callers
-using virt_to_phys on image addresses instead of __pa_symbol. As features
-such as CONFIG_VMAP_STACK get enabled for arm64, this becomes increasingly
-important. Add checks to catch bad virt_to_phys usage.
+The batching of pages is done in this patch series with a page allocation cache
+and page release cache. A It is done a bit differently than my original patch proposal.
 
-Reviewed-by: Mark Rutland <mark.rutland@arm.com>
-Tested-by: Mark Rutland <mark.rutland@arm.com>
-Signed-off-by: Laura Abbott <labbott@redhat.com>
----
- arch/arm64/Kconfig              |  1 +
- arch/arm64/include/asm/memory.h | 31 ++++++++++++++++++++++++++++---
- arch/arm64/mm/Makefile          |  2 ++
- arch/arm64/mm/physaddr.c        | 30 ++++++++++++++++++++++++++++++
- 4 files changed, 61 insertions(+), 3 deletions(-)
- create mode 100644 arch/arm64/mm/physaddr.c
+This reduces the contention on the swap_info lock. We uses
+the splitting of the radix tree to reduce the radix tree lock contention.
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 1117421..359bca2 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -6,6 +6,7 @@ config ARM64
- 	select ACPI_MCFG if ACPI
- 	select ACPI_SPCR_TABLE if ACPI
- 	select ARCH_CLOCKSOURCE_DATA
-+	select ARCH_HAS_DEBUG_VIRTUAL
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
- 	select ARCH_HAS_ELF_RANDOMIZE
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index 0ff237a..7011f08 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -172,10 +172,33 @@ static inline unsigned long kaslr_offset(void)
-  * private definitions which should NOT be used outside memory.h
-  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
-  */
--#define __virt_to_phys(x) ({						\
-+
-+
-+/*
-+ * The linear kernel range starts in the middle of the virtual adddress
-+ * space. Testing the top bit for the start of the region is a
-+ * sufficient check.
-+ */
-+#define __is_lm_address(addr)	(!!((addr) & BIT(VA_BITS - 1)))
-+
-+#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
-+#define __kimg_to_phys(addr)	((addr) - kimage_voffset)
-+
-+#define __virt_to_phys_nodebug(x) ({					\
- 	phys_addr_t __x = (phys_addr_t)(x);				\
--	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
--				 (__x - kimage_voffset); })
-+	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
-+			       __kimg_to_phys(__x);			\
-+})
-+
-+#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
-+
-+#ifdef CONFIG_DEBUG_VIRTUAL
-+extern phys_addr_t __virt_to_phys(unsigned long x);
-+extern phys_addr_t __phys_addr_symbol(unsigned long x);
-+#else
-+#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-+#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
-+#endif
- 
- #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
- #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
-@@ -207,6 +230,8 @@ static inline void *phys_to_virt(phys_addr_t x)
-  * Drivers should NOT use these either.
-  */
- #define __pa(x)			__virt_to_phys((unsigned long)(x))
-+#define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-+#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
- #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
- #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
- #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
-diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-index e703fb9..9b0ba19 100644
---- a/arch/arm64/mm/Makefile
-+++ b/arch/arm64/mm/Makefile
-@@ -6,6 +6,8 @@ obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
- obj-$(CONFIG_ARM64_PTDUMP_CORE)	+= dump.o
- obj-$(CONFIG_ARM64_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
- obj-$(CONFIG_NUMA)		+= numa.o
-+obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
-+KASAN_SANITIZE_physaddr.o	+= n
- 
- obj-$(CONFIG_KASAN)		+= kasan_init.o
- KASAN_SANITIZE_kasan_init.o	:= n
-diff --git a/arch/arm64/mm/physaddr.c b/arch/arm64/mm/physaddr.c
-new file mode 100644
-index 0000000..91371da
---- /dev/null
-+++ b/arch/arm64/mm/physaddr.c
-@@ -0,0 +1,30 @@
-+#include <linux/bug.h>
-+#include <linux/export.h>
-+#include <linux/types.h>
-+#include <linux/mmdebug.h>
-+#include <linux/mm.h>
-+
-+#include <asm/memory.h>
-+
-+phys_addr_t __virt_to_phys(unsigned long x)
-+{
-+	WARN(!__is_lm_address(x),
-+	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
-+	      (void *)x,
-+	      (void *)x);
-+
-+	return __virt_to_phys_nodebug(x);
-+}
-+EXPORT_SYMBOL(__virt_to_phys);
-+
-+phys_addr_t __phys_addr_symbol(unsigned long x)
-+{
-+	/*
-+	 * This is bounds checking against the kernel image only.
-+	 * __pa_symbol should only be used on kernel symbol addresses.
-+	 */
-+	VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
-+		       x > (unsigned long) KERNEL_END);
-+	return __pa_symbol_nodebug(x);
-+}
-+EXPORT_SYMBOL(__phys_addr_symbol);
--- 
-2.7.4
+In our tests, these two approaches combined are quite effective in reducing the
+latency on actual fast solid state drives. A So we hope that the patch series
+can be merged to facilitate the use case of using these drives as secondary
+memory.
+
+Tim
+
+> 
+> Or concurrent page cache by peter.
+> 
+> https://www.kernel.org/doc/ols/2007/ols2007v2-pages-311-318.pdf
+> 
+> Ccing Nick who might have an interest on lockless page cache.
+> 
+> Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
