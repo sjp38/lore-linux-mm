@@ -1,106 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB0E6B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 01:08:50 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 2so180957285uax.4
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 22:08:50 -0800 (PST)
-Received: from mail-ua0-x231.google.com (mail-ua0-x231.google.com. [2607:f8b0:400c:c08::231])
-        by mx.google.com with ESMTPS id k26si16865366uaa.75.2017.01.02.22.08.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BF2826B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 03:21:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so46478888wmi.6
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 00:21:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j16si72536057wmd.116.2017.01.03.00.21.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jan 2017 22:08:49 -0800 (PST)
-Received: by mail-ua0-x231.google.com with SMTP id 34so275480264uac.1
-        for <linux-mm@kvack.org>; Mon, 02 Jan 2017 22:08:49 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 00:21:26 -0800 (PST)
+Date: Tue, 3 Jan 2017 09:21:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
+Message-ID: <20170103082122.GA30111@dhcp22.suse.cz>
+References: <20161228153032.10821-1-mhocko@kernel.org>
+ <20161228153032.10821-3-mhocko@kernel.org>
+ <20161229053359.GA1815@bbox>
+ <20161229075243.GA29208@dhcp22.suse.cz>
+ <20161230014853.GA4184@bbox>
+ <20161230092636.GA13301@dhcp22.suse.cz>
+ <20161230160456.GA7267@bbox>
+ <20161230163742.GK13301@dhcp22.suse.cz>
+ <20170103050328.GA15700@bbox>
 MIME-Version: 1.0
-In-Reply-To: <2736959.3MfCab47fD@wuerfel>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com> <2736959.3MfCab47fD@wuerfel>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 2 Jan 2017 22:08:28 -0800
-Message-ID: <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170103050328.GA15700@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 2, 2017 at 12:44 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Tuesday, December 27, 2016 4:54:13 AM CET Kirill A. Shutemov wrote:
->> As with other resources you can set the limit lower than current usage.
->> It would affect only future virtual address space allocations.
+On Tue 03-01-17 14:03:28, Minchan Kim wrote:
+> Hi Michal,
+> 
+> On Fri, Dec 30, 2016 at 05:37:42PM +0100, Michal Hocko wrote:
+> > On Sat 31-12-16 01:04:56, Minchan Kim wrote:
+> > [...]
+> > > > From 5f1bc22ad1e54050b4da3228d68945e70342ebb6 Mon Sep 17 00:00:00 2001
+> > > > From: Michal Hocko <mhocko@suse.com>
+> > > > Date: Tue, 27 Dec 2016 13:18:20 +0100
+> > > > Subject: [PATCH] mm, vmscan: add active list aging tracepoint
+> > > > 
+> > > > Our reclaim process has several tracepoints to tell us more about how
+> > > > things are progressing. We are, however, missing a tracepoint to track
+> > > > active list aging. Introduce mm_vmscan_lru_shrink_active which reports
+> > > 
+> > > I agree this part.
+> > > 
+> > > > the number of
+> > > > 	- nr_scanned, nr_taken pages to tell us the LRU isolation
+> > > > 	  effectiveness.
+> > > 
+> > > I agree nr_taken for knowing shrinking effectiveness but don't
+> > > agree nr_scanned. If we want to know LRU isolation effectiveness
+> > > with nr_scanned and nr_taken, isolate_lru_pages will do.
+> > 
+> > Yes it will. On the other hand the number is there and there is no
+> > additional overhead, maintenance or otherwise, to provide that number.
+> 
+> You are adding some instructions, how can you imagine it's no overhead?
 
-I still don't buy all these use cases:
+There should be close to zero overhead when the tracepoint is disabled
+(we pay only one more argument when the function is called). Is this
+really worth discussing in this cold path? We are talking about the
+reclaim here.
 
->>
->> Use-cases for new rlimit:
->>
->>   - Bumping the soft limit to RLIM_INFINITY, allows current process all
->>     its children to use addresses above 47-bits.
+> Let's say whether it's measurable. Although it's not big in particular case,
+> it would be measurable if everyone start to say like that "it's trivial so
+> what's the problem adding a few instructions although it was duplicated?"
+> 
+> You already said "LRU isolate effectiveness". It should be done in there,
+> isolate_lru_pages and we have been. You need another reasons if you want to
+> add the duplicated work, strongly.
 
-OK, I get this, but only as a workaround for programs that make
-assumptions about the address space and don't use some mechanism (to
-be designed?) to work correctly in spite of a larger address space.
+isolate_lru_pages is certainly there but you have to enable a trace
+point for that. Sometimes it is quite useful to get a reasonably good
+picture even without all the vmscan tracepoints enabled because they
+can generate quite a lot of output. So if the counter is available I
+see no reason to exclude it, especially when it can provide a useful
+information. One of the most frustrating debugging experience is when
+you are missing some part of the information and have to guess which
+part is that and patch, rebuild the kernel and hope to reproduce it
+again in the same/similar way.
 
->>
->>   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
->>     exec(2) allows the child to use addresses above 47-bits.
+There are two things about this and other tracepoint patches in general
+I believe. 1) Is the tracepoint useful? and 2) Do we have to go over
+extra hops to show tracepoint data?
 
-Ditto.
+I guess we are in an agreement that the answer for 1 is yes. And
+regarding 2, all the data we are showing are there or trivially
+retrieved without touching _any_ hot path. Som of it might be duplicated
+with other tracepoints but that can be helpful because you do not have
+all the tracepoints enabled all the time. So unless you see this
+particular thing as a road block I would rather keep it.
+ 
+> > The inactive counterpart does that for quite some time already. So why
+> 
+> It couldn't be a reason. If it was duplicated in there, it would be
+> better to fix it rather than adding more duplciated work to match both
+> sides.
 
->>
->>   - Lowering the hard limit to 47-bits would prevent current process all
->>     its children to use addresses above 47-bits, unless a process has
->>     CAP_SYS_RESOURCES.
+I really do not see this as a bad thing.
 
-I've tried and I can't imagine any reason to do this.
+> > exactly does that matter? Don't take me wrong but isn't this more on a
+> > nit picking side than necessary? Or do I just misunderstand your
+> > concenrs? It is not like we are providing a stable user API as the
+> 
+> My concern is that I don't see what we can get benefit from those
+> duplicated work. If it doesn't give benefit to us, I don't want to add.
+> I hope you think another reasonable reasons.
+> 
+> > tracepoint is clearly implementation specific and not something to be
+> > used for anything other than debugging.
+> 
+> My point is we already had things "LRU isolation effectivness". Namely,
+> isolate_lru_pages.
+> 
+> > 
+> > > > 	- nr_rotated pages which tells us that we are hitting referenced
+> > > > 	  pages which are deactivated. If this is a large part of the
+> > > > 	  reported nr_deactivated pages then the active list is too small
+> > > 
+> > > It might be but not exactly. If your goal is to know LRU size, it can be
+> > > done in get_scan_count. I tend to agree LRU size is helpful for
+> > > performance analysis because decreased LRU size signals memory shortage
+> > > then performance drop.
+> > 
+> > No, I am not really interested in the exact size but rather to allow to
+> > find whether we are aging the active list too early...
+> 
+> Could you elaborate it more that how we can get active list early aging
+> with nr_rotated?
 
->>
->>   - It=E2=80=99s also can be handy to lower hard or soft limit to arbitr=
-ary
->>     address. User-mode emulation in QEMU may lower the limit to 32-bit
->>     to emulate 32-bit machine on 64-bit host.
+If you see too many referenced pages on the active list then they have
+been used since promoted and that is an indication that they might be
+reclaimed too early. If you are debugging a performance issue and see
+this happening then it might be a good indication to look at.
 
-I don't understand.  QEMU user-mode emulation intercepts all syscalls.
-What QEMU would *actually* want is a way to say "allocate me some
-memory with the high N bits clear".  mmap-via-int80 on x86 should be
-fixed to do this, but a new syscall with an explicit parameter would
-work, as would a prctl changing the current limit.
-
->>
->> TODO:
->>   - port to non-x86;
->>
->> Not-yet-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.c=
-om>
->> Cc: linux-api@vger.kernel.org
->
-> This seems to nicely address the same problem on arm64, which has
-> run into the same issue due to the various page table formats
-> that can currently be chosen at compile time.
-
-On further reflection, I think this has very little to do with paging
-formats except insofar as paging formats make us notice the problem.
-The issue is that user code wants to be able to assume an upper limit
-on an address, and it gets an upper limit right now that depends on
-architecture due to paging formats.  But someone really might want to
-write a *portable* 64-bit program that allocates memory with the high
-16 bits clear.  So let's add such a mechanism directly.
-
-As a thought experiment, what if x86_64 simply never allocated "high"
-(above 2^47-1) addresses unless a new mmap-with-explicit-limit syscall
-were used?  Old glibc would continue working.  Old VMs would work.
-New programs that want to use ginormous mappings would have to use the
-new syscall.  This would be totally stateless and would have no issues
-with CRIU.
-
-If necessary, we could also have a prctl that changes a
-"personality-like" limit that is in effect when the old mmap was used.
-I say "personality-like" because it would reset under exactly the same
-conditions that personality resets itself.
-
-Thoughts?
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
