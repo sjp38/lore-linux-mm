@@ -1,79 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DE7F6B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:21:51 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so79854796wms.7
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:21:51 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z80si74293102wmd.57.2017.01.03.09.21.49
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 698366B0253
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:22:04 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id t184so298364763qkd.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:04 -0800 (PST)
+Received: from mail-qk0-f182.google.com (mail-qk0-f182.google.com. [209.85.220.182])
+        by mx.google.com with ESMTPS id 20si33492281qki.3.2017.01.03.09.22.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 09:21:50 -0800 (PST)
-Subject: Re: [PATCH 3/7] mm, vmscan: show the number of skipped pages in
- mm_vmscan_lru_isolate
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161228153032.10821-4-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f4ca13b7-c4ce-eb4c-8314-c710d93785d3@suse.cz>
-Date: Tue, 3 Jan 2017 18:21:48 +0100
-MIME-Version: 1.0
-In-Reply-To: <20161228153032.10821-4-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jan 2017 09:22:03 -0800 (PST)
+Received: by mail-qk0-f182.google.com with SMTP id n21so376088199qka.3
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:03 -0800 (PST)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv6 00/11] CONFIG_DEBUG_VIRTUAL for arm64
+Date: Tue,  3 Jan 2017 09:21:42 -0800
+Message-Id: <1483464113-1587-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
 
-On 12/28/2016 04:30 PM, Michal Hocko wrote:
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1428,6 +1428,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	unsigned long nr_taken = 0;
->  	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
->  	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
-> +	unsigned long skipped = 0, total_skipped = 0;
->  	unsigned long scan, nr_pages;
->  	LIST_HEAD(pages_skipped);
->
-> @@ -1479,14 +1480,13 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	 */
->  	if (!list_empty(&pages_skipped)) {
->  		int zid;
-> -		unsigned long total_skipped = 0;
->
->  		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
->  			if (!nr_skipped[zid])
->  				continue;
->
->  			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-> -			total_skipped += nr_skipped[zid];
-> +			skipped += nr_skipped[zid];
->  		}
->
->  		/*
-> @@ -1494,13 +1494,13 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  		 * close to unreclaimable. If the LRU list is empty, account
->  		 * skipped pages as a full scan.
->  		 */
-> -		scan += list_empty(src) ? total_skipped : total_skipped >> 2;
-> +		total_skipped = list_empty(src) ? skipped : skipped >> 2;
+Happy New Year!
 
-Should the tracepoint output reflect this halving heuristic or rather report the 
-raw data? Or is each variant inferrable from the other?
+This is a very minor rebase from v5. It only moves a few headers around.
+I think this series should be ready to be queued up for 4.11.
 
->
->  		list_splice(&pages_skipped, src);
->  	}
-> -	*nr_scanned = scan;
-> +	*nr_scanned = scan + total_skipped;
->  	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
-> -				    nr_taken, mode, is_file_lru(lru));
-> +				    skipped, nr_taken, mode, is_file_lru(lru));
->  	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
->  	return nr_taken;
->  }
->
+Thanks,
+Laura
+
+Laura Abbott (11):
+  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+  mm/cma: Cleanup highmem check
+  arm64: Move some macros under #ifndef __ASSEMBLY__
+  arm64: Add cast for virt_to_pfn
+  mm: Introduce lm_alias
+  arm64: Use __pa_symbol for kernel symbols
+  drivers: firmware: psci: Use __pa_symbol for kernel symbol
+  kexec: Switch to __pa_symbol
+  mm/kasan: Switch to using __pa_symbol and lm_alias
+  mm/usercopy: Switch to using lm_alias
+  arm64: Add support for CONFIG_DEBUG_VIRTUAL
+
+ arch/arm64/Kconfig                        |  1 +
+ arch/arm64/include/asm/kvm_mmu.h          |  4 +-
+ arch/arm64/include/asm/memory.h           | 66 +++++++++++++++++++++----------
+ arch/arm64/include/asm/mmu_context.h      |  6 +--
+ arch/arm64/include/asm/pgtable.h          |  2 +-
+ arch/arm64/kernel/acpi_parking_protocol.c |  3 +-
+ arch/arm64/kernel/cpu-reset.h             |  2 +-
+ arch/arm64/kernel/cpufeature.c            |  3 +-
+ arch/arm64/kernel/hibernate.c             | 20 +++-------
+ arch/arm64/kernel/insn.c                  |  2 +-
+ arch/arm64/kernel/psci.c                  |  3 +-
+ arch/arm64/kernel/setup.c                 |  9 +++--
+ arch/arm64/kernel/smp_spin_table.c        |  3 +-
+ arch/arm64/kernel/vdso.c                  |  8 +++-
+ arch/arm64/mm/Makefile                    |  2 +
+ arch/arm64/mm/init.c                      | 12 +++---
+ arch/arm64/mm/kasan_init.c                | 22 +++++++----
+ arch/arm64/mm/mmu.c                       | 33 ++++++++++------
+ arch/arm64/mm/physaddr.c                  | 30 ++++++++++++++
+ arch/x86/Kconfig                          |  1 +
+ drivers/firmware/psci.c                   |  2 +-
+ include/linux/mm.h                        |  4 ++
+ kernel/kexec_core.c                       |  2 +-
+ lib/Kconfig.debug                         |  5 ++-
+ mm/cma.c                                  | 15 +++----
+ mm/kasan/kasan_init.c                     | 15 +++----
+ mm/usercopy.c                             |  4 +-
+ 27 files changed, 180 insertions(+), 99 deletions(-)
+ create mode 100644 arch/arm64/mm/physaddr.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
