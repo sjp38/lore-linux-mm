@@ -1,106 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 802576B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 07:30:32 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g1so1282180266pgn.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 04:30:32 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id b35si57842883plh.218.2017.01.03.04.30.31
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC116B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 08:27:15 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id qs7so57086687wjc.4
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 05:27:15 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id n13si73546025wmg.164.2017.01.03.05.27.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 04:30:31 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id 127so15713268pfg.0
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 04:30:31 -0800 (PST)
-Date: Tue, 3 Jan 2017 22:29:58 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 2/2] mm: add PageWaiters indicating tasks are waiting
- for a page bit
-Message-ID: <20170103222958.4a2ce0e6@roar.ozlabs.ibm.com>
-In-Reply-To: <20170103102439.4fienez2fkgqwbrd@techsingularity.net>
-References: <CA+55aFzqgtz-782MmLOjQ2A2nB5YVyLAvveo6G_c85jqqGDA0Q@mail.gmail.com>
-	<20161226111654.76ab0957@roar.ozlabs.ibm.com>
-	<CA+55aFz1n_JSTc_u=t9Qgafk2JaffrhPAwMLn_Dr-L9UKxqHMg@mail.gmail.com>
-	<20161227211946.3770b6ce@roar.ozlabs.ibm.com>
-	<CA+55aFw22e6njM9L4sareRRJw3RjW9XwGH3B7p-ND86EtTWWDQ@mail.gmail.com>
-	<20161228135358.59f47204@roar.ozlabs.ibm.com>
-	<CA+55aFz-evT+NiZY0GhO719M+=u==TbCqxTJTjp+pJevhDnRrw@mail.gmail.com>
-	<20161229140837.5fff906d@roar.ozlabs.ibm.com>
-	<CA+55aFxGz8R8J9jLvKpLUgyhWVYcgtObhbHBP7eZzZyc05AODw@mail.gmail.com>
-	<20161229152615.2dad5402@roar.ozlabs.ibm.com>
-	<20170103102439.4fienez2fkgqwbrd@techsingularity.net>
+        Tue, 03 Jan 2017 05:27:14 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Date: Tue, 03 Jan 2017 14:18:01 +0100
+Message-ID: <3492795.xaneWtGxgW@wuerfel>
+In-Reply-To: <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com> <2736959.3MfCab47fD@wuerfel> <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Bob Peterson <rpeterso@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Andrew Lutomirski <luto@kernel.org>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 
-On Tue, 3 Jan 2017 10:24:39 +0000
-Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> On Thu, Dec 29, 2016 at 03:26:15PM +1000, Nicholas Piggin wrote:
-> > > And I fixed that too.
-> > > 
-> > > Of course, I didn't test the changes (apart from building it). But
-> > > I've been running the previous version since yesterday, so far no
-> > > issues.  
-> > 
-> > It looks good to me.
-> >   
+On Monday, January 2, 2017 10:08:28 PM CET Andy Lutomirski wrote:
 > 
-> FWIW, I blindly queued a test of Nick's patch, Linus' patch on top and
-> PeterZ's patch using 4.9 as a baseline so all could be applied cleanly.
-> 3 machines were used, one one of them NUMA with 2 sockets. The UMA
-> machines showed nothing unusual.
-
-Hey thanks Mel.
-
+> > This seems to nicely address the same problem on arm64, which has
+> > run into the same issue due to the various page table formats
+> > that can currently be chosen at compile time.
 > 
-> kernel building showed nothing unusual on any machine
+> On further reflection, I think this has very little to do with paging
+> formats except insofar as paging formats make us notice the problem.
+> The issue is that user code wants to be able to assume an upper limit
+> on an address, and it gets an upper limit right now that depends on
+> architecture due to paging formats.  But someone really might want to
+> write a *portable* 64-bit program that allocates memory with the high
+> 16 bits clear.  So let's add such a mechanism directly.
 > 
-> git checkout in a loop showed;
-> 	o minor gains with Nick's patch
-> 	o no impact from Linus's patch
-> 	o flat performance from PeterZ's
-> 
-> git test suite showed
-> 	o close to flat performance on all patches
-> 	o Linus' patch on top showed increased variability but not serious
+> As a thought experiment, what if x86_64 simply never allocated "high"
+> (above 2^47-1) addresses unless a new mmap-with-explicit-limit syscall
+> were used?  Old glibc would continue working.  Old VMs would work.
+> New programs that want to use ginormous mappings would have to use the
+> new syscall.  This would be totally stateless and would have no issues
+> with CRIU.
 
-I'd be really surprised if Linus's patch is actually adding variability
-unless it is just some random cache or branch predictor or similar change
-due to changed code sizes. Testing on skylake CPU showed the old sequence
-takes a big stall with the load-after-lock;op hazard.
+I can see this working well for the 47-bit addressing default, but
+what about applications that actually rely on 39-bit addressing
+(I'd have to double-check, but I think this was the limit that
+people were most interested in for arm64)?
 
-So I wouldn't worry about it too much, but maybe something interesting to
-look at for someone who knows x86 microarchitectures well.
+39 bits seems a little small to make that the default for everyone
+who doesn't pass the extra flag. Having to pass another flag to
+limit the addresses introduces other problems (e.g. mmap from
+library call that doesn't pass that flag).
 
-> 
-> will-it-scale pagefault tests
-> 	o page_fault1 and page_fault2 showed no differences in processes
-> 
-> 	o page_fault3 using processes did show some large losses at some
-> 	  process counts on all patches. The losses were not consistent on
-> 	  each run. There also was no consistently at loss with increasing
-> 	  process counts. It did appear that Peter's patch had fewer
-> 	  problems with only one thread count showing problems so it
-> 	  *may* be more resistent to the problem but not completely and
-> 	  it's not obvious why it might be so it could be a testing
-> 	  anomaly
+> If necessary, we could also have a prctl that changes a
+> "personality-like" limit that is in effect when the old mmap was used.
+> I say "personality-like" because it would reset under exactly the same
+> conditions that personality resets itself.
 
-Okay. page_fault3 has each process doing repeated page faults on their
-own 128MB file in /tmp. Unless they fill memory and start to reclaim,
-(which I believe must be happening in Dave's case) there should be no
-contention on page lock. After the patch, the uncontended case should
-be strictly faster when there is no contention.
+For "personality-like", it would still have to interact
+with the existing PER_LINUX32 and PER_LINUX32_3GB flags that
+do the exact same thing, so actually using personality might
+be better.
 
-When there is contention, there is an added cost of setting and clearing
-page waiters bit. Maybe there is some other issue there... are you seeing
-the losses in uncontended case, contended, or both?
+We still have a few bits in the personality arguments, and
+we could combine them with the existing ADDR_LIMIT_3GB
+and ADDR_LIMIT_32BIT flags that are mutually exclusive by
+definition, such as
 
-Thanks,
-Nick
+        ADDR_LIMIT_32BIT =      0x0800000, /* existing */
+        ADDR_LIMIT_3GB   =      0x8000000, /* existing */
+        ADDR_LIMIT_39BIT =      0x0010000, /* next free bit */
+        ADDR_LIMIT_42BIT =      0x8010000,
+        ADDR_LIMIT_47BIT =      0x0810000,
+        ADDR_LIMIT_48BIT =      0x8810000,
+
+This would probably take only one or two personality bits for the
+limits that are interesting in practice.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
