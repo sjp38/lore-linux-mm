@@ -1,100 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A57766B0253
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 13:29:54 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id q13so235619398vkd.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 10:29:54 -0800 (PST)
-Received: from mail-ua0-x235.google.com (mail-ua0-x235.google.com. [2607:f8b0:400c:c08::235])
-        by mx.google.com with ESMTPS id d3si17415461vkh.92.2017.01.03.10.29.53
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5DE6B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 15:23:43 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id x140so111725340lfa.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 12:23:43 -0800 (PST)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id h99si41161697lfi.54.2017.01.03.12.23.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 10:29:53 -0800 (PST)
-Received: by mail-ua0-x235.google.com with SMTP id 88so324528551uaq.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 10:29:53 -0800 (PST)
+        Tue, 03 Jan 2017 12:23:41 -0800 (PST)
+Received: by mail-lf0-x242.google.com with SMTP id x140so28991841lfa.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 12:23:41 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <3492795.xaneWtGxgW@wuerfel>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <2736959.3MfCab47fD@wuerfel> <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
- <3492795.xaneWtGxgW@wuerfel>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 3 Jan 2017 10:29:33 -0800
-Message-ID: <CALCETrUCdu3kTBU09gXaSppO7VCm+872zkGnovaZKTXBbY2wTg@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+In-Reply-To: <20161101194337.24015-1-lstoakes@gmail.com>
+References: <20161101194337.24015-1-lstoakes@gmail.com>
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Date: Tue, 3 Jan 2017 20:23:20 +0000
+Message-ID: <CAA5enKai6Gq7gCf6mmuXJwZrds5N8s9JAtNGxy1vAJD1zSmb2Q@mail.gmail.com>
+Subject: Re: [PATCH] drm/via: use get_user_pages_unlocked()
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Michal Hocko <mhocko@kernel.org>, David Airlie <airlied@linux.ie>, dri-devel@lists.freedesktop.org, Lorenzo Stoakes <lstoakes@gmail.com>
 
-On Tue, Jan 3, 2017 at 5:18 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Monday, January 2, 2017 10:08:28 PM CET Andy Lutomirski wrote:
->>
->> > This seems to nicely address the same problem on arm64, which has
->> > run into the same issue due to the various page table formats
->> > that can currently be chosen at compile time.
->>
->> On further reflection, I think this has very little to do with paging
->> formats except insofar as paging formats make us notice the problem.
->> The issue is that user code wants to be able to assume an upper limit
->> on an address, and it gets an upper limit right now that depends on
->> architecture due to paging formats.  But someone really might want to
->> write a *portable* 64-bit program that allocates memory with the high
->> 16 bits clear.  So let's add such a mechanism directly.
->>
->> As a thought experiment, what if x86_64 simply never allocated "high"
->> (above 2^47-1) addresses unless a new mmap-with-explicit-limit syscall
->> were used?  Old glibc would continue working.  Old VMs would work.
->> New programs that want to use ginormous mappings would have to use the
->> new syscall.  This would be totally stateless and would have no issues
->> with CRIU.
->
-> I can see this working well for the 47-bit addressing default, but
-> what about applications that actually rely on 39-bit addressing
-> (I'd have to double-check, but I think this was the limit that
-> people were most interested in for arm64)?
->
-> 39 bits seems a little small to make that the default for everyone
-> who doesn't pass the extra flag. Having to pass another flag to
-> limit the addresses introduces other problems (e.g. mmap from
-> library call that doesn't pass that flag).
+Hi All,
 
-That's a fair point.  Maybe my straw man isn't so good.
+Just a gentle ping on this one :)
 
->
->> If necessary, we could also have a prctl that changes a
->> "personality-like" limit that is in effect when the old mmap was used.
->> I say "personality-like" because it would reset under exactly the same
->> conditions that personality resets itself.
->
-> For "personality-like", it would still have to interact
-> with the existing PER_LINUX32 and PER_LINUX32_3GB flags that
-> do the exact same thing, so actually using personality might
-> be better.
->
-> We still have a few bits in the personality arguments, and
-> we could combine them with the existing ADDR_LIMIT_3GB
-> and ADDR_LIMIT_32BIT flags that are mutually exclusive by
-> definition, such as
->
->         ADDR_LIMIT_32BIT =      0x0800000, /* existing */
->         ADDR_LIMIT_3GB   =      0x8000000, /* existing */
->         ADDR_LIMIT_39BIT =      0x0010000, /* next free bit */
->         ADDR_LIMIT_42BIT =      0x8010000,
->         ADDR_LIMIT_47BIT =      0x0810000,
->         ADDR_LIMIT_48BIT =      0x8810000,
->
-> This would probably take only one or two personality bits for the
-> limits that are interesting in practice.
+Cheers, Lorenzo
 
-Hmm.  What if we approached this a bit differently?  We could add a
-single new personality bit ADDR_LIMIT_EXPLICIT.  Setting this bit
-cause PER_LINUX32_3GB etc to be automatically cleared.  When
-ADDR_LIMIT_EXPLICIT is in effect, prctl can set a 64-bit numeric
-limit.  If ADDR_LIMIT_EXPLICIT is cleared, the prctl value stops being
-settable and reading it via prctl returns whatever is implied by the
-other personality bits.
+On 1 November 2016 at 19:43, Lorenzo Stoakes <lstoakes@gmail.com> wrote:
+> Moving from get_user_pages() to get_user_pages_unlocked() simplifies the code
+> and takes advantage of VM_FAULT_RETRY functionality when faulting in pages.
+>
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+> ---
+>  drivers/gpu/drm/via/via_dmablit.c | 10 +++-------
+>  1 file changed, 3 insertions(+), 7 deletions(-)
+>
+> diff --git a/drivers/gpu/drm/via/via_dmablit.c b/drivers/gpu/drm/via/via_dmablit.c
+> index 1a3ad76..98aae98 100644
+> --- a/drivers/gpu/drm/via/via_dmablit.c
+> +++ b/drivers/gpu/drm/via/via_dmablit.c
+> @@ -238,13 +238,9 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
+>         vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
+>         if (NULL == vsg->pages)
+>                 return -ENOMEM;
+> -       down_read(&current->mm->mmap_sem);
+> -       ret = get_user_pages((unsigned long)xfer->mem_addr,
+> -                            vsg->num_pages,
+> -                            (vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0,
+> -                            vsg->pages, NULL);
+> -
+> -       up_read(&current->mm->mmap_sem);
+> +       ret = get_user_pages_unlocked((unsigned long)xfer->mem_addr,
+> +                       vsg->num_pages, vsg->pages,
+> +                       (vsg->direction == DMA_FROM_DEVICE) ? FOLL_WRITE : 0);
+>         if (ret != vsg->num_pages) {
+>                 if (ret < 0)
+>                         return ret;
+> --
+> 2.10.2
+>
 
---Andy
+
+
+-- 
+Lorenzo Stoakes
+https://ljs.io
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
