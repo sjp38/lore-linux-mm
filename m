@@ -1,133 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C27466B025E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 11:07:52 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id n3so56017528wjy.6
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:07:52 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 05DA06B0261
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 11:25:08 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so48301879wmi.6
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:25:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n128si74177779wmf.141.2017.01.03.08.07.51
+        by mx.google.com with ESMTPS id 203si74132908wmg.3.2017.01.03.08.25.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 08:07:51 -0800 (PST)
-Subject: Re: [RFC PATCH 2/4] page_pool: basic implementation of page_pool
-References: <20161220132444.18788.50875.stgit@firesoul>
- <20161220132817.18788.64726.stgit@firesoul>
+        Tue, 03 Jan 2017 08:25:06 -0800 (PST)
+Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
+References: <20161220134904.21023-1-mhocko@kernel.org>
+ <20170102154858.GC18048@dhcp22.suse.cz>
+ <201701031036.IBE51044.QFLFSOHtFOJVMO@I-love.SAKURA.ne.jp>
+ <20170103084211.GB30111@dhcp22.suse.cz>
+ <201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <52478d40-8c34-4354-c9d8-286020eb26a6@suse.cz>
-Date: Tue, 3 Jan 2017 17:07:49 +0100
+Message-ID: <ad1fdd02-04c4-d7e1-776b-1a49302303d9@suse.cz>
+Date: Tue, 3 Jan 2017 17:25:02 +0100
 MIME-Version: 1.0
-In-Reply-To: <20161220132817.18788.64726.stgit@firesoul>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Alexander Duyck <alexander.duyck@gmail.com>
-Cc: willemdebruijn.kernel@gmail.com, netdev@vger.kernel.org, john.fastabend@gmail.com, Saeed Mahameed <saeedm@mellanox.com>, bjorn.topel@intel.com, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tariq Toukan <tariqt@mellanox.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, mgorman@suse.de, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/20/2016 02:28 PM, Jesper Dangaard Brouer wrote:
-> The focus in this patch is getting the API around page_pool figured out.
+On 01/03/2017 03:38 PM, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+>> On Tue 03-01-17 10:36:31, Tetsuo Handa wrote:
+>> [...]
+>> > I'm OK with "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator
+>> > slowpath" given that we describe that we make __GFP_NOFAIL stronger than
+>> > __GFP_NORETRY with this patch in the changelog.
+>>
+>> Again. __GFP_NORETRY | __GFP_NOFAIL is nonsense! I do not really see any
+>> reason to describe all the nonsense combinations of gfp flags.
 >
-> The internal data structures for returning page_pool pages is not optimal.
-> This implementation use ptr_ring for recycling, which is known not to scale
-> in case of multiple remote CPUs releasing/returning pages.
+> Before [PATCH 1/3]:
+>
+>   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
+>   request even if __GFP_NOFAIL is specified if direct reclaim/compaction
+>   did not help."
+>
+>   __GFP_NOFAIL is used as "Never fail allocation request unless __GFP_NORETRY
+>   is specified even if direct reclaim/compaction did not help."
+>
+> After [PATCH 1/3]:
+>
+>   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
+>   request unless __GFP_NOFAIL is specified."
+>
+>   __GFP_NOFAIL is used as "Never fail allocation request even if direct
+>   reclaim/compaction did not help. Invoke the OOM killer unless __GFP_NORETRY is
+>   specified."
+>
+> Thus, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense as
+> "Never fail allocation request if direct reclaim/compaction did not help.
+> But do not invoke the OOM killer even if direct reclaim/compaction did not help."
 
-Just few very quick impressions...
+It may technically do that, but how exactly is that useful, i.e. "make sense"? 
+Patch 2/3 here makes sure that OOM killer is not invoked when the allocation 
+context is "limited" and thus OOM might be premature (despite __GFP_NOFAIL).
+What's the use case for __GFP_NORETRY | __GFP_NOFAIL ?
 
-> A bulking interface into the page allocator is also left for later. (This
-> requires cooperation will Mel Gorman, who just send me some PoC patches for this).
-> ---
->  include/linux/mm.h             |    6 +
->  include/linux/mm_types.h       |   11 +
->  include/linux/page-flags.h     |   13 +
->  include/linux/page_pool.h      |  158 +++++++++++++++
->  include/linux/skbuff.h         |    2
->  include/trace/events/mmflags.h |    3
->  mm/Makefile                    |    3
->  mm/page_alloc.c                |   10 +
->  mm/page_pool.c                 |  423 ++++++++++++++++++++++++++++++++++++++++
->  mm/slub.c                      |    4
->  10 files changed, 627 insertions(+), 6 deletions(-)
->  create mode 100644 include/linux/page_pool.h
->  create mode 100644 mm/page_pool.c
 >
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 4424784ac374..11b4d8fb280b 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -23,6 +23,7 @@
->  #include <linux/page_ext.h>
->  #include <linux/err.h>
->  #include <linux/page_ref.h>
-> +#include <linux/page_pool.h>
+>>
+>> > But I don't think "[PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+>> > automatically" is correct. Firstly, we need to confirm
+>> >
+>> >   "The pre-mature OOM killer is a real issue as reported by Nils Holland"
+>> >
+>> > in the changelog is still true because we haven't tested with "[PATCH] mm, memcg:
+>> > fix the active list aging for lowmem requests when memcg is enabled" applied and
+>> > without "[PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+>> > automatically" and "[PATCH 3/3] mm: help __GFP_NOFAIL allocations which do not
+>> > trigger OOM killer" applied.
+>>
+>> Yes I have dropped the reference to this report already in my local
+>> patch because in this particular case the issue was somewhere else
+>> indeed!
 >
->  struct mempolicy;
->  struct anon_vma;
-> @@ -765,6 +766,11 @@ static inline void put_page(struct page *page)
+> OK.
+>
+>>
+>> > Secondly, as you are using __GFP_NORETRY in "[PATCH] mm: introduce kv[mz]alloc
+>> > helpers" as a mean to enforce not to invoke the OOM killer
+>> >
+>> > 	/*
+>> > 	 * Make sure that larger requests are not too disruptive - no OOM
+>> > 	 * killer and no allocation failure warnings as we have a fallback
+>> > 	 */
+>> > 	if (size > PAGE_SIZE)
+>> > 		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+>> >
+>> > , we can use __GFP_NORETRY as a mean to enforce not to invoke the OOM killer
+>> > rather than applying "[PATCH 2/3] mm, oom: do not enfore OOM killer for
+>> > __GFP_NOFAIL automatically".
+>> >
+>
+> As I wrote above, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense.
+>
+>> > Additionally, although currently there seems to be no
+>> > kv[mz]alloc(GFP_KERNEL | __GFP_NOFAIL) users, kvmalloc_node() in
+>> > "[PATCH] mm: introduce kv[mz]alloc helpers" will be confused when a
+>> > kv[mz]alloc(GFP_KERNEL | __GFP_NOFAIL) user comes in in the future because
+>> > "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator slowpath" makes
+>> > __GFP_NOFAIL stronger than __GFP_NORETRY.
+>>
+>> Using NOFAIL in kv[mz]alloc simply makes no sense at all. The vmalloc
+>> fallback would be simply unreachable!
+>
+> My intention is shown below.
+>
+>  void *kvmalloc_node(size_t size, gfp_t flags, int node)
 >  {
->  	page = compound_head(page);
+>  	gfp_t kmalloc_flags = flags;
+>  	void *ret;
 >
-> +	if (PagePool(page)) {
-> +		page_pool_put_page(page);
-> +		return;
-> +	}
-
-Can't say I'm thrilled about a new page flag and a test in put_page(). I don't 
-know the full life cycle here, but isn't it that these pages will be 
-specifically allocated and used in page pool aware drivers, so maybe they can be 
-also specifically freed there without hooking to the generic page refcount 
-mechanism?
-
-> +
->  	if (put_page_testzero(page))
->  		__put_page(page);
->
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 08d947fc4c59..c74dea967f99 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -47,6 +47,12 @@ struct page {
->  	unsigned long flags;		/* Atomic flags, some possibly
->  					 * updated asynchronously */
->  	union {
-> +		/* DISCUSS: Considered moving page_pool pointer here,
-> +		 * but I'm unsure if 'mapping' is needed for userspace
-> +		 * mapping the page, as this is a use-case the
-> +		 * page_pool need to support in the future. (Basically
-> +		 * mapping a NIC RX ring into userspace).
-
-I think so, but might be wrong here. In any case mapping usually goes with 
-index, and you put dma_addr in union with index below...
-
-> +		 */
->  		struct address_space *mapping;	/* If low bit clear, points to
->  						 * inode address_space, or NULL.
->  						 * If page mapped as anonymous
-> @@ -63,6 +69,7 @@ struct page {
->  	union {
->  		pgoff_t index;		/* Our offset within mapping. */
->  		void *freelist;		/* sl[aou]b first free object */
-> +		dma_addr_t dma_addr;    /* used by page_pool */
->  		/* page_deferred_list().prev	-- second tail page */
->  	};
->
-> @@ -117,6 +124,8 @@ struct page {
->  	 * avoid collision and false-positive PageTail().
+>  	/*
+>  	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+>  	 * so the given set of flags has to be compatible.
 >  	 */
->  	union {
-> +		/* XXX: Idea reuse lru list, in page_pool to align with PCP */
-> +
->  		struct list_head lru;	/* Pageout list, eg. active_list
->  					 * protected by zone_lru_lock !
->  					 * Can be used as a generic list
-> @@ -189,6 +198,8 @@ struct page {
->  #endif
->  #endif
->  		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-> +		/* XXX: Sure page_pool will have no users of "private"? */
-> +		struct page_pool *pool;
->  	};
+>  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
 >
->  #ifdef CONFIG_MEMCG
+>  	/*
+>  	 * Make sure that larger requests are not too disruptive - no OOM
+>  	 * killer and no allocation failure warnings as we have a fallback
+>  	 */
+> -	if (size > PAGE_SIZE)
+> +	if (size > PAGE_SIZE) {
+>  		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> +		kmalloc_flags &= ~__GFP_NOFAIL;
+
+This does make kvmalloc_node more robust against callers that would try to use 
+it with __GFP_NOFAIL, but is it a good idea to allow that right now? If there 
+are none yet (AFAIK?), we should rather let the existing WARN_ON kick in (which 
+won't happen if we strip __GFP_NOFAIL) and discuss a better solution for such 
+new future caller.
+
+Also this means the kmalloc() cannot do "__GFP_NORETRY | __GFP_NOFAIL" so I'm 
+not sure how it's related with your points above - it's not an example of the 
+combination that would show that "it makes perfect sense".
+
+Thanks,
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
