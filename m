@@ -1,136 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 349786B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 11:05:02 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id w13so79914176wmw.0
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:05:02 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id rz16si77847305wjb.93.2017.01.03.08.05.00
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C27466B025E
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 11:07:52 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id n3so56017528wjy.6
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:07:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n128si74177779wmf.141.2017.01.03.08.07.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 08:05:00 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id m203so87237748wma.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:05:00 -0800 (PST)
-Date: Tue, 3 Jan 2017 19:04:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Message-ID: <20170103160457.GB17319@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <2736959.3MfCab47fD@wuerfel>
- <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 08:07:51 -0800 (PST)
+Subject: Re: [RFC PATCH 2/4] page_pool: basic implementation of page_pool
+References: <20161220132444.18788.50875.stgit@firesoul>
+ <20161220132817.18788.64726.stgit@firesoul>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <52478d40-8c34-4354-c9d8-286020eb26a6@suse.cz>
+Date: Tue, 3 Jan 2017 17:07:49 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrV_qejd-Ozqo4vTqz=LuukMUPeQ7EVUQbfTxs_xNbO3oQ@mail.gmail.com>
+In-Reply-To: <20161220132817.18788.64726.stgit@firesoul>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, Alexander Duyck <alexander.duyck@gmail.com>
+Cc: willemdebruijn.kernel@gmail.com, netdev@vger.kernel.org, john.fastabend@gmail.com, Saeed Mahameed <saeedm@mellanox.com>, bjorn.topel@intel.com, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tariq Toukan <tariqt@mellanox.com>
 
-On Mon, Jan 02, 2017 at 10:08:28PM -0800, Andy Lutomirski wrote:
-> On Mon, Jan 2, 2017 at 12:44 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> > On Tuesday, December 27, 2016 4:54:13 AM CET Kirill A. Shutemov wrote:
-> >> As with other resources you can set the limit lower than current usage.
-> >> It would affect only future virtual address space allocations.
-> 
-> I still don't buy all these use cases:
-> 
-> >>
-> >> Use-cases for new rlimit:
-> >>
-> >>   - Bumping the soft limit to RLIM_INFINITY, allows current process all
-> >>     its children to use addresses above 47-bits.
-> 
-> OK, I get this, but only as a workaround for programs that make
-> assumptions about the address space and don't use some mechanism (to
-> be designed?) to work correctly in spite of a larger address space.
+On 12/20/2016 02:28 PM, Jesper Dangaard Brouer wrote:
+> The focus in this patch is getting the API around page_pool figured out.
+>
+> The internal data structures for returning page_pool pages is not optimal.
+> This implementation use ptr_ring for recycling, which is known not to scale
+> in case of multiple remote CPUs releasing/returning pages.
 
-I guess you've misread the case. It's opt-in for large adrress space, not
-other way around.
+Just few very quick impressions...
 
-I believe 47-bit VA by default is right way to go to make the transition
-without breaking userspace.
+> A bulking interface into the page allocator is also left for later. (This
+> requires cooperation will Mel Gorman, who just send me some PoC patches for this).
+> ---
+>  include/linux/mm.h             |    6 +
+>  include/linux/mm_types.h       |   11 +
+>  include/linux/page-flags.h     |   13 +
+>  include/linux/page_pool.h      |  158 +++++++++++++++
+>  include/linux/skbuff.h         |    2
+>  include/trace/events/mmflags.h |    3
+>  mm/Makefile                    |    3
+>  mm/page_alloc.c                |   10 +
+>  mm/page_pool.c                 |  423 ++++++++++++++++++++++++++++++++++++++++
+>  mm/slub.c                      |    4
+>  10 files changed, 627 insertions(+), 6 deletions(-)
+>  create mode 100644 include/linux/page_pool.h
+>  create mode 100644 mm/page_pool.c
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4424784ac374..11b4d8fb280b 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -23,6 +23,7 @@
+>  #include <linux/page_ext.h>
+>  #include <linux/err.h>
+>  #include <linux/page_ref.h>
+> +#include <linux/page_pool.h>
+>
+>  struct mempolicy;
+>  struct anon_vma;
+> @@ -765,6 +766,11 @@ static inline void put_page(struct page *page)
+>  {
+>  	page = compound_head(page);
+>
+> +	if (PagePool(page)) {
+> +		page_pool_put_page(page);
+> +		return;
+> +	}
 
-> >>   - Bumping the soft limit to RLIM_INFINITY after fork(2), but before
-> >>     exec(2) allows the child to use addresses above 47-bits.
-> 
-> Ditto.
-> 
-> >>
-> >>   - Lowering the hard limit to 47-bits would prevent current process all
-> >>     its children to use addresses above 47-bits, unless a process has
-> >>     CAP_SYS_RESOURCES.
-> 
-> I've tried and I can't imagine any reason to do this.
+Can't say I'm thrilled about a new page flag and a test in put_page(). I don't 
+know the full life cycle here, but isn't it that these pages will be 
+specifically allocated and used in page pool aware drivers, so maybe they can be 
+also specifically freed there without hooking to the generic page refcount 
+mechanism?
 
-That's just if something went wrong and we want to stop an application
-from use addresses above 47-bit.
+> +
+>  	if (put_page_testzero(page))
+>  		__put_page(page);
+>
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 08d947fc4c59..c74dea967f99 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -47,6 +47,12 @@ struct page {
+>  	unsigned long flags;		/* Atomic flags, some possibly
+>  					 * updated asynchronously */
+>  	union {
+> +		/* DISCUSS: Considered moving page_pool pointer here,
+> +		 * but I'm unsure if 'mapping' is needed for userspace
+> +		 * mapping the page, as this is a use-case the
+> +		 * page_pool need to support in the future. (Basically
+> +		 * mapping a NIC RX ring into userspace).
 
-> >>   - Ita??s also can be handy to lower hard or soft limit to arbitrary
-> >>     address. User-mode emulation in QEMU may lower the limit to 32-bit
-> >>     to emulate 32-bit machine on 64-bit host.
-> 
-> I don't understand.  QEMU user-mode emulation intercepts all syscalls.
-> What QEMU would *actually* want is a way to say "allocate me some
-> memory with the high N bits clear".  mmap-via-int80 on x86 should be
-> fixed to do this, but a new syscall with an explicit parameter would
-> work, as would a prctl changing the current limit.
+I think so, but might be wrong here. In any case mapping usually goes with 
+index, and you put dma_addr in union with index below...
 
-Look at mess in mmap_find_vma(). QEmu has to guess where is free virtual
-memory. That's unnessesary complex.
-
-prctl would work for this too. new-mmap would *not*: there are more ways
-to allocate vitual address space: shmat(), mremap(). Changing all of them
-just for this is stupid.
-
-> >>
-> >> TODO:
-> >>   - port to non-x86;
-> >>
-> >> Not-yet-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >> Cc: linux-api@vger.kernel.org
-> >
-> > This seems to nicely address the same problem on arm64, which has
-> > run into the same issue due to the various page table formats
-> > that can currently be chosen at compile time.
-> 
-> On further reflection, I think this has very little to do with paging
-> formats except insofar as paging formats make us notice the problem.
-> The issue is that user code wants to be able to assume an upper limit
-> on an address, and it gets an upper limit right now that depends on
-> architecture due to paging formats.  But someone really might want to
-> write a *portable* 64-bit program that allocates memory with the high
-> 16 bits clear.  So let's add such a mechanism directly.
-> 
-> As a thought experiment, what if x86_64 simply never allocated "high"
-> (above 2^47-1) addresses unless a new mmap-with-explicit-limit syscall
-> were used?  Old glibc would continue working.  Old VMs would work.
-> New programs that want to use ginormous mappings would have to use the
-> new syscall.  This would be totally stateless and would have no issues
-> with CRIU.
-
-Except, we need more than mmap as I mentioned.
-
-And what about stack? I'm not sure that everybody would be happy with
-stack in the middle of address space.
-
-> If necessary, we could also have a prctl that changes a
-> "personality-like" limit that is in effect when the old mmap was used.
-> I say "personality-like" because it would reset under exactly the same
-> conditions that personality resets itself.
-> 
-> Thoughts?
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
- Kirill A. Shutemov
+> +		 */
+>  		struct address_space *mapping;	/* If low bit clear, points to
+>  						 * inode address_space, or NULL.
+>  						 * If page mapped as anonymous
+> @@ -63,6 +69,7 @@ struct page {
+>  	union {
+>  		pgoff_t index;		/* Our offset within mapping. */
+>  		void *freelist;		/* sl[aou]b first free object */
+> +		dma_addr_t dma_addr;    /* used by page_pool */
+>  		/* page_deferred_list().prev	-- second tail page */
+>  	};
+>
+> @@ -117,6 +124,8 @@ struct page {
+>  	 * avoid collision and false-positive PageTail().
+>  	 */
+>  	union {
+> +		/* XXX: Idea reuse lru list, in page_pool to align with PCP */
+> +
+>  		struct list_head lru;	/* Pageout list, eg. active_list
+>  					 * protected by zone_lru_lock !
+>  					 * Can be used as a generic list
+> @@ -189,6 +198,8 @@ struct page {
+>  #endif
+>  #endif
+>  		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
+> +		/* XXX: Sure page_pool will have no users of "private"? */
+> +		struct page_pool *pool;
+>  	};
+>
+>  #ifdef CONFIG_MEMCG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
