@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D8D6B026A
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:22:26 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id j29so232276922qtc.6
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:26 -0800 (PST)
-Received: from mail-qt0-f172.google.com (mail-qt0-f172.google.com. [209.85.216.172])
-        by mx.google.com with ESMTPS id r9si27266731qte.176.2017.01.03.09.22.25
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 26DAF6B026B
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:22:30 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id d45so362260439qta.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:30 -0800 (PST)
+Received: from mail-qt0-f173.google.com (mail-qt0-f173.google.com. [209.85.216.173])
+        by mx.google.com with ESMTPS id v6si25466855qtb.249.2017.01.03.09.22.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 09:22:25 -0800 (PST)
-Received: by mail-qt0-f172.google.com with SMTP id v23so6224qtb.0
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:25 -0800 (PST)
+        Tue, 03 Jan 2017 09:22:29 -0800 (PST)
+Received: by mail-qt0-f173.google.com with SMTP id v23so8913qtb.0
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:22:29 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv6 07/11] drivers: firmware: psci: Use __pa_symbol for kernel symbol
-Date: Tue,  3 Jan 2017 09:21:49 -0800
-Message-Id: <1483464113-1587-8-git-send-email-labbott@redhat.com>
+Subject: [PATCHv6 08/11] kexec: Switch to __pa_symbol
+Date: Tue,  3 Jan 2017 09:21:50 -0800
+Message-Id: <1483464113-1587-9-git-send-email-labbott@redhat.com>
 In-Reply-To: <1483464113-1587-1-git-send-email-labbott@redhat.com>
 References: <1483464113-1587-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Eric Biederman <ebiederm@xmission.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, kexec@lists.infradead.org
 
-
-__pa_symbol is technically the macro that should be used for kernel
-symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
-will do bounds checking.
+__pa_symbol is the correct api to get the physical address of kernel
+symbols. Switch to it to allow for better debug checking.
 
 Reviewed-by: Mark Rutland <mark.rutland@arm.com>
 Tested-by: Mark Rutland <mark.rutland@arm.com>
+Acked-by: "Eric W. Biederman" <ebiederm@xmission.com>
 Signed-off-by: Laura Abbott <labbott@redhat.com>
 ---
- drivers/firmware/psci.c | 2 +-
+ kernel/kexec_core.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/firmware/psci.c b/drivers/firmware/psci.c
-index 6c60a50..66a8793 100644
---- a/drivers/firmware/psci.c
-+++ b/drivers/firmware/psci.c
-@@ -383,7 +383,7 @@ static int psci_suspend_finisher(unsigned long index)
- 	u32 *state = __this_cpu_read(psci_power_state);
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 5617cc4..a01974e 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -1399,7 +1399,7 @@ void __weak arch_crash_save_vmcoreinfo(void)
  
- 	return psci_ops.cpu_suspend(state[index - 1],
--				    virt_to_phys(cpu_resume));
-+				    __pa_symbol(cpu_resume));
+ phys_addr_t __weak paddr_vmcoreinfo_note(void)
+ {
+-	return __pa((unsigned long)(char *)&vmcoreinfo_note);
++	return __pa_symbol((unsigned long)(char *)&vmcoreinfo_note);
  }
  
- int psci_cpu_suspend_enter(unsigned long index)
+ static int __init crash_save_vmcoreinfo_init(void)
 -- 
 2.7.4
 
