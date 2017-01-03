@@ -1,62 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 27ACD6B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 15:50:31 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id xr1so112771876wjb.7
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 12:50:31 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id qr6si78582810wjc.79.2017.01.03.12.50.29
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B0EB26B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 15:52:48 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id n3so57072559wjy.6
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 12:52:48 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s10si78625230wjo.159.2017.01.03.12.52.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 12:50:30 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id u144so88448753wmu.0
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 12:50:29 -0800 (PST)
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH RESEND] rapidio: use get_user_pages_unlocked()
-Date: Tue,  3 Jan 2017 20:50:24 +0000
-Message-Id: <20170103205024.6704-1-lstoakes@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 12:52:47 -0800 (PST)
+Date: Tue, 3 Jan 2017 21:52:44 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
+ tracepoint
+Message-ID: <20170103205244.GD13873@dhcp22.suse.cz>
+References: <20161228153032.10821-1-mhocko@kernel.org>
+ <20161228153032.10821-5-mhocko@kernel.org>
+ <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
+ <20170103204745.GC13873@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170103204745.GC13873@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Porter <mporter@kernel.crashing.org>, Alexandre Bounine <alexandre.bounine@idt.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Lorenzo Stoakes <lstoakes@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-Moving from get_user_pages() to get_user_pages_unlocked() simplifies the code
-and takes advantage of VM_FAULT_RETRY functionality when faulting in pages.
+On Tue 03-01-17 21:47:45, Michal Hocko wrote:
+> On Tue 03-01-17 18:08:58, Vlastimil Babka wrote:
+> > On 12/28/2016 04:30 PM, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
+> > > from is file or anonymous but we do not know which LRU this is. It is
+> > > useful to know whether the list is file or anonymous as well. Change
+> > > the tracepoint to show symbolic names of the lru rather.
+> > > 
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > ---
+> > >  include/trace/events/vmscan.h | 20 ++++++++++++++------
+> > >  mm/vmscan.c                   |  2 +-
+> > >  2 files changed, 15 insertions(+), 7 deletions(-)
+> > > 
+> > > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> > > index 6af4dae46db2..cc0b4c456c78 100644
+> > > --- a/include/trace/events/vmscan.h
+> > > +++ b/include/trace/events/vmscan.h
+> > > @@ -36,6 +36,14 @@
+> > >  		(RECLAIM_WB_ASYNC) \
+> > >  	)
+> > > 
+> > > +#define show_lru_name(lru) \
+> > > +	__print_symbolic(lru, \
+> > > +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
+> > > +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
+> > > +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
+> > > +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
+> > > +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
+> > > +
+> > 
+> > Does this work with external tools such as trace-cmd, i.e. does it export
+> > the correct format file?
+> 
+> How do I find out?
 
-Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
----
- drivers/rapidio/devices/rio_mport_cdev.c | 11 +++++------
- 1 file changed, 5 insertions(+), 6 deletions(-)
+Well, I've just checked the format file and it says
+print fmt: "isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s", REC->isolate_mode, REC->classzone_idx, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_skipped, REC->nr_taken, __print_symbolic(REC->lru, {LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, {LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, {LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, {LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, {LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
 
-diff --git a/drivers/rapidio/devices/rio_mport_cdev.c b/drivers/rapidio/devices/rio_mport_cdev.c
-index 9013a585507e..50b617af81bd 100644
---- a/drivers/rapidio/devices/rio_mport_cdev.c
-+++ b/drivers/rapidio/devices/rio_mport_cdev.c
-@@ -889,17 +889,16 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
- 			goto err_req;
- 		}
-
--		down_read(&current->mm->mmap_sem);
--		pinned = get_user_pages(
-+		pinned = get_user_pages_unlocked(
- 				(unsigned long)xfer->loc_addr & PAGE_MASK,
- 				nr_pages,
--				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
--				page_list, NULL);
--		up_read(&current->mm->mmap_sem);
-+				page_list,
-+				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0);
-
- 		if (pinned != nr_pages) {
- 			if (pinned < 0) {
--				rmcd_error("get_user_pages err=%ld", pinned);
-+				rmcd_error("get_user_pages_unlocked err=%ld",
-+					   pinned);
- 				nr_pages = 0;
- 			} else
- 				rmcd_error("pinned %ld out of %ld pages",
---
-2.11.0
+So the tool should be OK as long as it can find values for LRU_*
+constants. Is this what is the problem?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
