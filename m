@@ -1,60 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1887F6B0253
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 17:09:38 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id h67so237461786vkf.4
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 14:09:38 -0800 (PST)
-Received: from mail-ua0-x229.google.com (mail-ua0-x229.google.com. [2607:f8b0:400c:c08::229])
-        by mx.google.com with ESMTPS id x68si17573697vka.43.2017.01.03.14.09.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C3FC36B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 17:44:17 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 17so755188627pfy.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 14:44:17 -0800 (PST)
+Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
+        by mx.google.com with ESMTPS id h16si70395448pli.122.2017.01.03.14.44.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 14:09:37 -0800 (PST)
-Received: by mail-ua0-x229.google.com with SMTP id 88so329516014uaq.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 14:09:37 -0800 (PST)
+        Tue, 03 Jan 2017 14:44:16 -0800 (PST)
+Received: by mail-pg0-x22e.google.com with SMTP id y62so167348436pgy.1
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 14:44:16 -0800 (PST)
+Date: Tue, 3 Jan 2017 14:44:15 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+In-Reply-To: <bba4c707-c470-296c-edbe-b8a6d21152ad@suse.cz>
+Message-ID: <alpine.DEB.2.10.1701031431120.139238@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <bba4c707-c470-296c-edbe-b8a6d21152ad@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <21511994.eBlbEPoKOz@wuerfel>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <3492795.xaneWtGxgW@wuerfel> <CALCETrUCdu3kTBU09gXaSppO7VCm+872zkGnovaZKTXBbY2wTg@mail.gmail.com>
- <21511994.eBlbEPoKOz@wuerfel>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 3 Jan 2017 14:09:16 -0800
-Message-ID: <CALCETrXmdAnbgjsxw=qTbP2PhVCzE8v3y5XMt8DVa4P9DowsGA@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 3, 2017 at 2:07 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Tuesday, January 3, 2017 10:29:33 AM CET Andy Lutomirski wrote:
->>
->> Hmm.  What if we approached this a bit differently?  We could add a
->> single new personality bit ADDR_LIMIT_EXPLICIT.  Setting this bit
->> cause PER_LINUX32_3GB etc to be automatically cleared.
->
-> Both the ADDR_LIMIT_32BIT and ADDR_LIMIT_3GB flags I guess?
+On Mon, 2 Jan 2017, Vlastimil Babka wrote:
 
-Yes.
+> I'm late to the thread (I did read it fully though), so instead of
+> multiple responses, I'll just list my observations here:
+> 
+> - "defer", e.g. background kswapd+compaction is not a silver bullet, it
+> will also affect the system. Mel already mentioned extra reclaim.
+> Compaction also has CPU costs, just hides the accounting to a kernel
+> thread so it's not visible as latency. It also increases zone/node
+> lru_lock and lock pressure.
+> 
+> For the same reasons, admin might want to limit direct compaction for
+> THP, even for madvise() apps. It's also likely that "defer" might have
+> lower system overhead than "madvise", as with "defer",
+> reclaim/compaction is done by one per-node thread at a time, but there
+> might be multiple madvise() threads. So there might be sense in not
+> allowing madvise() apps to do direct reclaim/compaction on "defer".
+> 
 
->
->> When
->> ADDR_LIMIT_EXPLICIT is in effect, prctl can set a 64-bit numeric
->> limit.  If ADDR_LIMIT_EXPLICIT is cleared, the prctl value stops being
->> settable and reading it via prctl returns whatever is implied by the
->> other personality bits.
->
-> I don't see anything wrong with it, but I'm a bit confused now
-> what this would be good for, compared to using just prctl.
->
-> Is this about setuid clearing the personality but not the prctl,
-> or something else?
+Hmm, is there a significant benefit to setting "defer" rather than "never" 
+if you can rely on khugepaged to trigger compaction when it tries to 
+allocate.  I suppose if there is nothing to collapse that this won't do 
+compaction, but is this not intended for users who always want to defer 
+when not immediately available?
 
-It's to avid ambiguity as to what happens if you set ADDR_LIMIT_32BIT
-and use the prctl.  ISTM it would be nice for the semantics to be
-fully defined in all cases.
+"Defer" in it's current setting is useless, in my opinion, other than 
+providing it as a simple workaround to users when their applications are 
+doing MADV_HUGEPAGE without allowing them to configure it.  We would love 
+to use "defer" if it didn't completely break MADV_HUGEPAGE, though.
 
---Andy
+> - for overriding specific apps such as QEMU (including their madvise()
+> usage, AFAICS), we have PR_SET_THP_DISABLE prctl(), so no need to
+> LD_PRELOAD stuff IMO.
+> 
+
+Very good point, and I think it's also worthwhile to allow users to 
+suppress the MADV_HUGEPAGE when allocating a translation buffer in qemu if 
+they choose to do so; it's a very trivial patch to qemu to allow this to 
+be configurable.  I haven't proposed it because I don't personally have a 
+need for it, and haven't been pointed to anyone who has a need for it.
+
+> - I have wondered about exactly the issue here when Mel proposed the
+> defer option [1]. Mel responded that it doesn't seem needed at that
+> point. Now it seems it is. Too bad you didn't raise it then, but to be
+> fair you were not CC'd.
+> 
+
+My understanding is that the defer option is available to users who cannot 
+modify their binary to suppress an madvise(MADV_HUGEPAGE) and are unaware 
+that PR_SET_THP_DISABLE exists.  The prctl was added specifically when you 
+cannot control your binary.
+
+> So would something like this be possible?
+> 
+> > echo "defer madvise" > /sys/kernel/mm/transparent_hugepage/defrag
+> > cat /sys/kernel/mm/transparent_hugepage/defrag
+> always [defer] [madvise] never
+> 
+> I'm not sure about the analogous kernel boot option though, I guess
+> those can't use spaces, so maybe comma-separated?
+> 
+> If that's not acceptable, then I would probably rather be for changing
+> "madvise" to include "defer", than the other way around. When we augment
+> kcompactd to be more proactive, it might easily be that it will
+> effectively act as "defer", even when defrag=none is set, anyway.
+> 
+
+The concern I have with changing the behavior of "madvise" is that it 
+changes long standing behavior that people have correctly implemented 
+userspace applications with.  I suggest doing this only with "defer" since 
+it's an option that is new, nobody appears to be deploying with, and makes 
+it much more powerful.  I think we could make the kernel default as 
+"defer" later as well and not break userspace that has been setting 
+"madvise" ever since the 2.6 kernel.
+
+My position is this: userspace that does MADV_HUGEPAGES knows what it's 
+doing.  Let it stall if it wants to stall.  If users don't want it to be 
+done, allow them to configure it.  If a binary has forced you into using 
+it, use the prctl.  Otherwise, I think "defer" doing background compaction 
+for everybody and direct compaction for users who really want hugepages is 
+appropriate and is precisely what I need.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
