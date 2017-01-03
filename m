@@ -1,126 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D59B6B025E
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 05:33:36 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id w13so78653885wmw.0
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 02:33:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x11si45069256wmb.59.2017.01.03.02.33.35
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 83F4E6B025E
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 05:37:51 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id qs7so56460724wjc.4
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 02:37:51 -0800 (PST)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id h188si73064869wma.91.2017.01.03.02.37.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 02:33:35 -0800 (PST)
-Date: Tue, 3 Jan 2017 11:33:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce kv[mz]alloc helpers
-Message-ID: <20170103103328.GE30111@dhcp22.suse.cz>
-References: <20170102133700.1734-1-mhocko@kernel.org>
- <74a00631-ab1f-b818-6608-1554bcd7cbc1@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jan 2017 02:37:50 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id A576F1C2541
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 10:37:49 +0000 (GMT)
+Date: Tue, 3 Jan 2017 10:37:49 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
+ when deferred
+Message-ID: <20170103103749.fjj6uf27wuqvbnta@techsingularity.net>
+References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com>
+ <20161222100009.GA6055@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1612221259100.29036@chino.kir.corp.google.com>
+ <20161230123620.jcuquzof3bpxomdn@techsingularity.net>
+ <alpine.DEB.2.10.1612301412390.85559@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <74a00631-ab1f-b818-6608-1554bcd7cbc1@suse.cz>
+In-Reply-To: <alpine.DEB.2.10.1612301412390.85559@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Joe Perches <joe@perches.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 03-01-17 11:23:04, Vlastimil Babka wrote:
-> On 01/02/2017 02:37 PM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Using kmalloc with the vmalloc fallback for larger allocations is a
-> > common pattern in the kernel code. Yet we do not have any common helper
-> > for that and so users have invented their own helpers. Some of them are
-> > really creative when doing so. Let's just add kv[mz]alloc and make sure
-> > it is implemented properly. This implementation makes sure to not make
-> > a large memory pressure for > PAGE_SZE requests (__GFP_NORETRY) and also
-> > to not warn about allocation failures. This also rules out the OOM
-> > killer as the vmalloc is a more approapriate fallback than a disruptive
-> > user visible action.
-> > 
-> > This patch also changes some existing users and removes helpers which
-> > are specific for them. In some cases this is not possible (e.g.
-> > ext4_kvmalloc, libcfs_kvzalloc, __aa_kvmalloc) because those seems to be
-> > broken and require GFP_NO{FS,IO} context which is not vmalloc compatible
-> > in general (note that the page table allocation is GFP_KERNEL). Those
-> > need to be fixed separately.
-> > 
-> > apparmor has already claimed kv[mz]alloc so remove those and use
-> > __aa_kvmalloc instead to prevent from the naming clashes.
-> > 
-> > Changes since v1
-> > - define __vmalloc_node_flags for CONFIG_MMU=n
-> > 
-> > Cc: Anatoly Stepanov <astepanov@cloudlinux.com>
-> > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > Cc: Mike Snitzer <snitzer@redhat.com>
-> > Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> > Cc: "Theodore Ts'o" <tytso@mit.edu>
-> > Reviewed-by: Andreas Dilger <adilger@dilger.ca> # ext4 part
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Fri, Dec 30, 2016 at 02:30:32PM -0800, David Rientjes wrote:
+> On Fri, 30 Dec 2016, Mel Gorman wrote:
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> (but with a small fix and suggestion below)
-
-Thanks!
-
-> 
-> > --- a/mm/util.c
-> > +++ b/mm/util.c
-> > @@ -346,6 +346,46 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
-> >  }
-> >  EXPORT_SYMBOL(vm_mmap);
+> > Michal is correct in that my intent for defer was to have "never stall"
+> > as the default behaviour.  This was because of the number of severe stalls
+> > users experienced that lead to recommendations in tuning guides to always
+> > disable THP. I'd also seen multiple instances in bug reports for stalls
+> > where it was suggested that THP be disabled even when it could not have
+> > been a factor. It would be preferred to keep the default behaviour to
+> > avoid reintroducing such bugs.
 > > 
-> > +/**
-> > + * kvmalloc_node - allocate contiguous memory from SLAB with vmalloc fallback
-> > + * @size: size of the request.
-> > + * @flags: gfp mask for the allocation - must be compatible with GFP_KERNEL.
-> > + * @node: numa node to allocate from
-> > + *
-> > + * Uses kmalloc to get the memory but if the allocation fails then falls back
-> > + * to the vmalloc allocator. Use kvfree for freeing the memory.
-> > + */
-> > +void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> > +{
-> > +	gfp_t kmalloc_flags = flags;
-> > +	void *ret;
-> > +
-> > +	/*
-> > +	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
-> > +	 * so the given set of flags has to be compatible.
-> > +	 */
-> > +	WARN_ON((flags & GFP_KERNEL) != GFP_KERNEL);
 > 
-> Wouldn't a _ONCE be sufficient? It's unlikely that multiple wrong call sites
-> appear out of the blue, but we don't want to flood the log from a single
-> frequently called site. No strong feelings though.
-
-Fair enough, I will make it WARN_ON_ONCE. I wish WARN_ON_ONCE would be
-more clever, though. We can lose information about different call sites.
-I was thinking about how to deal with it and I stackdepot sounds like it
-could help here. But this is off-topic...
-
-> > +
-> > +	/*
-> > +	 * Make sure that larger requests are not too disruptive - no OOM
-> > +	 * killer and no allocation failure warnings as we have a fallback
-> > +	 */
-> > +	if (size > PAGE_SIZE)
-> > +		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
-> > +
-> > +	ret = kmalloc_node(size, kmalloc_flags, node);
-> > +
-> > +	/*
-> > +	 * It doesn't really make sense to fallback to vmalloc for sub page
-> > +	 * requests
-> > +	 */
-> > +	if (ret || size < PAGE_SIZE)
+> I sympathize with that, I've dealt with a number of issues that we have 
+> encountered where thp defrag was either at fault or wasn't, and there were 
+> also suggestions to set defrag to "madvise" to rule it out and that 
+> impacted other users.
 > 
-> This should be size <= PAGE_SIZE.
+> I'm curious if you could show examples where there were severe stalls 
+> being encountered by applications that did madvise(MADV_HUGEPAGE)
 
-You are right of course!
+I do not have a bug report that is specific to MADV_HUGEPAGE. Until very
+recently they would have been masked by THP fault overhead in general.
+The current defer logic isn't in the field long enough to generate bugs
+that are detailed enough to catch something like this.
+
+> and 
+> users were forced to set madvise to "never". 
+
+In the bugs I've dealt with, the switch was between "always" and "never". I
+haven't seen a bug specific to "madvise".
+
+> That is, after all, the only 
+> topic for consideration in this thread: the direct impact to users of 
+> madvise(MADV_HUGEPAGE).  If an application does it, I believe that's a 
+> demand for work to be done at allocation time to try to get hugepages.  
+> They can certainly provide an application-level option to not do the 
+> MADV_HUGEPAGE.  Qemu is no different, you can add options to do 
+> madvise(MADV_HUGEPAGE) or not, and you can also do it after fault.
+> 
+
+True, it's possible that this is minor hence why I didn't want to outright
+Nak the patch.
+
+> The problem with the current option set is that we don't have the ability 
+> to trigger background compaction for everybody, which only very minimally 
+> impacts their page fault latency since it just wakes up kcompactd, and 
+> allow MADV_HUGEPAGE users to accept that up-front cost by doing direct 
+> compaction.  My usecase, remapping .text segment and faulting thp memory 
+> at startup, demands that ability.  Setting defrag=madvise gets that 
+> behavior, but nobody else triggers background compaction when thp memory 
+> fails and we _want_ that behavior so work is being done to defrag.  
+> Setting defrag=defer makes MADV_HUGEPAGE a no-op for page fault, and I 
+> argue that's the wrong behavior.
+> 
+
+Again, I accept your reasoning and I don't have direct evidence that it'll be
+a problem. In an emergency, it could also be worked around using LD_PRELOAD
+or a systemtap script until a kernel fix could be applied. Unfortunately it
+could also be years before a patch like this would hit enough users for me
+to spot the problem in the field. That's not enough to Nak the patch but
+it was enough to suggest an alternative that would side-step the problem
+ever occurring.
+
+> > I'll neither ack nor nak this patch. However, I would much prefer an
+> > additional option be added to sysfs called defer-fault that would avoid
+> > all fault-based stalls but still potentially stall for MADV_HUGEPAGE. I
+> > would also prefer that the default option is "defer" for both MADV_HUGEPAGE
+> > and faults.
+> > 
+> 
+> If you want a fifth option added to sysfs for thp defrag, that's fine, we 
+> can easily do that.  I'm slightly concerned with more and more options 
+> added that we will eventually approach the 2^4 option count that I 
+> mentioned earlier and nobody will know what to select.  I'm fine with the 
+> kernel default remaining as "madvise,"
+
+I find it hard to believe this one *can* explode. There are a limited
+number of user-triggable actions that can trigger stalls.
+
+> we will just set it to whatever 
+> gets us "direct for madvise, background for everybody else" behavior as we 
+> were planning on using "defer."
+> 
+> We can either do
+> 
+>  (1) merge this patch and allow madvise(MADV_HUGEPAGE) users to always try
+>      to get hugepages, potentially adding options to qemu to suppress 
+>      their MADV_HUGEPAGE if users have complained (would even fix the 
+>      issue on 2.6 kernels) or do it after majority has been faulted, or
+> 
+>  (2) add a fifth defrag option to do this suggested behavior and maintain
+>      that option forever.
+> 
+> I'd obviously prefer the former since I consider MADV_HUGEPAGE and not 
+> willing to stall as a userspace issue that can _trivially_ be worked 
+> around in userspace, but in the interest of moving forward on this we can 
+> do the latter if you'd prefer.
+
+The latter is preferred because it prevents any possibility of encountering
+this in the field and being unable to workaround it with LD_PRELOAD or
+systemtap hackery but I won't nak the former either on the grounds I have
+no data it's a problem and it could be a year or more before I have an
+example. If it's encountered, we'll be back at introducing another sysfs
+option.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
