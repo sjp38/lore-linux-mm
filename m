@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B0E6B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:24:16 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id hb5so112890189wjc.2
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:24:16 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB0086B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:36:57 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id i131so81005394wmf.3
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:36:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l6si78595715wje.169.2017.01.03.13.24.14
+        by mx.google.com with ESMTPS id jy9si9528204wjb.149.2017.01.03.13.36.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 13:24:14 -0800 (PST)
-Date: Tue, 3 Jan 2017 22:24:11 +0100
+        Tue, 03 Jan 2017 13:36:56 -0800 (PST)
+Date: Tue, 3 Jan 2017 22:36:53 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
- tracepoint
-Message-ID: <20170103212411.GA17822@dhcp22.suse.cz>
-References: <20161228153032.10821-1-mhocko@kernel.org>
- <20161228153032.10821-5-mhocko@kernel.org>
- <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
- <20170103204745.GC13873@dhcp22.suse.cz>
- <20170103205244.GD13873@dhcp22.suse.cz>
+Subject: Re: [PATCH] drivers/virt: use get_user_pages_unlocked()
+Message-ID: <20170103213653.GB18167@dhcp22.suse.cz>
+References: <20161101194332.23961-1-lstoakes@gmail.com>
+ <CAA5enKbithCrbZjw=dZkjkk2dHwyaOmp6MF1tUbPi3WQv3p41A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170103205244.GD13873@dhcp22.suse.cz>
+In-Reply-To: <CAA5enKbithCrbZjw=dZkjkk2dHwyaOmp6MF1tUbPi3WQv3p41A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Kumar Gala <galak@kernel.crashing.org>, Mihai Caraman <mihai.caraman@freescale.com>, Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue 03-01-17 21:52:44, Michal Hocko wrote:
-> On Tue 03-01-17 21:47:45, Michal Hocko wrote:
-> > On Tue 03-01-17 18:08:58, Vlastimil Babka wrote:
-> > > On 12/28/2016 04:30 PM, Michal Hocko wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-> > > > from is file or anonymous but we do not know which LRU this is. It is
-> > > > useful to know whether the list is file or anonymous as well. Change
-> > > > the tracepoint to show symbolic names of the lru rather.
-> > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > > ---
-> > > >  include/trace/events/vmscan.h | 20 ++++++++++++++------
-> > > >  mm/vmscan.c                   |  2 +-
-> > > >  2 files changed, 15 insertions(+), 7 deletions(-)
-> > > > 
-> > > > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> > > > index 6af4dae46db2..cc0b4c456c78 100644
-> > > > --- a/include/trace/events/vmscan.h
-> > > > +++ b/include/trace/events/vmscan.h
-> > > > @@ -36,6 +36,14 @@
-> > > >  		(RECLAIM_WB_ASYNC) \
-> > > >  	)
-> > > > 
-> > > > +#define show_lru_name(lru) \
-> > > > +	__print_symbolic(lru, \
-> > > > +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
-> > > > +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
-> > > > +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
-> > > > +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
-> > > > +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
-> > > > +
-> > > 
-> > > Does this work with external tools such as trace-cmd, i.e. does it export
-> > > the correct format file?
-> > 
-> > How do I find out?
+On Tue 03-01-17 21:14:20, Lorenzo Stoakes wrote:
+> Just a gentle ping on this :) I think this might be a slightly
+> abandoned corner of the kernel so not sure who else to ping to get
+> this moving.
+
+Maybe Andrew can pick it up?
+http://lkml.kernel.org/r/20161101194332.23961-1-lstoakes@gmail.com
+
+> On 1 November 2016 at 19:43, Lorenzo Stoakes <lstoakes@gmail.com> wrote:
+> > Moving from get_user_pages() to get_user_pages_unlocked() simplifies the code
+> > and takes advantage of VM_FAULT_RETRY functionality when faulting in pages.
+> >
+> > Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+> > ---
+> >  drivers/virt/fsl_hypervisor.c | 7 ++-----
+> >  1 file changed, 2 insertions(+), 5 deletions(-)
+> >
+> > diff --git a/drivers/virt/fsl_hypervisor.c b/drivers/virt/fsl_hypervisor.c
+> > index 150ce2a..d3eca87 100644
+> > --- a/drivers/virt/fsl_hypervisor.c
+> > +++ b/drivers/virt/fsl_hypervisor.c
+> > @@ -243,11 +243,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
+> >         sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
+> >
+> >         /* Get the physical addresses of the source buffer */
+> > -       down_read(&current->mm->mmap_sem);
+> > -       num_pinned = get_user_pages(param.local_vaddr - lb_offset,
+> > -               num_pages, (param.source == -1) ? 0 : FOLL_WRITE,
+> > -               pages, NULL);
+> > -       up_read(&current->mm->mmap_sem);
+> > +       num_pinned = get_user_pages_unlocked(param.local_vaddr - lb_offset,
+> > +               num_pages, pages, (param.source == -1) ? 0 : FOLL_WRITE);
+> >
+> >         if (num_pinned != num_pages) {
+> >                 /* get_user_pages() failed */
+> > --
+> > 2.10.2
+> >
 > 
-> Well, I've just checked the format file and it says
-> print fmt: "isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s", REC->isolate_mode, REC->classzone_idx, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_skipped, REC->nr_taken, __print_symbolic(REC->lru, {LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, {LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, {LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, {LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, {LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
 > 
-> So the tool should be OK as long as it can find values for LRU_*
-> constants. Is this what is the problem?
+> 
+> -- 
+> Lorenzo Stoakes
+> https://ljs.io
 
-OK, I got it. We need enum->value translation and all the EM stuff to do
-that, right?
-
-I will rework the patch and move the definition to the rest of the EM
-family...
 -- 
 Michal Hocko
 SUSE Labs
