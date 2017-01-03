@@ -1,151 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 05DA06B0261
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 11:25:08 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c85so48301879wmi.6
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 08:25:07 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A490C6B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 12:09:01 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id m203so80185348wma.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 09:09:01 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 203si74132908wmg.3.2017.01.03.08.25.06
+        by mx.google.com with ESMTPS id w62si74244876wme.143.2017.01.03.09.09.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 08:25:06 -0800 (PST)
-Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
-References: <20161220134904.21023-1-mhocko@kernel.org>
- <20170102154858.GC18048@dhcp22.suse.cz>
- <201701031036.IBE51044.QFLFSOHtFOJVMO@I-love.SAKURA.ne.jp>
- <20170103084211.GB30111@dhcp22.suse.cz>
- <201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
+        Tue, 03 Jan 2017 09:09:00 -0800 (PST)
+Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
+ tracepoint
+References: <20161228153032.10821-1-mhocko@kernel.org>
+ <20161228153032.10821-5-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ad1fdd02-04c4-d7e1-776b-1a49302303d9@suse.cz>
-Date: Tue, 3 Jan 2017 17:25:02 +0100
+Message-ID: <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
+Date: Tue, 3 Jan 2017 18:08:58 +0100
 MIME-Version: 1.0
-In-Reply-To: <201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20161228153032.10821-5-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, mgorman@suse.de, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 01/03/2017 03:38 PM, Tetsuo Handa wrote:
-> Michal Hocko wrote:
->> On Tue 03-01-17 10:36:31, Tetsuo Handa wrote:
->> [...]
->> > I'm OK with "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator
->> > slowpath" given that we describe that we make __GFP_NOFAIL stronger than
->> > __GFP_NORETRY with this patch in the changelog.
->>
->> Again. __GFP_NORETRY | __GFP_NOFAIL is nonsense! I do not really see any
->> reason to describe all the nonsense combinations of gfp flags.
+On 12/28/2016 04:30 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> Before [PATCH 1/3]:
+> mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
+> from is file or anonymous but we do not know which LRU this is. It is
+> useful to know whether the list is file or anonymous as well. Change
+> the tracepoint to show symbolic names of the lru rather.
 >
->   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
->   request even if __GFP_NOFAIL is specified if direct reclaim/compaction
->   did not help."
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/trace/events/vmscan.h | 20 ++++++++++++++------
+>  mm/vmscan.c                   |  2 +-
+>  2 files changed, 15 insertions(+), 7 deletions(-)
 >
->   __GFP_NOFAIL is used as "Never fail allocation request unless __GFP_NORETRY
->   is specified even if direct reclaim/compaction did not help."
+> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> index 6af4dae46db2..cc0b4c456c78 100644
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -36,6 +36,14 @@
+>  		(RECLAIM_WB_ASYNC) \
+>  	)
 >
-> After [PATCH 1/3]:
->
->   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
->   request unless __GFP_NOFAIL is specified."
->
->   __GFP_NOFAIL is used as "Never fail allocation request even if direct
->   reclaim/compaction did not help. Invoke the OOM killer unless __GFP_NORETRY is
->   specified."
->
-> Thus, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense as
-> "Never fail allocation request if direct reclaim/compaction did not help.
-> But do not invoke the OOM killer even if direct reclaim/compaction did not help."
+> +#define show_lru_name(lru) \
+> +	__print_symbolic(lru, \
+> +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
+> +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
+> +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
+> +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
+> +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
+> +
 
-It may technically do that, but how exactly is that useful, i.e. "make sense"? 
-Patch 2/3 here makes sure that OOM killer is not invoked when the allocation 
-context is "limited" and thus OOM might be premature (despite __GFP_NOFAIL).
-What's the use case for __GFP_NORETRY | __GFP_NOFAIL ?
+Does this work with external tools such as trace-cmd, i.e. does it export the 
+correct format file? I wouldn't expect it to be that easy to avoid the 
+EM()/EMe() dance :)
 
->
->>
->> > But I don't think "[PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
->> > automatically" is correct. Firstly, we need to confirm
->> >
->> >   "The pre-mature OOM killer is a real issue as reported by Nils Holland"
->> >
->> > in the changelog is still true because we haven't tested with "[PATCH] mm, memcg:
->> > fix the active list aging for lowmem requests when memcg is enabled" applied and
->> > without "[PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
->> > automatically" and "[PATCH 3/3] mm: help __GFP_NOFAIL allocations which do not
->> > trigger OOM killer" applied.
->>
->> Yes I have dropped the reference to this report already in my local
->> patch because in this particular case the issue was somewhere else
->> indeed!
->
-> OK.
->
->>
->> > Secondly, as you are using __GFP_NORETRY in "[PATCH] mm: introduce kv[mz]alloc
->> > helpers" as a mean to enforce not to invoke the OOM killer
->> >
->> > 	/*
->> > 	 * Make sure that larger requests are not too disruptive - no OOM
->> > 	 * killer and no allocation failure warnings as we have a fallback
->> > 	 */
->> > 	if (size > PAGE_SIZE)
->> > 		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
->> >
->> > , we can use __GFP_NORETRY as a mean to enforce not to invoke the OOM killer
->> > rather than applying "[PATCH 2/3] mm, oom: do not enfore OOM killer for
->> > __GFP_NOFAIL automatically".
->> >
->
-> As I wrote above, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense.
->
->> > Additionally, although currently there seems to be no
->> > kv[mz]alloc(GFP_KERNEL | __GFP_NOFAIL) users, kvmalloc_node() in
->> > "[PATCH] mm: introduce kv[mz]alloc helpers" will be confused when a
->> > kv[mz]alloc(GFP_KERNEL | __GFP_NOFAIL) user comes in in the future because
->> > "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator slowpath" makes
->> > __GFP_NOFAIL stronger than __GFP_NORETRY.
->>
->> Using NOFAIL in kv[mz]alloc simply makes no sense at all. The vmalloc
->> fallback would be simply unreachable!
->
-> My intention is shown below.
->
->  void *kvmalloc_node(size_t size, gfp_t flags, int node)
->  {
->  	gfp_t kmalloc_flags = flags;
->  	void *ret;
->
->  	/*
->  	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
->  	 * so the given set of flags has to be compatible.
->  	 */
->  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
->
->  	/*
->  	 * Make sure that larger requests are not too disruptive - no OOM
->  	 * killer and no allocation failure warnings as we have a fallback
->  	 */
-> -	if (size > PAGE_SIZE)
-> +	if (size > PAGE_SIZE) {
->  		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
-> +		kmalloc_flags &= ~__GFP_NOFAIL;
+Also can we make the symbolic names lower_case and without the LRU_ prefix? I 
+think it's more consistent with other mm tracepoints, shorter and nicer.
 
-This does make kvmalloc_node more robust against callers that would try to use 
-it with __GFP_NOFAIL, but is it a good idea to allow that right now? If there 
-are none yet (AFAIK?), we should rather let the existing WARN_ON kick in (which 
-won't happen if we strip __GFP_NOFAIL) and discuss a better solution for such 
-new future caller.
-
-Also this means the kmalloc() cannot do "__GFP_NORETRY | __GFP_NOFAIL" so I'm 
-not sure how it's related with your points above - it's not an example of the 
-combination that would show that "it makes perfect sense".
-
-Thanks,
-Vlastimil
+>  TRACE_EVENT(mm_vmscan_kswapd_sleep,
+>
+>  	TP_PROTO(int nid),
+> @@ -277,9 +285,9 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+>  		unsigned long nr_skipped,
+>  		unsigned long nr_taken,
+>  		isolate_mode_t isolate_mode,
+> -		int file),
+> +		int lru),
+>
+> -	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, file),
+> +	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_skipped, nr_taken, isolate_mode, lru),
+>
+>  	TP_STRUCT__entry(
+>  		__field(int, classzone_idx)
+> @@ -289,7 +297,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+>  		__field(unsigned long, nr_skipped)
+>  		__field(unsigned long, nr_taken)
+>  		__field(isolate_mode_t, isolate_mode)
+> -		__field(int, file)
+> +		__field(int, lru)
+>  	),
+>
+>  	TP_fast_assign(
+> @@ -300,10 +308,10 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+>  		__entry->nr_skipped = nr_skipped;
+>  		__entry->nr_taken = nr_taken;
+>  		__entry->isolate_mode = isolate_mode;
+> -		__entry->file = file;
+> +		__entry->lru = lru;
+>  	),
+>
+> -	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu file=%d",
+> +	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s",
+>  		__entry->isolate_mode,
+>  		__entry->classzone_idx,
+>  		__entry->order,
+> @@ -311,7 +319,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+>  		__entry->nr_scanned,
+>  		__entry->nr_skipped,
+>  		__entry->nr_taken,
+> -		__entry->file)
+> +		show_lru_name(__entry->lru))
+>  );
+>
+>  TRACE_EVENT(mm_vmscan_writepage,
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4f7c0d66d629..3f0774f30a42 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1500,7 +1500,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	}
+>  	*nr_scanned = scan + total_skipped;
+>  	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
+> -				    skipped, nr_taken, mode, is_file_lru(lru));
+> +				    skipped, nr_taken, mode, lru);
+>  	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
+>  	return nr_taken;
+>  }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
