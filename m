@@ -1,109 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C98FB6B0253
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:37:57 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f188so1534341834pgc.1
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:37:57 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y12si70146185pge.222.2017.01.03.13.37.56
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 570846B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:40:26 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id j10so112805100wjb.3
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:40:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 13si75083478wmb.71.2017.01.03.13.40.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Jan 2017 13:37:56 -0800 (PST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH] dax: fix deadlock with DAX 4k holes
-Date: Tue,  3 Jan 2017 14:36:05 -0700
-Message-Id: <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <20161027112230.wsumgs62fqdxt3sc@xzhoul.usersys.redhat.com>
-References: <20161027112230.wsumgs62fqdxt3sc@xzhoul.usersys.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Jan 2017 13:40:24 -0800 (PST)
+Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
+ tracepoint
+References: <20161228153032.10821-1-mhocko@kernel.org>
+ <20161228153032.10821-5-mhocko@kernel.org>
+ <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
+ <20170103204745.GC13873@dhcp22.suse.cz>
+ <20170103205244.GD13873@dhcp22.suse.cz>
+ <20170103212411.GA17822@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cfc85361-5bd0-7614-e1d6-1a71e0421571@suse.cz>
+Date: Tue, 3 Jan 2017 22:40:23 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170103212411.GA17822@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiong Zhou <xzhou@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-Currently in DAX if we have three read faults on the same hole address we
-can end up with the following:
+On 01/03/2017 10:24 PM, Michal Hocko wrote:
+> On Tue 03-01-17 21:52:44, Michal Hocko wrote:
+>> On Tue 03-01-17 21:47:45, Michal Hocko wrote:
+>> > On Tue 03-01-17 18:08:58, Vlastimil Babka wrote:
+>> > > On 12/28/2016 04:30 PM, Michal Hocko wrote:
+>> > > > From: Michal Hocko <mhocko@suse.com>
+>> > > >
+>> > > > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
+>> > > > from is file or anonymous but we do not know which LRU this is. It is
+>> > > > useful to know whether the list is file or anonymous as well. Change
+>> > > > the tracepoint to show symbolic names of the lru rather.
+>> > > >
+>> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+>> > > > ---
+>> > > >  include/trace/events/vmscan.h | 20 ++++++++++++++------
+>> > > >  mm/vmscan.c                   |  2 +-
+>> > > >  2 files changed, 15 insertions(+), 7 deletions(-)
+>> > > >
+>> > > > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+>> > > > index 6af4dae46db2..cc0b4c456c78 100644
+>> > > > --- a/include/trace/events/vmscan.h
+>> > > > +++ b/include/trace/events/vmscan.h
+>> > > > @@ -36,6 +36,14 @@
+>> > > >  		(RECLAIM_WB_ASYNC) \
+>> > > >  	)
+>> > > >
+>> > > > +#define show_lru_name(lru) \
+>> > > > +	__print_symbolic(lru, \
+>> > > > +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
+>> > > > +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
+>> > > > +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
+>> > > > +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
+>> > > > +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
+>> > > > +
+>> > >
+>> > > Does this work with external tools such as trace-cmd, i.e. does it export
+>> > > the correct format file?
+>> >
+>> > How do I find out?
 
-Thread 0		Thread 1		Thread 2
---------		--------		--------
-dax_iomap_fault
- grab_mapping_entry
-  lock_slot
-   <locks empty DAX entry>
+You did :) Another way to verify is to use trace-cmd tool instead of manual 
+sysfs operations and see if the output looks as expected. The tool gets the raw 
+records from kernel and does the printing in userspace, unlike "cat trace_pipe".
 
-  			dax_iomap_fault
-			 grab_mapping_entry
-			  get_unlocked_mapping_entry
-			   <sleeps on empty DAX entry>
+>> Well, I've just checked the format file and it says
+>> print fmt: "isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s", REC->isolate_mode, REC->classzone_idx, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_skipped, REC->nr_taken, __print_symbolic(REC->lru, {LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, {LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, {LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, {LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, {LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
+>>
+>> So the tool should be OK as long as it can find values for LRU_*
+>> constants. Is this what is the problem?
 
-						dax_iomap_fault
-						 grab_mapping_entry
-						  get_unlocked_mapping_entry
-						   <sleeps on empty DAX entry>
-  dax_load_hole
-   find_or_create_page
-   ...
-    page_cache_tree_insert
-     dax_wake_mapping_entry_waiter
-      <wakes one sleeper>
-     __radix_tree_replace
-      <swaps empty DAX entry with 4k zero page>
+Exactly.
 
-			<wakes>
-			get_page
-			lock_page
-			...
-			put_locked_mapping_entry
-			unlock_page
-			put_page
+> OK, I got it. We need enum->value translation and all the EM stuff to do
+> that, right?
 
-						<sleeps forever on the DAX
-						 wait queue>
+Yep.
 
-The crux of the problem is that once we insert a 4k zero page, all locking
-from then on is done in terms of that 4k zero page and any additional
-threads sleeping on the empty DAX entry will never be woken.  Fix this by
-waking all sleepers when we replace the DAX radix tree entry with a 4k zero
-page.  This will allow all sleeping threads to successfully transition from
-locking based on the DAX empty entry to locking on the 4k zero page.
+> I will rework the patch and move the definition to the rest of the EM
+> family...
 
-With the test case reported by Xiong this happens very regularly in my test
-setup, with some runs resulting in 9+ threads in this deadlocked state.
-With this fix I've been able to run that same test dozens of times in a
-loop without issue.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reported-by: Xiong Zhou <xzhou@redhat.com>
-Fixes: commit ac401cc78242 ("dax: New fault locking")
-Cc: Jan Kara <jack@suse.cz>
-Cc: stable@vger.kernel.org # 4.7+
----
-
-This issue exists as far back as v4.7, and I was easly able to reproduce it
-with v4.7 using the same test.
-
-Unfortunately this patch won't apply cleanly to the stable trees, but the
-change is very simple and should be easy to replicate by hand.  Please ping
-me if you'd like patches that apply cleanly to the v4.9 and v4.8.15 trees.
-
----
- mm/filemap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index d0e4d10..b772a33 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -138,7 +138,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
- 			/* Wakeup waiters for exceptional entry lock */
- 			dax_wake_mapping_entry_waiter(mapping, page->index, p,
--						      false);
-+						      true);
- 		}
- 	}
- 	__radix_tree_replace(&mapping->page_tree, node, slot, page,
--- 
-2.7.4
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
