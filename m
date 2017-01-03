@@ -1,95 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 570846B0069
-	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:40:26 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so112805100wjb.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:40:26 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AD5056B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jan 2017 16:48:58 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u144so81094802wmu.1
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 13:48:58 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 13si75083478wmb.71.2017.01.03.13.40.24
+        by mx.google.com with ESMTPS id v4si78764018wjr.104.2017.01.03.13.48.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 13:40:24 -0800 (PST)
+        Tue, 03 Jan 2017 13:48:57 -0800 (PST)
+Date: Tue, 3 Jan 2017 22:48:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
  tracepoint
+Message-ID: <20170103214854.GC18167@dhcp22.suse.cz>
 References: <20161228153032.10821-1-mhocko@kernel.org>
  <20161228153032.10821-5-mhocko@kernel.org>
  <19b44b6e-037f-45fd-a13a-be5d87259e75@suse.cz>
  <20170103204745.GC13873@dhcp22.suse.cz>
  <20170103205244.GD13873@dhcp22.suse.cz>
  <20170103212411.GA17822@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cfc85361-5bd0-7614-e1d6-1a71e0421571@suse.cz>
-Date: Tue, 3 Jan 2017 22:40:23 +0100
+ <cfc85361-5bd0-7614-e1d6-1a71e0421571@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170103212411.GA17822@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cfc85361-5bd0-7614-e1d6-1a71e0421571@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 01/03/2017 10:24 PM, Michal Hocko wrote:
-> On Tue 03-01-17 21:52:44, Michal Hocko wrote:
->> On Tue 03-01-17 21:47:45, Michal Hocko wrote:
->> > On Tue 03-01-17 18:08:58, Vlastimil Babka wrote:
->> > > On 12/28/2016 04:30 PM, Michal Hocko wrote:
->> > > > From: Michal Hocko <mhocko@suse.com>
->> > > >
->> > > > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
->> > > > from is file or anonymous but we do not know which LRU this is. It is
->> > > > useful to know whether the list is file or anonymous as well. Change
->> > > > the tracepoint to show symbolic names of the lru rather.
->> > > >
->> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
->> > > > ---
->> > > >  include/trace/events/vmscan.h | 20 ++++++++++++++------
->> > > >  mm/vmscan.c                   |  2 +-
->> > > >  2 files changed, 15 insertions(+), 7 deletions(-)
->> > > >
->> > > > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
->> > > > index 6af4dae46db2..cc0b4c456c78 100644
->> > > > --- a/include/trace/events/vmscan.h
->> > > > +++ b/include/trace/events/vmscan.h
->> > > > @@ -36,6 +36,14 @@
->> > > >  		(RECLAIM_WB_ASYNC) \
->> > > >  	)
->> > > >
->> > > > +#define show_lru_name(lru) \
->> > > > +	__print_symbolic(lru, \
->> > > > +			{LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, \
->> > > > +			{LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, \
->> > > > +			{LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, \
->> > > > +			{LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, \
->> > > > +			{LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
->> > > > +
->> > >
->> > > Does this work with external tools such as trace-cmd, i.e. does it export
->> > > the correct format file?
->> >
->> > How do I find out?
+On Tue 03-01-17 22:40:23, Vlastimil Babka wrote:
+> On 01/03/2017 10:24 PM, Michal Hocko wrote:
+[...]
+> > > So the tool should be OK as long as it can find values for LRU_*
+> > > constants. Is this what is the problem?
+> 
+> Exactly.
 
-You did :) Another way to verify is to use trace-cmd tool instead of manual 
-sysfs operations and see if the output looks as expected. The tool gets the raw 
-records from kernel and does the printing in userspace, unlike "cat trace_pipe".
+So this should make it work (it compiles it has to be correct, right?).
+---
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index aa4caa6914a9..6172afa2fd82 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -240,6 +240,13 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
+ 	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
+ 				EMe(ZONE_MOVABLE,"Movable")
+ 
++#define LRU_NAMES		\
++		EM (LRU_INACTIVE_ANON, "inactive_anon") \
++		EM (LRU_ACTIVE_ANON, "active_anon") \
++		EM (LRU_INACTIVE_FILE, "inactive_file") \
++		EM (LRU_ACTIVE_FILE, "active_file") \
++		EMe(LRU_UNEVICTABLE, "unevictable")
++
+ /*
+  * First define the enums in the above macros to be exported to userspace
+  * via TRACE_DEFINE_ENUM().
+@@ -253,6 +260,7 @@ COMPACTION_STATUS
+ COMPACTION_PRIORITY
+ COMPACTION_FEEDBACK
+ ZONE_TYPE
++LRU_NAMES
+ 
+ /*
+  * Now redefine the EM() and EMe() macros to map the enums to the strings
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 8e7c4c56499a..3c38d9315b43 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -36,14 +36,6 @@
+ 		(RECLAIM_WB_ASYNC) \
+ 	)
+ 
+-#define show_lru_name(lru) \
+-	__print_symbolic(lru, \
+-			{LRU_INACTIVE_ANON, "inactive_anon"}, \
+-			{LRU_ACTIVE_ANON, "active_anon"}, \
+-			{LRU_INACTIVE_FILE, "inactive_file"}, \
+-			{LRU_ACTIVE_FILE, "active_file"}, \
+-			{LRU_UNEVICTABLE, "unevictable"})
+-
+ TRACE_EVENT(mm_vmscan_kswapd_sleep,
+ 
+ 	TP_PROTO(int nid),
+@@ -319,7 +311,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+ 		__entry->nr_scanned,
+ 		__entry->nr_skipped,
+ 		__entry->nr_taken,
+-		show_lru_name(__entry->lru))
++		__print_symbolic(__entry->lru, LRU_NAMES))
+ );
+ 
+ TRACE_EVENT(mm_vmscan_writepage,
 
->> Well, I've just checked the format file and it says
->> print fmt: "isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s", REC->isolate_mode, REC->classzone_idx, REC->order, REC->nr_requested, REC->nr_scanned, REC->nr_skipped, REC->nr_taken, __print_symbolic(REC->lru, {LRU_INACTIVE_ANON, "LRU_INACTIVE_ANON"}, {LRU_ACTIVE_ANON, "LRU_ACTIVE_ANON"}, {LRU_INACTIVE_FILE, "LRU_INACTIVE_FILE"}, {LRU_ACTIVE_FILE, "LRU_ACTIVE_FILE"}, {LRU_UNEVICTABLE, "LRU_UNEVICTABLE"})
->>
->> So the tool should be OK as long as it can find values for LRU_*
->> constants. Is this what is the problem?
-
-Exactly.
-
-> OK, I got it. We need enum->value translation and all the EM stuff to do
-> that, right?
-
-Yep.
-
-> I will rework the patch and move the definition to the rest of the EM
-> family...
-
-Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
