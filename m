@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8316B026B
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 05:20:00 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id k184so45057356wme.4
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 02:20:00 -0800 (PST)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id h82si77149226wmh.150.2017.01.04.02.19.59
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EA20B6B026C
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 05:20:01 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id dh1so52071727wjb.0
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 02:20:01 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id 71si77153984wmp.95.2017.01.04.02.20.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 02:19:59 -0800 (PST)
-Received: by mail-wm0-f66.google.com with SMTP id m203so90681928wma.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 02:19:59 -0800 (PST)
+        Wed, 04 Jan 2017 02:20:00 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id u144so90730135wmu.0
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 02:20:00 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 6/7] mm, vmscan: enhance mm_vmscan_lru_shrink_inactive tracepoint
-Date: Wed,  4 Jan 2017 11:19:41 +0100
-Message-Id: <20170104101942.4860-7-mhocko@kernel.org>
+Subject: [PATCH 7/7] mm, vmscan: add mm_vmscan_inactive_list_is_low tracepoint
+Date: Wed,  4 Jan 2017 11:19:42 +0100
+Message-Id: <20170104101942.4860-8-mhocko@kernel.org>
 In-Reply-To: <20170104101942.4860-1-mhocko@kernel.org>
 References: <20170104101942.4860-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,152 +24,156 @@ Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimi
 
 From: Michal Hocko <mhocko@suse.com>
 
-mm_vmscan_lru_shrink_inactive will currently report the number of
-scanned and reclaimed pages. This doesn't give us an idea how the
-reclaim went except for the overall effectiveness though. Export
-and show other counters which will tell us why we couldn't reclaim
-some pages.
-	- nr_dirty, nr_writeback, nr_congested and nr_immediate tells
-	  us how many pages are blocked due to IO
-	- nr_activate tells us how many pages were moved to the active
-	  list
-	- nr_ref_keep reports how many pages are kept on the LRU due
-	  to references (mostly for the file pages which are about to
-	  go for another round through the inactive list)
-	- nr_unmap_fail - how many pages failed to unmap
-
-All these are rather low level so they might change in future but the
-tracepoint is already implementation specific so no tools should be
-depending on its stability.
+Currently we have tracepoints for both active and inactive LRU lists
+reclaim but we do not have any which would tell us why we we decided to
+age the active list. Without that it is quite hard to diagnose
+active/inactive lists balancing. Add mm_vmscan_inactive_list_is_low
+tracepoint to tell us this information.
 
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 Acked-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/trace/events/vmscan.h | 29 ++++++++++++++++++++++++++---
- mm/vmscan.c                   | 14 ++++++++++++++
- 2 files changed, 40 insertions(+), 3 deletions(-)
+ include/trace/events/vmscan.h | 40 ++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                   | 23 ++++++++++++++---------
+ 2 files changed, 54 insertions(+), 9 deletions(-)
 
 diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 7ec59e0432c4..9037c1734294 100644
+index 9037c1734294..625a4b7967d0 100644
 --- a/include/trace/events/vmscan.h
 +++ b/include/trace/events/vmscan.h
-@@ -340,14 +340,27 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+@@ -15,6 +15,7 @@
+ #define RECLAIM_WB_MIXED	0x0010u
+ #define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim async */
+ #define RECLAIM_WB_ASYNC	0x0008u
++#define RECLAIM_WB_LRU		(RECLAIM_WB_ANON|RECLAIM_WB_FILE)
  
- 	TP_PROTO(int nid,
- 		unsigned long nr_scanned, unsigned long nr_reclaimed,
-+		unsigned long nr_dirty, unsigned long nr_writeback,
-+		unsigned long nr_congested, unsigned long nr_immediate,
-+		unsigned long nr_activate, unsigned long nr_ref_keep,
-+		unsigned long nr_unmap_fail,
- 		int priority, int file),
- 
--	TP_ARGS(nid, nr_scanned, nr_reclaimed, priority, file),
-+	TP_ARGS(nid, nr_scanned, nr_reclaimed, nr_dirty, nr_writeback,
-+		nr_congested, nr_immediate, nr_activate, nr_ref_keep,
-+		nr_unmap_fail, priority, file),
- 
- 	TP_STRUCT__entry(
- 		__field(int, nid)
- 		__field(unsigned long, nr_scanned)
- 		__field(unsigned long, nr_reclaimed)
-+		__field(unsigned long, nr_dirty)
-+		__field(unsigned long, nr_writeback)
-+		__field(unsigned long, nr_congested)
-+		__field(unsigned long, nr_immediate)
-+		__field(unsigned long, nr_activate)
-+		__field(unsigned long, nr_ref_keep)
-+		__field(unsigned long, nr_unmap_fail)
- 		__field(int, priority)
- 		__field(int, reclaim_flags)
- 	),
-@@ -356,14 +369,24 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
- 		__entry->nid = nid;
- 		__entry->nr_scanned = nr_scanned;
- 		__entry->nr_reclaimed = nr_reclaimed;
-+		__entry->nr_dirty = nr_dirty;
-+		__entry->nr_writeback = nr_writeback;
-+		__entry->nr_congested = nr_congested;
-+		__entry->nr_immediate = nr_immediate;
-+		__entry->nr_activate = nr_activate;
-+		__entry->nr_ref_keep = nr_ref_keep;
-+		__entry->nr_unmap_fail = nr_unmap_fail;
- 		__entry->priority = priority;
- 		__entry->reclaim_flags = trace_shrink_flags(file);
- 	),
- 
--	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s",
-+	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate=%ld nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
- 		__entry->nid,
- 		__entry->nr_scanned, __entry->nr_reclaimed,
--		__entry->priority,
-+		__entry->nr_dirty, __entry->nr_writeback,
-+		__entry->nr_congested, __entry->nr_immediate,
-+		__entry->nr_activate, __entry->nr_ref_keep,
-+		__entry->nr_unmap_fail, __entry->priority,
+ #define show_reclaim_flags(flags)				\
+ 	(flags) ? __print_flags(flags, "|",			\
+@@ -426,6 +427,45 @@ TRACE_EVENT(mm_vmscan_lru_shrink_active,
  		show_reclaim_flags(__entry->reclaim_flags))
  );
  
++TRACE_EVENT(mm_vmscan_inactive_list_is_low,
++
++	TP_PROTO(int nid, int reclaim_idx,
++		unsigned long total_inactive, unsigned long inactive,
++		unsigned long total_active, unsigned long active,
++		unsigned long ratio, int file),
++
++	TP_ARGS(nid, reclaim_idx, total_inactive, inactive, total_active, active, ratio, file),
++
++	TP_STRUCT__entry(
++		__field(int, nid)
++		__field(int, reclaim_idx)
++		__field(unsigned long, total_inactive)
++		__field(unsigned long, inactive)
++		__field(unsigned long, total_active)
++		__field(unsigned long, active)
++		__field(unsigned long, ratio)
++		__field(int, reclaim_flags)
++	),
++
++	TP_fast_assign(
++		__entry->nid = nid;
++		__entry->reclaim_idx = reclaim_idx;
++		__entry->total_inactive = total_inactive;
++		__entry->inactive = inactive;
++		__entry->total_active = total_active;
++		__entry->active = active;
++		__entry->ratio = ratio;
++		__entry->reclaim_flags = trace_shrink_flags(file) & RECLAIM_WB_LRU;
++	),
++
++	TP_printk("nid=%d reclaim_idx=%d total_inactive=%ld inactive=%ld total_active=%ld active=%ld ratio=%ld flags=%s",
++		__entry->nid,
++		__entry->reclaim_idx,
++		__entry->total_inactive, __entry->inactive,
++		__entry->total_active, __entry->active,
++		__entry->ratio,
++		show_reclaim_flags(__entry->reclaim_flags))
++);
+ #endif /* _TRACE_VMSCAN_H */
+ 
+ /* This part must be outside protection */
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 920e47a905c3..d05e42bee511 100644
+index d05e42bee511..2a5c6c3fed2d 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -908,6 +908,9 @@ struct reclaim_stat {
- 	unsigned nr_congested;
- 	unsigned nr_writeback;
- 	unsigned nr_immediate;
-+	unsigned nr_activate;
-+	unsigned nr_ref_keep;
-+	unsigned nr_unmap_fail;
- };
+@@ -2039,11 +2039,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
+  *   10TB     320        32GB
+  */
+ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+-						struct scan_control *sc)
++						struct scan_control *sc, bool trace)
+ {
+ 	unsigned long inactive_ratio;
+-	unsigned long inactive;
+-	unsigned long active;
++	unsigned long total_inactive, inactive;
++	unsigned long total_active, active;
+ 	unsigned long gb;
+ 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+ 	int zid;
+@@ -2055,8 +2055,8 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	if (!file && !total_swap_pages)
+ 		return false;
  
- /*
-@@ -929,6 +932,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 	unsigned nr_reclaimed = 0;
- 	unsigned nr_writeback = 0;
- 	unsigned nr_immediate = 0;
-+	unsigned nr_ref_keep = 0;
-+	unsigned nr_unmap_fail = 0;
+-	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+-	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
++	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
++	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
  
- 	cond_resched();
+ 	/*
+ 	 * For zone-constrained allocations, it is necessary to check if
+@@ -2085,6 +2085,11 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	else
+ 		inactive_ratio = 1;
  
-@@ -1067,6 +1072,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		case PAGEREF_ACTIVATE:
- 			goto activate_locked;
- 		case PAGEREF_KEEP:
-+			nr_ref_keep++;
- 			goto keep_locked;
- 		case PAGEREF_RECLAIM:
- 		case PAGEREF_RECLAIM_CLEAN:
-@@ -1104,6 +1110,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
- 				(ttu_flags | TTU_BATCH_FLUSH))) {
- 			case SWAP_FAIL:
-+				nr_unmap_fail++;
- 				goto activate_locked;
- 			case SWAP_AGAIN:
- 				goto keep_locked;
-@@ -1276,6 +1283,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		stat->nr_unqueued_dirty = nr_unqueued_dirty;
- 		stat->nr_writeback = nr_writeback;
- 		stat->nr_immediate = nr_immediate;
-+		stat->nr_activate = pgactivate;
-+		stat->nr_ref_keep = nr_ref_keep;
-+		stat->nr_unmap_fail = nr_unmap_fail;
++	if (trace)
++		trace_mm_vmscan_inactive_list_is_low(pgdat->node_id,
++				sc->reclaim_idx,
++				total_inactive, inactive,
++				total_active, active, inactive_ratio, file);
+ 	return inactive * inactive_ratio < active;
+ }
+ 
+@@ -2092,7 +2097,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 				 struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	if (is_active_lru(lru)) {
+-		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc))
++		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
+ 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 		return 0;
  	}
- 	return nr_reclaimed;
+@@ -2223,7 +2228,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * lruvec even if it has plenty of old anonymous pages unless the
+ 	 * system is under heavy pressure.
+ 	 */
+-	if (!inactive_list_is_low(lruvec, true, sc) &&
++	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+ 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+@@ -2448,7 +2453,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_list_is_low(lruvec, false, sc))
++	if (inactive_list_is_low(lruvec, false, sc, true))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 				   sc, LRU_ACTIVE_ANON);
  }
-@@ -1825,6 +1835,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+@@ -3098,7 +3103,7 @@ static void age_active_anon(struct pglist_data *pgdat,
+ 	do {
+ 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
  
- 	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
- 			nr_scanned, nr_reclaimed,
-+			stat.nr_dirty,  stat.nr_writeback,
-+			stat.nr_congested, stat.nr_immediate,
-+			stat.nr_activate, stat.nr_ref_keep,
-+			stat.nr_unmap_fail,
- 			sc->priority, file);
- 	return nr_reclaimed;
- }
+-		if (inactive_list_is_low(lruvec, false, sc))
++		if (inactive_list_is_low(lruvec, false, sc, true))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 					   sc, LRU_ACTIVE_ANON);
+ 
 -- 
 2.11.0
 
