@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CB1A6B025E
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 02:51:04 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id j10so114278513wjb.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 23:51:03 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C716B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 03:06:45 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id l2so56354287wml.5
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 00:06:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u8si76739692wmd.98.2017.01.03.23.51.02
+        by mx.google.com with ESMTPS id ix4si901808wjb.79.2017.01.04.00.06.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 23:51:02 -0800 (PST)
-Date: Wed, 4 Jan 2017 08:50:58 +0100
+        Wed, 04 Jan 2017 00:06:43 -0800 (PST)
+Date: Wed, 4 Jan 2017 09:06:40 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
-Message-ID: <20170104075058.GA25453@dhcp22.suse.cz>
-References: <20161228153032.10821-3-mhocko@kernel.org>
- <20161229053359.GA1815@bbox>
- <20161229075243.GA29208@dhcp22.suse.cz>
- <20161230014853.GA4184@bbox>
- <20161230092636.GA13301@dhcp22.suse.cz>
- <20161230160456.GA7267@bbox>
- <20161230163742.GK13301@dhcp22.suse.cz>
- <20170103050328.GA15700@bbox>
- <20170103082122.GA30111@dhcp22.suse.cz>
- <20170104050722.GA17166@bbox>
+Subject: Re: [KERNEL] Re: Bug 4.9 and memorymanagement
+Message-ID: <20170104080639.GB25453@dhcp22.suse.cz>
+References: <20161225205251.nny6k5wol2s4ufq7@ikki.ethgen.ch>
+ <20161226110053.GA16042@dhcp22.suse.cz>
+ <20161227112844.GG1308@dhcp22.suse.cz>
+ <20161230111135.GG13301@dhcp22.suse.cz>
+ <20161230165230.th274as75pzjlzkk@ikki.ethgen.ch>
+ <20161230172358.GA4266@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170104050722.GA17166@bbox>
+In-Reply-To: <20161230172358.GA4266@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Klaus Ethgen <Klaus+lkml@ethgen.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 04-01-17 14:07:22, Minchan Kim wrote:
-> On Tue, Jan 03, 2017 at 09:21:22AM +0100, Michal Hocko wrote:
-[...]
-> > with other tracepoints but that can be helpful because you do not have
-> > all the tracepoints enabled all the time. So unless you see this
-> > particular thing as a road block I would rather keep it.
+On Fri 30-12-16 18:23:58, Michal Hocko wrote:
+> On Fri 30-12-16 17:52:30, Klaus Ethgen wrote:
+> > Sorry, did reply only you..
+> > 
+> > Am Fr den 30. Dez 2016 um 12:11 schrieb Michal Hocko:
+> > > > If this turns out to be memory cgroup related then the patch from
+> > > > http://lkml.kernel.org/r/20161226124839.GB20715@dhcp22.suse.cz might
+> > > > help.
+> > >
+> > > Did you get chance to test the above patch? I would like to send it for
+> > > merging and having it tested on another system would be really helpeful
+> > > and much appreciated.
+> > 
+> > Sorry, no, I was a bit busy when coming back from X-mass. ;-)
+> > 
+> > Maybe I can do so today.
+> > 
+> > The only think is, how can I find out if the bug is fixed? Is 7 days
+> > enough? Or is there a change to force the bug to happen (or not)...?
 > 
-> I didn't know how long this thread becomes lenghy. To me, it was no worth
-> to discuss. I did best effot to explain my stand with valid points, I think
-> and don't want to go infinite loop. If you don't agree still, separate
-> the patch. One includes only necessary things with removing nr_scanned, which
-> I am happy to ack it. Based upon it, add one more patch you want adding
-> nr_scanned with your claim. I will reply that thread with my claim and
-> let's keep an eye on it that whether maintainer will take it or not.
+> Just try to run with the patch and do what you do normally. If you do
+> not see any OOMs in few days it should be sufficient evidence. From your
+> previous logs it seems you hit the problem quite early after few hours
+> as far as I remember.
 
-To be honest this is just not worth the effort and rather than
-discussing further I will just drop the nr_scanned slthough I disagree
-that your concerns regarding this _particular counter_ are really valid.
+Did you have chance to run with the patch? I would like to post it for
+inclusion and feedback from you is really useful.
 
-> If maintainer will take it, it's good indication which will represent
-> we can add more extra tracepoint easily with "might be helpful with someone
-> although it's redunant" so do not prevent others who want to do
-> in the future.
-
-no we do not work in a precedence system like that.
-
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
