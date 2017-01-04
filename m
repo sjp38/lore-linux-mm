@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 428AB6B0069
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 18:35:49 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id b123so474874655itb.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 15:35:49 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id b205si51016718iof.10.2017.01.04.15.35.48
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4416B0069
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 18:40:24 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id u5so1011098158pgi.7
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 15:40:24 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id l4si73924208plb.98.2017.01.04.15.40.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 15:35:48 -0800 (PST)
+        Wed, 04 Jan 2017 15:40:24 -0800 (PST)
 Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
  Integrity (ADI)
 References: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
  <6fcaab9f-40fb-fdfb-2c7e-bf21a862ab7c@linux.intel.com>
-From: Rob Gardner <rob.gardner@oracle.com>
-Message-ID: <ae0b7d0b-54fa-fa93-3b50-d14ace1b16f5@oracle.com>
-Date: Wed, 4 Jan 2017 15:35:13 -0800
+ <ae0b7d0b-54fa-fa93-3b50-d14ace1b16f5@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <d234fb8b-965f-d966-46fe-965478fdf7cb@linux.intel.com>
+Date: Wed, 4 Jan 2017 15:40:23 -0800
 MIME-Version: 1.0
-In-Reply-To: <6fcaab9f-40fb-fdfb-2c7e-bf21a862ab7c@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <ae0b7d0b-54fa-fa93-3b50-d14ace1b16f5@oracle.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+To: Rob Gardner <rob.gardner@oracle.com>, Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
 Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
 
-On 01/04/2017 03:27 PM, Dave Hansen wrote:
-> On 01/04/2017 02:46 PM, Khalid Aziz wrote:
->> This patch extends mprotect to enable ADI (TSTATE.mcde), enable/disable
->> MCD (Memory Corruption Detection) on selected memory ranges, enable
->> TTE.mcd in PTEs, return ADI parameters to userspace and save/restore ADI
->> version tags on page swap out/in.
-> I'm a bit confused why we need all the mechanics with set_swp_pte_at().
-> For pkeys, for instance, all of the PTEs under a given VMA share a pkey.
->   When swapping something in, we just get the pkey out of the VMA and
-> populate the PTE.
->
-> ADI doesn't seem to have a similar restriction.  The feature is turned
-> on or off at a VMA granularity, but we do not (or can enforce that all
-> pages under a given VMA must share a tag.
->
-> But this leads to an interesting question: is the tag associated with
-> the (populated?) pte, or the virtual address?  Can you have tags
-> associated with non-present addresses?  What's the mechanism that clears
-> the tags at munmap() or MADV_FREE time?
->
-> Is the tag storage a precious resource?  Can it be exhausted?
+On 01/04/2017 03:35 PM, Rob Gardner wrote:
+> Tags are not cleared at all when memory is freed, but rather, lazily
+> (and automatically) cleared when memory is allocated.
 
+What does "allocated" mean in this context?  Physical or virtual? What
+does this do, for instance?
 
-Tags are stored in physical memory, so there is no "tag storage" that 
-can be exhausted.
-
-Tags are not cleared at all when memory is freed, but rather, lazily 
-(and automatically) cleared when memory is allocated.
-
-
-Rob
+	ptr = malloc(PAGE_SIZE);
+	set_tag(ptr, 14);
+	madvise(ptr, PAGE_SIZE, MADV_FREE);
+	printf("tag: %d\n", get_tag(ptr));
+	free(ptr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
