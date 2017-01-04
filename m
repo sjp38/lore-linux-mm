@@ -1,222 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1730E6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:23:56 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id d205so20300627oia.2
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:23:56 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u60si31680271otb.182.2017.01.04.06.23.54
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF836B0253
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:26:17 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id q128so312948687qkd.3
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:26:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c5si19476337qke.50.2017.01.04.06.26.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Jan 2017 06:23:54 -0800 (PST)
-Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170102154858.GC18048@dhcp22.suse.cz>
-	<201701031036.IBE51044.QFLFSOHtFOJVMO@I-love.SAKURA.ne.jp>
-	<20170103084211.GB30111@dhcp22.suse.cz>
-	<201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
-	<20170103204014.GA13873@dhcp22.suse.cz>
-In-Reply-To: <20170103204014.GA13873@dhcp22.suse.cz>
-Message-Id: <201701042322.EEG05759.FOMOVLSFJFHOQt@I-love.SAKURA.ne.jp>
-Date: Wed, 4 Jan 2017 23:22:24 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jan 2017 06:26:17 -0800 (PST)
+Date: Wed, 4 Jan 2017 22:26:15 +0800
+From: Xiong Zhou <xzhou@redhat.com>
+Subject: Re: [PATCH] dax: fix deadlock with DAX 4k holes
+Message-ID: <20170104142615.34ci46l7otz7qrlz@XZHOUW.usersys.redhat.com>
+References: <20161027112230.wsumgs62fqdxt3sc@xzhoul.usersys.redhat.com>
+ <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, mgorman@suse.de, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Xiong Zhou <xzhou@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-nvdimm@ml01.01.org
 
-Michal Hocko wrote:
-> On Tue 03-01-17 23:38:30, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 03-01-17 10:36:31, Tetsuo Handa wrote:
-> > > [...]
-> > > > I'm OK with "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator
-> > > > slowpath" given that we describe that we make __GFP_NOFAIL stronger than
-> > > > __GFP_NORETRY with this patch in the changelog.
-> > > 
-> > > Again. __GFP_NORETRY | __GFP_NOFAIL is nonsense! I do not really see any
-> > > reason to describe all the nonsense combinations of gfp flags.
-> > 
-> > Before [PATCH 1/3]:
-> > 
-> >   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
-> >   request even if __GFP_NOFAIL is specified if direct reclaim/compaction
-> >   did not help."
-> > 
-> >   __GFP_NOFAIL is used as "Never fail allocation request unless __GFP_NORETRY
-> >   is specified even if direct reclaim/compaction did not help."
-> > 
-> > After [PATCH 1/3]:
-> > 
-> >   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
-> >   request unless __GFP_NOFAIL is specified."
-> > 
-> >   __GFP_NOFAIL is used as "Never fail allocation request even if direct
-> >   reclaim/compaction did not help. Invoke the OOM killer unless __GFP_NORETRY is
-> >   specified."
-> > 
-> > Thus, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense as
-> > "Never fail allocation request if direct reclaim/compaction did not help.
-> > But do not invoke the OOM killer even if direct reclaim/compaction did not help."
+On Tue, Jan 03, 2017 at 02:36:05PM -0700, Ross Zwisler wrote:
+> Currently in DAX if we have three read faults on the same hole address we
+> can end up with the following:
 > 
-> Stop this! Seriously... This is just wasting time...
-
-You are free to ignore me. But
-
+> Thread 0		Thread 1		Thread 2
+> --------		--------		--------
+> dax_iomap_fault
+>  grab_mapping_entry
+>   lock_slot
+>    <locks empty DAX entry>
 > 
->  * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
->  *   return NULL when direct reclaim and memory compaction have failed to allow
->  *   the allocation to succeed.  The OOM killer is not called with the current
->  *   implementation.
+>   			dax_iomap_fault
+> 			 grab_mapping_entry
+> 			  get_unlocked_mapping_entry
+> 			   <sleeps on empty DAX entry>
 > 
->  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
->  *   cannot handle allocation failures. New users should be evaluated carefully
->  *   (and the flag should be used only when there is no reasonable failure
->  *   policy) but it is definitely preferable to use the flag rather than
->  *   opencode endless loop around allocator.
+> 						dax_iomap_fault
+> 						 grab_mapping_entry
+> 						  get_unlocked_mapping_entry
+> 						   <sleeps on empty DAX entry>
+>   dax_load_hole
+>    find_or_create_page
+>    ...
+>     page_cache_tree_insert
+>      dax_wake_mapping_entry_waiter
+>       <wakes one sleeper>
+>      __radix_tree_replace
+>       <swaps empty DAX entry with 4k zero page>
 > 
-> Can you see how the two are asking for opposite behavior?  Asking for
-> not retrying for ever and not failing and rather retrying for ever
-> simply doesn't make any sense in any reasonable universe I can think
-> of. Therefore I think that it is fair to say that behavior is undefined
-> when both are specified.
+> 			<wakes>
+> 			get_page
+> 			lock_page
+> 			...
+> 			put_locked_mapping_entry
+> 			unlock_page
+> 			put_page
+> 
+> 						<sleeps forever on the DAX
+> 						 wait queue>
+> 
+> The crux of the problem is that once we insert a 4k zero page, all locking
+> from then on is done in terms of that 4k zero page and any additional
+> threads sleeping on the empty DAX entry will never be woken.  Fix this by
+> waking all sleepers when we replace the DAX radix tree entry with a 4k zero
+> page.  This will allow all sleeping threads to successfully transition from
+> locking based on the DAX empty entry to locking on the 4k zero page.
+> 
+> With the test case reported by Xiong this happens very regularly in my test
+> setup, with some runs resulting in 9+ threads in this deadlocked state.
+> With this fix I've been able to run that same test dozens of times in a
+> loop without issue.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reported-by: Xiong Zhou <xzhou@redhat.com>
+> Fixes: commit ac401cc78242 ("dax: New fault locking")
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: stable@vger.kernel.org # 4.7+
+> ---
 
-I consider that I'm using __GFP_NORETRY as a mean to avoid calling the OOM
-killer rather than avoid retrying indefinitely. Therefore, I want
+Positive test result of this patch for this issue and the regression
+tests.
 
-  __GFP_NOOOMKILL: The VM implementation must not call the OOM killer when
-  direct reclaim and memory compaction have failed to allow the allocation
-  to succeed.
-
-and __GFP_NOOOMKILL | __GFP_NOFAIL makes sense.
-
-Technically PATCH 1/3 allows __GFP_NOOOMKILL | __GFP_NOFAIL emulation
-via __GFP_NOFAIL | __GFP_NOFAIL. If you don't like such emulation,
-I welcome __GFP_NOOOMKILL.
+Great job!
 
 > 
-> Considering there are _no_ users which would do that any further
-> discussion about this is just pointless and I will not respond to any
-> further emails in this direction.
+> This issue exists as far back as v4.7, and I was easly able to reproduce it
+> with v4.7 using the same test.
 > 
-> This is just ridiculous!
-
-Regardless of whether we define __GFP_NOOOMKILL, I wonder we need PATCH 2/3 now
-because currently premature OOM killer invocation due to !__GFP_FS && __GFP_NOFAIL
-is a prophetical problem. We can consider PATCH 2/3 (or __GFP_NOOOMKILL) when
-someone reported OOM killer invocation via !__GFP_FS && __GFP_NOFAIL and
-confirmed that the memory counter says premature enough to suppress the OOM
-killer invocation.
-
+> Unfortunately this patch won't apply cleanly to the stable trees, but the
+> change is very simple and should be easy to replicate by hand.  Please ping
+> me if you'd like patches that apply cleanly to the v4.9 and v4.8.15 trees.
 > 
-> [...]
-> >  void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> >  {
-> >  	gfp_t kmalloc_flags = flags;
-> >  	void *ret;
-> >  
-> >  	/*
-> >  	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
-> >  	 * so the given set of flags has to be compatible.
-> >  	 */
-> >  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-> >  
-> >  	/*
-> >  	 * Make sure that larger requests are not too disruptive - no OOM
-> >  	 * killer and no allocation failure warnings as we have a fallback
-> >  	 */
-> > -	if (size > PAGE_SIZE)
-> > +	if (size > PAGE_SIZE) {
-> >  		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
-> > +		kmalloc_flags &= ~__GFP_NOFAIL;
-> > +	}
+> ---
+>  mm/filemap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> No there are simply no users of this and even if had one which would be
-> legitimate it wouldn't be as simple as this. vmalloc _doesn't_ support
-> GFP_NOFAIL and it would be really non-trivial to implement it. If for
-> nothing else there are unconditional GFP_KERNEL allocations in some
-> vmalloc paths (which is btw. the reason why vmalloc is not GFP_NOFS
-> unsafe). It would take much more to add the non-failing semantic. And I
-> see _no_ reason to argue with this possibility when a) there is no such
-> user currently and b) it is even not clear whether we want to support
-> such a usecase.
-
-I didn't know vmalloc() doesn't support GFP_NOFAIL.
-Anyway, we don't need to make such change now because of a).
-
-> 
-> [...]
-> > > > in http://lkml.kernel.org/r/20161218163727.GC8440@dhcp22.suse.cz .
-> > > > Indeed that trace is a __GFP_DIRECT_RECLAIM and it might not be blocking
-> > > > other workqueue items which a regular I/O depend on, I think there are
-> > > > !__GFP_DIRECT_RECLAIM memory allocation requests for issuing SCSI commands
-> > > > which could potentially start failing due to helping GFP_NOFS | __GFP_NOFAIL
-> > > > allocations with memory reserves. If a SCSI disk I/O request fails due to
-> > > > GFP_ATOMIC memory allocation failures because we allow a FS I/O request to
-> > > > use memory reserves, it adds a new problem.
-> > > 
-> > > Do you have any example of such a request? Anything that requires
-> > > a forward progress during IO should be using mempools otherwise it
-> > > is broken pretty much by design already. Also IO depending on NOFS
-> > > allocations sounds pretty much broken already. So I suspect the above
-> > > reasoning is just bogus.
-> > 
-> > You are missing my point. My question is "who needs memory reserves".
-> > I'm not saying that disk I/O depends on GFP_NOFS allocation. I'm worrying
-> > that [PATCH 3/3] consumes memory reserves when disk I/O also depends on
-> > memory reserves.
-> > 
-> > My understanding is that when accessing SCSI disks, SCSI protocol is used.
-> > SCSI driver allocates memory at runtime for using SCSI protocol using
-> > GFP_ATOMIC. And GFP_ATOMIC uses some of memory reserves. But [PATCH 3/3]
-> > also uses memory reserves. If memory reserves are consumed by [PATCH 3/3]
-> > to the level where GFP_ATOMIC cannot succeed, I think it causes troubles.
-> 
-> Yes and GFP_ATOMIC will have a deeper access to memory reserves than what
-> we are giving access to in patch 3. There is difference between
-> ALLOC_HARDER and ALLOC_HIGH. This is described in the changelog. Sure
-> GFP_NOFAIL will eat into part of the reserves which GFP_ATOMIC (aka
-> GFP_HIGH) could have used but a) this shouldn't happen unless we are
-> really getting out of memory and b) it should help other presumably
-> important allocations (why would they be GFP_NOFAIL otherwise right?).
-> So it is not just a free ticket to a scarce resource and IMHO it is
-> justified.
-
-If you try to allow !__GFP_FS allocations to fail rather than retry,
-someone might start scattering __GFP_NOFAIL regardless of importance.
-
-> 
-> > I'm unable to obtain nice backtraces, but I think we can confirm that
-> > there are GFP_ATOMIC allocations (e.g. sg_alloc_table_chained() calls
-> > __sg_alloc_table(GFP_ATOMIC)) when we are using SCSI disks.
-> 
-> How are those blocking further progress? Failing atomic allocations are
-> nothing to lose sleep over. They cannot be, pretty by definition, relied
-> on to make a further progress.
-
-So, regarding simple SCSI disk case, it is guaranteed that disk I/O request
-can recover from transient failures (e.g. timeout?) and complete unless
-fatal failures (e.g. hardware out of order?) occur, isn't it? Then,
-PATCH 3/3 would be helpful for this case.
-
-What about other cases, such as loopback devices ( /dev/loopX ) and/or
-networking storage? Are they also guaranteed that I/O requests never be
-blocked on memory allocation requests which are not allowed to access
-memory reserves? If yes, PATCH 3/3 would be helpful. If no, I think
-what we need is a mechanism to propagate allowing access to memory
-reserves similar to scope GFP_NOFS API.
-
-> 
-> [...]
-> 
-> I am _really_ getting tired of this discussion. You are making wrong or
-> unfounded claims again and again. I have no idea what are you trying to
-> achieve here but I simply do not see any sense in continuing in this
-> discussion.
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index d0e4d10..b772a33 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -138,7 +138,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
+>  				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
+>  			/* Wakeup waiters for exceptional entry lock */
+>  			dax_wake_mapping_entry_waiter(mapping, page->index, p,
+> -						      false);
+> +						      true);
+>  		}
+>  	}
+>  	__radix_tree_replace(&mapping->page_tree, node, slot, page,
 > -- 
-> Michal Hocko
-> SUSE Labs
+> 2.7.4
 > 
 
 --
