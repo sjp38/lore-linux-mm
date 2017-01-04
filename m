@@ -1,87 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C8B896B0038
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:02:26 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 127so479003361pfg.5
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:02:26 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 80si41972625pfk.79.2017.01.04.06.02.24
-        for <linux-mm@kvack.org>;
-        Wed, 04 Jan 2017 06:02:24 -0800 (PST)
-Date: Wed, 4 Jan 2017 14:02:23 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Message-ID: <20170104140223.GF18193@arm.com>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
- <20170104132831.GD18193@arm.com>
- <CAKv+Gu8MdpVDCSjfum7AMtbgR6cTP5H+67svhDSu6bkaijvvyg@mail.gmail.com>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 347BC6B0260
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:03:17 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id h67so243449400vkf.4
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:03:17 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id n5si76305648wmf.2.2017.01.04.06.03.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Jan 2017 06:03:15 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 83B5898BF0
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 14:03:15 +0000 (UTC)
+Date: Wed, 4 Jan 2017 14:03:15 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 4/4] mm, page_alloc: Add a bulk page allocator
+Message-ID: <20170104140314.37sg3ql2aoqvpgq5@techsingularity.net>
+References: <20170104111049.15501-1-mgorman@techsingularity.net>
+ <20170104111049.15501-5-mgorman@techsingularity.net>
+ <20170104144844.7d2a1d6f@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAKv+Gu8MdpVDCSjfum7AMtbgR6cTP5H+67svhDSu6bkaijvvyg@mail.gmail.com>
+In-Reply-To: <20170104144844.7d2a1d6f@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Hanjun Guo <hanjun.guo@linaro.org>, Yisheng Xie <xieyisheng1@huawei.com>, Robert Richter <rrichter@cavium.com>, James Morse <james.morse@arm.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, Jan 04, 2017 at 01:50:20PM +0000, Ard Biesheuvel wrote:
-> On 4 January 2017 at 13:28, Will Deacon <will.deacon@arm.com> wrote:
-> > On Wed, Dec 14, 2016 at 09:11:47AM +0000, Ard Biesheuvel wrote:
-> >> The NUMA code may get confused by the presence of NOMAP regions within
-> >> zones, resulting in spurious BUG() checks where the node id deviates
-> >> from the containing zone's node id.
-> >>
-> >> Since the kernel has no business reasoning about node ids of pages it
-> >> does not own in the first place, enable CONFIG_HOLES_IN_ZONE to ensure
-> >> that such pages are disregarded.
-> >>
-> >> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> >> ---
-> >>  arch/arm64/Kconfig | 4 ++++
-> >>  1 file changed, 4 insertions(+)
-> >>
-> >> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> >> index 111742126897..0472afe64d55 100644
-> >> --- a/arch/arm64/Kconfig
-> >> +++ b/arch/arm64/Kconfig
-> >> @@ -614,6 +614,10 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
-> >>       def_bool y
-> >>       depends on NUMA
-> >>
-> >> +config HOLES_IN_ZONE
-> >> +     def_bool y
-> >> +     depends on NUMA
-> >> +
-> >>  source kernel/Kconfig.preempt
-> >>  source kernel/Kconfig.hz
-> >
-> > I'm happy to apply this, but I'll hold off until the first patch is queued
-> > somewhere, since this doesn't help without the VM_BUG_ON being moved.
-> >
-> > Alternatively, I can queue both if somebody from the mm camp acks the
-> > first patch.
-> >
+On Wed, Jan 04, 2017 at 02:48:44PM +0100, Jesper Dangaard Brouer wrote:
+> On Wed,  4 Jan 2017 11:10:49 +0000
+> > The API is not guaranteed to return the requested number of pages and
+> > may fail if the preferred allocation zone has limited free memory,
+> > the cpuset changes during the allocation or page debugging decides
+> > to fail an allocation. It's up to the caller to request more pages
+> > in batch if necessary.
 > 
-> Actually, I am not convinced the discussion is finalized. These
-> patches do fix the issue, but Robert also suggested an alternative fix
-> which may be preferable.
+> I generally like it, thanks! :-)
 > 
-> http://marc.info/?l=linux-arm-kernel&m=148190753510107&w=2
+
+No problem.
+
+> > +	/*
+> > +	 * Only attempt a batch allocation if watermarks on the preferred zone
+> > +	 * are safe.
+> > +	 */
+> > +	zone = ac.preferred_zoneref->zone;
+> > +	if (!zone_watermark_fast(zone, order, zone->watermark[ALLOC_WMARK_HIGH] + nr_pages,
+> > +				 zonelist_zone_idx(ac.preferred_zoneref), alloc_flags))
+> > +		goto failed;
+> > +
+> > +	/* Attempt the batch allocation */
+> > +	migratetype = ac.migratetype;
+> > +
+> > +	local_irq_save(flags);
 > 
-> I haven't responded to it yet, due to the holidays, but I'd like to
-> explore that solution a bit further before applying anything, if you
-> don't mind.
+> It would be a win if we could either use local_irq_{disable,enable} or
+> preempt_{disable,enable} here, by dictating it can only be used from
+> irq-safe context (like you did in patch 3).
+> 
 
-Using early_pfn_valid feels like a bodge to me, since having pfn_valid
-return false for something that early_pfn_valid says is valid (and is
-therefore initialised in the memmap) makes the NOMAP semantics even more
-confusing.
+This was a stupid mistake during a rebase. I should have removed all the
+IRQ-disabling entirely and made it only usable from non-IRQ context to
+keep the motivation of patch 3 in place. It was a botched rebase of the
+patch on top of patch 3 that wasn't properly tested. It still illustrates
+the general shape at least. For extra safety, I should force it to return
+just a single page if called from interrupt context.
 
-But there's no rush, so I'll hold off for the moment. I was under the
-impression that things had stalled.
+Is bulk allocation from IRQ context a requirement? If so, the motivation
+for patch 3 disappears which is a pity but IRQ safety has a price. The
+shape of V2 depends on the answer.
 
-Will
+> 
+> > +	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> > +	pcp_list = &pcp->lists[migratetype];
+> > +
+> > +	while (nr_pages) {
+> > +		page = __rmqueue_pcplist(zone, order, gfp_mask, migratetype,
+> > +								cold, pcp, pcp_list);
+> > +		if (!page)
+> > +			break;
+> > +
+> > +		nr_pages--;
+> > +		alloced++;
+> > +		list_add(&page->lru, alloc_list);
+> > +	}
+> > +
+> > +	if (!alloced) {
+> > +		local_irq_restore(flags);
+> > +		preempt_enable();
+> 
+> The preempt_enable here looks wrong.
+> 
+
+It is because I screwed up the rebase.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
