@@ -1,144 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD1F66B025E
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:20:29 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id t184so315984147qkd.2
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:20:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f9si35334988qki.259.2017.01.04.06.20.28
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1730E6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:23:56 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id d205so20300627oia.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:23:56 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u60si31680271otb.182.2017.01.04.06.23.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 06:20:29 -0800 (PST)
-Date: Wed, 4 Jan 2017 15:20:24 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 3/4] mm, page_allocator: Only use per-cpu allocator for
- irq-safe requests
-Message-ID: <20170104152024.7e050b84@redhat.com>
-In-Reply-To: <20170104111049.15501-4-mgorman@techsingularity.net>
-References: <20170104111049.15501-1-mgorman@techsingularity.net>
-	<20170104111049.15501-4-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Jan 2017 06:23:54 -0800 (PST)
+Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170102154858.GC18048@dhcp22.suse.cz>
+	<201701031036.IBE51044.QFLFSOHtFOJVMO@I-love.SAKURA.ne.jp>
+	<20170103084211.GB30111@dhcp22.suse.cz>
+	<201701032338.EFH69294.VOMSHFLOFOtQFJ@I-love.SAKURA.ne.jp>
+	<20170103204014.GA13873@dhcp22.suse.cz>
+In-Reply-To: <20170103204014.GA13873@dhcp22.suse.cz>
+Message-Id: <201701042322.EEG05759.FOMOVLSFJFHOQt@I-love.SAKURA.ne.jp>
+Date: Wed, 4 Jan 2017 23:22:24 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, brouer@redhat.com
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, mgorman@suse.de, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed,  4 Jan 2017 11:10:48 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> Many workloads that allocate pages are not handling an interrupt at a
-> time. As allocation requests may be from IRQ context, it's necessary to
-> disable/enable IRQs for every page allocation. This cost is the bulk
-> of the free path but also a significant percentage of the allocation
-> path.
+Michal Hocko wrote:
+> On Tue 03-01-17 23:38:30, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 03-01-17 10:36:31, Tetsuo Handa wrote:
+> > > [...]
+> > > > I'm OK with "[PATCH 1/3] mm: consolidate GFP_NOFAIL checks in the allocator
+> > > > slowpath" given that we describe that we make __GFP_NOFAIL stronger than
+> > > > __GFP_NORETRY with this patch in the changelog.
+> > > 
+> > > Again. __GFP_NORETRY | __GFP_NOFAIL is nonsense! I do not really see any
+> > > reason to describe all the nonsense combinations of gfp flags.
+> > 
+> > Before [PATCH 1/3]:
+> > 
+> >   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
+> >   request even if __GFP_NOFAIL is specified if direct reclaim/compaction
+> >   did not help."
+> > 
+> >   __GFP_NOFAIL is used as "Never fail allocation request unless __GFP_NORETRY
+> >   is specified even if direct reclaim/compaction did not help."
+> > 
+> > After [PATCH 1/3]:
+> > 
+> >   __GFP_NORETRY is used as "Do not invoke the OOM killer. Fail allocation
+> >   request unless __GFP_NOFAIL is specified."
+> > 
+> >   __GFP_NOFAIL is used as "Never fail allocation request even if direct
+> >   reclaim/compaction did not help. Invoke the OOM killer unless __GFP_NORETRY is
+> >   specified."
+> > 
+> > Thus, __GFP_NORETRY | __GFP_NOFAIL perfectly makes sense as
+> > "Never fail allocation request if direct reclaim/compaction did not help.
+> > But do not invoke the OOM killer even if direct reclaim/compaction did not help."
 > 
-> This patch alters the locking and checks such that only irq-safe allocation
-> requests use the per-cpu allocator. All others acquire the irq-safe
-> zone->lock and allocate from the buddy allocator. It relies on disabling
-> preemption to safely access the per-cpu structures. 
+> Stop this! Seriously... This is just wasting time...
 
-I love this idea and patch :-)
+You are free to ignore me. But
 
-> It could be slightly
-> modified to avoid soft IRQs using it but it's not clear it's worthwhile.
-
-NICs usually refill their RX-ring from SoftIRQ context (NAPI).
-Thus, we do want this optimization to work in softirq.
-
- 
-> This modification may slow allocations from IRQ context slightly but the main
-> gain from the per-cpu allocator is that it scales better for allocations
-> from multiple contexts. There is an implicit assumption that intensive
-> allocations from IRQ contexts on multiple CPUs from a single NUMA node are
-> rare and that the fast majority of scaling issues are encountered in !IRQ
-> contexts such as page faulting. 
-
-IHMO, I agree with this implicit assumption.
-
-
-> It's worth noting that this patch is not
-> required for a bulk page allocator but it significantly reduces the overhead.
 > 
-> The following is results from a page allocator micro-benchmark. Only
-> order-0 is interesting as higher orders do not use the per-cpu allocator
-
-I'm seeing approx 34% reduction in a order-0 micro-benchmark! amazing! :-)
-[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/
-
->                                           4.10.0-rc2                 4.10.0-rc2
->                                              vanilla               irqsafe-v1r5
-> Amean    alloc-odr0-1               287.15 (  0.00%)           219.00 ( 23.73%)
-> Amean    alloc-odr0-2               221.23 (  0.00%)           183.23 ( 17.18%)
-> Amean    alloc-odr0-4               187.00 (  0.00%)           151.38 ( 19.05%)
-> Amean    alloc-odr0-8               167.54 (  0.00%)           132.77 ( 20.75%)
-> Amean    alloc-odr0-16              156.00 (  0.00%)           123.00 ( 21.15%)
-> Amean    alloc-odr0-32              149.00 (  0.00%)           118.31 ( 20.60%)
-> Amean    alloc-odr0-64              138.77 (  0.00%)           116.00 ( 16.41%)
-> Amean    alloc-odr0-128             145.00 (  0.00%)           118.00 ( 18.62%)
-> Amean    alloc-odr0-256             136.15 (  0.00%)           125.00 (  8.19%)
-> Amean    alloc-odr0-512             147.92 (  0.00%)           121.77 ( 17.68%)
-> Amean    alloc-odr0-1024            147.23 (  0.00%)           126.15 ( 14.32%)
-> Amean    alloc-odr0-2048            155.15 (  0.00%)           129.92 ( 16.26%)
-> Amean    alloc-odr0-4096            164.00 (  0.00%)           136.77 ( 16.60%)
-> Amean    alloc-odr0-8192            166.92 (  0.00%)           138.08 ( 17.28%)
-> Amean    alloc-odr0-16384           159.00 (  0.00%)           138.00 ( 13.21%)
-> Amean    free-odr0-1                165.00 (  0.00%)            89.00 ( 46.06%)
-> Amean    free-odr0-2                113.00 (  0.00%)            63.00 ( 44.25%)
-> Amean    free-odr0-4                 99.00 (  0.00%)            54.00 ( 45.45%)
-> Amean    free-odr0-8                 88.00 (  0.00%)            47.38 ( 46.15%)
-> Amean    free-odr0-16                83.00 (  0.00%)            46.00 ( 44.58%)
-> Amean    free-odr0-32                80.00 (  0.00%)            44.38 ( 44.52%)
-> Amean    free-odr0-64                72.62 (  0.00%)            43.00 ( 40.78%)
-> Amean    free-odr0-128               78.00 (  0.00%)            42.00 ( 46.15%)
-> Amean    free-odr0-256               80.46 (  0.00%)            57.00 ( 29.16%)
-> Amean    free-odr0-512               96.38 (  0.00%)            64.69 ( 32.88%)
-> Amean    free-odr0-1024             107.31 (  0.00%)            72.54 ( 32.40%)
-> Amean    free-odr0-2048             108.92 (  0.00%)            78.08 ( 28.32%)
-> Amean    free-odr0-4096             113.38 (  0.00%)            82.23 ( 27.48%)
-> Amean    free-odr0-8192             112.08 (  0.00%)            82.85 ( 26.08%)
-> Amean    free-odr0-16384            110.38 (  0.00%)            81.92 ( 25.78%)
-> Amean    total-odr0-1               452.15 (  0.00%)           308.00 ( 31.88%)
-> Amean    total-odr0-2               334.23 (  0.00%)           246.23 ( 26.33%)
-> Amean    total-odr0-4               286.00 (  0.00%)           205.38 ( 28.19%)
-> Amean    total-odr0-8               255.54 (  0.00%)           180.15 ( 29.50%)
-> Amean    total-odr0-16              239.00 (  0.00%)           169.00 ( 29.29%)
-> Amean    total-odr0-32              229.00 (  0.00%)           162.69 ( 28.96%)
-> Amean    total-odr0-64              211.38 (  0.00%)           159.00 ( 24.78%)
-> Amean    total-odr0-128             223.00 (  0.00%)           160.00 ( 28.25%)
-> Amean    total-odr0-256             216.62 (  0.00%)           182.00 ( 15.98%)
-> Amean    total-odr0-512             244.31 (  0.00%)           186.46 ( 23.68%)
-> Amean    total-odr0-1024            254.54 (  0.00%)           198.69 ( 21.94%)
-> Amean    total-odr0-2048            264.08 (  0.00%)           208.00 ( 21.24%)
-> Amean    total-odr0-4096            277.38 (  0.00%)           219.00 ( 21.05%)
-> Amean    total-odr0-8192            279.00 (  0.00%)           220.92 ( 20.82%)
-> Amean    total-odr0-16384           269.38 (  0.00%)           219.92 ( 18.36%)
+>  * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
+>  *   return NULL when direct reclaim and memory compaction have failed to allow
+>  *   the allocation to succeed.  The OOM killer is not called with the current
+>  *   implementation.
 > 
-> This is the alloc, free and total overhead of allocating order-0 pages in
-> batches of 1 page up to 16384 pages. Avoiding disabling/enabling overhead
-> massively reduces overhead. Alloc overhead is roughly reduced by 14-20% in
-> most cases. The free path is reduced by 26-46% and the total reduction
-> is significant.
+>  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
+>  *   cannot handle allocation failures. New users should be evaluated carefully
+>  *   (and the flag should be used only when there is no reasonable failure
+>  *   policy) but it is definitely preferable to use the flag rather than
+>  *   opencode endless loop around allocator.
 > 
-[...]
+> Can you see how the two are asking for opposite behavior?  Asking for
+> not retrying for ever and not failing and rather retrying for ever
+> simply doesn't make any sense in any reasonable universe I can think
+> of. Therefore I think that it is fair to say that behavior is undefined
+> when both are specified.
+
+I consider that I'm using __GFP_NORETRY as a mean to avoid calling the OOM
+killer rather than avoid retrying indefinitely. Therefore, I want
+
+  __GFP_NOOOMKILL: The VM implementation must not call the OOM killer when
+  direct reclaim and memory compaction have failed to allow the allocation
+  to succeed.
+
+and __GFP_NOOOMKILL | __GFP_NOFAIL makes sense.
+
+Technically PATCH 1/3 allows __GFP_NOOOMKILL | __GFP_NOFAIL emulation
+via __GFP_NOFAIL | __GFP_NOFAIL. If you don't like such emulation,
+I welcome __GFP_NOOOMKILL.
+
 > 
-> Similarly, little benefit was seen on networking benchmarks both localhost
-> and between physical server/clients where other costs dominate. It's
-> possible that this will only be noticable on very high speed networks.
+> Considering there are _no_ users which would do that any further
+> discussion about this is just pointless and I will not respond to any
+> further emails in this direction.
+> 
+> This is just ridiculous!
 
-The networking results highly depend on NIC drivers.  As you mention in
-the cover-letter, (1) some drivers (e.g mlx4) alloc high-order pages to
-work-around order-0 pages and DMA-map being too slow (for their HW
-use-case), (2) drivers that do use order-0 pages have driver specific
-page-recycling tricks (e.g. mlx5 and ixgbe).  The page_pool target
-making a more generic recycle mechanism for drivers to use.
+Regardless of whether we define __GFP_NOOOMKILL, I wonder we need PATCH 2/3 now
+because currently premature OOM killer invocation due to !__GFP_FS && __GFP_NOFAIL
+is a prophetical problem. We can consider PATCH 2/3 (or __GFP_NOOOMKILL) when
+someone reported OOM killer invocation via !__GFP_FS && __GFP_NOFAIL and
+confirmed that the memory counter says premature enough to suppress the OOM
+killer invocation.
 
-I'm very excited to see improvements in this area! :-)))
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+> 
+> [...]
+> >  void *kvmalloc_node(size_t size, gfp_t flags, int node)
+> >  {
+> >  	gfp_t kmalloc_flags = flags;
+> >  	void *ret;
+> >  
+> >  	/*
+> >  	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+> >  	 * so the given set of flags has to be compatible.
+> >  	 */
+> >  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+> >  
+> >  	/*
+> >  	 * Make sure that larger requests are not too disruptive - no OOM
+> >  	 * killer and no allocation failure warnings as we have a fallback
+> >  	 */
+> > -	if (size > PAGE_SIZE)
+> > +	if (size > PAGE_SIZE) {
+> >  		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> > +		kmalloc_flags &= ~__GFP_NOFAIL;
+> > +	}
+> 
+> No there are simply no users of this and even if had one which would be
+> legitimate it wouldn't be as simple as this. vmalloc _doesn't_ support
+> GFP_NOFAIL and it would be really non-trivial to implement it. If for
+> nothing else there are unconditional GFP_KERNEL allocations in some
+> vmalloc paths (which is btw. the reason why vmalloc is not GFP_NOFS
+> unsafe). It would take much more to add the non-failing semantic. And I
+> see _no_ reason to argue with this possibility when a) there is no such
+> user currently and b) it is even not clear whether we want to support
+> such a usecase.
+
+I didn't know vmalloc() doesn't support GFP_NOFAIL.
+Anyway, we don't need to make such change now because of a).
+
+> 
+> [...]
+> > > > in http://lkml.kernel.org/r/20161218163727.GC8440@dhcp22.suse.cz .
+> > > > Indeed that trace is a __GFP_DIRECT_RECLAIM and it might not be blocking
+> > > > other workqueue items which a regular I/O depend on, I think there are
+> > > > !__GFP_DIRECT_RECLAIM memory allocation requests for issuing SCSI commands
+> > > > which could potentially start failing due to helping GFP_NOFS | __GFP_NOFAIL
+> > > > allocations with memory reserves. If a SCSI disk I/O request fails due to
+> > > > GFP_ATOMIC memory allocation failures because we allow a FS I/O request to
+> > > > use memory reserves, it adds a new problem.
+> > > 
+> > > Do you have any example of such a request? Anything that requires
+> > > a forward progress during IO should be using mempools otherwise it
+> > > is broken pretty much by design already. Also IO depending on NOFS
+> > > allocations sounds pretty much broken already. So I suspect the above
+> > > reasoning is just bogus.
+> > 
+> > You are missing my point. My question is "who needs memory reserves".
+> > I'm not saying that disk I/O depends on GFP_NOFS allocation. I'm worrying
+> > that [PATCH 3/3] consumes memory reserves when disk I/O also depends on
+> > memory reserves.
+> > 
+> > My understanding is that when accessing SCSI disks, SCSI protocol is used.
+> > SCSI driver allocates memory at runtime for using SCSI protocol using
+> > GFP_ATOMIC. And GFP_ATOMIC uses some of memory reserves. But [PATCH 3/3]
+> > also uses memory reserves. If memory reserves are consumed by [PATCH 3/3]
+> > to the level where GFP_ATOMIC cannot succeed, I think it causes troubles.
+> 
+> Yes and GFP_ATOMIC will have a deeper access to memory reserves than what
+> we are giving access to in patch 3. There is difference between
+> ALLOC_HARDER and ALLOC_HIGH. This is described in the changelog. Sure
+> GFP_NOFAIL will eat into part of the reserves which GFP_ATOMIC (aka
+> GFP_HIGH) could have used but a) this shouldn't happen unless we are
+> really getting out of memory and b) it should help other presumably
+> important allocations (why would they be GFP_NOFAIL otherwise right?).
+> So it is not just a free ticket to a scarce resource and IMHO it is
+> justified.
+
+If you try to allow !__GFP_FS allocations to fail rather than retry,
+someone might start scattering __GFP_NOFAIL regardless of importance.
+
+> 
+> > I'm unable to obtain nice backtraces, but I think we can confirm that
+> > there are GFP_ATOMIC allocations (e.g. sg_alloc_table_chained() calls
+> > __sg_alloc_table(GFP_ATOMIC)) when we are using SCSI disks.
+> 
+> How are those blocking further progress? Failing atomic allocations are
+> nothing to lose sleep over. They cannot be, pretty by definition, relied
+> on to make a further progress.
+
+So, regarding simple SCSI disk case, it is guaranteed that disk I/O request
+can recover from transient failures (e.g. timeout?) and complete unless
+fatal failures (e.g. hardware out of order?) occur, isn't it? Then,
+PATCH 3/3 would be helpful for this case.
+
+What about other cases, such as loopback devices ( /dev/loopX ) and/or
+networking storage? Are they also guaranteed that I/O requests never be
+blocked on memory allocation requests which are not allowed to access
+memory reserves? If yes, PATCH 3/3 would be helpful. If no, I think
+what we need is a mechanism to propagate allowing access to memory
+reserves similar to scope GFP_NOFS API.
+
+> 
+> [...]
+> 
+> I am _really_ getting tired of this discussion. You are making wrong or
+> unfounded claims again and again. I have no idea what are you trying to
+> achieve here but I simply do not see any sense in continuing in this
+> discussion.
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
