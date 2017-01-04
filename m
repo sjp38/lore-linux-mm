@@ -1,120 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AAF836B0253
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:26:17 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id q128so312948687qkd.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:26:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c5si19476337qke.50.2017.01.04.06.26.16
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B64C46B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:49:56 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id hb5so116185717wjc.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:49:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i2si77961649wma.140.2017.01.04.06.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 06:26:17 -0800 (PST)
-Date: Wed, 4 Jan 2017 22:26:15 +0800
-From: Xiong Zhou <xzhou@redhat.com>
-Subject: Re: [PATCH] dax: fix deadlock with DAX 4k holes
-Message-ID: <20170104142615.34ci46l7otz7qrlz@XZHOUW.usersys.redhat.com>
-References: <20161027112230.wsumgs62fqdxt3sc@xzhoul.usersys.redhat.com>
- <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Jan 2017 06:49:55 -0800 (PST)
+Subject: Re: [PATCH 3/3] oom, trace: add compaction retry tracepoint
+References: <20161220130135.15719-1-mhocko@kernel.org>
+ <20161220130135.15719-4-mhocko@kernel.org>
+ <6f3a808d-7799-80f5-9c00-4fb996dc31fa@suse.cz>
+ <20170104105629.GF25453@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d8854f76-a421-4e9e-08ef-abd2e5c15007@suse.cz>
+Date: Wed, 4 Jan 2017 15:49:54 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170104105629.GF25453@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Xiong Zhou <xzhou@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-nvdimm@ml01.01.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jan 03, 2017 at 02:36:05PM -0700, Ross Zwisler wrote:
-> Currently in DAX if we have three read faults on the same hole address we
-> can end up with the following:
+On 01/04/2017 11:56 AM, Michal Hocko wrote:
+> On Wed 04-01-17 11:47:56, Vlastimil Babka wrote:
+>> On 12/20/2016 02:01 PM, Michal Hocko wrote:
+>>> From: Michal Hocko <mhocko@suse.com>
+>>
+>> --------8<--------
+>> From: Vlastimil Babka <vbabka@suse.cz>
+>> Date: Wed, 4 Jan 2017 11:44:09 +0100
+>> Subject: [PATCH] oom, trace: add compaction retry tracepoint-fix
+>>
+>> Let's print the compaction priorities lower-case and without
+>> prefix for consistency.
+>>
+>> Also indent fix in compact_result_to_feedback().
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > 
-> Thread 0		Thread 1		Thread 2
-> --------		--------		--------
-> dax_iomap_fault
->  grab_mapping_entry
->   lock_slot
->    <locks empty DAX entry>
-> 
->   			dax_iomap_fault
-> 			 grab_mapping_entry
-> 			  get_unlocked_mapping_entry
-> 			   <sleeps on empty DAX entry>
-> 
-> 						dax_iomap_fault
-> 						 grab_mapping_entry
-> 						  get_unlocked_mapping_entry
-> 						   <sleeps on empty DAX entry>
->   dax_load_hole
->    find_or_create_page
->    ...
->     page_cache_tree_insert
->      dax_wake_mapping_entry_waiter
->       <wakes one sleeper>
->      __radix_tree_replace
->       <swaps empty DAX entry with 4k zero page>
-> 
-> 			<wakes>
-> 			get_page
-> 			lock_page
-> 			...
-> 			put_locked_mapping_entry
-> 			unlock_page
-> 			put_page
-> 
-> 						<sleeps forever on the DAX
-> 						 wait queue>
-> 
-> The crux of the problem is that once we insert a 4k zero page, all locking
-> from then on is done in terms of that 4k zero page and any additional
-> threads sleeping on the empty DAX entry will never be woken.  Fix this by
-> waking all sleepers when we replace the DAX radix tree entry with a 4k zero
-> page.  This will allow all sleeping threads to successfully transition from
-> locking based on the DAX empty entry to locking on the 4k zero page.
-> 
-> With the test case reported by Xiong this happens very regularly in my test
-> setup, with some runs resulting in 9+ threads in this deadlocked state.
-> With this fix I've been able to run that same test dozens of times in a
-> loop without issue.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Reported-by: Xiong Zhou <xzhou@redhat.com>
-> Fixes: commit ac401cc78242 ("dax: New fault locking")
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: stable@vger.kernel.org # 4.7+
-> ---
+> I would just worry that c&p constant name is easier to work with when
+> vim -t $PRIO or git grep $PRIO. But if the lowercase and shorter sounds
+> better to you then no objections from me.
 
-Positive test result of this patch for this issue and the regression
-tests.
+Yeah, valid point, but since we didn't do that until now, let's stay
+consistent.
 
-Great job!
-
-> 
-> This issue exists as far back as v4.7, and I was easly able to reproduce it
-> with v4.7 using the same test.
-> 
-> Unfortunately this patch won't apply cleanly to the stable trees, but the
-> change is very simple and should be easy to replicate by hand.  Please ping
-> me if you'd like patches that apply cleanly to the v4.9 and v4.8.15 trees.
-> 
-> ---
->  mm/filemap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d0e4d10..b772a33 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -138,7 +138,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
->  				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
->  			/* Wakeup waiters for exceptional entry lock */
->  			dax_wake_mapping_entry_waiter(mapping, page->index, p,
-> -						      false);
-> +						      true);
->  		}
->  	}
->  	__radix_tree_replace(&mapping->page_tree, node, slot, page,
-> -- 
-> 2.7.4
+>> ---
+>>  include/trace/events/mmflags.h | 8 ++++----
+>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+>> index aa4caa6914a9..e4c3a0febcce 100644
+>> --- a/include/trace/events/mmflags.h
+>> +++ b/include/trace/events/mmflags.h
+>> @@ -195,7 +195,7 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
+>>  
+>>  #define compact_result_to_feedback(result)	\
+>>  ({						\
+>> - 	enum compact_result __result = result;	\
+>> +	enum compact_result __result = result;	\
+>>  	(compaction_failed(__result)) ? COMPACTION_FAILED : \
+>>  		(compaction_withdrawn(__result)) ? COMPACTION_WITHDRAWN : COMPACTION_PROGRESS; \
+>>  })
+>> @@ -206,9 +206,9 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
+>>  	EMe(COMPACTION_PROGRESS,	"progress")
+>>  
+>>  #define COMPACTION_PRIORITY						\
+>> -	EM(COMPACT_PRIO_SYNC_FULL,	"COMPACT_PRIO_SYNC_FULL")	\
+>> -	EM(COMPACT_PRIO_SYNC_LIGHT,	"COMPACT_PRIO_SYNC_LIGHT")	\
+>> -	EMe(COMPACT_PRIO_ASYNC,		"COMPACT_PRIO_ASYNC")
+>> +	EM(COMPACT_PRIO_SYNC_FULL,	"sync_full")	\
+>> +	EM(COMPACT_PRIO_SYNC_LIGHT,	"sync_light")	\
+>> +	EMe(COMPACT_PRIO_ASYNC,		"async")
+>>  #else
+>>  #define COMPACTION_STATUS
+>>  #define COMPACTION_PRIORITY
+>> -- 
+>> 2.11.0
+>>
 > 
 
 --
