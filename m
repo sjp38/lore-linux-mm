@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9196B0038
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 06:44:52 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id u5so968531620pgi.7
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 03:44:52 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A7AE76B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 07:16:43 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 5so1398995672pgi.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 04:16:43 -0800 (PST)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e22si72228958pli.289.2017.01.04.03.44.51
+        by mx.google.com with ESMTP id v1si57912338pgo.267.2017.01.04.04.16.42
         for <linux-mm@kvack.org>;
-        Wed, 04 Jan 2017 03:44:51 -0800 (PST)
-Date: Wed, 4 Jan 2017 11:44:50 +0000
+        Wed, 04 Jan 2017 04:16:42 -0800 (PST)
+Date: Wed, 4 Jan 2017 12:16:41 +0000
 From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCHv6 00/11] CONFIG_DEBUG_VIRTUAL for arm64
-Message-ID: <20170104114449.GA18193@arm.com>
-References: <1483464113-1587-1-git-send-email-labbott@redhat.com>
- <edc8eaa2-5414-506c-1dad-f2404ef19c81@gmail.com>
- <b3de65da-8a74-2510-268e-34516cc2de77@redhat.com>
+Subject: Re: [PATCH 1/2] mm: don't dereference struct page fields of invalid
+ pages
+Message-ID: <20170104121641.GC18193@arm.com>
+References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1481706707-6211-2-git-send-email-ard.biesheuvel@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b3de65da-8a74-2510-268e-34516cc2de77@redhat.com>
+In-Reply-To: <1481706707-6211-2-git-send-email-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Florian Fainelli <f.fainelli@gmail.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, x86@kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, linux-arm-kernel@lists.infradead.org, xen-devel@lists.xenproject.org, David Vrabel <david.vrabel@citrix.com>, Kees Cook <keescook@chromium.org>, Marc Zyngier <marc.zyngier@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, Eric Biederman <ebiederm@xmission.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoffer Dall <christoffer.dall@linaro.org>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, catalin.marinas@arm.com, akpm@linux-foundation.org, hanjun.guo@linaro.org, xieyisheng1@huawei.com, rrichter@cavium.com, james.morse@arm.com
 
-On Tue, Jan 03, 2017 at 03:25:53PM -0800, Laura Abbott wrote:
-> On 01/03/2017 02:56 PM, Florian Fainelli wrote:
-> > On 01/03/2017 09:21 AM, Laura Abbott wrote:
-> >> Happy New Year!
-> >>
-> >> This is a very minor rebase from v5. It only moves a few headers around.
-> >> I think this series should be ready to be queued up for 4.11.
-> > 
-> > FWIW:
-> > 
-> > Tested-by: Florian Fainelli <f.fainelli@gmail.com>
-> > 
+On Wed, Dec 14, 2016 at 09:11:46AM +0000, Ard Biesheuvel wrote:
+> The VM_BUG_ON() check in move_freepages() checks whether the node
+> id of a page matches the node id of its zone. However, it does this
+> before having checked whether the struct page pointer refers to a
+> valid struct page to begin with. This is guaranteed in most cases,
+> but may not be the case if CONFIG_HOLES_IN_ZONE=y.
 > 
-> Thanks!
+> So reorder the VM_BUG_ON() with the pfn_valid_within() check.
 > 
-> > How do we get this series included? I would like to get the ARM 32-bit
-> > counterpart included as well (will resubmit rebased shortly), but I have
-> > no clue which tree this should be going through.
-> > 
+> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> ---
+>  mm/page_alloc.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> I was assuming this would go through the arm64 tree unless Catalin/Will
-> have an objection to that.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f64e7bcb43b7..4e298e31fa86 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1864,14 +1864,14 @@ int move_freepages(struct zone *zone,
+>  #endif
+>  
+>  	for (page = start_page; page <= end_page;) {
+> -		/* Make sure we are not inadvertently changing nodes */
+> -		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
+> -
+>  		if (!pfn_valid_within(page_to_pfn(page))) {
+>  			page++;
+>  			continue;
+>  		}
+>  
+> +		/* Make sure we are not inadvertently changing nodes */
+> +		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
+> +
+>  		if (!PageBuddy(page)) {
+>  			page++;
+>  			continue;
 
-Yup, I was planning to pick it up for 4.11.
+Acked-by: Will Deacon <will.deacon@arm.com>
 
-Florian -- does your series depend on this? If so, then I'll need to
-co-ordinate with Russell (probably via a shared branch that we both pull)
-if you're aiming for 4.11 too.
+I'm guessing akpm can pick this up as a non-urgent fix.
 
 Will
 
