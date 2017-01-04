@@ -1,103 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 347BC6B0260
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:03:17 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id h67so243449400vkf.4
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:03:17 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id n5si76305648wmf.2.2017.01.04.06.03.15
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DF3AB6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 09:04:44 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id iq1so54773589wjb.1
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 06:04:44 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id h188si77840187wma.91.2017.01.04.06.04.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Jan 2017 06:03:15 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 83B5898BF0
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 14:03:15 +0000 (UTC)
-Date: Wed, 4 Jan 2017 14:03:15 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 4/4] mm, page_alloc: Add a bulk page allocator
-Message-ID: <20170104140314.37sg3ql2aoqvpgq5@techsingularity.net>
-References: <20170104111049.15501-1-mgorman@techsingularity.net>
- <20170104111049.15501-5-mgorman@techsingularity.net>
- <20170104144844.7d2a1d6f@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jan 2017 06:04:43 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Date: Wed, 04 Jan 2017 14:55:41 +0100
+Message-ID: <5530270.v1BLsanhbo@wuerfel>
+In-Reply-To: <CALCETrXmdAnbgjsxw=qTbP2PhVCzE8v3y5XMt8DVa4P9DowsGA@mail.gmail.com>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com> <21511994.eBlbEPoKOz@wuerfel> <CALCETrXmdAnbgjsxw=qTbP2PhVCzE8v3y5XMt8DVa4P9DowsGA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170104144844.7d2a1d6f@redhat.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Andy Lutomirski <luto@amacapital.net>, linux-arch <linux-arch@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Catalin Marinas <catalin.marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, X86 ML <x86@kernel.org>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Jan 04, 2017 at 02:48:44PM +0100, Jesper Dangaard Brouer wrote:
-> On Wed,  4 Jan 2017 11:10:49 +0000
-> > The API is not guaranteed to return the requested number of pages and
-> > may fail if the preferred allocation zone has limited free memory,
-> > the cpuset changes during the allocation or page debugging decides
-> > to fail an allocation. It's up to the caller to request more pages
-> > in batch if necessary.
+On Tuesday, January 3, 2017 2:09:16 PM CET Andy Lutomirski wrote:
+> >
+> >> When
+> >> ADDR_LIMIT_EXPLICIT is in effect, prctl can set a 64-bit numeric
+> >> limit.  If ADDR_LIMIT_EXPLICIT is cleared, the prctl value stops being
+> >> settable and reading it via prctl returns whatever is implied by the
+> >> other personality bits.
+> >
+> > I don't see anything wrong with it, but I'm a bit confused now
+> > what this would be good for, compared to using just prctl.
+> >
+> > Is this about setuid clearing the personality but not the prctl,
+> > or something else?
 > 
-> I generally like it, thanks! :-)
-> 
-
-No problem.
-
-> > +	/*
-> > +	 * Only attempt a batch allocation if watermarks on the preferred zone
-> > +	 * are safe.
-> > +	 */
-> > +	zone = ac.preferred_zoneref->zone;
-> > +	if (!zone_watermark_fast(zone, order, zone->watermark[ALLOC_WMARK_HIGH] + nr_pages,
-> > +				 zonelist_zone_idx(ac.preferred_zoneref), alloc_flags))
-> > +		goto failed;
-> > +
-> > +	/* Attempt the batch allocation */
-> > +	migratetype = ac.migratetype;
-> > +
-> > +	local_irq_save(flags);
-> 
-> It would be a win if we could either use local_irq_{disable,enable} or
-> preempt_{disable,enable} here, by dictating it can only be used from
-> irq-safe context (like you did in patch 3).
+> It's to avid ambiguity as to what happens if you set ADDR_LIMIT_32BIT
+> and use the prctl.  ISTM it would be nice for the semantics to be
+> fully defined in all cases.
 > 
 
-This was a stupid mistake during a rebase. I should have removed all the
-IRQ-disabling entirely and made it only usable from non-IRQ context to
-keep the motivation of patch 3 in place. It was a botched rebase of the
-patch on top of patch 3 that wasn't properly tested. It still illustrates
-the general shape at least. For extra safety, I should force it to return
-just a single page if called from interrupt context.
+Ok, got it.
 
-Is bulk allocation from IRQ context a requirement? If so, the motivation
-for patch 3 disappears which is a pity but IRQ safety has a price. The
-shape of V2 depends on the answer.
-
-> 
-> > +	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> > +	pcp_list = &pcp->lists[migratetype];
-> > +
-> > +	while (nr_pages) {
-> > +		page = __rmqueue_pcplist(zone, order, gfp_mask, migratetype,
-> > +								cold, pcp, pcp_list);
-> > +		if (!page)
-> > +			break;
-> > +
-> > +		nr_pages--;
-> > +		alloced++;
-> > +		list_add(&page->lru, alloc_list);
-> > +	}
-> > +
-> > +	if (!alloced) {
-> > +		local_irq_restore(flags);
-> > +		preempt_enable();
-> 
-> The preempt_enable here looks wrong.
-> 
-
-It is because I screwed up the rebase.
-
--- 
-Mel Gorman
-SUSE Labs
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
