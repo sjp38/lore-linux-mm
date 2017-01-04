@@ -1,64 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B09E6B025E
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 08:28:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 17so776499305pfy.2
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 05:28:34 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p11si72355754pgc.326.2017.01.04.05.28.33
-        for <linux-mm@kvack.org>;
-        Wed, 04 Jan 2017 05:28:33 -0800 (PST)
-Date: Wed, 4 Jan 2017 13:28:31 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Message-ID: <20170104132831.GD18193@arm.com>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 124386B025E
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 08:34:26 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id s63so83508661wms.7
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 05:34:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kr2si81255277wjc.288.2017.01.04.05.34.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Jan 2017 05:34:24 -0800 (PST)
+Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
+References: <20170104101942.4860-1-mhocko@kernel.org>
+ <20170104101942.4860-3-mhocko@kernel.org>
+ <646c3551-e794-611c-5247-490bd89133db@suse.cz>
+ <20170104131653.GH25453@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <90fd4f45-a616-be78-fe4d-6abb0d0b083d@suse.cz>
+Date: Wed, 4 Jan 2017 14:34:22 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
+In-Reply-To: <20170104131653.GH25453@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, catalin.marinas@arm.com, akpm@linux-foundation.org, hanjun.guo@linaro.org, xieyisheng1@huawei.com, rrichter@cavium.com, james.morse@arm.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 14, 2016 at 09:11:47AM +0000, Ard Biesheuvel wrote:
-> The NUMA code may get confused by the presence of NOMAP regions within
-> zones, resulting in spurious BUG() checks where the node id deviates
-> from the containing zone's node id.
+On 01/04/2017 02:16 PM, Michal Hocko wrote:
+> On Wed 04-01-17 13:52:24, Vlastimil Babka wrote:
+>> On 01/04/2017 11:19 AM, Michal Hocko wrote:
+>>> From: Michal Hocko <mhocko@suse.com>
+>>>
+>>> Our reclaim process has several tracepoints to tell us more about how
+>>> things are progressing. We are, however, missing a tracepoint to track
+>>> active list aging. Introduce mm_vmscan_lru_shrink_active which reports
+>>> the number of
+>>> 	- nr_scanned, nr_taken pages to tell us the LRU isolation
+>>> 	  effectiveness.
+>>
+>> Well, this point is no longer true, is it...
 > 
-> Since the kernel has no business reasoning about node ids of pages it
-> does not own in the first place, enable CONFIG_HOLES_IN_ZONE to ensure
-> that such pages are disregarded.
+> ups, leftover
+> 	- nr_take - the number of isolated pages
+
+nr_taken
+
 > 
-> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> ---
->  arch/arm64/Kconfig | 4 ++++
->  1 file changed, 4 insertions(+)
+>>> 	- nr_referenced pages which tells us that we are hitting referenced
+>>> 	  pages which are deactivated. If this is a large part of the
+>>> 	  reported nr_deactivated pages then we might be hitting into
+>>> 	  the active list too early because they might be still part of
+>>> 	  the working set. This might help to debug performance issues.
+>>> 	- nr_activated pages which tells us how many pages are kept on the
+>>
+>> "nr_activated" is slightly misleading? They remain active, they are not
+>> being activated (that's why the pgactivate vmstat is also not increased
+>> on them, right?). I guess rename to "nr_active" ? Or something like
+>> "nr_remain_active" although that's longer.
 > 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 111742126897..0472afe64d55 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -614,6 +614,10 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
->  	def_bool y
->  	depends on NUMA
->  
-> +config HOLES_IN_ZONE
-> +	def_bool y
-> +	depends on NUMA
-> +
->  source kernel/Kconfig.preempt
->  source kernel/Kconfig.hz
+> will go with nr_active
 
-I'm happy to apply this, but I'll hold off until the first patch is queued
-somewhere, since this doesn't help without the VM_BUG_ON being moved.
+OK.
 
-Alternatively, I can queue both if somebody from the mm camp acks the
-first patch.
+> 
+>>
+>> [...]
+>>
+>>> @@ -1857,6 +1859,7 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+>>>  	unsigned long pgmoved = 0;
+>>>  	struct page *page;
+>>>  	int nr_pages;
+>>> +	int nr_moved = 0;
+>>>  
+>>>  	while (!list_empty(list)) {
+>>>  		page = lru_to_page(list);
+>>> @@ -1882,11 +1885,15 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+>>>  				spin_lock_irq(&pgdat->lru_lock);
+>>>  			} else
+>>>  				list_add(&page->lru, pages_to_free);
+>>> +		} else {
+>>> +			nr_moved += nr_pages;
+>>>  		}
+>>>  	}
+>>>  
+>>>  	if (!is_active_lru(lru))
+>>>  		__count_vm_events(PGDEACTIVATE, pgmoved);
+>>
+>> So we now have pgmoved and nr_moved. One is used for vmstat, other for
+>> tracepoint, and the only difference is that vmstat includes pages where
+>> we raced with page being unmapped from all pte's (IIUC?) and thus
+>> removed from lru, which should be rather rare? I guess those are being
+>> counted into vmstat only due to how the code evolved from using pagevec.
+>> If we don't consider them in the tracepoint, then I'd suggest we don't
+>> count them into vmstat either, and simplify this.
+> 
+> OK, but I would prefer to have this in a separate patch, OK?
 
-Will
+Sure, thanks!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
