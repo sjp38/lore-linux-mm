@@ -1,128 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B34916B0038
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 02:18:11 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i131so82299785wmf.3
-        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 23:18:11 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 266BE6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 02:28:47 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id hb5so114333059wjc.2
+        for <linux-mm@kvack.org>; Tue, 03 Jan 2017 23:28:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a189si76720523wme.106.2017.01.03.23.18.09
+        by mx.google.com with ESMTPS id qa4si80369186wjc.238.2017.01.03.23.28.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Jan 2017 23:18:10 -0800 (PST)
-Date: Wed, 4 Jan 2017 08:18:04 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] dax: fix deadlock with DAX 4k holes
-Message-ID: <20170104071804.GF3780@quack2.suse.cz>
-References: <20161027112230.wsumgs62fqdxt3sc@xzhoul.usersys.redhat.com>
- <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
+        Tue, 03 Jan 2017 23:28:46 -0800 (PST)
+Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
+References: <20161228153032.10821-1-mhocko@kernel.org>
+ <20161228153032.10821-3-mhocko@kernel.org> <20161229053359.GA1815@bbox>
+ <20161229075243.GA29208@dhcp22.suse.cz> <20161230014853.GA4184@bbox>
+ <20161230092636.GA13301@dhcp22.suse.cz> <20161230160456.GA7267@bbox>
+ <20161230163742.GK13301@dhcp22.suse.cz> <20170103050328.GA15700@bbox>
+ <20170103082122.GA30111@dhcp22.suse.cz> <20170104050722.GA17166@bbox>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9f77c4d2-dddf-8fc6-0982-edf02a58b15f@suse.cz>
+Date: Wed, 4 Jan 2017 08:28:43 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1483479365-13607-1-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170104050722.GA17166@bbox>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Xiong Zhou <xzhou@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 03-01-17 14:36:05, Ross Zwisler wrote:
-> Currently in DAX if we have three read faults on the same hole address we
-> can end up with the following:
+On 01/04/2017 06:07 AM, Minchan Kim wrote:
+> With this,
+> ./scripts/bloat-o-meter vmlinux.old vmlinux.new.new
+> add/remove: 1/1 grow/shrink: 0/9 up/down: 1394/-1636 (-242)
+> function                                     old     new   delta
+> isolate_lru_pages                              -    1394   +1394
+> print_fmt_mm_vmscan_lru_shrink_inactive      359     355      -4
+> vermagic                                      64      58      -6
+> perf_trace_mm_vmscan_lru_shrink_active       264     256      -8
+> trace_raw_output_mm_vmscan_lru_shrink_active     203     193     -10
+> trace_event_raw_event_mm_vmscan_lru_shrink_active     241     225     -16
+> print_fmt_mm_vmscan_lru_shrink_active        458     426     -32
+> trace_event_define_fields_mm_vmscan_lru_shrink_active     384     336     -48
+> shrink_inactive_list                        1430    1271    -159
+> shrink_active_list                          1265    1082    -183
+> isolate_lru_pages.isra                      1170       -   -1170
+> Total: Before=26268743, After=26268501, chg -0.00%
 > 
-> Thread 0		Thread 1		Thread 2
-> --------		--------		--------
-> dax_iomap_fault
->  grab_mapping_entry
->   lock_slot
->    <locks empty DAX entry>
+> We can save 242 bytes.
 > 
->   			dax_iomap_fault
-> 			 grab_mapping_entry
-> 			  get_unlocked_mapping_entry
-> 			   <sleeps on empty DAX entry>
+> If we consider binary size, 424 bytes save.
 > 
-> 						dax_iomap_fault
-> 						 grab_mapping_entry
-> 						  get_unlocked_mapping_entry
-> 						   <sleeps on empty DAX entry>
->   dax_load_hole
->    find_or_create_page
->    ...
->     page_cache_tree_insert
->      dax_wake_mapping_entry_waiter
->       <wakes one sleeper>
->      __radix_tree_replace
->       <swaps empty DAX entry with 4k zero page>
-> 
-> 			<wakes>
-> 			get_page
-> 			lock_page
-> 			...
-> 			put_locked_mapping_entry
-> 			unlock_page
-> 			put_page
-> 
-> 						<sleeps forever on the DAX
-> 						 wait queue>
-> 
-> The crux of the problem is that once we insert a 4k zero page, all locking
-> from then on is done in terms of that 4k zero page and any additional
-> threads sleeping on the empty DAX entry will never be woken.  Fix this by
-> waking all sleepers when we replace the DAX radix tree entry with a 4k zero
-> page.  This will allow all sleeping threads to successfully transition from
-> locking based on the DAX empty entry to locking on the 4k zero page.
-> 
-> With the test case reported by Xiong this happens very regularly in my test
-> setup, with some runs resulting in 9+ threads in this deadlocked state.
-> With this fix I've been able to run that same test dozens of times in a
-> loop without issue.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Reported-by: Xiong Zhou <xzhou@redhat.com>
-> Fixes: commit ac401cc78242 ("dax: New fault locking")
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: stable@vger.kernel.org # 4.7+
+> #> ls -l vmlinux.old vmlinux.new.new
+> 194092840  vmlinux.old
+> 194092416  vmlinux.new.new
 
-Ah, very good catch. You can add:
+Which is roughly 0.0002%. Not that I'm against fighting bloat, but let's
+not forget that it's not the only factor. For example the following part
+from above:
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+> isolate_lru_pages                              -    1394   +1394
+> isolate_lru_pages.isra                      1170       -   -1170
 
-I wonder why I was not able to reproduce this... Probably the timing didn't
-work out right on my test machine.
-
-								Honza
-
-> ---
-> 
-> This issue exists as far back as v4.7, and I was easly able to reproduce it
-> with v4.7 using the same test.
-> 
-> Unfortunately this patch won't apply cleanly to the stable trees, but the
-> change is very simple and should be easy to replicate by hand.  Please ping
-> me if you'd like patches that apply cleanly to the v4.9 and v4.8.15 trees.
-> 
-> ---
->  mm/filemap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d0e4d10..b772a33 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -138,7 +138,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
->  				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
->  			/* Wakeup waiters for exceptional entry lock */
->  			dax_wake_mapping_entry_waiter(mapping, page->index, p,
-> -						      false);
-> +						      true);
->  		}
->  	}
->  	__radix_tree_replace(&mapping->page_tree, node, slot, page,
-> -- 
-> 2.7.4
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+shows that your change has prevented a -fipa-src gcc optimisation, which
+is "interprocedural scalar replacement of aggregates, removal of unused
+parameters and replacement of parameters passed by reference by
+parameters passed by value." Well, I'm no gcc expert :) but it might be
+that the change is not a simple win-win.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
