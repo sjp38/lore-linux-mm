@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3706B025E
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 17:04:29 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id u5so1005605524pgi.7
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 14:04:29 -0800 (PST)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id h184si43011967pfc.168.2017.01.04.14.04.28
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB3F6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 17:30:59 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id n189so1042013393pga.4
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 14:30:59 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id r1si73747164pfd.81.2017.01.04.14.30.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 14:04:28 -0800 (PST)
-Received: by mail-pf0-x22f.google.com with SMTP id 189so84045990pfz.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 14:04:28 -0800 (PST)
-Date: Wed, 4 Jan 2017 14:04:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: always direct reclaim for MADV_HUGEPAGE even
- when deferred
-In-Reply-To: <75bf7af0-76e8-2d8e-cb00-745fd06c42ef@suse.cz>
-Message-ID: <alpine.DEB.2.10.1701041353220.77987@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1612211621210.100462@chino.kir.corp.google.com> <bba4c707-c470-296c-edbe-b8a6d21152ad@suse.cz> <alpine.DEB.2.10.1701031431120.139238@chino.kir.corp.google.com> <75bf7af0-76e8-2d8e-cb00-745fd06c42ef@suse.cz>
+        Wed, 04 Jan 2017 14:30:58 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id i88so27456431pfk.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 14:30:58 -0800 (PST)
+Subject: Re: [PATCHv6 00/11] CONFIG_DEBUG_VIRTUAL for arm64
+References: <1483464113-1587-1-git-send-email-labbott@redhat.com>
+ <edc8eaa2-5414-506c-1dad-f2404ef19c81@gmail.com>
+ <b3de65da-8a74-2510-268e-34516cc2de77@redhat.com>
+ <20170104114449.GA18193@arm.com>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <e13dc77e-6709-8122-9856-35aee876b836@gmail.com>
+Date: Wed, 4 Jan 2017 14:30:50 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170104114449.GA18193@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>, Laura Abbott <labbott@redhat.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, x86@kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, linux-arm-kernel@lists.infradead.org, xen-devel@lists.xenproject.org, David Vrabel <david.vrabel@citrix.com>, Kees Cook <keescook@chromium.org>, Marc Zyngier <marc.zyngier@arm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, Eric Biederman <ebiederm@xmission.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoffer Dall <christoffer.dall@linaro.org>
 
-On Wed, 4 Jan 2017, Vlastimil Babka wrote:
-
-> > Hmm, is there a significant benefit to setting "defer" rather than "never" 
-> > if you can rely on khugepaged to trigger compaction when it tries to 
-> > allocate.  I suppose if there is nothing to collapse that this won't do 
-> > compaction, but is this not intended for users who always want to defer 
-> > when not immediately available?
+On 01/04/2017 03:44 AM, Will Deacon wrote:
+> On Tue, Jan 03, 2017 at 03:25:53PM -0800, Laura Abbott wrote:
+>> On 01/03/2017 02:56 PM, Florian Fainelli wrote:
+>>> On 01/03/2017 09:21 AM, Laura Abbott wrote:
+>>>> Happy New Year!
+>>>>
+>>>> This is a very minor rebase from v5. It only moves a few headers around.
+>>>> I think this series should be ready to be queued up for 4.11.
+>>>
+>>> FWIW:
+>>>
+>>> Tested-by: Florian Fainelli <f.fainelli@gmail.com>
+>>>
+>>
+>> Thanks!
+>>
+>>> How do we get this series included? I would like to get the ARM 32-bit
+>>> counterpart included as well (will resubmit rebased shortly), but I have
+>>> no clue which tree this should be going through.
+>>>
+>>
+>> I was assuming this would go through the arm64 tree unless Catalin/Will
+>> have an objection to that.
 > 
-> I guess two things
-> - khugepaged is quite sleepy and will not respond to demand quickly, so
-> it won't compact that much than kcompactd triggered by "defer"
-
-That's configurable, so if a user sets defrag to never, they also have the 
-ability to make khugepaged more aggressive in the background to complement 
-that decision.
-
-> I don't think the primary motivation for "defer" was to restrict
-> MADV_HUGEPAGE apps, but rather to prevent latency to the majority of
-> apps oblivious to THP when the default was "always". On the other hand,
-> setting "madvise" would make performance needlessly worse in some
-> scenarios, so "defer" is a compromise that tries to provide THP's but
-> without the latency, and still much more timely than khugepaged.
+> Yup, I was planning to pick it up for 4.11.
 > 
+> Florian -- does your series depend on this? If so, then I'll need to
+> co-ordinate with Russell (probably via a shared branch that we both pull)
+> if you're aiming for 4.11 too.
 
-It's disappointing we need to have an option that exists solely to 
-suppress a userspace MADV_HUGEPAGE and not actually fix the userspace to 
-not do the MADV_HUGEPAGE in the first place by making it configurable.  
-That is backwards compatible and doesn't require a new kernel version.  
-This never gets answered in the thread, however, and I offered to make the 
-very trivial patch to qemu to do that for the translation buffer but 
-nobody who uses qemu is even asking for this.  It's baffling.
+Yes, pretty much everything in Laura's patch series is relevant, except
+the arm64 bits.
 
-> >> So would something like this be possible?
-> >>
-> >>> echo "defer madvise" > /sys/kernel/mm/transparent_hugepage/defrag
-> >>> cat /sys/kernel/mm/transparent_hugepage/defrag
-> >> always [defer] [madvise] never
-> >>
-> >> I'm not sure about the analogous kernel boot option though, I guess
-> >> those can't use spaces, so maybe comma-separated?
-> 
-> No opinion on the above? I think it could be somewhat more elegant than
-> a fifth-option that Mel said he would prefer, and deliver the same
-> flexibility.
-> 
+I will get v6 out now addressing Laura's and Hartley's feedback and
+then, if you could holler when and where you have applied these, I can
+coordinate with Russell about how to get these included.
 
-I think this would work, but I'm concerned about two things: (1) the 
-kernel command line format as you pointed out earlier, (2) allowing two 
-options to be combined but not other options (always + never), so it takes 
-even more explaining to do to say what you can actually formulate and 
-what the results of that combining is.  The tristate, quadstate, and now 
-quint-state options for thp were never extendable, but now this appears to 
-be the most desired option.  We can await the bug reports of users who say 
-their MADV_HUGEPAGE is a no-op, though, and tell them their admin needs to 
-switch away from "defer" if anybody actually ever uses that setting.
-
-I think you, me, and Kirill are mostly on the same page with respect to 
-this, but I can't argue against hypothetical usecases and how we need to 
-wait years for "defer" to be available to see if any bug reports are 
-generated to make a decision in this area, so my final proposal in this 
-matter will be the reluctant fifth option and if it doesn't work I'll just 
-carry this for ourselves (we have no use for "defer" without this patch).
+Thanks and happy new year!
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
