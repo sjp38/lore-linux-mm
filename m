@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6904D6B0261
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 19:26:35 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id c20so370552409itb.5
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 16:26:35 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k11si51180741iof.5.2017.01.04.16.26.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7EB6B0069
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 19:38:46 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id b22so472021043pfd.0
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 16:38:46 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o1si73907523pgc.285.2017.01.04.16.38.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 16:26:34 -0800 (PST)
-Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
- Integrity (ADI)
-References: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
- <6fcaab9f-40fb-fdfb-2c7e-bf21a862ab7c@linux.intel.com>
- <ae0b7d0b-54fa-fa93-3b50-d14ace1b16f5@oracle.com>
- <d234fb8b-965f-d966-46fe-965478fdf7cb@linux.intel.com>
- <8612e7db-97c5-f757-0aae-24c3acedbc29@oracle.com>
- <2c0502d0-20ef-44ac-db5b-7f651a70b978@linux.intel.com>
- <ba9c4de2-cec1-1c88-82c9-24a524eb7948@oracle.com>
- <db31d324-a1ae-7450-0e54-ad98da205773@linux.intel.com>
- <5a0270ea-b29a-0751-a27f-2412a8588561@oracle.com>
- <7532a1d6-6562-b10b-dacd-931cb2a9e536@linux.intel.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <92d55a69-b400-8461-53a1-d505de089700@oracle.com>
-Date: Wed, 4 Jan 2017 17:26:08 -0700
+        Wed, 04 Jan 2017 16:38:45 -0800 (PST)
+Subject: [PATCH] mm: fix devm_memremap_pages crash, use mem_hotplug_{begin,
+ done}
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 04 Jan 2017 16:34:38 -0800
+Message-ID: <148357647831.9498.12606007370121652979.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <7532a1d6-6562-b10b-dacd-931cb2a9e536@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, Rob Gardner <rob.gardner@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, stable@vger.kernel.org, linux-nvdimm@lists.01.org
 
-On 01/04/2017 05:14 PM, Dave Hansen wrote:
-> On 01/04/2017 04:05 PM, Rob Gardner wrote:
->>> What if two different small pages have different tags and khugepaged
->>> comes along and tries to collapse them?  Will the page be split if a
->>> user attempts to set two different tags inside two different small-page
->>> portions of a single THP?
->>
->> The MCD tags operate at a resolution of cache lines (64 bytes). Page
->> sizes don't matter except that each virtual page must have a bit set in
->> its TTE to allow MCD to be enabled on the page. Any page can have many
->> different tags, one for each cache line.
->
-> Is an "MCD tag" the same thing as a "ADI version tag"?
->
-> The thing that confused me here is that we're taking an entire page of
-> "ADI version tags" and stuffing them into a swap pte (in
-> set_swp_pte_at()).  Do we somehow have enough space in a swap pte on
-> sparc to fit PAGE_SIZE/64 "ADI version tag"s in there?
+Both arch_add_memory() and arch_remove_memory() expect a single threaded
+context.
 
-No, we do not have space to stuff PAGE_SIZE/64 version tags in swap pte. 
-There is enough space for just one tag per page. DaveM had suggested 
-doing this since the usual case is for a task to set one tag per page 
-even though MMU does not require it. I have implemented this as first 
-pass to start a discussion and get feedback on whether rest of the 
-swapping implementation and other changes look right, hence the patch is 
-"RFC". If this all looks good, I can expand swapping support in a 
-subsequent patch or iteration of this patch to allocate space in 
-mm_context_t possibly to store per cacheline tags. I am open to any 
-other ideas on storing this larger number of version tags.
+For example, arch/x86/mm/init_64.c::kernel_physical_mapping_init() does
+not hold any locks over this check and branch:
 
-Thanks,
-Khalid
+    if (pgd_val(*pgd)) {
+    	pud = (pud_t *)pgd_page_vaddr(*pgd);
+    	paddr_last = phys_pud_init(pud, __pa(vaddr),
+    				   __pa(vaddr_end),
+    				   page_size_mask);
+    	continue;
+    }
+
+    pud = alloc_low_page();
+    paddr_last = phys_pud_init(pud, __pa(vaddr), __pa(vaddr_end),
+    			   page_size_mask);
+
+The result is that two threads calling devm_memremap_pages()
+simultaneously can end up colliding on pgd initialization. This leads to
+crash signatures like the following where the loser of the race
+initializes the wrong pgd entry:
+
+    BUG: unable to handle kernel paging request at ffff888ebfff0000
+    IP: [<ffffffff8149e1e6>] memcpy_erms+0x6/0x10
+    PGD 2f8e8fc067 PUD 0 /* <---- Invalid PUD */
+    Oops: 0000 [#1] SMP DEBUG_PAGEALLOC
+    CPU: 54 PID: 3818 Comm: systemd-udevd Not tainted 4.6.7+ #13
+    task: ffff882fac290040 ti: ffff882f887a4000 task.ti: ffff882f887a4000
+    RIP: 0010:[<ffffffff8149e1e6>]  [<ffffffff8149e1e6>] memcpy_erms+0x6/0x10
+    [..]
+    Call Trace:
+     [<ffffffffc0119045>] ? pmem_do_bvec+0x205/0x370 [nd_pmem]
+     [<ffffffff8145b82a>] ? blk_queue_enter+0x3a/0x280
+     [<ffffffffc0119418>] pmem_rw_page+0x38/0x80 [nd_pmem]
+     [<ffffffff812b1c94>] bdev_read_page+0x84/0xb0
+
+Hold the standard memory hotplug mutex over calls to
+arch_{add,remove}_memory().
+
+Cc: <stable@vger.kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>
+Fixes: 41e94a851304 ("add devm_memremap_pages")
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ kernel/memremap.c |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b501e390bb34..9ecedc28b928 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -246,7 +246,9 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
++	mem_hotplug_begin();
+ 	arch_remove_memory(align_start, align_size);
++	mem_hotplug_done();
+ 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+ 	pgmap_radix_release(res);
+ 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+@@ -358,7 +360,9 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	if (error)
+ 		goto err_pfn_remap;
+ 
++	mem_hotplug_begin();
+ 	error = arch_add_memory(nid, align_start, align_size, true);
++	mem_hotplug_done();
+ 	if (error)
+ 		goto err_add_memory;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
