@@ -1,120 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 72A8E6B0069
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 20:34:00 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f188so1624954796pgc.1
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 17:34:00 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r29si74163493pfd.203.2017.01.04.17.33.59
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5976B0069
+	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 21:03:57 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id g1so1408998544pgn.3
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 18:03:57 -0800 (PST)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id t1si45726453plj.63.2017.01.04.18.03.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 17:33:59 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH v4 0/9] mm/swap: Regular page swap optimizations
-References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
-	<20161227074503.GA10616@bbox>
-Date: Thu, 05 Jan 2017 09:33:55 +0800
-In-Reply-To: <20161227074503.GA10616@bbox> (Minchan Kim's message of "Tue, 27
-	Dec 2016 16:45:03 +0900")
-Message-ID: <8760lujnng.fsf@yhuang-dev.intel.com>
+        Wed, 04 Jan 2017 18:03:56 -0800 (PST)
+Received: by mail-pf0-x230.google.com with SMTP id d2so84979202pfd.0
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 18:03:56 -0800 (PST)
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+References: <20161216165437.21612-1-rrichter@cavium.com>
+ <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+From: Hanjun Guo <hanjun.guo@linaro.org>
+Message-ID: <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
+Date: Thu, 5 Jan 2017 10:03:48 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, jack@suse.cz
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Robert Richter <rrichter@cavium.com>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi, Minchan,
-
-Minchan Kim <minchan@kernel.org> writes:
-[snip]
+On 2017/1/4 21:56, Ard Biesheuvel wrote:
+> On 16 December 2016 at 16:54, Robert Richter <rrichter@cavium.com> wrote:
+>> On ThunderX systems with certain memory configurations we see the
+>> following BUG_ON():
+>>
+>>  kernel BUG at mm/page_alloc.c:1848!
+>>
+>> This happens for some configs with 64k page size enabled. The BUG_ON()
+>> checks if start and end page of a memmap range belongs to the same
+>> zone.
+>>
+>> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
+>> this case the node information of those pages is not initialized. This
+>> causes an inconsistency of the page links with wrong zone and node
+>> information for that pages. NOMAP pages from node 1 still point to the
+>> mem zone from node 0 and have the wrong nid assigned.
+>>
+>> The reason for the mis-configuration is a change in pfn_valid() which
+>> reports pages marked NOMAP as invalid:
+>>
+>>  68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
+>>
+>> This causes pages marked as nomap being no longer reassigned to the
+>> new zone in memmap_init_zone() by calling __init_single_pfn().
+>>
+>> Fixing this by implementing an arm64 specific early_pfn_valid(). This
+>> causes all pages of sections with memory including NOMAP ranges to be
+>> initialized by __init_single_page() and ensures consistency of page
+>> links to zone, node and section.
+>>
 >
-> The patchset has used several techniqueus to reduce lock contention, for example,
-> batching alloc/free, fine-grained lock and cluster distribution to avoid cache
-> false-sharing. Each items has different complexity and benefits so could you
-> show the number for each step of pathchset? It would be better to include the
-> nubmer in each description. It helps how the patch is important when we consider
-> complexitiy of the patch.
-
-Here is the test data.
-
-We test the vm-scalability swap-w-seq test case with 32 processes on a
-Xeon E5 v3 system.  The swap device used is a RAM simulated PMEM
-(persistent memory) device.  To test the sequential swapping out, the
-test case created 32 processes, which sequentially allocate and write to
-the anonymous pages until the RAM and part of the swap device is used
-up.
-
-The patchset is rebased on v4.9-rc8.  So the baseline performance is as
-follow,
-
-  "vmstat.swap.so": 1428002,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list": 13.94,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_node_memcg": 13.75,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.swap_info_get.swapcache_free.__remove_mapping.shrink_page_list": 7.05,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.swap_info_get.page_swapcount.try_to_free_swap.swap_writepage": 7.03,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.__swap_duplicate.swap_duplicate.try_to_unmap_one.rmap_walk_anon": 7.02,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_page.add_to_swap.shrink_page_list.shrink_inactive_list": 6.83,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.page_check_address_transhuge.page_referenced_one.rmap_walk_anon.rmap_walk": 0.81,
-
->> Patch 1 is a clean up patch.
+> I like this solution a lot better than the first one, but I am still
+> somewhat uneasy about having the kernel reason about attributes of
+> pages it should not touch in the first place. But the fact that
+> early_pfn_valid() is only used a single time in the whole kernel does
+> give some confidence that we are not simply moving the problem
+> elsewhere.
 >
-> Could it be separated patch?
+> Given that you are touching arch/arm/ as well as arch/arm64, could you
+> explain why only arm64 needs this treatment? Is it simply because we
+> don't have NUMA support there?
 >
->> Patch 2 creates a lock per cluster, this gives us a more fine graind lock
->>         that can be used for accessing swap_map, and not lock the whole
->>         swap device
+> Considering that Hisilicon D05 suffered from the same issue, I would
+> like to get some coverage there as well. Hanjun, is this something you
+> can arrange? Thanks
 
-After patch 2, the result is as follow,
+Sure, we will test this patch with LTP MM stress test (which triggers
+the bug on D05), and give the feedback.
 
-  "vmstat.swap.so": 1481704,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list": 27.53,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_node_memcg": 27.01,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.free_pcppages_bulk.drain_pages_zone.drain_pages.drain_local_pages": 1.03,
-
-The swap out throughput is at the same level, but the lock contention on
-swap_info_struct->lock is eliminated.
-
->> Patch 3 splits the swap cache radix tree into 64MB chunks, reducing
->>         the rate that we have to contende for the radix tree.
->
-
-After patch 3,
-
-  "vmstat.swap.so": 2050097,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_page.add_to_swap.shrink_page_list.shrink_inactive_list": 43.27,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_nodemask.alloc_pages_vma.handle_mm_fault": 4.84,
-
-The swap out throughput is improved about ~43% compared with baseline.
-The lock contention on swap cache radix tree lock is eliminated.
-swap_info_struct->lock in get_swap_page() becomes the most heavy
-contended lock.
-
->
->> Patch 4 eliminates unnecessary page allocation for read ahead.
->
-> Could it be separated patch?
->
->> Patch 5-9 create a per cpu cache of the swap slots, so we don't have
->>         to contend on the swap device to get a swap slot or to release
->>         a swap slot.  And we allocate and release the swap slots
->>         in batches for better efficiency.
-
-After patch 9,
-
-  "vmstat.swap.so": 4170746,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.swapcache_free_entries.free_swap_slot.free_swap_and_cache.unmap_page_range": 13.91,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_nodemask.alloc_pages_vma.handle_mm_fault": 8.56,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_slowpath.__alloc_pages_nodemask.alloc_pages_vma": 2.56,
-  "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_pages.get_swap_page.add_to_swap.shrink_page_list": 2.47,
-
-The swap out throughput is improved about 192% compared with the
-baseline.  There are still some lock contention for
-swap_info_struct->lock, but the pressure begins to shift to buddy system
-now.
-
-Best Regards,
-Huang, Ying
+Thanks
+Hanjun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
