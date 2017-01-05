@@ -1,161 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DBD76B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 04:38:13 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id x49so17730503qtc.7
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 01:38:13 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p88si47284894qtd.154.2017.01.05.01.38.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6F76B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 04:54:03 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id i131so87641264wmf.3
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 01:54:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m88si81071377wmc.167.2017.01.05.01.54.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 01:38:12 -0800 (PST)
-Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
- Integrity (ADI)
-References: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
-From: Jerome Marchand <jmarchan@redhat.com>
-Message-ID: <fc6696de-34d7-e4ce-2b39-f788ba22843e@redhat.com>
-Date: Thu, 5 Jan 2017 10:37:54 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Jan 2017 01:54:02 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] wmark based pro-active compaction
+References: <20161230131412.GI13301@dhcp22.suse.cz>
+ <20161230140651.nud2ozpmvmziqyx4@suse.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cde489a7-4c08-f5ba-e6e8-07d8537bc7d8@suse.cz>
+Date: Thu, 5 Jan 2017 10:53:59 +0100
 MIME-Version: 1.0
-In-Reply-To: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="sohvc9WI75EfSsNXpXQdmT2AlG3UVldN7"
+In-Reply-To: <20161230140651.nud2ozpmvmziqyx4@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, dave.hansen@linux.intel.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---sohvc9WI75EfSsNXpXQdmT2AlG3UVldN7
-Content-Type: multipart/mixed; boundary="AwKJ5KgT36TUmAJ2vEHPPTerIT0EXBbgB";
- protected-headers="v1"
-From: Jerome Marchand <jmarchan@redhat.com>
-To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net,
- corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com,
- chris.hyser@oracle.com, tushar.n.dave@oracle.com,
- sowmini.varadhan@oracle.com, mike.kravetz@oracle.com,
- adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com,
- kirill.shutemov@linux.intel.com, keescook@chromium.org,
- allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com,
- joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com,
- paul.gortmaker@windriver.com, mhocko@suse.com, dave.hansen@linux.intel.com,
- lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz,
- tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com,
- iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com,
- hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org,
- linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org,
- linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org,
- Khalid Aziz <khalid@gonehiking.org>
-Message-ID: <fc6696de-34d7-e4ce-2b39-f788ba22843e@redhat.com>
-Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
- Integrity (ADI)
-References: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
-In-Reply-To: <1483569999-13543-1-git-send-email-khalid.aziz@oracle.com>
+[CC Joonsoo and Johannes]
 
---AwKJ5KgT36TUmAJ2vEHPPTerIT0EXBbgB
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On 12/30/2016 03:06 PM, Mel Gorman wrote:
+> On Fri, Dec 30, 2016 at 02:14:12PM +0100, Michal Hocko wrote:
+>> Hi,
+>> I didn't originally want to send this proposal because Vlastimil is
+>> planning to do some work in this area so I've expected him to send
+>> something similar. But the recent discussion about the THP defrag
+>> options pushed me to send out my thoughts.
 
-On 01/04/2017 11:46 PM, Khalid Aziz wrote:
-> ADI is a new feature supported on sparc M7 and newer processors to allo=
-w
-> hardware to catch rogue accesses to memory. ADI is supported for data
-> fetches only and not instruction fetches. An app can enable ADI on its
-> data pages, set version tags on them and use versioned addresses to
-> access the data pages. Upper bits of the address contain the version
-> tag. On M7 processors, upper four bits (bits 63-60) contain the version=
+No problem.
 
-> tag. If a rogue app attempts to access ADI enabled data pages, its
-> access is blocked and processor generates an exception.
->=20
-> This patch extends mprotect to enable ADI (TSTATE.mcde), enable/disable=
+>> So what is the problem? The demand for high order pages is growing and
+>> that seems to be the general trend. The problem is that while they can
+>> bring performance benefit they can get be really expensive to allocate
+>> especially when we enter the direct compaction. So we really want to
+>> prevent from expensive path and defer as much as possible to the
+>> background. A huge step forward was kcompactd introduced by Vlastimil.
+>> We are still not there yet though, because it might be already quite
+>> late when we wakeup_kcompactd(). The memory might be already fragmented
+>> when we hit there.
 
-> MCD (Memory Corruption Detection) on selected memory ranges, enable
-> TTE.mcd in PTEs, return ADI parameters to userspace and save/restore AD=
-I
-> version tags on page swap out/in.  It also adds handlers for all traps
-> related to MCD. ADI is not enabled by default for any task. A task must=
+Right.
 
-> explicitly enable ADI on a memory range and set version tag for ADI to
-> be effective for the task.
->=20
-> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-> Cc: Khalid Aziz <khalid@gonehiking.org>
-> ---
-> v2:
-> 	- Fixed a build error
->=20
-> v3:
-> 	- Removed CONFIG_SPARC_ADI
-> 	- Replaced prctl commands with mprotect
-> 	- Added auxiliary vectors for ADI parameters
-> 	- Enabled ADI for swappable pages
->=20
->  Documentation/sparc/adi.txt             | 239 ++++++++++++++++++++++++=
-++++++++
->  arch/sparc/include/asm/adi.h            |   6 +
->  arch/sparc/include/asm/adi_64.h         |  46 ++++++
->  arch/sparc/include/asm/elf_64.h         |   8 ++
->  arch/sparc/include/asm/hugetlb.h        |  13 ++
->  arch/sparc/include/asm/hypervisor.h     |   2 +
->  arch/sparc/include/asm/mman.h           |  40 +++++-
->  arch/sparc/include/asm/mmu_64.h         |   2 +
->  arch/sparc/include/asm/mmu_context_64.h |  32 +++++
->  arch/sparc/include/asm/pgtable_64.h     |  97 ++++++++++++-
->  arch/sparc/include/asm/ttable.h         |  10 ++
->  arch/sparc/include/asm/uaccess_64.h     | 120 +++++++++++++++-
->  arch/sparc/include/uapi/asm/asi.h       |   5 +
->  arch/sparc/include/uapi/asm/auxvec.h    |   8 ++
->  arch/sparc/include/uapi/asm/mman.h      |   2 +
->  arch/sparc/include/uapi/asm/pstate.h    |  10 ++
->  arch/sparc/kernel/Makefile              |   1 +
->  arch/sparc/kernel/adi_64.c              |  93 +++++++++++++
->  arch/sparc/kernel/entry.h               |   3 +
->  arch/sparc/kernel/head_64.S             |   1 +
->  arch/sparc/kernel/mdesc.c               |   4 +
->  arch/sparc/kernel/process_64.c          |  21 +++
->  arch/sparc/kernel/sun4v_mcd.S           |  16 +++
->  arch/sparc/kernel/traps_64.c            | 142 ++++++++++++++++++-
->  arch/sparc/kernel/ttable_64.S           |   6 +-
->  arch/sparc/mm/gup.c                     |  37 +++++
->  arch/sparc/mm/tlb.c                     |  28 ++++
->  arch/x86/kernel/signal_compat.c         |   2 +-
->  include/asm-generic/pgtable.h           |   5 +
->  include/linux/mm.h                      |   2 +
->  include/uapi/asm-generic/siginfo.h      |   5 +-
->  mm/memory.c                             |   2 +-
->  mm/rmap.c                               |   4 +-
+>> Moreover we do not have any way to actually tell
+>> which orders we do care about.
 
-I haven't actually reviewed the code and looked at why you need
-set_swp_pte_at() function, but the code that add the generic version of
-this function need to be separated from the rest of the patch. Also,
-given the size of this patch, I suspect the rest also need to be broken
-into more patches.
+Who is "we" here? The system admin?
 
-Jerome
+>> Therefore I believe we need a watermark based pro-active compaction
+>> which would keep the background compaction busy as long as we have
+>> less pages of the configured order.
 
+Again, configured by what, admin? I would rather try to avoid tunables
+here, if possible. While THP is quite well known example with stable
+order, the pressure for other orders is rather implementation specific
+(drivers, SLAB/SLUB) and may change with kernel versions (e.g. virtually
+mapped stacks, although that example is about non-costly order). Would
+the admin be expected to study the implementation to know which orders
+are needed, or react to page allocation failure reports? Neither sounds
+nice.
 
---AwKJ5KgT36TUmAJ2vEHPPTerIT0EXBbgB--
+>> kcompactd should wake up
+>> periodically, I think, and check for the status so that we can catch
+>> the fragmentation before we get low on memory.
+>> The interface could look something like:
+>> /proc/sys/vm/compact_wmark
+>> time_period order count
 
---sohvc9WI75EfSsNXpXQdmT2AlG3UVldN7
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+IMHO it would be better if the system could auto-tune this, e.g. by
+counting high-order alloc failures/needs for direct compaction per order
+between wakeups, and trying to bring them to zero.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+>> There are many details that would have to be solved of course - e.g. do
+>> not burn cycles pointlessly when we know that no further progress can be
+>> made etc... but in principle the idea show work.
 
-iQEcBAEBCAAGBQJYbhPyAAoJEHTzHJCtsuoCRbsH/2g2oUJ5VzNQAlk9RV46wAJa
-pJZwWhC7GSVKmbBF5zA2FvPHd4zIoWwnVQuKXdTDTKSX7o/Thm0QqqZOTm0Y1YKB
-qAviSK/cgvothZOlDozE5bjHkHk6PLpzBYiZfdOkFfFSljleKWXcVjNfkNT2RaHq
-G6SYcUkwKA2xGJ+TAeWAAlh7QOO7brI51ZIhd7QgMK8weKWzuMnlesumnYHEBJP5
-mcT/K0TCFzplC7kHzhXZPkMa7i5zJQcdidxFOya+61VsF+NWX/1Cz6T2o3ZABRLW
-192NW6KYkLAkT3eHWNB1zI4Ukg9dBL6it3SzJ2KSVlt8/rT2B//JKjn7rfeaSRI=
-=lvlT
------END PGP SIGNATURE-----
+Yeah with auto-tuning there's even more inputs to consider and
+parameters that would be auto-adjusted based on them. Right now I can
+think of:
 
---sohvc9WI75EfSsNXpXQdmT2AlG3UVldN7--
+Inputs
+- the per-order "pressure" (e.g. the failures/direct compactions above)
+  - ideally somehow including the "importance". That might be the
+trickiest part when wanting to avoid tunables. THP failures might be
+least important, allocations with expensive or no fallback most
+important. Probably not just simple relation between order. Hopefully
+gfp flags such as __GFP_NORETRY and __GFP_REPEAT can help here? Without
+such metric, everything will easily be dominated by THP pressure.
+- recent compaction efficiency (as you mentioned above)
+
+Parameters
+- wake up period for kcompactd
+- target per-order goals for kcompactd
+- lowest efficiency where it's still considered worth to compact?
+
+An important question: how to evaluate this? Metrics should be feasible
+(improved success rate, % of compaction that was handled by kcompactd
+and not direct compaction...), but what are the good testcases?
+
+> I'd be very interested in this. I'd also like to add to the list to revisit
+> the concept of pre-emptively moving movable pages from pageblocks stolen for
+> unmovable pages to reduce future events that degrade fragmentation. Before
+> the Christmas I was mulling over whether it would be appropriate to have a
+> workqueue of pageblocks that need "cleaning". This could be either instead
+> of or in conjunction with wmark-based compaction.
+
+Yes, that could be useful as well.
+
+Ideally I would also revisit the topic of compaction mechanism (migrate
+and free scanners) itself. It's been shown that they usually meet in the
+1/3 or 1/2 of zone, which means the rest of the zone is only
+defragmented by "plugging free holes" by migrated pages, although it
+might actually contain pageblocks more suitable for migrating from, than
+the first part of the zone. It's also expensive for the free scanner to
+actually find free pages, according to the stats.
+
+Some approaches were proposed in recent years, but never got far as it's
+always some kind of a trade-off (this partially goes back to the problem
+of evaluation, often limited to stress-highalloc from mmtests):
+
+- "pivot" based approach where scanners' starting point changes and
+isn't always zone boundaries [1]
+- both scanners scan whole zone moving in the same direction, just
+making sure they don't operate on the same pageblock at the same time [2]
+- replacing free scanner by directly taking free pages from freelist
+
+However, the problem with this subtopic is that it might be too much
+specialized for the full MM room.
+
+[1] https://lkml.org/lkml/2015/1/19/158
+[2] https://lkml.org/lkml/2015/6/24/706
+[3] https://lkml.org/lkml/2015/12/3/63
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
