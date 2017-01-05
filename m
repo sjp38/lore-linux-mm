@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B81636B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 06:03:23 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id v84so1067745071oie.0
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 03:03:23 -0800 (PST)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0060.outbound.protection.outlook.com. [104.47.34.60])
-        by mx.google.com with ESMTPS id p73si18915005ota.228.2017.01.05.03.03.22
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB906B025E
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 06:24:23 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id u5so1046903211pgi.7
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 03:24:23 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0044.outbound.protection.outlook.com. [104.47.32.44])
+        by mx.google.com with ESMTPS id z30si43650298plh.61.2017.01.05.03.24.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 03:03:23 -0800 (PST)
-Date: Thu, 5 Jan 2017 12:03:04 +0100
+        Thu, 05 Jan 2017 03:24:22 -0800 (PST)
+Date: Thu, 5 Jan 2017 12:24:07 +0100
 From: Robert Richter <robert.richter@cavium.com>
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-Message-ID: <20170105110304.GT4930@rric.localdomain>
-References: <20161216165437.21612-1-rrichter@cavium.com>
- <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
+Message-ID: <20170105112407.GU4930@rric.localdomain>
+References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
+ <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
+ <20170104132831.GD18193@arm.com>
+ <CAKv+Gu8MdpVDCSjfum7AMtbgR6cTP5H+67svhDSu6bkaijvvyg@mail.gmail.com>
+ <20170104140223.GF18193@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+In-Reply-To: <20170104140223.GF18193@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Hanjun Guo <hanjun.guo@linaro.org>, Yisheng Xie <xieyisheng1@huawei.com>, James Morse <james.morse@arm.com>
 
-On 04.01.17 13:56:39, Ard Biesheuvel wrote:
-> Given that you are touching arch/arm/ as well as arch/arm64, could you
-> explain why only arm64 needs this treatment? Is it simply because we
-> don't have NUMA support there?
+On 04.01.17 14:02:23, Will Deacon wrote:
+> Using early_pfn_valid feels like a bodge to me, since having pfn_valid
+> return false for something that early_pfn_valid says is valid (and is
+> therefore initialised in the memmap) makes the NOMAP semantics even more
+> confusing.
 
-I haven't considered a solution for arch/arm yet. The fixes are
-independent. But if that fix would be an excepted solution, it could
-be implemented for arm then too. But as you said, since probably only
-NUMA is affected, we might not need it there.
+The concern I have had with HOLES_IN_ZONE is that it enables
+pfn_valid_within() for arm64. This means that each pfn of a section is
+checked which is done only once for the section otherwise. With up to
+2^18 pages per section we traverse the memblock list by that factor
+more often. There could be a performance regression. I haven't numbers
+yet, since the fix causes another kernel crash. And, this is the next
+problem I have. The crash doesn't happen otherwise. So, either it
+uncovers another bug or the fix is incomplete. Though the changes look
+like it should work. This needs more investigation.
 
 -Robert
 
