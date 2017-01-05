@@ -1,128 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DC676B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 00:37:03 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id q128so327389165qkd.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 21:37:03 -0800 (PST)
-Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
-        by mx.google.com with ESMTPS id 63si37181740qkq.244.2017.01.04.21.37.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 21:37:02 -0800 (PST)
-Received: by mail-qk0-x234.google.com with SMTP id s140so10182439qke.0
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 21:37:02 -0800 (PST)
-Date: Thu, 5 Jan 2017 00:36:58 -0500
-From: Keno Fischer <keno@juliacomputing.com>
-Subject: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
-Message-ID: <20170105053658.GA36383@juliacomputing.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B2E1B6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 00:41:25 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so1637109372pgc.1
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 21:41:25 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id j186si74768562pfb.193.2017.01.04.21.41.23
+        for <linux-mm@kvack.org>;
+        Wed, 04 Jan 2017 21:41:24 -0800 (PST)
+Date: Thu, 5 Jan 2017 14:41:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/7] mm, vmscan: add active list aging tracepoint
+Message-ID: <20170105054119.GB24371@bbox>
+References: <20170104101942.4860-1-mhocko@kernel.org>
+ <20170104101942.4860-3-mhocko@kernel.org>
+ <20170104135244.GJ25453@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170104135244.GJ25453@dhcp22.suse.cz>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, hughd@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-In 19be0eaff ("mm: remove gup_flags FOLL_WRITE games from __get_user_pages()"),
-the mm code was changed from unsetting FOLL_WRITE after a COW was resolved to
-setting the (newly introduced) FOLL_COW instead. Simultaneously, the check in
-gup.c was updated to still allow writes with FOLL_FORCE set if FOLL_COW had
-also been set. However, a similar check in huge_memory.c was forgotten. As a
-result, remote memory writes to ro regions of memory backed by transparent huge
-pages cause an infinite loop in the kernel (handle_mm_fault sets FOLL_COW and
-returns 0 causing a retry, but follow_trans_huge_pmd bails out immidiately
-because `(flags & FOLL_WRITE) && !pmd_write(*pmd)` is true. While in this
-state, the process is stil SIGKILLable, but little else works (e.g. no ptrace
-attach, no other signals). This is easily reproduced with the following
-code (assuming thp are set to always):
+On Wed, Jan 04, 2017 at 02:52:47PM +0100, Michal Hocko wrote:
+> With fixed triggered by Vlastimil it should be like this.
+> ---
+> From b3a1480b54bf10924a9cd09c6d8b274fc81ca4ad Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Tue, 27 Dec 2016 13:18:20 +0100
+> Subject: [PATCH] mm, vmscan: add active list aging tracepoint
+> 
+> Our reclaim process has several tracepoints to tell us more about how
+> things are progressing. We are, however, missing a tracepoint to track
+> active list aging. Introduce mm_vmscan_lru_shrink_active which reports
+> the number of
+> 	- nr_taken is number of isolated pages from the active list
+> 	- nr_referenced pages which tells us that we are hitting referenced
+> 	  pages which are deactivated. If this is a large part of the
+> 	  reported nr_deactivated pages then we might be hitting into
+> 	  the active list too early because they might be still part of
+> 	  the working set. This might help to debug performance issues.
+> 	- nr_active pages which tells us how many pages are kept on the
+> 	  active list - mostly exec file backed pages. A high number can
+> 	  indicate that we might be trashing on executables.
+> 
+> Changes since v1
+> - report nr_taken pages as per Minchan
+> - report nr_activated as per Minchan
+> - do not report nr_freed pages because that would add a tiny overhead to
+>   free_hot_cold_page_list which is a hot path
+> - do not report nr_unevictable because we can report this number via a
+>   different and more generic tracepoint in putback_lru_page
+> - fix move_active_pages_to_lru to report proper page count when we hit
+>   into large pages
+> - drop nr_scanned because this can be obtained from
+>   trace_mm_vmscan_lru_isolate as per Minchan
+> 
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-```
-#include <assert.h>
-#include <fcntl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-#define TEST_SIZE 5 * 1024 * 1024
-
-int main(void) {
-  int status;
-  pid_t child;
-  int fd = open("/proc/self/mem", O_RDWR);
-  void *addr =
-      mmap(NULL, TEST_SIZE, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
-  assert(addr != MAP_FAILED);
-  pid_t parent_pid = getpid();
-  if ((child = fork()) == 0) {
-    void *addr2 = mmap(NULL, TEST_SIZE, PROT_READ | PROT_WRITE,
-                       MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
-    assert(addr2 != MAP_FAILED);
-    memset(addr2, 'a', TEST_SIZE);
-    pwrite(fd, addr2, TEST_SIZE, (uintptr_t)addr);
-    return 0;
-  }
-  assert(child == waitpid(child, &status, 0));
-  assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
-  return 0;
-}
-```
-
-Fix this by updating the instances in huge_memory.c analogously to
-the update in gup.c in the original commit. The same pattern existed in
-follow_devmap_pmd, so I have changed that location as well. However,
-I do not have a test case that for that code path.
-
-Signed-off-by: Keno Fischer <keno@juliacomputing.com>
----
- mm/huge_memory.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 10eedbf..84497a8 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -773,6 +773,16 @@ static void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
- 		update_mmu_cache_pmd(vma, addr, pmd);
- }
- 
-+/*
-+ * FOLL_FORCE can write to even unwritable pmd's, but only
-+ * after we've gone through a COW cycle and they are dirty.
-+ */
-+static inline bool can_follow_write_pmd(pmd_t pmd, unsigned int flags)
-+{
-+       return pmd_write(pmd) ||
-+               ((flags & FOLL_FORCE) && (flags & FOLL_COW) && pmd_dirty(pmd));
-+}
-+
- struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 		pmd_t *pmd, int flags)
- {
-@@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 
- 	assert_spin_locked(pmd_lockptr(mm, pmd));
- 
--	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-+	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
- 		return NULL;
- 
- 	if (pmd_present(*pmd) && pmd_devmap(*pmd))
-@@ -1137,7 +1147,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 
- 	assert_spin_locked(pmd_lockptr(mm, pmd));
- 
--	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-+	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
- 		goto out;
- 
- 	/* Avoid dumping huge zero page */
--- 
-2.9.3
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
