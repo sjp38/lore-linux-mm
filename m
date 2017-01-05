@@ -1,100 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B6DF86B025E
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 17:04:06 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f73so558796987ioe.1
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:04:06 -0800 (PST)
-Received: from secvs02.rockwellcollins.com (secvs02.rockwellcollins.com. [205.175.225.241])
-        by mx.google.com with ESMTPS id t184si53982680iod.120.2017.01.05.14.04.04
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 19B1D6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 17:14:26 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id dh1so60173486wjb.0
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:14:26 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id y6si372111wmy.55.2017.01.05.14.14.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 14:04:05 -0800 (PST)
-From: David Graziano <david.graziano@rockwellcollins.com>
-Subject: [PATCH v4 3/3] mqueue: Implement generic xattr support
-Date: Thu,  5 Jan 2017 16:03:43 -0600
-Message-Id: <1483653823-22018-4-git-send-email-david.graziano@rockwellcollins.com>
-In-Reply-To: <1483653823-22018-1-git-send-email-david.graziano@rockwellcollins.com>
-References: <1483653823-22018-1-git-send-email-david.graziano@rockwellcollins.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jan 2017 14:14:25 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id u144so771441wmu.0
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:14:24 -0800 (PST)
+Date: Fri, 6 Jan 2017 01:14:22 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: A use case for MAP_COPY
+Message-ID: <20170105221422.GB27928@node.shutemov.name>
+References: <CA+55aFyNFb7Ns7O2yjWsKZHOEzgGkyVznp=kLRE9an-mEUC0BQ@mail.gmail.com>
+ <20170105211056.18340.qmail@ns.sciencehorizons.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170105211056.18340.qmail@ns.sciencehorizons.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-security-module@vger.kernel.org, paul@paul-moore.com
-Cc: agruenba@redhat.com, hch@infradead.org, linux-mm@kvack.org, sds@tycho.nsa.gov, linux-kernel@vger.kernel.org, David Graziano <david.graziano@rockwellcollins.com>
+To: George Spelvin <linux@sciencehorizons.net>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, riel@surriel.com
 
-Adds support for generic extended attributes within the POSIX message
-queues filesystem and setting them by consulting the LSM. This is
-needed so that the security.selinux extended attribute can be set via
-a SELinux named type transition on file inodes created within the
-filesystem. It allows a selinux policy to be created  for a set of
-custom applications that use POSIX message queues for their IPC and
-uniquely labeling them based on the application that creates the mqueue
-eliminating the need for relabeling after the mqueue file is created.
-The implementation is based on tmpfs/shmem and uses the newly created
-simple_xattr_initxattrs() LSM callback function.
+On Thu, Jan 05, 2017 at 04:10:56PM -0500, George Spelvin wrote:
+> It just has to be less of a DoS attack than MAP_DENYWRITE.
 
-Signed-off-by: David Graziano <david.graziano@rockwellcollins.com>
----
- ipc/mqueue.c | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+It's easy to turn MAP_COPY into DoS:
 
-diff --git a/ipc/mqueue.c b/ipc/mqueue.c
-index 0b13ace..32271a0 100644
---- a/ipc/mqueue.c
-+++ b/ipc/mqueue.c
-@@ -35,6 +35,7 @@
- #include <linux/ipc_namespace.h>
- #include <linux/user_namespace.h>
- #include <linux/slab.h>
-+#include <linux/xattr.h>
- 
- #include <net/sock.h>
- #include "util.h"
-@@ -70,6 +71,7 @@ struct mqueue_inode_info {
- 	struct rb_root msg_tree;
- 	struct posix_msg_tree_node *node_cache;
- 	struct mq_attr attr;
-+	struct simple_xattrs xattrs;	/* list of xattrs */
- 
- 	struct sigevent notify;
- 	struct pid *notify_owner;
-@@ -254,6 +256,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
- 			info->attr.mq_maxmsg = attr->mq_maxmsg;
- 			info->attr.mq_msgsize = attr->mq_msgsize;
- 		}
-+		simple_xattrs_init(&info->xattrs);
- 		/*
- 		 * We used to allocate a static array of pointers and account
- 		 * the size of that array as well as one msg_msg struct per
-@@ -418,7 +421,8 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
- {
- 	struct inode *inode;
- 	struct mq_attr *attr = dentry->d_fsdata;
--	int error;
-+	struct mqueue_inode_info *info;
-+	int error = 0;
- 	struct ipc_namespace *ipc_ns;
- 
- 	spin_lock(&mq_lock);
-@@ -443,6 +447,18 @@ static int mqueue_create(struct inode *dir, struct dentry *dentry,
- 		ipc_ns->mq_queues_count--;
- 		goto out_unlock;
- 	}
-+	info = MQUEUE_I(inode);
-+	if (info){
-+		error = security_inode_init_security(inode, dir,
-+						     &dentry->d_name,
-+						     simple_xattr_initxattrs,
-+						     &info->xattrs);
-+	}
-+	if (error && error != -EOPNOTSUPP) {
-+		spin_lock(&mq_lock);
-+		ipc_ns->mq_queues_count--;
-+		goto out_unlock;
-+	}
- 
- 	put_ipc_ns(ipc_ns);
- 	dir->i_size += DIRENT_SIZE;
+  - in endless loop: mmap(MAP_COPY|MAP_FIXED) a victim file 1000 times (by
+    distinct addresses) into your address space;
+
+  - any attempt to write to the file would require to go through all
+    mapping and put new page in every one;
+
+  - by the time you've done with all 1000 VMAs, attacker created new bunch
+    for you.
+
+There's no way to guarantee it would ever complete (nasty hacks into
+scheduler don't count).
+
 -- 
-1.9.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
