@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B1D6B0038
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 17:14:26 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id dh1so60173486wjb.0
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:14:26 -0800 (PST)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id y6si372111wmy.55.2017.01.05.14.14.24
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AA706B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 17:50:00 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id j13so13486943iod.6
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:50:00 -0800 (PST)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id 141si160713itu.33.2017.01.05.14.49.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 14:14:25 -0800 (PST)
-Received: by mail-wm0-x242.google.com with SMTP id u144so771441wmu.0
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:14:24 -0800 (PST)
-Date: Fri, 6 Jan 2017 01:14:22 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: A use case for MAP_COPY
-Message-ID: <20170105221422.GB27928@node.shutemov.name>
+        Thu, 05 Jan 2017 14:49:59 -0800 (PST)
+Received: by mail-io0-x22b.google.com with SMTP id p127so44561931iop.3
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:49:59 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20170105211056.18340.qmail@ns.sciencehorizons.net>
 References: <CA+55aFyNFb7Ns7O2yjWsKZHOEzgGkyVznp=kLRE9an-mEUC0BQ@mail.gmail.com>
  <20170105211056.18340.qmail@ns.sciencehorizons.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170105211056.18340.qmail@ns.sciencehorizons.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 5 Jan 2017 14:49:58 -0800
+Message-ID: <CA+55aFyZtmjsaE_g6TXoqwhBUL-gtt53ARGmpU8eFFZ0wNWDbg@mail.gmail.com>
+Subject: Re: A use case for MAP_COPY
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: George Spelvin <linux@sciencehorizons.net>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, riel@surriel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>
 
-On Thu, Jan 05, 2017 at 04:10:56PM -0500, George Spelvin wrote:
-> It just has to be less of a DoS attack than MAP_DENYWRITE.
+On Thu, Jan 5, 2017 at 1:10 PM, George Spelvin
+<linux@sciencehorizons.net> wrote:
+>
+>> Not going to happen.
+>
+> Really?  Because the rest of your response is a lot more encouraging.
 
-It's easy to turn MAP_COPY into DoS:
+The thing is, I don't think you can do it with a reasonable patch. It
+just gets too nasty.
 
-  - in endless loop: mmap(MAP_COPY|MAP_FIXED) a victim file 1000 times (by
-    distinct addresses) into your address space;
+For example, what happens when there is low memory? What you would
+*want* to happen is to just forget the page and read it back in.
+That/s how MAP_PRIVATE works. But that won't actually work for
+MAP_COPY. You'd need to page the thing out, as if you had written to
+it (even though you didn't). Not because you want to, but because your
+versioning scheme depends on it.
 
-  - any attempt to write to the file would require to go through all
-    mapping and put new page in every one;
+So how are y ou going to solve that versioning probnlem wrt memory
+pressure? The whole point of MAP_COPY is to avoid a memory copy, but
+if you now end up having to do IO, and having to have a swap device
+for it, it's completely unacceptable. See?
 
-  - by the time you've done with all 1000 VMAs, attacker created new bunch
-    for you.
+How are you going to avoid the issues with growing 'struct page'?
 
-There's no way to guarantee it would ever complete (nasty hacks into
-scheduler don't count).
+So the fact is, it's a horrible idea. I don't think you understand how
+horrible it is. The only way you'll understand is if you try to write
+the patch.
 
--- 
- Kirill A. Shutemov
+"Siperia opettaa".
+
+So you can try to prove me wrong by sending a patch. I doubt you will.
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
