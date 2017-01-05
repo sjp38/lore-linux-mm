@@ -1,93 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E33AC6B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 01:05:07 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g1so1420919151pgn.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 22:05:07 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id p62si74706711pfl.255.2017.01.04.22.05.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ABA7C6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 01:22:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 17so804615354pfy.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 22:22:45 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g31si44264434pld.30.2017.01.04.22.22.44
         for <linux-mm@kvack.org>;
-        Wed, 04 Jan 2017 22:05:06 -0800 (PST)
-Date: Thu, 5 Jan 2017 15:04:58 +0900
+        Wed, 04 Jan 2017 22:22:44 -0800 (PST)
+Date: Thu, 5 Jan 2017 15:15:57 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
- tracepoint
-Message-ID: <20170105060458.GC24371@bbox>
-References: <20170104101942.4860-1-mhocko@kernel.org>
- <20170104101942.4860-5-mhocko@kernel.org>
+Subject: Re: [PATCH v4 0/9] mm/swap: Regular page swap optimizations
+Message-ID: <20170105061557.GD24371@bbox>
+References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
+ <20161227074503.GA10616@bbox>
+ <20170102154841.GG18058@quack2.suse.cz>
+ <20170103043411.GA15657@bbox>
+ <87inpwu29c.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <87inpwu29c.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170104101942.4860-5-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Nicholas Piggin <npiggin@gmail.com>
 
-On Wed, Jan 04, 2017 at 11:19:39AM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-> from is file or anonymous but we do not know which LRU this is.
-> 
-> It is useful to know whether the list is active or inactive, since we
-> are using the same function to isolate pages from both of them and it's
-> hard to distinguish otherwise.
-> 
-> Chaneges since v1
-> - drop LRU_ prefix from names and use lowercase as per Vlastimil
-> - move and convert show_lru_name to mmflags.h EM magic as per Vlastimil
-> 
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+Hi Huang,
 
-> ---
->  include/trace/events/mmflags.h |  8 ++++++++
->  include/trace/events/vmscan.h  | 12 ++++++------
->  mm/vmscan.c                    |  2 +-
->  3 files changed, 15 insertions(+), 7 deletions(-)
+On Tue, Jan 03, 2017 at 01:43:43PM +0800, Huang, Ying wrote:
+> Hi, Minchan,
 > 
-> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-> index aa4caa6914a9..6172afa2fd82 100644
-> --- a/include/trace/events/mmflags.h
-> +++ b/include/trace/events/mmflags.h
-> @@ -240,6 +240,13 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
->  	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
->  				EMe(ZONE_MOVABLE,"Movable")
->  
-> +#define LRU_NAMES		\
-> +		EM (LRU_INACTIVE_ANON, "inactive_anon") \
-> +		EM (LRU_ACTIVE_ANON, "active_anon") \
-> +		EM (LRU_INACTIVE_FILE, "inactive_file") \
-> +		EM (LRU_ACTIVE_FILE, "active_file") \
-> +		EMe(LRU_UNEVICTABLE, "unevictable")
-> +
->  /*
->   * First define the enums in the above macros to be exported to userspace
->   * via TRACE_DEFINE_ENUM().
-> @@ -253,6 +260,7 @@ COMPACTION_STATUS
->  COMPACTION_PRIORITY
->  COMPACTION_FEEDBACK
->  ZONE_TYPE
-> +LRU_NAMES
->  
->  /*
->   * Now redefine the EM() and EMe() macros to map the enums to the strings
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index 36c999f806bf..7ec59e0432c4 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -277,9 +277,9 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
->  		unsigned long nr_skipped,
->  		unsigned long nr_taken,
->  		isolate_mode_t isolate_mode,
-> -		int file),
-> +		int lru),
+> Minchan Kim <minchan@kernel.org> writes:
+> 
+> > Hi Jan,
+> >
+> > On Mon, Jan 02, 2017 at 04:48:41PM +0100, Jan Kara wrote:
+> >> Hi,
+> >> 
+> >> On Tue 27-12-16 16:45:03, Minchan Kim wrote:
+> >> > > Patch 3 splits the swap cache radix tree into 64MB chunks, reducing
+> >> > >         the rate that we have to contende for the radix tree.
+> >> > 
+> >> > To me, it's rather hacky. I think it might be common problem for page cache
+> >> > so can we think another generalized way like range_lock? Ccing Jan.
+> >> 
+> >> I agree on the hackyness of the patch and that page cache would suffer with
+> >> the same contention (although the files are usually smaller than swap so it
+> >> would not be that visible I guess). But I don't see how range lock would
+> >> help here - we need to serialize modifications of the tree structure itself
+> >> and that is difficult to achieve with the range lock. So what you would
+> >> need is either a different data structure for tracking swap cache entries
+> >> or a finer grained locking of the radix tree.
+> >
+> > Thanks for the comment, Jan.
+> >
+> > I think there are more general options. One is to shrink batching pages like
+> > Mel and Tim had approached.
+> >
+> > https://patchwork.kernel.org/patch/9008421/
+> > https://patchwork.kernel.org/patch/9322793/
+> 
+> This helps to reduce the lock contention on radix tree of swap cache.
+> But splitting swap cache has much better performance.  So we switched
+> from that solution to current solution.
+> 
+> > Or concurrent page cache by peter.
+> >
+> > https://www.kernel.org/doc/ols/2007/ols2007v2-pages-311-318.pdf
+> 
+> I think this is good, it helps swap and file cache.  But I don't know
+> whether other people want to go this way and how much effort will be
+> needed.
+> 
+> In contrast, splitting swap cache is quite simple, for implementation
+> and review.  And the effect is good.
 
-It may break trace-vmscan-postprocess.pl. Other than that,
+I think general approach is better but I don't want to be a a party pooper
+if every people are okay with this. I just wanted to point out we need to
+consider more general approach and I did my best.
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+Decision depends on you guys.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
