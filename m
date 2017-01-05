@@ -1,113 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5564C6B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 07:33:45 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id xr1so120556974wjb.7
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 04:33:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k9si81647957wmk.86.2017.01.05.04.33.43
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 371146B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 07:56:22 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id c47so224149646qtc.4
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 04:56:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h125si18730536qkd.40.2017.01.05.04.56.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 04:33:43 -0800 (PST)
-Date: Thu, 5 Jan 2017 13:33:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 190841] New: [REGRESSION] Intensive Memory CGroup removal
- leads to high load average 10+
-Message-ID: <20170105123341.GQ21618@dhcp22.suse.cz>
-References: <bug-190841-27@https.bugzilla.kernel.org/>
- <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jan 2017 04:56:21 -0800 (PST)
+Date: Thu, 5 Jan 2017 13:56:17 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 07/42] userfaultfd: non-cooperative: report all available
+ features to userland
+Message-ID: <20170105125617.GI6984@redhat.com>
+References: <20161216144821.5183-1-aarcange@redhat.com>
+ <20161216144821.5183-8-aarcange@redhat.com>
+ <20170104150146.4c26286146460eafbdc77cb3@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
+In-Reply-To: <20170104150146.4c26286146460eafbdc77cb3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, frolvlad@gmail.com, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Michael Rapoport <RAPOPORT@il.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-On Wed 04-01-17 17:30:37, Andrew Morton wrote:
+Hello Andrew,
+
+On Wed, Jan 04, 2017 at 03:01:46PM -0800, Andrew Morton wrote:
+> On Fri, 16 Dec 2016 15:47:46 +0100 Andrea Arcangeli <aarcange@redhat.com> wrote:
 > 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
+> > This will allow userland to probe all features available in the
+> > kernel. It will however only enable the requested features in the
+> > open userfaultfd context.
 > 
-> On Wed, 21 Dec 2016 19:56:16 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=190841
-> > 
-> >             Bug ID: 190841
-> >            Summary: [REGRESSION] Intensive Memory CGroup removal leads to
-> >                     high load average 10+
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 4.7.0-rc1+
-> >           Hardware: All
-> >                 OS: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: normal
-> >           Priority: P1
-> >          Component: Other
-> >           Assignee: akpm@linux-foundation.org
-> >           Reporter: frolvlad@gmail.com
-> >         Regression: No
-> > 
-> > My simplified workflow looks like this:
-> > 
-> > 1. Create a Memory CGroup with memory limit
-> > 2. Exec a child process
-> > 3. Add the child process PID into the Memory CGroup
-> > 4. Wait for the child process to finish
-> > 5. Remove the Memory CGroup
-> > 
-> > The child processes usually run less than 0.1 seconds, but I have lots of them.
-> > Normally, I could run over 10000 child processes per minute, but with newer
-> > kernels, I can only do 400-500 executions per minute, and my system becomes
-> > extremely sluggish (the only indicator of the weirdness I found is an unusually
-> > high load average, which sometimes goes over 250!).
+> Is the user-facing documentation updated somewhere?  I guess that's
 
-Well, yes, rmdir is not the cheapest operation... Since b2052564e66d
-("mm: memcontrol: continue cache reclaim from offlined groups") we are
-postponing the real memcg removal to later, when there is a memory
-pressure. 73f576c04b94 ("mm: memcontrol: fix cgroup creation failure
-after many small jobs") fixed unbound id space consumption. I would be
-quite surprised if this caused a new regression. But the report says
-that this is 4.7+ thing. I would expect older kernels would just refuse
-the create new cgroups... Maybe that happens in your script and just
-gets unnoticed?
+The above is fully backwards compatible, in the current upstream the
+feature flags are empty.
 
-We might come up with some more harderning in the offline path (e.g.
-count the number of dead memcgs and force their reclaim after some
-number gets accumulated). But all that just adds more code and risk of
-regression for something that is not used very often. Cgroups
-creation/destruction are too heavy operations to be done for very
-shortlived process. Even without memcg involved. Are there any strong
-reasons you cannot reuse an existing cgroup?
+#define UFFD_API_FEATURES (0)
 
-> > Here is a simple reproduction script:
-> > 
-> > #!/bin/sh
-> > CGROUP_BASE=/sys/fs/cgroup/memory/qq
-> > 
-> > for $i in $(seq 1000); do
-> >     echo "Iteration #$i"
-> >     sh -c "
-> >         mkdir '$CGROUP_BASE'
-> >         sh -c 'echo \$$ > $CGROUP_BASE/tasks ; sleep 0.0'
+So it behaves the same.
 
-one possible workaround would be to do
-            echo 1 > $CGROUP_BASE/memory.force_empty
+> Documentation/vm/userfaultfd.txt.  Does a manpage exist yet?
 
-before you remove the cgroup. That should drop the existing charges - at
-least for the page cache which might be what keeps those memcgs alive.
+The manpage is merged and in sync with the above comment, but it
+wasn't updated for hugetlbfs shmem and non cooperative features
+yet. It just documents the UFFD_API_FEATURES (0) behavior according to
+the above git commit message.
 
-> >         rmdir '$CGROUP_BASE' || true
-> >     "
-> > done
-> > # ===
+Like Mike wrote below the manpage will be updated when the new
+features go upstream.
 
--- 
-Michal Hocko
-SUSE Labs
+https://marc.info/?l=linux-man&m=148299572702201&w=2
+https://marc.info/?l=linux-man&m=148304176911503&w=2
+
+Here the text in the current manpage relevant to the above commit, so
+again in full sync with upstream and in sync with the new patch too
+because upstream behaves the same with UFFD_API_FEATURES (0):
+
+       The API ioctls are used to configure userfaultfd behavior.
+       They allow to choose what features will be enabled and what
+       kinds of events will be delivered to the application.
+
+              The api field denotes the API version requested by the
+              application.  The kernel verifies that it can support
+              the required API, and sets the features and ioctls
+              fields to bit masks representing all the available
+              features and the generic ioctls available.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
