@@ -1,90 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 837526B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 10:50:57 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id iq1so60334798wjb.1
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 07:50:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i76si82321122wmh.87.2017.01.05.07.50.56
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 996116B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 11:57:19 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id dh1so58911221wjb.0
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 08:57:19 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id x5si82404400wmx.163.2017.01.05.08.57.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 07:50:56 -0800 (PST)
-Date: Thu, 5 Jan 2017 16:50:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: add new background defrag option
-Message-ID: <20170105155053.GW21618@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
- <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
- <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jan 2017 08:57:18 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id u144so97605457wmu.0
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 08:57:17 -0800 (PST)
+Date: Thu, 5 Jan 2017 19:57:15 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 00/29] 5-level paging
+Message-ID: <20170105165715.GF17319@node.shutemov.name>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
+In-Reply-To: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 05-01-17 14:58:47, Vlastimil Babka wrote:
-[...]
-> I'm not a fan of either name, so I've tried to implement my own
-> suggestion. Turns out it was easier than expected, as there's no kernel
-> boot option for "defer", just for "enabled", so that particular worry
-> was unfounded.
+On Tue, Dec 27, 2016 at 04:53:44AM +0300, Kirill A. Shutemov wrote:
+> Here is v2 of 5-level paging patchset.
 > 
-> And personally I think that it's less confusing when one can enable defer
-> and madvise together (and not any other combination), than having to dig
-> up the difference between "defer" and "background".
-> 
-> I have only tested the sysfs manipulation, not actual THP, but seems to me
-> that alloc_hugepage_direct_gfpmask() already happens to process the flags
-> in a way that it works as expected.
+> Please consider applying first 7 patches.
 
-IMHO this looks indeed much simpler implementation wise, more consistent
-from the semantic point of view and less confusing from the usage POV.
- 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 10eedbf14421..cc5ae86169a8 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -150,7 +150,16 @@ static ssize_t triple_flag_store(struct kobject *kobj,
->  				 enum transparent_hugepage_flag deferred,
->  				 enum transparent_hugepage_flag req_madv)
->  {
-> -	if (!memcmp("defer", buf,
-> +	if (!memcmp("defer madvise", buf,
-> +			min(sizeof("defer madvise")-1, count))
-> +	    || !memcmp("madvise defer", buf,
-> +			min(sizeof("madvise defer")-1, count))) {
-> +		if (enabled == deferred)
-> +			return -EINVAL;
-> +		clear_bit(enabled, &transparent_hugepage_flags);
-> +		set_bit(req_madv, &transparent_hugepage_flags);
-> +		set_bit(deferred, &transparent_hugepage_flags);
-> +	} else if (!memcmp("defer", buf,
->  		    min(sizeof("defer")-1, count))) {
->  		if (enabled == deferred)
->  			return -EINVAL;
-> @@ -251,9 +260,12 @@ static ssize_t defrag_show(struct kobject *kobj,
->  {
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
->  		return sprintf(buf, "[always] defer madvise never\n");
-> -	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
-> -		return sprintf(buf, "always [defer] madvise never\n");
-> -	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-> +	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags)) {
-> +		if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-> +			return sprintf(buf, "always [defer] [madvise] never\n");
-> +		else
-> +			return sprintf(buf, "always [defer] madvise never\n");
-> +	} else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
->  		return sprintf(buf, "always defer [madvise] never\n");
->  	else
->  		return sprintf(buf, "always defer madvise [never]\n");
+It's probably useful to describe all pieces and the order in which they can
+be be merged:
+
+  - The first seven patches of this patchset I would like to get applied now:
+
+    + Detect la57 feature for /proc/cpuinfo.
+
+    + Brings 5-level paging to generic code and convert all architectures
+      to it using <asm-generic/5level-fixup.h>
+
+    This is preparation for the next batch of patches.
+
+  - Basic LA57 enabling
+
+    The rest of the patches of the patchset, except rlimit proposal.
+
+    This would enable 5-level paging for kernel.
+
+    Userspace upper address would be limited to current TASK_SIZE_MAX --
+    47-bit - PAGE_SIZE, until we will figure out the right interface to
+    opt-in full 56-bit VA.
+
+    We still working on getting XEN into shape. We need to get it up and
+    running at least for 4-level paging to not regress any configuration.
+
+The reset can be merged independently after basic LA57 enabling:
+
+  - Large VA opt-in mechanism
+
+    I've proposed rlimit handle to enable large VA for userspace.
+
+    Andy is not fan of it. We need to decide what is right way to go.
+
+    Any help with that is welcome.
+
+  - Boottime switch for 5-level paging.
+
+    I haven't started looking into this yet.
+
+  - MPX - MAWA enabling required.
+
+    It requires changes into GCC (libmpx and libmpxwrappers) which are
+    not ready yet.
+
+  - Virtualization - EPT5
+
+    There's RFC patchset by Liang Li. Work in progress.
+
+Does it sound reasonable from maintainer's point of view?
+Or should I shift priorities somewhere?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
