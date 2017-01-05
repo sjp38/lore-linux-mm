@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75D186B0038
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 16:28:02 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id f2so21152025uaf.2
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 13:28:02 -0800 (PST)
-Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
-        by mx.google.com with ESMTPS id f62si1713577vkc.110.2017.01.05.13.28.01
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FFFC6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 17:04:04 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id n204so39475641oif.6
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 14:04:04 -0800 (PST)
+Received: from da1vs02.rockwellcollins.com (da1vs02.rockwellcollins.com. [205.175.227.29])
+        by mx.google.com with ESMTPS id s185si33485262oia.235.2017.01.05.14.04.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 13:28:01 -0800 (PST)
-Received: by mail-vk0-x230.google.com with SMTP id p9so306013436vkd.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 13:28:01 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Jan 2017 14:04:03 -0800 (PST)
+From: David Graziano <david.graziano@rockwellcollins.com>
+Subject: [PATCH v4 0/3] initxattr callback update for mqueue xattr support
+Date: Thu,  5 Jan 2017 16:03:40 -0600
+Message-Id: <1483653823-22018-1-git-send-email-david.graziano@rockwellcollins.com>
 MIME-Version: 1.0
-In-Reply-To: <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com> <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
- <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com> <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
- <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 5 Jan 2017 13:27:40 -0800
-Message-ID: <CALCETrW7yxmgrR15yvxkXOF1pHy5vicwDv6Oj019ecEyBCrWBQ@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: linux-security-module@vger.kernel.org, paul@paul-moore.com
+Cc: agruenba@redhat.com, hch@infradead.org, linux-mm@kvack.org, sds@tycho.nsa.gov, linux-kernel@vger.kernel.org, David Graziano <david.graziano@rockwellcollins.com>
 
-On Thu, Jan 5, 2017 at 12:49 PM, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 01/05/2017 12:14 PM, Andy Lutomirski wrote:
->>> I'm not sure I'm comfortable with this.  Do other rlimit changes cause
->>> silent data corruption?  I'm pretty sure doing this to MPX would.
->>>
->> What actually goes wrong in this case?  That is, what combination of
->> MPX setup of subsequent allocations will cause a problem, and is the
->> problem worse than just a segfault?  IMO it would be really nice to
->> keep the messy case confined to MPX.
->
-> The MPX bounds tables are indexed by virtual address.  They need to grow
-> if the virtual address space grows.   There's an MSR that controls
-> whether we use the 48-bit or 57-bit layout.  It basically decides
-> whether we need a 2GB (48-bit) or 1TB (57-bit) bounds directory.
->
-> The question is what we do with legacy MPX applications.  We obviously
-> can't let them just allocate a 2GB table and then go let the hardware
-> pretend it's 1TB in size.  We also can't hand the hardware using a 2GB
-> table an address >48-bits.
->
-> Ideally, I'd like to make sure that legacy MPX can't be enabled if this
-> RLIMIT is set over 48-bits (really 47).  I'd also like to make sure that
-> legacy MPX is active, that the RLIMIT can't be raised because all hell
-> will break loose when the new addresses show up.
->
-> Remember, we already have (legacy MPX) binaries in the wild that have no
-> knowledge of this stuff.  So, we can implicitly have the kernel bump
-> this rlimit around, but we can't expect userspace to do it, ever.
+This patchset is for implementing extended attribute support within the 
+POSIX message queue (mqueue) file system. This is needed so that the 
+security.selinux extended attribute can be set via a SELinux named type 
+transition on file inodes created within the filesystem. I needed to 
+write a selinux policy for a set of custom applications that use mqueues 
+for their IPC. The mqueues are created by one application and we needed 
+a way for selinux to enforce which of the other application are able to 
+read/write to each individual queue. Uniquely labelling them based on the 
+application that created them and the filename seemed to be our best 
+solution as ita??s an embedded system and we dona??t have restorecond to 
+handle any relabeling.
 
-If you s/rlimit/prctl, then I think this all makes sense with one
-exception.  It would be a bit sad if the personality-setting tool
-didn't work if compiled with MPX.
+This series is a result of feedback from the v2 mqueue patch 
+( http://marc.info/?l=linux-kernel&m=147855351826081&w=2 ) which 
+duplicated the shmem_initxattrs() function for the mqueue file system. 
+This patcheset creates a common simple_xattr_initxattrs() function that 
+can be used by multiple virtual file systems to handle extended attribute 
+initialization via LSM callback. simple_xattr_initxattrs() is an updated 
+version of shmem_initxattrs(). As part of the this series both shmem and 
+mqueue are updated to use the new common initxattrs function. 
 
-So what if we had a second prctl field that is the value that kicks in
-after execve()?
+Changes v3 -> v4:
+ - fix uninitialized variable in mqueue patch (3/3)
 
---Andy
+Changes v2 -> v3:
+ - creates new simple_xattr_initxattrs() function
+ - updates shmem to use new callback function
+ - updates mqueue to use new callback function
+
+Changes v1 -> v2:
+ - formatting/commit message
+
+
+David Graziano (3):
+  xattr: add simple initxattrs function
+  shmem: use simple initxattrs callback
+  mqueue: Implement generic xattr support
+
+ fs/xattr.c            | 39 +++++++++++++++++++++++++++++++++++++
+ include/linux/xattr.h |  3 +++
+ ipc/mqueue.c          | 16 ++++++++++++++++
+ mm/shmem.c            | 53 ++++++++++++---------------------------------------
+ 4 files changed, 70 insertions(+), 41 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
