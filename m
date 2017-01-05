@@ -1,54 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5336B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 14:39:17 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 5so1505075909pgi.2
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 11:39:17 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i9si2938816pli.49.2017.01.05.11.39.17
+	by kanga.kvack.org (Postfix) with ESMTP id B5FCF6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 14:41:16 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 5so1505189916pgi.2
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 11:41:16 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x13si41800708plm.213.2017.01.05.11.41.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 11:39:17 -0800 (PST)
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com>
- <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com>
-Date: Thu, 5 Jan 2017 11:39:16 -0800
-MIME-Version: 1.0
-In-Reply-To: <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
-Content-Type: text/plain; charset=windows-1252
+        Thu, 05 Jan 2017 11:41:15 -0800 (PST)
+Date: Thu, 5 Jan 2017 11:42:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 190191] New: kswapd0 spirals out of control
+Message-Id: <20170105114233.b5c80f88f625815eaec70bc1@linux-foundation.org>
+In-Reply-To: <bug-190191-27@https.bugzilla.kernel.org/>
+References: <bug-190191-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, dh@kernel.usrbin.org
 
-On 01/05/2017 11:29 AM, Kirill A. Shutemov wrote:
-> On Thu, Jan 05, 2017 at 11:13:57AM -0800, Dave Hansen wrote:
->> On 12/26/2016 05:54 PM, Kirill A. Shutemov wrote:
->>> MM would use min(RLIMIT_VADDR, TASK_SIZE) as upper limit of virtual
->>> address available to map by userspace.
->>
->> What happens to existing mappings above the limit when this upper limit
->> is dropped?
-> 
-> Nothing: we only prevent creating new mappings. All existing are not
-> affected.
-> 
-> The semantics here the same as with other resource limits.
-> 
->> Similarly, why do we do with an application running with something
->> incompatible with the larger address space that tries to raise the
->> limit?  Say, legacy MPX.
-> 
-> It has to know what it does. Yes, it can change limit to the point where
-> application is unusable. But you can to the same with other limits.
 
-I'm not sure I'm comfortable with this.  Do other rlimit changes cause
-silent data corruption?  I'm pretty sure doing this to MPX would.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Mon, 12 Dec 2016 19:38:23 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=190191
+> 
+>             Bug ID: 190191
+>            Summary: kswapd0 spirals out of control
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 4.8.0+
+>           Hardware: i386
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Other
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: dh@kernel.usrbin.org
+>         Regression: No
+
+I'd say "Regression: yes".
+
+Additional details at the link.  There's no indication which commit(s)
+broke it.
+
+> Created attachment 247481
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=247481&action=edit
+> config for 4.7
+> 
+> I'm currently running 4.7.10 with no problems, but when i tried to upgrade to
+> 4.8.0 (and just now, 4.9.0) i encountered a problem that makes my system
+> unusable.
+> 
+> When running certain jobs, kswapd0 will consume more and more cpu cycles until
+> `top' lists it at 100% and everything else slows to a crawl and makes the
+> system almost completely unresponsive.
+> 
+> The main time i notice this is when running big rsync jobs between my
+> computers, which i do regularly (masochistic homebrew packaging system, don't
+> ask).
+> 
+> `free' never indicates any swap usage while this is going on; the systems have
+> 4GB and 8GB of memory respectively and neither is getting filled up.
+> 
+> I've never seen this problem before and i've been running self-compiled kernels
+> early in the 2.x days.
+> 
+> `echo 1 > /proc/sys/vm/drop_caches' works to clear the logjam, but then it just
+> happens again in short order.
+> 
+> I'm attaching my .config for 4.7 and 4.9, in case this has something to do with
+> my configuration options.
+> 
+> Sorry this isn't very precise, but i'm not sure how to further debug this and
+> don't have a strong enough understanding of the systems involved to know what
+> to provide.  If i can try anything to help pinpoint the issue, please let me
+> know!
+> 
+> -- 
+> You are receiving this mail because:
+> You are the assignee for the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
