@@ -1,174 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A7ACF6B0260
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 05:16:16 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id j10so119822572wjb.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 02:16:16 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 915326B0253
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 05:27:26 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id u144so87842450wmu.1
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 02:27:26 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jv4si84866386wjb.64.2017.01.05.02.16.14
+        by mx.google.com with ESMTPS id 80si81173438wmy.107.2017.01.05.02.27.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 02:16:15 -0800 (PST)
-Date: Thu, 5 Jan 2017 11:16:13 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/7] mm, vmscan: show LRU name in mm_vmscan_lru_isolate
- tracepoint
-Message-ID: <20170105101613.GG21618@dhcp22.suse.cz>
-References: <20170104101942.4860-1-mhocko@kernel.org>
- <20170104101942.4860-5-mhocko@kernel.org>
- <20170105060458.GC24371@bbox>
+        Thu, 05 Jan 2017 02:27:25 -0800 (PST)
+Date: Thu, 5 Jan 2017 11:27:22 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [LSF/MM TOPIC] wmark based pro-active compaction
+Message-ID: <20170105102722.GH21618@dhcp22.suse.cz>
+References: <20161230131412.GI13301@dhcp22.suse.cz>
+ <20161230140651.nud2ozpmvmziqyx4@suse.de>
+ <cde489a7-4c08-f5ba-e6e8-07d8537bc7d8@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170105060458.GC24371@bbox>
+In-Reply-To: <cde489a7-4c08-f5ba-e6e8-07d8537bc7d8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu 05-01-17 15:04:58, Minchan Kim wrote:
-> On Wed, Jan 04, 2017 at 11:19:39AM +0100, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > mm_vmscan_lru_isolate currently prints only whether the LRU we isolate
-> > from is file or anonymous but we do not know which LRU this is.
-> > 
-> > It is useful to know whether the list is active or inactive, since we
-> > are using the same function to isolate pages from both of them and it's
-> > hard to distinguish otherwise.
-> > 
-> > Chaneges since v1
-> > - drop LRU_ prefix from names and use lowercase as per Vlastimil
-> > - move and convert show_lru_name to mmflags.h EM magic as per Vlastimil
-> > 
-> > Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> > Acked-by: Mel Gorman <mgorman@suse.de>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Thu 05-01-17 10:53:59, Vlastimil Babka wrote:
+> [CC Joonsoo and Johannes]
 > 
-> > ---
-> >  include/trace/events/mmflags.h |  8 ++++++++
-> >  include/trace/events/vmscan.h  | 12 ++++++------
-> >  mm/vmscan.c                    |  2 +-
-> >  3 files changed, 15 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-> > index aa4caa6914a9..6172afa2fd82 100644
-> > --- a/include/trace/events/mmflags.h
-> > +++ b/include/trace/events/mmflags.h
-> > @@ -240,6 +240,13 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
-> >  	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
-> >  				EMe(ZONE_MOVABLE,"Movable")
-> >  
-> > +#define LRU_NAMES		\
-> > +		EM (LRU_INACTIVE_ANON, "inactive_anon") \
-> > +		EM (LRU_ACTIVE_ANON, "active_anon") \
-> > +		EM (LRU_INACTIVE_FILE, "inactive_file") \
-> > +		EM (LRU_ACTIVE_FILE, "active_file") \
-> > +		EMe(LRU_UNEVICTABLE, "unevictable")
-> > +
-> >  /*
-> >   * First define the enums in the above macros to be exported to userspace
-> >   * via TRACE_DEFINE_ENUM().
-> > @@ -253,6 +260,7 @@ COMPACTION_STATUS
-> >  COMPACTION_PRIORITY
-> >  COMPACTION_FEEDBACK
-> >  ZONE_TYPE
-> > +LRU_NAMES
-> >  
-> >  /*
-> >   * Now redefine the EM() and EMe() macros to map the enums to the strings
-> > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> > index 36c999f806bf..7ec59e0432c4 100644
-> > --- a/include/trace/events/vmscan.h
-> > +++ b/include/trace/events/vmscan.h
-> > @@ -277,9 +277,9 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
-> >  		unsigned long nr_skipped,
-> >  		unsigned long nr_taken,
-> >  		isolate_mode_t isolate_mode,
-> > -		int file),
-> > +		int lru),
+> On 12/30/2016 03:06 PM, Mel Gorman wrote:
+> > On Fri, Dec 30, 2016 at 02:14:12PM +0100, Michal Hocko wrote:
+> >> Hi,
+> >> I didn't originally want to send this proposal because Vlastimil is
+> >> planning to do some work in this area so I've expected him to send
+> >> something similar. But the recent discussion about the THP defrag
+> >> options pushed me to send out my thoughts.
 > 
-> It may break trace-vmscan-postprocess.pl. Other than that,
+> No problem.
+> 
+> >> So what is the problem? The demand for high order pages is growing and
+> >> that seems to be the general trend. The problem is that while they can
+> >> bring performance benefit they can get be really expensive to allocate
+> >> especially when we enter the direct compaction. So we really want to
+> >> prevent from expensive path and defer as much as possible to the
+> >> background. A huge step forward was kcompactd introduced by Vlastimil.
+> >> We are still not there yet though, because it might be already quite
+> >> late when we wakeup_kcompactd(). The memory might be already fragmented
+> >> when we hit there.
+> 
+> Right.
+> 
+> >> Moreover we do not have any way to actually tell
+> >> which orders we do care about.
+> 
+> Who is "we" here? The system admin?
 
-I wasn't aware of the script. And you are right it will break it. The
-following should fix it. Btw. shrink_inactive_list tracepoint changes
-will to be synced as well. I do not speak perl much but the following
-should just work (untested yet).
----
-diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-index 8f961ef2b457..ba976805853a 100644
---- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-+++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-@@ -112,8 +112,8 @@ my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
- my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
- my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
- my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
--my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_taken=([0-9]*) file=([0-9]*)';
--my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) zid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
-+my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) classzone_idx=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_skipped=([0-9]*) nr_taken=([0-9]*) lru=([a-z_]*)';
-+my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) nr_dirty=([0-9]*) nr_writeback=([0-9]*) nr_congested=([0-9]*) nr_immediate=([0-9]*) nr_activate=([0-9]*) nr_ref_keep=([0-9]*) nr_unmap_fail=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
- my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
- my $regex_writepage_default = 'page=([0-9a-f]*) pfn=([0-9]*) flags=([A-Z_|]*)';
- 
-@@ -205,15 +205,15 @@ $regex_wakeup_kswapd = generate_traceevent_regex(
- $regex_lru_isolate = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_lru_isolate",
- 			$regex_lru_isolate_default,
--			"isolate_mode", "order",
--			"nr_requested", "nr_scanned", "nr_taken",
--			"file");
-+			"isolate_mode", "classzone_idx", "order",
-+			"nr_requested", "nr_scanned", "nr_skipped", "nr_taken",
-+			"lru");
- $regex_lru_shrink_inactive = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_lru_shrink_inactive",
- 			$regex_lru_shrink_inactive_default,
--			"nid", "zid",
--			"nr_scanned", "nr_reclaimed", "priority",
--			"flags");
-+			"nid", "nr_scanned", "nr_reclaimed", "nr_dirty", "nr_writeback",
-+			"nr_congested", "nr_immediate", "nr_activate", "nr_ref_keep",
-+			"nr_unmap_fail", "priority", "flags");
- $regex_lru_shrink_active = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_lru_shrink_active",
- 			$regex_lru_shrink_active_default,
-@@ -381,8 +381,8 @@ sub process_events {
- 				next;
- 			}
- 			my $isolate_mode = $1;
--			my $nr_scanned = $4;
--			my $file = $6;
-+			my $nr_scanned = $5;
-+			my $file = $8;
- 
- 			# To closer match vmstat scanning statistics, only count isolate_both
- 			# and isolate_inactive as scanning. isolate_active is rotation
-@@ -391,7 +391,7 @@ sub process_events {
- 			# isolate_both     == 3
- 			if ($isolate_mode != 2) {
- 				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
--				if ($file == 1) {
-+				if ($file =~ /_file/) {
- 					$perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED} += $nr_scanned;
- 				} else {
- 					$perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED} += $nr_scanned;
-@@ -406,8 +406,8 @@ sub process_events {
- 				next;
- 			}
- 
--			my $nr_reclaimed = $4;
--			my $flags = $6;
-+			my $nr_reclaimed = $3;
-+			my $flags = $12;
- 			my $file = 0;
- 			if ($flags =~ /RECLAIM_WB_FILE/) {
- 				$file = 1;
- 
-> Acked-by: Minchan Kim <minchan@kernel.org>
+yes
 
-Thanks
- 
+> >> Therefore I believe we need a watermark based pro-active compaction
+> >> which would keep the background compaction busy as long as we have
+> >> less pages of the configured order.
+> 
+> Again, configured by what, admin? I would rather try to avoid tunables
+> here, if possible. While THP is quite well known example with stable
+> order, the pressure for other orders is rather implementation specific
+> (drivers, SLAB/SLUB) and may change with kernel versions (e.g. virtually
+> mapped stacks, although that example is about non-costly order). Would
+> the admin be expected to study the implementation to know which orders
+> are needed, or react to page allocation failure reports? Neither sounds
+> nice.
 
+That is a good question but I expect that there are more users than THP
+which use stable orders. E.g. networking stack tends to depend on the
+packet size. A tracepoint with some histogram output would tell us what
+is the requested orders distribution.
+
+> >> kcompactd should wake up
+> >> periodically, I think, and check for the status so that we can catch
+> >> the fragmentation before we get low on memory.
+> >> The interface could look something like:
+> >> /proc/sys/vm/compact_wmark
+> >> time_period order count
+> 
+> IMHO it would be better if the system could auto-tune this, e.g. by
+> counting high-order alloc failures/needs for direct compaction per order
+> between wakeups, and trying to bring them to zero.
+
+auto-tunning is usually preferable I am just wondering how the admin can
+tell what is still the system load price he is willing to pay. I suspect
+we will see growing number of opportunistic high order requests over
+time and  auto tunning shouldn't try to accomodate with it without
+any bounds. There is still some cost/benefit to be evaluated from the
+system level point of view which I am afraid is hard to achive from the
+kcompactd POV.
 -- 
 Michal Hocko
 SUSE Labs
