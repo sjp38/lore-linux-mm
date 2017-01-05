@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5976B0069
-	for <linux-mm@kvack.org>; Wed,  4 Jan 2017 21:03:57 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id g1so1408998544pgn.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 18:03:57 -0800 (PST)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id t1si45726453plj.63.2017.01.04.18.03.56
+	by kanga.kvack.org (Postfix) with ESMTP id 41D776B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 00:08:23 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so1456644585pgi.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 21:08:23 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id f1si50031699pfc.158.2017.01.04.21.08.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Jan 2017 18:03:56 -0800 (PST)
-Received: by mail-pf0-x230.google.com with SMTP id d2so84979202pfd.0
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 18:03:56 -0800 (PST)
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-References: <20161216165437.21612-1-rrichter@cavium.com>
- <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
-From: Hanjun Guo <hanjun.guo@linaro.org>
-Message-ID: <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
-Date: Thu, 5 Jan 2017 10:03:48 +0800
+        Wed, 04 Jan 2017 21:08:22 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id i5so39460125pgh.2
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 21:08:22 -0800 (PST)
+Date: Thu, 5 Jan 2017 15:08:10 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 1/2] nfs: no PG_private waiters remain, remove waker
+Message-ID: <20170105150810.0b82a9ec@roar.ozlabs.ibm.com>
+In-Reply-To: <0562F017-2963-41E0-BE5B-62A07EC444CD@primarydata.com>
+References: <20170103182234.30141-1-npiggin@gmail.com>
+	<20170103182234.30141-2-npiggin@gmail.com>
+	<0562F017-2963-41E0-BE5B-62A07EC444CD@primarydata.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Robert Richter <rrichter@cavium.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Trond Myklebust <trondmy@primarydata.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>
 
-On 2017/1/4 21:56, Ard Biesheuvel wrote:
-> On 16 December 2016 at 16:54, Robert Richter <rrichter@cavium.com> wrote:
->> On ThunderX systems with certain memory configurations we see the
->> following BUG_ON():
->>
->>  kernel BUG at mm/page_alloc.c:1848!
->>
->> This happens for some configs with 64k page size enabled. The BUG_ON()
->> checks if start and end page of a memmap range belongs to the same
->> zone.
->>
->> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
->> this case the node information of those pages is not initialized. This
->> causes an inconsistency of the page links with wrong zone and node
->> information for that pages. NOMAP pages from node 1 still point to the
->> mem zone from node 0 and have the wrong nid assigned.
->>
->> The reason for the mis-configuration is a change in pfn_valid() which
->> reports pages marked NOMAP as invalid:
->>
->>  68709f45385a arm64: only consider memblocks with NOMAP cleared for linear mapping
->>
->> This causes pages marked as nomap being no longer reassigned to the
->> new zone in memmap_init_zone() by calling __init_single_pfn().
->>
->> Fixing this by implementing an arm64 specific early_pfn_valid(). This
->> causes all pages of sections with memory including NOMAP ranges to be
->> initialized by __init_single_page() and ensures consistency of page
->> links to zone, node and section.
->>
->
-> I like this solution a lot better than the first one, but I am still
-> somewhat uneasy about having the kernel reason about attributes of
-> pages it should not touch in the first place. But the fact that
-> early_pfn_valid() is only used a single time in the whole kernel does
-> give some confidence that we are not simply moving the problem
-> elsewhere.
->
-> Given that you are touching arch/arm/ as well as arch/arm64, could you
-> explain why only arm64 needs this treatment? Is it simply because we
-> don't have NUMA support there?
->
-> Considering that Hisilicon D05 suffered from the same issue, I would
-> like to get some coverage there as well. Hanjun, is this something you
-> can arrange? Thanks
+On Wed, 4 Jan 2017 13:43:10 +0000
+Trond Myklebust <trondmy@primarydata.com> wrote:
 
-Sure, we will test this patch with LTP MM stress test (which triggers
-the bug on D05), and give the feedback.
+> Hi Nick,
+> 
+> > On Jan 3, 2017, at 13:22, Nicholas Piggin <npiggin@gmail.com> wrote:
+> > 
+> > Since commit 4f52b6bb ("NFS: Don't call COMMIT in ->releasepage()"),
+> > no tasks wait on PagePrivate, so the wake introduced in commit 95905446
+> > ("NFS: avoid deadlocks with loop-back mounted NFS filesystems.") can
+> > be removed.
+> > 
+> > Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> > ---
+> > fs/nfs/write.c | 2 --
+> > 1 file changed, 2 deletions(-)
+> > 
+> > diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+> > index b00d53d13d47..006068526542 100644
+> > --- a/fs/nfs/write.c
+> > +++ b/fs/nfs/write.c
+> > @@ -728,8 +728,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
+> > 		if (likely(head->wb_page && !PageSwapCache(head->wb_page))) {
+> > 			set_page_private(head->wb_page, 0);
+> > 			ClearPagePrivate(head->wb_page);
+> > -			smp_mb__after_atomic();
+> > -			wake_up_page(head->wb_page, PG_private);
+> > 			clear_bit(PG_MAPPED, &head->wb_flags);
+> > 		}
+> > 		nfsi->nrequests--;
+> > -- 
+> > 2.11.0
+> >   
+> 
+> That looks fine to me. Do you want to push it through the linux-mm path or do you want me to take it?
 
-Thanks
-Hanjun
+Hi Trond,
+
+Thanks. I don't see a problem with both patches going through your tree.
+I think the patches to add this stuff went through your tree as well.
+The removal of the export is really the only thing that makes patch 2
+non-trivial, but considering it was added for NFS, I think it's safe to
+remove.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
