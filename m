@@ -1,158 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 285326B0253
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 10:15:44 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id sr6so692267wjb.2
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 07:15:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r20si190265wrc.122.2017.01.05.07.15.42
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3466A6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 10:17:09 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id c47so226268721qtc.4
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 07:17:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r45si34677130qte.148.2017.01.05.07.17.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 07:15:42 -0800 (PST)
-Date: Thu, 5 Jan 2017 16:15:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: hugetlb: reservation race leading to under provisioning
-Message-ID: <20170105151540.GT21618@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jan 2017 07:17:08 -0800 (PST)
+Date: Thu, 5 Jan 2017 09:17:00 -0600
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: Re: x86: warning in unwind_get_return_address
+Message-ID: <20170105151700.4n7wpynvsv2yjotp@treble>
+References: <CAAeHK+yqC-S=fQozuBF4xu+d+e=ikwc_ipn-xUGnmfnWsjUtoA@mail.gmail.com>
+ <20161220210144.u47znzx6qniecuvv@treble>
+ <CAAeHK+z7O-byXDL4AMZP5TdeWHSbY-K69cbN6EeYo5eAtvJ0ng@mail.gmail.com>
+ <20161220233640.pc4goscldmpkvtqa@treble>
+ <CAAeHK+yPSeO2PWQtsQs_7FQ0PeGzs4PgK_89UM8G=hFJrVzH1g@mail.gmail.com>
+ <20161222051701.soqwh47frxwsbkni@treble>
+ <CACT4Y+ZxTLcpwQOBCyMZGFuXeDrbu9-RBaqzgnE57UPeDSPE+g@mail.gmail.com>
+ <20170105144942.whqucdwmeqybng3s@treble>
+ <CACT4Y+agcezesdRUKtrho6sRmoRiCH6q4GU1J2QrTYqVkmJpKA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+In-Reply-To: <CACT4Y+agcezesdRUKtrho6sRmoRiCH6q4GU1J2QrTYqVkmJpKA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzkaller <syzkaller@googlegroups.com>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Kostya Serebryany <kcc@google.com>
 
-Hi,
-we have a customer report on an older kernel (3.12) but I believe the
-same issue is present in the current vanilla kernel. There is a race
-between mmap trying to do a reservation which fails when racing with
-truncate_hugepages. See the reproduced attached.
+On Thu, Jan 05, 2017 at 03:59:52PM +0100, Dmitry Vyukov wrote:
+> On Thu, Jan 5, 2017 at 3:49 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > On Tue, Dec 27, 2016 at 05:38:59PM +0100, Dmitry Vyukov wrote:
+> >> On Thu, Dec 22, 2016 at 6:17 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> >> > On Wed, Dec 21, 2016 at 01:46:36PM +0100, Andrey Konovalov wrote:
+> >> >> On Wed, Dec 21, 2016 at 12:36 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> >> >> >
+> >> >> > Thanks.  Looking at the stack trace, my guess is that an interrupt hit
+> >> >> > while running in generated BPF code, and the unwinder got confused
+> >> >> > because regs->ip points to the generated code.  I may need to disable
+> >> >> > that warning until we figure out a better solution.
+> >> >> >
+> >> >> > Can you share your .config file?
+> >> >>
+> >> >> Sure, attached.
+> >> >
+> >> > Ok, I was able to recreate with your config.  The culprit was generated
+> >> > code, as I suspected, though it wasn't BPF, it was a kprobe (created by
+> >> > dccpprobe_init()).
+> >> >
+> >> > I'll make a patch to disable the warning.
+> >>
+> >> Hi,
+> >>
+> >> I am also seeing the following warnings:
+> >>
+> >> [  281.889259] WARNING: kernel stack regs at ffff8801c29a7ea8 in
+> >> syz-executor8:1302 has bad 'bp' value ffff8801c29a7f28
+> >> [  833.994878] WARNING: kernel stack regs at ffff8801c4e77ea8 in
+> >> syz-executor1:13094 has bad 'bp' value ffff8801c4e77f28
+> >>
+> >> Can it also be caused by bpf/kprobe?
+> >
+> > This is a different warning.  I suspect it's due to unwinding the stack
+> > of another CPU while it's running, which is still possible in a few
+> > places.  I'm going to have to disable all these warnings for now.
+> 
+> 
+> I also have the following diff locally. These loads trigger episodic
+> KASAN warnings about stack-of-bounds reads on rcu stall warnings when
+> it does backtrace of all cpus.
+> If it looks correct to you, can you please also incorporate it into your patch?
 
-It should go like this (analysis come from the customer and I hope I
-haven't screwed their write up).
+Ok, will do.
 
-: Task (T1) does mmap and calls into gather_surplus_pages(), looking for N
-: pages.  It determines it needs to allocate N pages, drops the lock, and
-: does so.
-: 
-: We will have:
-: hstate->resv_huge_pages == N
-: hstate->free_huge_pages == N
-: 
-: That mapping is then munmap()ed by task T2, which truncates the file:
-: 
-: truncate_hugepages() {
-: 	for each page of the inode after lstart {
-: 		truncate_huge_page(page) {
-: 			hugetlb_unreserve_pages() {
-: 				hugetlb_acct_memory() {
-: 					return_unused_surplus_pages() {
-: 
-: return_unused_surplus_pages() drops h->resv_huge_pages to 0, then
-: begins calling free_pool_huge_page() N times:
-: 
-: 	h->resv_huge_pages -= unused_resv_pages
-: 	while (nr_pages--) {
-: 		free_pool_huge_page(h, &node_states[N_MEMORY], 1) {
-: 			h->free_huge_pages--;
-: 		}
-: 		cond_resched_lock(&hugetlb_lock);
-: 	}
-: 
-: But the cond_resched_lock() triggers, and it releases the lock with
-: 
-: h->resv_huge_pages == 0
-: h->free_huge_pages == M << N
-: 
-: T1 having completed its allocations with allocated == N now
-: acquires the lock, and recomputes
-: 
-: needed = (h->resv_huge_pages + delta) - (h->free_huge_pages + allocated);
-: 
-: needed = N - (M + N) = -M
-: 
-: Then
-: 
-: needed += N                  = -M+N
-: h->resv_huge_pages += N       = N
-: 
-: It frees N-M pages to the hugetlb pool via enqueue_huge_page(),
-: 
-: list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
-: 	if ((--needed) < 0)
-: 		break;
-: 		/*
-: 		* This page is now managed by the hugetlb allocator and has
-: 		* no users -- drop the buddy allocator's reference.
-: 		*/
-: 		put_page_testzero(page);
-: 		VM_BUG_ON(page_count(page));
-: 		enqueue_huge_page(h, page) {
-: 			h->free_huge_pages++;
-: 		}
-: 	}
-: 
-: h->resv_huge_pages == N
-: h->free_huge_pages == N-M
-: 
-: It releases the lock in order to free the remainder of surplus_list
-: via put_page().
-: 
-: When it releases the lock, T1 reclaims it and returns from
-: gather_surplus_pages().
-: 
-: But then hugetlb_acct_memory() checks
-: 
-: 	if (delta > cpuset_mems_nr(h->free_huge_pages_node)) {
-: 		return_unused_surplus_pages(h, delta);
-: 		goto out;
-: 	}
-: 
-: and returns -ENOMEM.
+BTW, I think there's an issue with your mail client.  Your last two
+replies to me didn't have me on To/Cc.
 
-The cond_resched has been added by 7848a4bf51b3 ("mm/hugetlb.c: add
-cond_resched_lock() in return_unused_surplus_pages()") and it smells
-fishy AFAICT. It leaves the inconsistent state of the hstate behind.
-I guess we want to uncommit the reservation one page at the time, something like:
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3edb759c5c7d..e3a599146d7c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1783,12 +1783,13 @@ static void return_unused_surplus_pages(struct hstate *h,
- {
- 	unsigned long nr_pages;
- 
--	/* Uncommit the reservation */
--	h->resv_huge_pages -= unused_resv_pages;
- 
- 	/* Cannot return gigantic pages currently */
--	if (hstate_is_gigantic(h))
-+	if (hstate_is_gigantic(h)) {
-+		/* Uncommit the reservation */
-+		h->resv_huge_pages -= unused_resv_pages;
- 		return;
-+	}
- 
- 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
- 
-@@ -1803,6 +1804,7 @@ static void return_unused_surplus_pages(struct hstate *h,
- 	while (nr_pages--) {
- 		if (!free_pool_huge_page(h, &node_states[N_MEMORY], 1))
- 			break;
-+		h->resv_huge_pages--;
- 		cond_resched_lock(&hugetlb_lock);
- 	}
- }
-
-but I am just not getting the nr_pages = min... part and the way thing
-how we can have less surplus_huge_pages than unused_resv_pages....  This
-whole code is so confusing that I would even rather go with a simple
-revert of 7848a4bf51b3 which would be much easier for the stable backport.
-
-What do you guys think?
 -- 
-Michal Hocko
-SUSE Labs
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
