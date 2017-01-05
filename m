@@ -1,88 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 996116B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 11:57:19 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id dh1so58911221wjb.0
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 08:57:19 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id x5si82404400wmx.163.2017.01.05.08.57.17
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 53B966B025E
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 12:03:56 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id y1so294181829qkd.6
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 09:03:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 123si7476234qkm.131.2017.01.05.09.03.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 08:57:18 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id u144so97605457wmu.0
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 08:57:17 -0800 (PST)
-Date: Thu, 5 Jan 2017 19:57:15 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 00/29] 5-level paging
-Message-ID: <20170105165715.GF17319@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+        Thu, 05 Jan 2017 09:03:55 -0800 (PST)
+Date: Thu, 5 Jan 2017 11:03:52 -0600
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: Re: x86: warning in unwind_get_return_address
+Message-ID: <20170105170352.4i57lv6ka2k6nqsk@treble>
+References: <CAAeHK+yqC-S=fQozuBF4xu+d+e=ikwc_ipn-xUGnmfnWsjUtoA@mail.gmail.com>
+ <20161220210144.u47znzx6qniecuvv@treble>
+ <CAAeHK+z7O-byXDL4AMZP5TdeWHSbY-K69cbN6EeYo5eAtvJ0ng@mail.gmail.com>
+ <20161220233640.pc4goscldmpkvtqa@treble>
+ <CAAeHK+yPSeO2PWQtsQs_7FQ0PeGzs4PgK_89UM8G=hFJrVzH1g@mail.gmail.com>
+ <20161222051701.soqwh47frxwsbkni@treble>
+ <CACT4Y+ZxTLcpwQOBCyMZGFuXeDrbu9-RBaqzgnE57UPeDSPE+g@mail.gmail.com>
+ <20170105144942.whqucdwmeqybng3s@treble>
+ <CACT4Y+agcezesdRUKtrho6sRmoRiCH6q4GU1J2QrTYqVkmJpKA@mail.gmail.com>
+ <20170105151700.4n7wpynvsv2yjotp@treble>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170105151700.4n7wpynvsv2yjotp@treble>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzkaller <syzkaller@googlegroups.com>, Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Kostya Serebryany <kcc@google.com>
 
-On Tue, Dec 27, 2016 at 04:53:44AM +0300, Kirill A. Shutemov wrote:
-> Here is v2 of 5-level paging patchset.
+On Thu, Jan 05, 2017 at 09:17:00AM -0600, Josh Poimboeuf wrote:
+> On Thu, Jan 05, 2017 at 03:59:52PM +0100, Dmitry Vyukov wrote:
+> > On Thu, Jan 5, 2017 at 3:49 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > > On Tue, Dec 27, 2016 at 05:38:59PM +0100, Dmitry Vyukov wrote:
+> > >> On Thu, Dec 22, 2016 at 6:17 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > >> > On Wed, Dec 21, 2016 at 01:46:36PM +0100, Andrey Konovalov wrote:
+> > >> >> On Wed, Dec 21, 2016 at 12:36 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > >> >> >
+> > >> >> > Thanks.  Looking at the stack trace, my guess is that an interrupt hit
+> > >> >> > while running in generated BPF code, and the unwinder got confused
+> > >> >> > because regs->ip points to the generated code.  I may need to disable
+> > >> >> > that warning until we figure out a better solution.
+> > >> >> >
+> > >> >> > Can you share your .config file?
+> > >> >>
+> > >> >> Sure, attached.
+> > >> >
+> > >> > Ok, I was able to recreate with your config.  The culprit was generated
+> > >> > code, as I suspected, though it wasn't BPF, it was a kprobe (created by
+> > >> > dccpprobe_init()).
+> > >> >
+> > >> > I'll make a patch to disable the warning.
+> > >>
+> > >> Hi,
+> > >>
+> > >> I am also seeing the following warnings:
+> > >>
+> > >> [  281.889259] WARNING: kernel stack regs at ffff8801c29a7ea8 in
+> > >> syz-executor8:1302 has bad 'bp' value ffff8801c29a7f28
+> > >> [  833.994878] WARNING: kernel stack regs at ffff8801c4e77ea8 in
+> > >> syz-executor1:13094 has bad 'bp' value ffff8801c4e77f28
+> > >>
+> > >> Can it also be caused by bpf/kprobe?
+> > >
+> > > This is a different warning.  I suspect it's due to unwinding the stack
+> > > of another CPU while it's running, which is still possible in a few
+> > > places.  I'm going to have to disable all these warnings for now.
+> > 
+> > 
+> > I also have the following diff locally. These loads trigger episodic
+> > KASAN warnings about stack-of-bounds reads on rcu stall warnings when
+> > it does backtrace of all cpus.
+> > If it looks correct to you, can you please also incorporate it into your patch?
 > 
-> Please consider applying first 7 patches.
+> Ok, will do.
+> 
+> BTW, I think there's an issue with your mail client.  Your last two
+> replies to me didn't have me on To/Cc.
 
-It's probably useful to describe all pieces and the order in which they can
-be be merged:
+Would you mind testing if the following patch fixes it?  It's based on
+the latest linus/master.
 
-  - The first seven patches of this patchset I would like to get applied now:
 
-    + Detect la57 feature for /proc/cpuinfo.
-
-    + Brings 5-level paging to generic code and convert all architectures
-      to it using <asm-generic/5level-fixup.h>
-
-    This is preparation for the next batch of patches.
-
-  - Basic LA57 enabling
-
-    The rest of the patches of the patchset, except rlimit proposal.
-
-    This would enable 5-level paging for kernel.
-
-    Userspace upper address would be limited to current TASK_SIZE_MAX --
-    47-bit - PAGE_SIZE, until we will figure out the right interface to
-    opt-in full 56-bit VA.
-
-    We still working on getting XEN into shape. We need to get it up and
-    running at least for 4-level paging to not regress any configuration.
-
-The reset can be merged independently after basic LA57 enabling:
-
-  - Large VA opt-in mechanism
-
-    I've proposed rlimit handle to enable large VA for userspace.
-
-    Andy is not fan of it. We need to decide what is right way to go.
-
-    Any help with that is welcome.
-
-  - Boottime switch for 5-level paging.
-
-    I haven't started looking into this yet.
-
-  - MPX - MAWA enabling required.
-
-    It requires changes into GCC (libmpx and libmpxwrappers) which are
-    not ready yet.
-
-  - Virtualization - EPT5
-
-    There's RFC patchset by Liang Li. Work in progress.
-
-Does it sound reasonable from maintainer's point of view?
-Or should I shift priorities somewhere?
-
--- 
- Kirill A. Shutemov
+diff --git a/arch/x86/kernel/unwind_frame.c b/arch/x86/kernel/unwind_frame.c
+index 4443e49..05adf9a 100644
+--- a/arch/x86/kernel/unwind_frame.c
++++ b/arch/x86/kernel/unwind_frame.c
+@@ -6,6 +6,21 @@
+ 
+ #define FRAME_HEADER_SIZE (sizeof(long) * 2)
+ 
++/*
++ * This disables KASAN checking when reading a value from another task's stack,
++ * since the other task could be running on another CPU and could have poisoned
++ * the stack in the meantime.
++ */
++#define UNWIND_READ_ONCE(state, x)			\
++({							\
++	unsigned long val;				\
++	if (state->task == current)			\
++		val = READ_ONCE(x);			\
++	else						\
++		val = READ_ONCE_NOCHECK(x);		\
++	val;						\
++})
++
+ static void unwind_dump(struct unwind_state *state, unsigned long *sp)
+ {
+ 	static bool dumped_before = false;
+@@ -48,7 +63,8 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
+ 	if (state->regs && user_mode(state->regs))
+ 		return 0;
+ 
+-	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
++	addr = UNWIND_READ_ONCE(state, *addr_p);
++	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, addr,
+ 				     addr_p);
+ 
+ 	return __kernel_text_address(addr) ? addr : 0;
+@@ -162,7 +178,7 @@ bool unwind_next_frame(struct unwind_state *state)
+ 	if (state->regs)
+ 		next_bp = (unsigned long *)state->regs->bp;
+ 	else
+-		next_bp = (unsigned long *)*state->bp;
++		next_bp = (unsigned long *)UNWIND_READ_ONCE(state, *state->bp);
+ 
+ 	/* is the next frame pointer an encoded pointer to pt_regs? */
+ 	regs = decode_frame_pointer(next_bp);
+@@ -207,6 +223,16 @@ bool unwind_next_frame(struct unwind_state *state)
+ 	return true;
+ 
+ bad_address:
++	/*
++	 * When dumping a task other than current, the task might actually be
++	 * running on another CPU, in which case it could be modifying its
++	 * stack while we're reading it.  This is generally not a problem and
++	 * can be ignored as long as the caller understands that unwinding
++	 * another task will not always succeed.
++	 */
++	if (state->task != current)
++		goto the_end;
++
+ 	if (state->regs) {
+ 		printk_deferred_once(KERN_WARNING
+ 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
