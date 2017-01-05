@@ -1,117 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87CB06B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 01:37:07 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id v132so420950422yba.3
-        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 22:37:07 -0800 (PST)
-Received: from ns.sciencehorizons.net (ns.sciencehorizons.net. [71.41.210.147])
-        by mx.google.com with SMTP id b39si10854725ybj.21.2017.01.04.22.37.06
-        for <linux-mm@kvack.org>;
-        Wed, 04 Jan 2017 22:37:06 -0800 (PST)
-Date: 5 Jan 2017 01:37:05 -0500
-Message-ID: <20170105063705.29290.qmail@ns.sciencehorizons.net>
-From: "George Spelvin" <linux@sciencehorizons.net>
-Subject: A use case for MAP_COPY
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F2D6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 01:44:16 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y68so804363118pfb.6
+        for <linux-mm@kvack.org>; Wed, 04 Jan 2017 22:44:16 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 94si46909810plv.8.2017.01.04.22.44.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Jan 2017 22:44:15 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH v4 0/9] mm/swap: Regular page swap optimizations
+References: <cover.1481317367.git.tim.c.chen@linux.intel.com>
+	<20161227074503.GA10616@bbox> <8760lujnng.fsf@yhuang-dev.intel.com>
+	<20170105063200.GE24371@bbox>
+Date: Thu, 05 Jan 2017 14:44:10 +0800
+In-Reply-To: <20170105063200.GE24371@bbox> (Minchan Kim's message of "Thu, 5
+	Jan 2017 15:32:00 +0900")
+Message-ID: <87bmvmhupx.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, torvalds@linux-foundation.org
-Cc: linux@sciencehorizons.net
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, jack@suse.cz
 
-Back in 2001, Linus had some very negative things to say about MAP_COPY.
-I'm going to try to change that opinion.
+Minchan Kim <minchan@kernel.org> writes:
 
-> The thing with MAP_COPY is that how do you efficiently _detect_ somebody
-> elses changes on a page that you haven't even read in yet?
-> 
-> So you have a few choices, all bad:
-> 
->  - immediately reading in everything, basically turning the mmap() into a
->    read. Obviously a bad idea.
-> 
->  - mark the inode as a "copy" inode, and whenever somebody writes to it,
->    you not only make sure that you do copy-on-write on the page cache page
->    (which, btw, is pretty much impossible - how did you intend to find all
->    the other _non_COPY_ users that _want_ coherency).
-> 
->    You also have to make sure that if somebody changes the page, you have
->    to read in the old contents first (not normally needed for most
->    changes that write over at least a full block), but you also have to
->    save the old page somewhere so that the mapping can use it if it faults
->    it in later. And how the hell do you do THAT? Especially as you can
->    have multiple generations of inodes with different sets of "MAP_COPY"
->    on different contents..
-> 
->    In short, now you need filesystem versioning at a per-page level etc.
-> 
-> Trust me. The people who came up with MAP_COPY were stupid. Really. It's
-> an idiotic concept, and it's not worth implementing.
+> Hi,
+>
+> On Thu, Jan 05, 2017 at 09:33:55AM +0800, Huang, Ying wrote:
+>> Hi, Minchan,
+>> 
+>> Minchan Kim <minchan@kernel.org> writes:
+>> [snip]
+>> >
+>> > The patchset has used several techniqueus to reduce lock contention, for example,
+>> > batching alloc/free, fine-grained lock and cluster distribution to avoid cache
+>> > false-sharing. Each items has different complexity and benefits so could you
+>> > show the number for each step of pathchset? It would be better to include the
+>> > nubmer in each description. It helps how the patch is important when we consider
+>> > complexitiy of the patch.
+>> 
+>> Here is the test data.
+>
+> Thanks!
+>
+>> 
+>> We test the vm-scalability swap-w-seq test case with 32 processes on a
+>> Xeon E5 v3 system.  The swap device used is a RAM simulated PMEM
+>> (persistent memory) device.  To test the sequential swapping out, the
+>> test case created 32 processes, which sequentially allocate and write to
+>> the anonymous pages until the RAM and part of the swap device is used
+>> up.
+>> 
+>> The patchset is rebased on v4.9-rc8.  So the baseline performance is as
+>> follow,
+>> 
+>>   "vmstat.swap.so": 1428002,
+>
+> What does it mean? vmstat.pswpout?
 
-I think I have a semantic for MAP_COPY that is both efficiently
-implementable and useful.
+This is the average of swap.so column of /usr/bin/vmstat output.  We run
+/usr/bin/vmstat with,
 
-The meaning is "For each page in the mapping, a snapshot of the backing
-file is taken at some undefined time between the mmap() call and the
-first access to the mapped memory.  The time of the snapshot may (will!)
-be different for each page.  Once taken, the snapshot will not be affected
-by later writes to the file.
+/usr/bin/vmstat -n 1
 
-This does not solve any problems having to do with atomic update of files.
-You still need to do the copy-and-rename dance to do an atomic update
-larger than a single page.
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list": 13.94,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_node_memcg":
+>> 13.75,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.swap_info_get.swapcache_free.__remove_mapping.shrink_page_list": 7.05,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.swap_info_get.page_swapcount.try_to_free_swap.swap_writepage": 7.03,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.__swap_duplicate.swap_duplicate.try_to_unmap_one.rmap_walk_anon": 7.02,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_page.add_to_swap.shrink_page_list.shrink_inactive_list": 6.83,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.page_check_address_transhuge.page_referenced_one.rmap_walk_anon.rmap_walk": 0.81,
+>
+> Numbers mean overhead percentage reported by perf?
 
-What it *does* solve is time-of-check-to-time-of-use security problems
-in the caller.  Once I've checked the file for corruption, I can
-rely on it staying uncorrupted.
+Yes.
+ 
+>> >> Patch 1 is a clean up patch.
+>> >
+>> > Could it be separated patch?
+>> >
+>> >> Patch 2 creates a lock per cluster, this gives us a more fine graind lock
+>> >>         that can be used for accessing swap_map, and not lock the whole
+>> >>         swap device
+>> 
+>> After patch 2, the result is as follow,
+>> 
+>>   "vmstat.swap.so": 1481704,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list": 27.53,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_node_memcg":
+>> 27.01,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.free_pcppages_bulk.drain_pages_zone.drain_pages.drain_local_pages": 1.03,
+>> 
+>> The swap out throughput is at the same level, but the lock contention on
+>> swap_info_struct->lock is eliminated.
+>> 
+>> >> Patch 3 splits the swap cache radix tree into 64MB chunks, reducing
+>> >>         the rate that we have to contende for the radix tree.
+>> >
+>> 
+>> After patch 3,
+>> 
+>>   "vmstat.swap.so": 2050097,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_page.add_to_swap.shrink_page_list.shrink_inactive_list": 43.27,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_nodemask.alloc_pages_vma.handle_mm_fault": 4.84,
+>> 
+>> The swap out throughput is improved about ~43% compared with baseline.
+>> The lock contention on swap cache radix tree lock is eliminated.
+>> swap_info_struct->lock in get_swap_page() becomes the most heavy
+>> contended lock.
+>
+> The numbers are great! Please include those into each patchset.
+> And I ask one more thing I said earlier about patch 2.
+>
+> ""
+> I hope you make three steps to review easier. You can create some functions like
+> swap_map_lock and cluster_lock which are wrapper functions just hold swap_lock.
+> It doesn't change anything performance pov but it clearly shows what kinds of lock
+> we should use in specific context.
+>
+> Then, you can introduce more fine-graind lock in next patch and apply it into
+> those wrapper functions.
+>  
+> And last patch, you can adjust cluster distribution to avoid false-sharing.
+> And the description should include how it's bad in testing so it's worth.
+> ""
+>
+> It makes review more easier, I believe.
 
-Once I've checked it (parsed, validated, checksummed, whatever), I can
-use data structures in the mapped file directly in internal code without
-fear of a TOCTTOU race.
+Sorry, personally, I don't like this way to organize the patchset.  So
+unless more people have this requirement, I still want to keep the
+current way.
 
-Without MAP_COPY, my choices are:
-- Explicit copy each time, or
-- Greatly expanding the amount of code that has to be robust against
-  TOCTTOU races.
+Best Regards,
+Huang, Ying
 
-The former is a waste of time and memory 99% of the time, because the
-input file *isn't* being changed.
-
-
-The goal of this is to provide the same sort of guarantees that
-SHMEM_SET_SEALS does.  The bytes we map may be arbitrarily corrupted
-by malicious writers, but at least we only see *one* set of bytes.
-We don't have to worry about them changing underneath us.
-
-
-Now, implementation-wise, I hope it's obvious that the "undefined time
-between the mmap call and first access" when the snapshot is taken
-is when the page is faulted in.  Which the kernel may do whenever it
-damn well pleases.
-
-The whole "what if it's not read in yet?" question goes away, because
-no guarantees apply until it is.
-
-Once a page is read in, the kernel may clone it at any time that's
-convenient.  Avoiding this is an efficiency goal, but it's the all-purpose
-solution to awkward corner cases.  In particular, that's what you do
-if the page gets evicted.  No support from file systems is required; if
-the page is evicted, the file mapping is removed, and the page remains
-as as an anonymous page (copy achieved).  A later eviction attempt will
-then push it to the swap file.
-
-
-Implementation isn't effortless; the COW operation is more complex than
-for MAP_PRIVATE.
-
-When a write happens, we don't just fork off a copy for the writing mm.
-Rather, the mappings have to be divided into MAP_COPY users and others,
-and one of those sets moved to a new page.  We can either leave the
-snapshot in place and move the named map, or we can make a copy and
-avoid touching the file system cache.  I haven't figured out which is
-easier yet.
-
-
-Still, it doesn't seem hopelessly impractical.  And it seems useful.
-What do other people think?
+>> 
+>> >
+>> >> Patch 4 eliminates unnecessary page allocation for read ahead.
+>> >
+>> > Could it be separated patch?
+>> >
+>> >> Patch 5-9 create a per cpu cache of the swap slots, so we don't have
+>> >>         to contend on the swap device to get a swap slot or to release
+>> >>         a swap slot.  And we allocate and release the swap slots
+>> >>         in batches for better efficiency.
+>> 
+>> After patch 9,
+>> 
+>>   "vmstat.swap.so": 4170746,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.swapcache_free_entries.free_swap_slot.free_swap_and_cache.unmap_page_range": 13.91,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_nodemask.alloc_pages_vma.handle_mm_fault": 8.56,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_page_from_freelist.__alloc_pages_slowpath.__alloc_pages_nodemask.alloc_pages_vma":
+>> 2.56,
+>>   "perf-profile.calltrace.cycles-pp._raw_spin_lock.get_swap_pages.get_swap_page.add_to_swap.shrink_page_list": 2.47,
+>> 
+>> The swap out throughput is improved about 192% compared with the
+>> baseline.  There are still some lock contention for
+>> swap_info_struct->lock, but the pressure begins to shift to buddy system
+>> now.
+>> 
+>> Best Regards,
+>> Huang, Ying
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
