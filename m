@@ -1,67 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D5CF36B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 07:22:16 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i88so796125248pfk.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 04:22:16 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0080.outbound.protection.outlook.com. [104.47.41.80])
-        by mx.google.com with ESMTPS id d85si75851180pfb.163.2017.01.05.04.22.15
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5564C6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 07:33:45 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id xr1so120556974wjb.7
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 04:33:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k9si81647957wmk.86.2017.01.05.04.33.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 04:22:16 -0800 (PST)
-Date: Thu, 5 Jan 2017 13:22:00 +0100
-From: Robert Richter <robert.richter@cavium.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Message-ID: <20170105122200.GV4930@rric.localdomain>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
- <20170104132831.GD18193@arm.com>
- <CAKv+Gu8MdpVDCSjfum7AMtbgR6cTP5H+67svhDSu6bkaijvvyg@mail.gmail.com>
- <20170104140223.GF18193@arm.com>
- <20170105112407.GU4930@rric.localdomain>
- <20170105120819.GH679@arm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Jan 2017 04:33:43 -0800 (PST)
+Date: Thu, 5 Jan 2017 13:33:42 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 190841] New: [REGRESSION] Intensive Memory CGroup removal
+ leads to high load average 10+
+Message-ID: <20170105123341.GQ21618@dhcp22.suse.cz>
+References: <bug-190841-27@https.bugzilla.kernel.org/>
+ <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170105120819.GH679@arm.com>
+In-Reply-To: <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Hanjun Guo <hanjun.guo@linaro.org>, Yisheng Xie <xieyisheng1@huawei.com>, James Morse <james.morse@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, frolvlad@gmail.com, linux-mm@kvack.org
 
-On 05.01.17 12:08:20, Will Deacon wrote:
-> On Thu, Jan 05, 2017 at 12:24:07PM +0100, Robert Richter wrote:
-> > On 04.01.17 14:02:23, Will Deacon wrote:
-> > > Using early_pfn_valid feels like a bodge to me, since having pfn_valid
-> > > return false for something that early_pfn_valid says is valid (and is
-> > > therefore initialised in the memmap) makes the NOMAP semantics even more
-> > > confusing.
+On Wed 04-01-17 17:30:37, Andrew Morton wrote:
+> 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
+> 
+> On Wed, 21 Dec 2016 19:56:16 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=190841
 > > 
-> > The concern I have had with HOLES_IN_ZONE is that it enables
-> > pfn_valid_within() for arm64. This means that each pfn of a section is
-> > checked which is done only once for the section otherwise. With up to
-> > 2^18 pages per section we traverse the memblock list by that factor
-> > more often. There could be a performance regression.
-> 
-> There could be, but we're trying to fix a bug here. I wouldn't have
-> thought that walking over pfns like that is done very often.
+> >             Bug ID: 190841
+> >            Summary: [REGRESSION] Intensive Memory CGroup removal leads to
+> >                     high load average 10+
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.7.0-rc1+
+> >           Hardware: All
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Other
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: frolvlad@gmail.com
+> >         Regression: No
+> > 
+> > My simplified workflow looks like this:
+> > 
+> > 1. Create a Memory CGroup with memory limit
+> > 2. Exec a child process
+> > 3. Add the child process PID into the Memory CGroup
+> > 4. Wait for the child process to finish
+> > 5. Remove the Memory CGroup
+> > 
+> > The child processes usually run less than 0.1 seconds, but I have lots of them.
+> > Normally, I could run over 10000 child processes per minute, but with newer
+> > kernels, I can only do 400-500 executions per minute, and my system becomes
+> > extremely sluggish (the only indicator of the weirdness I found is an unusually
+> > high load average, which sometimes goes over 250!).
 
-The bug happens on a small number of machines depending on the memory
-layout. The fix affects all systems. And right know the impact is
-unclear.
+Well, yes, rmdir is not the cheapest operation... Since b2052564e66d
+("mm: memcontrol: continue cache reclaim from offlined groups") we are
+postponing the real memcg removal to later, when there is a memory
+pressure. 73f576c04b94 ("mm: memcontrol: fix cgroup creation failure
+after many small jobs") fixed unbound id space consumption. I would be
+quite surprised if this caused a new regression. But the report says
+that this is 4.7+ thing. I would expect older kernels would just refuse
+the create new cgroups... Maybe that happens in your script and just
+gets unnoticed?
 
-> > I haven't numbers yet, since the fix causes another kernel crash. And,
-> > this is the next problem I have. The crash doesn't happen otherwise. So,
-> > either it uncovers another bug or the fix is incomplete. Though the
-> > changes look like it should work. This needs more investigation.
-> 
-> I really can't see how the fix causes a crash, and I couldn't reproduce
-> it on any of my boards, nor could any of the Linaro folk afaik. Are you
-> definitely running mainline with just these two patches from Ard?
+We might come up with some more harderning in the offline path (e.g.
+count the number of dead memcgs and force their reclaim after some
+number gets accumulated). But all that just adds more code and risk of
+regression for something that is not used very often. Cgroups
+creation/destruction are too heavy operations to be done for very
+shortlived process. Even without memcg involved. Are there any strong
+reasons you cannot reuse an existing cgroup?
 
-Yes, just both patches applied. Various other solutions were working.
+> > Here is a simple reproduction script:
+> > 
+> > #!/bin/sh
+> > CGROUP_BASE=/sys/fs/cgroup/memory/qq
+> > 
+> > for $i in $(seq 1000); do
+> >     echo "Iteration #$i"
+> >     sh -c "
+> >         mkdir '$CGROUP_BASE'
+> >         sh -c 'echo \$$ > $CGROUP_BASE/tasks ; sleep 0.0'
 
--Robert
+one possible workaround would be to do
+            echo 1 > $CGROUP_BASE/memory.force_empty
+
+before you remove the cgroup. That should drop the existing charges - at
+least for the page cache which might be what keeps those memcgs alive.
+
+> >         rmdir '$CGROUP_BASE' || true
+> >     "
+> > done
+> > # ===
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
