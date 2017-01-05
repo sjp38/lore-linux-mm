@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 643656B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 10:37:40 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i131so89210891wmf.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 07:37:40 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 837526B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 10:50:57 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id iq1so60334798wjb.1
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 07:50:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lm8si85827402wjb.234.2017.01.05.07.37.38
+        by mx.google.com with ESMTPS id i76si82321122wmh.87.2017.01.05.07.50.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Jan 2017 07:37:38 -0800 (PST)
-Date: Thu, 5 Jan 2017 16:37:37 +0100
+        Thu, 05 Jan 2017 07:50:56 -0800 (PST)
+Date: Thu, 5 Jan 2017 16:50:54 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [LSF/MM TOPIC] mm patches review bandwidth
-Message-ID: <20170105153737.GV21618@dhcp22.suse.cz>
+Subject: Re: [patch] mm, thp: add new background defrag option
+Message-ID: <20170105155053.GW21618@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
+ <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
+ <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
-I have a very bad feeling that we are running out of the patch review
-bandwidth for quite some time. Quite often it is really hard to get
-any feedback at all. This leaves Andrew in an unfortunate position when
-he is pushed to merge changes which are not reviewed.
+On Thu 05-01-17 14:58:47, Vlastimil Babka wrote:
+[...]
+> I'm not a fan of either name, so I've tried to implement my own
+> suggestion. Turns out it was easier than expected, as there's no kernel
+> boot option for "defer", just for "enabled", so that particular worry
+> was unfounded.
+> 
+> And personally I think that it's less confusing when one can enable defer
+> and madvise together (and not any other combination), than having to dig
+> up the difference between "defer" and "background".
+> 
+> I have only tested the sysfs manipulation, not actual THP, but seems to me
+> that alloc_hugepage_direct_gfpmask() already happens to process the flags
+> in a way that it works as expected.
 
-A quick check shows that around 40% of patches is not tagged with
-neither Acked-by nor Reviewed-by. While this is not any hard number it
-should give us at least some idea...
+IMHO this looks indeed much simpler implementation wise, more consistent
+from the semantic point of view and less confusing from the usage POV.
+ 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 10eedbf14421..cc5ae86169a8 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -150,7 +150,16 @@ static ssize_t triple_flag_store(struct kobject *kobj,
+>  				 enum transparent_hugepage_flag deferred,
+>  				 enum transparent_hugepage_flag req_madv)
+>  {
+> -	if (!memcmp("defer", buf,
+> +	if (!memcmp("defer madvise", buf,
+> +			min(sizeof("defer madvise")-1, count))
+> +	    || !memcmp("madvise defer", buf,
+> +			min(sizeof("madvise defer")-1, count))) {
+> +		if (enabled == deferred)
+> +			return -EINVAL;
+> +		clear_bit(enabled, &transparent_hugepage_flags);
+> +		set_bit(req_madv, &transparent_hugepage_flags);
+> +		set_bit(deferred, &transparent_hugepage_flags);
+> +	} else if (!memcmp("defer", buf,
+>  		    min(sizeof("defer")-1, count))) {
+>  		if (enabled == deferred)
+>  			return -EINVAL;
+> @@ -251,9 +260,12 @@ static ssize_t defrag_show(struct kobject *kobj,
+>  {
+>  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+>  		return sprintf(buf, "[always] defer madvise never\n");
+> -	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+> -		return sprintf(buf, "always [defer] madvise never\n");
+> -	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+> +	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags)) {
+> +		if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+> +			return sprintf(buf, "always [defer] [madvise] never\n");
+> +		else
+> +			return sprintf(buf, "always [defer] madvise never\n");
+> +	} else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+>  		return sprintf(buf, "always defer [madvise] never\n");
+>  	else
+>  		return sprintf(buf, "always defer madvise [never]\n");
 
-$ git rev-list --no-merges v4.8..v4.9 -- mm/ | wc -l 
-150
-$ git rev-list --no-merges v4.8..v4.9 -- mm/ | while read sha1; do git show $sha1 | grep "Acked-by\|Reviewed-by" >/dev/null&& echo $sha1; done | wc -l
-87
-
-The overall trend since 4.0 shows that this is quite a consistent number
-
-123 commits in 4.0..4.1 range 47 % unreviewed
-170 commits in 4.1..4.2 range 56 % unreviewed
-187 commits in 4.2..4.3 range 35 % unreviewed
-176 commits in 4.3..4.4 range 34 % unreviewed
-220 commits in 4.4..4.5 range 32 % unreviewed
-199 commits in 4.5..4.6 range 42 % unreviewed
-217 commits in 4.6..4.7 range 41 % unreviewed
-247 commits in 4.7..4.8 range 39 % unreviewed
-150 commits in 4.8..4.9 range 42 % unreviewed
-
-I am worried that the number of patches posted to linux-mm grows over
-time while the number of reviewers doesn't scale up with that trend. I
-believe we need to do something about that and aim to increase both the
-number of reviewers as well as the number of patches which are really
-reviewed. I am not really sure how to achieve that, though. Requiring
-Acked-by resp. Reviewed-by on each patch sounds like the right approach
-but I am just worried that even useful changes could get stuck without
-any forward progress that way.
-
-Another problem, somehow related, is that there are areas which have
-evolved into a really bad shape because nobody has really payed
-attention to them from the architectural POV when they were merged. To
-name one the memory hotplug doesn't seem very healthy, full of kludges,
-random hacks and fixes for fixes working for a particualr usecase
-without any longterm vision. We have allowed to (ab)use concepts like
-ZONE_MOVABLE which are finding new users because that seems to be the
-simplest way forward. Now we are left with fixing the code which has
-some fundamental issues because it is used out there. Are we going to do
-anything about those? E.g. generate a list of them, discuss how to make
-that code healthy again and do not allow new features until we sort that
-out?
 -- 
 Michal Hocko
 SUSE Labs
