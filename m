@@ -1,200 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D39EF6B0274
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 10:46:15 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 101so14246808iom.7
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 07:46:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h2si2471494ite.54.2017.01.06.07.46.15
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C81C46B0069
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 11:05:03 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id j94so82549732uad.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 08:05:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a69si3004929wme.110.2017.01.06.08.05.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 07:46:15 -0800 (PST)
-From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v15 16/16] mm/hmm/devmem: dummy HMM device as an helper for ZONE_DEVICE memory
-Date: Fri,  6 Jan 2017 11:46:43 -0500
-Message-Id: <1483721203-1678-17-git-send-email-jglisse@redhat.com>
-In-Reply-To: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Jan 2017 08:05:02 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] mm patches review bandwidth
+References: <20170105153737.GV21618@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7f6e4880-ae35-6a3f-3b16-ddb9afea9a88@suse.cz>
+Date: Fri, 6 Jan 2017 17:05:01 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170105153737.GV21618@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-This introduce a dummy HMM device class so device driver can use it to
-create hmm_device for the sole purpose of registering device memory.
-It is usefull to device driver that want to manage multiple physical
-device memory under same device umbrella.
+On 01/05/2017 04:37 PM, Michal Hocko wrote:
+> Hi,
+> I have a very bad feeling that we are running out of the patch review
+> bandwidth for quite some time. Quite often it is really hard to get
+> any feedback at all. This leaves Andrew in an unfortunate position when
+> he is pushed to merge changes which are not reviewed.
+> 
+> A quick check shows that around 40% of patches is not tagged with
+> neither Acked-by nor Reviewed-by. While this is not any hard number it
+> should give us at least some idea...
+> 
+> $ git rev-list --no-merges v4.8..v4.9 -- mm/ | wc -l 
+> 150
+> $ git rev-list --no-merges v4.8..v4.9 -- mm/ | while read sha1; do git show $sha1 | grep "Acked-by\|Reviewed-by" >/dev/null&& echo $sha1; done | wc -l
+> 87
+> 
+> The overall trend since 4.0 shows that this is quite a consistent number
+> 
+> 123 commits in 4.0..4.1 range 47 % unreviewed
+> 170 commits in 4.1..4.2 range 56 % unreviewed
+> 187 commits in 4.2..4.3 range 35 % unreviewed
+> 176 commits in 4.3..4.4 range 34 % unreviewed
+> 220 commits in 4.4..4.5 range 32 % unreviewed
+> 199 commits in 4.5..4.6 range 42 % unreviewed
+> 217 commits in 4.6..4.7 range 41 % unreviewed
+> 247 commits in 4.7..4.8 range 39 % unreviewed
+> 150 commits in 4.8..4.9 range 42 % unreviewed
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
----
- include/linux/hmm.h | 22 ++++++++++++-
- mm/hmm.c            | 95 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 116 insertions(+), 1 deletion(-)
+That's better than I pessimistically expected, but still far from great,
+yeah.
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 674aa79..57e88e4 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -76,10 +76,10 @@
- 
- #if IS_ENABLED(CONFIG_HMM)
- 
-+#include <linux/device.h>
- #include <linux/memremap.h>
- #include <linux/completion.h>
- 
--
- struct hmm;
- 
- /*
-@@ -490,6 +490,26 @@ static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
- 
- 	return drvdata[1];
- }
-+
-+
-+/*
-+ * struct hmm_device - fake device to hang device memory onto
-+ *
-+ * @device: device struct
-+ * @minor: device minor number
-+ */
-+struct hmm_device {
-+	struct device		device;
-+	unsigned		minor;
-+};
-+
-+/*
-+ * Device driver that want to handle multiple devices memory through a single
-+ * fake device can use hmm_device to do so. This is purely an helper and it
-+ * is not needed to make use of any HMM functionality.
-+ */
-+struct hmm_device *hmm_device_new(void);
-+void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
- 
- 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index a9af1bc..1e29dfd 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -24,6 +24,7 @@
- #include <linux/slab.h>
- #include <linux/sched.h>
- #include <linux/mmzone.h>
-+#include <linux/module.h>
- #include <linux/pagemap.h>
- #include <linux/swapops.h>
- #include <linux/hugetlb.h>
-@@ -985,4 +986,98 @@ int hmm_devmem_fault_range(struct hmm_devmem *devmem,
- 	return 0;
- }
- EXPORT_SYMBOL(hmm_devmem_fault_range);
-+
-+/*
-+ * Device driver that want to handle multiple devices memory through a single
-+ * fake device can use hmm_device to do so. This is purely an helper and it
-+ * is not needed to make use of any HMM functionality.
-+ */
-+#define HMM_DEVICE_MAX 256
-+
-+static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
-+static DEFINE_SPINLOCK(hmm_device_lock);
-+static struct class *hmm_device_class;
-+static dev_t hmm_device_devt;
-+
-+static void hmm_device_release(struct device *device)
-+{
-+	struct hmm_device *hmm_device;
-+
-+	hmm_device = container_of(device, struct hmm_device, device);
-+	spin_lock(&hmm_device_lock);
-+	clear_bit(hmm_device->minor, hmm_device_mask);
-+	spin_unlock(&hmm_device_lock);
-+
-+	kfree(hmm_device);
-+}
-+
-+struct hmm_device *hmm_device_new(void)
-+{
-+	struct hmm_device *hmm_device;
-+	int ret;
-+
-+	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
-+	if (!hmm_device)
-+		return ERR_PTR(-ENOMEM);
-+
-+	ret = alloc_chrdev_region(&hmm_device->device.devt,0,1,"hmm_device");
-+	if (ret < 0) {
-+		kfree(hmm_device);
-+		return NULL;
-+	}
-+
-+	spin_lock(&hmm_device_lock);
-+	hmm_device->minor=find_first_zero_bit(hmm_device_mask,HMM_DEVICE_MAX);
-+	if (hmm_device->minor >= HMM_DEVICE_MAX) {
-+		spin_unlock(&hmm_device_lock);
-+		kfree(hmm_device);
-+		return NULL;
-+	}
-+	set_bit(hmm_device->minor, hmm_device_mask);
-+	spin_unlock(&hmm_device_lock);
-+
-+	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
-+	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
-+					hmm_device->minor);
-+	hmm_device->device.release = hmm_device_release;
-+	hmm_device->device.class = hmm_device_class;
-+	device_initialize(&hmm_device->device);
-+
-+	return hmm_device;
-+}
-+EXPORT_SYMBOL(hmm_device_new);
-+
-+void hmm_device_put(struct hmm_device *hmm_device)
-+{
-+	put_device(&hmm_device->device);
-+}
-+EXPORT_SYMBOL(hmm_device_put);
-+
-+static int __init hmm_init(void)
-+{
-+	int ret;
-+
-+	ret = alloc_chrdev_region(&hmm_device_devt, 0,
-+				  HMM_DEVICE_MAX,
-+				  "hmm_device");
-+	if (ret)
-+		return ret;
-+
-+	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
-+	if (IS_ERR(hmm_device_class)) {
-+		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
-+		return PTR_ERR(hmm_device_class);
-+	}
-+	return 0;
-+}
-+
-+static void __exit hmm_exit(void)
-+{
-+	unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
-+	class_destroy(hmm_device_class);
-+}
-+
-+module_init(hmm_init);
-+module_exit(hmm_exit);
-+MODULE_LICENSE("GPL");
- #endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
--- 
-2.4.3
+> I am worried that the number of patches posted to linux-mm grows over
+> time while the number of reviewers doesn't scale up with that trend. I
+> believe we need to do something about that and aim to increase both the
+> number of reviewers as well as the number of patches which are really
+> reviewed. I am not really sure how to achieve that, though. Requiring
+> Acked-by resp. Reviewed-by on each patch sounds like the right approach
+> but I am just worried that even useful changes could get stuck without
+> any forward progress that way.
+
+It does work for some other subsystems, so I would be for trying this.
+mm is core enough to deserve being careful IMHO.
+
+> Another problem, somehow related, is that there are areas which have
+> evolved into a really bad shape because nobody has really payed
+> attention to them from the architectural POV when they were merged. To
+> name one the memory hotplug doesn't seem very healthy, full of kludges,
+> random hacks and fixes for fixes working for a particualr usecase
+> without any longterm vision. We have allowed to (ab)use concepts like
+> ZONE_MOVABLE which are finding new users because that seems to be the
+> simplest way forward. Now we are left with fixing the code which has
+> some fundamental issues because it is used out there. Are we going to do
+> anything about those? E.g. generate a list of them, discuss how to make
+> that code healthy again and do not allow new features until we sort that
+> out?
+
+Sounds like we could at least try.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
