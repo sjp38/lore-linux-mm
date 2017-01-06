@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B446B025E
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 15:34:45 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id a190so1493641320pgc.0
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 12:34:45 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u75si80560066pgc.144.2017.01.06.12.34.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 235B76B0261
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 15:41:14 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 5so1587235777pgi.2
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 12:41:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id r88si80622341pfg.173.2017.01.06.12.41.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 12:34:44 -0800 (PST)
-Message-ID: <1483734874.2833.25.camel@linux.intel.com>
-Subject: [LSF/MM TOPIC] Optimizations for swap sub-system
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Fri, 06 Jan 2017 12:34:34 -0800
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 06 Jan 2017 12:41:13 -0800 (PST)
+Date: Fri, 6 Jan 2017 12:42:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Fix SLAB freelist randomization duplicate entries
+Message-Id: <20170106124233.189364f79056513b62ebc026@linux-foundation.org>
+In-Reply-To: <CAJcbSZFD=YLqXPKSTLUNFpOnTuYGMM7=YNrzxJ1C2L2MxR-8hw@mail.gmail.com>
+References: <20170103181908.143178-1-thgarnie@google.com>
+	<20170105163527.d37a29d6e7b3bfdafd7472d2@linux-foundation.org>
+	<CAJcbSZFD=YLqXPKSTLUNFpOnTuYGMM7=YNrzxJ1C2L2MxR-8hw@mail.gmail.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, "Huang, Ying" <ying.huang@intel.com>
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, John Sperbeck <jsperbeck@google.com>
 
-We have some swap related topics we'll like to discuss
-at mm summit. A We'll like to get everyone's opinionsA 
-to guide future swap related work that we have in mind.
+On Fri, 6 Jan 2017 09:58:48 -0800 Thomas Garnier <thgarnie@google.com> wrote:
 
-1. DAX swap -A 
-For swap space on very fast solid state block devices, the swappedA 
-pages can be accessed directly using DAX mechanism withoutA 
-incurring the overhead to allocate a page in RAM and swap themA 
-in.A A The direct access swap space should speed things up inA 
-many cases.A A One remaining issue is if the pages are accessedA 
-frequently, we may still need to promote them back to RAM.A A Wea??llA 
-like to discuss several possible approaches and their pros andA 
-cons to see what is the most viable:A 
-A  (i) Using performance monitoring unit to measure the access frequencyA 
-A  (ii) Extend the LRU list to such DAX swap spaceA 
-A  (iii) A page scanning daemon
+> On Thu, Jan 5, 2017 at 4:35 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Tue,  3 Jan 2017 10:19:08 -0800 Thomas Garnier <thgarnie@google.com> wrote:
+> >
+> >> This patch fixes a bug in the freelist randomization code. When a high
+> >> random number is used, the freelist will contain duplicate entries. It
+> >> will result in different allocations sharing the same chunk.
+> >
+> > Important: what are the user-visible runtime effects of the bug?
+> 
+> It will result in odd behaviours and crashes. It should be uncommon
+> but it depends on the machines. We saw it happening more often on some
+> machines (every few hours of running tests).
 
-2. Improving Swap Read Ahead -A 
-The current swap read ahead is done in the same order that theA 
-pages are swapped out.A A However, the order of page access mayA 
-have no relations with the order that the pages are accessed,A 
-especially for sequential memory access.A A Wea??ll like to discussA 
-detection mechanism for sequential memory access and using a VMAA 
-based read ahead for such case.
+So should the fix be backported into -stable kernels?
 
-3. Improving Swap out path -A 
-Optimization of the swap out paths by reducing the contentionsA 
-on the locks on swap device, radix tree by introducing finerA 
-grained lock on cluster, splitting up the radix tree and gettingA 
-swap pages and releasing swap pages in batches. A We'll like to
-address any issues if our proposed patchset has not been
-merged by the time of mm summit.
+> >
+> >> Fixes: c7ce4f60ac19 ("mm: SLAB freelist randomization")
+> >> Signed-off-by: John Sperbeck <jsperbeck@google.com>
+> >> Reviewed-by: Thomas Garnier <thgarnie@google.com>
+> >
+> > This should have been signed off by yourself.
+> >
+> > I'm guessing that the author was in fact John?  If so, you should
+> > indicate this by putting his From: line at the start of the changelog.
+> > Otherwise, authorship will default to the sender (ie, yourself).
+> >
+> 
+> Sorry, I though the sign-off was enough. Do you want me to send a v2?
 
-4. Huge Page Swapping -A 
-Now, the transparent huge page (THP) will be split before swappingA 
-out and collapsed back to THP after swapping in.A A This will wasteA 
-CPU cycles and reduce effectiveness (utilization) of THP.A A To resolveA 
-these issue, we propose to avoid splitting THP during swap out/in.A A 
-At the same time, this give us the opportunity to further optimizeA 
-the performance of THP swap out/in with large read/write size andA 
-reduced TLB flushing etc. to take advantage of the new high speedA 
-storage device.
+I have the patch as
 
-Thanks.
+From: John Sperbeck <jsperbeck@google.com>
+Signed-off-by: John Sperbeck <jsperbeck@google.com>
+Signed-off-by: Thomas Garnier <thgarnie@google.com>
 
-Ying Huang & Tim Chen
+Is that correct?  Is John the primary author?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
