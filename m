@@ -1,89 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C98C6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 03:31:29 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c85so2276425wmi.6
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:31:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x125si1925150wmd.163.2017.01.06.00.31.27
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B7B26B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 03:37:27 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 71so568297561ioe.2
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:37:27 -0800 (PST)
+Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
+        by mx.google.com with ESMTPS id b81si28278899iob.64.2017.01.06.00.37.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 00:31:27 -0800 (PST)
-Date: Fri, 6 Jan 2017 09:31:26 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 190351] New: OOM but no swap used
-Message-ID: <20170106083125.GC5556@dhcp22.suse.cz>
-References: <bug-190351-27@https.bugzilla.kernel.org/>
- <20170105114611.8b0fa5d3ec779e8a71b3973c@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jan 2017 00:37:26 -0800 (PST)
+Received: by mail-it0-x235.google.com with SMTP id 192so9429181itl.1
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:37:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170105114611.8b0fa5d3ec779e8a71b3973c@linux-foundation.org>
+In-Reply-To: <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+References: <20161216165437.21612-1-rrichter@cavium.com> <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+ <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org> <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Fri, 6 Jan 2017 08:37:25 +0000
+Message-ID: <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, rtc@helen.plasma.xg8.de
+To: Hanjun Guo <hanjun.guo@linaro.org>
+Cc: Robert Richter <rrichter@cavium.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu 05-01-17 11:46:11, Andrew Morton wrote:
-[...]
-> > Since upgrading from kernel-PAE 4.5.3 on fedora 24 to kernel-PAE 4.8.10 on
-> > fedora 25, I get OOM when I run my daily rsync for backup. I upgraded to
-> > kernel-PAE-4.9.0-1.fc26.i686 and the problem still occurs. The OOM occurs
-> > although the system doesn't use any swap and memory is not used up either.
-> > 
-> > See https://bugzilla.redhat.com/show_bug.cgi?id=1401012
-> > 
-> > Here is the dmesg from today:
-> > 
-> > [32863.748720] gpg-agent invoked oom-killer:
-> > gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), nodemask=0, order=1,  oom_score_adj=0
+On 6 January 2017 at 01:07, Hanjun Guo <hanjun.guo@linaro.org> wrote:
+> On 2017/1/5 10:03, Hanjun Guo wrote:
+>>
+>> On 2017/1/4 21:56, Ard Biesheuvel wrote:
+>>>
+>>> On 16 December 2016 at 16:54, Robert Richter <rrichter@cavium.com> wrote:
+>>>>
+>>>> On ThunderX systems with certain memory configurations we see the
+>>>> following BUG_ON():
+>>>>
+>>>>  kernel BUG at mm/page_alloc.c:1848!
+>>>>
+>>>> This happens for some configs with 64k page size enabled. The BUG_ON()
+>>>> checks if start and end page of a memmap range belongs to the same
+>>>> zone.
+>>>>
+>>>> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
+>>>> this case the node information of those pages is not initialized. This
+>>>> causes an inconsistency of the page links with wrong zone and node
+>>>> information for that pages. NOMAP pages from node 1 still point to the
+>>>> mem zone from node 0 and have the wrong nid assigned.
+>>>>
+>>>> The reason for the mis-configuration is a change in pfn_valid() which
+>>>> reports pages marked NOMAP as invalid:
+>>>>
+>>>>  68709f45385a arm64: only consider memblocks with NOMAP cleared for
+>>>> linear mapping
+>>>>
+>>>> This causes pages marked as nomap being no longer reassigned to the
+>>>> new zone in memmap_init_zone() by calling __init_single_pfn().
+>>>>
+>>>> Fixing this by implementing an arm64 specific early_pfn_valid(). This
+>>>> causes all pages of sections with memory including NOMAP ranges to be
+>>>> initialized by __init_single_page() and ensures consistency of page
+>>>> links to zone, node and section.
+>>>>
+>>>
+>>> I like this solution a lot better than the first one, but I am still
+>>> somewhat uneasy about having the kernel reason about attributes of
+>>> pages it should not touch in the first place. But the fact that
+>>> early_pfn_valid() is only used a single time in the whole kernel does
+>>> give some confidence that we are not simply moving the problem
+>>> elsewhere.
+>>>
+>>> Given that you are touching arch/arm/ as well as arch/arm64, could you
+>>> explain why only arm64 needs this treatment? Is it simply because we
+>>> don't have NUMA support there?
+>>>
+>>> Considering that Hisilicon D05 suffered from the same issue, I would
+>>> like to get some coverage there as well. Hanjun, is this something you
+>>> can arrange? Thanks
+>>
+>>
+>> Sure, we will test this patch with LTP MM stress test (which triggers
+>> the bug on D05), and give the feedback.
+>
+>
+> a update here, tested on 4.9,
+>
+>  - Applied Ard's two patches only
+>  - Applied Robert's patch only
+>
+> Both of them can work fine on D05 with NUMA enabled, which means
+> boot ok and LTP MM stress test is passed.
+>
 
-this is a lowmem request
+Thanks a lot Hanjun.
 
-[...]
-> > [32863.748789] active_anon:122505 inactive_anon:129240 isolated_anon:0
-> >                 active_file:174922 inactive_file:371696 isolated_file:64
-> >                 unevictable:8 dirty:0 writeback:0 unstable:0
-> >                 slab_reclaimable:186174 slab_unreclaimable:17717
-> >                 mapped:69769 shmem:11168 pagetables:2174 bounce:0
-> >                 free:13565 free_pcp:660 free_cma:0
-
-there is a lot of page cache and anonymous memory but...
-
-> > [32863.748792] Node 0 active_anon:490020kB inactive_anon:516960kB
-> > active_file:699688kB inactive_file:1486784kB unevictable:32kB
-> > isolated(anon):0kB isolated(file):256kB mapped:279076kB dirty:0kB writeback:0kB
-> > shmem:44672kB writeback_tmp:0kB unstable:0kB pages_scanned:9963129
-> > all_unreclaimable? yes
-> > [32863.748795] DMA free:3260kB min:68kB low:84kB high:100kB active_anon:0kB
-> > inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB
-> > writepending:0kB present:15992kB managed:15916kB mlocked:0kB
-> > slab_reclaimable:12460kB slab_unreclaimable:132kB kernel_stack:64kB
-> > pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> > [32863.748796] lowmem_reserve[]: 0 798 4005 4005
-> > [32863.748801] Normal free:3880kB min:3580kB low:4472kB high:5364kB
-> > active_anon:0kB inactive_anon:0kB active_file:1220kB inactive_file:68kB
-> > unevictable:0kB writepending:0kB present:892920kB managed:830896kB mlocked:0kB
-
-no anonymous memory is from eligible zones. There is some pagecache but
-1.2MB doesn't sound all that much. There is a known regression from 4.8
-when the active list aging is broken with memcg enabled but I am not
-sure this would make much of a difference here. You can try
-http://lkml.kernel.org/r/20170104100825.3729-1-mhocko@kernel.org
-but it seems that the problem you are seeing is really the lowmem
-depletion which is hard to come around with 32b kernels.
-
-> > slab_reclaimable:732236kB slab_unreclaimable:70736kB kernel_stack:2560kB
-
-slab consumption is really high. It has eaten a majority of the lowmem.
-I would focus on who is eating that memory. Try to watch /proc/slabinfo
-for anomalies.
-
-> > pagetables:0kB bounce:0kB free_pcp:1252kB local_pcp:624kB free_cma:0kB
-
--- 
-Michal Hocko
-SUSE Labs
+Any comments on the performance impact (including boot time) ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
