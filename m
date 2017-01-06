@@ -1,58 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CD806B025E
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 12:58:49 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id j13so33275670iod.6
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:58:49 -0800 (PST)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id c3si2808543ith.14.2017.01.06.09.58.49
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 326946B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 13:18:22 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 75so5893230pgf.3
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 10:18:22 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id q12si80198656pgc.52.2017.01.06.10.18.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 09:58:49 -0800 (PST)
-Received: by mail-io0-x233.google.com with SMTP id f103so40013593ioi.1
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:58:49 -0800 (PST)
+        Fri, 06 Jan 2017 10:18:21 -0800 (PST)
+Date: Fri, 6 Jan 2017 11:18:19 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 0/4] Write protect DAX PMDs in *sync path
+Message-ID: <20170106181819.GA3486@linux.intel.com>
+References: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20170104001349.GA8176@linux.intel.com>
+ <20170105172734.23a7603ff19006b49e9ba01a@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170105163527.d37a29d6e7b3bfdafd7472d2@linux-foundation.org>
-References: <20170103181908.143178-1-thgarnie@google.com> <20170105163527.d37a29d6e7b3bfdafd7472d2@linux-foundation.org>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Fri, 6 Jan 2017 09:58:48 -0800
-Message-ID: <CAJcbSZFD=YLqXPKSTLUNFpOnTuYGMM7=YNrzxJ1C2L2MxR-8hw@mail.gmail.com>
-Subject: Re: [PATCH] Fix SLAB freelist randomization duplicate entries
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170105172734.23a7603ff19006b49e9ba01a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, John Sperbeck <jsperbeck@google.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org
 
-On Thu, Jan 5, 2017 at 4:35 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue,  3 Jan 2017 10:19:08 -0800 Thomas Garnier <thgarnie@google.com> wrote:
->
->> This patch fixes a bug in the freelist randomization code. When a high
->> random number is used, the freelist will contain duplicate entries. It
->> will result in different allocations sharing the same chunk.
->
-> Important: what are the user-visible runtime effects of the bug?
+On Thu, Jan 05, 2017 at 05:27:34PM -0800, Andrew Morton wrote:
+> On Tue, 3 Jan 2017 17:13:49 -0700 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+> 
+> > On Thu, Dec 22, 2016 at 02:18:52PM -0700, Ross Zwisler wrote:
+> > > Currently dax_mapping_entry_mkclean() fails to clean and write protect the
+> > > pmd_t of a DAX PMD entry during an *sync operation.  This can result in
+> > > data loss, as detailed in patch 4.
+> > > 
+> > > You can find a working tree here:
+> > > 
+> > > https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_clean_v2
+> > > 
+> > > This series applies cleanly to mmotm-2016-12-19-16-31.
+> > > 
+> > > Changes since v1:
+> > >  - Included Dan's patch to kill DAX support for UML.
+> > >  - Instead of wrapping the DAX PMD code in dax_mapping_entry_mkclean() in
+> > >    an #ifdef, we now create a stub for pmdp_huge_clear_flush() for the case
+> > >    when CONFIG_TRANSPARENT_HUGEPAGE isn't defined. (Dan & Jan)
+> > > 
+> > > Dan Williams (1):
+> > >   dax: kill uml support
+> > > 
+> > > Ross Zwisler (3):
+> > >   dax: add stub for pmdp_huge_clear_flush()
+> > >   mm: add follow_pte_pmd()
+> > >   dax: wrprotect pmd_t in dax_mapping_entry_mkclean
+> > > 
+> > >  fs/Kconfig                    |  2 +-
+> > >  fs/dax.c                      | 49 ++++++++++++++++++++++++++++++-------------
+> > >  include/asm-generic/pgtable.h | 10 +++++++++
+> > >  include/linux/mm.h            |  4 ++--
+> > >  mm/memory.c                   | 41 ++++++++++++++++++++++++++++--------
+> > >  5 files changed, 79 insertions(+), 27 deletions(-)
+> > 
+> > Well, 0-day found another architecture that doesn't define pmd_pfn() et al.,
+> > so we'll need some more fixes. (Thank you, 0-day, for the coverage!)
+> > 
+> > I have to apologize, I didn't understand that Dan intended his "dax: kill uml
+> > support" patch to land in v4.11.  I thought he intended it as a cleanup to my
+> > series, which really needs to land in v4.10.  That's why I folded them
+> > together into this v2, along with the wrapper suggested by Jan.
+> > 
+> > Andrew, does it work for you to just keep v1 of this series, and eventually
+> > send that to Linus for v4.10?
+> > 
+> > https://lkml.org/lkml/2016/12/20/649
+> > 
+> > You've already pulled that one into -mm, and it does correctly solve the data
+> > loss issue.
+> > 
+> > That would let us deal with getting rid of the #ifdef, blacklisting
+> > architectures and introducing the pmdp_huge_clear_flush() strub in a follow-on
+> > series for v4.11.
+> 
+> I have mm-add-follow_pte_pmd.patch and
+> dax-wrprotect-pmd_t-in-dax_mapping_entry_mkclean.patch queued for 4.10.
+> Please (re)send any additional patches, indicating for each one
+> whether you believe it should also go into 4.10?
 
-It will result in odd behaviours and crashes. It should be uncommon
-but it depends on the machines. We saw it happening more often on some
-machines (every few hours of running tests).
-
->
->> Fixes: c7ce4f60ac19 ("mm: SLAB freelist randomization")
->> Signed-off-by: John Sperbeck <jsperbeck@google.com>
->> Reviewed-by: Thomas Garnier <thgarnie@google.com>
->
-> This should have been signed off by yourself.
->
-> I'm guessing that the author was in fact John?  If so, you should
-> indicate this by putting his From: line at the start of the changelog.
-> Otherwise, authorship will default to the sender (ie, yourself).
->
-
-Sorry, I though the sign-off was enough. Do you want me to send a v2?
-
--- 
-Thomas
+The two patches that you already have queued are correct, and no additional
+patches are necessary for v4.10 for this issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
