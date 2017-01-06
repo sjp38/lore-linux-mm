@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 390586B025E
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:01:11 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id n3so70653001wjy.6
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:01:11 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A896B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:08:08 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so3586111wmi.6
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:08:08 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f134si2748360wme.68.2017.01.06.06.01.09
+        by mx.google.com with ESMTPS id a7si89318063wjy.176.2017.01.06.06.08.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 06:01:09 -0800 (PST)
-Date: Fri, 6 Jan 2017 15:01:07 +0100
+        Fri, 06 Jan 2017 06:08:07 -0800 (PST)
+Date: Fri, 6 Jan 2017 15:08:06 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: add new background defrag option
-Message-ID: <20170106140107.GN5556@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
- <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
- <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
- <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+Subject: Re: [Bug 190841] New: [REGRESSION] Intensive Memory CGroup removal
+ leads to high load average 10+
+Message-ID: <20170106140805.GO5556@dhcp22.suse.cz>
+References: <bug-190841-27@https.bugzilla.kernel.org/>
+ <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
+ <20170105123341.GQ21618@dhcp22.suse.cz>
+ <CAJABK0MAX2jz+U-00x1xM7EEFEe3_h-nwnEdG9axJKrzuqTBjQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+In-Reply-To: <CAJABK0MAX2jz+U-00x1xM7EEFEe3_h-nwnEdG9axJKrzuqTBjQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladyslav Frolov <frolvlad@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Fri 06-01-17 09:41:57, Vlastimil Babka wrote:
-> On 01/05/2017 11:54 PM, David Rientjes wrote:
-> > On Thu, 5 Jan 2017, Vlastimil Babka wrote:
-> > 
-> >> Hmm that's probably why it's hard to understand, because "madvise
-> >> request" is just setting a vma flag, and the THP allocation (and defrag)
-> >> still happens at fault.
-> >>
-> >> I'm not a fan of either name, so I've tried to implement my own
-> >> suggestion. Turns out it was easier than expected, as there's no kernel
-> >> boot option for "defer", just for "enabled", so that particular worry
-> >> was unfounded.
-> >>
-> >> And personally I think that it's less confusing when one can enable defer
-> >> and madvise together (and not any other combination), than having to dig
-> >> up the difference between "defer" and "background".
-> >>
-> > 
-> > I think allowing only two options to be combined amongst four available 
-> > solo options is going to be confusing and then even more difficult for the 
-> > user to understand what happens when they are combined.  Thus, I think 
+On Thu 05-01-17 22:26:53, Vladyslav Frolov wrote:
+[...]
+> > Even without memcg involved. Are there any strong reasons you cannot reuse an existing cgroup?
 > 
-> Well, the other options are named "always" and "never", so I wouldn't
-> think so confusing that they can't be combined with anything else.
-> Deciding between "defer" and "background" is however confusing, and also
-> doesn't indicate that the difference is related to madvise.
+> I run concurrent executions (I run cgmemtime
+> [https://github.com/gsauthof/cgmemtime] to measure high-water memory
+> usage of a group of processes), so I cannot reuse a single cgroup, and
+> I, currently, cannot maintain a pool of cgroups (it will add extra
+> complexity in my code, and will require cgmemtime patching, while
+> older kernels just worked fine). Do you believe there is no bug there
+> and it is just slow by design?
 
-fully agreed. Calling a mode which does _direct_ compaction as
-_background_ is not only confusng but just plain wrong.
-
-> > these options should only have one settable mode as they have always done.
-> > 
-> > The kernel implementation takes less of a priority to userspace 
-> > simplicitly, imo, and my patch actually cleans up much of the existing 
-> > code and ends up adding fewer lines that yours.  I consider it an 
-> > improvement in itself.  I don't see the benefit of allowing combined 
-> > options.
+> There are a few odd things here:
 > 
-> I don't like bikesheding, but as this is about user-space API, more care
-> should be taken than for implementation details that can change. Even
-> though realistically there will be in 99% of cases only two groups of
-> users setting this
-> - experts like you who know what they are doing, and confusing names
-> won't prevent them from making the right choice
-> - people who will blindly copy/paste from the future cargo-cult websites
-> (if they ever get updated from the enabled="never" recommendations), who
-> likely won't stop and think about the other options.
+> 1. 4.7+ kernels perform 20 times *slower* while postponing should in
+> theory speed things up due to "async" nature
+> 2. Other cgroup creation/cleaning work like a charm, it is only
+> `memory` cgroup making my system overloaded
+> 
+> > echo 1 > $CGROUP_BASE/memory.force_empty
+> 
+> This didn't help at alll.
 
-agreed!
- 
-> Well, so we'll probably disagree, maybe others can add their opinions.
-
-To me the combined option sounds better than a new one with confusing
-name. Maybe we can come up with a better name that would reflect the
-functionality better, though. There is some minor risk that some
-userspace doesn't cope with two options being selected but there has
-never been any guarantee about a single option being selected in the
-first place. Is anybody actually parsing this file to make further
-decisions? I would expect it is write mostly thing.
+OK, then it is not just the page cache staying behind which prevents
+those memcgs go away. Another reason might be kmem charges. Memcg kernel
+memory accounting has been enabled by default since 4.6 AFAIR. You say
+4.7+ has seen a slowdown though so this might be completely unrelated.
+But it would be good to see whether the same happens with kernel command
+line:
+cgroup.memory=nokmem
 -- 
 Michal Hocko
 SUSE Labs
