@@ -1,91 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C1916B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 12:13:08 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id 192so23220978itl.7
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:13:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h127si27717732ioa.186.2017.01.06.09.13.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8DD6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 12:18:17 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id s63so4480537wms.7
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:18:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 60si705096wre.208.2017.01.06.09.18.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 09:13:07 -0800 (PST)
-Date: Fri, 6 Jan 2017 12:13:01 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v15 13/16] mm/hmm/migrate: new memory migration helper for
- use with device memory v2
-Message-ID: <20170106171300.GA3804@redhat.com>
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
- <1483721203-1678-14-git-send-email-jglisse@redhat.com>
- <d5c4a464-1f17-8517-3646-33dd5bf06ef5@nvidia.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Jan 2017 09:18:16 -0800 (PST)
+Subject: Re: __GFP_REPEAT usage in fq_alloc_node
+References: <20170106152052.GS5556@dhcp22.suse.cz>
+ <CANn89i+QZs0cSPK21qMe6LXw+AeAMZ_tKEDUEnCsJ_cd+q0t-g@mail.gmail.com>
+ <20901069-5eb7-f5ff-0641-078635544531@suse.cz>
+ <CANn89iLy2KMUu80KekhvO31G4uXr4B0K8zvGjhfyBBp9d_ncBg@mail.gmail.com>
+ <97be60da-72df-ad8f-db03-03f01c392823@suse.cz>
+ <CANn89i+pRwa3KES1ane4ZfBpw4Y7Ne5OLZmkt=K8n5E6qF9xvA@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e37eda74-e796-ff45-4c26-0c56bdf74967@suse.cz>
+Date: Fri, 6 Jan 2017 18:18:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <d5c4a464-1f17-8517-3646-33dd5bf06ef5@nvidia.com>
+In-Reply-To: <CANn89i+pRwa3KES1ane4ZfBpw4Y7Ne5OLZmkt=K8n5E6qF9xvA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Nellans <dnellans@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Eric Dumazet <edumazet@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 06, 2017 at 10:46:09AM -0600, David Nellans wrote:
+On 01/06/2017 06:08 PM, Eric Dumazet wrote:
+> On Fri, Jan 6, 2017 at 8:55 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> On 01/06/2017 05:48 PM, Eric Dumazet wrote:
+>>> On Fri, Jan 6, 2017 at 8:31 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>>
+>>>>
+>>>> I wonder what's that cause of the penalty (when accessing the vmapped
+>>>> area I suppose?) Is it higher risk of collisions cache misses within the
+>>>> area, compared to consecutive physical adresses?
+>>>
+>>> I believe tests were done with 48 fq qdisc, each having 2^16 slots.
+>>> So I had 48 blocs,of 524288 bytes.
+>>>
+>>> Trying a bit harder at setup time to get 128 consecutive pages got
+>>> less TLB pressure.
+>>
+>> Hmm that's rather surprising to me. TLB caches the page table lookups
+>> and the PFN's of the physical pages it translates to shouldn't matter -
+>> the page tables will look the same. With 128 consecutive pages could
+>> manifest the reduced collision cache miss effect though.
+>>
 > 
+> To be clear, the difference came from :
 > 
-> On 01/06/2017 10:46 AM, Jerome Glisse wrote:
-> > This patch add a new memory migration helpers, which migrate memory
-> > backing a range of virtual address of a process to different memory
-> > (which can be allocated through special allocator). It differs from
-> > numa migration by working on a range of virtual address and thus by
-> > doing migration in chunk that can be large enough to use DMA engine
-> > or special copy offloading engine.
-> >
-> > Expected users are any one with heterogeneous memory where different
-> > memory have different characteristics (latency, bandwidth, ...). As
-> > an example IBM platform with CAPI bus can make use of this feature
-> > to migrate between regular memory and CAPI device memory. New CPU
-> > architecture with a pool of high performance memory not manage as
-> > cache but presented as regular memory (while being faster and with
-> > lower latency than DDR) will also be prime user of this patch.
-> Why should the normal page migration path (where neither src nor dest
-> are device private), use the hmm_migrate functionality?  11-14 are
-> replicating a lot of the normal migration functionality but with special
-> casing for HMM requirements.
-
-You are mischaracterizing patch 11-14. Patch 11-12 adds new flags and
-modify existing functions so that they can be share. Patch 13 implement
-new migration helper while patch 14 optimize this new migration helper.
-
-hmm_migrate() is different from existing migration code because it works
-on virtual address range of a process. Existing migration code works
-from page. The only difference with existing code is that we collect
-pages from virtual address and we allow use of dma engine to perform
-copy.
-
-> When migrating THP's or a list of pages (your use case above), normal
-> NUMA migration is going to want to do this as fast as possible too (see
-> Zi Yan's patches for multi-threading normal migrations & prototype of
-> using intel IOAT for transfers, he sees 3-5x speedup).
-
-This is core features of HMM and as such optimization like better THP
-support are defer to later patchset.
-
+> Using kmalloc() to allocate 48 x 524288 bytes
 > 
-> If the intention is to provide a common interface hook for migration to
-> use DMA acceleration (which is a good idea), it probably shouldn't be
-> special cased inside HMM functionality. For example, using the intel IOAT
-> for migration DMA has nothing to do with HMM whatsoever. We need a normal
-> migration path interface to allow DMA that isn't tied to HMM.
+> Or using vmalloc()
+> 
+> Are you telling me HugePages are not in play there ?
 
-There is nothing that ie hmm_migrate() to HMM. If that make you feel better
-i can drop the hmm_ prefix but i would need another name than migrate() as
-it is already taken. I can probably name it vma_range_dma_migrate() or
-something like that.
+Oh that's certainly a difference, as kmalloc() will give you the kernel
+mapping which can use 1GB Hugepages. But if you just combine these
+kmalloc chunks into vmalloc mapping (IIUC that's what your RFC was
+doing?), you lose that benefit AFAIK. On the other hand I recall reading
+that AMD Zen will have PTE Coalescing [1] which, if true and I
+understand that correctly, would indeed result in better TLB usage with
+adjacent page table entries pointing to consecutive pages. But perhaps
+the starting pte's position will also have to be aligned to make this
+work, dunno.
 
-The only think that is HMM specific in this code is understanding HMM special
-page table entry and handling those. Such entry can only be migrated by DMA
-and not by memcpy hence why i do not modify existing code to support those.
-
-Cheers,
-Jerome
+[1]
+http://www.anandtech.com/show/10591/amd-zen-microarchiture-part-2-extracting-instructionlevel-parallelism/6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
