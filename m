@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1057E6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 14:58:54 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id w39so419510766qtw.0
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 11:58:54 -0800 (PST)
-Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
-        by mx.google.com with ESMTPS id c5si25057693qke.50.2017.01.06.11.58.52
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B446B025E
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 15:34:45 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id a190so1493641320pgc.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 12:34:45 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id u75si80560066pgc.144.2017.01.06.12.34.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 11:58:53 -0800 (PST)
-Date: Fri, 6 Jan 2017 14:58:51 -0500
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: Re: 4.10-rc2 list_lru_isolate list corruption
-Message-ID: <20170106195851.7pjpnn5w2bjasc7w@codemonkey.org.uk>
-References: <20170106052056.jihy5denyxsnfuo5@codemonkey.org.uk>
- <20170106165941.GA19083@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170106165941.GA19083@cmpxchg.org>
+        Fri, 06 Jan 2017 12:34:44 -0800 (PST)
+Message-ID: <1483734874.2833.25.camel@linux.intel.com>
+Subject: [LSF/MM TOPIC] Optimizations for swap sub-system
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Fri, 06 Jan 2017 12:34:34 -0800
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Shaohua Li <shli@fb.com>, "Huang, Ying" <ying.huang@intel.com>
 
-On Fri, Jan 06, 2017 at 11:59:41AM -0500, Johannes Weiner wrote:
- > Dave, can you reproduce this by any chance with this patch applied?
+We have some swap related topics we'll like to discuss
+at mm summit. A We'll like to get everyone's opinionsA 
+to guide future swap related work that we have in mind.
 
-yep.
+1. DAX swap -A 
+For swap space on very fast solid state block devices, the swappedA 
+pages can be accessed directly using DAX mechanism withoutA 
+incurring the overhead to allocate a page in RAM and swap themA 
+in.A A The direct access swap space should speed things up inA 
+many cases.A A One remaining issue is if the pages are accessedA 
+frequently, we may still need to promote them back to RAM.A A Wea??llA 
+like to discuss several possible approaches and their pros andA 
+cons to see what is the most viable:A 
+A  (i) Using performance monitoring unit to measure the access frequencyA 
+A  (ii) Extend the LRU list to such DAX swap spaceA 
+A  (iii) A page scanning daemon
 
- > diff --git a/lib/radix-tree.c b/lib/radix-tree.c
- > index 6f382e07de77..0783af1c0ebb 100644
- > --- a/lib/radix-tree.c
- > +++ b/lib/radix-tree.c
- > @@ -640,6 +640,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root,
- >  				update_node(node, private);
- >  		}
- >  
- > +		WARN_ON_ONCE(!list_empty(&node->private_list));
- > +
- >  		radix_tree_node_free(node);
- >  	}
- >  }
+2. Improving Swap Read Ahead -A 
+The current swap read ahead is done in the same order that theA 
+pages are swapped out.A A However, the order of page access mayA 
+have no relations with the order that the pages are accessed,A 
+especially for sequential memory access.A A Wea??ll like to discussA 
+detection mechanism for sequential memory access and using a VMAA 
+based read ahead for such case.
 
-[ 8467.462878] WARNING: CPU: 2 PID: 53 at lib/radix-tree.c:643 delete_node+0x1e4/0x200
-[ 8467.468770] CPU: 2 PID: 53 Comm: kswapd0 Not tainted 4.10.0-rc2-think+ #3 
-[ 8467.480436] Call Trace:
-[ 8467.486213]  dump_stack+0x4f/0x73
-[ 8467.491999]  __warn+0xcb/0xf0
-[ 8467.497769]  warn_slowpath_null+0x1d/0x20
-[ 8467.503566]  delete_node+0x1e4/0x200
-[ 8467.509468]  __radix_tree_delete_node+0xd/0x10
-[ 8467.515425]  shadow_lru_isolate+0xe6/0x220
-[ 8467.521337]  __list_lru_walk_one.isra.4+0x9b/0x190
-[ 8467.527176]  ? memcg_drain_all_list_lrus+0x1d0/0x1d0
-[ 8467.533066]  list_lru_walk_one+0x23/0x30
-[ 8467.538953]  scan_shadow_nodes+0x2e/0x40
-[ 8467.544840]  shrink_slab.part.44+0x23d/0x5d0
-[ 8467.550751]  ? 0xffffffffa023a077
-[ 8467.556639]  shrink_node+0x22c/0x330
-[ 8467.562542]  kswapd+0x392/0x8f0
-[ 8467.568422]  kthread+0x10f/0x150
-[ 8467.574313]  ? mem_cgroup_shrink_node+0x2e0/0x2e0
-[ 8467.580266]  ? kthread_create_on_node+0x60/0x60
-[ 8467.586203]  ret_from_fork+0x29/0x40
-[ 8467.592109] ---[ end trace f790bafb683609d5 ]---
+3. Improving Swap out path -A 
+Optimization of the swap out paths by reducing the contentionsA 
+on the locks on swap device, radix tree by introducing finerA 
+grained lock on cluster, splitting up the radix tree and gettingA 
+swap pages and releasing swap pages in batches. A We'll like to
+address any issues if our proposed patchset has not been
+merged by the time of mm summit.
+
+4. Huge Page Swapping -A 
+Now, the transparent huge page (THP) will be split before swappingA 
+out and collapsed back to THP after swapping in.A A This will wasteA 
+CPU cycles and reduce effectiveness (utilization) of THP.A A To resolveA 
+these issue, we propose to avoid splitting THP during swap out/in.A A 
+At the same time, this give us the opportunity to further optimizeA 
+the performance of THP swap out/in with large read/write size andA 
+reduced TLB flushing etc. to take advantage of the new high speedA 
+storage device.
+
+Thanks.
+
+Ying Huang & Tim Chen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
