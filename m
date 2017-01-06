@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 09CED6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 05:15:33 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c85so2683059wmi.6
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 02:15:32 -0800 (PST)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id 7si2234986wmu.55.2017.01.06.02.15.31
+	by kanga.kvack.org (Postfix) with ESMTP id A0D606B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 05:18:37 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id m203so2762691wma.2
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 02:18:37 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y129si2222468wmd.108.2017.01.06.02.18.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 02:15:31 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 50FD2995BF
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 10:15:31 +0000 (UTC)
-Date: Fri, 6 Jan 2017 10:15:30 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/4] mm, page_allocator: Only use per-cpu allocator for
- irq-safe requests
-Message-ID: <20170106101530.zq7mpvu4uw2dppal@techsingularity.net>
-References: <20170104111049.15501-1-mgorman@techsingularity.net>
- <20170104111049.15501-4-mgorman@techsingularity.net>
- <00ee01d267cc$b61feaa0$225fbfe0$@alibaba-inc.com>
+        Fri, 06 Jan 2017 02:18:36 -0800 (PST)
+Date: Fri, 6 Jan 2017 11:18:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 190191] New: kswapd0 spirals out of control
+Message-ID: <20170106101834.GA5561@dhcp22.suse.cz>
+References: <bug-190191-27@https.bugzilla.kernel.org/>
+ <20170105114233.b5c80f88f625815eaec70bc1@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00ee01d267cc$b61feaa0$225fbfe0$@alibaba-inc.com>
+In-Reply-To: <20170105114233.b5c80f88f625815eaec70bc1@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Jesper Dangaard Brouer' <brouer@redhat.com>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, dh@kernel.usrbin.org
 
-On Fri, Jan 06, 2017 at 11:26:46AM +0800, Hillf Danton wrote:
+On Thu 05-01-17 11:42:33, Andrew Morton wrote:
 > 
-> On Wednesday, January 04, 2017 7:11 PM Mel Gorman wrote: 
-> > @@ -2647,9 +2644,8 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
-> >  	struct list_head *list;
-> >  	bool cold = ((gfp_flags & __GFP_COLD) != 0);
-> >  	struct page *page;
-> > -	unsigned long flags;
-> > 
-> > -	local_irq_save(flags);
-> > +	preempt_disable();
-> >  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> >  	list = &pcp->lists[migratetype];
-> >  	page = __rmqueue_pcplist(zone,  order, gfp_flags, migratetype,
-> > @@ -2658,7 +2654,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
-> >  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
-> >  		zone_statistics(preferred_zone, zone, gfp_flags);
-> >  	}
-> > -	local_irq_restore(flags);
-> > +	preempt_enable();
-> >  	return page;
-> >  }
-> > 
-> With PREEMPT configured, preempt_enable() adds entry point to schedule().
-> Is that needed when we try to allocate a page?
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
 > 
+> On Mon, 12 Dec 2016 19:38:23 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=190191
+> > 
+> >             Bug ID: 190191
+> >            Summary: kswapd0 spirals out of control
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 4.8.0+
+> >           Hardware: i386
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: high
+> >           Priority: P1
+> >          Component: Other
+> >           Assignee: akpm@linux-foundation.org
+> >           Reporter: dh@kernel.usrbin.org
+> >         Regression: No
+> 
+> I'd say "Regression: yes".
+> 
+> Additional details at the link.  There's no indication which commit(s)
+> broke it.
+> 
+> > Created attachment 247481
+> >   --> https://bugzilla.kernel.org/attachment.cgi?id=247481&action=edit
+> > config for 4.7
+> > 
+> > I'm currently running 4.7.10 with no problems, but when i tried to upgrade to
+> > 4.8.0 (and just now, 4.9.0) i encountered a problem that makes my system
+> > unusable.
 
-Not necessarily but what are you proposing as an alternative? get_cpu()
-is not an alternative and the point is to avoid disabling interrupts
-which is a much more expensive operation.
-
+Considering this is 32b kernel and we know that node reclaim (introduced
+in 4.8) is broken with memcg enabled because Normal zone inactive list
+might not be aged properly I would suggest trying to run with
+http://lkml.kernel.org/r/20170104100825.3729-1-mhocko@kernel.org
+applied. It is hard to tell anything more without further information
+though.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
