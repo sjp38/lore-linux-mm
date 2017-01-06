@@ -1,96 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9156B0038
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:07:35 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 5so1018529913pgj.6
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:07:35 -0800 (PST)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id 3si77624679plh.307.2017.01.05.17.07.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 17:07:34 -0800 (PST)
-Received: by mail-pf0-x22a.google.com with SMTP id 189so90207685pfz.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:07:34 -0800 (PST)
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-References: <20161216165437.21612-1-rrichter@cavium.com>
- <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
- <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
-From: Hanjun Guo <hanjun.guo@linaro.org>
-Message-ID: <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
-Date: Fri, 6 Jan 2017 09:07:17 +0800
-MIME-Version: 1.0
-In-Reply-To: <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FE4C6B0069
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:08:27 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id q71so5883392ywg.1
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:08:27 -0800 (PST)
+Received: from ns.sciencehorizons.net (ns.sciencehorizons.net. [71.41.210.147])
+        by mx.google.com with SMTP id k13si21085033ywe.451.2017.01.05.17.08.26
+        for <linux-mm@kvack.org>;
+        Thu, 05 Jan 2017 17:08:26 -0800 (PST)
+Date: 5 Jan 2017 20:08:25 -0500
+Message-ID: <20170106010825.30586.qmail@ns.sciencehorizons.net>
+From: "George Spelvin" <linux@sciencehorizons.net>
+Subject: Re: A use case for MAP_COPY
+In-Reply-To: <CA+55aFyZtmjsaE_g6TXoqwhBUL-gtt53ARGmpU8eFFZ0wNWDbg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Robert Richter <rrichter@cavium.com>
-Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux@sciencehorizons.net, torvalds@linux-foundation.org
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, riel@surriel.com
 
-On 2017/1/5 10:03, Hanjun Guo wrote:
-> On 2017/1/4 21:56, Ard Biesheuvel wrote:
->> On 16 December 2016 at 16:54, Robert Richter <rrichter@cavium.com> wrote:
->>> On ThunderX systems with certain memory configurations we see the
->>> following BUG_ON():
->>>
->>>  kernel BUG at mm/page_alloc.c:1848!
->>>
->>> This happens for some configs with 64k page size enabled. The BUG_ON()
->>> checks if start and end page of a memmap range belongs to the same
->>> zone.
->>>
->>> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
->>> this case the node information of those pages is not initialized. This
->>> causes an inconsistency of the page links with wrong zone and node
->>> information for that pages. NOMAP pages from node 1 still point to the
->>> mem zone from node 0 and have the wrong nid assigned.
->>>
->>> The reason for the mis-configuration is a change in pfn_valid() which
->>> reports pages marked NOMAP as invalid:
->>>
->>>  68709f45385a arm64: only consider memblocks with NOMAP cleared for
->>> linear mapping
->>>
->>> This causes pages marked as nomap being no longer reassigned to the
->>> new zone in memmap_init_zone() by calling __init_single_pfn().
->>>
->>> Fixing this by implementing an arm64 specific early_pfn_valid(). This
->>> causes all pages of sections with memory including NOMAP ranges to be
->>> initialized by __init_single_page() and ensures consistency of page
->>> links to zone, node and section.
->>>
->>
->> I like this solution a lot better than the first one, but I am still
->> somewhat uneasy about having the kernel reason about attributes of
->> pages it should not touch in the first place. But the fact that
->> early_pfn_valid() is only used a single time in the whole kernel does
->> give some confidence that we are not simply moving the problem
->> elsewhere.
->>
->> Given that you are touching arch/arm/ as well as arch/arm64, could you
->> explain why only arm64 needs this treatment? Is it simply because we
->> don't have NUMA support there?
->>
->> Considering that Hisilicon D05 suffered from the same issue, I would
->> like to get some coverage there as well. Hanjun, is this something you
->> can arrange? Thanks
->
-> Sure, we will test this patch with LTP MM stress test (which triggers
-> the bug on D05), and give the feedback.
+> For example, what happens when there is low memory? What you would
+> *want* to happen is to just forget the page and read it back in.
+> That/s how MAP_PRIVATE works. But that won't actually work for
+> MAP_COPY. You'd need to page the thing out, as if you had written to
+> it (even though you didn't). Not because you want to, but because your
+> versioning scheme depends on it.
 
-a update here, tested on 4.9,
+Yes, I explained that in the first message.  For memory overcommit
+bean-counting purposes, it counts as a copy.  When there's a request to
+shrink the page, the process looks like this:
 
-  - Applied Ard's two patches only
-  - Applied Robert's patch only
+- Page dirty?  Schedule write.
+- Page clean, but MAP_COPY?  Drop file mappings, leave dirty anonymous
+  page behind.  Optionally (but recommended) add_to_swap() and
+  schedule swap-out.
+- (From this point, it's a generic anonymous page.)
 
-Both of them can work fine on D05 with NUMA enabled, which means
-boot ok and LTP MM stress test is passed.
+The net result is no worse than if you'd made a private copy in the
+first place.
 
-I'm not familiar with memory management, it's up to you guys to make
-a decision :)
+(In *really* extreme corner cases, point the oom-killer at whoever asked
+for MAP_COPY and cannibalize them so the others may live.)
 
-Thanks
-Hanjun
+The basic performance goals are:
+- If the COW never happens: No slower than, and less memory than,
+  making an eager copy up front.
+- If the COW happens: Not more than 10x slower than, and no more memory
+  than, making an eager copy up front.
+
+The net result is that if the chance of a COW is less than 10%, it's
+worth considering.  If the chance of a COW is non-trivial, just do
+an eager copy.
+
+> The whole point of MAP_COPY is to avoid a memory copy, but
+> if you now end up having to do IO, and having to have a swap device
+> for it, it's completely unacceptable. See?
+
+No, I don't see.  I thought I figured that out before posting and
+explained it already.  You can do the required virtual copy with no
+actual RAM copies; you just have to swap the same page out twice.
+
+The easy way to implement it serializes the two writes, which isn't
+ideal, but isn't a disaster, either.
+
+> How are you going to avoid the issues with growing 'struct page'?
+
+At the moment, no idea.  Compared to your profound grokking of the mm,
+I'm like one of those mechanics saying "lookit all them WIRES in there!"
+
+I certainly understand that growing struct page is a non-starter.
+
+> So the fact is, it's a horrible idea. I don't think you understand how
+> horrible it is. The only way you'll understand is if you try to write
+> the patch.
+
+Agreed, I definitely don't understand.  For me, mm/ is a blank spot on
+the map marked "Hic sunt dracones."  While that's better than "Lasciate
+ogne speranza, voi ch'intrate", it's still very intimidating.  The part
+I'm most frightened of is lock ordering.  That's a maze of twisty little
+passages.
+
+And the cgroup accounting is likely to be unpleasant in the extreme.
+
+This is definitely a long-term goal.  I have to go and finish the
+software that made me wish for this feature first.  And then a lot
+of other to-do items.  But I'll start studying.
+
+>  "Siperia opettaa".
+
+Very appropriate aphorism!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
