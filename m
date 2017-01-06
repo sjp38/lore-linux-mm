@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A490A6B025E
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 18:17:24 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g1so1480184905pgn.3
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 15:17:24 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id t17si70937973pgi.290.2017.01.05.15.17.23
+	by kanga.kvack.org (Postfix) with ESMTP id 974926B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 19:00:49 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id u5so1092367524pgi.7
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 16:00:49 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t6si77509661pfa.280.2017.01.05.16.00.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 15:17:23 -0800 (PST)
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com>
- <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
- <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com>
- <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
- <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com>
- <CALCETrW7yxmgrR15yvxkXOF1pHy5vicwDv6Oj019ecEyBCrWBQ@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <215875b1-2035-df2a-99b2-1b1b036e2a3c@intel.com>
-Date: Thu, 5 Jan 2017 15:17:22 -0800
-MIME-Version: 1.0
-In-Reply-To: <CALCETrW7yxmgrR15yvxkXOF1pHy5vicwDv6Oj019ecEyBCrWBQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+        Thu, 05 Jan 2017 16:00:44 -0800 (PST)
+Date: Thu, 5 Jan 2017 16:02:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [next PATCH v4 0/3] Page fragment updates
+Message-Id: <20170105160202.baa14f400bfd906466a915db@linux-foundation.org>
+In-Reply-To: <20170104023620.13451.80691.stgit@localhost.localdomain>
+References: <20170104023620.13451.80691.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: intel-wired-lan@lists.osuosl.org, jeffrey.t.kirsher@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/05/2017 01:27 PM, Andy Lutomirski wrote:
-> On Thu, Jan 5, 2017 at 12:49 PM, Dave Hansen <dave.hansen@intel.com> wrote:
-...
->> Remember, we already have (legacy MPX) binaries in the wild that have no
->> knowledge of this stuff.  So, we can implicitly have the kernel bump
->> this rlimit around, but we can't expect userspace to do it, ever.
+On Tue, 03 Jan 2017 18:38:48 -0800 Alexander Duyck <alexander.duyck@gmail.com> wrote:
+
+> This patch series takes care of a few cleanups for the page fragments API.
 > 
-> If you s/rlimit/prctl, then I think this all makes sense with one
-> exception.  It would be a bit sad if the personality-setting tool
-> didn't work if compiled with MPX.
+> First we do some renames so that things are much more consistent.  First we
+> move the page_frag_ portion of the name to the front of the functions
+> names.  Secondly we split out the cache specific functions from the other
+> page fragment functions by adding the word "cache" to the name.
+> 
+> Finally I added a bit of documentation that will hopefully help to explain
+> some of this.  I plan to revisit this later as we get things more ironed
+> out in the near future with the changes planned for the DMA setup to
+> support eXpress Data Path.
+> 
+> ---
+> 
+> v2: Fixed a comparison between a void* and 0 due to copy/paste from free_pages
+> v3: Updated first rename patch so that it is just a rename and doesn't impact
+>     the actual functionality to avoid performance regression.
+> v4: Fix mangling that occured due to a bad merge fix when patches 1 and 2
+>     were swapped and then swapped back.
+> 
+> I'm submitting this to Intel Wired Lan and Jeff Kirsher's "next-queue" for
+> acceptance as I have a series of other patches for igb that are blocked by
+> by these patches since I had to rename the functionality fo draining extra
+> references.
+> 
+> This series was going to be accepted for mmotm back when it was v1, however
+> since then I found a few minor issues that needed to be fixed.
+> 
+> I am hoping to get an Acked-by from Andrew Morton for these patches and
+> then have them submitted to David Miller as he has said he will accept them
+> if I get the Acked-by.  In the meantime if these can be applied to
+> next-queue while waiting on that Acked-by then I can submit the other
+> patches for igb and ixgbe for testing.
 
-Ahh, because if you have MPX enabled you *can't* sanely switch between
-the two modes because you suddenly go from having small bounds tables to
-having big ones?
-
-It's not the simplest thing in the world to do, but there's nothing
-keeping the personality-setting tool from doing all the work.  It can do:
-
-	new_bd = malloc(1TB);
-	prctl(MPX_DISABLE_MANAGEMENT);
-	memcpy(new_bd, old_bd, LEGACY_MPX_BD_SIZE);
-	set_bounds_config(new_bd | ENABLE_BIT);
-	prctl(WIDER_VADDR_WIDTH);
-	prctl(MPX_ENABLE_MANAGEMENT);
-	
-
-> So what if we had a second prctl field that is the value that kicks in
-> after execve()?
-
-Yeah, that's a pretty sane way to do it too.  execve() is a nice chokepoint.
+The patches look fine.  How about I just scoot them straight into
+mainline next week?  I do that occasionally, just to simplify ongoing
+development and these patches are safe enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
