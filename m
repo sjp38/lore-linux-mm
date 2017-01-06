@@ -1,99 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7B26B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 03:37:27 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 71so568297561ioe.2
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:37:27 -0800 (PST)
-Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
-        by mx.google.com with ESMTPS id b81si28278899iob.64.2017.01.06.00.37.26
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C72816B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 03:42:00 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so2316790wmi.6
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:42:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u30si525523wru.73.2017.01.06.00.41.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 00:37:26 -0800 (PST)
-Received: by mail-it0-x235.google.com with SMTP id 192so9429181itl.1
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 00:37:26 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Jan 2017 00:41:59 -0800 (PST)
+Subject: Re: [patch] mm, thp: add new background defrag option
+References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
+ <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
+ <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
+ <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+Date: Fri, 6 Jan 2017 09:41:57 +0100
 MIME-Version: 1.0
-In-Reply-To: <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
-References: <20161216165437.21612-1-rrichter@cavium.com> <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
- <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org> <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Fri, 6 Jan 2017 08:37:25 +0000
-Message-ID: <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hanjun Guo <hanjun.guo@linaro.org>
-Cc: Robert Richter <rrichter@cavium.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 6 January 2017 at 01:07, Hanjun Guo <hanjun.guo@linaro.org> wrote:
-> On 2017/1/5 10:03, Hanjun Guo wrote:
+On 01/05/2017 11:54 PM, David Rientjes wrote:
+> On Thu, 5 Jan 2017, Vlastimil Babka wrote:
+> 
+>> Hmm that's probably why it's hard to understand, because "madvise
+>> request" is just setting a vma flag, and the THP allocation (and defrag)
+>> still happens at fault.
 >>
->> On 2017/1/4 21:56, Ard Biesheuvel wrote:
->>>
->>> On 16 December 2016 at 16:54, Robert Richter <rrichter@cavium.com> wrote:
->>>>
->>>> On ThunderX systems with certain memory configurations we see the
->>>> following BUG_ON():
->>>>
->>>>  kernel BUG at mm/page_alloc.c:1848!
->>>>
->>>> This happens for some configs with 64k page size enabled. The BUG_ON()
->>>> checks if start and end page of a memmap range belongs to the same
->>>> zone.
->>>>
->>>> The BUG_ON() check fails if a memory zone contains NOMAP regions. In
->>>> this case the node information of those pages is not initialized. This
->>>> causes an inconsistency of the page links with wrong zone and node
->>>> information for that pages. NOMAP pages from node 1 still point to the
->>>> mem zone from node 0 and have the wrong nid assigned.
->>>>
->>>> The reason for the mis-configuration is a change in pfn_valid() which
->>>> reports pages marked NOMAP as invalid:
->>>>
->>>>  68709f45385a arm64: only consider memblocks with NOMAP cleared for
->>>> linear mapping
->>>>
->>>> This causes pages marked as nomap being no longer reassigned to the
->>>> new zone in memmap_init_zone() by calling __init_single_pfn().
->>>>
->>>> Fixing this by implementing an arm64 specific early_pfn_valid(). This
->>>> causes all pages of sections with memory including NOMAP ranges to be
->>>> initialized by __init_single_page() and ensures consistency of page
->>>> links to zone, node and section.
->>>>
->>>
->>> I like this solution a lot better than the first one, but I am still
->>> somewhat uneasy about having the kernel reason about attributes of
->>> pages it should not touch in the first place. But the fact that
->>> early_pfn_valid() is only used a single time in the whole kernel does
->>> give some confidence that we are not simply moving the problem
->>> elsewhere.
->>>
->>> Given that you are touching arch/arm/ as well as arch/arm64, could you
->>> explain why only arm64 needs this treatment? Is it simply because we
->>> don't have NUMA support there?
->>>
->>> Considering that Hisilicon D05 suffered from the same issue, I would
->>> like to get some coverage there as well. Hanjun, is this something you
->>> can arrange? Thanks
+>> I'm not a fan of either name, so I've tried to implement my own
+>> suggestion. Turns out it was easier than expected, as there's no kernel
+>> boot option for "defer", just for "enabled", so that particular worry
+>> was unfounded.
 >>
+>> And personally I think that it's less confusing when one can enable defer
+>> and madvise together (and not any other combination), than having to dig
+>> up the difference between "defer" and "background".
 >>
->> Sure, we will test this patch with LTP MM stress test (which triggers
->> the bug on D05), and give the feedback.
->
->
-> a update here, tested on 4.9,
->
->  - Applied Ard's two patches only
->  - Applied Robert's patch only
->
-> Both of them can work fine on D05 with NUMA enabled, which means
-> boot ok and LTP MM stress test is passed.
->
+> 
+> I think allowing only two options to be combined amongst four available 
+> solo options is going to be confusing and then even more difficult for the 
+> user to understand what happens when they are combined.  Thus, I think 
 
-Thanks a lot Hanjun.
+Well, the other options are named "always" and "never", so I wouldn't
+think so confusing that they can't be combined with anything else.
+Deciding between "defer" and "background" is however confusing, and also
+doesn't indicate that the difference is related to madvise.
 
-Any comments on the performance impact (including boot time) ?
+> these options should only have one settable mode as they have always done.
+> 
+> The kernel implementation takes less of a priority to userspace 
+> simplicitly, imo, and my patch actually cleans up much of the existing 
+> code and ends up adding fewer lines that yours.  I consider it an 
+> improvement in itself.  I don't see the benefit of allowing combined 
+> options.
+
+I don't like bikesheding, but as this is about user-space API, more care
+should be taken than for implementation details that can change. Even
+though realistically there will be in 99% of cases only two groups of
+users setting this
+- experts like you who know what they are doing, and confusing names
+won't prevent them from making the right choice
+- people who will blindly copy/paste from the future cargo-cult websites
+(if they ever get updated from the enabled="never" recommendations), who
+likely won't stop and think about the other options.
+
+Well, so we'll probably disagree, maybe others can add their opinions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
