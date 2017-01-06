@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E5A896B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:08:08 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so3586111wmi.6
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:08:08 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a7si89318063wjy.176.2017.01.06.06.08.07
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E01236B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:11:16 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id s63so3583024wms.7
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:11:16 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id x125si2736178wmd.163.2017.01.06.06.11.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 06:08:07 -0800 (PST)
-Date: Fri, 6 Jan 2017 15:08:06 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jan 2017 06:11:15 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id u144so5289729wmu.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:11:15 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 190841] New: [REGRESSION] Intensive Memory CGroup removal
- leads to high load average 10+
-Message-ID: <20170106140805.GO5556@dhcp22.suse.cz>
-References: <bug-190841-27@https.bugzilla.kernel.org/>
- <20170104173037.7e501fdfee9ec21f0a3a5d55@linux-foundation.org>
- <20170105123341.GQ21618@dhcp22.suse.cz>
- <CAJABK0MAX2jz+U-00x1xM7EEFEe3_h-nwnEdG9axJKrzuqTBjQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJABK0MAX2jz+U-00x1xM7EEFEe3_h-nwnEdG9axJKrzuqTBjQ@mail.gmail.com>
+Subject: [PATCH 0/8 v3] scope GFP_NOFS api
+Date: Fri,  6 Jan 2017 15:10:59 +0100
+Message-Id: <20170106141107.23953-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladyslav Frolov <frolvlad@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Brian Foster <bfoster@redhat.com>, Michal Hocko <mhocko@suse.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>
 
-On Thu 05-01-17 22:26:53, Vladyslav Frolov wrote:
-[...]
-> > Even without memcg involved. Are there any strong reasons you cannot reuse an existing cgroup?
-> 
-> I run concurrent executions (I run cgmemtime
-> [https://github.com/gsauthof/cgmemtime] to measure high-water memory
-> usage of a group of processes), so I cannot reuse a single cgroup, and
-> I, currently, cannot maintain a pool of cgroups (it will add extra
-> complexity in my code, and will require cgmemtime patching, while
-> older kernels just worked fine). Do you believe there is no bug there
-> and it is just slow by design?
+Hi,
+I have posted the previous version here [1]. Since then I've added some
+reviewed bys and fixed some minor issues. I've dropped patch 2 [2] based
+on Dave's request [3]. I agree that this can be done later and doing
+all at once. I still think that __GFP_NOLOCKDEP should be added by this
+series to make the further development easier.
 
-> There are a few odd things here:
-> 
-> 1. 4.7+ kernels perform 20 times *slower* while postponing should in
-> theory speed things up due to "async" nature
-> 2. Other cgroup creation/cleaning work like a charm, it is only
-> `memory` cgroup making my system overloaded
-> 
-> > echo 1 > $CGROUP_BASE/memory.force_empty
-> 
-> This didn't help at alll.
+There didn't seem to be any real objections and so I think we should go
+and merge this and build further on top. I would like to get rid of all
+explicit GFP_NOFS usage in ext4 code. I have something half baked already
+and will send it later on. I also hope we can get further with the xfs
+as well.
 
-OK, then it is not just the page cache staying behind which prevents
-those memcgs go away. Another reason might be kmem charges. Memcg kernel
-memory accounting has been enabled by default since 4.6 AFAIR. You say
-4.7+ has seen a slowdown though so this might be completely unrelated.
-But it would be good to see whether the same happens with kernel command
-line:
-cgroup.memory=nokmem
--- 
-Michal Hocko
-SUSE Labs
+I haven't heard anything from btrfs or other filesystems guys which is a
+bit unfortunate but I do not want to wait for them to much longer, they
+can join the effort later on.
+
+The patchset is based on next-20170106
+
+Diffstat says
+ fs/ext4/acl.c             |  6 +++---
+ fs/ext4/extents.c         |  8 ++++----
+ fs/ext4/resize.c          |  4 ++--
+ fs/ext4/xattr.c           |  4 ++--
+ fs/jbd2/journal.c         |  7 +++++++
+ fs/jbd2/transaction.c     | 11 +++++++++++
+ fs/xfs/kmem.c             | 10 +++++-----
+ fs/xfs/kmem.h             |  2 +-
+ fs/xfs/libxfs/xfs_btree.c |  2 +-
+ fs/xfs/xfs_aops.c         |  6 +++---
+ fs/xfs/xfs_buf.c          |  8 ++++----
+ fs/xfs/xfs_trans.c        | 12 ++++++------
+ include/linux/gfp.h       | 18 +++++++++++++++++-
+ include/linux/jbd2.h      |  2 ++
+ include/linux/sched.h     | 32 ++++++++++++++++++++++++++------
+ kernel/locking/lockdep.c  |  6 +++++-
+ lib/radix-tree.c          |  2 ++
+ mm/page_alloc.c           |  8 +++++---
+ mm/vmscan.c               |  6 +++---
+ 19 files changed, 109 insertions(+), 45 deletions(-)
+
+Shortlog:
+Michal Hocko (8):
+      lockdep: allow to disable reclaim lockup detection
+      xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+      mm: introduce memalloc_nofs_{save,restore} API
+      xfs: use memalloc_nofs_{save,restore} instead of memalloc_noio*
+      jbd2: mark the transaction context with the scope GFP_NOFS context
+      jbd2: make the whole kjournald2 kthread NOFS safe
+      Revert "ext4: avoid deadlocks in the writeback path by using sb_getblk_gfp"
+      Revert "ext4: fix wrong gfp type under transaction"
+
+[1] http://lkml.kernel.org/r/20161215140715.12732-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20161215140715.12732-3-mhocko@kernel.org
+[3] http://lkml.kernel.org/r/20161219212413.GN4326@dastard
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
