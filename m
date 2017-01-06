@@ -1,65 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A853C6B025E
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 07:03:41 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 17so850646403pfy.2
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 04:03:41 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m6si48446306pgg.168.2017.01.06.04.03.40
-        for <linux-mm@kvack.org>;
-        Fri, 06 Jan 2017 04:03:40 -0800 (PST)
-Date: Fri, 6 Jan 2017 12:03:40 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 2/2] arm64: mm: enable CONFIG_HOLES_IN_ZONE for NUMA
-Message-ID: <20170106120339.GA20726@arm.com>
-References: <1481706707-6211-1-git-send-email-ard.biesheuvel@linaro.org>
- <1481706707-6211-3-git-send-email-ard.biesheuvel@linaro.org>
- <20170104132831.GD18193@arm.com>
- <CAKv+Gu8MdpVDCSjfum7AMtbgR6cTP5H+67svhDSu6bkaijvvyg@mail.gmail.com>
- <20170104140223.GF18193@arm.com>
- <20170105112407.GU4930@rric.localdomain>
- <20170105120819.GH679@arm.com>
- <20170105122200.GV4930@rric.localdomain>
- <20170105194944.GY4930@rric.localdomain>
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFF206B025E
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 07:09:40 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id dh1so62928947wjb.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 04:09:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n82si2486076wmi.93.2017.01.06.04.09.39
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Jan 2017 04:09:39 -0800 (PST)
+Subject: Re: [PATCH] mm: support __GFP_REPEAT in kvmalloc_node
+References: <20170102133700.1734-1-mhocko@kernel.org>
+ <20170104181229.GB10183@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <49b2c2de-5d50-1f61-5ddf-e72c52017534@suse.cz>
+Date: Fri, 6 Jan 2017 13:09:36 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170105194944.GY4930@rric.localdomain>
+In-Reply-To: <20170104181229.GB10183@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Richter <robert.richter@cavium.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Hanjun Guo <hanjun.guo@linaro.org>, Yisheng Xie <xieyisheng1@huawei.com>, James Morse <james.morse@arm.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Joe Perches <joe@perches.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
 
-On Thu, Jan 05, 2017 at 08:49:44PM +0100, Robert Richter wrote:
-> On 05.01.17 13:22:00, Robert Richter wrote:
-> > On 05.01.17 12:08:20, Will Deacon wrote:
-> > > I really can't see how the fix causes a crash, and I couldn't reproduce
-> > > it on any of my boards, nor could any of the Linaro folk afaik. Are you
-> > > definitely running mainline with just these two patches from Ard?
-> > 
-> > Yes, just both patches applied. Various other solutions were working.
+On 01/04/2017 07:12 PM, Michal Hocko wrote:
+> While checking opencoded users I've encountered that vhost code would
+> really like to use kvmalloc with __GFP_REPEAT [1] so the following patch
+> adds support for __GFP_REPEAT and converts both vhost users.
 > 
-> I have retested the same kernel (v4.9 based) as before and now it
-> boots fine including rtc-efi device registration (it was crashing
-> there):
+> So currently I am sitting on 3 patches. I will wait for more feedback -
+> especially about potential split ups or cleanups few more days and then
+> repost the whole series.
 > 
->  rtc-efi rtc-efi: rtc core: registered rtc-efi as rtc0
+> [1] http://lkml.kernel.org/r/20170104150800.GO25453@dhcp22.suse.cz
+> ---
+> From 0b92e4d2e040524b878d4e7b9ee88fbad5284b33 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Wed, 4 Jan 2017 18:01:39 +0100
+> Subject: [PATCH] mm: support __GFP_REPEAT in kvmalloc_node
 > 
-> There could be a difference in firmware and mem setup, though I also
-> downgraded the firmware to test it, but can't reproduce it anymore. I
-> could reliable trigger the crash the first time.
+> vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+> vhost_vsock because it would really like to prefer kmalloc to the
+> vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+> allocation to vmalloc") for more context. Michael Tsirkin has also
+> noted:
+> "
+> __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+> accesses are slowed down.  Allocation is not on data path, accesses are.
+> "
 > 
-> FTR the oops.
+> Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+> things to be careful about. First we should prevent from the OOM killer
+> and so have to involve __GFP_NORETRY by default and secondly override
+> __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+> for !costly orders.
+> 
+> This patch shouldn't introduce any functional change.
 
-Hmm, I just can't help but think you were accidentally running with
-additional patches when you saw this oops previously. For example,
-your log looks very similar to this one:
+Which is because the converted usages are always used for costly order,
+right.
 
-  http://lists.infradead.org/pipermail/linux-arm-kernel/2016-December/473666.html
+> 
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/vhost/net.c   | 9 +++------
+>  drivers/vhost/vsock.c | 9 +++------
+>  mm/util.c             | 9 +++++++--
+>  3 files changed, 13 insertions(+), 14 deletions(-)
+> 
+> diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+> index 5dc34653274a..105cd04c7414 100644
+> --- a/drivers/vhost/net.c
+> +++ b/drivers/vhost/net.c
+> @@ -797,12 +797,9 @@ static int vhost_net_open(struct inode *inode, struct file *f)
+>  	struct vhost_virtqueue **vqs;
+>  	int i;
+>  
+> -	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -	if (!n) {
+> -		n = vmalloc(sizeof *n);
+> -		if (!n)
+> -			return -ENOMEM;
+> -	}
+> +	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_REPEAT);
+> +	if (!n)
+> +		return -ENOMEM;
+>  	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
+>  	if (!vqs) {
+>  		kvfree(n);
+> diff --git a/drivers/vhost/vsock.c b/drivers/vhost/vsock.c
+> index bbbf588540ed..7e0159867553 100644
+> --- a/drivers/vhost/vsock.c
+> +++ b/drivers/vhost/vsock.c
+> @@ -455,12 +455,9 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
+>  	/* This struct is large and allocation could fail, fall back to vmalloc
+>  	 * if there is no other way.
+>  	 */
+> -	vsock = kzalloc(sizeof(*vsock), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -	if (!vsock) {
+> -		vsock = vmalloc(sizeof(*vsock));
+> -		if (!vsock)
+> -			return -ENOMEM;
+> -	}
+> +	vsock = kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_REPEAT);
+> +	if (!vsock)
+> +		return -ENOMEM;
+>  
+>  	vqs = kmalloc_array(ARRAY_SIZE(vsock->vqs), sizeof(*vqs), GFP_KERNEL);
+>  	if (!vqs) {
+> diff --git a/mm/util.c b/mm/util.c
+> index 8e4ea6cbe379..a2bfb85e60e5 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -348,8 +348,13 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  	 * Make sure that larger requests are not too disruptive - no OOM
+>  	 * killer and no allocation failure warnings as we have a fallback
+>  	 */
+> -	if (size > PAGE_SIZE)
+> -		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> +	if (size > PAGE_SIZE) {
+> +		kmalloc_flags |= __GFP_NOWARN;
+> +
+> +		if (!(kmalloc_flags & __GFP_REPEAT) ||
+> +				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> +			kmalloc_flags |= __GFP_NORETRY;
 
-but then again, these crashes probably often look alike.
+I think this would be more understandable for me if it was written in
+the opposite way, i.e. "if we have costly __GFP_REPEAT allocation, don't
+use __GFP_NORETRY", but nevermind, seems correct to me wrt current
+handling of both flags in the page allocator. And it serves as a good
+argument to have this wrapper in mm/ as we are hopefully more likely to
+keep it working as intended with future changes, than all the opencoded
+variants.
 
-Will
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> +	}
+>  
+>  	ret = kmalloc_node(size, kmalloc_flags, node);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
