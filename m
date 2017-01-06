@@ -1,47 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A3A6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 14:02:30 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id q20so16131931ioi.0
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 11:02:30 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g140si2039246itg.69.2017.01.06.11.02.29
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1057E6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 14:58:54 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id w39so419510766qtw.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 11:58:54 -0800 (PST)
+Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
+        by mx.google.com with ESMTPS id c5si25057693qke.50.2017.01.06.11.58.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 11:02:30 -0800 (PST)
-Date: Fri, 6 Jan 2017 19:02:23 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH 00/42] userfaultfd tmpfs/hugetlbfs/non-cooperative v2
-Message-ID: <20170106190223.GB32535@work-vm>
-References: <20161216144821.5183-1-aarcange@redhat.com>
+        Fri, 06 Jan 2017 11:58:53 -0800 (PST)
+Date: Fri, 6 Jan 2017 14:58:51 -0500
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: Re: 4.10-rc2 list_lru_isolate list corruption
+Message-ID: <20170106195851.7pjpnn5w2bjasc7w@codemonkey.org.uk>
+References: <20170106052056.jihy5denyxsnfuo5@codemonkey.org.uk>
+ <20170106165941.GA19083@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161216144821.5183-1-aarcange@redhat.com>
+In-Reply-To: <20170106165941.GA19083@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Rapoport <RAPOPORT@il.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@parallels.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-* Andrea Arcangeli (aarcange@redhat.com) wrote:
-> Hello,
-> 
-> these userfaultfd features are finished and are ready for larger
-> exposure in -mm and upstream merging.
-> 
-> 1) tmpfs non present userfault
-> 2) hugetlbfs non present userfault
-> 3) non cooperative userfault for fork/madvise/mremap
-> 
-> qemu development code is already exercising 2)
+On Fri, Jan 06, 2017 at 11:59:41AM -0500, Johannes Weiner wrote:
+ > Dave, can you reproduce this by any chance with this patch applied?
 
-I've just posted the qemu series for that to qemu-devel:
+yep.
 
-http://lists.nongnu.org/archive/html/qemu-devel/2017-01/msg00900.html
+ > diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+ > index 6f382e07de77..0783af1c0ebb 100644
+ > --- a/lib/radix-tree.c
+ > +++ b/lib/radix-tree.c
+ > @@ -640,6 +640,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root,
+ >  				update_node(node, private);
+ >  		}
+ >  
+ > +		WARN_ON_ONCE(!list_empty(&node->private_list));
+ > +
+ >  		radix_tree_node_free(node);
+ >  	}
+ >  }
 
-Dave
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+[ 8467.462878] WARNING: CPU: 2 PID: 53 at lib/radix-tree.c:643 delete_node+0x1e4/0x200
+[ 8467.468770] CPU: 2 PID: 53 Comm: kswapd0 Not tainted 4.10.0-rc2-think+ #3 
+[ 8467.480436] Call Trace:
+[ 8467.486213]  dump_stack+0x4f/0x73
+[ 8467.491999]  __warn+0xcb/0xf0
+[ 8467.497769]  warn_slowpath_null+0x1d/0x20
+[ 8467.503566]  delete_node+0x1e4/0x200
+[ 8467.509468]  __radix_tree_delete_node+0xd/0x10
+[ 8467.515425]  shadow_lru_isolate+0xe6/0x220
+[ 8467.521337]  __list_lru_walk_one.isra.4+0x9b/0x190
+[ 8467.527176]  ? memcg_drain_all_list_lrus+0x1d0/0x1d0
+[ 8467.533066]  list_lru_walk_one+0x23/0x30
+[ 8467.538953]  scan_shadow_nodes+0x2e/0x40
+[ 8467.544840]  shrink_slab.part.44+0x23d/0x5d0
+[ 8467.550751]  ? 0xffffffffa023a077
+[ 8467.556639]  shrink_node+0x22c/0x330
+[ 8467.562542]  kswapd+0x392/0x8f0
+[ 8467.568422]  kthread+0x10f/0x150
+[ 8467.574313]  ? mem_cgroup_shrink_node+0x2e0/0x2e0
+[ 8467.580266]  ? kthread_create_on_node+0x60/0x60
+[ 8467.586203]  ret_from_fork+0x29/0x40
+[ 8467.592109] ---[ end trace f790bafb683609d5 ]---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
