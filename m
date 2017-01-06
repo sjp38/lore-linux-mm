@@ -1,75 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DB8DD6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 12:18:17 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so4480537wms.7
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:18:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 60si705096wre.208.2017.01.06.09.18.16
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5CE6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 12:55:15 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y196so24718596ity.1
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 09:55:15 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g63si56450601ioa.86.2017.01.06.09.55.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 09:18:16 -0800 (PST)
-Subject: Re: __GFP_REPEAT usage in fq_alloc_node
-References: <20170106152052.GS5556@dhcp22.suse.cz>
- <CANn89i+QZs0cSPK21qMe6LXw+AeAMZ_tKEDUEnCsJ_cd+q0t-g@mail.gmail.com>
- <20901069-5eb7-f5ff-0641-078635544531@suse.cz>
- <CANn89iLy2KMUu80KekhvO31G4uXr4B0K8zvGjhfyBBp9d_ncBg@mail.gmail.com>
- <97be60da-72df-ad8f-db03-03f01c392823@suse.cz>
- <CANn89i+pRwa3KES1ane4ZfBpw4Y7Ne5OLZmkt=K8n5E6qF9xvA@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e37eda74-e796-ff45-4c26-0c56bdf74967@suse.cz>
-Date: Fri, 6 Jan 2017 18:18:15 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jan 2017 09:55:14 -0800 (PST)
+Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
+ Integrity (ADI)
+References: <f33f2c3c-4ec5-423c-5d13-a4b9ab8f7a95@linux.intel.com>
+ <cae91a3b-27f2-4008-539e-153d66fc03ae@oracle.com>
+ <b761e7a9-6f64-e8cb-334a-a49528e95cdf@linux.intel.com>
+ <20170106.120204.927644401352332269.davem@davemloft.net>
+ <dd42d787-0d3c-bd91-7376-3ce35bdd4c4c@oracle.com>
+From: Rob Gardner <rob.gardner@oracle.com>
+Message-ID: <9b2562b4-754c-aab2-8fd7-3f9bd89b0314@oracle.com>
+Date: Fri, 6 Jan 2017 09:54:36 -0800
 MIME-Version: 1.0
-In-Reply-To: <CANn89i+pRwa3KES1ane4ZfBpw4Y7Ne5OLZmkt=K8n5E6qF9xvA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <dd42d787-0d3c-bd91-7376-3ce35bdd4c4c@oracle.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, David Miller <davem@davemloft.net>, dave.hansen@linux.intel.com
+Cc: mhocko@kernel.org, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org, hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-On 01/06/2017 06:08 PM, Eric Dumazet wrote:
-> On Fri, Jan 6, 2017 at 8:55 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> On 01/06/2017 05:48 PM, Eric Dumazet wrote:
->>> On Fri, Jan 6, 2017 at 8:31 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>
->>>>
->>>> I wonder what's that cause of the penalty (when accessing the vmapped
->>>> area I suppose?) Is it higher risk of collisions cache misses within the
->>>> area, compared to consecutive physical adresses?
->>>
->>> I believe tests were done with 48 fq qdisc, each having 2^16 slots.
->>> So I had 48 blocs,of 524288 bytes.
->>>
->>> Trying a bit harder at setup time to get 128 consecutive pages got
->>> less TLB pressure.
+On 01/06/2017 09:10 AM, Khalid Aziz wrote:
+> On 01/06/2017 10:02 AM, David Miller wrote:
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>> Date: Fri, 6 Jan 2017 08:55:03 -0800
 >>
->> Hmm that's rather surprising to me. TLB caches the page table lookups
->> and the PFN's of the physical pages it translates to shouldn't matter -
->> the page tables will look the same. With 128 consecutive pages could
->> manifest the reduced collision cache miss effect though.
+>>> Actually, that reminds me...  How does your code interface with 
+>>> ksm?  Or
+>>> is there no interaction needed since you're always working on virtual
+>>> addresses?
 >>
-> 
-> To be clear, the difference came from :
-> 
-> Using kmalloc() to allocate 48 x 524288 bytes
-> 
-> Or using vmalloc()
-> 
-> Are you telling me HugePages are not in play there ?
+>> This reminds me, I consider this feature potentially extremely useful 
+>> for
+>> kernel debugging.  So I would like to make sure we don't implement 
+>> anything
+>> in a way which would preclude that in the long term.
+>
+> I agree and please do point out if I have made any implementation 
+> decisions that could preclude that.
+>
+> Thanks,
+> Khalid
 
-Oh that's certainly a difference, as kmalloc() will give you the kernel
-mapping which can use 1GB Hugepages. But if you just combine these
-kmalloc chunks into vmalloc mapping (IIUC that's what your RFC was
-doing?), you lose that benefit AFAIK. On the other hand I recall reading
-that AMD Zen will have PTE Coalescing [1] which, if true and I
-understand that correctly, would indeed result in better TLB usage with
-adjacent page table entries pointing to consecutive pages. But perhaps
-the starting pte's position will also have to be aligned to make this
-work, dunno.
 
-[1]
-http://www.anandtech.com/show/10591/amd-zen-microarchiture-part-2-extracting-instructionlevel-parallelism/6
+Khalid, I have already pointed out an implementation decision that 
+interferes with the potential for kernel debugging with ADI: lazy 
+clearing of version tags.
+
+Details: when memory is "freed" the version tags are left alone, as it 
+is an expensive operation to go through the memory and clear the tag for 
+each cache line. So this is done lazily whenever memory is "allocated". 
+More specifically, the first time a user process touches freshly 
+allocated memory, a fault occurs and the kernel then clears the page. In 
+the NG4 and M7 variants of clear_user_page, the block init store ASI is 
+used to optimize, and it has the side effect of clearing the ADI tag for 
+the cache line. BUT only if pstate.mcde is clear. If pstate.mcde is set, 
+then instead of the ADI tag being cleared, the tag is *checked*, and if 
+there is a mismatch between the version in the virtual address and the 
+version in memory, then you'll get a trap and panic. Therefore, with 
+this design, you cannot have pstate.mcde enabled while in the kernel (in 
+general). To solve this you have to check the state of pstate.mcde (or 
+just turn it off) before doing any block init store in clear_user_page, 
+memset, memcpy, etc.
+
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
