@@ -1,149 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E746B0069
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:33:32 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so1064895wmi.6
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:33:32 -0800 (PST)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id ey12si87446017wjc.243.2017.01.05.17.33.30
-        for <linux-mm@kvack.org>;
-        Thu, 05 Jan 2017 17:33:30 -0800 (PST)
-From: James Hogan <james.hogan@imgtec.com>
-Subject: [PATCH 0/30] KVM: MIPS: Implement GVA page tables
-Date: Fri, 6 Jan 2017 01:32:32 +0000
-Message-ID: <cover.d6d201de414322ed2c1372e164254e6055ef7db9.1483665879.git-series.james.hogan@imgtec.com>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 824BB6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:43:44 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id d134so48350838iod.0
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:43:44 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id u66si673213itg.81.2017.01.05.17.43.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Jan 2017 17:43:44 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] mm patches review bandwidth
+References: <20170105153737.GV21618@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <b1a870cc-608f-7613-c29f-9eb2a3518f8f@oracle.com>
+Date: Thu, 5 Jan 2017 17:43:38 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170105153737.GV21618@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mips@linux-mips.org
-Cc: James Hogan <james.hogan@imgtec.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-mm@kvack.org
-
-Note: My intention is to take this series via the MIPS KVM tree, with a
-topic branch for the MIPS architecture changes, so acks welcome for the
-relevant parts (mainly patches 1-4, 15, 28), and please don't apply yet.
-
-This series primarily implements GVA->HPA page tables for MIPS T&E KVM
-implementation, and a fast TLB refill handler generated at runtime using
-uasm (sharing MIPS arch code to do this), accompanied by a bunch of
-related cleanups. There are several solid advantages of this:
-
-- An optimised TLB refill handler will be much faster than using the
-  slow exit path through C code. It also avoids repeated guest TLB
-  lookups for guest mapped addresses that are evicted from the host TLB
-  (which are currently implemented as a linear walk through the guest
-  TLB array).
-
-- The TLB refill handler can be pretty much reused in future for VZ, to
-  fill the root TLB with GPA->HPA mappings from a soon to be implemented
-  GPA page table.
-
-- Although not enabled yet, it potentially allows page table walker
-  hardware (HTW) to be used during guest execution (both for VZ GPA
-  mappings, and potentially T&E GVA mappings) further reducing TLB
-  refill overhead.
-
-- It improves the robustness of direct access to guest memory by KVM,
-  i.e. reading guest instructions for emulation, writing guest
-  instructions for dynamic translation, and emulating CACHE
-  instructions. This is because the standard userland memory accessors
-  can be used, allowing the host kernel TLB refill handler to safely
-  fill from the GVA page table, allowing faults to be sanely detected,
-  and allowing it to work when EVA is enabled (which requires different
-  instructions to be used when accessing the user address space).
-
-The main disadvantage is a higher flushing overhead when the guest ASID
-is changed, due to the need to walk and invalidate GVA page tables
-(since we only manage a single GVA page table for each guest privilege
-mode, across all guest ASIDs).
-
-The patches are roughly grouped as follows:
-
-Patches 1-4:
-  These are generic or MIPS architecture changes needed by the later
-  patches, mainly to expose the existing MIPS TLB exception generation
-  cade to KVM. As I mentioned above I intend to combine the MIPS ones
-  into a topic branch which can be merged into both the MIPS
-  architecture tree and the MIPS KVM tree.
-
-Patches 5-13:
-  These are preliminary MIPS KVM changes and cleanups.
-
-Patches 14-25:
-  These incrementally add GVA page table support, allocating the GVA
-  page tables, adding the fast TLB refill handler, addng page table
-  invalidation, and finally converting guest fault handling (KSeg0, TLB
-  mapped, and commpage) to use the GVA page table rather than injecting
-  entries directly into the host TLB.
-
-Patches 26-27:
-  These switch to using uaccess and protected cache ops, which fixes KVM
-  on EVA enabled host kernels.
-
-Patches 28-30:
-  These make some final cleanups.
-
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: "Radim KrA?mA!A?" <rkrcmar@redhat.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: linux-mips@linux-mips.org
-Cc: kvm@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org
 Cc: linux-mm@kvack.org
 
-James Hogan (30):
-  mm: Export init_mm for MIPS KVM use of pgd_alloc()
-  MIPS: Export pgd/pmd symbols for KVM
-  MIPS: uasm: Add include guards in asm/uasm.h
-  MIPS: Export some tlbex internals for KVM to use
-  KVM: MIPS: Drop partial KVM_NMI implementation
-  KVM: MIPS/MMU: Simplify ASID restoration
-  KVM: MIPS: Convert get/set_regs -> vcpu_load/put
-  KVM: MIPS/MMU: Move preempt/ASID handling to implementation
-  KVM: MIPS: Remove duplicated ASIDs from vcpu
-  KVM: MIPS: Add vcpu_run() & vcpu_reenter() callbacks
-  KVM: MIPS/T&E: Restore host asid on return to host
-  KVM: MIPS/T&E: active_mm = init_mm in guest context
-  KVM: MIPS: Wire up vcpu uninit
-  KVM: MIPS/T&E: Allocate GVA -> HPA page tables
-  KVM: MIPS/T&E: Activate GVA page tables in guest context
-  KVM: MIPS: Support NetLogic KScratch registers
-  KVM: MIPS: Add fast path TLB refill handler
-  KVM: MIPS/TLB: Fix off-by-one in TLB invalidate
-  KVM: MIPS/TLB: Generalise host TLB invalidate to kernel ASID
-  KVM: MIPS/MMU: Invalidate GVA PTs on ASID changes
-  KVM: MIPS/MMU: Invalidate stale GVA PTEs on TLBW
-  KVM: MIPS/MMU: Convert KSeg0 faults to page tables
-  KVM: MIPS/MMU: Convert TLB mapped faults to page tables
-  KVM: MIPS/MMU: Convert commpage fault handling to page tables
-  KVM: MIPS: Drop vm_init() callback
-  KVM: MIPS: Use uaccess to read/modify guest instructions
-  KVM: MIPS/Emulate: Fix CACHE emulation for EVA hosts
-  KVM: MIPS/TLB: Drop kvm_local_flush_tlb_all()
-  KVM: MIPS/Emulate: Drop redundant TLB flushes on exceptions
-  KVM: MIPS/MMU: Drop kvm_get_new_mmu_context()
+On 01/05/2017 07:37 AM, Michal Hocko wrote:
+> Hi,
+> I have a very bad feeling that we are running out of the patch review
+> bandwidth for quite some time. Quite often it is really hard to get
+> any feedback at all. This leaves Andrew in an unfortunate position when
+> he is pushed to merge changes which are not reviewed.
+> 
+> A quick check shows that around 40% of patches is not tagged with
+> neither Acked-by nor Reviewed-by. While this is not any hard number it
+> should give us at least some idea...
+> 
+> $ git rev-list --no-merges v4.8..v4.9 -- mm/ | wc -l 
+> 150
+> $ git rev-list --no-merges v4.8..v4.9 -- mm/ | while read sha1; do git show $sha1 | grep "Acked-by\|Reviewed-by" >/dev/null&& echo $sha1; done | wc -l
+> 87
+> 
+> The overall trend since 4.0 shows that this is quite a consistent number
+> 
+> 123 commits in 4.0..4.1 range 47 % unreviewed
+> 170 commits in 4.1..4.2 range 56 % unreviewed
+> 187 commits in 4.2..4.3 range 35 % unreviewed
+> 176 commits in 4.3..4.4 range 34 % unreviewed
+> 220 commits in 4.4..4.5 range 32 % unreviewed
+> 199 commits in 4.5..4.6 range 42 % unreviewed
+> 217 commits in 4.6..4.7 range 41 % unreviewed
+> 247 commits in 4.7..4.8 range 39 % unreviewed
+> 150 commits in 4.8..4.9 range 42 % unreviewed
+> 
+> I am worried that the number of patches posted to linux-mm grows over
+> time while the number of reviewers doesn't scale up with that trend. I
+> believe we need to do something about that and aim to increase both the
+> number of reviewers as well as the number of patches which are really
+> reviewed. I am not really sure how to achieve that, though. Requiring
+> Acked-by resp. Reviewed-by on each patch sounds like the right approach
+> but I am just worried that even useful changes could get stuck without
+> any forward progress that way.
+> 
+> Another problem, somehow related, is that there are areas which have
+> evolved into a really bad shape because nobody has really payed
+> attention to them from the architectural POV when they were merged. To
+> name one the memory hotplug doesn't seem very healthy, full of kludges,
+> random hacks and fixes for fixes working for a particualr usecase
+> without any longterm vision. We have allowed to (ab)use concepts like
+> ZONE_MOVABLE which are finding new users because that seems to be the
+> simplest way forward. Now we are left with fixing the code which has
+> some fundamental issues because it is used out there. Are we going to do
+> anything about those? E.g. generate a list of them, discuss how to make
+> that code healthy again and do not allow new features until we sort that
+> out?
 
- arch/mips/include/asm/kvm_host.h    |  76 ++--
- arch/mips/include/asm/mmu_context.h |   9 +-
- arch/mips/include/asm/tlbex.h       |  26 +-
- arch/mips/include/asm/uasm.h        |   5 +-
- arch/mips/kvm/dyntrans.c            |  28 +-
- arch/mips/kvm/emulate.c             |  59 +--
- arch/mips/kvm/entry.c               | 141 +++++++-
- arch/mips/kvm/mips.c                | 130 +------
- arch/mips/kvm/mmu.c                 | 545 +++++++++++++++++------------
- arch/mips/kvm/tlb.c                 | 225 +-----------
- arch/mips/kvm/trap_emul.c           | 220 +++++++++++-
- arch/mips/mm/init.c                 |   1 +-
- arch/mips/mm/pgtable-32.c           |   1 +-
- arch/mips/mm/pgtable-64.c           |   3 +-
- arch/mips/mm/tlbex.c                |  38 +-
- mm/init-mm.c                        |   2 +-
- 16 files changed, 861 insertions(+), 648 deletions(-)
- create mode 100644 arch/mips/include/asm/tlbex.h
+hugetlb reservation processing seems to be one of those areas.  I certainly
+have been guilty of stretching the limits of the current code to meet the
+demands of new functionality.  It has been my desire to do some rewrite or
+rearchitecture in this area.
 
 -- 
-git-series 0.8.10
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
