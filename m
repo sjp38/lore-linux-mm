@@ -1,88 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A79D46B0038
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:26:17 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b1so1526607154pgc.5
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:26:17 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t1si49183576plj.63.2017.01.05.17.26.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 17:26:16 -0800 (PST)
-Date: Thu, 5 Jan 2017 17:27:34 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/4] Write protect DAX PMDs in *sync path
-Message-Id: <20170105172734.23a7603ff19006b49e9ba01a@linux-foundation.org>
-In-Reply-To: <20170104001349.GA8176@linux.intel.com>
-References: <1482441536-14550-1-git-send-email-ross.zwisler@linux.intel.com>
-	<20170104001349.GA8176@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F11296B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 20:33:31 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id qs7so69841582wjc.4
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 17:33:31 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id cg2si64183172wjc.103.2017.01.05.17.33.30
+        for <linux-mm@kvack.org>;
+        Thu, 05 Jan 2017 17:33:30 -0800 (PST)
+From: James Hogan <james.hogan@imgtec.com>
+Subject: [PATCH 1/30] mm: Export init_mm for MIPS KVM use of pgd_alloc()
+Date: Fri, 6 Jan 2017 01:32:33 +0000
+Message-ID: <a8df39719fb0570cb38e3fbb5c128fe2618e92d6.1483665879.git-series.james.hogan@imgtec.com>
+MIME-Version: 1.0
+In-Reply-To: <cover.d6d201de414322ed2c1372e164254e6055ef7db9.1483665879.git-series.james.hogan@imgtec.com>
+References: <cover.d6d201de414322ed2c1372e164254e6055ef7db9.1483665879.git-series.james.hogan@imgtec.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org
+To: linux-mips@linux-mips.org
+Cc: James Hogan <james.hogan@imgtec.com>, linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org
 
-On Tue, 3 Jan 2017 17:13:49 -0700 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+Export the init_mm symbol to GPL modules so that MIPS KVM can use
+pgd_alloc() to create GVA page directory tables for trap & emulate mode,
+which runs guest code in user mode. On MIPS pgd_alloc() is implemented
+inline and refers to init_mm in order to copy kernel address space
+mappings into the new page directory.
 
-> On Thu, Dec 22, 2016 at 02:18:52PM -0700, Ross Zwisler wrote:
-> > Currently dax_mapping_entry_mkclean() fails to clean and write protect the
-> > pmd_t of a DAX PMD entry during an *sync operation.  This can result in
-> > data loss, as detailed in patch 4.
-> > 
-> > You can find a working tree here:
-> > 
-> > https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_clean_v2
-> > 
-> > This series applies cleanly to mmotm-2016-12-19-16-31.
-> > 
-> > Changes since v1:
-> >  - Included Dan's patch to kill DAX support for UML.
-> >  - Instead of wrapping the DAX PMD code in dax_mapping_entry_mkclean() in
-> >    an #ifdef, we now create a stub for pmdp_huge_clear_flush() for the case
-> >    when CONFIG_TRANSPARENT_HUGEPAGE isn't defined. (Dan & Jan)
-> > 
-> > Dan Williams (1):
-> >   dax: kill uml support
-> > 
-> > Ross Zwisler (3):
-> >   dax: add stub for pmdp_huge_clear_flush()
-> >   mm: add follow_pte_pmd()
-> >   dax: wrprotect pmd_t in dax_mapping_entry_mkclean
-> > 
-> >  fs/Kconfig                    |  2 +-
-> >  fs/dax.c                      | 49 ++++++++++++++++++++++++++++++-------------
-> >  include/asm-generic/pgtable.h | 10 +++++++++
-> >  include/linux/mm.h            |  4 ++--
-> >  mm/memory.c                   | 41 ++++++++++++++++++++++++++++--------
-> >  5 files changed, 79 insertions(+), 27 deletions(-)
-> 
-> Well, 0-day found another architecture that doesn't define pmd_pfn() et al.,
-> so we'll need some more fixes. (Thank you, 0-day, for the coverage!)
-> 
-> I have to apologize, I didn't understand that Dan intended his "dax: kill uml
-> support" patch to land in v4.11.  I thought he intended it as a cleanup to my
-> series, which really needs to land in v4.10.  That's why I folded them
-> together into this v2, along with the wrapper suggested by Jan.
-> 
-> Andrew, does it work for you to just keep v1 of this series, and eventually
-> send that to Linus for v4.10?
-> 
-> https://lkml.org/lkml/2016/12/20/649
-> 
-> You've already pulled that one into -mm, and it does correctly solve the data
-> loss issue.
-> 
-> That would let us deal with getting rid of the #ifdef, blacklisting
-> architectures and introducing the pmdp_huge_clear_flush() strub in a follow-on
-> series for v4.11.
+Signed-off-by: James Hogan <james.hogan@imgtec.com>
+Cc: linux-mm@kvack.org
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: "Radim KrA?mA!A?" <rkrcmar@redhat.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-mips@linux-mips.org
+Cc: kvm@vger.kernel.org
+---
+ mm/init-mm.c | 2 ++
+ 1 file changed, 2 insertions(+), 0 deletions(-)
 
-I have mm-add-follow_pte_pmd.patch and
-dax-wrprotect-pmd_t-in-dax_mapping_entry_mkclean.patch queued for 4.10.
-Please (re)send any additional patches, indicating for each one
-whether you believe it should also go into 4.10?
-
+diff --git a/mm/init-mm.c b/mm/init-mm.c
+index 975e49f00f34..94aae08b41e1 100644
+--- a/mm/init-mm.c
++++ b/mm/init-mm.c
+@@ -1,3 +1,4 @@
++#include <linux/export.h>
+ #include <linux/mm_types.h>
+ #include <linux/rbtree.h>
+ #include <linux/rwsem.h>
+@@ -25,3 +26,4 @@ struct mm_struct init_mm = {
+ 	.user_ns	= &init_user_ns,
+ 	INIT_MM_CONTEXT(init_mm)
+ };
++EXPORT_SYMBOL_GPL(init_mm);
+-- 
+git-series 0.8.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
