@@ -1,113 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 26DAC6B025E
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:19:07 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b1so1565966500pgc.5
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:19:07 -0800 (PST)
-Received: from mail-pg0-f66.google.com (mail-pg0-f66.google.com. [74.125.83.66])
-        by mx.google.com with ESMTPS id i189si4622338pfc.62.2017.01.06.06.19.06
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 508776B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 09:36:09 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w13so3784464wmw.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:36:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kv9si89318233wjb.50.2017.01.06.06.36.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 06:19:06 -0800 (PST)
-Received: by mail-pg0-f66.google.com with SMTP id 75so5953338pgf.3
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 06:19:06 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [DEBUG PATCH 2/2] silent warnings which we cannot do anything about
-Date: Fri,  6 Jan 2017 15:18:45 +0100
-Message-Id: <20170106141845.24362-3-mhocko@kernel.org>
-In-Reply-To: <20170106141845.24362-1-mhocko@kernel.org>
-References: <20170106141107.23953-1-mhocko@kernel.org>
- <20170106141845.24362-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Jan 2017 06:36:06 -0800 (PST)
+Subject: Re: [PATCH] mm: introduce kv[mz]alloc helpers
+References: <20170102133700.1734-1-mhocko@kernel.org>
+ <20170104142022.GL25453@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6ab0f90a-4ead-d7a2-74e3-200c49b7d2b3@suse.cz>
+Date: Fri, 6 Jan 2017 15:36:04 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170104142022.GL25453@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Joe Perches <joe@perches.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
 
-From: Michal Hocko <mhocko@suse.com>
+On 01/04/2017 03:20 PM, Michal Hocko wrote:
+> diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+> index 2ff499680cc6..0a5cc1237afe 100644
+> --- a/net/netfilter/x_tables.c
+> +++ b/net/netfilter/x_tables.c
+> @@ -712,17 +712,8 @@ EXPORT_SYMBOL(xt_check_entry_offsets);
+>   */
+>  unsigned int *xt_alloc_entry_offsets(unsigned int size)
+>  {
+> -	unsigned int *off;
+> +	return kvmalloc(size * sizeof(unsigned int), GFP_KERNEL);;
+>  
+> -	off = kcalloc(size, sizeof(unsigned int), GFP_KERNEL | __GFP_NOWARN);
+> -
+> -	if (off)
+> -		return off;
+> -
+> -	if (size < (SIZE_MAX / sizeof(unsigned int)))
+> -		off = vmalloc(size * sizeof(unsigned int));
+> -
+> -	return off;
 
-THIS PATCH IS FOR TESTING ONLY AND NOT MEANT TO HIT LINUS TREE
+This one seems to have tried hard to avoid the multiplication overflow
+by using kcalloc() and doing the size check before vmalloc(), so I
+wonder if it's safe to just remove the checks completely?
 
-There are some code paths used by all the filesystems which we cannot
-change to drop the GFP_NOFS, yet they generate a lot of warnings.
-Provide {disable,enable}_scope_gfp_check to silence those.
-alloc_page_buffers and grow_dev_page are silenced right away.
+>  }
+>  EXPORT_SYMBOL(xt_alloc_entry_offsets);
+>  
+> diff --git a/net/sched/sch_fq.c b/net/sched/sch_fq.c
+> index 86309a3156a5..5678eff40f61 100644
+> --- a/net/sched/sch_fq.c
+> +++ b/net/sched/sch_fq.c
+> @@ -624,16 +624,6 @@ static void fq_rehash(struct fq_sched_data *q,
+>  	q->stat_gc_flows += fcnt;
+>  }
+>  
+> -static void *fq_alloc_node(size_t sz, int node)
+> -{
+> -	void *ptr;
+> -
+> -	ptr = kmalloc_node(sz, GFP_KERNEL | __GFP_REPEAT | __GFP_NOWARN, node);
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- fs/buffer.c           |  4 ++++
- include/linux/sched.h | 11 +++++++++++
- mm/page_alloc.c       |  3 +++
- 3 files changed, 18 insertions(+)
+Another patch 3 material?
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 28484b3ebc98..dbe529e7881b 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -873,7 +873,9 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
- 	head = NULL;
- 	offset = PAGE_SIZE;
- 	while ((offset -= size) >= 0) {
-+		disable_scope_gfp_check();
- 		bh = alloc_buffer_head(GFP_NOFS);
-+		enable_scope_gfp_check();
- 		if (!bh)
- 			goto no_grow;
- 
-@@ -1003,7 +1005,9 @@ grow_dev_page(struct block_device *bdev, sector_t block,
- 	 */
- 	gfp_mask |= __GFP_NOFAIL;
- 
-+	disable_scope_gfp_check();
- 	page = find_or_create_page(inode->i_mapping, index, gfp_mask);
-+	enable_scope_gfp_check();
- 	if (!page)
- 		return ret;
- 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 59428926e989..f60294732ed5 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1988,6 +1988,7 @@ struct task_struct {
- 	/* A live task holds one reference. */
- 	atomic_t stack_refcount;
- #endif
-+	bool disable_scope_gfp_warn;
- 	unsigned long nofs_caller;
- 	unsigned long noio_caller;
- /* CPU-specific state of this task */
-@@ -2390,6 +2391,16 @@ static inline unsigned int __memalloc_nofs_save(unsigned long caller)
- 	return flags;
- }
- 
-+static inline void disable_scope_gfp_check(void)
-+{
-+	current->disable_scope_gfp_warn = true;
-+}
-+
-+static inline void enable_scope_gfp_check(void)
-+{
-+	current->disable_scope_gfp_warn = false;
-+}
-+
- #define memalloc_nofs_save()	__memalloc_nofs_save(_RET_IP_)
- 
- static inline void memalloc_nofs_restore(unsigned int flags)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 87a2bb5262b2..5405278bd733 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3762,6 +3762,9 @@ void debug_scope_gfp_context(gfp_t gfp_mask)
- 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
- 		return;
- 
-+	if (current->disable_scope_gfp_warn)
-+		return;
-+
- 	if (current->flags & PF_MEMALLOC_NOIO)
- 		restrict_mask = __GFP_IO;
- 	else if ((current->flags & PF_MEMALLOC_NOFS) && (gfp_mask & __GFP_IO))
--- 
-2.11.0
+> -	if (!ptr)
+> -		ptr = vmalloc_node(sz, node);
+> -	return ptr;
+> -}
+> -
+>  static void fq_free(void *addr)
+>  {
+>  	kvfree(addr);
+> @@ -650,7 +640,7 @@ static int fq_resize(struct Qdisc *sch, u32 log)
+>  		return 0;
+>  
+>  	/* If XPS was setup, we can allocate memory on right NUMA node */
+> -	array = fq_alloc_node(sizeof(struct rb_root) << log,
+> +	array = kvmalloc_node(sizeof(struct rb_root) << log, GFP_KERNEL,
+>  			      netdev_queue_numa_node_read(sch->dev_queue));
+>  	if (!array)
+>  		return -ENOMEM;
+
+With that fixed,
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
