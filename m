@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E16666B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 05:04:35 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id l2so2667805wml.5
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 02:04:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 38si586952wry.200.2017.01.06.02.04.34
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 09CED6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 05:15:33 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so2683059wmi.6
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 02:15:32 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id 7si2234986wmu.55.2017.01.06.02.15.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 02:04:34 -0800 (PST)
-Date: Fri, 6 Jan 2017 11:04:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: weird allocation pattern in alloc_ila_locks
-Message-ID: <20170106100433.GH5556@dhcp22.suse.cz>
-References: <20170106095115.GG5556@dhcp22.suse.cz>
+        Fri, 06 Jan 2017 02:15:31 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 50FD2995BF
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 10:15:31 +0000 (UTC)
+Date: Fri, 6 Jan 2017 10:15:30 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 3/4] mm, page_allocator: Only use per-cpu allocator for
+ irq-safe requests
+Message-ID: <20170106101530.zq7mpvu4uw2dppal@techsingularity.net>
+References: <20170104111049.15501-1-mgorman@techsingularity.net>
+ <20170104111049.15501-4-mgorman@techsingularity.net>
+ <00ee01d267cc$b61feaa0$225fbfe0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170106095115.GG5556@dhcp22.suse.cz>
+In-Reply-To: <00ee01d267cc$b61feaa0$225fbfe0$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Herbert <tom@herbertland.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Jesper Dangaard Brouer' <brouer@redhat.com>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
 
-On Fri 06-01-17 10:51:15, Michal Hocko wrote:
-> Hi Tom,
-> I am currently looking at kmalloc with vmalloc fallback users [1]
-> and came across alloc_ila_locks which is using a pretty unusual
-> allocation pattern - it seems to be a c&p alloc_bucket_locks which
-> is doing a similar thing - except it has to support GFP_ATOMIC.
+On Fri, Jan 06, 2017 at 11:26:46AM +0800, Hillf Danton wrote:
 > 
-> I am really wondering what is the point of 
-> #ifdef CONFIG_NUMA
-> 		if (size * sizeof(spinlock_t) > PAGE_SIZE)
-> 			ilan->locks = vmalloc(size * sizeof(spinlock_t));
-> 		else
-> #endif
+> On Wednesday, January 04, 2017 7:11 PM Mel Gorman wrote: 
+> > @@ -2647,9 +2644,8 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+> >  	struct list_head *list;
+> >  	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+> >  	struct page *page;
+> > -	unsigned long flags;
+> > 
+> > -	local_irq_save(flags);
+> > +	preempt_disable();
+> >  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> >  	list = &pcp->lists[migratetype];
+> >  	page = __rmqueue_pcplist(zone,  order, gfp_flags, migratetype,
+> > @@ -2658,7 +2654,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+> >  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+> >  		zone_statistics(preferred_zone, zone, gfp_flags);
+> >  	}
+> > -	local_irq_restore(flags);
+> > +	preempt_enable();
+> >  	return page;
+> >  }
+> > 
+> With PREEMPT configured, preempt_enable() adds entry point to schedule().
+> Is that needed when we try to allocate a page?
 > 
-> there doesn't seem to be any NUMA awareness in the ifdef code so I can
-> only assume that the intention is to reflect that NUMA machines tend to
-> have more CPUs. On the other hand nr_pcpus is limited to 32 so this
-> doesn't seem to be the case here...
-> Can we just get rid of this ugly and confusing code and do something as
-> simple as
-> diff --git a/net/ipv6/ila/ila_xlat.c b/net/ipv6/ila/ila_xlat.c
-> index af8f52ee7180..1d86ceae61b3 100644
-> --- a/net/ipv6/ila/ila_xlat.c
-> +++ b/net/ipv6/ila/ila_xlat.c
-> @@ -41,13 +41,11 @@ static int alloc_ila_locks(struct ila_net *ilan)
->  	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
->  
->  	if (sizeof(spinlock_t) != 0) {
-> -#ifdef CONFIG_NUMA
-> -		if (size * sizeof(spinlock_t) > PAGE_SIZE)
-> -			ilan->locks = vmalloc(size * sizeof(spinlock_t));
-> -		else
-> -#endif
->  		ilan->locks = kmalloc_array(size, sizeof(spinlock_t),
-> -					    GFP_KERNEL);
-> +					    GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
-> +		if (!ilan->locks)
-> +			ilan->locks = vmalloc(size * sizeof(spinlock_t));
-> +
->  		if (!ilan->locks)
->  			return -ENOMEM;
->  		for (i = 0; i < size; i++)
-> 
-> which I would then simply turn into kvmalloc()?
 
-The patch would look as follows:
----
+Not necessarily but what are you proposing as an alternative? get_cpu()
+is not an alternative and the point is to avoid disabling interrupts
+which is a much more expensive operation.
+
+-- 
+Mel Gorman
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
