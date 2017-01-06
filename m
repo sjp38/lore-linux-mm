@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F7526B025E
-	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 19:07:56 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id j15so373575017ioj.7
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 16:07:56 -0800 (PST)
-Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
-        by mx.google.com with ESMTPS id x63si486958itg.104.2017.01.05.16.07.55
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F75C6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Jan 2017 19:34:10 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c186so72766204pfb.7
+        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 16:34:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q12si77463768pgc.52.2017.01.05.16.34.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jan 2017 16:07:55 -0800 (PST)
-Received: by mail-it0-x241.google.com with SMTP id b123so567437itb.2
-        for <linux-mm@kvack.org>; Thu, 05 Jan 2017 16:07:55 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170105160202.baa14f400bfd906466a915db@linux-foundation.org>
-References: <20170104023620.13451.80691.stgit@localhost.localdomain> <20170105160202.baa14f400bfd906466a915db@linux-foundation.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 5 Jan 2017 16:07:54 -0800
-Message-ID: <CAKgT0UddTYqrje-FSJAcicsDC4oAjgOaPmADk=g+W272+MUeow@mail.gmail.com>
-Subject: Re: [next PATCH v4 0/3] Page fragment updates
-Content-Type: text/plain; charset=UTF-8
+        Thu, 05 Jan 2017 16:34:09 -0800 (PST)
+Date: Thu, 5 Jan 2017 16:35:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Fix SLAB freelist randomization duplicate entries
+Message-Id: <20170105163527.d37a29d6e7b3bfdafd7472d2@linux-foundation.org>
+In-Reply-To: <20170103181908.143178-1-thgarnie@google.com>
+References: <20170103181908.143178-1-thgarnie@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: intel-wired-lan <intel-wired-lan@lists.osuosl.org>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jsperbeck@google.com
 
-On Thu, Jan 5, 2017 at 4:02 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Tue, 03 Jan 2017 18:38:48 -0800 Alexander Duyck <alexander.duyck@gmail.com> wrote:
->
->> This patch series takes care of a few cleanups for the page fragments API.
->>
->> First we do some renames so that things are much more consistent.  First we
->> move the page_frag_ portion of the name to the front of the functions
->> names.  Secondly we split out the cache specific functions from the other
->> page fragment functions by adding the word "cache" to the name.
->>
->> Finally I added a bit of documentation that will hopefully help to explain
->> some of this.  I plan to revisit this later as we get things more ironed
->> out in the near future with the changes planned for the DMA setup to
->> support eXpress Data Path.
->>
->> ---
->>
->> v2: Fixed a comparison between a void* and 0 due to copy/paste from free_pages
->> v3: Updated first rename patch so that it is just a rename and doesn't impact
->>     the actual functionality to avoid performance regression.
->> v4: Fix mangling that occured due to a bad merge fix when patches 1 and 2
->>     were swapped and then swapped back.
->>
->> I'm submitting this to Intel Wired Lan and Jeff Kirsher's "next-queue" for
->> acceptance as I have a series of other patches for igb that are blocked by
->> by these patches since I had to rename the functionality fo draining extra
->> references.
->>
->> This series was going to be accepted for mmotm back when it was v1, however
->> since then I found a few minor issues that needed to be fixed.
->>
->> I am hoping to get an Acked-by from Andrew Morton for these patches and
->> then have them submitted to David Miller as he has said he will accept them
->> if I get the Acked-by.  In the meantime if these can be applied to
->> next-queue while waiting on that Acked-by then I can submit the other
->> patches for igb and ixgbe for testing.
->
-> The patches look fine.  How about I just scoot them straight into
-> mainline next week?  I do that occasionally, just to simplify ongoing
-> development and these patches are safe enough.
+On Tue,  3 Jan 2017 10:19:08 -0800 Thomas Garnier <thgarnie@google.com> wrote:
 
-That should work for me.
+> This patch fixes a bug in the freelist randomization code. When a high
+> random number is used, the freelist will contain duplicate entries. It
+> will result in different allocations sharing the same chunk.
 
-Thanks.
+Important: what are the user-visible runtime effects of the bug?
 
-- Alex
+> Fixes: c7ce4f60ac19 ("mm: SLAB freelist randomization")
+> Signed-off-by: John Sperbeck <jsperbeck@google.com>
+> Reviewed-by: Thomas Garnier <thgarnie@google.com>
+
+This should have been signed off by yourself.
+
+I'm guessing that the author was in fact John?  If so, you should
+indicate this by putting his From: line at the start of the changelog. 
+Otherwise, authorship will default to the sender (ie, yourself).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
