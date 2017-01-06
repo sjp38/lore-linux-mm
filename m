@@ -1,82 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CDEA6B0272
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 17:20:16 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b22so544735001pfd.0
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 14:20:16 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id 33si80910924pli.144.2017.01.06.14.20.15
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4ED6B0275
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 17:29:13 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id n204so88906052oif.6
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 14:29:13 -0800 (PST)
+Received: from g4t3427.houston.hpe.com (g4t3427.houston.hpe.com. [15.241.140.73])
+        by mx.google.com with ESMTPS id h8si1319082otg.80.2017.01.06.14.29.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 14:20:15 -0800 (PST)
-Received: by mail-pf0-x22b.google.com with SMTP id 189so3907266pfu.3
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 14:20:15 -0800 (PST)
-Date: Fri, 6 Jan 2017 14:20:14 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: add new background defrag option
-In-Reply-To: <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
-Message-ID: <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com> <20170105101330.bvhuglbbeudubgqb@techsingularity.net> <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz> <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+        Fri, 06 Jan 2017 14:29:13 -0800 (PST)
+Date: Fri, 6 Jan 2017 14:29:12 -0800
+From: Till Smejkal <till.smejkal@hpe.com>
+Subject: Benchmarks for the Linux kernel MM architecture
+Message-ID: <20170106222912.o6vkh7rarxdak4ga@arch-test>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Till Smejkal <till.smejkal@hpe.com>
 
-On Fri, 6 Jan 2017, Vlastimil Babka wrote:
+Dear Linux MM community
 
-> Deciding between "defer" and "background" is however confusing, and also
-> doesn't indicate that the difference is related to madvise.
-> 
+My name is Till Smejkal and I am a PhD Student at Hewlett Packard Enterprise. For a
+couple of weeks I have been working on a patchset for the Linux kernel which
+introduces a new functionality that allows address spaces to be first class citizens
+in the OS. The implementation is based on a concept presented in this [1] paper.
 
-Any suggestions for a better name for "background" are more than welcome.  
+The basic idea of the patchset is that an AS not necessarily needs to be coupled with
+a process but can be created and destroyed independently. A process still has its own
+AS which is created with the process and which also gets destroyed with the process,
+but in addition there can be other AS in the OS which are not bound to the lifetime
+of any process. These additional AS have to be created and destroyed actively by the
+user and can be attached to a process as additional AS. Attaching such an AS to a
+process allows the process to have different views on the memory between which the
+process can switch arbitrarily during its executing.
 
-> > The kernel implementation takes less of a priority to userspace 
-> > simplicitly, imo, and my patch actually cleans up much of the existing 
-> > code and ends up adding fewer lines that yours.  I consider it an 
-> > improvement in itself.  I don't see the benefit of allowing combined 
-> > options.
-> 
-> I don't like bikesheding, but as this is about user-space API, more care
-> should be taken than for implementation details that can change. Even
-> though realistically there will be in 99% of cases only two groups of
-> users setting this
-> - experts like you who know what they are doing, and confusing names
-> won't prevent them from making the right choice
-> - people who will blindly copy/paste from the future cargo-cult websites
-> (if they ever get updated from the enabled="never" recommendations), who
-> likely won't stop and think about the other options.
-> 
+This feature can be used in various different ways. For example to compartmentalize a
+process for security reasons or to improve the performance of data-centric
+applications.
 
-I think the far majority will go with a third option: simply use the 
-kernel default and be unaware of other settings or consider it to be the 
-most likely choice solely because it is the kernel default.
+However, before I intend to submit the patchset to LKML, I first like to perform
+some benchmarks to identify possible performance drawbacks introduced by my changes
+to the original memory management architecture. Hence, I would like to ask if anyone
+of you could point me to some benchmarks which I can run to test my patchset and
+compare it against the original implementation.
 
-I think the kernel default could easily be changed to "background" after 
-this and nobody would actually notice, but I don't have a strong 
-preference for that.  I think users who notice large thp_fault_fallback 
-and want to get the true "transparent" nature of hugepages will 
-investigate defragmentation behavior and see "background" is exactly what 
-they want.  Indeed, I think that the new "background" mode meshes well 
-with the expectation of "transparent" hugepages.  I don't foresee any 
-usecase, present or future, for "defer" so I'll simply ignore it.
+If there are any questions, please feel free to ask me. I am happy to answer any
+question related to the patchset and its idea/intention.
 
-So whether it's better to do echo background or echo "madvise defer" is 
-not important to me, I simply imagine that the combination will be more 
-difficult to describe to users.  It would break our userspace to currently 
-tests for "[madvise]" and reports that state as strictly madvise to our 
-mission control, but I can work around that; not sure if others would 
-encounter the same issue (would "[defer madvise]" or "[defer] [madvise]" 
-break fewer userspaces?).
+Regards
+Till
 
-I'd leave it to Andrew to decide whether sysfs files should accept 
-multiple modes or not.  If you are to propose a patch to do so, I'd 
-encourage you to do the same cleanup of triple_flag_store() that I did and 
-make the gfp mask construction more straight-forward.  If you'd like to 
-suggest a different name for "background", I'd be happy to change that if 
-it's more descriptive.
+P.S.: Please keep me in the CC since I am not subscribed to this mailing list.
+
+[1] http://impact.crhc.illinois.edu/shared/Papers/ASPLOS16-SpaceJMP.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
