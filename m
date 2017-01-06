@@ -1,49 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 102A16B0038
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 10:36:56 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id b1so1570494618pgc.5
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 07:36:56 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p21si79849925pgh.130.2017.01.06.07.36.55
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5A26B0069
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 10:37:42 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id p127so576764114iop.5
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 07:37:42 -0800 (PST)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id a188si3509835ioa.136.2017.01.06.07.37.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jan 2017 07:36:55 -0800 (PST)
-Subject: Re: [RFC PATCH v3] sparc64: Add support for Application Data
- Integrity (ADI)
-References: <d234fb8b-965f-d966-46fe-965478fdf7cb@linux.intel.com>
- <8612e7db-97c5-f757-0aae-24c3acedbc29@oracle.com>
- <2c0502d0-20ef-44ac-db5b-7f651a70b978@linux.intel.com>
- <ba9c4de2-cec1-1c88-82c9-24a524eb7948@oracle.com>
- <db31d324-a1ae-7450-0e54-ad98da205773@linux.intel.com>
- <5a0270ea-b29a-0751-a27f-2412a8588561@oracle.com>
- <7532a1d6-6562-b10b-dacd-931cb2a9e536@linux.intel.com>
- <92d55a69-b400-8461-53a1-d505de089700@oracle.com>
- <75c31c99-cff7-72dc-f593-012fe5acd405@linux.intel.com>
- <7fbc4ca1-22ef-8ef5-5c1b-dd075852e512@oracle.com>
- <20170106091934.GF5556@dhcp22.suse.cz>
- <ac86aa55-964d-56a1-1381-c208de78b24e@oracle.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <f33f2c3c-4ec5-423c-5d13-a4b9ab8f7a95@linux.intel.com>
-Date: Fri, 6 Jan 2017 07:36:53 -0800
+        Fri, 06 Jan 2017 07:37:41 -0800 (PST)
+Received: by mail-io0-x22b.google.com with SMTP id v96so34876572ioi.0
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 07:37:41 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <ac86aa55-964d-56a1-1381-c208de78b24e@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170106152052.GS5556@dhcp22.suse.cz>
+References: <20170106152052.GS5556@dhcp22.suse.cz>
+From: Eric Dumazet <edumazet@google.com>
+Date: Fri, 6 Jan 2017 07:37:41 -0800
+Message-ID: <CANn89iLEOM2UpADkAqCkL5FQTG9-qgHgDevUDwgFAjWKbSOMzw@mail.gmail.com>
+Subject: Re: __GFP_REPEAT usage in fq_alloc_node
+Content-Type: multipart/alternative; boundary=001a11409dee68425b05456eccfc
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Rob Gardner <rob.gardner@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org, hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 01/06/2017 07:32 AM, Khalid Aziz wrote:
-> I agree with you on simplicity first. Subpage granularity is complex,
-> but the architecture allows for subpage granularity. Maybe the right
-> approach is to support this at page granularity first for swappable
-> pages and then expand to subpage granularity in a subsequent patch?
-> Pages locked in memory can already use subpage granularity with my patch.
+--001a11409dee68425b05456eccfc
+Content-Type: text/plain; charset=UTF-8
 
-What do you mean by "locked in memory"?  mlock()'d memory can still be
-migrated around and still requires "swap" ptes, for instance.
+On Fri, Jan 6, 2017 at 7:20 AM, Michal Hocko <mhocko@kernel.org> wrote:
+
+> Hi Eric,
+> I am currently checking kmalloc with vmalloc fallback users and convert
+> them to a new kvmalloc helper [1]. While I am adding a support for
+> __GFP_REPEAT to kvmalloc [2] I was wondering what is the reason to use
+> __GFP_REPEAT in fq_alloc_node in the first place. c3bd85495aef
+> ("pkt_sched: fq: more robust memory allocation") doesn't mention
+> anything. Could you clarify this please?
+>
+> Thanks!
+>
+> [1] http://lkml.kernel.org/r/20170102133700.1734-1-mhocko@kernel.org
+> [2] http://lkml.kernel.org/r/20170104181229.GB10183@dhcp22.suse.cz
+> --
+> Michal Hocko
+> SUSE Labs
+>
+
+At the time, tests on the hardware I had in my labs showed that vmalloc()
+could deliver pages spread
+all over the memory and that was a small penalty (once memory is fragmented
+enough, not at boot time)
+
+I guess this wont be anymore a concern if I can finish my pending work
+about vmalloc() trying to get adjacent pages
+https://lkml.org/lkml/2016/12/21/285
+
+Thanks.
+
+--001a11409dee68425b05456eccfc
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><div class=3D"gmail_quo=
+te">On Fri, Jan 6, 2017 at 7:20 AM, Michal Hocko <span dir=3D"ltr">&lt;<a h=
+ref=3D"mailto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt=
+;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0p=
+x 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Hi Eri=
+c,<br>
+I am currently checking kmalloc with vmalloc fallback users and convert<br>
+them to a new kvmalloc helper [1]. While I am adding a support for<br>
+__GFP_REPEAT to kvmalloc [2] I was wondering what is the reason to use<br>
+__GFP_REPEAT in fq_alloc_node in the first place. c3bd85495aef<br>
+(&quot;pkt_sched: fq: more robust memory allocation&quot;) doesn&#39;t ment=
+ion<br>
+anything. Could you clarify this please?<br>
+<br>
+Thanks!<br>
+<br>
+[1] <a href=3D"http://lkml.kernel.org/r/20170102133700.1734-1-mhocko@kernel=
+.org" rel=3D"noreferrer" target=3D"_blank">http://lkml.kernel.org/r/<wbr>20=
+170102133700.1734-1-mhocko@<wbr>kernel.org</a><br>
+[2] <a href=3D"http://lkml.kernel.org/r/20170104181229.GB10183@dhcp22.suse.=
+cz" rel=3D"noreferrer" target=3D"_blank">http://lkml.kernel.org/r/<wbr>2017=
+0104181229.GB10183@dhcp22.<wbr>suse.cz</a><br>
+<span class=3D"gmail-HOEnZb"><font color=3D"#888888">--<br>
+Michal Hocko<br>
+SUSE Labs<br>
+</font></span></blockquote></div><br></div><div class=3D"gmail_extra">At th=
+e time, tests on the hardware I had in my labs showed that vmalloc() could =
+deliver pages spread</div><div class=3D"gmail_extra">all over the memory an=
+d that was a small penalty (once memory is fragmented enough, not at boot t=
+ime)</div><div class=3D"gmail_extra"><br></div><div class=3D"gmail_extra">I=
+ guess this wont be anymore a concern if I can finish my pending work about=
+ vmalloc() trying to get adjacent pages</div><div class=3D"gmail_extra"><a =
+href=3D"https://lkml.org/lkml/2016/12/21/285">https://lkml.org/lkml/2016/12=
+/21/285</a><br><br></div><div class=3D"gmail_extra">Thanks.</div><div class=
+=3D"gmail_extra"><br></div><div class=3D"gmail_extra"><br></div></div>
+
+--001a11409dee68425b05456eccfc--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
