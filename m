@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 849E86B026B
-	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 11:31:42 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id t20so5988823wju.5
-        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 08:31:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fz16si89691915wjc.184.2017.01.06.08.31.40
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5048D6B0069
+	for <linux-mm@kvack.org>; Fri,  6 Jan 2017 11:46:17 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 194so8153712pgd.7
+        for <linux-mm@kvack.org>; Fri, 06 Jan 2017 08:46:17 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id s5si75690577pgo.49.2017.01.06.08.46.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Jan 2017 08:31:41 -0800 (PST)
-Subject: Re: __GFP_REPEAT usage in fq_alloc_node
-References: <20170106152052.GS5556@dhcp22.suse.cz>
- <CANn89i+QZs0cSPK21qMe6LXw+AeAMZ_tKEDUEnCsJ_cd+q0t-g@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <20901069-5eb7-f5ff-0641-078635544531@suse.cz>
-Date: Fri, 6 Jan 2017 17:31:40 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Jan 2017 08:46:16 -0800 (PST)
+Subject: Re: [HMM v15 13/16] mm/hmm/migrate: new memory migration helper for
+ use with device memory v2
+References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
+ <1483721203-1678-14-git-send-email-jglisse@redhat.com>
+From: David Nellans <dnellans@nvidia.com>
+Message-ID: <d5c4a464-1f17-8517-3646-33dd5bf06ef5@nvidia.com>
+Date: Fri, 6 Jan 2017 10:46:09 -0600
 MIME-Version: 1.0
-In-Reply-To: <CANn89i+QZs0cSPK21qMe6LXw+AeAMZ_tKEDUEnCsJ_cd+q0t-g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1483721203-1678-14-git-send-email-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-On 01/06/2017 04:39 PM, Eric Dumazet wrote:
-> On Fri, Jan 6, 2017 at 7:20 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>
->> Hi Eric,
->> I am currently checking kmalloc with vmalloc fallback users and convert
->> them to a new kvmalloc helper [1]. While I am adding a support for
->> __GFP_REPEAT to kvmalloc [2] I was wondering what is the reason to use
->> __GFP_REPEAT in fq_alloc_node in the first place. c3bd85495aef
->> ("pkt_sched: fq: more robust memory allocation") doesn't mention
->> anything. Could you clarify this please?
->>
->> Thanks!
-> 
-> I guess this question applies to all __GFP_REPEAT usages in net/ ?
-> 
-> At the time, tests on the hardware I had in my labs showed that
-> vmalloc() could deliver pages spread
-> all over the memory and that was a small penalty (once memory is
-> fragmented enough, not at boot time)
 
-I wonder what's that cause of the penalty (when accessing the vmapped
-area I suppose?) Is it higher risk of collisions cache misses within the
-area, compared to consecutive physical adresses?
 
-> I guess this wont be anymore a concern if I can finish my pending work
-> about vmalloc() trying to get adjacent pages
-> https://lkml.org/lkml/2016/12/21/285
-> 
-> Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+On 01/06/2017 10:46 AM, J=C3=A9r=C3=B4me Glisse wrote:
+> This patch add a new memory migration helpers, which migrate memory
+> backing a range of virtual address of a process to different memory
+> (which can be allocated through special allocator). It differs from
+> numa migration by working on a range of virtual address and thus by
+> doing migration in chunk that can be large enough to use DMA engine
+> or special copy offloading engine.
+>
+> Expected users are any one with heterogeneous memory where different
+> memory have different characteristics (latency, bandwidth, ...). As
+> an example IBM platform with CAPI bus can make use of this feature
+> to migrate between regular memory and CAPI device memory. New CPU
+> architecture with a pool of high performance memory not manage as
+> cache but presented as regular memory (while being faster and with
+> lower latency than DDR) will also be prime user of this patch.
+Why should the normal page migration path (where neither src nor dest are
+device private), use the hmm_migrate functionality?  11-14 are
+replicating a lot of the
+normal migration functionality but with special casing for HMM
+requirements.  When migrating
+THP's or a list of pages (your use case above), normal NUMA migration
+is going to want to do this as fast as possible too (see Zi Yan's
+patches for multi-threading normal
+migrations & prototype of using intel IOAT for transfers, he sees 3-5x
+speedup).
+
+If the intention is to provide a common interface hook for migration to
+use DMA acceleration
+(which is a good idea), it probably shouldn't be special cased inside
+HMM functionality.
+For example, using the intel IOAT for migration DMA has nothing to do
+with HMM
+whatsoever. We need a normal migration path interface to allow DMA that
+isn't tied
+to HMM.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
