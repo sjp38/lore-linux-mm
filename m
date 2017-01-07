@@ -1,49 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1071C6B0069
-	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 13:37:43 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id c80so26933581iod.4
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 10:37:43 -0800 (PST)
-Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
-        by mx.google.com with ESMTPS id m94si3420430iod.161.2017.01.07.10.37.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7014B6B0069
+	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 18:37:45 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 75so88304787pgf.3
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 15:37:45 -0800 (PST)
+Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
+        by mx.google.com with ESMTPS id o22si7224644pli.183.2017.01.07.15.37.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Jan 2017 10:37:42 -0800 (PST)
-Received: by mail-io0-x234.google.com with SMTP id j13so315340iod.3
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 10:37:42 -0800 (PST)
+        Sat, 07 Jan 2017 15:37:44 -0800 (PST)
+Received: by mail-pg0-x22a.google.com with SMTP id f188so263159958pgc.3
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 15:37:44 -0800 (PST)
+Date: Sat, 7 Jan 2017 15:37:31 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: stop leaking PageTables
+Message-ID: <alpine.LSU.2.11.1701071526090.1130@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20170107092746.GC5047@dhcp22.suse.cz>
-References: <20170106095115.GG5556@dhcp22.suse.cz> <20170106100433.GH5556@dhcp22.suse.cz>
- <20170106121642.GJ5556@dhcp22.suse.cz> <1483740889.9712.44.camel@edumazet-glaptop3.roam.corp.google.com>
- <20170107092746.GC5047@dhcp22.suse.cz>
-From: Eric Dumazet <edumazet@google.com>
-Date: Sat, 7 Jan 2017 10:37:41 -0800
-Message-ID: <CANn89iL7JTkV_r9Wqqcrsz1GJmTfWtxD1TUV1YOKsv3rwN-+vQ@mail.gmail.com>
-Subject: Re: weird allocation pattern in alloc_ila_locks
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Tom Herbert <tom@herbertland.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Sat, Jan 7, 2017 at 1:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 06-01-17 14:14:49, Eric Dumazet wrote:
+4.10-rc loadtest (even on x86, even without THPCache) fails with
+"fork: Cannot allocate memory" or some such; and /proc/meminfo
+shows PageTables growing.
 
->> I believe the intent was to get NUMA spreading, a bit like what we have
->> in alloc_large_system_hash() when hashdist == HASHDIST_DEFAULT
->
-> Hmm, I am not sure this works as expected then. Because it is more
-> likely that all pages backing the vmallocked area will come from the
-> local node than spread around more nodes. Or did I miss your point?
+rc1 removed the freeing of an unused preallocated pagetable after
+do_fault_around() has called map_pages(): which is usually a good
+optimization, so that the followup doesn't have to reallocate one;
+but it's not sufficient to shift the freeing into alloc_set_pte(),
+since there are failure cases (most commonly VM_FAULT_RETRY) which
+never reach finish_fault().
 
-Well, you missed that vmalloc() is aware of NUMA policies.
+Check and free it at the outer level in do_fault(), then we don't
+need to worry in alloc_set_pte(), and can restore that to how it was
+(I cannot find any reason to pte_free() under lock as it was doing).
 
-If current process has requested interleave on 2 nodes (as it is done
-at boot time on a dual node system),
-then vmalloc() of 8 pages will allocate 4 pages on each node.
+And fix a separate pagetable leak, or crash, introduced by the same
+change, that could only show up on some ppc64: why does do_set_pmd()'s
+failure case attempt to withdraw a pagetable when it never deposited
+one, at the same time overwriting (so leaking) the vmf->prealloc_pte?
+Residue of an earlier implementation, perhaps?  Delete it.
 
-If you force/attempt a kmalloc() of one order-3 page, chances are very
-high to get all memory on one single node.
+Fixes: 953c66c2b22a ("mm: THP page cache support for ppc64")
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/memory.c |   47 ++++++++++++++++++++---------------------------
+ 1 file changed, 20 insertions(+), 27 deletions(-)
+
+--- 4.10-rc2/mm/memory.c	2016-12-25 18:40:50.830453384 -0800
++++ linux/mm/memory.c	2017-01-07 13:34:29.373381551 -0800
+@@ -3008,13 +3008,6 @@ static int do_set_pmd(struct vm_fault *v
+ 	ret = 0;
+ 	count_vm_event(THP_FILE_MAPPED);
+ out:
+-	/*
+-	 * If we are going to fallback to pte mapping, do a
+-	 * withdraw with pmd lock held.
+-	 */
+-	if (arch_needs_pgtable_deposit() && ret == VM_FAULT_FALLBACK)
+-		vmf->prealloc_pte = pgtable_trans_huge_withdraw(vma->vm_mm,
+-								vmf->pmd);
+ 	spin_unlock(vmf->ptl);
+ 	return ret;
+ }
+@@ -3055,20 +3048,18 @@ int alloc_set_pte(struct vm_fault *vmf,
+ 
+ 		ret = do_set_pmd(vmf, page);
+ 		if (ret != VM_FAULT_FALLBACK)
+-			goto fault_handled;
++			return ret;
+ 	}
+ 
+ 	if (!vmf->pte) {
+ 		ret = pte_alloc_one_map(vmf);
+ 		if (ret)
+-			goto fault_handled;
++			return ret;
+ 	}
+ 
+ 	/* Re-check under ptl */
+-	if (unlikely(!pte_none(*vmf->pte))) {
+-		ret = VM_FAULT_NOPAGE;
+-		goto fault_handled;
+-	}
++	if (unlikely(!pte_none(*vmf->pte)))
++		return VM_FAULT_NOPAGE;
+ 
+ 	flush_icache_page(vma, page);
+ 	entry = mk_pte(page, vma->vm_page_prot);
+@@ -3088,15 +3079,8 @@ int alloc_set_pte(struct vm_fault *vmf,
+ 
+ 	/* no need to invalidate: a not-present page won't be cached */
+ 	update_mmu_cache(vma, vmf->address, vmf->pte);
+-	ret = 0;
+ 
+-fault_handled:
+-	/* preallocated pagetable is unused: free it */
+-	if (vmf->prealloc_pte) {
+-		pte_free(vmf->vma->vm_mm, vmf->prealloc_pte);
+-		vmf->prealloc_pte = 0;
+-	}
+-	return ret;
++	return 0;
+ }
+ 
+ 
+@@ -3360,15 +3344,24 @@ static int do_shared_fault(struct vm_fau
+ static int do_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
++	int ret;
+ 
+ 	/* The VMA was not fully populated on mmap() or missing VM_DONTEXPAND */
+ 	if (!vma->vm_ops->fault)
+-		return VM_FAULT_SIGBUS;
+-	if (!(vmf->flags & FAULT_FLAG_WRITE))
+-		return do_read_fault(vmf);
+-	if (!(vma->vm_flags & VM_SHARED))
+-		return do_cow_fault(vmf);
+-	return do_shared_fault(vmf);
++		ret = VM_FAULT_SIGBUS;
++	else if (!(vmf->flags & FAULT_FLAG_WRITE))
++		ret = do_read_fault(vmf);
++	else if (!(vma->vm_flags & VM_SHARED))
++		ret = do_cow_fault(vmf);
++	else
++		ret = do_shared_fault(vmf);
++
++	/* preallocated pagetable is unused: free it */
++	if (vmf->prealloc_pte) {
++		pte_free(vma->vm_mm, vmf->prealloc_pte);
++		vmf->prealloc_pte = 0;
++	}
++	return ret;
+ }
+ 
+ static int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
