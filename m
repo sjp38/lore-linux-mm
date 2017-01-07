@@ -1,48 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8936B025E
-	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 04:33:27 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id l127so37376518lfl.3
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 01:33:27 -0800 (PST)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id x22si33953990lfb.339.2017.01.07.01.33.25
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1071C6B0069
+	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 13:37:43 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id c80so26933581iod.4
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 10:37:43 -0800 (PST)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id m94si3420430iod.161.2017.01.07.10.37.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Jan 2017 01:33:25 -0800 (PST)
-Received: by mail-lf0-x244.google.com with SMTP id v186so1589818lfa.2
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 01:33:25 -0800 (PST)
-From: Adygzhy Ondar <ondar07@gmail.com>
-Subject: [PATCH] mm/bootmem.c: cosmetic improvement of code readability
-Date: Sat,  7 Jan 2017 12:33:20 +0300
-Message-Id: <1483781600-5136-1-git-send-email-ondar07@gmail.com>
+        Sat, 07 Jan 2017 10:37:42 -0800 (PST)
+Received: by mail-io0-x234.google.com with SMTP id j13so315340iod.3
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 10:37:42 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20170107092746.GC5047@dhcp22.suse.cz>
+References: <20170106095115.GG5556@dhcp22.suse.cz> <20170106100433.GH5556@dhcp22.suse.cz>
+ <20170106121642.GJ5556@dhcp22.suse.cz> <1483740889.9712.44.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20170107092746.GC5047@dhcp22.suse.cz>
+From: Eric Dumazet <edumazet@google.com>
+Date: Sat, 7 Jan 2017 10:37:41 -0800
+Message-ID: <CANn89iL7JTkV_r9Wqqcrsz1GJmTfWtxD1TUV1YOKsv3rwN-+vQ@mail.gmail.com>
+Subject: Re: weird allocation pattern in alloc_ila_locks
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: tj@kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Tom Herbert <tom@herbertland.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-The obvious number of bits in a byte is replaced
-by BITS_PER_BYTE macro in bootmap_bytes()
+On Sat, Jan 7, 2017 at 1:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 06-01-17 14:14:49, Eric Dumazet wrote:
 
-Signed-off-by: Adygzhy Ondar <ondar07@gmail.com>
----
- mm/bootmem.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+>> I believe the intent was to get NUMA spreading, a bit like what we have
+>> in alloc_large_system_hash() when hashdist == HASHDIST_DEFAULT
+>
+> Hmm, I am not sure this works as expected then. Because it is more
+> likely that all pages backing the vmallocked area will come from the
+> local node than spread around more nodes. Or did I miss your point?
 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index e8a55a3..9fedb27 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -53,7 +53,7 @@ early_param("bootmem_debug", bootmem_debug_setup);
- 
- static unsigned long __init bootmap_bytes(unsigned long pages)
- {
--	unsigned long bytes = DIV_ROUND_UP(pages, 8);
-+	unsigned long bytes = DIV_ROUND_UP(pages, BITS_PER_BYTE);
- 
- 	return ALIGN(bytes, sizeof(long));
- }
--- 
-2.7.4
+Well, you missed that vmalloc() is aware of NUMA policies.
+
+If current process has requested interleave on 2 nodes (as it is done
+at boot time on a dual node system),
+then vmalloc() of 8 pages will allocate 4 pages on each node.
+
+If you force/attempt a kmalloc() of one order-3 page, chances are very
+high to get all memory on one single node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
