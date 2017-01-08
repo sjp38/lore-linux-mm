@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B1AC36B025E
-	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 19:07:57 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id f4so40463153qte.1
-        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 16:07:57 -0800 (PST)
-Received: from scorn.kernelslacker.org (scorn.kernelslacker.org. [2600:3c03::f03c:91ff:fe59:ec69])
-        by mx.google.com with ESMTPS id m186si43542543qkc.45.2017.01.07.16.07.40
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AE236B0266
+	for <linux-mm@kvack.org>; Sat,  7 Jan 2017 19:37:53 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id z67so54791797pgb.0
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 16:37:53 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id l33si84329642pld.41.2017.01.07.16.37.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Jan 2017 16:07:40 -0800 (PST)
-Date: Sat, 7 Jan 2017 19:07:37 -0500
-From: Dave Jones <davej@codemonkey.org.uk>
+        Sat, 07 Jan 2017 16:37:52 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id y143so725008pfb.0
+        for <linux-mm@kvack.org>; Sat, 07 Jan 2017 16:37:52 -0800 (PST)
+Date: Sat, 7 Jan 2017 16:37:43 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: 4.10-rc2 list_lru_isolate list corruption
-Message-ID: <20170108000737.q3ukpnils5iifulg@codemonkey.org.uk>
-References: <20170106052056.jihy5denyxsnfuo5@codemonkey.org.uk>
- <20170106165941.GA19083@cmpxchg.org>
- <20170106195851.7pjpnn5w2bjasc7w@codemonkey.org.uk>
- <20170107011931.GA9698@cmpxchg.org>
+In-Reply-To: <20170108000737.q3ukpnils5iifulg@codemonkey.org.uk>
+Message-ID: <alpine.LSU.2.11.1701071626290.1664@eggly.anvils>
+References: <20170106052056.jihy5denyxsnfuo5@codemonkey.org.uk> <20170106165941.GA19083@cmpxchg.org> <20170106195851.7pjpnn5w2bjasc7w@codemonkey.org.uk> <20170107011931.GA9698@cmpxchg.org> <20170108000737.q3ukpnils5iifulg@codemonkey.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170107011931.GA9698@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+Cc: Dave Jones <davej@codemonkey.org.uk>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On Fri, Jan 06, 2017 at 08:19:31PM -0500, Johannes Weiner wrote:
+On Sat, 7 Jan 2017, Dave Jones wrote:
+> On Fri, Jan 06, 2017 at 08:19:31PM -0500, Johannes Weiner wrote:
+> 
+>  > Argh, __radix_tree_delete_node() makes the flawed assumption that only
+>  > the immediate branch it's mucking with can collapse. But this warning
+>  > points out that a sibling branch can collapse too, including its leaf.
+>  > 
+>  > Can you try if this patch fixes the problem?
+> 
+> 18 hours and still running.. I think we can call it good.
 
- > Argh, __radix_tree_delete_node() makes the flawed assumption that only
- > the immediate branch it's mucking with can collapse. But this warning
- > points out that a sibling branch can collapse too, including its leaf.
- > 
- > Can you try if this patch fixes the problem?
+I'm inclined to agree, though I haven't had it running long enough
+(on a load like when it hit me a few times before) to be sure yet myself.
+I'd rather see the proposed fix go in than wait longer for me:
+I've certainly seen nothing bad from it yet.
 
-18 hours and still running.. I think we can call it good.
-
-	Dave
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
