@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A01BE6B0069
-	for <linux-mm@kvack.org>; Sun,  8 Jan 2017 15:21:26 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b22so608455813pfd.0
-        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 12:21:26 -0800 (PST)
-Received: from mail-pg0-x232.google.com (mail-pg0-x232.google.com. [2607:f8b0:400e:c05::232])
-        by mx.google.com with ESMTPS id r2si54990199pli.327.2017.01.08.12.21.25
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 360756B0069
+	for <linux-mm@kvack.org>; Sun,  8 Jan 2017 15:30:22 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id b1so1713850046pgc.5
+        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 12:30:22 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id z3si86436055pfd.61.2017.01.08.12.30.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Jan 2017 12:21:25 -0800 (PST)
-Received: by mail-pg0-x232.google.com with SMTP id f188so268265348pgc.3
-        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 12:21:25 -0800 (PST)
-Date: Sun, 8 Jan 2017 12:21:16 -0800 (PST)
+        Sun, 08 Jan 2017 12:30:21 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id 14so23602931pgg.1
+        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 12:30:21 -0800 (PST)
+Date: Sun, 8 Jan 2017 12:30:13 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: stop leaking PageTables
-In-Reply-To: <87mvf2kpfa.fsf@linux.vnet.ibm.com>
-Message-ID: <alpine.LSU.2.11.1701081209550.3615@eggly.anvils>
-References: <alpine.LSU.2.11.1701071526090.1130@eggly.anvils> <87mvf2kpfa.fsf@linux.vnet.ibm.com>
+Subject: Re: 4.10-rc2 list_lru_isolate list corruption
+In-Reply-To: <20170108020252.GB16312@cmpxchg.org>
+Message-ID: <alpine.LSU.2.11.1701081224220.3711@eggly.anvils>
+References: <20170106052056.jihy5denyxsnfuo5@codemonkey.org.uk> <20170106165941.GA19083@cmpxchg.org> <20170106195851.7pjpnn5w2bjasc7w@codemonkey.org.uk> <20170107011931.GA9698@cmpxchg.org> <20170108000737.q3ukpnils5iifulg@codemonkey.org.uk>
+ <alpine.LSU.2.11.1701071626290.1664@eggly.anvils> <20170108020252.GB16312@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@codemonkey.org.uk>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org
 
-On Sun, 8 Jan 2017, Aneesh Kumar K.V wrote:
-> Hugh Dickins <hughd@google.com> writes:
+On Sat, 7 Jan 2017, Johannes Weiner wrote:
+> On Sat, Jan 07, 2017 at 04:37:43PM -0800, Hugh Dickins wrote:
+> > On Sat, 7 Jan 2017, Dave Jones wrote:
+> > > On Fri, Jan 06, 2017 at 08:19:31PM -0500, Johannes Weiner wrote:
+> > > 
+> > >  > Argh, __radix_tree_delete_node() makes the flawed assumption that only
+> > >  > the immediate branch it's mucking with can collapse. But this warning
+> > >  > points out that a sibling branch can collapse too, including its leaf.
+> > >  > 
+> > >  > Can you try if this patch fixes the problem?
+> > > 
+> > > 18 hours and still running.. I think we can call it good.
+> > 
+> > I'm inclined to agree, though I haven't had it running long enough
+> > (on a load like when it hit me a few times before) to be sure yet myself.
+> > I'd rather see the proposed fix go in than wait longer for me:
+> > I've certainly seen nothing bad from it yet.
 > 
-> > And fix a separate pagetable leak, or crash, introduced by the same
-> > change, that could only show up on some ppc64: why does do_set_pmd()'s
-> > failure case attempt to withdraw a pagetable when it never deposited
-> > one, at the same time overwriting (so leaking) the vmf->prealloc_pte?
-> > Residue of an earlier implementation, perhaps?  Delete it.
-> 
-> That change is part of -mm tree.
-> 
-> https://lkml.kernel.org/r/20161212163428.6780-1-aneesh.kumar@linux.vnet.ibm.com
+> Thank you both!
 
-Ah, so it is, I hadn't looked there.  That's reassuring,
-I'm glad to know you reached the same conclusion on that piece of code.
-
-It still worried me that the fix is languishing in mmotm, but it looks
-not lost: akpm would have sent it in a couple of days anyway, and only
-affected ppc64 (like the related khugepaged patch you have queued there).
-
-> 
-> >
-> > Fixes: 953c66c2b22a ("mm: THP page cache support for ppc64")
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> 
-> 
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-Thanks, and to Linus, who already has this in for -rc3: so akpm can drop
-mm-thp-pagecache-only-withdraw-page-table-after-a-successful-deposit.patch
-and then later send in your
-mm-thp-pagecache-collapse-free-the-pte-page-table-on-collapse-for-thp-page-cache.patch
+Been running successfully for 36 and 24 hours on two machines, each with
+a different load that showed it much sooner before: I too call it good,
+and thanks to Dave and you and Linus for getting the fix in for -rc3.
 
 Hugh
 
