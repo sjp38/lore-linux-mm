@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 243126B0261
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 09:25:40 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so15283702wms.7
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 06:25:40 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C6E9D6B0261
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 09:29:33 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id n3so80156962wjy.6
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 06:29:33 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k129si10294274wmb.68.2017.01.09.06.25.38
+        by mx.google.com with ESMTPS id b26si8357579wra.300.2017.01.09.06.29.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Jan 2017 06:25:38 -0800 (PST)
-Date: Mon, 9 Jan 2017 15:25:36 +0100
+        Mon, 09 Jan 2017 06:29:32 -0800 (PST)
+Date: Mon, 9 Jan 2017 15:29:30 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/8] xfs: use memalloc_nofs_{save,restore} instead of
- memalloc_noio*
-Message-ID: <20170109142536.GK7495@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/8] xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+Message-ID: <20170109142930.GL7495@dhcp22.suse.cz>
 References: <20170106141107.23953-1-mhocko@kernel.org>
- <20170106141107.23953-5-mhocko@kernel.org>
- <18f9363f-144d-0bfd-5116-08d5f4648869@suse.cz>
+ <20170106141107.23953-3-mhocko@kernel.org>
+ <bf7594a9-7e1a-0895-2d0e-df1f27502db1@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <18f9363f-144d-0bfd-5116-08d5f4648869@suse.cz>
+In-Reply-To: <bf7594a9-7e1a-0895-2d0e-df1f27502db1@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 09-01-17 15:08:27, Vlastimil Babka wrote:
+On Mon 09-01-17 13:59:05, Vlastimil Babka wrote:
 > On 01/06/2017 03:11 PM, Michal Hocko wrote:
 > > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > kmem_zalloc_large and _xfs_buf_map_pages use memalloc_noio_{save,restore}
-> > API to prevent from reclaim recursion into the fs because vmalloc can
-> > invoke unconditional GFP_KERNEL allocations and these functions might be
-> > called from the NOFS contexts. The memalloc_noio_save will enforce
-> > GFP_NOIO context which is even weaker than GFP_NOFS and that seems to be
-> > unnecessary. Let's use memalloc_nofs_{save,restore} instead as it should
-> > provide exactly what we need here - implicit GFP_NOFS context.
+> > xfs has defined PF_FSTRANS to declare a scope GFP_NOFS semantic quite
+> > some time ago. We would like to make this concept more generic and use
+> > it for other filesystems as well. Let's start by giving the flag a
+> > more generic name PF_MEMALLOC_NOFS which is in line with an exiting
+> > PF_MEMALLOC_NOIO already used for the same purpose for GFP_NOIO
+> > contexts. Replace all PF_FSTRANS usage from the xfs code in the first
+> > step before we introduce a full API for it as xfs uses the flag directly
+> > anyway.
 > > 
-> > Changes since v1
-> > - s@memalloc_noio_restore@memalloc_nofs_restore@ in _xfs_buf_map_pages
-> >   as per Brian Foster
+> > This patch doesn't introduce any functional change.
 > > 
 > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Not a xfs expert, but seems correct.
+> > Reviewed-by: Brian Foster <bfoster@redhat.com>
 > 
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 Thanks!
 
 > 
-> Nit below:
+> A nit:
 > 
-> > ---
-> >  fs/xfs/kmem.c    | 10 +++++-----
-> >  fs/xfs/xfs_buf.c |  8 ++++----
-> >  2 files changed, 9 insertions(+), 9 deletions(-)
-> > 
-> > diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> > index a76a05dae96b..d69ed5e76621 100644
-> > --- a/fs/xfs/kmem.c
-> > +++ b/fs/xfs/kmem.c
-> > @@ -65,7 +65,7 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
-> >  void *
-> >  kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
-> >  {
-> > -	unsigned noio_flag = 0;
-> > +	unsigned nofs_flag = 0;
-> >  	void	*ptr;
-> >  	gfp_t	lflags;
+> > --- a/include/linux/sched.h
+> > +++ b/include/linux/sched.h
+> > @@ -2320,6 +2320,8 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+> >  #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
+> >  #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
 > >  
-> > @@ -80,14 +80,14 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
-> >  	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
-> >  	 * the filesystem here and potentially deadlocking.
+> > +#define PF_MEMALLOC_NOFS PF_FSTRANS	/* Transition to a more generic GFP_NOFS scope semantic */
 > 
-> The comment above is now largely obsolete, or minimally should be
-> changed to PF_MEMALLOC_NOFS?
----
-diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-index d69ed5e76621..0c9f94f41b6c 100644
---- a/fs/xfs/kmem.c
-+++ b/fs/xfs/kmem.c
-@@ -77,7 +77,7 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
- 	 * __vmalloc() will allocate data pages and auxillary structures (e.g.
- 	 * pagetables) with GFP_KERNEL, yet we may be under GFP_NOFS context
- 	 * here. Hence we need to tell memory reclaim that we are in such a
--	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
-+	 * context via PF_MEMALLOC_NOFS to prevent memory reclaim re-entering
- 	 * the filesystem here and potentially deadlocking.
- 	 */
- 	if (flags & KM_NOFS)
+> I don't see why this transition is needed, as there are already no users
+> of PF_FSTRANS after this patch. The next patch doesn't remove any more,
+> so this is just extra churn IMHO. But not a strong objection.
 
-I will fold it into the original patch.
+I just wanted to have this transparent for the xfs in this patch.
+AFAIR Dave wanted to have xfs and generic parts separated. So it was the
+easiest to simply keep the flag and then remove it in a separate patach.
 
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
