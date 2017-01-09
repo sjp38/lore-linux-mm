@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF4F06B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 01:15:35 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id d201so85668682qkg.2
-        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 22:15:35 -0800 (PST)
-Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
-        by mx.google.com with ESMTPS id c41si3965178qtc.80.2017.01.08.22.15.28
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D4CB86B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 03:51:02 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so13611271wmi.6
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 00:51:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f10si96101182wjn.46.2017.01.09.00.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Jan 2017 22:15:28 -0800 (PST)
-Received: by mail-qt0-x241.google.com with SMTP id a29so13025012qtb.1
-        for <linux-mm@kvack.org>; Sun, 08 Jan 2017 22:15:28 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Jan 2017 00:51:00 -0800 (PST)
+Date: Mon, 9 Jan 2017 09:50:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: support __GFP_REPEAT in kvmalloc_node
+Message-ID: <20170109085057.GB7495@dhcp22.suse.cz>
+References: <20170102133700.1734-1-mhocko@kernel.org>
+ <20170104181229.GB10183@dhcp22.suse.cz>
+ <49b2c2de-5d50-1f61-5ddf-e72c52017534@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <4fbd559b-b4f2-2c89-3024-5d1137ff170d@linaro.org>
-References: <20161216165437.21612-1-rrichter@cavium.com> <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
- <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org> <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
- <CACJhumfqWkXXpbJomjJ1jM5B3kG+1Jk9EvGWR50_u-AO1ySXfg@mail.gmail.com> <4fbd559b-b4f2-2c89-3024-5d1137ff170d@linaro.org>
-From: Prakash B <bjsprakash.linux@gmail.com>
-Date: Mon, 9 Jan 2017 11:45:28 +0530
-Message-ID: <CACJhumf4Ej4m5oPeVp1uKiYgk8LO-1W2L+ExhH6hti+yJXXnqA@mail.gmail.com>
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49b2c2de-5d50-1f61-5ddf-e72c52017534@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hanjun Guo <hanjun.guo@linaro.org>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Robert Richter <rrichter@cavium.com>, Mark Rutland <mark.rutland@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, David Daney <david.daney@cavium.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Russell King <linux@armlinux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, James Morse <james.morse@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kvm@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, linux-ext4@vger.kernel.org, Joe Perches <joe@perches.com>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
 
-Thanks Hanjun ,
+On Fri 06-01-17 13:09:36, Vlastimil Babka wrote:
+> On 01/04/2017 07:12 PM, Michal Hocko wrote:
+> > While checking opencoded users I've encountered that vhost code would
+> > really like to use kvmalloc with __GFP_REPEAT [1] so the following patch
+> > adds support for __GFP_REPEAT and converts both vhost users.
+> > 
+> > So currently I am sitting on 3 patches. I will wait for more feedback -
+> > especially about potential split ups or cleanups few more days and then
+> > repost the whole series.
+> > 
+> > [1] http://lkml.kernel.org/r/20170104150800.GO25453@dhcp22.suse.cz
+> > ---
+> > From 0b92e4d2e040524b878d4e7b9ee88fbad5284b33 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Wed, 4 Jan 2017 18:01:39 +0100
+> > Subject: [PATCH] mm: support __GFP_REPEAT in kvmalloc_node
+> > 
+> > vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+> > vhost_vsock because it would really like to prefer kmalloc to the
+> > vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+> > allocation to vmalloc") for more context. Michael Tsirkin has also
+> > noted:
+> > "
+> > __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+> > accesses are slowed down.  Allocation is not on data path, accesses are.
+> > "
+> > 
+> > Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+> > things to be careful about. First we should prevent from the OOM killer
+> > and so have to involve __GFP_NORETRY by default and secondly override
+> > __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+> > for !costly orders.
+> > 
+> > This patch shouldn't introduce any functional change.
+> 
+> Which is because the converted usages are always used for costly order,
+> right.
 
-
-On Mon, Jan 9, 2017 at 10:39 AM, Hanjun Guo <hanjun.guo@linaro.org> wrote:
-> Hi Prakash,
-> I didn't test "cpuset01" on D05 but according to the test in
-> Linaro, LTP full test is passed on D05 with Ard's 2 patches.
->
->>
->> Any idea what might be causing this issue.
->
->
-> Since it's not happening on D05, maybe it's related to
-> the firmware? (just a wild guess...)
->
-
- Used same firmware b/w 4.4 kernel and 4.9 (and   above kernels) .
-Test passed wtih 4.4 kernel and didn't generated  any crashes or
-dumps.
-
-If there is more observation I will  send a  mail  or I will start a
-separate mail thread.
-
-Thanks,
-Prakash B
+I have overlooked this remark previously. You are right. And I've
+updated the documentation and also the inline comment to be more
+explicit about this. We do not have a good way to support __GFP_REPEAT
+for !costly orders currently unfortunatelly. Maybe I should revive my
+__GFP_RETRY_MAYFAIL patch, this would be another user (outside of xfs
+which already wants something like that for KM_MAYFAIL.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
