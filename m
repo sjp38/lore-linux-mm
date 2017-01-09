@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E166F6B026A
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 12:00:38 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 80so41498082pfy.2
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 09:00:38 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d3si62579432plj.109.2017.01.09.09.00.37
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4671F6B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 12:45:15 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id n3so81076899wjy.6
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 09:45:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t10si10708053wmb.123.2017.01.09.09.45.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 09:00:37 -0800 (PST)
-Subject: Re: [HMM v15 01/16] mm/free_hot_cold_page: catch ZONE_DEVICE pages
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
- <1483721203-1678-2-git-send-email-jglisse@redhat.com>
- <20170109091952.GA9655@localhost.localdomain>
- <591ef5e3-54a9-da61-bca6-f30641bebe88@intel.com>
- <20170109165712.GA3058@redhat.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <de3ede24-c883-aa6c-c7de-e76f1d0931bc@intel.com>
-Date: Mon, 9 Jan 2017 09:00:34 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Jan 2017 09:45:14 -0800 (PST)
+Date: Mon, 9 Jan 2017 18:45:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: __GFP_REPEAT usage in fq_alloc_node
+Message-ID: <20170109174511.GA8306@dhcp22.suse.cz>
+References: <20170106152052.GS5556@dhcp22.suse.cz>
+ <CANn89i+QZs0cSPK21qMe6LXw+AeAMZ_tKEDUEnCsJ_cd+q0t-g@mail.gmail.com>
+ <20170106160743.GU5556@dhcp22.suse.cz>
+ <20170106161944.GW5556@dhcp22.suse.cz>
+ <20170109102219.GF7495@dhcp22.suse.cz>
+ <CANn89iKcHqyr=af2R7WyZRPawXt_bZkFAsbk0W_tkVt9VOGYFQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170109165712.GA3058@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANn89iKcHqyr=af2R7WyZRPawXt_bZkFAsbk0W_tkVt9VOGYFQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Eric Dumazet <edumazet@google.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 01/09/2017 08:57 AM, Jerome Glisse wrote:
-> On Mon, Jan 09, 2017 at 08:21:25AM -0800, Dave Hansen wrote:
->> On 01/09/2017 01:19 AM, Balbir Singh wrote:
->>>> +	/*
->>>> +	 * This should never happen ! Page from ZONE_DEVICE always must have an
->>>> +	 * active refcount. Complain about it and try to restore the refcount.
->>>> +	 */
->>>> +	if (is_zone_device_page(page)) {
->>>> +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
->>> This can be VM_BUG_ON_PAGE(1, page), hopefully the compiler does the right thing
->>> here. I suspect this should be a BUG_ON, independent of CONFIG_DEBUG_VM
->> BUG_ON() means "kill the machine dead".  Do we really want a guaranteed
->> dead machine if someone screws up their refcounting?
-> VM_BUG_ON_PAGE ok with you ? It is just a safety net, i can simply drop that
-> patch if people have too much feeling about it.
+On Mon 09-01-17 08:00:16, Eric Dumazet wrote:
+> On Mon, Jan 9, 2017 at 2:22 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > the changelog doesn't mention it but this, unlike other kvmalloc
+> > conversions is not without functional changes. The kmalloc part
+> > will be weaker than it is with the original code for !costly (<64kB)
+> > requests, because we are enforcing __GFP_NORETRY to break out from the
+> > page allocator which doesn't really fail such a small requests.
+> >
+> > Now the question is what those code paths really prefer. Do they really
+> > want to potentially loop in the page allocator and invoke the OOM killer
+> > when the memory is short/fragmeted? I mean we can get into a situation
+> > when no order-3 pages can be compacted and shooting the system down just
+> > for that reason sounds quite dangerous to me.
+> >
+> > So the main question is how hard should we try before falling back to
+> > vmalloc here?
+> 
+> This patch is fine :
+> 
+> 1) Default hash size is 1024 slots, 8192 bytes on 64bit arches.
 
-Enough distros turn on DEBUG_VM that there's basically no difference
-between VM_BUG_ON() and BUG_ON().
-
-I also think it would be much nicer if you buried the check in the
-allocator in a slow path somewhere instead of sticking it in one of the
-hottest paths in the whole kernel.
+What about those non-default configurations. Do they really want to
+invoke the OOM killer rather than fallback to the vmalloc?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
