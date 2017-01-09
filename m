@@ -1,147 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 361176B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 15:45:32 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id q186so99357159itb.0
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 12:45:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n195si10465383ita.23.2017.01.09.12.45.31
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CCCEC6B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 15:58:54 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id g49so38211932qta.0
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 12:58:54 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o36si12304075qta.179.2017.01.09.12.58.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 12:45:31 -0800 (PST)
-Date: Mon, 9 Jan 2017 21:45:24 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 2/4] page_pool: basic implementation of page_pool
-Message-ID: <20170109214524.534f53a8@redhat.com>
-In-Reply-To: <38d42210-de93-f16f-fa54-b149127fffeb@suse.cz>
-References: <20161220132444.18788.50875.stgit@firesoul>
-	<20161220132817.18788.64726.stgit@firesoul>
-	<52478d40-8c34-4354-c9d8-286020eb26a6@suse.cz>
-	<20170104120055.7b277609@redhat.com>
-	<38d42210-de93-f16f-fa54-b149127fffeb@suse.cz>
+        Mon, 09 Jan 2017 12:58:53 -0800 (PST)
+Date: Mon, 9 Jan 2017 12:58:33 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 2/8] xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+Message-ID: <20170109205833.GA14029@birch.djwong.org>
+References: <20170106141107.23953-1-mhocko@kernel.org>
+ <20170106141107.23953-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170106141107.23953-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Alexander Duyck <alexander.duyck@gmail.com>, willemdebruijn.kernel@gmail.com, netdev@vger.kernel.org, john.fastabend@gmail.com, Saeed Mahameed <saeedm@mellanox.com>, bjorn.topel@intel.com, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, Mel Gorman <mgorman@techsingularity.net>, brouer@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-
-On Mon, 9 Jan 2017 11:43:39 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
-
-> On 01/04/2017 12:00 PM, Jesper Dangaard Brouer wrote:
-> > 
-> > On Tue, 3 Jan 2017 17:07:49 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
-> >   
-> >> On 12/20/2016 02:28 PM, Jesper Dangaard Brouer wrote:  
-> >>> The focus in this patch is getting the API around page_pool figured out.
-> >>>
-> >>> The internal data structures for returning page_pool pages is not optimal.
-> >>> This implementation use ptr_ring for recycling, which is known not to scale
-> >>> in case of multiple remote CPUs releasing/returning pages.    
-> >>
-> >> Just few very quick impressions...
-> >>  
-> >>> A bulking interface into the page allocator is also left for later. (This
-> >>> requires cooperation will Mel Gorman, who just send me some PoC patches for this).
-> >>> ---  
-> > [...]  
-> >>> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> >>> index 4424784ac374..11b4d8fb280b 100644
-> >>> --- a/include/linux/mm.h
-> >>> +++ b/include/linux/mm.h  
-> > [...]  
-> >>> @@ -765,6 +766,11 @@ static inline void put_page(struct page *page)
-> >>>  {
-> >>>  	page = compound_head(page);
-> >>>
-> >>> +	if (PagePool(page)) {
-> >>> +		page_pool_put_page(page);
-> >>> +		return;
-> >>> +	}    
-> >>
-> >> Can't say I'm thrilled about a new page flag and a test in put_page().   
-> > 
-> > In patch 4/4, I'm scaling this back.  Avoiding to modify the inlined
-> > put_page(), by letting refcnt reach zero and catching pages belonging to
-> > a page_pool in __free_pages_ok() and free_hot_cold_page(). (Result
-> > in being more dependent on page-refcnt and loosing some performance).
-> > 
-> > Still needing a new page flag, or some other method of identifying when
-> > a page belongs to a page_pool.  
+On Fri, Jan 06, 2017 at 03:11:01PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> I see. I guess if all page pool pages were order>0 compound pages, you
-> could hook this to the existing compound_dtor functionality instead.
-
-The page_pool will support order>0 pages, but it is the order-0 case
-that is optimized for.
-
-
-> >> I don't know the full life cycle here, but isn't it that these pages
-> >> will be specifically allocated and used in page pool aware drivers,
-> >> so maybe they can be also specifically freed there without hooking to
-> >> the generic page refcount mechanism?  
-> > 
-> > Drivers are already manipulating refcnt, to "splitup" the page (to
-> > save memory) for storing more RX frames per page.  Which is something
-> > the page_pool still need to support. (XDP can request one page per
-> > packet and gain the direct recycle optimization and instead waste mem).
-> > 
-> > Notice, a page_pool aware driver doesn't handle the "free-side".  Free
-> > happens when the packet/page is being consumed, spliced or transmitted
-> > out another non-page_pool-aware NIC driver.  An interresting case is
-> > packet-page waiting for DMA TX completion (on another NIC), thus need
-> > to async-store info on page_pool and DMA-addr.
-> > 
-> > Could extend the SKB (with a page_pool pointer)... BUT it defeats the
-> > purpose of avoiding to allocate the SKB.  E.g. in the cases where XDP
-> > takes the route-decision and transmit/forward the "raw"-page (out
-> > another NIC or into a "raw" socket), then we don't have a meta-data
-> > structure to store this info in. Thus, this info is stored in struct
-> > page.  
+> xfs has defined PF_FSTRANS to declare a scope GFP_NOFS semantic quite
+> some time ago. We would like to make this concept more generic and use
+> it for other filesystems as well. Let's start by giving the flag a
+> more generic name PF_MEMALLOC_NOFS which is in line with an exiting
+> PF_MEMALLOC_NOIO already used for the same purpose for GFP_NOIO
+> contexts. Replace all PF_FSTRANS usage from the xfs code in the first
+> step before we introduce a full API for it as xfs uses the flag directly
+> anyway.
 > 
-> OK.
+> This patch doesn't introduce any functional change.
 > 
-> >>> +		 */
-> >>>  		struct address_space *mapping;	/* If low bit clear, points to
-> >>>  						 * inode address_space, or NULL.
-> >>>  						 * If page mapped as anonymous
-> >>> @@ -63,6 +69,7 @@ struct page {
-> >>>  	union {
-> >>>  		pgoff_t index;		/* Our offset within mapping. */
-> >>>  		void *freelist;		/* sl[aou]b first free object */
-> >>> +		dma_addr_t dma_addr;    /* used by page_pool */
-> >>>  		/* page_deferred_list().prev	-- second tail page */
-> >>>  	};
-> >>>
-> >>> @@ -117,6 +124,8 @@ struct page {
-> >>>  	 * avoid collision and false-positive PageTail().
-> >>>  	 */
-> >>>  	union {
-> >>> +		/* XXX: Idea reuse lru list, in page_pool to align with PCP */
-> >>> +
-> >>>  		struct list_head lru;	/* Pageout list, eg. active_list
-> >>>  					 * protected by zone_lru_lock !
-> >>>  					 * Can be used as a generic list  
-> > 
-> > Guess, I can move it here, as the page cannot be on the LRU-list, while
-> > being used (or VMA mapped). Right?  
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Brian Foster <bfoster@redhat.com>
+
+Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+
+> ---
+>  fs/xfs/kmem.c             |  4 ++--
+>  fs/xfs/kmem.h             |  2 +-
+>  fs/xfs/libxfs/xfs_btree.c |  2 +-
+>  fs/xfs/xfs_aops.c         |  6 +++---
+>  fs/xfs/xfs_trans.c        | 12 ++++++------
+>  include/linux/sched.h     |  2 ++
+>  6 files changed, 15 insertions(+), 13 deletions(-)
 > 
-> Well typically the VMA mapped pages are those on the LRU list (anonymous
-> or file). But I don't suppose you will want memory reclaim to free your
-> pages, so seems lru field should be reusable for you.
-
-Thanks for the info.
-
-So, LRU-list area could be reusable, but I does not align so well with
-the bulking API Mel just introduced/proposed, but still doable.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
+> index 339c696bbc01..a76a05dae96b 100644
+> --- a/fs/xfs/kmem.c
+> +++ b/fs/xfs/kmem.c
+> @@ -80,13 +80,13 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+>  	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
+>  	 * the filesystem here and potentially deadlocking.
+>  	 */
+> -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  		noio_flag = memalloc_noio_save();
+>  
+>  	lflags = kmem_flags_convert(flags);
+>  	ptr = __vmalloc(size, lflags | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
+>  
+> -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  		memalloc_noio_restore(noio_flag);
+>  
+>  	return ptr;
+> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+> index 689f746224e7..d973dbfc2bfa 100644
+> --- a/fs/xfs/kmem.h
+> +++ b/fs/xfs/kmem.h
+> @@ -50,7 +50,7 @@ kmem_flags_convert(xfs_km_flags_t flags)
+>  		lflags = GFP_ATOMIC | __GFP_NOWARN;
+>  	} else {
+>  		lflags = GFP_KERNEL | __GFP_NOWARN;
+> -		if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> +		if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+>  			lflags &= ~__GFP_FS;
+>  	}
+>  
+> diff --git a/fs/xfs/libxfs/xfs_btree.c b/fs/xfs/libxfs/xfs_btree.c
+> index 21e6a6ab6b9a..a2672ba4dc33 100644
+> --- a/fs/xfs/libxfs/xfs_btree.c
+> +++ b/fs/xfs/libxfs/xfs_btree.c
+> @@ -2866,7 +2866,7 @@ xfs_btree_split_worker(
+>  	struct xfs_btree_split_args	*args = container_of(work,
+>  						struct xfs_btree_split_args, work);
+>  	unsigned long		pflags;
+> -	unsigned long		new_pflags = PF_FSTRANS;
+> +	unsigned long		new_pflags = PF_MEMALLOC_NOFS;
+>  
+>  	/*
+>  	 * we are in a transaction context here, but may also be doing work
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index ef382bfb402b..d4094bb55033 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -189,7 +189,7 @@ xfs_setfilesize_trans_alloc(
+>  	 * We hand off the transaction to the completion thread now, so
+>  	 * clear the flag here.
+>  	 */
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	return 0;
+>  }
+>  
+> @@ -252,7 +252,7 @@ xfs_setfilesize_ioend(
+>  	 * thus we need to mark ourselves as being in a transaction manually.
+>  	 * Similarly for freeze protection.
+>  	 */
+> -	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	__sb_writers_acquired(VFS_I(ip)->i_sb, SB_FREEZE_FS);
+>  
+>  	/* we abort the update if there was an IO error */
+> @@ -1015,7 +1015,7 @@ xfs_do_writepage(
+>  	 * Given that we do not allow direct reclaim to call us, we should
+>  	 * never be called while in a filesystem transaction.
+>  	 */
+> -	if (WARN_ON_ONCE(current->flags & PF_FSTRANS))
+> +	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC_NOFS))
+>  		goto redirty;
+>  
+>  	/*
+> diff --git a/fs/xfs/xfs_trans.c b/fs/xfs/xfs_trans.c
+> index 70f42ea86dfb..f5969c8274fc 100644
+> --- a/fs/xfs/xfs_trans.c
+> +++ b/fs/xfs/xfs_trans.c
+> @@ -134,7 +134,7 @@ xfs_trans_reserve(
+>  	bool		rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
+>  
+>  	/* Mark this thread as being in a transaction */
+> -	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_set_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	/*
+>  	 * Attempt to reserve the needed disk blocks by decrementing
+> @@ -144,7 +144,7 @@ xfs_trans_reserve(
+>  	if (blocks > 0) {
+>  		error = xfs_mod_fdblocks(tp->t_mountp, -((int64_t)blocks), rsvd);
+>  		if (error != 0) {
+> -			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +			current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  			return -ENOSPC;
+>  		}
+>  		tp->t_blk_res += blocks;
+> @@ -221,7 +221,7 @@ xfs_trans_reserve(
+>  		tp->t_blk_res = 0;
+>  	}
+>  
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	return error;
+>  }
+> @@ -914,7 +914,7 @@ __xfs_trans_commit(
+>  
+>  	xfs_log_commit_cil(mp, tp, &commit_lsn, regrant);
+>  
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	xfs_trans_free(tp);
+>  
+>  	/*
+> @@ -944,7 +944,7 @@ __xfs_trans_commit(
+>  		if (commit_lsn == -1 && !error)
+>  			error = -EIO;
+>  	}
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  	xfs_trans_free_items(tp, NULLCOMMITLSN, !!error);
+>  	xfs_trans_free(tp);
+>  
+> @@ -998,7 +998,7 @@ xfs_trans_cancel(
+>  		xfs_log_done(mp, tp->t_ticket, NULL, false);
+>  
+>  	/* mark this thread as no longer being in a transaction */
+> -	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+> +	current_restore_flags_nested(&tp->t_pflags, PF_MEMALLOC_NOFS);
+>  
+>  	xfs_trans_free_items(tp, NULLCOMMITLSN, dirty);
+>  	xfs_trans_free(tp);
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 1531c48f56e2..abeb84604d32 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -2320,6 +2320,8 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+>  #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
+>  #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
+>  
+> +#define PF_MEMALLOC_NOFS PF_FSTRANS	/* Transition to a more generic GFP_NOFS scope semantic */
+> +
+>  /*
+>   * Only the _current_ task can read/write to tsk->flags, but other
+>   * tasks can access tsk->flags in readonly mode for example
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
