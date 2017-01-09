@@ -1,294 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 915FF6B0268
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 11:35:21 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so16003557wms.7
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 08:35:21 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id c63si10550138wmf.97.2017.01.09.08.35.19
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A6E6B0253
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 11:57:16 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id p189so94500160itg.2
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 08:57:15 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q70si9939761itc.67.2017.01.09.08.57.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 08:35:20 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id B12541C16FA
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 16:35:19 +0000 (GMT)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 4/4] mm, page_alloc: Add a bulk page allocator
-Date: Mon,  9 Jan 2017 16:35:18 +0000
-Message-Id: <20170109163518.6001-5-mgorman@techsingularity.net>
-In-Reply-To: <20170109163518.6001-1-mgorman@techsingularity.net>
-References: <20170109163518.6001-1-mgorman@techsingularity.net>
+        Mon, 09 Jan 2017 08:57:15 -0800 (PST)
+Date: Mon, 9 Jan 2017 11:57:12 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM v15 01/16] mm/free_hot_cold_page: catch ZONE_DEVICE pages
+Message-ID: <20170109165712.GA3058@redhat.com>
+References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
+ <1483721203-1678-2-git-send-email-jglisse@redhat.com>
+ <20170109091952.GA9655@localhost.localdomain>
+ <591ef5e3-54a9-da61-bca6-f30641bebe88@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <591ef5e3-54a9-da61-bca6-f30641bebe88@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mel Gorman <mgorman@techsingularity.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This patch adds a new page allocator interface via alloc_pages_bulk,
-__alloc_pages_bulk and __alloc_pages_bulk_nodemask. A caller requests a
-number of pages to be allocated and added to a list. They can be freed in
-bulk using free_pages_bulk(). Note that it would theoretically be possible
-to use free_hot_cold_page_list for faster frees if the symbol was exported,
-the refcounts were 0 and the caller guaranteed it was not in an interrupt.
-This would be significantly faster in the free path but also more unsafer
-and a harder API to use.
+On Mon, Jan 09, 2017 at 08:21:25AM -0800, Dave Hansen wrote:
+> On 01/09/2017 01:19 AM, Balbir Singh wrote:
+> >> +	/*
+> >> +	 * This should never happen ! Page from ZONE_DEVICE always must have an
+> >> +	 * active refcount. Complain about it and try to restore the refcount.
+> >> +	 */
+> >> +	if (is_zone_device_page(page)) {
+> >> +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
+> > This can be VM_BUG_ON_PAGE(1, page), hopefully the compiler does the right thing
+> > here. I suspect this should be a BUG_ON, independent of CONFIG_DEBUG_VM
+> 
+> BUG_ON() means "kill the machine dead".  Do we really want a guaranteed
+> dead machine if someone screws up their refcounting?
 
-The API is not guaranteed to return the requested number of pages and
-may fail if the preferred allocation zone has limited free memory, the
-cpuset changes during the allocation or page debugging decides to fail
-an allocation. It's up to the caller to request more pages in batch if
-necessary.
+VM_BUG_ON_PAGE ok with you ? It is just a safety net, i can simply drop that
+patch if people have too much feeling about it.
 
-The following compares the allocation cost per page for different batch
-sizes. The baseline is allocating them one at a time and it compares with
-the performance when using the new allocation interface.
-
-pagealloc
-                                          4.10.0-rc2                 4.10.0-rc2
-                                       one-at-a-time                    bulk-v2
-Amean    alloc-odr0-1               259.54 (  0.00%)           106.62 ( 58.92%)
-Amean    alloc-odr0-2               193.38 (  0.00%)            76.38 ( 60.50%)
-Amean    alloc-odr0-4               162.38 (  0.00%)            57.23 ( 64.76%)
-Amean    alloc-odr0-8               144.31 (  0.00%)            48.77 ( 66.20%)
-Amean    alloc-odr0-16              134.08 (  0.00%)            45.38 ( 66.15%)
-Amean    alloc-odr0-32              128.62 (  0.00%)            42.77 ( 66.75%)
-Amean    alloc-odr0-64              126.00 (  0.00%)            41.00 ( 67.46%)
-Amean    alloc-odr0-128             125.00 (  0.00%)            40.08 ( 67.94%)
-Amean    alloc-odr0-256             136.62 (  0.00%)            56.00 ( 59.01%)
-Amean    alloc-odr0-512             152.00 (  0.00%)            69.00 ( 54.61%)
-Amean    alloc-odr0-1024            158.00 (  0.00%)            76.23 ( 51.75%)
-Amean    alloc-odr0-2048            163.00 (  0.00%)            81.15 ( 50.21%)
-Amean    alloc-odr0-4096            169.77 (  0.00%)            85.92 ( 49.39%)
-Amean    alloc-odr0-8192            170.00 (  0.00%)            88.00 ( 48.24%)
-Amean    alloc-odr0-16384           170.00 (  0.00%)            89.00 ( 47.65%)
-Amean    free-odr0-1                 88.69 (  0.00%)            55.69 ( 37.21%)
-Amean    free-odr0-2                 66.00 (  0.00%)            49.38 ( 25.17%)
-Amean    free-odr0-4                 54.23 (  0.00%)            45.38 ( 16.31%)
-Amean    free-odr0-8                 48.23 (  0.00%)            44.23 (  8.29%)
-Amean    free-odr0-16                47.00 (  0.00%)            45.00 (  4.26%)
-Amean    free-odr0-32                44.77 (  0.00%)            43.92 (  1.89%)
-Amean    free-odr0-64                44.00 (  0.00%)            43.00 (  2.27%)
-Amean    free-odr0-128               43.00 (  0.00%)            43.00 (  0.00%)
-Amean    free-odr0-256               60.69 (  0.00%)            60.46 (  0.38%)
-Amean    free-odr0-512               79.23 (  0.00%)            76.00 (  4.08%)
-Amean    free-odr0-1024              86.00 (  0.00%)            85.38 (  0.72%)
-Amean    free-odr0-2048              91.00 (  0.00%)            91.23 ( -0.25%)
-Amean    free-odr0-4096              94.85 (  0.00%)            95.62 ( -0.81%)
-Amean    free-odr0-8192              97.00 (  0.00%)            97.00 (  0.00%)
-Amean    free-odr0-16384             98.00 (  0.00%)            97.46 (  0.55%)
-Amean    total-odr0-1               348.23 (  0.00%)           162.31 ( 53.39%)
-Amean    total-odr0-2               259.38 (  0.00%)           125.77 ( 51.51%)
-Amean    total-odr0-4               216.62 (  0.00%)           102.62 ( 52.63%)
-Amean    total-odr0-8               192.54 (  0.00%)            93.00 ( 51.70%)
-Amean    total-odr0-16              181.08 (  0.00%)            90.38 ( 50.08%)
-Amean    total-odr0-32              173.38 (  0.00%)            86.69 ( 50.00%)
-Amean    total-odr0-64              170.00 (  0.00%)            84.00 ( 50.59%)
-Amean    total-odr0-128             168.00 (  0.00%)            83.08 ( 50.55%)
-Amean    total-odr0-256             197.31 (  0.00%)           116.46 ( 40.97%)
-Amean    total-odr0-512             231.23 (  0.00%)           145.00 ( 37.29%)
-Amean    total-odr0-1024            244.00 (  0.00%)           161.62 ( 33.76%)
-Amean    total-odr0-2048            254.00 (  0.00%)           172.38 ( 32.13%)
-Amean    total-odr0-4096            264.62 (  0.00%)           181.54 ( 31.40%)
-Amean    total-odr0-8192            267.00 (  0.00%)           185.00 ( 30.71%)
-Amean    total-odr0-16384           268.00 (  0.00%)           186.46 ( 30.42%)
-
-It shows a roughly 50-60% reduction in the cost of allocating pages.
-The free paths are not improved as much but relatively little can be batched
-there. It's not quite as fast as it could be but taking further shortcuts
-would require making a lot of assumptions about the state of the page and
-the context of the caller.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/gfp.h |  24 +++++++++++
- mm/page_alloc.c     | 116 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 139 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 4175dca4ac39..b2fe171ee1c4 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -433,6 +433,29 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
- 	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
- }
- 
-+unsigned long
-+__alloc_pages_bulk_nodemask(gfp_t gfp_mask, unsigned int order,
-+			struct zonelist *zonelist, nodemask_t *nodemask,
-+			unsigned long nr_pages, struct list_head *alloc_list);
-+
-+static inline unsigned long
-+__alloc_pages_bulk(gfp_t gfp_mask, unsigned int order,
-+		struct zonelist *zonelist, unsigned long nr_pages,
-+		struct list_head *list)
-+{
-+	return __alloc_pages_bulk_nodemask(gfp_mask, order, zonelist, NULL,
-+						nr_pages, list);
-+}
-+
-+static inline unsigned long
-+alloc_pages_bulk(gfp_t gfp_mask, unsigned int order,
-+		unsigned long nr_pages, struct list_head *list)
-+{
-+	int nid = numa_mem_id();
-+	return __alloc_pages_bulk(gfp_mask, order,
-+			node_zonelist(nid, gfp_mask), nr_pages, list);
-+}
-+
- /*
-  * Allocate pages, preferring the node given as nid. The node must be valid and
-  * online. For more general interface, see alloc_pages_node().
-@@ -504,6 +527,7 @@ extern void __free_pages(struct page *page, unsigned int order);
- extern void free_pages(unsigned long addr, unsigned int order);
- extern void free_hot_cold_page(struct page *page, bool cold);
- extern void free_hot_cold_page_list(struct list_head *list, bool cold);
-+extern void free_pages_bulk(struct list_head *list);
- 
- struct page_frag_cache;
- extern void __page_frag_drain(struct page *page, unsigned int order,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 232cadbe9231..4f142270fbf0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2485,7 +2485,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- }
- 
- /*
-- * Free a list of 0-order pages
-+ * Free a list of 0-order pages whose reference count is already zero.
-  */
- void free_hot_cold_page_list(struct list_head *list, bool cold)
- {
-@@ -2495,7 +2495,28 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- 		trace_mm_page_free_batched(page, cold);
- 		free_hot_cold_page(page, cold);
- 	}
-+
-+	INIT_LIST_HEAD(list);
-+}
-+
-+/* Drop reference counts and free pages from a list */
-+void free_pages_bulk(struct list_head *list)
-+{
-+	struct page *page, *next;
-+	bool free_percpu = !in_interrupt();
-+
-+	list_for_each_entry_safe(page, next, list, lru) {
-+		trace_mm_page_free_batched(page, 0);
-+		if (put_page_testzero(page)) {
-+			list_del(&page->lru);
-+			if (free_percpu)
-+				free_hot_cold_page(page, false);
-+			else
-+				__free_pages_ok(page, 0);
-+		}
-+	}
- }
-+EXPORT_SYMBOL_GPL(free_pages_bulk);
- 
- /*
-  * split_page takes a non-compound higher-order page, and splits it into
-@@ -3887,6 +3908,99 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- EXPORT_SYMBOL(__alloc_pages_nodemask);
- 
- /*
-+ * This is a batched version of the page allocator that attempts to
-+ * allocate nr_pages quickly from the preferred zone and add them to list.
-+ * Note that there is no guarantee that nr_pages will be allocated although
-+ * every effort will be made to allocate at least one. Unlike the core
-+ * allocator, no special effort is made to recover from transient
-+ * failures caused by changes in cpusets. It should only be used from !IRQ
-+ * context. An attempt to allocate a batch of patches from an interrupt
-+ * will allocate a single page.
-+ */
-+unsigned long
-+__alloc_pages_bulk_nodemask(gfp_t gfp_mask, unsigned int order,
-+			struct zonelist *zonelist, nodemask_t *nodemask,
-+			unsigned long nr_pages, struct list_head *alloc_list)
-+{
-+	struct page *page;
-+	unsigned long alloced = 0;
-+	unsigned int alloc_flags = ALLOC_WMARK_LOW;
-+	struct zone *zone;
-+	struct per_cpu_pages *pcp;
-+	struct list_head *pcp_list;
-+	int migratetype;
-+	gfp_t alloc_mask = gfp_mask; /* The gfp_t that was actually used for allocation */
-+	struct alloc_context ac = { };
-+	bool cold = ((gfp_mask & __GFP_COLD) != 0);
-+
-+	/* If there are already pages on the list, don't bother */
-+	if (!list_empty(alloc_list))
-+		return 0;
-+
-+	/* Only handle bulk allocation of order-0 */
-+	if (order || in_interrupt())
-+		goto failed;
-+
-+	gfp_mask &= gfp_allowed_mask;
-+	if (!prepare_alloc_pages(gfp_mask, order, zonelist, nodemask, &ac, &alloc_mask, &alloc_flags))
-+		return 0;
-+
-+	finalise_ac(gfp_mask, order, &ac);
-+	if (!ac.preferred_zoneref)
-+		return 0;
-+
-+	/*
-+	 * Only attempt a batch allocation if watermarks on the preferred zone
-+	 * are safe.
-+	 */
-+	zone = ac.preferred_zoneref->zone;
-+	if (!zone_watermark_fast(zone, order, zone->watermark[ALLOC_WMARK_HIGH] + nr_pages,
-+				 zonelist_zone_idx(ac.preferred_zoneref), alloc_flags))
-+		goto failed;
-+
-+	/* Attempt the batch allocation */
-+	migratetype = ac.migratetype;
-+
-+	preempt_disable();
-+	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-+	pcp_list = &pcp->lists[migratetype];
-+
-+	while (nr_pages) {
-+		page = __rmqueue_pcplist(zone, order, gfp_mask, migratetype,
-+								cold, pcp, pcp_list);
-+		if (!page)
-+			break;
-+
-+		prep_new_page(page, order, gfp_mask, 0);
-+		nr_pages--;
-+		alloced++;
-+		list_add(&page->lru, alloc_list);
-+	}
-+
-+	if (!alloced) {
-+		preempt_enable_no_resched();
-+		goto failed;
-+	}
-+
-+	__count_zid_vm_events(PGALLOC, zone_idx(zone), alloced);
-+	zone_statistics(zone, zone, gfp_mask);
-+
-+	preempt_enable_no_resched();
-+
-+	return alloced;
-+
-+failed:
-+	page = __alloc_pages_nodemask(gfp_mask, order, zonelist, nodemask);
-+	if (page) {
-+		alloced++;
-+		list_add(&page->lru, alloc_list);
-+	}
-+
-+	return alloced;
-+}
-+EXPORT_SYMBOL(__alloc_pages_bulk_nodemask);
-+
-+/*
-  * Common helper functions.
-  */
- unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
--- 
-2.11.0
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
