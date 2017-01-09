@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A826B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 12:58:59 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 67so70596659ioh.1
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 09:58:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 19si6457715iof.183.2017.01.09.09.58.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 09:58:59 -0800 (PST)
-Date: Mon, 9 Jan 2017 12:58:56 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v15 01/16] mm/free_hot_cold_page: catch ZONE_DEVICE pages
-Message-ID: <20170109175856.GB3058@redhat.com>
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
- <1483721203-1678-2-git-send-email-jglisse@redhat.com>
- <20170109091952.GA9655@localhost.localdomain>
- <591ef5e3-54a9-da61-bca6-f30641bebe88@intel.com>
- <20170109165712.GA3058@redhat.com>
- <de3ede24-c883-aa6c-c7de-e76f1d0931bc@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <de3ede24-c883-aa6c-c7de-e76f1d0931bc@intel.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A81D6B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 14:49:02 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id b1so1777657264pgc.5
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 11:49:02 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTP id s11si89622927pgc.259.2017.01.09.11.49.00
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jan 2017 11:49:01 -0800 (PST)
+Date: Mon, 09 Jan 2017 14:48:59 -0500 (EST)
+Message-Id: <20170109.144859.1717139396935735509.davem@davemloft.net>
+Subject: Re: Crash in -next due to 'mm/vmalloc: replace opencoded 4-level
+ page walkers'
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20170109113707.GQ19067@nuc-i3427.alporthouse.com>
+References: <20161028171825.GA15116@roeck-us.net>
+	<20170109113707.GQ19067@nuc-i3427.alporthouse.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: chris@chris-wilson.co.uk
+Cc: linux@roeck-us.net, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 09, 2017 at 09:00:34AM -0800, Dave Hansen wrote:
-> On 01/09/2017 08:57 AM, Jerome Glisse wrote:
-> > On Mon, Jan 09, 2017 at 08:21:25AM -0800, Dave Hansen wrote:
-> >> On 01/09/2017 01:19 AM, Balbir Singh wrote:
-> >>>> +	/*
-> >>>> +	 * This should never happen ! Page from ZONE_DEVICE always must have an
-> >>>> +	 * active refcount. Complain about it and try to restore the refcount.
-> >>>> +	 */
-> >>>> +	if (is_zone_device_page(page)) {
-> >>>> +		VM_BUG_ON_PAGE(is_zone_device_page(page), page);
-> >>> This can be VM_BUG_ON_PAGE(1, page), hopefully the compiler does the right thing
-> >>> here. I suspect this should be a BUG_ON, independent of CONFIG_DEBUG_VM
-> >> BUG_ON() means "kill the machine dead".  Do we really want a guaranteed
-> >> dead machine if someone screws up their refcounting?
-> > VM_BUG_ON_PAGE ok with you ? It is just a safety net, i can simply drop that
-> > patch if people have too much feeling about it.
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Date: Mon, 9 Jan 2017 11:37:07 +0000
+
+> Could some mm expert explain why it is safe for mm/vmalloc.c to ignore
+> huge pud/pmd that raise BUG_ON in the same code in mm/memory.c
+> (vmap_pmd_range() vs apply_to_pmd_range())?
 > 
-> Enough distros turn on DEBUG_VM that there's basically no difference
-> between VM_BUG_ON() and BUG_ON().
-> 
-> I also think it would be much nicer if you buried the check in the
-> allocator in a slow path somewhere instead of sticking it in one of the
-> hottest paths in the whole kernel.
+> At a guess, is sparc64 covering the init_mm with a huge zero page? How
+> is it then meant to be split? Something like
 
-Well i will just drop that patch then. The point was to catch error
-early on before anything happen. This is just a safety net so not
-fundamental.
+We map the linear physical area (PAGE_OFFSET --> PAGE_OFFSET +
+max_phys_addr) using huge pages unless DEBUG_PAGEALLOC is enabled.
 
-Cheers,
-Jerome
+It is not meant to be split, and that's why we don't use huge pages
+when DEBUG_PAGEALLOC is set since that requires changes to the mapping
+to be possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
