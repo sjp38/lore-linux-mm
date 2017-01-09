@@ -1,73 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A32716B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 04:58:31 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id t20so13536119wju.5
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 01:58:31 -0800 (PST)
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF9F6B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 05:04:16 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id wr1so2797810wjc.7
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 02:04:16 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gj1si16007802wjb.239.2017.01.09.01.58.30
+        by mx.google.com with ESMTPS id y22si9806850wmh.29.2017.01.09.02.04.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Jan 2017 01:58:30 -0800 (PST)
-Date: Mon, 9 Jan 2017 10:58:28 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: weird allocation pattern in alloc_ila_locks
-Message-ID: <20170109095828.GE7495@dhcp22.suse.cz>
-References: <20170106095115.GG5556@dhcp22.suse.cz>
- <20170106100433.GH5556@dhcp22.suse.cz>
- <20170106121642.GJ5556@dhcp22.suse.cz>
- <1483740889.9712.44.camel@edumazet-glaptop3.roam.corp.google.com>
- <20170107092746.GC5047@dhcp22.suse.cz>
- <CANn89iL7JTkV_r9Wqqcrsz1GJmTfWtxD1TUV1YOKsv3rwN-+vQ@mail.gmail.com>
+        Mon, 09 Jan 2017 02:04:14 -0800 (PST)
+Subject: Re: [patch] mm, thp: add new background defrag option
+References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
+ <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
+ <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
+ <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
+ <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+ <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
+Date: Mon, 9 Jan 2017 11:04:11 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANn89iL7JTkV_r9Wqqcrsz1GJmTfWtxD1TUV1YOKsv3rwN-+vQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <edumazet@google.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Tom Herbert <tom@herbertland.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat 07-01-17 10:37:41, Eric Dumazet wrote:
-> On Sat, Jan 7, 2017 at 1:27 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Fri 06-01-17 14:14:49, Eric Dumazet wrote:
+On 01/06/2017 11:20 PM, David Rientjes wrote:
+> On Fri, 6 Jan 2017, Vlastimil Babka wrote:
 > 
-> >> I believe the intent was to get NUMA spreading, a bit like what we have
-> >> in alloc_large_system_hash() when hashdist == HASHDIST_DEFAULT
-> >
-> > Hmm, I am not sure this works as expected then. Because it is more
-> > likely that all pages backing the vmallocked area will come from the
-> > local node than spread around more nodes. Or did I miss your point?
+>> Deciding between "defer" and "background" is however confusing, and also
+>> doesn't indicate that the difference is related to madvise.
+>>
 > 
-> Well, you missed that vmalloc() is aware of NUMA policies.
+> Any suggestions for a better name for "background" are more than welcome.  
 
-You are right. I have missed that alloc_page ends up using
-alloc_pages_current for CONFIG_NUMA rather than alloc_pages_node.
+Why not just "madvise+defer"?
 
-> If current process has requested interleave on 2 nodes (as it is done
-> at boot time on a dual node system),
-> then vmalloc() of 8 pages will allocate 4 pages on each node.
+>> I don't like bikesheding, but as this is about user-space API, more care
+>> should be taken than for implementation details that can change. Even
+>> though realistically there will be in 99% of cases only two groups of
+>> users setting this
+>> - experts like you who know what they are doing, and confusing names
+>> won't prevent them from making the right choice
+>> - people who will blindly copy/paste from the future cargo-cult websites
+>> (if they ever get updated from the enabled="never" recommendations), who
+>> likely won't stop and think about the other options.
+>>
+> 
+> I think the far majority will go with a third option: simply use the 
+> kernel default and be unaware of other settings or consider it to be the 
+> most likely choice solely because it is the kernel default.
 
-On the other hand alloc_ila_locks does go over a single page when
-lockdep is enabled and I am wondering whether doing this NUMA subtle
-magic is any win...
+Sure, my prediction was only about "users setting this" :) Agreed that
+those will be a small minority of all users.
 
-Also this seems to be an init code so I assume a modprobe would have to
-set a non-default policy to make use of it. Does anybody do that out
-there?
+[...]
 
-alloc_bucket_locks is a bit more complicated because it is not only
-called from the init context. But considering that rhashtable_shrink is
-called from the worker context - so no mem policy can be assumed then I
-am wondering whether the code really works as expected. To me it sounds
-like it is trying to be clever while the outcome doesn't really do what
-it is intended.
+> So whether it's better to do echo background or echo "madvise defer" is 
+> not important to me, I simply imagine that the combination will be more 
+> difficult to describe to users.  It would break our userspace to currently 
+> tests for "[madvise]" and reports that state as strictly madvise to our 
+> mission control, but I can work around that; not sure if others would 
+> encounter the same issue (would "[defer madvise]" or "[defer] [madvise]" 
+> break fewer userspaces?).
 
-Would you mind if I just convert it to kvmalloc and make it easier to
-understand?
--- 
-Michal Hocko
-SUSE Labs
+OK, well I'm reluctant to break existing userspace knowingly over such
+silliness. Also apparently sysfs files in general should accept only one
+value, so I'm not going to push my approach.
+
+> I'd leave it to Andrew to decide whether sysfs files should accept 
+> multiple modes or not.  If you are to propose a patch to do so, I'd 
+> encourage you to do the same cleanup of triple_flag_store() that I did and 
+> make the gfp mask construction more straight-forward.  If you'd like to 
+> suggest a different name for "background", I'd be happy to change that if 
+> it's more descriptive.
+
+Suggestion is above. I however think your cleanup isn't really needed,
+we can simply keep the existing 3 internal flags, and "madvise+defer"
+would enable two of them, like in my patch. Nothing says that internally
+each option should correspond to exactly one flag.
+
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
