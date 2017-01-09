@@ -1,140 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A5A206B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 08:40:22 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id f4so63769283qte.1
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:40:22 -0800 (PST)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id y53si12277426qta.198.2017.01.09.05.40.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 226406B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 08:42:15 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so15013969wmi.6
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:42:15 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id iz4si825567wjb.132.2017.01.09.05.42.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 05:40:21 -0800 (PST)
-Received: by mail-qk0-x243.google.com with SMTP id 11so6357420qkl.0
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:40:21 -0800 (PST)
-Message-ID: <1483969218.2609.2.camel@poochiereds.net>
-Subject: LSF/MM 2017: Call for Proposals closes January 15th
-From: Jeff Layton <jlayton@poochiereds.net>
-Date: Mon, 09 Jan 2017 08:40:18 -0500
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Jan 2017 05:42:13 -0800 (PST)
+Date: Mon, 9 Jan 2017 14:42:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/8] mm: introduce memalloc_nofs_{save,restore} API
+Message-ID: <20170109134210.GI7495@dhcp22.suse.cz>
+References: <20170106141107.23953-1-mhocko@kernel.org>
+ <20170106141107.23953-4-mhocko@kernel.org>
+ <86dbce74-a532-2f98-6a63-4dbad77b2aa1@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <86dbce74-a532-2f98-6a63-4dbad77b2aa1@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-block@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ide@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-scsi@vger.kernel.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, ceph-devel@vger.kernel.org, linux-nvme@lists.infradead.org
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-We initially sent this pretty early this year, so this is a resend in           
-case anyone missed the first posting. The call for topics and attendance        
-requests is open until January 15th, 2017.
+On Mon 09-01-17 14:04:21, Vlastimil Babka wrote:
+[...]
+> > +static inline unsigned int memalloc_nofs_save(void)
+> > +{
+> > +	unsigned int flags = current->flags & PF_MEMALLOC_NOFS;
+> > +	current->flags |= PF_MEMALLOC_NOFS;
+> 
+> So this is not new, as same goes for memalloc_noio_save, but I've
+> noticed that e.g. exit_signal() does tsk->flags |= PF_EXITING;
+> So is it possible that there's a r-m-w hazard here?
 
-The original message follows:
+exit_signals operates on current and all task_struct::flags should be
+used only on the current.
+[...]
 
-----------------------8<------------------------
+> > @@ -3029,7 +3029,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+> >  	int nid;
+> >  	struct scan_control sc = {
+> >  		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+> > -		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+> > +		.gfp_mask = (current_gfp_context(gfp_mask) & GFP_RECLAIM_MASK) |
+> 
+> So this function didn't do memalloc_noio_flags() before? Is it a bug
+> that should be fixed separately or at least mentioned? Because that
+> looks like a functional change...
 
-The annual Linux Storage, Filesystem and Memory Management (LSF/MM)
-Summit for 2017 will be held on March 20th and 21st at the Hyatt
-Cambridge, Cambridge, MA. LSF/MM is an invitation-only technical
-workshop to map out improvements to the Linux storage, filesystem and
-memory management subsystems that will make their way into the mainline
-kernel within the coming years.
+We didn't need it. Kmem charges are opt-in and current all of them
+support GFP_IO. The LRU pages are not charged in NOIO context either.
+We need it now because there will be callers to charge GFP_KERNEL while
+being inside the NOFS scope.
 
-A A A A http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
-
-Like last year, LSF/MM will be colocated with the Linux Foundation Vault
-conference which takes place on March 22nd and 23rd in the same Venue.
-For those that do not know, Vault is designed to be an event where open
-source storage and filesystem practitioners meet storage implementors
-and, as such, it would be of benefit for LSF/MM attendees to attend.
-
-Unlike past years, Vault admission is not free for LSF/MM attendees this
-year unless they're giving a talk. There is a discount for LSF/MM
-attendees, however we would also like to encourage folks to submit talk
-proposals to speak at the Vault conference.
-
-A A A A http://events.linuxfoundation.org/events/vault
-
-On behalf of the committee I am issuing a call for agenda proposals that
-are suitable for cross-track discussion as well as technical subjects
-for the breakout sessions.
-
-If advance notice is required for visa applications then please point
-that out in your proposal or request to attend, and submit the topic
-as soon as possible.
-
-1) Proposals for agenda topics should be sent before January 15th, 2016
-to:
-
-A A A A lsf-pc@lists.linux-foundation.org
-
-and cc the Linux list or lists that are relevant for the topic in
-question:
-
-A A A A ATA:A A A linux-ide@vger.kernel.org
-A A A A Block: linux-block@vger.kernel.org
-A A A A FS:A A A A linux-fsdevel@vger.kernel.org
-A A A A MM:A A A A linux-mm@kvack.org
-A A A A SCSI:A A linux-scsi@vger.kernel.org
-A A A A NVMe:A A linux-nvme@lists.infradead.org
-
-Please tag your proposal with [LSF/MM TOPIC] to make it easier to track.
-In addition, please make sure to start a new thread for each topic
-rather than following up to an existing one.A A Agenda topics and
-attendees will be selected by the program committee, but the final
-agenda will be formed by consensus of the attendees on the day.
-
-2) Requests to attend the summit for those that are not proposing a
-topic should be sent to:
-
-A A A A lsf-pc@lists.linux-foundation.org
-
-Please summarise what expertise you will bring to the meeting, and what
-you would like to discuss. Please also tag your email with [LSF/MM
-ATTEND] and send it as a new thread so there is less chance of it
-getting lost.
-
-We will try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes at
-the venue.
-
-Brief presentations are allowed to guide discussion, but are strongly
-discouraged. There will be no recording or audio bridge. However, we
-expect that written minutes will be published as we did in previous
-years:
-
-2016: https://lwn.net/Articles/lsfmm2016/
-
-2015: https://lwn.net/Articles/lsfmm2015/
-
-2014: http://lwn.net/Articles/LSFMM2014/
-
-2013: http://lwn.net/Articles/548089/
-
-3) If you have feedback on last year's meeting that we can use to
-improve this year's, please also send that to:
-
-A A A A lsf-pc@lists.linux-foundation.org
-
-Thank you on behalf of the program committee:
-
-Storage:
-A A A A James Bottomley
-A A A A Martin K. Petersen (track chair)
-A A A A Sagi Grimberg
-
-Filesystems:
-A A A A Anna Schumaker
-A A A A Chris Mason
-A A A A Eric Sandeen
-A A A A Jan Kara
-A A A A Jeff Layton (summit chair)
-A A A A Josef Bacik (track chair)
-A A A A Trond Myklebust
-
-MM:
-A A A A Johannes Weiner
-A A A A Rik van Riel (track chair)
+Now that you have opened this I have noticed that the code is wrong
+here because GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK would overwrite
+the removed GFP_FS. I guess it would be better and less error prone
+to move the current_gfp_context part into the direct reclaim entry -
+do_try_to_free_pages - and put the comment like this
+---
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4ea6b610f20e..df7975185f11 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2756,6 +2756,13 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	int initial_priority = sc->priority;
+ 	unsigned long total_scanned = 0;
+ 	unsigned long writeback_threshold;
++
++	/*
++	 * Make sure that the gfp context properly handles scope gfp mask.
++	 * This might weaken the reclaim context (e.g. make it GFP_NOFS or
++	 * GFP_NOIO).
++	 */
++	sc->gfp_mask = current_gfp_context(sc->gfp_mask);
+ retry:
+ 	delayacct_freepages_start();
+ 
+@@ -2949,7 +2956,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = gfp_mask,
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+ 		.order = order,
+ 		.nodemask = nodemask,
+@@ -3029,8 +3036,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	int nid;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+-		.gfp_mask = (current_gfp_context(gfp_mask) & GFP_RECLAIM_MASK) |
+-				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
++		.gfp_mask = GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK,
+ 		.reclaim_idx = MAX_NR_ZONES - 1,
+ 		.target_mem_cgroup = memcg,
+ 		.priority = DEF_PRIORITY,
+@@ -3723,7 +3729,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	int classzone_idx = gfp_zone(gfp_mask);
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+-		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
++		.gfp_mask = gfp_mask,
+ 		.order = order,
+ 		.priority = NODE_RECLAIM_PRIORITY,
+ 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
 -- 
-Jeff Layton <jlayton@poochiereds.net>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
