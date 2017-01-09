@@ -1,44 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F9A76B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 08:45:05 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so15047156wms.7
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:45:05 -0800 (PST)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id x10si8280779wrc.249.2017.01.09.05.45.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 162E76B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 08:59:06 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id k184so15288600wme.4
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:59:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t3si5567126wmd.79.2017.01.09.05.59.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 05:45:03 -0800 (PST)
-Received: by mail-wm0-x22b.google.com with SMTP id c85so98397836wmi.1
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 05:45:03 -0800 (PST)
-Date: Mon, 9 Jan 2017 13:45:02 +0000
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCH v2 2/2] efi: efi_mem_reserve(): don't reserve through
- memblock after mm_init()
-Message-ID: <20170109134502.GK16838@codeblueprint.co.uk>
-References: <20161222102340.2689-1-nicstange@gmail.com>
- <20161222102340.2689-2-nicstange@gmail.com>
- <20170105091242.GA11021@dhcp-128-65.nay.redhat.com>
- <20170109114400.GF16838@codeblueprint.co.uk>
- <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Jan 2017 05:59:04 -0800 (PST)
+Date: Mon, 9 Jan 2017 14:59:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/8] mm: introduce memalloc_nofs_{save,restore} API
+Message-ID: <20170109135901.GJ7495@dhcp22.suse.cz>
+References: <20170106141107.23953-1-mhocko@kernel.org>
+ <20170106141107.23953-4-mhocko@kernel.org>
+ <86dbce74-a532-2f98-6a63-4dbad77b2aa1@suse.cz>
+ <20170109134210.GI7495@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170109133152.2izkcrzgzinxdwux@techsingularity.net>
+In-Reply-To: <20170109134210.GI7495@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Dave Young <dyoung@redhat.com>, Nicolai Stange <nicstange@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org, Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 09 Jan, at 01:31:52PM, Mel Gorman wrote:
-> 
-> Well, you could put in a __init global variable about availability into
-> mm/memblock.c and then check it in memblock APIs like memblock_reserve()
-> to BUG_ON? I know BUG_ON is frowned upon but this is not likely to be a
-> situation that can be sensibly recovered.
+On Mon 09-01-17 14:42:10, Michal Hocko wrote:
+> On Mon 09-01-17 14:04:21, Vlastimil Babka wrote:
+[...]
+> Now that you have opened this I have noticed that the code is wrong
+> here because GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK would overwrite
+> the removed GFP_FS.
 
-Indeed. I've only ever seen this situation lead to silent memory
-corruption and bitter tears.
+Blee, it wouldn't because ~GFP_RECLAIM_MASK will not contain neither
+GFP_FS nor GFP_IO. So all is good here.
+
+> I guess it would be better and less error prone
+> to move the current_gfp_context part into the direct reclaim entry -
+> do_try_to_free_pages - and put the comment like this
+
+well, after more thinking about we, should probably keep it where it is.
+If for nothing else try_to_free_mem_cgroup_pages has a tracepoint which
+prints the gfp mask so we should use the filtered one. So let's just
+scratch this follow up fix.
+
+> ---
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4ea6b610f20e..df7975185f11 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2756,6 +2756,13 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  	int initial_priority = sc->priority;
+>  	unsigned long total_scanned = 0;
+>  	unsigned long writeback_threshold;
+> +
+> +	/*
+> +	 * Make sure that the gfp context properly handles scope gfp mask.
+> +	 * This might weaken the reclaim context (e.g. make it GFP_NOFS or
+> +	 * GFP_NOIO).
+> +	 */
+> +	sc->gfp_mask = current_gfp_context(sc->gfp_mask);
+>  retry:
+>  	delayacct_freepages_start();
+>  
+> @@ -2949,7 +2956,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  	unsigned long nr_reclaimed;
+>  	struct scan_control sc = {
+>  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+> -		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
+> +		.gfp_mask = gfp_mask,
+>  		.reclaim_idx = gfp_zone(gfp_mask),
+>  		.order = order,
+>  		.nodemask = nodemask,
+> @@ -3029,8 +3036,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+>  	int nid;
+>  	struct scan_control sc = {
+>  		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+> -		.gfp_mask = (current_gfp_context(gfp_mask) & GFP_RECLAIM_MASK) |
+> -				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
+> +		.gfp_mask = GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK,
+>  		.reclaim_idx = MAX_NR_ZONES - 1,
+>  		.target_mem_cgroup = memcg,
+>  		.priority = DEF_PRIORITY,
+> @@ -3723,7 +3729,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+>  	int classzone_idx = gfp_zone(gfp_mask);
+>  	struct scan_control sc = {
+>  		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+> -		.gfp_mask = (gfp_mask = current_gfp_context(gfp_mask)),
+> +		.gfp_mask = gfp_mask,
+>  		.order = order,
+>  		.priority = NODE_RECLAIM_PRIORITY,
+>  		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
