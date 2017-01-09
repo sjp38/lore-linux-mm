@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C9B986B0038
-	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 06:44:04 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id wr1so3219148wjc.7
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 03:44:04 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id iq8si66575973wjb.259.2017.01.09.03.44.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 11FC56B0038
+	for <linux-mm@kvack.org>; Mon,  9 Jan 2017 06:47:33 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so1928781118pgc.1
+        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 03:47:33 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t22si55075494plj.276.2017.01.09.03.47.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Jan 2017 03:44:03 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id c206so27813664wme.0
-        for <linux-mm@kvack.org>; Mon, 09 Jan 2017 03:44:03 -0800 (PST)
-Date: Mon, 9 Jan 2017 11:44:00 +0000
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCH v2 2/2] efi: efi_mem_reserve(): don't reserve through
- memblock after mm_init()
-Message-ID: <20170109114400.GF16838@codeblueprint.co.uk>
-References: <20161222102340.2689-1-nicstange@gmail.com>
- <20161222102340.2689-2-nicstange@gmail.com>
- <20170105091242.GA11021@dhcp-128-65.nay.redhat.com>
+        Mon, 09 Jan 2017 03:47:32 -0800 (PST)
+Date: Mon, 9 Jan 2017 12:47:52 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] stable-fixup: hotplug: fix unused function warning
+Message-ID: <20170109114752.GA12325@kroah.com>
+References: <20170109104811.1453295-1-arnd@arndb.de>
+ <20170109112918.GH7495@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170105091242.GA11021@dhcp-128-65.nay.redhat.com>
+In-Reply-To: <20170109112918.GH7495@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: Nicolai Stange <nicstange@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org, Mika =?iso-8859-1?Q?Penttil=E4?= <mika.penttila@nextfour.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, stable@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Yu Zhao <yuzhao@google.com>, linux-kernel@vger.kernel.org
 
-On Thu, 05 Jan, at 05:12:42PM, Dave Young wrote:
-> On 12/22/16 at 11:23am, Nicolai Stange wrote:
-> > Before invoking the arch specific handler, efi_mem_reserve() reserves
-> > the given memory region through memblock.
+On Mon, Jan 09, 2017 at 12:29:18PM +0100, Michal Hocko wrote:
+> On Mon 09-01-17 11:47:50, Arnd Bergmann wrote:
+> > The backport of upstream commit 777c6e0daebb ("hotplug: Make
+> > register and unregister notifier API symmetric") to linux-4.4.y
+> > introduced a harmless warning in 'allnoconfig' builds as spotted by
+> > kernelci.org:
 > > 
-> > efi_mem_reserve() can get called after mm_init() though -- through
-> > efi_bgrt_init(), for example. After mm_init(), memblock is dead and should
-> > not be used anymore.
+> > kernel/cpu.c:226:13: warning: 'cpu_notify_nofail' defined but not used [-Wunused-function]
 > 
-> It did not fail during previous test so we did not catch this bug, if memblock
-> can not be used after mm_init(), IMHO it should fail instead of silently succeed.
- 
-This must literally be the fifth time or so that I've been caught out
-by this over the years because there's no hard error if you call the
-memblock code after slab and co. are up.
+> Is this warning really worth bothering? Does any stable rely on warning
+> free builds?
 
-MM folks, is there some way to catch these errors without requiring
-the sprinkling of slab_is_available() everywhere?
+Yes, I watch it, it's a good indicator that I got a backport wrong.
 
-> Matt, can we move the efi_mem_reserve to earlier code for example in
-> efi_memblock_x86_reserve_range just after reserving the memmap?
- 
-No, it *needs* to be callable from efi_bgrt_init(), because you only
-want to reserve those regions if you have the BGRT driver available.
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
