@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 13DF46B025E
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 130606B0253
 	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:52:49 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id b22so729277466pfd.0
+Received: by mail-pf0-f199.google.com with SMTP id b22so729277464pfd.0
         for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:52:49 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id b69si3448151pli.91.2017.01.10.13.52.47
+        by mx.google.com with ESMTPS id 81si3419023pgc.257.2017.01.10.13.52.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 10 Jan 2017 13:52:48 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v4 3/7] dax: update MAINTAINERS entries for FS DAX
-Date: Tue, 10 Jan 2017 14:52:18 -0700
-Message-Id: <1484085142-2297-4-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v4 4/7] dax: add tracepoints to dax_pmd_load_hole()
+Date: Tue, 10 Jan 2017 14:52:19 -0700
+Message-Id: <1484085142-2297-5-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,35 +20,135 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Add the new include/trace/events/fs_dax.h tracepoint header, the existing
-include/linux/dax.h header, update Matthew's email address and add myself
-as a maintainer for filesystem DAX.
+Add tracepoints to dax_pmd_load_hole(), following the same logging
+conventions as the tracepoints in dax_iomap_pmd_fault().
+
+Here is an example PMD fault showing the new tracepoints:
+
+read_big-1478  [004] ....   238.242188: xfs_filemap_pmd_fault: dev 259:0
+ino 0x1003
+
+read_big-1478  [004] ....   238.242191: dax_pmd_fault: dev 259:0 ino 0x1003
+shared ALLOW_RETRY|KILLABLE|USER address 0x10400000 vm_start 0x10200000
+vm_end 0x10600000 pgoff 0x200 max_pgoff 0x1400
+
+read_big-1478  [004] ....   238.242390: dax_pmd_load_hole: dev 259:0 ino
+0x1003 shared address 0x10400000 zero_page ffffea0002c20000 radix_entry
+0x1e
+
+read_big-1478  [004] ....   238.242392: dax_pmd_fault_done: dev 259:0 ino
+0x1003 shared ALLOW_RETRY|KILLABLE|USER address 0x10400000 vm_start
+0x10200000 vm_end 0x10600000 pgoff 0x200 max_pgoff 0x1400 NOPAGE
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Suggested-by: Matthew Wilcox <mawilcox@microsoft.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
 ---
- MAINTAINERS | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ fs/dax.c                      | 14 ++++++++++----
+ include/trace/events/fs_dax.h | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 4 deletions(-)
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index c13a4f6..9fb35d7 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -3909,10 +3909,13 @@ S:	Maintained
- F:	drivers/i2c/busses/i2c-diolan-u2c.c
+diff --git a/fs/dax.c b/fs/dax.c
+index b719ecf..199a7e7 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1291,33 +1291,39 @@ static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
+ {
+ 	struct address_space *mapping = vma->vm_file->f_mapping;
+ 	unsigned long pmd_addr = address & PMD_MASK;
++	struct inode *inode = mapping->host;
+ 	struct page *zero_page;
++	void *ret = NULL;
+ 	spinlock_t *ptl;
+ 	pmd_t pmd_entry;
+-	void *ret;
  
- DIRECT ACCESS (DAX)
--M:	Matthew Wilcox <willy@linux.intel.com>
-+M:	Matthew Wilcox <mawilcox@microsoft.com>
-+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
- L:	linux-fsdevel@vger.kernel.org
- S:	Supported
- F:	fs/dax.c
-+F:	include/linux/dax.h
-+F:	include/trace/events/fs_dax.h
+ 	zero_page = mm_get_huge_zero_page(vma->vm_mm);
  
- DIRECTORY NOTIFICATION (DNOTIFY)
- M:	Eric Paris <eparis@parisplace.org>
+ 	if (unlikely(!zero_page))
+-		return VM_FAULT_FALLBACK;
++		goto fallback;
+ 
+ 	ret = dax_insert_mapping_entry(mapping, vmf, *entryp, 0,
+ 			RADIX_DAX_PMD | RADIX_DAX_HZP);
+ 	if (IS_ERR(ret))
+-		return VM_FAULT_FALLBACK;
++		goto fallback;
+ 	*entryp = ret;
+ 
+ 	ptl = pmd_lock(vma->vm_mm, pmd);
+ 	if (!pmd_none(*pmd)) {
+ 		spin_unlock(ptl);
+-		return VM_FAULT_FALLBACK;
++		goto fallback;
+ 	}
+ 
+ 	pmd_entry = mk_pmd(zero_page, vma->vm_page_prot);
+ 	pmd_entry = pmd_mkhuge(pmd_entry);
+ 	set_pmd_at(vma->vm_mm, pmd_addr, pmd, pmd_entry);
+ 	spin_unlock(ptl);
++	trace_dax_pmd_load_hole(inode, vma, address, zero_page, ret);
+ 	return VM_FAULT_NOPAGE;
++
++fallback:
++	trace_dax_pmd_load_hole_fallback(inode, vma, address, zero_page, ret);
++	return VM_FAULT_FALLBACK;
+ }
+ 
+ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
+index 58b0b56..43f1263 100644
+--- a/include/trace/events/fs_dax.h
++++ b/include/trace/events/fs_dax.h
+@@ -61,6 +61,48 @@ DEFINE_EVENT(dax_pmd_fault_class, name, \
+ DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
+ DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
+ 
++DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
++	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
++		unsigned long address, struct page *zero_page,
++		void *radix_entry),
++	TP_ARGS(inode, vma, address, zero_page, radix_entry),
++	TP_STRUCT__entry(
++		__field(unsigned long, ino)
++		__field(unsigned long, vm_flags)
++		__field(unsigned long, address)
++		__field(struct page *, zero_page)
++		__field(void *, radix_entry)
++		__field(dev_t, dev)
++	),
++	TP_fast_assign(
++		__entry->dev = inode->i_sb->s_dev;
++		__entry->ino = inode->i_ino;
++		__entry->vm_flags = vma->vm_flags;
++		__entry->address = address;
++		__entry->zero_page = zero_page;
++		__entry->radix_entry = radix_entry;
++	),
++	TP_printk("dev %d:%d ino %#lx %s address %#lx zero_page %p "
++			"radix_entry %#lx",
++		MAJOR(__entry->dev),
++		MINOR(__entry->dev),
++		__entry->ino,
++		__entry->vm_flags & VM_SHARED ? "shared" : "private",
++		__entry->address,
++		__entry->zero_page,
++		(unsigned long)__entry->radix_entry
++	)
++)
++
++#define DEFINE_PMD_LOAD_HOLE_EVENT(name) \
++DEFINE_EVENT(dax_pmd_load_hole_class, name, \
++	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
++		unsigned long address, struct page *zero_page, \
++		void *radix_entry), \
++	TP_ARGS(inode, vma, address, zero_page, radix_entry))
++
++DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
++DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
+ 
+ #endif /* _TRACE_FS_DAX_H */
+ 
 -- 
 2.7.4
 
