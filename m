@@ -1,157 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 154EB6B026E
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:36:35 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id t56so112550490qte.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:35 -0800 (PST)
-Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com. [209.85.220.172])
-        by mx.google.com with ESMTPS id h63si2267861qkc.102.2017.01.10.13.36.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F1A3C6B0033
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:52:47 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f144so227096376pfa.3
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:52:47 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id b69si3448151pli.91.2017.01.10.13.52.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 13:36:34 -0800 (PST)
-Received: by mail-qk0-f172.google.com with SMTP id 11so90664094qkl.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:34 -0800 (PST)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv7 11/11] arm64: Add support for CONFIG_DEBUG_VIRTUAL
-Date: Tue, 10 Jan 2017 13:35:50 -0800
-Message-Id: <1484084150-1523-12-git-send-email-labbott@redhat.com>
-In-Reply-To: <1484084150-1523-1-git-send-email-labbott@redhat.com>
-References: <1484084150-1523-1-git-send-email-labbott@redhat.com>
+        Tue, 10 Jan 2017 13:52:47 -0800 (PST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v4 0/7] DAX tracepoints, mm argument simplification
+Date: Tue, 10 Jan 2017 14:52:15 -0700
+Message-Id: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Florian Fainelli <f.fainelli@gmail.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
+Andrew,
 
-x86 has an option CONFIG_DEBUG_VIRTUAL to do additional checks
-on virt_to_phys calls. The goal is to catch users who are calling
-virt_to_phys on non-linear addresses immediately. This inclues callers
-using virt_to_phys on image addresses instead of __pa_symbol. As features
-such as CONFIG_VMAP_STACK get enabled for arm64, this becomes increasingly
-important. Add checks to catch bad virt_to_phys usage.
+This contains both my DAX tracepoint code and Dave Jiang's MM argument
+simplifications.  Dave's code was written with my tracepoint code as a
+baseline, so it seemed simplest to keep them together in a single series.
 
-Reviewed-by: Mark Rutland <mark.rutland@arm.com>
-Tested-by: Mark Rutland <mark.rutland@arm.com>
-Signed-off-by: Laura Abbott <labbott@redhat.com>
----
- arch/arm64/Kconfig              |  1 +
- arch/arm64/include/asm/memory.h | 31 ++++++++++++++++++++++++++++---
- arch/arm64/mm/Makefile          |  2 ++
- arch/arm64/mm/physaddr.c        | 30 ++++++++++++++++++++++++++++++
- 4 files changed, 61 insertions(+), 3 deletions(-)
- create mode 100644 arch/arm64/mm/physaddr.c
+This series is based on the v4.10-rc3-mmots-2017-01-09-17-08 snapshot.  A
+working tree can be found here:
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 1117421..359bca2 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -6,6 +6,7 @@ config ARM64
- 	select ACPI_MCFG if ACPI
- 	select ACPI_SPCR_TABLE if ACPI
- 	select ARCH_CLOCKSOURCE_DATA
-+	select ARCH_HAS_DEBUG_VIRTUAL
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
- 	select ARCH_HAS_ELF_RANDOMIZE
-diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index 0ff237a..7011f08 100644
---- a/arch/arm64/include/asm/memory.h
-+++ b/arch/arm64/include/asm/memory.h
-@@ -172,10 +172,33 @@ static inline unsigned long kaslr_offset(void)
-  * private definitions which should NOT be used outside memory.h
-  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
-  */
--#define __virt_to_phys(x) ({						\
-+
-+
-+/*
-+ * The linear kernel range starts in the middle of the virtual adddress
-+ * space. Testing the top bit for the start of the region is a
-+ * sufficient check.
-+ */
-+#define __is_lm_address(addr)	(!!((addr) & BIT(VA_BITS - 1)))
-+
-+#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
-+#define __kimg_to_phys(addr)	((addr) - kimage_voffset)
-+
-+#define __virt_to_phys_nodebug(x) ({					\
- 	phys_addr_t __x = (phys_addr_t)(x);				\
--	__x & BIT(VA_BITS - 1) ? (__x & ~PAGE_OFFSET) + PHYS_OFFSET :	\
--				 (__x - kimage_voffset); })
-+	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
-+			       __kimg_to_phys(__x);			\
-+})
-+
-+#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
-+
-+#ifdef CONFIG_DEBUG_VIRTUAL
-+extern phys_addr_t __virt_to_phys(unsigned long x);
-+extern phys_addr_t __phys_addr_symbol(unsigned long x);
-+#else
-+#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-+#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
-+#endif
- 
- #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
- #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
-@@ -207,6 +230,8 @@ static inline void *phys_to_virt(phys_addr_t x)
-  * Drivers should NOT use these either.
-  */
- #define __pa(x)			__virt_to_phys((unsigned long)(x))
-+#define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-+#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
- #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
- #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
- #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))
-diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-index e703fb9..9b0ba19 100644
---- a/arch/arm64/mm/Makefile
-+++ b/arch/arm64/mm/Makefile
-@@ -6,6 +6,8 @@ obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
- obj-$(CONFIG_ARM64_PTDUMP_CORE)	+= dump.o
- obj-$(CONFIG_ARM64_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
- obj-$(CONFIG_NUMA)		+= numa.o
-+obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
-+KASAN_SANITIZE_physaddr.o	+= n
- 
- obj-$(CONFIG_KASAN)		+= kasan_init.o
- KASAN_SANITIZE_kasan_init.o	:= n
-diff --git a/arch/arm64/mm/physaddr.c b/arch/arm64/mm/physaddr.c
-new file mode 100644
-index 0000000..91371da
---- /dev/null
-+++ b/arch/arm64/mm/physaddr.c
-@@ -0,0 +1,30 @@
-+#include <linux/bug.h>
-+#include <linux/export.h>
-+#include <linux/types.h>
-+#include <linux/mmdebug.h>
-+#include <linux/mm.h>
-+
-+#include <asm/memory.h>
-+
-+phys_addr_t __virt_to_phys(unsigned long x)
-+{
-+	WARN(!__is_lm_address(x),
-+	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
-+	      (void *)x,
-+	      (void *)x);
-+
-+	return __virt_to_phys_nodebug(x);
-+}
-+EXPORT_SYMBOL(__virt_to_phys);
-+
-+phys_addr_t __phys_addr_symbol(unsigned long x)
-+{
-+	/*
-+	 * This is bounds checking against the kernel image only.
-+	 * __pa_symbol should only be used on kernel symbol addresses.
-+	 */
-+	VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
-+		       x > (unsigned long) KERNEL_END);
-+	return __pa_symbol_nodebug(x);
-+}
-+EXPORT_SYMBOL(__phys_addr_symbol);
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=mmots_dax_tracepoint
+
+Changes from the previous versions of these patches:
+ - Combined Dave's code and mine into a single series.
+ - Resolved some minor merge conflics in Dave's patches so they could be
+   applied to the latest mmots snapshot.
+ - Added Reviewed-by and Acked-by tags to patches as appropriate.
+
+My goal for this series is to get it merged for v4.11.
+
+Thanks,
+- Ross
+
+Dave Jiang (2):
+  mm, dax: make pmd_fault() and friends to be the same as fault()
+  mm, dax: move pmd_fault() to take only vmf parameter
+
+Ross Zwisler (5):
+  tracing: add __print_flags_u64()
+  dax: add tracepoint infrastructure, PMD tracing
+  dax: update MAINTAINERS entries for FS DAX
+  dax: add tracepoints to dax_pmd_load_hole()
+  dax: add tracepoints to dax_pmd_insert_mapping()
+
+ MAINTAINERS                   |   5 +-
+ drivers/dax/dax.c             |  26 ++++---
+ fs/dax.c                      | 114 ++++++++++++++++--------------
+ fs/ext4/file.c                |  13 ++--
+ fs/xfs/xfs_file.c             |  15 ++--
+ include/linux/dax.h           |   6 +-
+ include/linux/mm.h            |  28 +++++++-
+ include/linux/pfn_t.h         |   6 ++
+ include/linux/trace_events.h  |   4 ++
+ include/trace/events/fs_dax.h | 156 ++++++++++++++++++++++++++++++++++++++++++
+ include/trace/trace_events.h  |  11 +++
+ kernel/trace/trace_output.c   |  38 ++++++++++
+ mm/memory.c                   |  11 ++-
+ 13 files changed, 338 insertions(+), 95 deletions(-)
+ create mode 100644 include/trace/events/fs_dax.h
+
 -- 
 2.7.4
 
