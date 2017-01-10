@@ -1,89 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5BC6B0266
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 11:58:41 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id t84so134925206qke.7
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 08:58:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m86si1719967qkl.237.2017.01.10.08.58.40
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6012A6B026A
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 15:08:50 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id q20so117206726ioi.0
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 12:08:50 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 17si3198555pfb.89.2017.01.10.12.08.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 08:58:40 -0800 (PST)
-Date: Tue, 10 Jan 2017 11:58:36 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v15 13/16] mm/hmm/migrate: new memory migration helper for
- use with device memory v2
-Message-ID: <20170110165835.GA3342@redhat.com>
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
- <1483721203-1678-14-git-send-email-jglisse@redhat.com>
- <d5c4a464-1f17-8517-3646-33dd5bf06ef5@nvidia.com>
- <20170106171300.GA3804@redhat.com>
- <9642114e-3093-cff0-e177-1071b478f27f@nvidia.com>
+        Tue, 10 Jan 2017 12:08:49 -0800 (PST)
+Date: Tue, 10 Jan 2017 21:08:50 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+Message-ID: <20170110200850.GE3092@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-16-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <9642114e-3093-cff0-e177-1071b478f27f@nvidia.com>
+In-Reply-To: <1481260331-360-16-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Nellans <dnellans@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Tue, Jan 10, 2017 at 09:30:30AM -0600, David Nellans wrote:
-> 
-> > You are mischaracterizing patch 11-14. Patch 11-12 adds new flags and
-> > modify existing functions so that they can be share. Patch 13 implement
-> > new migration helper while patch 14 optimize this new migration helper.
-> >
-> > hmm_migrate() is different from existing migration code because it works
-> > on virtual address range of a process. Existing migration code works
-> > from page. The only difference with existing code is that we collect
-> > pages from virtual address and we allow use of dma engine to perform
-> > copy.
-> You're right, but why not just introduce a new general migration interface
-> that works on vma range first, then case all the normal migration paths for
-> HMM and then DMA?  Being able to migrate based on vma range certainly
-> makes user level control of memory placement/migration less complicated
-> than page interfaces.
 
-Special casing for HMM and DMA is already what those patches do. They share
-as much code as doable with existing path. There is one thing to consider
-here, because we are working on vma range we can easily optimize the unmap
-step. This is why i do not share any of the outer loop with existing code.
+First off my sincere apologies for being so horribly slow with this :/
 
-Sharing more code than this will be counter-productive from optimization
-point of view.
+I did spend some time thinking about this thing during the Christmas
+holidays, but have not yet managed to write a coherent text on it like I
+promised I'd do.
 
-> 
-> > There is nothing that ie hmm_migrate() to HMM. If that make you feel better
-> > i can drop the hmm_ prefix but i would need another name than migrate() as
-> > it is already taken. I can probably name it vma_range_dma_migrate() or
-> > something like that.
-> >
-> > The only think that is HMM specific in this code is understanding HMM special
-> > page table entry and handling those. Such entry can only be migrated by DMA
-> > and not by memcpy hence why i do not modify existing code to support those.
-> I'd be happier if there was a vma_migrate proposed independently, I think
-> it would find users outside the HMM sandbox. In the IBM migration case,
-> they might want the vma interface but choose to use CPU based migration
-> rather than this DMA interface, It certainly would make testing of the
-> vma_migrate interface easier.
+That said; I think I now mostly understand what and why.
 
-Like i said that code is not in HMM sandbox, it seats behind its own kernel
-option and do not rely on any HMM thing beside hmm_pfn_t which is pfn with
-a bunch of flags. The only difference with existing code is that it does
-understand HMM CPU pte. It can easily be rename without hmm_ prefix if that
-is what people want. The hmm_pfn_t is harder to replace as there isn't any-
-thing that match the requirement (need few flags: DEVICE,MIGRATE,EMPTY,
-UNADDRESSABLE).
+But I still feel this document is very hard to read and presents things
+backwards.
 
-The DMA is a callback function the caller of hmm_migrate() provide so you can
-easily provide a callback that just do memcpy (well copy_highpage()). There
-is no need to make any change. I can even provide a default CPU copy call-
-back.
+> +Let's take a look at more complicated example.
+> +
+> +   TASK X			   TASK Y
+> +   ------			   ------
+> +   acquire B
+> +
+> +   release B
+> +
+> +   acquire C
+> +
+> +   release C
+> +   (1)
+> +   fork Y
+> +				   acquire AX
+> +   acquire D
+> +   /* A dependency 'AX -> D' exists */
+> +				   acquire F
+> +   release D
+> +				   acquire G
+> +				   /* A dependency 'F -> G' exists */
+> +   acquire E
+> +   /* A dependency 'AX -> E' exists */
+> +				   acquire H
+> +				   /* A dependency 'G -> H' exists */
+> +   release E
+> +				   release H
+> +   release AX held by Y
+> +				   release G
+> +
+> +				   release F
+> +
+> +   where AX, B, C,..., H are different lock classes, and a suffix 'X' is
+> +   added on crosslocks.
+> +
+> +Does a dependency 'AX -> B' exist? Nope.
 
-Cheers,
-Jerome
+I think the above without the "fork Y" line is a much more interesting
+example, because then the answer becomes: maybe.
+
+This all boils down to the asynchonous nature of the primitive. There is
+no well defined point other than what is observed (as I think you tried
+to point out in our earlier exchanges).
+
+The "acquire AX" point is entirely random wrt any action in other
+threads, _however_ the time between "acquire" and "release" of any
+'lock' is the only time we can be certain of things.
+
+> +==============
+> +Implementation
+> +==============
+> +
+> +Data structures
+> +---------------
+> +
+> +Crossrelease feature introduces two main data structures.
+> +
+> +1. pend_lock
+
+I'm not sure 'pending' is the right name here, but I'll consider that
+more when I review the code patches.
+
+> +
+> +   This is an array embedded in task_struct, for keeping locks queued so
+> +   that real dependencies can be added using them at commit step. Since
+> +   it's local data, it can be accessed locklessly in the owner context.
+> +   The array is filled at acquire step and consumed at commit step. And
+> +   it's managed in circular manner.
+> +
+> +2. cross_lock
+> +
+> +   This is a global linked list, for keeping all crosslocks in progress.
+> +   The list grows at acquire step and is shrunk at release step.
+
+FWIW, this is a perfect example of why I say the document is written
+backwards. At this point there is no demonstrated need or use for this
+list.
+
+> +
+> +CONCLUSION
+> +
+> +Crossrelease feature introduces two main data structures.
+> +
+> +1. A pend_lock array for queueing typical locks in circular manner.
+> +2. A cross_lock linked list for managing crosslocks in progress.
+> +
+> +
+> +How crossrelease works
+> +----------------------
+> +
+> +Let's take a look at how crossrelease feature works step by step,
+> +starting from how lockdep works without crossrelease feaure.
+> +
+
+> +
+> +Let's look at how commit works for crosslocks.
+> +
+> +   AX's RELEASE CONTEXT		   AX's ACQUIRE CONTEXT
+> +   --------------------		   --------------------
+> +				   acquire AX
+> +				   /*
+> +				    * 1. Mark AX as started
+> +				    *
+> +				    * (No queuing for crosslocks)
+> +				    *
+> +				    * In pend_lock: Empty
+> +				    * In graph: Empty
+> +				    */
+> +
+> +   (serialized by some means e.g. barrier)
+> +
+> +   acquire D
+> +   /*
+> +    * (No marking for typical locks)
+> +    *
+> +    * 1. Queue D
+> +    *
+> +    * In pend_lock: D
+> +    * In graph: Empty
+> +    */
+> +				   acquire B
+> +				   /*
+> +				    * (No marking for typical locks)
+> +				    *
+> +				    * 1. Queue B
+> +				    *
+> +				    * In pend_lock: B
+> +				    * In graph: Empty
+> +				    */
+> +   release D
+> +   /*
+> +    * (No commit for typical locks)
+> +    *
+> +    * In pend_lock: D
+> +    * In graph: Empty
+> +    */
+> +				   acquire C
+> +				   /*
+> +				    * (No marking for typical locks)
+> +				    *
+> +				    * 1. Add 'B -> C' of TT type
+> +				    * 2. Queue C
+> +				    *
+> +				    * In pend_lock: B, C
+> +				    * In graph: 'B -> C'
+> +				    */
+> +   acquire E
+> +   /*
+> +    * (No marking for typical locks)
+> +    *
+> +    * 1. Queue E
+> +    *
+> +    * In pend_lock: D, E
+> +    * In graph: 'B -> C'
+> +    */
+> +				   acquire D
+> +				   /*
+> +				    * (No marking for typical locks)
+> +				    *
+> +				    * 1. Add 'C -> D' of TT type
+> +				    * 2. Queue D
+> +				    *
+> +				    * In pend_lock: B, C, D
+> +				    * In graph: 'B -> C', 'C -> D'
+> +				    */
+> +   release E
+> +   /*
+> +    * (No commit for typical locks)
+> +    *
+> +    * In pend_lock: D, E
+> +    * In graph: 'B -> C', 'C -> D'
+> +    */
+> +				   release D
+> +				   /*
+> +				    * (No commit for typical locks)
+> +				    *
+> +				    * In pend_lock: B, C, D
+> +				    * In graph: 'B -> C', 'C -> D'
+> +				    */
+> +   release AX
+> +   /*
+> +    * 1. Commit AX (= Add 'AX -> ?')
+> +    *   a. What queued since AX was marked: D, E
+> +    *   b. Add 'AX -> D' of CT type
+> +    *   c. Add 'AX -> E' of CT type
+
+OK, so commit adds multiple dependencies, that makes more sense.
+Previously I understood commit to only add a single dependency, which
+does not make sense (except in the special case where there is but one).
+
+I dislike how I have to reconstruct this from an example instead of
+first having had the rules stated though.
+
+> +    *
+> +    * In pend_lock: D, E
+> +    * In graph: 'B -> C', 'C -> D',
+> +    *           'AX -> D', 'AX -> E'
+> +    */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
