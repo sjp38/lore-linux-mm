@@ -1,110 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C06FF6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 07:56:13 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c206so1918999wme.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 04:56:13 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id rm10si1578887wjb.144.2017.01.10.04.56.12
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1896B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 08:01:49 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id qs7so86948102wjc.4
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 05:01:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m70si1862511wmg.143.2017.01.10.05.01.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 04:56:12 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id r126so9231789wmr.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 04:56:12 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Jan 2017 05:01:48 -0800 (PST)
+Date: Tue, 10 Jan 2017 14:01:46 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 2/2] mm, vmscan: cleanup inactive_list_is_low
-Date: Tue, 10 Jan 2017 13:55:52 +0100
-Message-Id: <20170110125552.4170-3-mhocko@kernel.org>
-In-Reply-To: <20170110125552.4170-1-mhocko@kernel.org>
-References: <20170110125552.4170-1-mhocko@kernel.org>
+Subject: Re: [patch] mm, thp: add new background defrag option
+Message-ID: <20170110130146.GF28025@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
+ <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
+ <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
+ <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
+ <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
+ <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
+ <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
+ <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon 09-01-17 18:19:56, David Rientjes wrote:
+> On Mon, 9 Jan 2017, Vlastimil Babka wrote:
+> 
+> > > Any suggestions for a better name for "background" are more than welcome.  
+> > 
+> > Why not just "madvise+defer"?
+> > 
+> 
+> Seeing no other activity regarding this issue (omg!), I'll wait a day or 
+> so to see if there are any objections to "madvise+defer" or suggestions 
+> that may be better and repost.
 
-inactive_list_is_low is duplicating logic implemented by
-lruvec_lru_size_eligibe_zones. Let's use the dedicated function to get
-the number of eligible pages on the lru list and ask use lruvec_lru_size
-to get the total LRU lize only when the tracing is really requested. We
-are still iterating over all LRUs two times in that case but a)
-inactive_list_is_low is not a hot path and b) this can be addressed at
-the tracing layer and only evaluate arguments only when the tracing is
-enabled in future if that ever matters.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/vmscan.c | 38 ++++++++++----------------------------
- 1 file changed, 10 insertions(+), 28 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 137bc85067d3..a9c881f06c0e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2054,11 +2054,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 						struct scan_control *sc, bool trace)
- {
- 	unsigned long inactive_ratio;
--	unsigned long total_inactive, inactive;
--	unsigned long total_active, active;
-+	unsigned long inactive, active;
-+	enum lru_list inactive_lru = file * LRU_FILE;
-+	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
- 	unsigned long gb;
--	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
--	int zid;
- 
- 	/*
- 	 * If we don't have swap space, anonymous page deactivation
-@@ -2067,27 +2066,8 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 	if (!file && !total_swap_pages)
- 		return false;
- 
--	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
--	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
--
--	/*
--	 * For zone-constrained allocations, it is necessary to check if
--	 * deactivations are required for lowmem to be reclaimed. This
--	 * calculates the inactive/active pages available in eligible zones.
--	 */
--	for (zid = sc->reclaim_idx + 1; zid < MAX_NR_ZONES; zid++) {
--		struct zone *zone = &pgdat->node_zones[zid];
--		unsigned long inactive_zone, active_zone;
--
--		if (!managed_zone(zone))
--			continue;
--
--		inactive_zone = lruvec_zone_lru_size(lruvec, file * LRU_FILE, zid);
--		active_zone = lruvec_zone_lru_size(lruvec, (file * LRU_FILE) + LRU_ACTIVE, zid);
--
--		inactive -= min(inactive, inactive_zone);
--		active -= min(active, active_zone);
--	}
-+	inactive = lruvec_lru_size_eligibe_zones(lruvec, inactive_lru, sc->reclaim_idx);
-+	active = lruvec_lru_size_eligibe_zones(lruvec, active_lru, sc->reclaim_idx);
- 
- 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
- 	if (gb)
-@@ -2096,10 +2076,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 		inactive_ratio = 1;
- 
- 	if (trace)
--		trace_mm_vmscan_inactive_list_is_low(pgdat->node_id,
-+		trace_mm_vmscan_inactive_list_is_low(lruvec_pgdat(lruvec)->node_id,
- 				sc->reclaim_idx,
--				total_inactive, inactive,
--				total_active, active, inactive_ratio, file);
-+				lruvec_lru_size(lruvec, inactive_lru), inactive,
-+				lruvec_lru_size(lruvec, active_lru), active,
-+				inactive_ratio, file);
-+
- 	return inactive * inactive_ratio < active;
- }
- 
+madvise+defer is much better than background. So if the combined (flag
+like approach) is too risky then I am OK with that.
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
