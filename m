@@ -1,60 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C337C6B0038
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 15:49:27 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id f2so134624573uaf.2
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 12:49:27 -0800 (PST)
-Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
-        by mx.google.com with ESMTPS id 3si874495uaa.182.2017.01.10.12.49.26
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87CAA6B0033
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:00:36 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id s10so83883042itb.7
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:00:36 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 135si3004692ioz.251.2017.01.10.13.00.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 12:49:26 -0800 (PST)
-Received: by mail-vk0-x241.google.com with SMTP id n19so187686vkd.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 12:49:26 -0800 (PST)
+        Tue, 10 Jan 2017 13:00:35 -0800 (PST)
+Date: Tue, 10 Jan 2017 22:00:38 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 04/15] lockdep: Add a function building a chain
+ between two classes
+Message-ID: <20170110210038.GF3092@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-5-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <CALZtONAOgKLfRQbXR+xxhRWW2QyQghoLA_ownxK7_RZ8D5wOYw@mail.gmail.com>
-References: <20161226013016.968004f3db024ef2111dc458@gmail.com>
- <20161226013448.d02b73ea0fca7edf0537162b@gmail.com> <CALZtONAOgKLfRQbXR+xxhRWW2QyQghoLA_ownxK7_RZ8D5wOYw@mail.gmail.com>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Tue, 10 Jan 2017 21:49:26 +0100
-Message-ID: <CAMJBoFMDp2gbJ+CcX4T8nYcTZ-s4E4jAGsE46qfqUB1J9N2NtQ@mail.gmail.com>
-Subject: Re: [PATCH/RESEND 2/5] mm/z3fold.c: extend compaction function
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1481260331-360-5-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Wed, Jan 4, 2017 at 4:43 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+On Fri, Dec 09, 2016 at 02:12:00PM +0900, Byungchul Park wrote:
+> add_chain_cache() should be used in the context where the hlock is
+> owned since it might be racy in another context. However crossrelease
+> feature needs to build a chain between two locks regardless of context.
+> So introduce a new function making it possible.
+> 
+> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> ---
+>  kernel/locking/lockdep.c | 56 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 56 insertions(+)
+> 
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index 5df56aa..111839f 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -2105,6 +2105,62 @@ static int check_no_collision(struct task_struct *curr,
+>  	return 1;
+>  }
+>  
+> +/*
+> + * This is for building a chain between just two different classes,
+> + * instead of adding a new hlock upon current, which is done by
+> + * add_chain_cache().
+> + *
+> + * This can be called in any context with two classes, while
+> + * add_chain_cache() must be done within the lock owener's context
+> + * since it uses hlock which might be racy in another context.
+> + */
+> +static inline int add_chain_cache_classes(unsigned int prev,
+> +					  unsigned int next,
+> +					  unsigned int irq_context,
+> +					  u64 chain_key)
+> +{
+> +	struct hlist_head *hash_head = chainhashentry(chain_key);
+> +	struct lock_chain *chain;
+> +
+> +	/*
+> +	 * Allocate a new chain entry from the static array, and add
+> +	 * it to the hash:
+> +	 */
+> +
+> +	/*
+> +	 * We might need to take the graph lock, ensure we've got IRQs
+> +	 * disabled to make this an IRQ-safe lock.. for recursion reasons
+> +	 * lockdep won't complain about its own locking errors.
+> +	 */
+> +	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+> +		return 0;
+> +
+> +	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
+> +		if (!debug_locks_off_graph_unlock())
+> +			return 0;
+> +
+> +		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
+> +		dump_stack();
+> +		return 0;
+> +	}
+> +
+> +	chain = lock_chains + nr_lock_chains++;
+> +	chain->chain_key = chain_key;
+> +	chain->irq_context = irq_context;
+> +	chain->depth = 2;
+> +	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
+> +		chain->base = nr_chain_hlocks;
+> +		nr_chain_hlocks += chain->depth;
+> +		chain_hlocks[chain->base] = prev - 1;
+> +		chain_hlocks[chain->base + 1] = next -1;
+> +	}
 
-<snip>
->>  static int z3fold_compact_page(struct z3fold_header *zhdr)
->>  {
->>         struct page *page = virt_to_page(zhdr);
->> -       void *beg = zhdr;
->> +       int ret = 0;
->
-> I still don't understand why you're adding ret and using goto.  Just
-> use return for each failure case.
+You didn't copy this part right. There is no error when >
+MAX_LOCKDEP_CHAIN_HLOCKS.
 
-I guess it's a matter of taste, I prefer having single function exit
-elsewhere so I do it here too.
 
->> +
->> +       if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
->> +               goto out;
->>
->> +       if (zhdr->middle_chunks != 0) {
->
-> you appear to have just re-sent all your patches without addressing
-> comments; in patch 4 you invert the check and return, which is what
-> you should have done here in the first place, as that change is
-> unrelated to that patch.
-
-Not quite, I just thought we'd agreed on the patch 4 being separate. I
-folded the locking fixes but not header size fixes.
-
-~vitaly
+> +	hlist_add_head_rcu(&chain->entry, hash_head);
+> +	debug_atomic_inc(chain_lookup_misses);
+> +	inc_chains();
+> +
+> +	return 1;
+> +}
+> +
+>  static inline int add_chain_cache(struct task_struct *curr,
+>  				  struct held_lock *hlock,
+>  				  u64 chain_key)
+> -- 
+> 1.9.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
