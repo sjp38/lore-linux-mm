@@ -1,72 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1A3C6B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:52:47 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id f144so227096376pfa.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:52:47 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 71A936B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:52:48 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 127so755961948pfg.5
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:52:48 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id b69si3448151pli.91.2017.01.10.13.52.46
+        by mx.google.com with ESMTPS id b69si3448151pli.91.2017.01.10.13.52.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 10 Jan 2017 13:52:47 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v4 0/7] DAX tracepoints, mm argument simplification
-Date: Tue, 10 Jan 2017 14:52:15 -0700
-Message-Id: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v4 1/7] tracing: add __print_flags_u64()
+Date: Tue, 10 Jan 2017 14:52:16 -0700
+Message-Id: <1484085142-2297-2-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
+References: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Andrew,
+Add __print_flags_u64() and the helper trace_print_flags_seq_u64() in the
+same spirit as __print_symbolic_u64() and trace_print_symbols_seq_u64().
+These functions allow us to print symbols associated with flags that are 64
+bits wide even on 32 bit machines.
 
-This contains both my DAX tracepoint code and Dave Jiang's MM argument
-simplifications.  Dave's code was written with my tracepoint code as a
-baseline, so it seemed simplest to keep them together in a single series.
+These will be used by the DAX code so that we can print the flags set in a
+pfn_t such as PFN_SG_CHAIN, PFN_SG_LAST, PFN_DEV and PFN_MAP.
 
-This series is based on the v4.10-rc3-mmots-2017-01-09-17-08 snapshot.  A
-working tree can be found here:
+Without this new function I was getting errors like the following when
+compiling for i386:
 
-https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=mmots_dax_tracepoint
+./include/linux/pfn_t.h:13:22: warning: large integer implicitly truncated
+to unsigned type [-Woverflow]
+ #define PFN_SG_CHAIN (1ULL << (BITS_PER_LONG_LONG - 1))
+  ^
 
-Changes from the previous versions of these patches:
- - Combined Dave's code and mine into a single series.
- - Resolved some minor merge conflics in Dave's patches so they could be
-   applied to the latest mmots snapshot.
- - Added Reviewed-by and Acked-by tags to patches as appropriate.
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
+---
+ include/linux/trace_events.h |  4 ++++
+ include/trace/trace_events.h | 11 +++++++++++
+ kernel/trace/trace_output.c  | 38 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+)
 
-My goal for this series is to get it merged for v4.11.
-
-Thanks,
-- Ross
-
-Dave Jiang (2):
-  mm, dax: make pmd_fault() and friends to be the same as fault()
-  mm, dax: move pmd_fault() to take only vmf parameter
-
-Ross Zwisler (5):
-  tracing: add __print_flags_u64()
-  dax: add tracepoint infrastructure, PMD tracing
-  dax: update MAINTAINERS entries for FS DAX
-  dax: add tracepoints to dax_pmd_load_hole()
-  dax: add tracepoints to dax_pmd_insert_mapping()
-
- MAINTAINERS                   |   5 +-
- drivers/dax/dax.c             |  26 ++++---
- fs/dax.c                      | 114 ++++++++++++++++--------------
- fs/ext4/file.c                |  13 ++--
- fs/xfs/xfs_file.c             |  15 ++--
- include/linux/dax.h           |   6 +-
- include/linux/mm.h            |  28 +++++++-
- include/linux/pfn_t.h         |   6 ++
- include/linux/trace_events.h  |   4 ++
- include/trace/events/fs_dax.h | 156 ++++++++++++++++++++++++++++++++++++++++++
- include/trace/trace_events.h  |  11 +++
- kernel/trace/trace_output.c   |  38 ++++++++++
- mm/memory.c                   |  11 ++-
- 13 files changed, 338 insertions(+), 95 deletions(-)
- create mode 100644 include/trace/events/fs_dax.h
-
+diff --git a/include/linux/trace_events.h b/include/linux/trace_events.h
+index be00761..db2c3ba 100644
+--- a/include/linux/trace_events.h
++++ b/include/linux/trace_events.h
+@@ -23,6 +23,10 @@ const char *trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+ 				    const struct trace_print_flags *symbol_array);
+ 
+ #if BITS_PER_LONG == 32
++const char *trace_print_flags_seq_u64(struct trace_seq *p, const char *delim,
++		      unsigned long long flags,
++		      const struct trace_print_flags_u64 *flag_array);
++
+ const char *trace_print_symbols_seq_u64(struct trace_seq *p,
+ 					unsigned long long val,
+ 					const struct trace_print_flags_u64
+diff --git a/include/trace/trace_events.h b/include/trace/trace_events.h
+index 467e12f..c6e9f72 100644
+--- a/include/trace/trace_events.h
++++ b/include/trace/trace_events.h
+@@ -283,8 +283,16 @@ TRACE_MAKE_SYSTEM_STR();
+ 		trace_print_symbols_seq(p, value, symbols);		\
+ 	})
+ 
++#undef __print_flags_u64
+ #undef __print_symbolic_u64
+ #if BITS_PER_LONG == 32
++#define __print_flags_u64(flag, delim, flag_array...)			\
++	({								\
++		static const struct trace_print_flags_u64 __flags[] =	\
++			{ flag_array, { -1, NULL } };			\
++		trace_print_flags_seq_u64(p, delim, flag, __flags);	\
++	})
++
+ #define __print_symbolic_u64(value, symbol_array...)			\
+ 	({								\
+ 		static const struct trace_print_flags_u64 symbols[] =	\
+@@ -292,6 +300,9 @@ TRACE_MAKE_SYSTEM_STR();
+ 		trace_print_symbols_seq_u64(p, value, symbols);	\
+ 	})
+ #else
++#define __print_flags_u64(flag, delim, flag_array...)			\
++			__print_flags(flag, delim, flag_array)
++
+ #define __print_symbolic_u64(value, symbol_array...)			\
+ 			__print_symbolic(value, symbol_array)
+ #endif
+diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
+index 5d33a73..5204485 100644
+--- a/kernel/trace/trace_output.c
++++ b/kernel/trace/trace_output.c
+@@ -124,6 +124,44 @@ EXPORT_SYMBOL(trace_print_symbols_seq);
+ 
+ #if BITS_PER_LONG == 32
+ const char *
++trace_print_flags_seq_u64(struct trace_seq *p, const char *delim,
++		      unsigned long long flags,
++		      const struct trace_print_flags_u64 *flag_array)
++{
++	unsigned long long mask;
++	const char *str;
++	const char *ret = trace_seq_buffer_ptr(p);
++	int i, first = 1;
++
++	for (i = 0;  flag_array[i].name && flags; i++) {
++
++		mask = flag_array[i].mask;
++		if ((flags & mask) != mask)
++			continue;
++
++		str = flag_array[i].name;
++		flags &= ~mask;
++		if (!first && delim)
++			trace_seq_puts(p, delim);
++		else
++			first = 0;
++		trace_seq_puts(p, str);
++	}
++
++	/* check for left over flags */
++	if (flags) {
++		if (!first && delim)
++			trace_seq_puts(p, delim);
++		trace_seq_printf(p, "0x%llx", flags);
++	}
++
++	trace_seq_putc(p, 0);
++
++	return ret;
++}
++EXPORT_SYMBOL(trace_print_flags_seq_u64);
++
++const char *
+ trace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
+ 			 const struct trace_print_flags_u64 *symbol_array)
+ {
 -- 
 2.7.4
 
