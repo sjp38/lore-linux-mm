@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 184AF6B0038
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 10:31:11 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so1075435pfb.7
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 07:31:11 -0800 (PST)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 879B46B025E
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 10:35:59 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y196so126717917ity.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 07:35:59 -0800 (PST)
 Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id f8si2457021pgc.288.2017.01.10.07.31.09
+        by mx.google.com with ESMTPS id a36si2510205pli.2.2017.01.10.07.35.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 07:31:10 -0800 (PST)
-Subject: Re: [HMM v15 13/16] mm/hmm/migrate: new memory migration helper for
- use with device memory v2
-References: <1483721203-1678-1-git-send-email-jglisse@redhat.com>
- <1483721203-1678-14-git-send-email-jglisse@redhat.com>
- <d5c4a464-1f17-8517-3646-33dd5bf06ef5@nvidia.com>
- <20170106171300.GA3804@redhat.com>
+        Tue, 10 Jan 2017 07:35:58 -0800 (PST)
+Subject: Re: Benchmarks for the Linux kernel MM architecture
+References: <20170106222912.o6vkh7rarxdak4ga@arch-test>
 From: David Nellans <dnellans@nvidia.com>
-Message-ID: <9642114e-3093-cff0-e177-1071b478f27f@nvidia.com>
-Date: Tue, 10 Jan 2017 09:30:30 -0600
+Message-ID: <4f430912-d506-3904-c073-e1e121c3fc70@nvidia.com>
+Date: Tue, 10 Jan 2017 09:35:56 -0600
 MIME-Version: 1.0
-In-Reply-To: <20170106171300.GA3804@redhat.com>
+In-Reply-To: <20170106222912.o6vkh7rarxdak4ga@arch-test>
 Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Till Smejkal <till.smejkal@hpe.com>, linux-mm@kvack.org
 
 
-> You are mischaracterizing patch 11-14. Patch 11-12 adds new flags and
-> modify existing functions so that they can be share. Patch 13 implement
-> new migration helper while patch 14 optimize this new migration helper.
+
+On 01/06/2017 04:29 PM, Till Smejkal wrote:
+> Dear Linux MM community
 >
-> hmm_migrate() is different from existing migration code because it works
-> on virtual address range of a process. Existing migration code works
-> from page. The only difference with existing code is that we collect
-> pages from virtual address and we allow use of dma engine to perform
-> copy.
-You're right, but why not just introduce a new general migration interface
-that works on vma range first, then case all the normal migration paths for
-HMM and then DMA?  Being able to migrate based on vma range certainly
-makes user level control of memory placement/migration less complicated
-than
-page interfaces.
-
-> There is nothing that ie hmm_migrate() to HMM. If that make you feel better
-> i can drop the hmm_ prefix but i would need another name than migrate() as
-> it is already taken. I can probably name it vma_range_dma_migrate() or
-> something like that.
+> My name is Till Smejkal and I am a PhD Student at Hewlett Packard Enterprise. For a
+> couple of weeks I have been working on a patchset for the Linux kernel which
+> introduces a new functionality that allows address spaces to be first class citizens
+> in the OS. The implementation is based on a concept presented in this [1] paper.
 >
-> The only think that is HMM specific in this code is understanding HMM special
-> page table entry and handling those. Such entry can only be migrated by DMA
-> and not by memcpy hence why i do not modify existing code to support those.
-I'd be happier if there was a vma_migrate proposed independently, I
-think it would find
-users outside the HMM sandbox. In the IBM migration case, they might
-want the vma
-interface but choose to use CPU based migration rather than this DMA
-interface,
-It certainly would make testing of the vma_migrate interface easier.
+> The basic idea of the patchset is that an AS not necessarily needs to be coupled with
+> a process but can be created and destroyed independently. A process still has its own
+> AS which is created with the process and which also gets destroyed with the process,
+> but in addition there can be other AS in the OS which are not bound to the lifetime
+> of any process. These additional AS have to be created and destroyed actively by the
+> user and can be attached to a process as additional AS. Attaching such an AS to a
+> process allows the process to have different views on the memory between which the
+> process can switch arbitrarily during its executing.
+>
+> This feature can be used in various different ways. For example to compartmentalize a
+> process for security reasons or to improve the performance of data-centric
+> applications.
+>
+> However, before I intend to submit the patchset to LKML, I first like to perform
+> some benchmarks to identify possible performance drawbacks introduced by my changes
+> to the original memory management architecture. Hence, I would like to ask if anyone
+> of you could point me to some benchmarks which I can run to test my patchset and
+> compare it against the original implementation.
+>
+> If there are any questions, please feel free to ask me. I am happy to answer any
+> question related to the patchset and its idea/intention.
+>
+> Regards
+> Till
+>
+> P.S.: Please keep me in the CC since I am not subscribed to this mailing list.
+>
+> [1] http://impact.crhc.illinois.edu/shared/Papers/ASPLOS16-SpaceJMP.pdf
+
+https://github.com/gormanm/mmtests
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
