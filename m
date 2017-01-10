@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 130606B0253
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4B86B025E
 	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:52:49 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b22so729277464pfd.0
+Received: by mail-pf0-f197.google.com with SMTP id y143so176982489pfb.6
         for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:52:49 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 81si3419023pgc.257.2017.01.10.13.52.47
+        by mx.google.com with ESMTPS id 3si3438812plz.158.2017.01.10.13.52.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 10 Jan 2017 13:52:48 -0800 (PST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v4 4/7] dax: add tracepoints to dax_pmd_load_hole()
-Date: Tue, 10 Jan 2017 14:52:19 -0700
-Message-Id: <1484085142-2297-5-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v4 5/7] dax: add tracepoints to dax_pmd_insert_mapping()
+Date: Tue, 10 Jan 2017 14:52:20 -0700
+Message-Id: <1484085142-2297-6-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1484085142-2297-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,135 +20,157 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Add tracepoints to dax_pmd_load_hole(), following the same logging
+Add tracepoints to dax_pmd_insert_mapping(), following the same logging
 conventions as the tracepoints in dax_iomap_pmd_fault().
 
 Here is an example PMD fault showing the new tracepoints:
 
-read_big-1478  [004] ....   238.242188: xfs_filemap_pmd_fault: dev 259:0
-ino 0x1003
+big-1504  [001] ....   326.960743: xfs_filemap_pmd_fault: dev 259:0 ino
+0x1003
 
-read_big-1478  [004] ....   238.242191: dax_pmd_fault: dev 259:0 ino 0x1003
-shared ALLOW_RETRY|KILLABLE|USER address 0x10400000 vm_start 0x10200000
-vm_end 0x10600000 pgoff 0x200 max_pgoff 0x1400
+big-1504  [001] ....   326.960753: dax_pmd_fault: dev 259:0 ino 0x1003
+shared WRITE|ALLOW_RETRY|KILLABLE|USER address 0x10505000 vm_start
+0x10200000 vm_end 0x10700000 pgoff 0x200 max_pgoff 0x1400
 
-read_big-1478  [004] ....   238.242390: dax_pmd_load_hole: dev 259:0 ino
-0x1003 shared address 0x10400000 zero_page ffffea0002c20000 radix_entry
-0x1e
+big-1504  [001] ....   326.960981: dax_pmd_insert_mapping: dev 259:0 ino
+0x1003 shared write address 0x10505000 length 0x200000 pfn 0x100600 DEV|MAP
+radix_entry 0xc000e
 
-read_big-1478  [004] ....   238.242392: dax_pmd_fault_done: dev 259:0 ino
-0x1003 shared ALLOW_RETRY|KILLABLE|USER address 0x10400000 vm_start
-0x10200000 vm_end 0x10600000 pgoff 0x200 max_pgoff 0x1400 NOPAGE
+big-1504  [001] ....   326.960986: dax_pmd_fault_done: dev 259:0 ino 0x1003
+shared WRITE|ALLOW_RETRY|KILLABLE|USER address 0x10505000 vm_start
+0x10200000 vm_end 0x10700000 pgoff 0x200 max_pgoff 0x1400 NOPAGE
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 Acked-by: Steven Rostedt <rostedt@goodmis.org>
 ---
- fs/dax.c                      | 14 ++++++++++----
- include/trace/events/fs_dax.h | 42 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 4 deletions(-)
+ fs/dax.c                      | 12 +++++++---
+ include/linux/pfn_t.h         |  6 +++++
+ include/trace/events/fs_dax.h | 51 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 3 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index b719ecf..199a7e7 100644
+index 199a7e7..4671530 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -1291,33 +1291,39 @@ static int dax_pmd_load_hole(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -1254,15 +1254,16 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
  {
  	struct address_space *mapping = vma->vm_file->f_mapping;
- 	unsigned long pmd_addr = address & PMD_MASK;
+ 	struct block_device *bdev = iomap->bdev;
 +	struct inode *inode = mapping->host;
- 	struct page *zero_page;
-+	void *ret = NULL;
- 	spinlock_t *ptl;
- 	pmd_t pmd_entry;
+ 	struct blk_dax_ctl dax = {
+ 		.sector = dax_iomap_sector(iomap, pos),
+ 		.size = PMD_SIZE,
+ 	};
+ 	long length = dax_map_atomic(bdev, &dax);
 -	void *ret;
++	void *ret = NULL;
  
- 	zero_page = mm_get_huge_zero_page(vma->vm_mm);
- 
- 	if (unlikely(!zero_page))
+ 	if (length < 0) /* dax_map_atomic() failed */
 -		return VM_FAULT_FALLBACK;
 +		goto fallback;
- 
- 	ret = dax_insert_mapping_entry(mapping, vmf, *entryp, 0,
- 			RADIX_DAX_PMD | RADIX_DAX_HZP);
+ 	if (length < PMD_SIZE)
+ 		goto unmap_fallback;
+ 	if (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR)
+@@ -1275,13 +1276,18 @@ static int dax_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
+ 	ret = dax_insert_mapping_entry(mapping, vmf, *entryp, dax.sector,
+ 			RADIX_DAX_PMD);
  	if (IS_ERR(ret))
 -		return VM_FAULT_FALLBACK;
 +		goto fallback;
  	*entryp = ret;
  
- 	ptl = pmd_lock(vma->vm_mm, pmd);
- 	if (!pmd_none(*pmd)) {
- 		spin_unlock(ptl);
--		return VM_FAULT_FALLBACK;
-+		goto fallback;
- 	}
++	trace_dax_pmd_insert_mapping(inode, vma, address, write, length,
++			dax.pfn, ret);
+ 	return vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
  
- 	pmd_entry = mk_pmd(zero_page, vma->vm_page_prot);
- 	pmd_entry = pmd_mkhuge(pmd_entry);
- 	set_pmd_at(vma->vm_mm, pmd_addr, pmd, pmd_entry);
- 	spin_unlock(ptl);
-+	trace_dax_pmd_load_hole(inode, vma, address, zero_page, ret);
- 	return VM_FAULT_NOPAGE;
-+
+  unmap_fallback:
+ 	dax_unmap_atomic(bdev, &dax);
 +fallback:
-+	trace_dax_pmd_load_hole_fallback(inode, vma, address, zero_page, ret);
-+	return VM_FAULT_FALLBACK;
++	trace_dax_pmd_insert_mapping_fallback(inode, vma, address, write,
++			length, dax.pfn, ret);
+ 	return VM_FAULT_FALLBACK;
  }
  
- int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
+index a3d90b9..033fc7b 100644
+--- a/include/linux/pfn_t.h
++++ b/include/linux/pfn_t.h
+@@ -15,6 +15,12 @@
+ #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
+ #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
+ 
++#define PFN_FLAGS_TRACE \
++	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
++	{ PFN_SG_LAST,	"SG_LAST" }, \
++	{ PFN_DEV,	"DEV" }, \
++	{ PFN_MAP,	"MAP" }
++
+ static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
+ {
+ 	pfn_t pfn_t = { .val = pfn | (flags & PFN_FLAGS_MASK), };
 diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
-index 58b0b56..43f1263 100644
+index 43f1263..c3b0aae 100644
 --- a/include/trace/events/fs_dax.h
 +++ b/include/trace/events/fs_dax.h
-@@ -61,6 +61,48 @@ DEFINE_EVENT(dax_pmd_fault_class, name, \
- DEFINE_PMD_FAULT_EVENT(dax_pmd_fault);
- DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
+@@ -104,6 +104,57 @@ DEFINE_EVENT(dax_pmd_load_hole_class, name, \
+ DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
+ DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
  
-+DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
++DECLARE_EVENT_CLASS(dax_pmd_insert_mapping_class,
 +	TP_PROTO(struct inode *inode, struct vm_area_struct *vma,
-+		unsigned long address, struct page *zero_page,
++		unsigned long address, int write, long length, pfn_t pfn,
 +		void *radix_entry),
-+	TP_ARGS(inode, vma, address, zero_page, radix_entry),
++	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry),
 +	TP_STRUCT__entry(
 +		__field(unsigned long, ino)
 +		__field(unsigned long, vm_flags)
 +		__field(unsigned long, address)
-+		__field(struct page *, zero_page)
++		__field(long, length)
++		__field(u64, pfn_val)
 +		__field(void *, radix_entry)
 +		__field(dev_t, dev)
++		__field(int, write)
 +	),
 +	TP_fast_assign(
 +		__entry->dev = inode->i_sb->s_dev;
 +		__entry->ino = inode->i_ino;
 +		__entry->vm_flags = vma->vm_flags;
 +		__entry->address = address;
-+		__entry->zero_page = zero_page;
++		__entry->write = write;
++		__entry->length = length;
++		__entry->pfn_val = pfn.val;
 +		__entry->radix_entry = radix_entry;
 +	),
-+	TP_printk("dev %d:%d ino %#lx %s address %#lx zero_page %p "
-+			"radix_entry %#lx",
++	TP_printk("dev %d:%d ino %#lx %s %s address %#lx length %#lx "
++			"pfn %#llx %s radix_entry %#lx",
 +		MAJOR(__entry->dev),
 +		MINOR(__entry->dev),
 +		__entry->ino,
 +		__entry->vm_flags & VM_SHARED ? "shared" : "private",
++		__entry->write ? "write" : "read",
 +		__entry->address,
-+		__entry->zero_page,
++		__entry->length,
++		__entry->pfn_val & ~PFN_FLAGS_MASK,
++		__print_flags_u64(__entry->pfn_val & PFN_FLAGS_MASK, "|",
++			PFN_FLAGS_TRACE),
 +		(unsigned long)__entry->radix_entry
 +	)
 +)
 +
-+#define DEFINE_PMD_LOAD_HOLE_EVENT(name) \
-+DEFINE_EVENT(dax_pmd_load_hole_class, name, \
++#define DEFINE_PMD_INSERT_MAPPING_EVENT(name) \
++DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
 +	TP_PROTO(struct inode *inode, struct vm_area_struct *vma, \
-+		unsigned long address, struct page *zero_page, \
++		unsigned long address, int write, long length, pfn_t pfn, \
 +		void *radix_entry), \
-+	TP_ARGS(inode, vma, address, zero_page, radix_entry))
++	TP_ARGS(inode, vma, address, write, length, pfn, radix_entry))
 +
-+DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
-+DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
- 
++DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
++DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
++
  #endif /* _TRACE_FS_DAX_H */
  
+ /* This part must be outside protection */
 -- 
 2.7.4
 
