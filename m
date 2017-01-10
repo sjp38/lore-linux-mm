@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CF6226B0261
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:36:18 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id k15so129089752qtg.5
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:18 -0800 (PST)
-Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com. [209.85.220.179])
-        by mx.google.com with ESMTPS id a11si2282089qte.23.2017.01.10.13.36.17
+	by kanga.kvack.org (Postfix) with ESMTP id CFEF26B0266
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:36:21 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id a29so108848297qtb.6
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:21 -0800 (PST)
+Received: from mail-qk0-f172.google.com (mail-qk0-f172.google.com. [209.85.220.172])
+        by mx.google.com with ESMTPS id v124si2255310qki.246.2017.01.10.13.36.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 13:36:17 -0800 (PST)
-Received: by mail-qk0-f179.google.com with SMTP id 11so90656850qkl.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:17 -0800 (PST)
+        Tue, 10 Jan 2017 13:36:21 -0800 (PST)
+Received: by mail-qk0-f172.google.com with SMTP id 11so90658324qkl.3
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:21 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv7 06/11] mm/usercopy: Switch to using lm_alias
-Date: Tue, 10 Jan 2017 13:35:45 -0800
-Message-Id: <1484084150-1523-7-git-send-email-labbott@redhat.com>
+Subject: [PATCHv7 07/11] drivers: firmware: psci: Use __pa_symbol for kernel symbol
+Date: Tue, 10 Jan 2017 13:35:46 -0800
+Message-Id: <1484084150-1523-8-git-send-email-labbott@redhat.com>
 In-Reply-To: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 References: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Kees Cook <keescook@chromium.org>, Florian Fainelli <f.fainelli@gmail.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Florian Fainelli <f.fainelli@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, linux-arm-kernel@lists.infradead.org
 
 
-The usercopy checking code currently calls __va(__pa(...)) to check for
-aliases on symbols. Switch to using lm_alias instead.
+__pa_symbol is technically the macro that should be used for kernel
+symbols. Switch to this as a pre-requisite for DEBUG_VIRTUAL which
+will do bounds checking.
 
 Reviewed-by: Mark Rutland <mark.rutland@arm.com>
 Tested-by: Mark Rutland <mark.rutland@arm.com>
-Acked-by: Kees Cook <keescook@chromium.org>
 Signed-off-by: Laura Abbott <labbott@redhat.com>
 ---
- mm/usercopy.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/firmware/psci.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index 3c8da0a..8345299 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -108,13 +108,13 @@ static inline const char *check_kernel_text_object(const void *ptr,
- 	 * __pa() is not just the reverse of __va(). This can be detected
- 	 * and checked:
- 	 */
--	textlow_linear = (unsigned long)__va(__pa(textlow));
-+	textlow_linear = (unsigned long)lm_alias(textlow);
- 	/* No different mapping: we're done. */
- 	if (textlow_linear == textlow)
- 		return NULL;
+diff --git a/drivers/firmware/psci.c b/drivers/firmware/psci.c
+index 6c60a50..66a8793 100644
+--- a/drivers/firmware/psci.c
++++ b/drivers/firmware/psci.c
+@@ -383,7 +383,7 @@ static int psci_suspend_finisher(unsigned long index)
+ 	u32 *state = __this_cpu_read(psci_power_state);
  
- 	/* Check the secondary mapping... */
--	texthigh_linear = (unsigned long)__va(__pa(texthigh));
-+	texthigh_linear = (unsigned long)lm_alias(texthigh);
- 	if (overlaps(ptr, n, textlow_linear, texthigh_linear))
- 		return "<linear kernel text>";
+ 	return psci_ops.cpu_suspend(state[index - 1],
+-				    virt_to_phys(cpu_resume));
++				    __pa_symbol(cpu_resume));
+ }
  
+ int psci_cpu_suspend_enter(unsigned long index)
 -- 
 2.7.4
 
