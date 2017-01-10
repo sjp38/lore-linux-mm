@@ -1,116 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 87CAA6B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:00:36 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id s10so83883042itb.7
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:00:36 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 135si3004692ioz.251.2017.01.10.13.00.35
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 493F76B0033
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:35:58 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id a195so103402630qkg.3
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:35:58 -0800 (PST)
+Received: from mail-qt0-f176.google.com (mail-qt0-f176.google.com. [209.85.216.176])
+        by mx.google.com with ESMTPS id i88si2264323qtb.138.2017.01.10.13.35.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 13:00:35 -0800 (PST)
-Date: Tue, 10 Jan 2017 22:00:38 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v4 04/15] lockdep: Add a function building a chain
- between two classes
-Message-ID: <20170110210038.GF3092@twins.programming.kicks-ass.net>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
- <1481260331-360-5-git-send-email-byungchul.park@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1481260331-360-5-git-send-email-byungchul.park@lge.com>
+        Tue, 10 Jan 2017 13:35:57 -0800 (PST)
+Received: by mail-qt0-f176.google.com with SMTP id l7so129470315qtd.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:35:57 -0800 (PST)
+From: Laura Abbott <labbott@redhat.com>
+Subject: [PATCHv7 00/11] CONFIG_DEBUG_VIRTUAL for arm64
+Date: Tue, 10 Jan 2017 13:35:39 -0800
+Message-Id: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Florian Fainelli <f.fainelli@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
 
-On Fri, Dec 09, 2016 at 02:12:00PM +0900, Byungchul Park wrote:
-> add_chain_cache() should be used in the context where the hlock is
-> owned since it might be racy in another context. However crossrelease
-> feature needs to build a chain between two locks regardless of context.
-> So introduce a new function making it possible.
-> 
-> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
-> ---
->  kernel/locking/lockdep.c | 56 ++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 56 insertions(+)
-> 
-> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> index 5df56aa..111839f 100644
-> --- a/kernel/locking/lockdep.c
-> +++ b/kernel/locking/lockdep.c
-> @@ -2105,6 +2105,62 @@ static int check_no_collision(struct task_struct *curr,
->  	return 1;
->  }
->  
-> +/*
-> + * This is for building a chain between just two different classes,
-> + * instead of adding a new hlock upon current, which is done by
-> + * add_chain_cache().
-> + *
-> + * This can be called in any context with two classes, while
-> + * add_chain_cache() must be done within the lock owener's context
-> + * since it uses hlock which might be racy in another context.
-> + */
-> +static inline int add_chain_cache_classes(unsigned int prev,
-> +					  unsigned int next,
-> +					  unsigned int irq_context,
-> +					  u64 chain_key)
-> +{
-> +	struct hlist_head *hash_head = chainhashentry(chain_key);
-> +	struct lock_chain *chain;
-> +
-> +	/*
-> +	 * Allocate a new chain entry from the static array, and add
-> +	 * it to the hash:
-> +	 */
-> +
-> +	/*
-> +	 * We might need to take the graph lock, ensure we've got IRQs
-> +	 * disabled to make this an IRQ-safe lock.. for recursion reasons
-> +	 * lockdep won't complain about its own locking errors.
-> +	 */
-> +	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
-> +		return 0;
-> +
-> +	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
-> +		if (!debug_locks_off_graph_unlock())
-> +			return 0;
-> +
-> +		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
-> +		dump_stack();
-> +		return 0;
-> +	}
-> +
-> +	chain = lock_chains + nr_lock_chains++;
-> +	chain->chain_key = chain_key;
-> +	chain->irq_context = irq_context;
-> +	chain->depth = 2;
-> +	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
-> +		chain->base = nr_chain_hlocks;
-> +		nr_chain_hlocks += chain->depth;
-> +		chain_hlocks[chain->base] = prev - 1;
-> +		chain_hlocks[chain->base + 1] = next -1;
-> +	}
+Hi,
 
-You didn't copy this part right. There is no error when >
-MAX_LOCKDEP_CHAIN_HLOCKS.
+This is v7 of the patches to add CONFIG_DEBUG_VIRTUAL for arm64. This is
+a simple reordering of patches from v6 per request of Will Deacon for ease
+of merging support for arm which depends on this series.
 
+Laura Abbott (11):
+  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+  mm/cma: Cleanup highmem check
+  mm: Introduce lm_alias
+  kexec: Switch to __pa_symbol
+  mm/kasan: Switch to using __pa_symbol and lm_alias
+  mm/usercopy: Switch to using lm_alias
+  drivers: firmware: psci: Use __pa_symbol for kernel symbol
+  arm64: Move some macros under #ifndef __ASSEMBLY__
+  arm64: Add cast for virt_to_pfn
+  arm64: Use __pa_symbol for kernel symbols
+  arm64: Add support for CONFIG_DEBUG_VIRTUAL
 
-> +	hlist_add_head_rcu(&chain->entry, hash_head);
-> +	debug_atomic_inc(chain_lookup_misses);
-> +	inc_chains();
-> +
-> +	return 1;
-> +}
-> +
->  static inline int add_chain_cache(struct task_struct *curr,
->  				  struct held_lock *hlock,
->  				  u64 chain_key)
-> -- 
-> 1.9.1
-> 
+ arch/arm64/Kconfig                        |  1 +
+ arch/arm64/include/asm/kvm_mmu.h          |  4 +-
+ arch/arm64/include/asm/memory.h           | 66 +++++++++++++++++++++----------
+ arch/arm64/include/asm/mmu_context.h      |  6 +--
+ arch/arm64/include/asm/pgtable.h          |  2 +-
+ arch/arm64/kernel/acpi_parking_protocol.c |  3 +-
+ arch/arm64/kernel/cpu-reset.h             |  2 +-
+ arch/arm64/kernel/cpufeature.c            |  3 +-
+ arch/arm64/kernel/hibernate.c             | 20 +++-------
+ arch/arm64/kernel/insn.c                  |  2 +-
+ arch/arm64/kernel/psci.c                  |  3 +-
+ arch/arm64/kernel/setup.c                 |  9 +++--
+ arch/arm64/kernel/smp_spin_table.c        |  3 +-
+ arch/arm64/kernel/vdso.c                  |  8 +++-
+ arch/arm64/mm/Makefile                    |  2 +
+ arch/arm64/mm/init.c                      | 12 +++---
+ arch/arm64/mm/kasan_init.c                | 22 +++++++----
+ arch/arm64/mm/mmu.c                       | 33 ++++++++++------
+ arch/arm64/mm/physaddr.c                  | 30 ++++++++++++++
+ arch/x86/Kconfig                          |  1 +
+ drivers/firmware/psci.c                   |  2 +-
+ include/linux/mm.h                        |  4 ++
+ kernel/kexec_core.c                       |  2 +-
+ lib/Kconfig.debug                         |  5 ++-
+ mm/cma.c                                  | 15 +++----
+ mm/kasan/kasan_init.c                     | 15 +++----
+ mm/usercopy.c                             |  4 +-
+ 27 files changed, 180 insertions(+), 99 deletions(-)
+ create mode 100644 arch/arm64/mm/physaddr.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
