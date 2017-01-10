@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D567A6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 03:44:40 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c85so19693361wmi.6
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 00:44:40 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EAA96B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 04:22:43 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id s63so19966524wms.7
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 01:22:43 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k188si12408438wmd.64.2017.01.10.00.44.39
+        by mx.google.com with ESMTPS id a10si1137364wjv.8.2017.01.10.01.22.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Jan 2017 00:44:39 -0800 (PST)
-Subject: Re: [patch] mm, thp: add new background defrag option
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
- <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
- <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
- <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
- <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
- <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
- <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
- <alpine.LSU.2.11.1701091925170.2692@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a00566c2-6fe4-90ce-6689-476619c556b8@suse.cz>
-Date: Tue, 10 Jan 2017 09:44:37 +0100
+        Tue, 10 Jan 2017 01:22:42 -0800 (PST)
+Date: Tue, 10 Jan 2017 10:22:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [BUG] How to crash 4.9.2 x86_64: vmscan: shrink_slab
+Message-ID: <20170110092241.GA28032@dhcp22.suse.cz>
+References: <20170109210210.2zgvw6nfs4qbgmjw@m.mifar.in>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1701091925170.2692@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170109210210.2zgvw6nfs4qbgmjw@m.mifar.in>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sami Farin <hvtaifwkbgefbaei@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/10/2017 04:38 AM, Hugh Dickins wrote:
-> On Mon, 9 Jan 2017, David Rientjes wrote:
->> On Mon, 9 Jan 2017, Vlastimil Babka wrote:
->>
->>>> Any suggestions for a better name for "background" are more than welcome.  
->>>
->>> Why not just "madvise+defer"?
->>>
->>
->> Seeing no other activity regarding this issue (omg!), I'll wait a day or 
->> so to see if there are any objections to "madvise+defer" or suggestions 
->> that may be better and repost.
+On Mon 09-01-17 23:02:10, Sami Farin wrote:
+> # sysctl vm.vfs_cache_pressure=-100
 > 
-> I get very confused by the /sys/kernel/mm/transparent_hugepage/defrag
-> versus enabled flags, and this may be a terrible, even more confusing,
-> idea: but I've been surprised and sad to see defrag with a "defer"
-> option, but poor enabled without one; and it has crossed my mind that
-> perhaps the peculiar "madvise+defer" syntax in defrag might rather be
-> handled by "madvise" in defrag with "defer" in enabled?  Or something
-> like that: 4 x 4 possibilities instead of 5 x 3.
-
-But would all the possibilities make sense? For example, if I saw
-"defer" in enabled, my first expectation would be that it would only use
-khugepaged, and no THP page faults at all - possibly including madvised
-regions.
-
-If we really wanted really to cover the whole configuration space, we
-would have files called "enable", "defrag", "enable-madvise",
-"defrag-madvise" and each with possible values "yes", "no", "defer",
-where "defer" for enable* files would mean to skip THP page fault
-completely and defer to khugepaged, and "defer" for defrag* files would
-mean wake up kswapd/kcompactd and skip direct reclaim/compaction.
-
-But, too late for that :)
-
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535449472
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535450112
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-661702561611775889
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535442432
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6562613194205300197
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535439872
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-659655090764208789
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6564660665198832072
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6562613194351275164
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6562615996648922728
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6564660665198832072
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6562613194351264981
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-569296135781119076
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-565206492037048430
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-565212096665106188
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-569296135781119076
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-565206492037043196
+> kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-659660388715270673
 > 
-> Please be gentle with me,
-> Hugh
 > 
+> Alternatively,
+> # sysctl vm.vfs_cache_pressure=10000000
+
+Both values are insane and admins do not do insane things to their
+machines, do they?
+
+I am not sure how much we want to check the input value. -100 is clearly
+bogus and 
+
+		.procname	= "vfs_cache_pressure",
+		.data		= &sysctl_vfs_cache_pressure,
+		.maxlen		= sizeof(sysctl_vfs_cache_pressure),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.extra1		= &zero,
+
+tries to enforce min (extra1) check except proc_dointvec doesn't care
+about this... This is news to me. Only proc_dointvec_minmax does care
+about extra*, it seems.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
