@@ -1,74 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 493F76B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:35:58 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id a195so103402630qkg.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:35:58 -0800 (PST)
-Received: from mail-qt0-f176.google.com (mail-qt0-f176.google.com. [209.85.216.176])
-        by mx.google.com with ESMTPS id i88si2264323qtb.138.2017.01.10.13.35.57
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACAAB6B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:36:02 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id d75so93357362qkc.0
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:02 -0800 (PST)
+Received: from mail-qt0-f170.google.com (mail-qt0-f170.google.com. [209.85.216.170])
+        by mx.google.com with ESMTPS id x33si2281223qtc.27.2017.01.10.13.36.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 13:35:57 -0800 (PST)
-Received: by mail-qt0-f176.google.com with SMTP id l7so129470315qtd.1
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:35:57 -0800 (PST)
+        Tue, 10 Jan 2017 13:36:01 -0800 (PST)
+Received: by mail-qt0-f170.google.com with SMTP id l7so129471705qtd.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 13:36:01 -0800 (PST)
 From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCHv7 00/11] CONFIG_DEBUG_VIRTUAL for arm64
-Date: Tue, 10 Jan 2017 13:35:39 -0800
-Message-Id: <1484084150-1523-1-git-send-email-labbott@redhat.com>
+Subject: [PATCHv7 01/11] lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+Date: Tue, 10 Jan 2017 13:35:40 -0800
+Message-Id: <1484084150-1523-2-git-send-email-labbott@redhat.com>
+In-Reply-To: <1484084150-1523-1-git-send-email-labbott@redhat.com>
+References: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Florian Fainelli <f.fainelli@gmail.com>
-Cc: Laura Abbott <labbott@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Florian Fainelli <f.fainelli@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org
 
-Hi,
 
-This is v7 of the patches to add CONFIG_DEBUG_VIRTUAL for arm64. This is
-a simple reordering of patches from v6 per request of Will Deacon for ease
-of merging support for arm which depends on this series.
+DEBUG_VIRTUAL currently depends on DEBUG_KERNEL && X86. arm64 is getting
+the same support. Rather than add a list of architectures, switch this
+to ARCH_HAS_DEBUG_VIRTUAL and let architectures select it as
+appropriate.
 
-Laura Abbott (11):
-  lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
-  mm/cma: Cleanup highmem check
-  mm: Introduce lm_alias
-  kexec: Switch to __pa_symbol
-  mm/kasan: Switch to using __pa_symbol and lm_alias
-  mm/usercopy: Switch to using lm_alias
-  drivers: firmware: psci: Use __pa_symbol for kernel symbol
-  arm64: Move some macros under #ifndef __ASSEMBLY__
-  arm64: Add cast for virt_to_pfn
-  arm64: Use __pa_symbol for kernel symbols
-  arm64: Add support for CONFIG_DEBUG_VIRTUAL
+Acked-by: Ingo Molnar <mingo@kernel.org>
+Reviewed-by: Mark Rutland <mark.rutland@arm.com>
+Tested-by: Mark Rutland <mark.rutland@arm.com>
+Suggested-by: Mark Rutland <mark.rutland@arm.com>
+Signed-off-by: Laura Abbott <labbott@redhat.com>
+---
+ arch/x86/Kconfig  | 1 +
+ lib/Kconfig.debug | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
 
- arch/arm64/Kconfig                        |  1 +
- arch/arm64/include/asm/kvm_mmu.h          |  4 +-
- arch/arm64/include/asm/memory.h           | 66 +++++++++++++++++++++----------
- arch/arm64/include/asm/mmu_context.h      |  6 +--
- arch/arm64/include/asm/pgtable.h          |  2 +-
- arch/arm64/kernel/acpi_parking_protocol.c |  3 +-
- arch/arm64/kernel/cpu-reset.h             |  2 +-
- arch/arm64/kernel/cpufeature.c            |  3 +-
- arch/arm64/kernel/hibernate.c             | 20 +++-------
- arch/arm64/kernel/insn.c                  |  2 +-
- arch/arm64/kernel/psci.c                  |  3 +-
- arch/arm64/kernel/setup.c                 |  9 +++--
- arch/arm64/kernel/smp_spin_table.c        |  3 +-
- arch/arm64/kernel/vdso.c                  |  8 +++-
- arch/arm64/mm/Makefile                    |  2 +
- arch/arm64/mm/init.c                      | 12 +++---
- arch/arm64/mm/kasan_init.c                | 22 +++++++----
- arch/arm64/mm/mmu.c                       | 33 ++++++++++------
- arch/arm64/mm/physaddr.c                  | 30 ++++++++++++++
- arch/x86/Kconfig                          |  1 +
- drivers/firmware/psci.c                   |  2 +-
- include/linux/mm.h                        |  4 ++
- kernel/kexec_core.c                       |  2 +-
- lib/Kconfig.debug                         |  5 ++-
- mm/cma.c                                  | 15 +++----
- mm/kasan/kasan_init.c                     | 15 +++----
- mm/usercopy.c                             |  4 +-
- 27 files changed, 180 insertions(+), 99 deletions(-)
- create mode 100644 arch/arm64/mm/physaddr.c
-
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e487493..f1d4e8f 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -46,6 +46,7 @@ config X86
+ 	select ARCH_CLOCKSOURCE_DATA
+ 	select ARCH_DISCARD_MEMBLOCK
+ 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
++	select ARCH_HAS_DEBUG_VIRTUAL
+ 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+ 	select ARCH_HAS_ELF_RANDOMIZE
+ 	select ARCH_HAS_FAST_MULTIPLIER
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index b06848a..2aed316 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -622,9 +622,12 @@ config DEBUG_VM_PGFLAGS
+ 
+ 	  If unsure, say N.
+ 
++config ARCH_HAS_DEBUG_VIRTUAL
++	bool
++
+ config DEBUG_VIRTUAL
+ 	bool "Debug VM translations"
+-	depends on DEBUG_KERNEL && X86
++	depends on DEBUG_KERNEL && ARCH_HAS_DEBUG_VIRTUAL
+ 	help
+ 	  Enable some costly sanity checks in virtual to page code. This can
+ 	  catch mistakes with virt_to_page() and friends.
 -- 
 2.7.4
 
