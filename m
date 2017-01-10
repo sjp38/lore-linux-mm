@@ -1,67 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C666B0038
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 05:32:15 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id s63so20336730wms.7
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 02:32:14 -0800 (PST)
-Received: from mifar.in (mifar.in. [46.101.129.31])
-        by mx.google.com with ESMTPS id i7si1274477wjl.146.2017.01.10.02.32.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 02:32:13 -0800 (PST)
-Received: from mifar.in (host-109-204-146-251.tp-fne.tampereenpuhelin.net [109.204.146.251])
-	(using TLSv1.2 with cipher ECDHE-ECDSA-AES256-GCM-SHA384 (256/256 bits))
-	(Client CN "mifar.in", Issuer "mifar.in" (verified OK))
-	by mifar.in (Postfix) with ESMTPS id 6DF105FD0C
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 12:32:12 +0200 (EET)
-Date: Tue, 10 Jan 2017 12:32:11 +0200
-From: Sami Farin <hvtaifwkbgefbaei@gmail.com>
-Subject: Re: [BUG] How to crash 4.9.2 x86_64: vmscan: shrink_slab
-Message-ID: <20170110103211.arb3sqv54hu4gdiy@m.mifar.in>
-References: <20170109210210.2zgvw6nfs4qbgmjw@m.mifar.in>
- <20170110092241.GA28032@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E2176B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 06:16:18 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 127so720482670pfg.5
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 03:16:18 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l3si1817301pld.312.2017.01.10.03.16.17
+        for <linux-mm@kvack.org>;
+        Tue, 10 Jan 2017 03:16:17 -0800 (PST)
+Date: Tue, 10 Jan 2017 11:16:18 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v29 1/9] memblock: add memblock_cap_memory_range()
+Message-ID: <20170110111617.GB21598@arm.com>
+References: <20161228043347.27358-1-takahiro.akashi@linaro.org>
+ <20161228043525.27420-1-takahiro.akashi@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170110092241.GA28032@dhcp22.suse.cz>
+In-Reply-To: <20161228043525.27420-1-takahiro.akashi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, kuleshovmail@gmail.com, zijun_hu@htc.com, tj@kernel.org, dennis.chen@arm.com
 
-On Tue, Jan 10, 2017 at 10:22:41 +0100, Michal Hocko wrote:
-> On Mon 09-01-17 23:02:10, Sami Farin wrote:
-> > # sysctl vm.vfs_cache_pressure=-100
-> > 
-> > kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535449472
-> > kernel: vmscan: shrink_slab: super_cache_scan+0x0/0x1a0 negative objects to delete nr=-6640827866535450112
-...
-> > 
-> > 
-> > Alternatively,
-> > # sysctl vm.vfs_cache_pressure=10000000
+[adding some more folks to cc]
+
+On Wed, Dec 28, 2016 at 01:35:25PM +0900, AKASHI Takahiro wrote:
+> Add memblock_cap_memory_range() which will remove all the memblock regions
+> except the memory range specified in the arguments. In addition, rework is
+> done on memblock_mem_limit_remove_map() to re-implement it using
+> memblock_cap_memory_range().
 > 
-> Both values are insane and admins do not do insane things to their
-> machines, do they?
+> This function, like memblock_mem_limit_remove_map(), will not remove
+> memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
+> later as "device memory."
+> See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
+> address the mem limit issue").
+> 
+> This function is used, in a succeeding patch in the series of arm64 kdump
+> suuport, to limit the range of usable memory, or System RAM, on crash dump
+> kernel.
+> (Please note that "mem=" parameter is of little use for this purpose.)
+> 
+> Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+> Reviewed-by: Will Deacon <will.deacon@arm.com>
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  include/linux/memblock.h |  1 +
+>  mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
+>  2 files changed, 30 insertions(+), 15 deletions(-)
 
-Not on purpose, unless they are insane :)
+Whilst this patch looks fine to me, it would be nice if Dennis (author of
+memblock_mem_limit_remove_map) or one of the mm chaps could provide an ack
+before I merge it via arm64.
 
-Docs say:
-"Increasing vfs_cache_pressure significantly beyond 100 may have
-negative performance impact."
-Nothing about crashing.
+Thanks,
 
-But anyways, the problem I originally had was:
-with vm.vfs_cache_pressure=0 , dentry/inode caches are reclaimed
-at a very alarming rate, and when I e.g. rescan quodlibet media
-directory (only 30000 files), that takes a lot of time..  I only download
-some files for a minute and dentry/inode caches are reclaimed,
-or so it seems.  Still, SReclaimable keeps on increasing, when it gets to
-about 6 GB , I increase vm.vfs_cache_pressure .... 
+Will
 
--- 
-Do what you love because life is too short for anything else.
-https://samifar.in/
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 5b759c9acf97..fbfcacc50c29 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -333,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+>  phys_addr_t memblock_start_of_DRAM(void);
+>  phys_addr_t memblock_end_of_DRAM(void);
+>  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+> +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+>  void memblock_mem_limit_remove_map(phys_addr_t limit);
+>  bool memblock_is_memory(phys_addr_t addr);
+>  int memblock_is_map_memory(phys_addr_t addr);
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 7608bc305936..fea1688fef60 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+>  			      (phys_addr_t)ULLONG_MAX);
+>  }
+>  
+> +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> +{
+> +	int start_rgn, end_rgn;
+> +	int i, ret;
+> +
+> +	if (!size)
+> +		return;
+> +
+> +	ret = memblock_isolate_range(&memblock.memory, base, size,
+> +						&start_rgn, &end_rgn);
+> +	if (ret)
+> +		return;
+> +
+> +	/* remove all the MAP regions */
+> +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> +			memblock_remove_region(&memblock.memory, i);
+> +
+> +	for (i = start_rgn - 1; i >= 0; i--)
+> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> +			memblock_remove_region(&memblock.memory, i);
+> +
+> +	/* truncate the reserved regions */
+> +	memblock_remove_range(&memblock.reserved, 0, base);
+> +	memblock_remove_range(&memblock.reserved,
+> +			base + size, (phys_addr_t)ULLONG_MAX);
+> +}
+> +
+>  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+>  {
+> -	struct memblock_type *type = &memblock.memory;
+>  	phys_addr_t max_addr;
+> -	int i, ret, start_rgn, end_rgn;
+>  
+>  	if (!limit)
+>  		return;
+> @@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+>  	if (max_addr == (phys_addr_t)ULLONG_MAX)
+>  		return;
+>  
+> -	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
+> -				&start_rgn, &end_rgn);
+> -	if (ret)
+> -		return;
+> -
+> -	/* remove all the MAP regions above the limit */
+> -	for (i = end_rgn - 1; i >= start_rgn; i--) {
+> -		if (!memblock_is_nomap(&type->regions[i]))
+> -			memblock_remove_region(type, i);
+> -	}
+> -	/* truncate the reserved regions */
+> -	memblock_remove_range(&memblock.reserved, max_addr,
+> -			      (phys_addr_t)ULLONG_MAX);
+> +	memblock_cap_memory_range(0, max_addr);
+>  }
+>  
+>  static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
+> -- 
+> 2.11.0
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
