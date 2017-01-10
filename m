@@ -1,52 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C1896B0038
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 08:01:49 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id qs7so86948102wjc.4
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 05:01:49 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m70si1862511wmg.143.2017.01.10.05.01.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 86C466B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 08:48:15 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so183715721pfx.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 05:48:15 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d9si2213384pgf.74.2017.01.10.05.48.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Jan 2017 05:01:48 -0800 (PST)
-Date: Tue, 10 Jan 2017 14:01:46 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, thp: add new background defrag option
-Message-ID: <20170110130146.GF28025@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
- <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
- <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
- <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
- <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
- <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
- <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jan 2017 05:48:14 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.9 102/206] x86/prctl/uapi: Remove #ifdef for CHECKPOINT_RESTORE
+Date: Tue, 10 Jan 2017 14:36:25 +0100
+Message-Id: <20170110131507.265708004@linuxfoundation.org>
+In-Reply-To: <20170110131502.767555407@linuxfoundation.org>
+References: <20170110131502.767555407@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Paul Bolle <pebolle@tiscali.nl>, Dmitry Safonov <dsafonov@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, 0x7f454c46@gmail.com, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, oleg@redhat.com, Ingo Molnar <mingo@kernel.org>
 
-On Mon 09-01-17 18:19:56, David Rientjes wrote:
-> On Mon, 9 Jan 2017, Vlastimil Babka wrote:
-> 
-> > > Any suggestions for a better name for "background" are more than welcome.  
-> > 
-> > Why not just "madvise+defer"?
-> > 
-> 
-> Seeing no other activity regarding this issue (omg!), I'll wait a day or 
-> so to see if there are any objections to "madvise+defer" or suggestions 
-> that may be better and repost.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
-madvise+defer is much better than background. So if the combined (flag
-like approach) is too risky then I am OK with that.
--- 
-Michal Hocko
-SUSE Labs
+------------------
+
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+
+commit a01aa6c9f40fe03c82032e7f8b3bcf1e6c93ac0e upstream.
+
+As userspace knows nothing about kernel config, thus #ifdefs
+around ABI prctl constants makes them invisible to userspace.
+
+Let it be clean'n'simple: remove #ifdefs.
+
+If kernel has CONFIG_CHECKPOINT_RESTORE disabled, sys_prctl()
+will return -EINVAL for those prctls.
+
+Reported-by: Paul Bolle <pebolle@tiscali.nl>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Cc: 0x7f454c46@gmail.com
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Cc: oleg@redhat.com
+Fixes: 2eefd8789698 ("x86/arch_prctl/vdso: Add ARCH_MAP_VDSO_*")
+Link: http://lkml.kernel.org/r/20161027141516.28447-2-dsafonov@virtuozzo.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/include/uapi/asm/prctl.h |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+--- a/arch/x86/include/uapi/asm/prctl.h
++++ b/arch/x86/include/uapi/asm/prctl.h
+@@ -6,10 +6,8 @@
+ #define ARCH_GET_FS 0x1003
+ #define ARCH_GET_GS 0x1004
+ 
+-#ifdef CONFIG_CHECKPOINT_RESTORE
+-# define ARCH_MAP_VDSO_X32	0x2001
+-# define ARCH_MAP_VDSO_32	0x2002
+-# define ARCH_MAP_VDSO_64	0x2003
+-#endif
++#define ARCH_MAP_VDSO_X32	0x2001
++#define ARCH_MAP_VDSO_32	0x2002
++#define ARCH_MAP_VDSO_64	0x2003
+ 
+ #endif /* _ASM_X86_PRCTL_H */
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
