@@ -1,159 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9B16B0069
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 15:52:46 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id l127so84433790lfl.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:52:46 -0800 (PST)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id x23si4169033lfi.266.2017.01.11.12.52.45
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DF61A6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 16:46:05 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id f144so2359710pfa.3
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:46:05 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id k30si6951673pgn.247.2017.01.11.13.46.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 12:52:45 -0800 (PST)
-Received: by mail-lf0-x241.google.com with SMTP id k62so15867015lfg.0
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:52:45 -0800 (PST)
-Date: Wed, 11 Jan 2017 21:52:42 +0100
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: Re: [PATCH/RESEND v2 3/5] z3fold: extend compaction function
-Message-Id: <20170111215242.53cb8fab64beec599dcea847@gmail.com>
-In-Reply-To: <CAMJBoFNyo2KRvECFNwd9_5nVtLaQ3gP86aHAP3tud+3i33AXXg@mail.gmail.com>
-References: <20170111155948.aa61c5b995b6523caf87d862@gmail.com>
-	<20170111160622.44ac261b12ed4778556c56dc@gmail.com>
-	<CALZtONDmfWaJ2u-dO4BGnK0jztOGMEKb8WxEZ1iEurAdkMoxGA@mail.gmail.com>
-	<CAMJBoFNyo2KRvECFNwd9_5nVtLaQ3gP86aHAP3tud+3i33AXXg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 11 Jan 2017 13:46:04 -0800 (PST)
+Date: Wed, 11 Jan 2017 13:46:03 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Message-ID: <20170111214603.GF8388@tassilo.jf.intel.com>
+References: <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
+ <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com>
+ <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
+ <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com>
+ <20170111142904.GD4895@node.shutemov.name>
+ <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
+ <20170111183750.GE4895@node.shutemov.name>
+ <0a6f1ee4-e260-ae7b-3d39-c53f6bed8102@intel.com>
+ <CALCETrXDbkotCZ1WEbhNeYGt0zyKT42agzsFxT2SZJ4wadEnQA@mail.gmail.com>
+ <CA+55aFyhva9bw48G669z4QfJXjjJA5s+necfWmYoAB6eyzea=A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyhva9bw48G669z4QfJXjjJA5s+necfWmYoAB6eyzea=A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, 11 Jan 2017 17:43:13 +0100
-Vitaly Wool <vitalywool@gmail.com> wrote:
-
-> On Wed, Jan 11, 2017 at 5:28 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> > On Wed, Jan 11, 2017 at 10:06 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> >> z3fold_compact_page() currently only handles the situation when
-> >> there's a single middle chunk within the z3fold page. However it
-> >> may be worth it to move middle chunk closer to either first or
-> >> last chunk, whichever is there, if the gap between them is big
-> >> enough.
-> >>
-> >> This patch adds the relevant code, using BIG_CHUNK_GAP define as
-> >> a threshold for middle chunk to be worth moving.
-> >>
-> >> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> >> ---
-> >>  mm/z3fold.c | 26 +++++++++++++++++++++++++-
-> >>  1 file changed, 25 insertions(+), 1 deletion(-)
-> >>
-> >> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> >> index 98ab01f..fca3310 100644
-> >> --- a/mm/z3fold.c
-> >> +++ b/mm/z3fold.c
-> >> @@ -268,6 +268,7 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
-> >>                        zhdr->middle_chunks << CHUNK_SHIFT);
-> >>  }
-> >>
-> >> +#define BIG_CHUNK_GAP  3
-> >>  /* Has to be called with lock held */
-> >>  static int z3fold_compact_page(struct z3fold_header *zhdr)
-> >>  {
-> >> @@ -286,8 +287,31 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
-> >>                 zhdr->middle_chunks = 0;
-> >>                 zhdr->start_middle = 0;
-> >>                 zhdr->first_num++;
-> >> +               return 1;
-> >>         }
-> >> -       return 1;
-> >> +
-> >> +       /*
-> >> +        * moving data is expensive, so let's only do that if
-> >> +        * there's substantial gain (at least BIG_CHUNK_GAP chunks)
-> >> +        */
-> >> +       if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-> >> +           zhdr->start_middle - (zhdr->first_chunks + ZHDR_CHUNKS) >=
-> >> +                       BIG_CHUNK_GAP) {
-> >> +               mchunk_memmove(zhdr, zhdr->first_chunks + 1);
-> >> +               zhdr->start_middle = zhdr->first_chunks + 1;
+On Wed, Jan 11, 2017 at 11:31:25AM -0800, Linus Torvalds wrote:
+> On Wed, Jan 11, 2017 at 11:20 AM, Andy Lutomirski <luto@amacapital.net> wrote:
 > >
-> > this should be first_chunks + ZHDR_CHUNKS, not + 1.
-> >
-> >> +               return 1;
-> >> +       } else if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-> >> +                  TOTAL_CHUNKS - (zhdr->last_chunks + zhdr->start_middle
-> >> +                                       + zhdr->middle_chunks) >=
-> >> +                       BIG_CHUNK_GAP) {
-> >> +               unsigned short new_start = NCHUNKS - zhdr->last_chunks -
-> >
-> > this should be TOTAL_CHUNKS, not NCHUNKS.
+> > Taking a step back, I think it would be fantastic if we could find a
+> > way to make this work without any inheritable settings at all.
+> > Perhaps we could have a per-mm value that is initialized to 2^47-1 on
+> > execve() and can be raised by ELF note or by prctl()?
 > 
-> Right :/
+> I definitely think this is the right model. No inheritable settings,
+> no suid issues, no worries. Make people who want the large address
+> space (and there aren't going to be a lot of them) just mark their
+> binaries at compile time.
 
-So here we go:
+Compile time is inconvenient if you want to test some existing
+random binary if it works.
 
+I tried to write a tool which patched ELF notes into binaries
+some time ago for another project, but it ran into difficulties
+and didn't work everywhere.
 
-z3fold_compact_page() currently only handles the situation when
-there's a single middle chunk within the z3fold page. However it
-may be worth it to move middle chunk closer to either first or
-last chunk, whichever is there, if the gap between them is big
-enough.
+An inheritance scheme is much nicer for such use cases.
 
-This patch adds the relevant code, using BIG_CHUNK_GAP define as
-a threshold for middle chunk to be worth moving.
-
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 26 +++++++++++++++++++++++++-
- 1 file changed, 25 insertions(+), 1 deletion(-)
-
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 98ab01f..fca3310 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -268,6 +268,7 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
- 		       zhdr->middle_chunks << CHUNK_SHIFT);
- }
- 
-+#define BIG_CHUNK_GAP	3
- /* Has to be called with lock held */
- static int z3fold_compact_page(struct z3fold_header *zhdr)
- {
-@@ -286,8 +287,31 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
- 		zhdr->middle_chunks = 0;
- 		zhdr->start_middle = 0;
- 		zhdr->first_num++;
-+		return 1;
- 	}
--	return 1;
-+
-+	/*
-+	 * moving data is expensive, so let's only do that if
-+	 * there's substantial gain (at least BIG_CHUNK_GAP chunks)
-+	 */
-+	if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-+	    zhdr->start_middle - (zhdr->first_chunks + ZHDR_CHUNKS) >=
-+			BIG_CHUNK_GAP) {
-+		mchunk_memmove(zhdr, zhdr->first_chunks + ZHDR_CHUNKS);
-+		zhdr->start_middle = zhdr->first_chunks + ZHDR_CHUNKS;
-+		return 1;
-+	} else if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-+		   TOTAL_CHUNKS - (zhdr->last_chunks + zhdr->start_middle
-+					+ zhdr->middle_chunks) >=
-+			BIG_CHUNK_GAP) {
-+		unsigned short new_start = TOTAL_CHUNKS - zhdr->last_chunks -
-+			zhdr->middle_chunks;
-+		mchunk_memmove(zhdr, new_start);
-+		zhdr->start_middle = new_start;
-+		return 1;
-+	}
-+
-+	return 0;
- }
- 
- /**
--- 
-2.4.2
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
