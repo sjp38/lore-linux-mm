@@ -1,347 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6623E6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 05:52:30 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id f2so146662462uaf.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:52:30 -0800 (PST)
-Received: from mail-vk0-x242.google.com (mail-vk0-x242.google.com. [2607:f8b0:400c:c05::242])
-        by mx.google.com with ESMTPS id w189si1439355vkf.54.2017.01.11.02.52.29
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D9DD36B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 05:55:21 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id o12so49881187lfg.7
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:55:21 -0800 (PST)
+Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
+        by mx.google.com with ESMTPS id g83si3265027ljg.70.2017.01.11.02.55.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 02:52:29 -0800 (PST)
-Received: by mail-vk0-x242.google.com with SMTP id r136so5342399vke.1
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:52:29 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CALZtONAs9Gj6DR-ksoxEe9N31EMYZ_SFRinezbFjqpf9jp4sVA@mail.gmail.com>
-References: <20161226013016.968004f3db024ef2111dc458@gmail.com>
- <20161226014059.d1aa11c9ed4ac3380bd35870@gmail.com> <CALZtONAs9Gj6DR-ksoxEe9N31EMYZ_SFRinezbFjqpf9jp4sVA@mail.gmail.com>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Wed, 11 Jan 2017 11:52:28 +0100
-Message-ID: <CAMJBoFNCiXs+S44z3aWkzgUtzWqEFrL1UdLqDgdDm50CoiBwTw@mail.gmail.com>
-Subject: Re: [PATCH/RESEND 5/5] z3fold: add kref refcounting
-Content-Type: text/plain; charset=UTF-8
+        Wed, 11 Jan 2017 02:55:20 -0800 (PST)
+Received: by mail-lf0-x234.google.com with SMTP id k86so134303175lfi.0
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:55:20 -0800 (PST)
+From: Chris Vest <chris.vest@neotechnology.com>
+Message-Id: <E5F4661B-16D8-4A00-BF6C-D8DD2AF8D8A5@neotechnology.com>
+Content-Type: multipart/alternative;
+ boundary="Apple-Mail=_9F176A49-27D3-41FD-80A2-359837F436F6"
+Mime-Version: 1.0 (Mac OS X Mail 10.2 \(3259\))
+Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
+Date: Wed, 11 Jan 2017 11:55:18 +0100
+In-Reply-To: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
+References: <20170110160224.GC6179@noname.redhat.com>
+ <20170111050356.ldlx73n66zjdkh6i@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Kevin Wolf <kwolf@redhat.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, Jan 4, 2017 at 7:42 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Sun, Dec 25, 2016 at 7:40 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
->> With both coming and already present locking optimizations,
->> introducing kref to reference-count z3fold objects is the right
->> thing to do. Moreover, it makes buddied list no longer necessary,
->> and allows for a simpler handling of headless pages.
->>
->> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
->> ---
->>  mm/z3fold.c | 137 ++++++++++++++++++++++++++++++------------------------------
->>  1 file changed, 68 insertions(+), 69 deletions(-)
->>
->> diff --git a/mm/z3fold.c b/mm/z3fold.c
->> index 729a2da..4593493 100644
->> --- a/mm/z3fold.c
->> +++ b/mm/z3fold.c
->> @@ -52,6 +52,7 @@ enum buddy {
->>   *                     z3fold page, except for HEADLESS pages
->>   * @buddy:     links the z3fold page into the relevant list in the pool
->>   * @page_lock:         per-page lock
->> + * @refcount:          reference cound for the z3fold page
->>   * @first_chunks:      the size of the first buddy in chunks, 0 if free
->>   * @middle_chunks:     the size of the middle buddy in chunks, 0 if free
->>   * @last_chunks:       the size of the last buddy in chunks, 0 if free
->> @@ -60,6 +61,7 @@ enum buddy {
->>  struct z3fold_header {
->>         struct list_head buddy;
->>         raw_spinlock_t page_lock;
->> +       struct kref refcount;
->>         unsigned short first_chunks;
->>         unsigned short middle_chunks;
->>         unsigned short last_chunks;
->> @@ -95,8 +97,6 @@ struct z3fold_header {
->>   * @unbuddied: array of lists tracking z3fold pages that contain 2- buddies;
->>   *             the lists each z3fold page is added to depends on the size of
->>   *             its free region.
->> - * @buddied:   list tracking the z3fold pages that contain 3 buddies;
->> - *             these z3fold pages are full
->>   * @lru:       list tracking the z3fold pages in LRU order by most recently
->>   *             added buddy.
->>   * @pages_nr:  number of z3fold pages in the pool.
->> @@ -109,7 +109,6 @@ struct z3fold_header {
->>  struct z3fold_pool {
->>         spinlock_t lock;
->>         struct list_head unbuddied[NCHUNKS];
->> -       struct list_head buddied;
->>         struct list_head lru;
->>         atomic64_t pages_nr;
->>         const struct z3fold_ops *ops;
->> @@ -162,9 +161,21 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
->>  }
->>
->>  /* Resets the struct page fields and frees the page */
->> -static void free_z3fold_page(struct z3fold_header *zhdr)
->> +static void free_z3fold_page(struct page *page)
->>  {
->> -       __free_page(virt_to_page(zhdr));
->> +       __free_page(page);
->> +}
->> +
->> +static void release_z3fold_page(struct kref *ref)
->> +{
->> +       struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
->> +                                               refcount);
->> +       struct page *page = virt_to_page(zhdr);
->> +       if (!list_empty(&zhdr->buddy))
->> +               list_del(&zhdr->buddy);
->> +       if (!list_empty(&page->lru))
->> +               list_del(&page->lru);
->
-> wait, a page shouldn't ever be on a buddy or lru list if it's free,
-> should it?  these checks are bugs if they're true aren't they?
-> Relying on the release function to remove a page from its buddy and/or
-> lru list (and hoping no other code already took it off and it using
-> it) seems very error-prone.
 
-Why? We manage not to care if page is on a list or not when it's
-become unused. When we release a page we don't actually know if anyone
-else is using it and that's ok.
+--Apple-Mail=_9F176A49-27D3-41FD-80A2-359837F436F6
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
 
->> +       free_z3fold_page(page);
->>  }
->>
->>  /* Lock a z3fold page */
->> @@ -256,9 +267,9 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->>         if (!pool)
->>                 return NULL;
->>         spin_lock_init(&pool->lock);
->> +       kref_init(&zhdr->refcount);
->>         for_each_unbuddied_list(i, 0)
->>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
->> -       INIT_LIST_HEAD(&pool->buddied);
->>         INIT_LIST_HEAD(&pool->lru);
->>         atomic64_set(&pool->pages_nr, 0);
->>         pool->ops = ops;
->> @@ -383,7 +394,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
->>                         spin_lock(&pool->lock);
->>                         zhdr = list_first_entry_or_null(&pool->unbuddied[i],
->>                                                 struct z3fold_header, buddy);
->> -                       if (!zhdr) {
->> +                       if (!zhdr || !kref_get_unless_zero(&zhdr->refcount)) {
->
-> if we can't rely on the kref to be safe under the pool lock, the kref
-> isn't very useful is it?  seems like it just makes things more
-> complicated.
 
-No, this is just an overkill check. I tried this patch with the direct
-kref_get() instead and it's ok.
+> On 11 Jan 2017, at 06.03, Theodore Ts'o <tytso@mit.edu> wrote:
+>=20
+> So an approach that might work is fsync() will keep the pages dirty
+> --- but only while the file descriptor is open.  This could either be
+> the default behavior, or something that has to be specifically
+> requested via fcntl(2).  That way, as soon as the process exits (at
+> which point it will be too late for it do anything to save the
+> contents of the file) we also release the memory.  And if the process
+> gets OOM killed, again, the right thing happens.  But if the process
+> wants to take emergency measures to write the file somewhere else, it
+> knows that the pages won't get lost until the file gets closed.
 
-> the kref should be assumed to be safe while holding the pool lock, or
-> whatever lock protects the list(s) the object is on, otherwise it
-> seems likely that use-after-free problems will result...but this goes
-> back to my concern about relying on the freeing function to remove
-> objects from their lists.
 
-As long as kref_put() is called with the pool lock held it is no problem.
+I think this sounds like a very reasonable default. Before reading this =
+thread, it would have been my first guess as to how this worked. It =
+gives the program the opportunity to retry the fsyncs, before aborting. =
+It will also allow a database, for instance, to keep servicing reads =
+until the issue resolves itself, or an administrator intervenes. A =
+program cannot allow reads from the file if pages that has been written =
+to can be evicted, and their changes lost, and then brought back with =
+old data.
 
->>                                 spin_unlock(&pool->lock);
->>                                 continue;
->>                         }
->> @@ -403,10 +414,12 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
->>                         else if (zhdr->middle_chunks == 0)
->>                                 bud = MIDDLE;
->>                         else {
->> +                               z3fold_page_unlock(zhdr);
->>                                 spin_lock(&pool->lock);
->> -                               list_add(&zhdr->buddy, &pool->buddied);
->> +                               if (kref_put(&zhdr->refcount,
->> +                                            release_z3fold_page))
->> +                                       atomic64_dec(&pool->pages_nr);
->>                                 spin_unlock(&pool->lock);
->> -                               z3fold_page_unlock(zhdr);
->>                                 pr_err("No free chunks in unbuddied\n");
->>                                 WARN_ON(1);
->>                                 continue;
->> @@ -447,9 +460,6 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
->>                 /* Add to unbuddied list */
->>                 freechunks = num_free_chunks(zhdr);
->>                 list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
->> -       } else {
->> -               /* Add to buddied list */
->> -               list_add(&zhdr->buddy, &pool->buddied);
->>         }
->>
->>  headless:
->> @@ -515,50 +525,39 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
->>
->>         if (test_bit(UNDER_RECLAIM, &page->private)) {
->>                 /* z3fold page is under reclaim, reclaim will free */
->> -               if (bud != HEADLESS)
->> +               if (bud != HEADLESS) {
->>                         z3fold_page_unlock(zhdr);
->> -               return;
->> -       }
->> -
->> -       /* Remove from existing buddy list */
->> -       if (bud != HEADLESS) {
->> -               spin_lock(&pool->lock);
->> -               /*
->> -                * this object may have been removed from its list by
->> -                * z3fold_alloc(). In that case we just do nothing,
->> -                * z3fold_alloc() will allocate an object and add the page
->> -                * to the relevant list.
->> -                */
->> -               if (!list_empty(&zhdr->buddy)) {
->> -                       list_del(&zhdr->buddy);
->> -               } else {
->> +                       spin_lock(&pool->lock);
->> +                       if (kref_put(&zhdr->refcount, release_z3fold_page))
->> +                               atomic64_dec(&pool->pages_nr);
->>                         spin_unlock(&pool->lock);
->> -                       z3fold_page_unlock(zhdr);
->> -                       return;
->>                 }
->> -               spin_unlock(&pool->lock);
->> +               return;
->>         }
->>
->> -       if (bud == HEADLESS ||
->> -           (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
->> -                       zhdr->last_chunks == 0)) {
->> -               /* z3fold page is empty, free */
->> +       if (bud == HEADLESS) {
->>                 spin_lock(&pool->lock);
->>                 list_del(&page->lru);
->>                 spin_unlock(&pool->lock);
->> -               clear_bit(PAGE_HEADLESS, &page->private);
->> -               if (bud != HEADLESS)
->> -                       z3fold_page_unlock(zhdr);
->> -               free_z3fold_page(zhdr);
->> +               free_z3fold_page(page);
->>                 atomic64_dec(&pool->pages_nr);
->>         } else {
->> -               z3fold_compact_page(zhdr);
->> -               /* Add to the unbuddied list */
->> +               if (zhdr->first_chunks != 0 || zhdr->middle_chunks != 0 ||
->> +                   zhdr->last_chunks != 0) {
->> +                       z3fold_compact_page(zhdr);
->> +                       /* Add to the unbuddied list */
->> +                       spin_lock(&pool->lock);
->> +                       if (!list_empty(&zhdr->buddy))
->> +                               list_del(&zhdr->buddy);
->> +                       freechunks = num_free_chunks(zhdr);
->> +                       list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
->> +                       spin_unlock(&pool->lock);
->> +               }
->> +               z3fold_page_unlock(zhdr);
->>                 spin_lock(&pool->lock);
->> -               freechunks = num_free_chunks(zhdr);
->> -               list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
->> +               if (kref_put(&zhdr->refcount, release_z3fold_page))
->> +                       atomic64_dec(&pool->pages_nr);
->>                 spin_unlock(&pool->lock);
->> -               z3fold_page_unlock(zhdr);
->>         }
->>
->>  }
->> @@ -617,13 +616,15 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
->>                         return -EINVAL;
->>                 }
->>                 page = list_last_entry(&pool->lru, struct page, lru);
->> -               list_del(&page->lru);
->> +               list_del_init(&page->lru);
->>
->>                 /* Protect z3fold page against free */
->>                 set_bit(UNDER_RECLAIM, &page->private);
->
-> UNDER_RECLAIM shouldn't be needed anymore when kref counting is used,
-> and with the separate pool and page locks, z3fold_free and
-> z3fold_reclaim can race to set/check this bit anyway (it's set under
-> the pool lock, but checked under the page lock).
+--
+Chris Vest
 
-True; I'll refactor the patch to get rid of it.
+--Apple-Mail=_9F176A49-27D3-41FD-80A2-359837F436F6
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=us-ascii
 
->>                 zhdr = page_address(page);
->>                 if (!test_bit(PAGE_HEADLESS, &page->private)) {
->> -                       list_del(&zhdr->buddy);
->> +                       if (!list_empty(&zhdr->buddy))
->> +                               list_del_init(&zhdr->buddy);
->> +                       kref_get(&zhdr->refcount);
->>                         spin_unlock(&pool->lock);
->>                         z3fold_page_lock(zhdr);
->>                         /*
->> @@ -664,30 +665,26 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
->>                                 goto next;
->>                 }
->>  next:
->> -               if (!test_bit(PAGE_HEADLESS, &page->private))
->> -                       z3fold_page_lock(zhdr);
->>                 clear_bit(UNDER_RECLAIM, &page->private);
->> -               if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
->> -                   (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
->> -                    zhdr->middle_chunks == 0)) {
->> -                       /*
->> -                        * All buddies are now free, free the z3fold page and
->> -                        * return success.
->> -                        */
->> -                       if (!test_and_clear_bit(PAGE_HEADLESS, &page->private))
->> +               if (test_bit(PAGE_HEADLESS, &page->private)) {
->> +                       if (ret == 0) {
->> +                               free_z3fold_page(page);
->> +                               return 0;
->> +                       }
->> +               } else {
->> +                       z3fold_page_lock(zhdr);
->> +                       if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
->> +                           zhdr->middle_chunks == 0) {
->>                                 z3fold_page_unlock(zhdr);
->> -                       free_z3fold_page(zhdr);
->> -                       atomic64_dec(&pool->pages_nr);
->> -                       return 0;
->> -               }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
->> -                       if (zhdr->first_chunks != 0 &&
->> -                           zhdr->last_chunks != 0 &&
->> -                           zhdr->middle_chunks != 0) {
->> -                               /* Full, add to buddied list */
->>                                 spin_lock(&pool->lock);
->> -                               list_add(&zhdr->buddy, &pool->buddied);
->> +                               if (kref_put(&zhdr->refcount,
->> +                                            release_z3fold_page))
->> +                                       atomic64_dec(&pool->pages_nr);
->>                                 spin_unlock(&pool->lock);
->> -                       } else {
->> +                               return 0;
->> +                       } else if (zhdr->first_chunks == 0 ||
->> +                                  zhdr->last_chunks == 0 ||
->> +                                  zhdr->middle_chunks == 0) {
->>                                 z3fold_compact_page(zhdr);
->>                                 /* add to unbuddied list */
->>                                 spin_lock(&pool->lock);
->> @@ -696,10 +693,12 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
->>                                          &pool->unbuddied[freechunks]);
->>                                 spin_unlock(&pool->lock);
->>                         }
->> -               }
->> -
->> -               if (!test_bit(PAGE_HEADLESS, &page->private))
->>                         z3fold_page_unlock(zhdr);
->> +                       spin_lock(&pool->lock);
->> +                       if (kref_put(&zhdr->refcount, release_z3fold_page))
->> +                               atomic64_dec(&pool->pages_nr);
->> +                       spin_unlock(&pool->lock);
->> +               }
->
-> you can't put the zhdr above, and then go on to add the page to the
-> lru list; you don't have the kref anymore to allow you to do that.
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html =
+charset=3Dus-ascii"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
+class=3D""><br class=3D""><div><blockquote type=3D"cite" class=3D""><div =
+class=3D"">On 11 Jan 2017, at 06.03, Theodore Ts'o &lt;<a =
+href=3D"mailto:tytso@mit.edu" class=3D"">tytso@mit.edu</a>&gt; =
+wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><span =
+style=3D"font-family: Menlo-Regular; font-size: 12px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; orphans: auto; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; widows: auto; word-spacing: =
+0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">So an approach that might work is fsync() will =
+keep the pages dirty</span><br style=3D"font-family: Menlo-Regular; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; orphans: auto; text-align: =
+start; text-indent: 0px; text-transform: none; white-space: normal; =
+widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Menlo-Regular; font-size: 12px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; orphans: auto; text-align: start; text-indent: =
+0px; text-transform: none; white-space: normal; widows: auto; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D"">--- but only while the file descriptor is =
+open. &nbsp;This could either be</span><br style=3D"font-family: =
+Menlo-Regular; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; orphans: auto; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: =
+0px;" class=3D""><span style=3D"font-family: Menlo-Regular; font-size: =
+12px; font-style: normal; font-variant-caps: normal; font-weight: =
+normal; letter-spacing: normal; orphans: auto; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; widows: =
+auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; =
+display: inline !important;" class=3D"">the default behavior, or =
+something that has to be specifically</span><br style=3D"font-family: =
+Menlo-Regular; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; orphans: auto; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: =
+0px;" class=3D""><span style=3D"font-family: Menlo-Regular; font-size: =
+12px; font-style: normal; font-variant-caps: normal; font-weight: =
+normal; letter-spacing: normal; orphans: auto; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; widows: =
+auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; =
+display: inline !important;" class=3D"">requested via fcntl(2). =
+&nbsp;That way, as soon as the process exits (at</span><br =
+style=3D"font-family: Menlo-Regular; font-size: 12px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; orphans: auto; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; widows: auto; word-spacing: =
+0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
+style=3D"font-family: Menlo-Regular; font-size: 12px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; orphans: auto; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; widows: auto; word-spacing: =
+0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">which point it will be too late for it do =
+anything to save the</span><br style=3D"font-family: Menlo-Regular; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; orphans: auto; text-align: =
+start; text-indent: 0px; text-transform: none; white-space: normal; =
+widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Menlo-Regular; font-size: 12px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; orphans: auto; text-align: start; text-indent: =
+0px; text-transform: none; white-space: normal; widows: auto; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D"">contents of the file) we also release the =
+memory. &nbsp;And if the process</span><br style=3D"font-family: =
+Menlo-Regular; font-size: 12px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; orphans: auto; =
+text-align: start; text-indent: 0px; text-transform: none; white-space: =
+normal; widows: auto; word-spacing: 0px; -webkit-text-stroke-width: =
+0px;" class=3D""><span style=3D"font-family: Menlo-Regular; font-size: =
+12px; font-style: normal; font-variant-caps: normal; font-weight: =
+normal; letter-spacing: normal; orphans: auto; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; widows: =
+auto; word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; =
+display: inline !important;" class=3D"">gets OOM killed, again, the =
+right thing happens. &nbsp;But if the process</span><br =
+style=3D"font-family: Menlo-Regular; font-size: 12px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; orphans: auto; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; widows: auto; word-spacing: =
+0px; -webkit-text-stroke-width: 0px;" class=3D""><span =
+style=3D"font-family: Menlo-Regular; font-size: 12px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; orphans: auto; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; widows: auto; word-spacing: =
+0px; -webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">wants to take emergency measures to write the =
+file somewhere else, it</span><br style=3D"font-family: Menlo-Regular; =
+font-size: 12px; font-style: normal; font-variant-caps: normal; =
+font-weight: normal; letter-spacing: normal; orphans: auto; text-align: =
+start; text-indent: 0px; text-transform: none; white-space: normal; =
+widows: auto; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Menlo-Regular; font-size: 12px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; orphans: auto; text-align: start; text-indent: =
+0px; text-transform: none; white-space: normal; widows: auto; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D"">knows that the pages won't get lost until =
+the file gets closed.</span></div></blockquote></div><div class=3D""><br =
+class=3D""></div>I think this sounds like a very reasonable default. =
+Before reading this thread, it would have been my first guess as to how =
+this worked. It gives the program the opportunity to retry the fsyncs, =
+before aborting. It will also allow a database, for instance, to keep =
+servicing reads until the issue resolves itself, or an administrator =
+intervenes. A program cannot allow reads from the file if pages that has =
+been written to can be evicted, and their changes lost, and then brought =
+back with old data.<br class=3D""><div class=3D""><br class=3D"">--<br =
+class=3D"">Chris Vest<br class=3D""></div></body></html>=
 
-I don't think so since I do kref_get() in the beginning of reclaim
-function so strictly speaking kref_put should not release the page
-here.
-I can add an extra check though to just return 0 in case it did.
-
->>
->>                 spin_lock(&pool->lock);
->>                 /* add to beginning of LRU */
->> --
->> 2.4.2
+--Apple-Mail=_9F176A49-27D3-41FD-80A2-359837F436F6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
