@@ -1,77 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B04846B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:52:43 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id l2so28782861wml.5
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 07:52:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t1si4877089wjf.2.2017.01.11.07.52.42
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BFDB6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:10:24 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id x64so169164021qkb.5
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:10:24 -0800 (PST)
+Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
+        by mx.google.com with ESMTPS id w203si511620qkb.279.2017.01.11.08.10.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Jan 2017 07:52:42 -0800 (PST)
-Date: Wed, 11 Jan 2017 16:52:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
- added to -mm tree
-Message-ID: <20170111155239.GD16365@dhcp22.suse.cz>
-References: <586edadc.figmHAGrTxvM7Wei%akpm@linux-foundation.org>
- <20170110235250.GA7130@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 08:10:23 -0800 (PST)
+Received: by mail-qt0-x243.google.com with SMTP id n13so12797170qtc.0
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:10:23 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170110235250.GA7130@bbox>
+In-Reply-To: <20170111160608.ca2048b68779129e4de70a1e@gmail.com>
+References: <20170111155948.aa61c5b995b6523caf87d862@gmail.com> <20170111160608.ca2048b68779129e4de70a1e@gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 11 Jan 2017 11:09:42 -0500
+Message-ID: <CALZtONC8h1AgxpE7QiKeb1P59X5yXa5+QCTmpWKOQKFc5Y-WDA@mail.gmail.com>
+Subject: Re: [PATCH/RESEND v2 1/5] z3fold: make pages_nr atomic
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, hillf.zj@alibaba-inc.com, mgorman@suse.de, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 11-01-17 08:52:50, Minchan Kim wrote:
-[...]
-> > @@ -2055,8 +2055,8 @@ static bool inactive_list_is_low(struct
-> >  	if (!file && !total_swap_pages)
-> >  		return false;
-> >  
-> > -	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
-> > -	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
-> > +	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
-> > +	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
-> >  
-> 
-> the decision of deactivating is based on eligible zone's LRU size,
-> not whole zone so why should we need to get a trace of all zones's LRU?
+On Wed, Jan 11, 2017 at 10:06 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
+> This patch converts pages_nr per-pool counter to atomic64_t.
+>
+> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
 
-Strictly speaking, the total_ counters are not necessary for making the
-decision. I found reporting those numbers useful regardless because this
-will give us also an information how large is the eligible portion of
-the LRU list. We do not have any other tracepoint which would report
-that.
- 
-[...]
-> > @@ -2223,7 +2228,7 @@ static void get_scan_count(struct lruvec
-> >  	 * lruvec even if it has plenty of old anonymous pages unless the
-> >  	 * system is under heavy pressure.
-> >  	 */
-> > -	if (!inactive_list_is_low(lruvec, true, sc) &&
-> > +	if (!inactive_list_is_low(lruvec, true, sc, false) &&
-> 
-> Hmm, I was curious why you added trace boolean arguement and found it here.
-> Yes, here is not related to deactivation directly but couldn't we help to
-> trace it unconditionally?
+Acked-by: Dan Streetman <ddstreet@ieee.org>
 
-I've had it like that when I was debugging the mentioned bug and found
-it a bit disturbing. It generated more output than I would like and it
-wasn't really clear from which code path  this has been called from.
-
-> With that, we can know why VM reclaim only
-> file-backed page on slow device although enough anonymous pages on fast
-> swap like zram are enough.
-
-That would be something for a separate tracepoint in g_s_c
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>  mm/z3fold.c | 20 +++++++++-----------
+>  1 file changed, 9 insertions(+), 11 deletions(-)
+>
+> diff --git a/mm/z3fold.c b/mm/z3fold.c
+> index 207e5dd..2273789 100644
+> --- a/mm/z3fold.c
+> +++ b/mm/z3fold.c
+> @@ -80,7 +80,7 @@ struct z3fold_pool {
+>         struct list_head unbuddied[NCHUNKS];
+>         struct list_head buddied;
+>         struct list_head lru;
+> -       u64 pages_nr;
+> +       atomic64_t pages_nr;
+>         const struct z3fold_ops *ops;
+>         struct zpool *zpool;
+>         const struct zpool_ops *zpool_ops;
+> @@ -238,7 +238,7 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
+>         INIT_LIST_HEAD(&pool->buddied);
+>         INIT_LIST_HEAD(&pool->lru);
+> -       pool->pages_nr = 0;
+> +       atomic64_set(&pool->pages_nr, 0);
+>         pool->ops = ops;
+>         return pool;
+>  }
+> @@ -350,7 +350,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>         if (!page)
+>                 return -ENOMEM;
+>         spin_lock(&pool->lock);
+> -       pool->pages_nr++;
+> +       atomic64_inc(&pool->pages_nr);
+>         zhdr = init_z3fold_page(page);
+>
+>         if (bud == HEADLESS) {
+> @@ -443,10 +443,9 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>                 return;
+>         }
+>
+> -       if (bud != HEADLESS) {
+> -               /* Remove from existing buddy list */
+> +       /* Remove from existing buddy list */
+> +       if (bud != HEADLESS)
+>                 list_del(&zhdr->buddy);
+> -       }
+>
+>         if (bud == HEADLESS ||
+>             (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
+> @@ -455,7 +454,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>                 list_del(&page->lru);
+>                 clear_bit(PAGE_HEADLESS, &page->private);
+>                 free_z3fold_page(zhdr);
+> -               pool->pages_nr--;
+> +               atomic64_dec(&pool->pages_nr);
+>         } else {
+>                 z3fold_compact_page(zhdr);
+>                 /* Add to the unbuddied list */
+> @@ -573,7 +572,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>                          */
+>                         clear_bit(PAGE_HEADLESS, &page->private);
+>                         free_z3fold_page(zhdr);
+> -                       pool->pages_nr--;
+> +                       atomic64_dec(&pool->pages_nr);
+>                         spin_unlock(&pool->lock);
+>                         return 0;
+>                 }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+> @@ -676,12 +675,11 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
+>   * z3fold_get_pool_size() - gets the z3fold pool size in pages
+>   * @pool:      pool whose size is being queried
+>   *
+> - * Returns: size in pages of the given pool.  The pool lock need not be
+> - * taken to access pages_nr.
+> + * Returns: size in pages of the given pool.
+>   */
+>  static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
+>  {
+> -       return pool->pages_nr;
+> +       return atomic64_read(&pool->pages_nr);
+>  }
+>
+>  /*****************
+> --
+> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
