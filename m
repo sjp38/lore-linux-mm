@@ -1,79 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 671BE6B0069
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 14:11:59 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id f144so269275691pfa.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:11:59 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r66si4300193pfg.195.2017.01.11.11.11.58
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D98636B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 14:21:00 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id d38so126089760uad.4
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:21:00 -0800 (PST)
+Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
+        by mx.google.com with ESMTPS id 141si1813612vkg.196.2017.01.11.11.20.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 11:11:58 -0800 (PST)
-Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
- SPARC M7
-References: <cover.1483999591.git.khalid.aziz@oracle.com>
- <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
- <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
- <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
- <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
-Date: Wed, 11 Jan 2017 11:11:55 -0800
+        Wed, 11 Jan 2017 11:20:59 -0800 (PST)
+Received: by mail-vk0-x232.google.com with SMTP id r136so49241181vke.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:20:59 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <0a6f1ee4-e260-ae7b-3d39-c53f6bed8102@intel.com>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+ <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
+ <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com> <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
+ <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com> <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
+ <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com> <20170111142904.GD4895@node.shutemov.name>
+ <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
+ <20170111183750.GE4895@node.shutemov.name> <0a6f1ee4-e260-ae7b-3d39-c53f6bed8102@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 11 Jan 2017 11:20:38 -0800
+Message-ID: <CALCETrXDbkotCZ1WEbhNeYGt0zyKT42agzsFxT2SZJ4wadEnQA@mail.gmail.com>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 01/11/2017 10:50 AM, Khalid Aziz wrote:
-> On 01/11/2017 11:13 AM, Dave Hansen wrote:
->> On 01/11/2017 08:56 AM, Khalid Aziz wrote:
->> For memory shared by two different processes, do they have to agree on
->> what the tags are, or can they differ?
-> 
-> The two processes have to agree on the tag. This is part of the security
-> design to prevent other processes from accessing pages belonging to
-> another process unless they know the tag set on those pages.
+On Wed, Jan 11, 2017 at 10:49 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> On 01/11/2017 10:37 AM, Kirill A. Shutemov wrote:
+>>> How about preventing the max addr from being changed to too high a
+>>> value while MPX is on instead of overriding the set value?  This would
+>>> have the added benefit that it would prevent silent failures where you
+>>> think you've enabled large addresses but MPX is also on and mmap
+>>> refuses to return large addresses.
+>> Setting rlimit high doesn't mean that you necessary will get access to
+>> full address space, even without MPX in picture. TASK_SIZE limits the
+>> available address space too.
+>
+> OK, sure...  If you want to take another mechanism into account with
+> respect to MPX, we can do that.  We'd just need to change every
+> mechanism we want to support to ensure that it can't transition in ways
+> that break MPX.
+>
+> What are you arguing here, though?  Since we *might* be limited by
+> something else that we should not care about controlling the rlimit?
+>
+>> I think it's consistent with other resources in rlimit: setting RLIMIT_RSS
+>> to unlimited doesn't really means you are not subject to other resource
+>> management.
+>
+> The farther we get into this, the more and more I think using an rlimit
+> is a horrible idea.  Its semantics aren't a great match, and you seem to
+> be resistant to making *this* rlimit differ from the others when there's
+> an entirely need to do so.  We're already being bitten by "legacy"
+> rlimit.  IOW, being consistent with *other* rlimit behavior buys us
+> nothing, only complexity.
 
-So what do you do with static data, say from a shared executable?  You
-need to ensure that two different processes from two different privilege
-domains can't set different tags on the same physical memory.  That
-would seem to mean that you must not allow tags to be set of memory
-unless you have write access to it.  Or, you have to ensure that any
-file that you might want to use this feature on is entirely unreadable
-(well, un-mmap()-able really) by anybody that you are not coordinating with.
+Taking a step back, I think it would be fantastic if we could find a
+way to make this work without any inheritable settings at all.
+Perhaps we could have a per-mm value that is initialized to 2^47-1 on
+execve() and can be raised by ELF note or by prctl()?  Getting it
+right for 32-bit would require a bit of thought.  The ELF note would
+make a high stack possible and, without the ELF note, we'd get a low
+stack but high mmap().  Then the messy bits can be glibc's problem and
+a toolchain problem as it should be, given that the only reason we
+need a limit at all is because of messy userspace code.
 
-If you want to use it on copy-on-write'able data, you've got to ensure
-that you've got entirely private copies.  I'm not sure we even have an
-interface to guarantee that.  How could this work after a fork() on
-un-COW'd, but COW'able data?
+Sure, the low stack prevents the *whole* address space from being used
+in one big block for databases, but 2^57 - 2^47 ought to be good
+enough.
 
->>> Potential for side
->>> effects is too high in such case and would require kernel to either
->>> track tags for every page as they are re-allocated or migrated, or scrub
->>> pages constantly to ensure we do not get spurious tag mismatches. Unless
->>> there is a very strong reason to blindly set TTE.mcd on every PTE, I
->>> think the risk of instability is too high without lot of extra code.
->>
->> Ahh, ok.  That makes sense.  Clearing the tags is expensive.  We must
->> either clear tags or know the previous tags of the memory before we
->> access it.
->>
->> Are any of the tags special?  Do any of them mean "don't do any
->> checking", or similar?
-> 
-> Tag values of 0 and 15 can be considered special. Setting tag to 15 on
-> memory range is disallowed. Accessing a memory location whose tag is
-> cleared (means set to 0) with any tag value in the VA is allowed. Once a
-> tag is set on a memory, and PSTATE.mcde and TTE.mcd are set, there isn't
-> a tag that can be used to bypass version check by MMU.
-
-Bummer.  If the hardware had allowed a special VA tag to bypass checks,
-then you wouldn't need to worry about clearing the tags, and you
-wouldn't need the interface to control the PTE bit setting/clearing.
+I'm not 100% sure this is workable but, if it is, it makes everyone's
+life easier.  There's no need to muck around with setarch(1) or
+similar hacks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
