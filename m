@@ -1,146 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 11C176B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 06:05:47 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id d140so4243268wmd.4
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:05:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z4si4256299wjl.277.2017.01.11.03.05.45
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FB866B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 06:35:20 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id qs7so92435071wjc.4
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:35:20 -0800 (PST)
+Received: from mail-wj0-x242.google.com (mail-wj0-x242.google.com. [2a00:1450:400c:c01::242])
+        by mx.google.com with ESMTPS id s20si4180674wrb.195.2017.01.11.03.35.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Jan 2017 03:05:45 -0800 (PST)
-Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
-References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz>
-Date: Wed, 11 Jan 2017 12:05:44 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 03:35:17 -0800 (PST)
+Received: by mail-wj0-x242.google.com with SMTP id ey1so11344946wjd.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:35:17 -0800 (PST)
+Date: Wed, 11 Jan 2017 14:35:15 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
+Message-ID: <20170111113515.GB4895@node.shutemov.name>
+References: <20170105053658.GA36383@juliacomputing.com>
+ <20170105150558.GE17319@node.shutemov.name>
+ <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
+ <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganapatrao Kulkarni <gpkulkarni@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com
 
-On 01/11/2017 11:50 AM, Ganapatrao Kulkarni wrote:
-> Hi,
+On Tue, Jan 10, 2017 at 11:06:10PM -0800, Hugh Dickins wrote:
+> On Tue, 10 Jan 2017, Hugh Dickins wrote:
+> > On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
+> > > On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
+> > > >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> > > >  		pmd_t *pmd, int flags)
+> > > >  {
+> > > > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> > > >  
+> > > >  	assert_spin_locked(pmd_lockptr(mm, pmd));
+> > > >  
+> > > > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
+> > > > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
+> > > >  		return NULL;
+> > > 
+> > > I don't think this part is needed: once we COW devmap PMD entry, we split
+> > > it into PTE table, so IIUC we never get here with PMD.
+> > 
+> > Hi Kirill,
+> > 
+> > Would you mind double-checking that?  You certainly know devmap
+> > better than me, but I feel safer with Keno's original as above.
+> > 
+> > I can see that fs/dax.c dax_iomap_pmd_fault() does
+> > 
+> > 	/* Fall back to PTEs if we're going to COW */
+> > 	if (write && !(vma->vm_flags & VM_SHARED))
+> > 		goto fallback;
+> > 
+> > But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
+> > FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
 > 
-> we are seeing OOM/stalls messages when we run ltp cpuset01(cpuset01 -I
-> 360) test for few minutes, even through the numa system has adequate
-> memory on both nodes.
-> 
-> this we have observed same on both arm64/thunderx numa and on x86 numa system!
-> 
-> using latest ltp from master branch version 20160920-197-gbc4d3db
-> and linux kernel version 4.9
-> 
-> is this known bug already?
+> And now I think I'm wrong, but please double-check even so: I think that
+> case gets ruled out by the !is_cow_mapping(vm_flags) check in mm/gup.c,
+> where we used to have a WARN_ON_ONCE() for a while.
 
-Probably not.
+Right, !is_cow_mapping(vm_flags) will filter the case out.
 
-Is it possible that cpuset limits the process to one node, and numa
-mempolicy to the other node?
+Also there's no way we will get FOLL_COW set for file THP (dax or not): we
+never return VM_FAULT_WRITE there.
 
-> below is the oops log:
-> [ 2280.275193] cgroup: new mount options do not match the existing
-> superblock, will be ignored
-> [ 2316.565940] cgroup: new mount options do not match the existing
-> superblock, will be ignored
-> [ 2393.388361] cpuset01: page allocation stalls for 10051ms, order:0,
-> mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-> [ 2393.388371] CPU: 9 PID: 18188 Comm: cpuset01 Not tainted 4.9.0 #1
-> [ 2393.388373] Hardware name: Dell Inc. PowerEdge T630/0W9WXC, BIOS
-> 1.0.4 08/29/2014
-> [ 2393.388374]  ffffc9000c1afba8 ffffffff813c771e ffffffff81a40be8
-> 0000000000000001
-> [ 2393.388377]  ffffc9000c1afc30 ffffffff811b8c9a 024280ca00000202
-> ffffffff81a40be8
-> [ 2393.388380]  ffffc9000c1afbd0 0000000000000010 ffffc9000c1afc40
-> ffffc9000c1afbf0
-> [ 2393.388383] Call Trace:
-> [ 2393.388392]  [<ffffffff813c771e>] dump_stack+0x63/0x85
-> [ 2393.388397]  [<ffffffff811b8c9a>] warn_alloc+0x13a/0x170
-> [ 2393.388399]  [<ffffffff811b95c4>] __alloc_pages_slowpath+0x884/0xac0
-> [ 2393.388402]  [<ffffffff811b9ac5>] __alloc_pages_nodemask+0x2c5/0x310
-> [ 2393.388405]  [<ffffffff8120f663>] alloc_pages_vma+0xb3/0x260
-> [ 2393.388410]  [<ffffffff811e0534>] ? anon_vma_interval_tree_insert+0x84/0x90
-> [ 2393.388413]  [<ffffffff811ea42c>] handle_mm_fault+0x129c/0x1550
-> [ 2393.388417]  [<ffffffff813d65bb>] ? call_rwsem_wake+0x1b/0x30
-> [ 2393.388422]  [<ffffffff8106a362>] __do_page_fault+0x222/0x4b0
-> [ 2393.388424]  [<ffffffff8106a61f>] do_page_fault+0x2f/0x80
-> [ 2393.388429]  [<ffffffff817ca588>] page_fault+0x28/0x30
-> [ 2393.388431] Mem-Info:
-> [ 2393.388437] active_anon:92316 inactive_anon:21059 isolated_anon:32
->  active_file:202031 inactive_file:137088 isolated_file:0
->  unevictable:16 dirty:20 writeback:5883 unstable:0
->  slab_reclaimable:40274 slab_unreclaimable:21605
->  mapped:26819 shmem:28393 pagetables:11375 bounce:0
->  free:5494728 free_pcp:549 free_cma:0
-> [ 2393.388446] Node 0 active_anon:310368kB inactive_anon:25684kB
-> active_file:807836kB inactive_file:548592kB unevictable:60kB
-> isolated(anon):0kB isolated(file):0kB mapped:101672kB dirty:80kB
-> writeback:148kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB
-> anon_thp: 25780kB writeback_tmp:0kB unstable:0kB pages_scanned:0
-> all_unreclaimable? no
-> [ 2393.388455] Node 1 active_anon:58896kB inactive_anon:58552kB
-> active_file:288kB inactive_file:0kB unevictable:4kB
-> isolated(anon):128kB isolated(file):0kB mapped:5604kB dirty:0kB
-> writeback:23384kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB
-> anon_thp: 87792kB writeback_tmp:0kB unstable:0kB pages_scanned:0
-> all_unreclaimable? no
-> [ 2393.388457] Node 1 Normal free:11937124kB min:45532kB low:62044kB
-> high:78556kB active_anon:58896kB inactive_anon:58552kB
-> active_file:288kB inactive_file:0kB unevictable:4kB
-> writepending:23384kB present:16777216kB managed:16512808kB mlocked:4kB
-> slab_reclaimable:37876kB slab_unreclaimable:44812kB
-> kernel_stack:4264kB pagetables:27612kB bounce:0kB free_pcp:2240kB
-> local_pcp:0kB free_cma:0kB
-> [ 2393.388462] lowmem_reserve[]: 0 0 0 0
-> [ 2393.388465] Node 1 Normal: 1179*4kB (UME) 1396*8kB (UME) 1193*16kB
-> (UME) 910*32kB (UME) 721*64kB (UME) 568*128kB (UME) 444*256kB (UME)
-> 328*512kB (ME) 223*1024kB (UM) 138*2048kB (ME) 2676*4096kB (M) =
-> 11936412kB
-> [ 2393.388479] Node 0 hugepages_total=4 hugepages_free=4
-> hugepages_surp=0 hugepages_size=1048576kB
-> [ 2393.388481] Node 1 hugepages_total=4 hugepages_free=4
-> hugepages_surp=0 hugepages_size=1048576kB
-> [ 2393.388481] 374277 total pagecache pages
-> [ 2393.388483] 6667 pages in swap cache
-> [ 2393.388484] Swap cache stats: add 101786, delete 95119, find 393/682
-> [ 2393.388485] Free swap  = 15979384kB
-> [ 2393.388485] Total swap = 16383996kB
-> [ 2393.388486] 8331071 pages RAM
-> [ 2393.388486] 0 pages HighMem/MovableOnly
-> [ 2393.388487] 152036 pages reserved
-> [ 2393.388487] 0 pages hwpoisoned
-> [ 2397.331098] cpuset01 invoked oom-killer:
-> gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=1,
-> order=0, oom_score_adj=0
-> 
-> 
-> [gkulkarni@xeon-numa ltp]$ numactl --hardware
-> available: 2 nodes (0-1)
-> node 0 cpus: 0 2 4 6 8 10 12 14 16 18 20 22
-> node 0 size: 15823 MB
-> node 0 free: 10211 MB
-> node 1 cpus: 1 3 5 7 9 11 13 15 17 19 21 23
-> node 1 size: 16125 MB
-> node 1 free: 11628 MB
-> node distances:
-> node   0   1
->   0:  10  21
->   1:  21  10
-> 
-> 
-> thanks
-> Ganapat
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
