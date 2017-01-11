@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C88E6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:29:30 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id x49so134460429qtc.7
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:29:30 -0800 (PST)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id l128si4090225qkf.269.2017.01.11.08.29.29
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DDF66B0253
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:32:07 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id gt1so11125621wjc.5
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:32:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v30si4789942wrv.154.2017.01.11.08.32.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 08:29:29 -0800 (PST)
-Received: by mail-qt0-x244.google.com with SMTP id l7so20677351qtd.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:29:29 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Jan 2017 08:32:06 -0800 (PST)
+Date: Wed, 11 Jan 2017 17:32:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
+Message-ID: <20170111163203.GH16365@dhcp22.suse.cz>
+References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170111160622.44ac261b12ed4778556c56dc@gmail.com>
-References: <20170111155948.aa61c5b995b6523caf87d862@gmail.com> <20170111160622.44ac261b12ed4778556c56dc@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 11 Jan 2017 11:28:48 -0500
-Message-ID: <CALZtONDmfWaJ2u-dO4BGnK0jztOGMEKb8WxEZ1iEurAdkMoxGA@mail.gmail.com>
-Subject: Re: [PATCH/RESEND v2 3/5] z3fold: extend compaction function
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 11, 2017 at 10:06 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> z3fold_compact_page() currently only handles the situation when
-> there's a single middle chunk within the z3fold page. However it
-> may be worth it to move middle chunk closer to either first or
-> last chunk, whichever is there, if the gap between them is big
-> enough.
->
-> This patch adds the relevant code, using BIG_CHUNK_GAP define as
-> a threshold for middle chunk to be worth moving.
->
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/z3fold.c | 26 +++++++++++++++++++++++++-
->  1 file changed, 25 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 98ab01f..fca3310 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -268,6 +268,7 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
->                        zhdr->middle_chunks << CHUNK_SHIFT);
->  }
->
-> +#define BIG_CHUNK_GAP  3
->  /* Has to be called with lock held */
->  static int z3fold_compact_page(struct z3fold_header *zhdr)
->  {
-> @@ -286,8 +287,31 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
->                 zhdr->middle_chunks = 0;
->                 zhdr->start_middle = 0;
->                 zhdr->first_num++;
-> +               return 1;
->         }
-> -       return 1;
-> +
-> +       /*
-> +        * moving data is expensive, so let's only do that if
-> +        * there's substantial gain (at least BIG_CHUNK_GAP chunks)
-> +        */
-> +       if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-> +           zhdr->start_middle - (zhdr->first_chunks + ZHDR_CHUNKS) >=
-> +                       BIG_CHUNK_GAP) {
-> +               mchunk_memmove(zhdr, zhdr->first_chunks + 1);
-> +               zhdr->start_middle = zhdr->first_chunks + 1;
+On Wed 11-01-17 16:20:45, Ganapatrao Kulkarni wrote:
+> Hi,
+> 
+> we are seeing OOM/stalls messages when we run ltp cpuset01(cpuset01 -I
+> 360) test for few minutes, even through the numa system has adequate
+> memory on both nodes.
+> 
+> this we have observed same on both arm64/thunderx numa and on x86 numa system!
+> 
+> using latest ltp from master branch version 20160920-197-gbc4d3db
+> and linux kernel version 4.9
+> 
+> is this known bug already?
+> 
+> below is the oops log:
+> [ 2280.275193] cgroup: new mount options do not match the existing
+> superblock, will be ignored
+> [ 2316.565940] cgroup: new mount options do not match the existing
+> superblock, will be ignored
+> [ 2393.388361] cpuset01: page allocation stalls for 10051ms, order:0, mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
 
-this should be first_chunks + ZHDR_CHUNKS, not + 1.
+For some reason I thought we are printing the nodemask here. We are
+not... Which sucks in situations like this. I will cook up a patch...
 
-> +               return 1;
-> +       } else if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-> +                  TOTAL_CHUNKS - (zhdr->last_chunks + zhdr->start_middle
-> +                                       + zhdr->middle_chunks) >=
-> +                       BIG_CHUNK_GAP) {
-> +               unsigned short new_start = NCHUNKS - zhdr->last_chunks -
+[...[
+> [ 2393.388457] Node 1 Normal free:11937124kB min:45532kB low:62044kB
+> high:78556kB active_anon:58896kB inactive_anon:58552kB
+> active_file:288kB inactive_file:0kB unevictable:4kB
+> writepending:23384kB present:16777216kB managed:16512808kB mlocked:4kB
+> slab_reclaimable:37876kB slab_unreclaimable:44812kB
+> kernel_stack:4264kB pagetables:27612kB bounce:0kB free_pcp:2240kB
+> local_pcp:0kB free_cma:0kB
 
-this should be TOTAL_CHUNKS, not NCHUNKS.
+It seems that there is a lot of free memory in this node which seems to
+be the only eligible one because there are no details about Node 0
+zones. So there shouldn't be any real reason to stall this allocation.
+Unless there was a huge memory pressure and the relief came only
+recently when the current task just managed to get out of the reclaim
+and report the stall.
 
-> +                       zhdr->middle_chunks;
-> +               mchunk_memmove(zhdr, new_start);
-> +               zhdr->start_middle = new_start;
-> +               return 1;
-> +       }
-> +
-> +       return 0;
->  }
->
->  /**
-> --
-> 2.4.2
+Is there any other workload running on this system?
+[...]
+> [ 2397.331098] cpuset01 invoked oom-killer:
+> gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=1,
+> order=0, oom_score_adj=0
+
+Please attach the full oom report.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
