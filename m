@@ -1,65 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0DE6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:06:23 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 5so1278036423pgj.6
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:06:23 -0800 (PST)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id k25si4851808pfg.178.2017.01.10.23.06.22
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 480976B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:11:02 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id x49so125547025qtc.7
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:11:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o67si3169842qka.120.2017.01.10.23.11.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 23:06:22 -0800 (PST)
-Received: by mail-pf0-x231.google.com with SMTP id y143so39229747pfb.0
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:06:22 -0800 (PST)
-Date: Tue, 10 Jan 2017 23:06:10 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
-In-Reply-To: <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
-References: <20170105053658.GA36383@juliacomputing.com> <20170105150558.GE17319@node.shutemov.name> <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
+        Tue, 10 Jan 2017 23:11:01 -0800 (PST)
+Date: Wed, 11 Jan 2017 08:10:52 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 2/4] page_pool: basic implementation of page_pool
+Message-ID: <20170111081052.1df59d4d@redhat.com>
+In-Reply-To: <20170109215825.k4grwyhffiv6wksp@techsingularity.net>
+References: <20161220132444.18788.50875.stgit@firesoul>
+	<20161220132817.18788.64726.stgit@firesoul>
+	<52478d40-8c34-4354-c9d8-286020eb26a6@suse.cz>
+	<20170104120055.7b277609@redhat.com>
+	<38d42210-de93-f16f-fa54-b149127fffeb@suse.cz>
+	<20170109214524.534f53a8@redhat.com>
+	<20170109215825.k4grwyhffiv6wksp@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com, hughd@google.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Alexander Duyck <alexander.duyck@gmail.com>, willemdebruijn.kernel@gmail.com, netdev@vger.kernel.org, john.fastabend@gmail.com, Saeed Mahameed <saeedm@mellanox.com>, bjorn.topel@intel.com, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tariq Toukan <tariqt@mellanox.com>, brouer@redhat.com
 
-On Tue, 10 Jan 2017, Hugh Dickins wrote:
-> On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
-> > On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
-> > >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> > >  		pmd_t *pmd, int flags)
-> > >  {
-> > > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> > >  
-> > >  	assert_spin_locked(pmd_lockptr(mm, pmd));
-> > >  
-> > > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-> > > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
-> > >  		return NULL;
+On Mon, 9 Jan 2017 21:58:26 +0000
+Mel Gorman <mgorman@techsingularity.net> wrote:
+
+> On Mon, Jan 09, 2017 at 09:45:24PM +0100, Jesper Dangaard Brouer wrote:
+> > > I see. I guess if all page pool pages were order>0 compound pages, you
+> > > could hook this to the existing compound_dtor functionality instead.  
 > > 
-> > I don't think this part is needed: once we COW devmap PMD entry, we split
-> > it into PTE table, so IIUC we never get here with PMD.
+> > The page_pool will support order>0 pages, but it is the order-0 case
+> > that is optimized for.
+> >   
 > 
-> Hi Kirill,
+> The bulk allocator is currently not suitable for high-order pages. It would
+> take more work to do that but is not necessarily even a good idea. FWIW,
+> the high-order per-cpu page allocator posted some weeks ago would be the
+> basis. I didn't push that series as the benefit to SLUB was too marginal
+> given the complexity.
 > 
-> Would you mind double-checking that?  You certainly know devmap
-> better than me, but I feel safer with Keno's original as above.
+> > > Well typically the VMA mapped pages are those on the LRU list (anonymous
+> > > or file). But I don't suppose you will want memory reclaim to free your
+> > > pages, so seems lru field should be reusable for you.  
+> > 
+> > Thanks for the info.
+> > 
+> > So, LRU-list area could be reusable, but I does not align so well with
+> > the bulking API Mel just introduced/proposed, but still doable.
+> >   
 > 
-> I can see that fs/dax.c dax_iomap_pmd_fault() does
+> That's a relatively minor implementation detail. I needed something to
+> hang the pages onto for returning. Using a list and page->lru is a standard
+> approach but it does not mandate that the caller preserve page->lru or that
+> it's related to the LRU. The caller simply needs to put the pages back onto
+> a list if it's bulk freeing or call __free_pages() directly for each page.
+> If any in-kernel user uses __free_pages() then the free_pages_bulk()
+> API can be dropped entirely.
 > 
-> 	/* Fall back to PTEs if we're going to COW */
-> 	if (write && !(vma->vm_flags & VM_SHARED))
-> 		goto fallback;
+> I'm not intending to merge the bulk allocator due to a lack of in-kernel
+> users and an inability to test in-kernel users.  It was simply designed to
+> illustrate how to call the core of the page allocator in a way that avoids
+> the really expensive checks. If required, the pages could be returned on
+> a caller-allocated array or something exotic like using one page to store
+> pointers to the rest. Either of those alternatives are harder to use. A
+> caller-allocated array must be sure the nr_pages parameter is correct and
+> the exotic approach would require careful use by the caller. Using page->lru
+> was more straight-forward when the requirements of the callers was unknown.
 > 
-> But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
-> FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
+> It opens the question of what to do with that series. I was going to wait
+> for feedback but my intent was to try merge patches 1-3 if there were no
+> objections and preferably with your reviewed-by or ack. I would then hand
+> patch 4 over to you for addition to a series that added in-kernel callers to
+> alloc_pages_bulk() be that the generic pool recycle or modifying drivers.
+> You are then free to modify the API to suit your needs without having to
+> figure out the best way of calling the page allocator.
 
-And now I think I'm wrong, but please double-check even so: I think that
-case gets ruled out by the !is_cow_mapping(vm_flags) check in mm/gup.c,
-where we used to have a WARN_ON_ONCE() for a while.
+I think that sound like a good plan.
 
-Hugh
+Your patches 1-3 is a significant performance improvement for the page
+allocator, and I want to see those merged.  Don't want to block it with
+patch 4 (bulking).
+
+I'm going to do some (more) testing on your patchset, and then ACK the
+patches.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
