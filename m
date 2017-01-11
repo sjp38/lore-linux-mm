@@ -1,128 +1,317 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A15106B0069
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 18:56:54 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f144so234150267pfa.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 15:56:54 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id r7si3698692pgf.303.2017.01.10.15.56.53
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jan 2017 15:56:53 -0800 (PST)
-Date: Wed, 11 Jan 2017 08:56:51 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, vmscan: cleanup inactive_list_is_low
-Message-ID: <20170110235651.GB7130@bbox>
-References: <20170110125552.4170-1-mhocko@kernel.org>
- <20170110125552.4170-3-mhocko@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 87D506B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 19:15:30 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so235232904pfa.3
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:15:30 -0800 (PST)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id t63si3764161pfk.141.2017.01.10.16.15.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jan 2017 16:15:29 -0800 (PST)
+Received: by mail-pf0-x22d.google.com with SMTP id f144so45486839pfa.2
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:15:29 -0800 (PST)
+Date: Tue, 10 Jan 2017 16:15:27 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, thp: add new defer+madvise defrag option
+In-Reply-To: <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com> <20170105101330.bvhuglbbeudubgqb@techsingularity.net> <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz> <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
+ <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz> <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com> <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz> <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170110125552.4170-3-mhocko@kernel.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Michal,
+There is no thp defrag option that currently allows MADV_HUGEPAGE regions 
+to do direct compaction and reclaim while all other thp allocations simply 
+trigger kswapd and kcompactd in the background and fail immediately.
 
-On Tue, Jan 10, 2017 at 01:55:52PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> inactive_list_is_low is duplicating logic implemented by
-> lruvec_lru_size_eligibe_zones. Let's use the dedicated function to get
-> the number of eligible pages on the lru list and ask use lruvec_lru_size
-> to get the total LRU lize only when the tracing is really requested. We
-> are still iterating over all LRUs two times in that case but a)
-> inactive_list_is_low is not a hot path and b) this can be addressed at
-> the tracing layer and only evaluate arguments only when the tracing is
-> enabled in future if that ever matters.
+The "defer" setting simply triggers background reclaim and compaction for 
+all regions, regardless of MADV_HUGEPAGE, which makes it unusable for our 
+userspace where MADV_HUGEPAGE is being used to indicate the application is 
+willing to wait for work for thp memory to be available.
 
-Make sense so I was about to add my acked-by but surprised when I found
-"bool trace variable" and lruvec_lru_size in the trace so I ask some
-questions to the "+ mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint"
-thread.
+The "madvise" setting will do direct compaction and reclaim for these
+MADV_HUGEPAGE regions, but does not trigger kswapd and kcompactd in the 
+background for anybody else.
 
-Except that part, looks good to me.
+For reasonable usage, there needs to be a mesh between the two options.  
+This patch introduces a fifth mode, "defer+madvise", that will do direct 
+reclaim and compaction for MADV_HUGEPAGE regions and trigger background 
+reclaim and compaction for everybody else so that hugepages may be 
+available in the near future.
 
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/vmscan.c | 38 ++++++++++----------------------------
->  1 file changed, 10 insertions(+), 28 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 137bc85067d3..a9c881f06c0e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2054,11 +2054,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
->  						struct scan_control *sc, bool trace)
->  {
->  	unsigned long inactive_ratio;
-> -	unsigned long total_inactive, inactive;
-> -	unsigned long total_active, active;
-> +	unsigned long inactive, active;
-> +	enum lru_list inactive_lru = file * LRU_FILE;
-> +	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
->  	unsigned long gb;
-> -	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-> -	int zid;
->  
->  	/*
->  	 * If we don't have swap space, anonymous page deactivation
-> @@ -2067,27 +2066,8 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
->  	if (!file && !total_swap_pages)
->  		return false;
->  
-> -	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
-> -	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
-> -
-> -	/*
-> -	 * For zone-constrained allocations, it is necessary to check if
-> -	 * deactivations are required for lowmem to be reclaimed. This
-> -	 * calculates the inactive/active pages available in eligible zones.
-> -	 */
-> -	for (zid = sc->reclaim_idx + 1; zid < MAX_NR_ZONES; zid++) {
-> -		struct zone *zone = &pgdat->node_zones[zid];
-> -		unsigned long inactive_zone, active_zone;
-> -
-> -		if (!managed_zone(zone))
-> -			continue;
-> -
-> -		inactive_zone = lruvec_zone_lru_size(lruvec, file * LRU_FILE, zid);
-> -		active_zone = lruvec_zone_lru_size(lruvec, (file * LRU_FILE) + LRU_ACTIVE, zid);
-> -
-> -		inactive -= min(inactive, inactive_zone);
-> -		active -= min(active, active_zone);
-> -	}
-> +	inactive = lruvec_lru_size_eligibe_zones(lruvec, inactive_lru, sc->reclaim_idx);
-> +	active = lruvec_lru_size_eligibe_zones(lruvec, active_lru, sc->reclaim_idx);
->  
->  	gb = (inactive + active) >> (30 - PAGE_SHIFT);
->  	if (gb)
-> @@ -2096,10 +2076,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
->  		inactive_ratio = 1;
->  
->  	if (trace)
-> -		trace_mm_vmscan_inactive_list_is_low(pgdat->node_id,
-> +		trace_mm_vmscan_inactive_list_is_low(lruvec_pgdat(lruvec)->node_id,
->  				sc->reclaim_idx,
-> -				total_inactive, inactive,
-> -				total_active, active, inactive_ratio, file);
-> +				lruvec_lru_size(lruvec, inactive_lru), inactive,
-> +				lruvec_lru_size(lruvec, active_lru), active,
-> +				inactive_ratio, file);
-> +
->  	return inactive * inactive_ratio < active;
->  }
->  
-> -- 
-> 2.11.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+A proposal to allow direct reclaim and compaction for MADV_HUGEPAGE 
+regions as part of the "defer" mode, making it a very powerful setting and 
+avoids breaking userspace, was offered: 
+http://marc.info/?t=148236612700003.  This additional mode is a 
+compromise.
+
+A second proposal to allow both "defer" and "madvise" to be selected at
+the same time was also offered: http://marc.info/?t=148357345300001.
+This is possible, but there was a concern that it might break existing
+userspaces the parse the output of the defrag mode, so the fifth option
+was introduced instead.
+
+This patch also cleans up the helper function for storing to "enabled" 
+and "defrag" since the former supports three modes while the latter 
+supports five and triple_flag_store() was getting unnecessarily messy.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ v2: uses new naming suggested by Vlastimil
+     (defer+madvise order looks better in
+      "... defer defer+madvise madvise ...")
+
+ v1 was acked by Mel, and it probably could have been preserved but it was
+ removed in case there is an issue with the name change.
+
+ Documentation/vm/transhuge.txt |   8 ++-
+ include/linux/huge_mm.h        |   1 +
+ mm/huge_memory.c               | 146 +++++++++++++++++++++--------------------
+ 3 files changed, 82 insertions(+), 73 deletions(-)
+
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
+ 
+ echo always >/sys/kernel/mm/transparent_hugepage/defrag
+ echo defer >/sys/kernel/mm/transparent_hugepage/defrag
++echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
+ echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
+ echo never >/sys/kernel/mm/transparent_hugepage/defrag
+ 
+@@ -120,10 +121,15 @@ that benefit heavily from THP use and are willing to delay the VM start
+ to utilise them.
+ 
+ "defer" means that an application will wake kswapd in the background
+-to reclaim pages and wake kcompact to compact memory so that THP is
++to reclaim pages and wake kcompactd to compact memory so that THP is
+ available in the near future. It's the responsibility of khugepaged
+ to then install the THP pages later.
+ 
++"defer+madvise" will enter direct reclaim and compaction like "always", but
++only for regions that have used madvise(MADV_HUGEPAGE); all other regions
++will wake kswapd in the background to reclaim pages and wake kcompactd to
++compact memory so that THP is available in the near future.
++
+ "madvise" will enter direct reclaim like "always" but only for regions
+ that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
+ 
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -33,6 +33,7 @@ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
++	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+ 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
+ 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -142,42 +142,6 @@ static struct shrinker huge_zero_page_shrinker = {
+ };
+ 
+ #ifdef CONFIG_SYSFS
+-
+-static ssize_t triple_flag_store(struct kobject *kobj,
+-				 struct kobj_attribute *attr,
+-				 const char *buf, size_t count,
+-				 enum transparent_hugepage_flag enabled,
+-				 enum transparent_hugepage_flag deferred,
+-				 enum transparent_hugepage_flag req_madv)
+-{
+-	if (!memcmp("defer", buf,
+-		    min(sizeof("defer")-1, count))) {
+-		if (enabled == deferred)
+-			return -EINVAL;
+-		clear_bit(enabled, &transparent_hugepage_flags);
+-		clear_bit(req_madv, &transparent_hugepage_flags);
+-		set_bit(deferred, &transparent_hugepage_flags);
+-	} else if (!memcmp("always", buf,
+-		    min(sizeof("always")-1, count))) {
+-		clear_bit(deferred, &transparent_hugepage_flags);
+-		clear_bit(req_madv, &transparent_hugepage_flags);
+-		set_bit(enabled, &transparent_hugepage_flags);
+-	} else if (!memcmp("madvise", buf,
+-			   min(sizeof("madvise")-1, count))) {
+-		clear_bit(enabled, &transparent_hugepage_flags);
+-		clear_bit(deferred, &transparent_hugepage_flags);
+-		set_bit(req_madv, &transparent_hugepage_flags);
+-	} else if (!memcmp("never", buf,
+-			   min(sizeof("never")-1, count))) {
+-		clear_bit(enabled, &transparent_hugepage_flags);
+-		clear_bit(req_madv, &transparent_hugepage_flags);
+-		clear_bit(deferred, &transparent_hugepage_flags);
+-	} else
+-		return -EINVAL;
+-
+-	return count;
+-}
+-
+ static ssize_t enabled_show(struct kobject *kobj,
+ 			    struct kobj_attribute *attr, char *buf)
+ {
+@@ -193,19 +157,28 @@ static ssize_t enabled_store(struct kobject *kobj,
+ 			     struct kobj_attribute *attr,
+ 			     const char *buf, size_t count)
+ {
+-	ssize_t ret;
++	ssize_t ret = count;
+ 
+-	ret = triple_flag_store(kobj, attr, buf, count,
+-				TRANSPARENT_HUGEPAGE_FLAG,
+-				TRANSPARENT_HUGEPAGE_FLAG,
+-				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
++	if (!memcmp("always", buf,
++		    min(sizeof("always")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("madvise", buf,
++			   min(sizeof("madvise")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("never", buf,
++			   min(sizeof("never")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
++	} else
++		ret = -EINVAL;
+ 
+ 	if (ret > 0) {
+ 		int err = start_stop_khugepaged();
+ 		if (err)
+ 			ret = err;
+ 	}
+-
+ 	return ret;
+ }
+ static struct kobj_attribute enabled_attr =
+@@ -241,32 +214,58 @@ ssize_t single_hugepage_flag_store(struct kobject *kobj,
+ 	return count;
+ }
+ 
+-/*
+- * Currently defrag only disables __GFP_NOWAIT for allocation. A blind
+- * __GFP_REPEAT is too aggressive, it's never worth swapping tons of
+- * memory just to allocate one more hugepage.
+- */
+ static ssize_t defrag_show(struct kobject *kobj,
+ 			   struct kobj_attribute *attr, char *buf)
+ {
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		return sprintf(buf, "[always] defer madvise never\n");
++		return sprintf(buf, "[always] defer defer+madvise madvise never\n");
+ 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+-		return sprintf(buf, "always [defer] madvise never\n");
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+-		return sprintf(buf, "always defer [madvise] never\n");
+-	else
+-		return sprintf(buf, "always defer madvise [never]\n");
+-
++		return sprintf(buf, "always [defer] defer+madvise madvise never\n");
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
++		return sprintf(buf, "always defer [defer+madvise] madvise never\n");
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
++		return sprintf(buf, "always defer defer+madvise [madvise] never\n");
++	return sprintf(buf, "always defer defer+madvise madvise [never]\n");
+ }
++
+ static ssize_t defrag_store(struct kobject *kobj,
+ 			    struct kobj_attribute *attr,
+ 			    const char *buf, size_t count)
+ {
+-	return triple_flag_store(kobj, attr, buf, count,
+-				 TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+-				 TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
+-				 TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG);
++	if (!memcmp("always", buf,
++		    min(sizeof("always")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("defer", buf,
++		    min(sizeof("defer")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("defer+madvise", buf,
++		    min(sizeof("defer+madvise")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("madvise", buf,
++			   min(sizeof("madvise")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++	} else if (!memcmp("never", buf,
++			   min(sizeof("never")-1, count))) {
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
++		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
++	} else
++		return -EINVAL;
++
++	return count;
+ }
+ static struct kobj_attribute defrag_attr =
+ 	__ATTR(defrag, 0644, defrag_show, defrag_store);
+@@ -612,25 +611,28 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ }
+ 
+ /*
+- * If THP defrag is set to always then directly reclaim/compact as necessary
+- * If set to defer then do only background reclaim/compact and defer to khugepaged
+- * If set to madvise and the VMA is flagged then directly reclaim/compact
+- * When direct reclaim/compact is allowed, don't retry except for flagged VMA's
++ * always: directly stall for all thp allocations
++ * defer: wake kswapd and fail if not immediately available
++ * defer+madvise: wake kswapd and directly stall for MADV_HUGEPAGE, otherwise
++ *		  fail if not immediately available
++ * madvise: directly stall for MADV_HUGEPAGE, otherwise fail if not immediately
++ *	    available
++ * never: never stall for any thp allocation
+  */
+ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+-	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
++	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
+ 
+-	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+-				&transparent_hugepage_flags) && vma_madvised)
+-		return GFP_TRANSHUGE;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
+-						&transparent_hugepage_flags))
+-		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+-						&transparent_hugepage_flags))
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+ 		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
+-
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
++		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
++		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
++							     __GFP_KSWAPD_RECLAIM);
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
++		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
++							     0);
+ 	return GFP_TRANSHUGE_LIGHT;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
