@@ -1,74 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F986B0253
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:09:39 -0500 (EST)
-Received: by mail-vk0-f72.google.com with SMTP id j12so203529559vkd.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:09:39 -0800 (PST)
-Received: from mail-ua0-x22d.google.com (mail-ua0-x22d.google.com. [2607:f8b0:400c:c08::22d])
-        by mx.google.com with ESMTPS id a138si1753615vke.102.2017.01.11.10.09.38
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33AF96B0253
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:14:08 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z67so201461054pgb.0
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:14:08 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id s21si6488772pgi.284.2017.01.11.10.14.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 10:09:38 -0800 (PST)
-Received: by mail-ua0-x22d.google.com with SMTP id 96so92111333uaq.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:09:38 -0800 (PST)
+        Wed, 11 Jan 2017 10:14:07 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+Date: Wed, 11 Jan 2017 10:13:54 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170111142904.GD4895@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
- <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com> <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
- <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com> <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
- <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com> <20170111142904.GD4895@node.shutemov.name>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 11 Jan 2017 10:09:17 -0800
-Message-ID: <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 11, 2017 at 6:29 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Thu, Jan 05, 2017 at 12:49:44PM -0800, Dave Hansen wrote:
->> On 01/05/2017 12:14 PM, Andy Lutomirski wrote:
->> >> I'm not sure I'm comfortable with this.  Do other rlimit changes cause
->> >> silent data corruption?  I'm pretty sure doing this to MPX would.
->> >>
->> > What actually goes wrong in this case?  That is, what combination of
->> > MPX setup of subsequent allocations will cause a problem, and is the
->> > problem worse than just a segfault?  IMO it would be really nice to
->> > keep the messy case confined to MPX.
+On 01/11/2017 08:56 AM, Khalid Aziz wrote:
+> On 01/11/2017 09:33 AM, Dave Hansen wrote:
+>> On 01/11/2017 08:12 AM, Khalid Aziz wrote:
+>>> A userspace task enables ADI through mprotect(). This patch series adds
+>>> a page protection bit PROT_ADI and a corresponding VMA flag
+>>> VM_SPARC_ADI. VM_SPARC_ADI is used to trigger setting TTE.mcd bit in the
+>>> sparc pte that enables ADI checking on the corresponding page.
 >>
->> The MPX bounds tables are indexed by virtual address.  They need to grow
->> if the virtual address space grows.   There's an MSR that controls
->> whether we use the 48-bit or 57-bit layout.  It basically decides
->> whether we need a 2GB (48-bit) or 1TB (57-bit) bounds directory.
->>
->> The question is what we do with legacy MPX applications.  We obviously
->> can't let them just allocate a 2GB table and then go let the hardware
->> pretend it's 1TB in size.  We also can't hand the hardware using a 2GB
->> table an address >48-bits.
->>
->> Ideally, I'd like to make sure that legacy MPX can't be enabled if this
->> RLIMIT is set over 48-bits (really 47).  I'd also like to make sure that
->> legacy MPX is active, that the RLIMIT can't be raised because all hell
->> will break loose when the new addresses show up.
->
-> I think we can do this. See the patch below.
->
-> Basically, we refuse to enable MPX and issue warning in dmesg if there's
-> anything mapped above 47-bits. Once MPX is enabled, mmap_max_addr() cannot
-> be higher than 47-bits too.
->
-> Function call from mmap_max_addr() is unfortunate, but I don't see a
-> way around.
+>> Is there a cost in the hardware associated with doing this "ADI
+>> checking"?  For instance, instead of having this new mprotect()
+>> interface, why not just always set TTE.mcd on all PTEs?
+> 
+> There is no performance penalty in the MMU to check tags, but if
+> PSTATE.mcd bit is set and TTE.mcde is set, the tag in VA must match what
+> was set on the physical page for all memory accesses.
 
-How about preventing the max addr from being changed to too high a
-value while MPX is on instead of overriding the set value?  This would
-have the added benefit that it would prevent silent failures where you
-think you've enabled large addresses but MPX is also on and mmap
-refuses to return large addresses.
+OK, then I'm misunderstanding the architecture again.
+
+For memory shared by two different processes, do they have to agree on
+what the tags are, or can they differ?
+
+> Potential for side
+> effects is too high in such case and would require kernel to either
+> track tags for every page as they are re-allocated or migrated, or scrub
+> pages constantly to ensure we do not get spurious tag mismatches. Unless
+> there is a very strong reason to blindly set TTE.mcd on every PTE, I
+> think the risk of instability is too high without lot of extra code.
+
+Ahh, ok.  That makes sense.  Clearing the tags is expensive.  We must
+either clear tags or know the previous tags of the memory before we
+access it.
+
+Are any of the tags special?  Do any of them mean "don't do any
+checking", or similar?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
