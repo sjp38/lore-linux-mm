@@ -1,94 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ECE536B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:56:37 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id x84so17422226oix.7
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 00:56:37 -0800 (PST)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id h125si14714101wme.3.2017.01.11.00.56.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE9E6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 04:47:32 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r126so13059886wmr.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 01:47:32 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h25si3942422wrb.231.2017.01.11.01.47.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Jan 2017 00:56:37 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 20C9C98E4F
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:56:36 +0000 (UTC)
-Date: Wed, 11 Jan 2017 08:56:35 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [patch v2] mm, thp: add new defer+madvise defrag option
-Message-ID: <20170111085635.vnou5j537lhqyaam@techsingularity.net>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
- <20170105101330.bvhuglbbeudubgqb@techsingularity.net>
- <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
- <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
- <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
- <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
- <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
+        Wed, 11 Jan 2017 01:47:30 -0800 (PST)
+Date: Wed, 11 Jan 2017 10:47:29 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
+Message-ID: <20170111094729.GH16116@quack2.suse.cz>
+References: <20170110160224.GC6179@noname.redhat.com>
+ <20170111050356.ldlx73n66zjdkh6i@thunk.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
+In-Reply-To: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Kevin Wolf <kwolf@redhat.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
 
-On Tue, Jan 10, 2017 at 04:15:27PM -0800, David Rientjes wrote:
-> There is no thp defrag option that currently allows MADV_HUGEPAGE regions 
-> to do direct compaction and reclaim while all other thp allocations simply 
-> trigger kswapd and kcompactd in the background and fail immediately.
+On Wed 11-01-17 00:03:56, Ted Tso wrote:
+> A couple of thoughts.
 > 
-> The "defer" setting simply triggers background reclaim and compaction for 
-> all regions, regardless of MADV_HUGEPAGE, which makes it unusable for our 
-> userspace where MADV_HUGEPAGE is being used to indicate the application is 
-> willing to wait for work for thp memory to be available.
+> First of all, one of the reasons why this probably hasn't been
+> addressed for so long is because programs who really care about issues
+> like this tend to use Direct I/O, and don't use the page cache at all.
+> And perhaps this is an option open to qemu as well?
 > 
-> The "madvise" setting will do direct compaction and reclaim for these
-> MADV_HUGEPAGE regions, but does not trigger kswapd and kcompactd in the 
-> background for anybody else.
+> Secondly, one of the reasons why we mark the page clean is because we
+> didn't want a failing disk to memory to be trapped with no way of
+> releasing the pages.  For example, if a user plugs in a USB
+> thumbstick, writes to it, and then rudely yanks it out before all of
+> the pages have been writeback, it would be unfortunate if the dirty
+> pages can only be released by rebooting the system.
 > 
-> For reasonable usage, there needs to be a mesh between the two options.  
-> This patch introduces a fifth mode, "defer+madvise", that will do direct 
-> reclaim and compaction for MADV_HUGEPAGE regions and trigger background 
-> reclaim and compaction for everybody else so that hugepages may be 
-> available in the near future.
-> 
-> A proposal to allow direct reclaim and compaction for MADV_HUGEPAGE 
-> regions as part of the "defer" mode, making it a very powerful setting and 
-> avoids breaking userspace, was offered: 
-> http://marc.info/?t=148236612700003.  This additional mode is a 
-> compromise.
-> 
-> A second proposal to allow both "defer" and "madvise" to be selected at
-> the same time was also offered: http://marc.info/?t=148357345300001.
-> This is possible, but there was a concern that it might break existing
-> userspaces the parse the output of the defrag mode, so the fifth option
-> was introduced instead.
-> 
-> This patch also cleans up the helper function for storing to "enabled" 
-> and "defrag" since the former supports three modes while the latter 
-> supports five and triple_flag_store() was getting unnecessarily messy.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  v2: uses new naming suggested by Vlastimil
->      (defer+madvise order looks better in
->       "... defer defer+madvise madvise ...")
-> 
->  v1 was acked by Mel, and it probably could have been preserved but it was
->  removed in case there is an issue with the name change.
-> 
+> So an approach that might work is fsync() will keep the pages dirty
+> --- but only while the file descriptor is open.  This could either be
+> the default behavior, or something that has to be specifically
+> requested via fcntl(2).  That way, as soon as the process exits (at
+> which point it will be too late for it do anything to save the
+> contents of the file) we also release the memory.  And if the process
+> gets OOM killed, again, the right thing happens.  But if the process
+> wants to take emergency measures to write the file somewhere else, it
+> knows that the pages won't get lost until the file gets closed.
 
-There isn't
+Well, as Neil pointed out, the problem is that once the data hits page
+cache, we lose the association with a file descriptor. So for example
+background writeback or sync(2) can find the dirty data and try to write
+it, get EIO, and then you have to do something about it because you don't
+know whether fsync(2) is coming or not.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+That being said if we'd just keep the pages which failed write out dirty,
+the system will eventually block all writers in balance_dirty_pages() and
+at that point it is IMO a policy decision (probably per device or per fs)
+whether you should just keep things blocked waiting for better times or
+whether you just want to start discarding dirty data on a failed write.
+Now discarding data that failed to write only when we are close to dirty
+limit (or after some timeout or whatever) has a disadvantage that it is
+not easy to predict from user POV so I'm not sure if we want to go down
+that path. But I can see two options making sense:
 
-Thanks.
+1) Just hold onto data and wait indefinitely. Possibly provide a way for
+   userspace to forcibly unmount a filesystem in such state.
 
+2) Do what we do now.
+ 
+								Honza
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
