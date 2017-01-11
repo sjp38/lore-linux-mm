@@ -1,317 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D506B0038
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 19:15:30 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f144so235232904pfa.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:15:30 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id t63si3764161pfk.141.2017.01.10.16.15.29
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DDA46B0038
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 19:41:26 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d140so1839101wmd.4
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:41:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r129si3331252wmr.28.2017.01.10.16.41.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 16:15:29 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id f144so45486839pfa.2
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 16:15:29 -0800 (PST)
-Date: Tue, 10 Jan 2017 16:15:27 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, thp: add new defer+madvise defrag option
-In-Reply-To: <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com> <20170105101330.bvhuglbbeudubgqb@techsingularity.net> <fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz> <alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
- <558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz> <alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com> <baeae644-30c4-5f99-2f99-6042766d7885@suse.cz> <alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Jan 2017 16:41:24 -0800 (PST)
+From: NeilBrown <neilb@suse.com>
+Date: Wed, 11 Jan 2017 11:41:15 +1100
+Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
+In-Reply-To: <20170110160224.GC6179@noname.redhat.com>
+References: <20170110160224.GC6179@noname.redhat.com>
+Message-ID: <87k2a2ig2c.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kevin Wolf <kwolf@redhat.com>, lsf-pc@lists.linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
 
-There is no thp defrag option that currently allows MADV_HUGEPAGE regions 
-to do direct compaction and reclaim while all other thp allocations simply 
-trigger kswapd and kcompactd in the background and fail immediately.
+--=-=-=
+Content-Type: text/plain
 
-The "defer" setting simply triggers background reclaim and compaction for 
-all regions, regardless of MADV_HUGEPAGE, which makes it unusable for our 
-userspace where MADV_HUGEPAGE is being used to indicate the application is 
-willing to wait for work for thp memory to be available.
+On Wed, Jan 11 2017, Kevin Wolf wrote:
 
-The "madvise" setting will do direct compaction and reclaim for these
-MADV_HUGEPAGE regions, but does not trigger kswapd and kcompactd in the 
-background for anybody else.
+> Hi all,
+>
+> when I mentioned the I/O error handling problem especially with fsync()
+> we have in QEMU to Christoph Hellwig, he thought it would be great topic
+> for LSF/MM, so here I am. This came up a few months ago on qemu-devel [1]
+> and we managed to ignore it for a while, but it's a real and potentially
+> serious problem, so I think I agree with Christoph that it makes sense
+> to get it discussed at LSF/MM.
+>
+>
+> At the heart of it is the semantics of fsync(). A few years ago, fsync()
+> was fixed to actually flush data to the disk, so we now have a defined
+> and useful meaning of fsync() as long as all your fsync() calls return
+> success.
+>
+> However, as soon as one fsync() call fails, even if the root problem is
+> solved later (network connection restored, some space freed for thin
+> provisioned storage, etc.), the state we're in is mostly undefined. As
+> Ric Wheeler told me back in the qemu-devel discussion, when a writeout
+> fails, you get an fsync() error returned (once), but the kernel page
+> cache simply marks the respective page as clean and consequently won't
+> ever retry the writeout. Instead, it can evict it from the cache even
+> though it isn't actually consistent with the state on disk, which means
+> throwing away data that was written by some process.
+>
+> So if you do another fsync() and it returns success, this doesn't
+> currently mean that all of the data you wrote is on disk, but if
+> anything, it's just about the data you wrote after the failed fsync().
+> This isn't very helpful, to say the least, because you called fsync() in
+> order to get a consistent state on disk, and you still don't have that.
+>
+> Essentially this means that once you got a fsync() failure, there is no
+> hope to recover for the application and it has to stop using the file.
 
-For reasonable usage, there needs to be a mesh between the two options.  
-This patch introduces a fifth mode, "defer+madvise", that will do direct 
-reclaim and compaction for MADV_HUGEPAGE regions and trigger background 
-reclaim and compaction for everybody else so that hugepages may be 
-available in the near future.
+This is not strictly correct.  The application could repeat all the
+recent writes.  It might fsync after each write so it can find out
+exactly where the problem is.
+So it could a a lot of work to recover, but it is not intrinsically
+impossible.
 
-A proposal to allow direct reclaim and compaction for MADV_HUGEPAGE 
-regions as part of the "defer" mode, making it a very powerful setting and 
-avoids breaking userspace, was offered: 
-http://marc.info/?t=148236612700003.  This additional mode is a 
-compromise.
 
-A second proposal to allow both "defer" and "madvise" to be selected at
-the same time was also offered: http://marc.info/?t=148357345300001.
-This is possible, but there was a concern that it might break existing
-userspaces the parse the output of the defrag mode, so the fifth option
-was introduced instead.
+>
+>
+> To give some context about my perspective as the maintainer for the QEMU
+> block subsystem: QEMU has a mode (which is usually enabled in
+> production) where I/O failure isn't communicated to the guest, which
+> would probably offline the filesystem, thinking its hard disk has died,
+> but instead QEMU pauses the VM and allows the administrator to resume
+> when the problem has been fixed. Often the problem is only temporary,
+> e.g. a network hiccup when a disk image is stored on NFS, so this is a
+> quite helpful approach.
 
-This patch also cleans up the helper function for storing to "enabled" 
-and "defrag" since the former supports three modes while the latter 
-supports five and triple_flag_store() was getting unnecessarily messy.
+If the disk image is stored over NFS, the write should hang, not cause
+an error. (Of course if you mount with '-o soft' you will get an error,
+but if you mount with '-o soft', then "you get to keep both halves").
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: uses new naming suggested by Vlastimil
-     (defer+madvise order looks better in
-      "... defer defer+madvise madvise ...")
+Is there a more realistic situation where you might get a write error
+that might succeed if the write is repeated?
 
- v1 was acked by Mel, and it probably could have been preserved but it was
- removed in case there is an issue with the name change.
+>
+> When QEMU is told to resume the VM, the request is just resubmitted.
+> This works fine for read/write, but not so much for fsync, because after
+> the first failure all bets are off even if a subsequent fsync()
+> succeeds.
+>
+> So this is the aspect that directly affects me, even though the problem
+> is much broader and by far doesn't only affect QEMU.
+>
+>
+> This leads to a few invidivual points to be discussed:
+>
+> 1. Fix the data corruption problem that follows from the current
+>    behaviour. Imagine the following scenario:
+>
+>    Process A writes to some file, calls fsync() and gets a failure. The
+>    data it wrote is marked clean in the page cache even though it's
+>    inconsistent with the disk. Process A knows that fsync() fails, so
+>    maybe it can deal with it, at least by stop using the file.
+>
+>    Now process B opens the same file, reads the updated data that
+>    process A wrote, makes some additional changes based on that and
+>    calls fsync() again.  Now fsync() return success. The data written by
+>    B is on disk, but the data written by A isn't. Oops, this is data
+>    corruption, and process B doesn't even know about it because all its
+>    operations succeeded.
 
- Documentation/vm/transhuge.txt |   8 ++-
- include/linux/huge_mm.h        |   1 +
- mm/huge_memory.c               | 146 +++++++++++++++++++++--------------------
- 3 files changed, 82 insertions(+), 73 deletions(-)
+Can that really happen? I would expect the filesystem to call
+SetPageError() if there was a write error, then I would expect a read to
+report an error for that page if it were still in cache (or maybe flush
+it out).  I admit that I haven't traced through the code in detail, but
+I did find some examples for SetPageError after a write error.
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
- 
- echo always >/sys/kernel/mm/transparent_hugepage/defrag
- echo defer >/sys/kernel/mm/transparent_hugepage/defrag
-+echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
- echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
- echo never >/sys/kernel/mm/transparent_hugepage/defrag
- 
-@@ -120,10 +121,15 @@ that benefit heavily from THP use and are willing to delay the VM start
- to utilise them.
- 
- "defer" means that an application will wake kswapd in the background
--to reclaim pages and wake kcompact to compact memory so that THP is
-+to reclaim pages and wake kcompactd to compact memory so that THP is
- available in the near future. It's the responsibility of khugepaged
- to then install the THP pages later.
- 
-+"defer+madvise" will enter direct reclaim and compaction like "always", but
-+only for regions that have used madvise(MADV_HUGEPAGE); all other regions
-+will wake kswapd in the background to reclaim pages and wake kcompactd to
-+compact memory so that THP is available in the near future.
-+
- "madvise" will enter direct reclaim like "always" but only for regions
- that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
- 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -33,6 +33,7 @@ enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
-+	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
- 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -142,42 +142,6 @@ static struct shrinker huge_zero_page_shrinker = {
- };
- 
- #ifdef CONFIG_SYSFS
--
--static ssize_t triple_flag_store(struct kobject *kobj,
--				 struct kobj_attribute *attr,
--				 const char *buf, size_t count,
--				 enum transparent_hugepage_flag enabled,
--				 enum transparent_hugepage_flag deferred,
--				 enum transparent_hugepage_flag req_madv)
--{
--	if (!memcmp("defer", buf,
--		    min(sizeof("defer")-1, count))) {
--		if (enabled == deferred)
--			return -EINVAL;
--		clear_bit(enabled, &transparent_hugepage_flags);
--		clear_bit(req_madv, &transparent_hugepage_flags);
--		set_bit(deferred, &transparent_hugepage_flags);
--	} else if (!memcmp("always", buf,
--		    min(sizeof("always")-1, count))) {
--		clear_bit(deferred, &transparent_hugepage_flags);
--		clear_bit(req_madv, &transparent_hugepage_flags);
--		set_bit(enabled, &transparent_hugepage_flags);
--	} else if (!memcmp("madvise", buf,
--			   min(sizeof("madvise")-1, count))) {
--		clear_bit(enabled, &transparent_hugepage_flags);
--		clear_bit(deferred, &transparent_hugepage_flags);
--		set_bit(req_madv, &transparent_hugepage_flags);
--	} else if (!memcmp("never", buf,
--			   min(sizeof("never")-1, count))) {
--		clear_bit(enabled, &transparent_hugepage_flags);
--		clear_bit(req_madv, &transparent_hugepage_flags);
--		clear_bit(deferred, &transparent_hugepage_flags);
--	} else
--		return -EINVAL;
--
--	return count;
--}
--
- static ssize_t enabled_show(struct kobject *kobj,
- 			    struct kobj_attribute *attr, char *buf)
- {
-@@ -193,19 +157,28 @@ static ssize_t enabled_store(struct kobject *kobj,
- 			     struct kobj_attribute *attr,
- 			     const char *buf, size_t count)
- {
--	ssize_t ret;
-+	ssize_t ret = count;
- 
--	ret = triple_flag_store(kobj, attr, buf, count,
--				TRANSPARENT_HUGEPAGE_FLAG,
--				TRANSPARENT_HUGEPAGE_FLAG,
--				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
-+	if (!memcmp("always", buf,
-+		    min(sizeof("always")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("madvise", buf,
-+			   min(sizeof("madvise")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("never", buf,
-+			   min(sizeof("never")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+	} else
-+		ret = -EINVAL;
- 
- 	if (ret > 0) {
- 		int err = start_stop_khugepaged();
- 		if (err)
- 			ret = err;
- 	}
--
- 	return ret;
- }
- static struct kobj_attribute enabled_attr =
-@@ -241,32 +214,58 @@ ssize_t single_hugepage_flag_store(struct kobject *kobj,
- 	return count;
- }
- 
--/*
-- * Currently defrag only disables __GFP_NOWAIT for allocation. A blind
-- * __GFP_REPEAT is too aggressive, it's never worth swapping tons of
-- * memory just to allocate one more hugepage.
-- */
- static ssize_t defrag_show(struct kobject *kobj,
- 			   struct kobj_attribute *attr, char *buf)
- {
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		return sprintf(buf, "[always] defer madvise never\n");
-+		return sprintf(buf, "[always] defer defer+madvise madvise never\n");
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
--		return sprintf(buf, "always [defer] madvise never\n");
--	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
--		return sprintf(buf, "always defer [madvise] never\n");
--	else
--		return sprintf(buf, "always defer madvise [never]\n");
--
-+		return sprintf(buf, "always [defer] defer+madvise madvise never\n");
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
-+		return sprintf(buf, "always defer [defer+madvise] madvise never\n");
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-+		return sprintf(buf, "always defer defer+madvise [madvise] never\n");
-+	return sprintf(buf, "always defer defer+madvise madvise [never]\n");
- }
-+
- static ssize_t defrag_store(struct kobject *kobj,
- 			    struct kobj_attribute *attr,
- 			    const char *buf, size_t count)
- {
--	return triple_flag_store(kobj, attr, buf, count,
--				 TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
--				 TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
--				 TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG);
-+	if (!memcmp("always", buf,
-+		    min(sizeof("always")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("defer", buf,
-+		    min(sizeof("defer")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("defer+madvise", buf,
-+		    min(sizeof("defer+madvise")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("madvise", buf,
-+			   min(sizeof("madvise")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
-+		set_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+	} else if (!memcmp("never", buf,
-+			   min(sizeof("never")-1, count))) {
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags);
-+		clear_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags);
-+	} else
-+		return -EINVAL;
-+
-+	return count;
- }
- static struct kobj_attribute defrag_attr =
- 	__ATTR(defrag, 0644, defrag_show, defrag_store);
-@@ -612,25 +611,28 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- }
- 
- /*
-- * If THP defrag is set to always then directly reclaim/compact as necessary
-- * If set to defer then do only background reclaim/compact and defer to khugepaged
-- * If set to madvise and the VMA is flagged then directly reclaim/compact
-- * When direct reclaim/compact is allowed, don't retry except for flagged VMA's
-+ * always: directly stall for all thp allocations
-+ * defer: wake kswapd and fail if not immediately available
-+ * defer+madvise: wake kswapd and directly stall for MADV_HUGEPAGE, otherwise
-+ *		  fail if not immediately available
-+ * madvise: directly stall for MADV_HUGEPAGE, otherwise fail if not immediately
-+ *	    available
-+ * never: never stall for any thp allocation
-  */
- static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- {
--	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
-+	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
- 
--	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
--				&transparent_hugepage_flags) && vma_madvised)
--		return GFP_TRANSHUGE;
--	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
--						&transparent_hugepage_flags))
--		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
--	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
--						&transparent_hugepage_flags))
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
- 		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
--
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
-+		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
-+		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
-+							     __GFP_KSWAPD_RECLAIM);
-+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-+		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
-+							     0);
- 	return GFP_TRANSHUGE_LIGHT;
- }
- 
+>
+> 2. Define fsync() semantics that include the state after a failure (this
+>    probably goes a long way towards fixing 1.).
+>
+>    The semantics that QEMU uses internally (and which it needs to map)
+>    is that after a successful flush, all writes to the disk image that
+>    have successfully completed before the flush was issued are stable on
+>    disk (no matter whether a previous flush failed).
+>
+>    A possible adaption to Linux, which considers that unlike QEMU
+>    images, files can be opened more than once, might be that a
+>    succeeding fsync() on a file descriptor means that all data that has
+>    been read or written through this file descriptor is consistent
+>    between the page cache and the disk (the read part is for avoiding
+>    the scenario from 1.; it means that fsync flushes data written on a
+>    different file descriptor if it has been seen by this one; hence, the
+>    page cache can't contain non-dirty pages which aren't consistent with
+>    the disk).
+
+I think it would be useful to try to describe the behaviour of page
+flags, particularly PG_error PG_uptodate PG_dirty in the different
+scenarios.
+
+For example, a successful read sets PG_uptodate and a successful write
+clears PG_dirty.
+A failed read doesn't set PG_uptodate, and maybe sets PG_error.
+A failed read probably shouldn't clear PG_dirty but should set PG_error.
+
+If background-write finds a PG_dirty|PG_error page, should it try to
+write it out again?  Or should only a foreground (fsync) write?
+
+If we did this, PG_error|PG_dirty pages would be pinned in memory until
+a write was successful.  We would need a way to purge these pages
+without writing them.  We would also need a way to ensure they didn't
+consume a large fraction of memory.
+
+It isn't clear to me that the behaviour can be different for different
+file descriptors.  Once the data has been written to the page cache, it
+belongs to the file, not to any particular fd.  So enabling
+"keep-data-after-write-error" would need to be per-file rather than
+per-fd, and would probably need to be a privileged operations due to the
+memory consumption concerns.
+
+>
+> 3. Actually make fsync() failure recoverable.
+>
+>    You can implement 2. by making sure that a file descriptor for which
+>    pages have been thrown away always returns an error and never goes
+>    back to suceeding (it can't succeed according to the definition of 2.
+>    because the data that would have to be written out is gone). This is
+>    already a much better interface, but it doesn't really solve the
+>    actual problem we have.
+>
+>    We also need to make sure that after a failed fsync() there is a
+>    chance to recover. This means that the pages shouldn't be thrown away
+>    immediately; but at the same time, you probably also don't want to
+>    keep pages indefinitely when there is a permanent writeout error.
+>    However, if we can make sure that these pages are only evicted in
+>    case of actual memory pressure, and only if there are no actually
+>    clean page to evict, I think a lot would be already won.
+
+I think this would make behaviour unpredictable, being dependent on how
+much memory pressure there is.  Predictability is nice!
+
+>
+>    In the common case, you could then recover from a temporary failure,
+>    but if this state isn't maintainable, at least we get consistent
+>    fsync() failure telling us that the data is gone.
+>
+>
+> I think I've summarised most aspects here, but if something is unclear
+> or you'd like to see some more context, please refer to the qemu-devel
+> discussion [1] that I mentioned, or feel free to just ask.
+
+Definitely an interesting question!
+
+Thanks,
+NeilBrown
+
+>
+> Thanks,
+> Kevin
+>
+> [1] https://lists.gnu.org/archive/html/qemu-block/2016-04/msg00576.html
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlh1fysACgkQOeye3VZi
+gbnHsBAAma1rUFLGwr3P5iW9wJmLAWkmDAOIUZqD/pJxMF+xzHAZfHXT/+F0byfR
+M1IN3SI2iy+Rqgyx01HXuq+oq4Oz+mzHKJPa/s2/DBh1StSBLov19bhZJbQ/Tbiv
+k2kxb+jOcIiZuO72lbn5NMwgc7Htxv+rFVwxLOsmhNE/5GT0omUUCF8lQei62r1l
+pI7GkZzBtCUEtWbeDsdrHbzpOsuAInAcj0O5rfXsngmaXEZCwKTDhOGlhW7ynXjf
+TPvTWAznw/KUF/0Ovn1G85ZKYU4giY7Lsif2nvOS0cXGTlglwfqDGuxjRc+Sve8U
+MKPOm0hAvt8Trz5uvpB6/ewQ8vqnl10MIC4IF54HAq5fNI+awHwW06G3V6ZzGXR/
+ZDoNpOy2VlDEXzqkmYZRBcR/XDyAHJ0DYeimN0LQVQH6wuHFEoBZ5BpIwNQOmehQ
+OymMBxAYaRRRyMC3Z3dAI2P2eu5Rk1N81viTJa4Dh/qnRIZnmsFyB/B7caS6pf1V
+Rkj2g8cYt2rPRIAgGr0M8NwpKPi4OhKm/Oc+9lH+Rso5Ma6HKv1spiBl7D8+ezy7
+MSLrrbagEVuiUalbHVlf/jNsbLrOkvWHgNqi7x1eimVreX3tNZAdqmZXCyq1TWow
+kPlvGLT4gnev1t+7oCzg5XhDPTDaE7EKtwL81MrOIYST62khxIs=
+=O1dR
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
