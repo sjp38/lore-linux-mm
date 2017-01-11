@@ -1,46 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2704B6B0260
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:33:36 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f188so1982193071pgc.1
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:33:36 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id k1si6284835pld.26.2017.01.11.08.33.35
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8A176B0253
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:41:52 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id g49so78286074qta.0
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:41:52 -0800 (PST)
+Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
+        by mx.google.com with ESMTPS id a88si4124582qka.133.2017.01.11.08.41.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 08:33:35 -0800 (PST)
-Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
- SPARC M7
-References: <cover.1483999591.git.khalid.aziz@oracle.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
-Date: Wed, 11 Jan 2017 08:33:30 -0800
+        Wed, 11 Jan 2017 08:41:52 -0800 (PST)
+Received: by mail-qt0-x241.google.com with SMTP id a29so22798978qtb.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:41:51 -0800 (PST)
+Subject: Re: [PATCH v2] memory_hotplug: zone_can_shift() returns boolean value
+References: <2f9c3837-33d7-b6e5-59c0-6ca4372b2d84@gmail.com>
+ <20170109152703.4dd336106200d55d8f4deafb@linux-foundation.org>
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Message-ID: <53c25651-026f-898a-7204-c164528ab4e6@gmail.com>
+Date: Wed, 11 Jan 2017 11:41:43 -0500
 MIME-Version: 1.0
-In-Reply-To: <cover.1483999591.git.khalid.aziz@oracle.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20170109152703.4dd336106200d55d8f4deafb@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, Reza Arbab <arbab@linux.vnet.ibm.com>
 
-On 01/11/2017 08:12 AM, Khalid Aziz wrote:
-> A userspace task enables ADI through mprotect(). This patch series adds
-> a page protection bit PROT_ADI and a corresponding VMA flag
-> VM_SPARC_ADI. VM_SPARC_ADI is used to trigger setting TTE.mcd bit in the
-> sparc pte that enables ADI checking on the corresponding page.
+Hi Andrew
 
-Is there a cost in the hardware associated with doing this "ADI
-checking"?  For instance, instead of having this new mprotect()
-interface, why not just always set TTE.mcd on all PTEs?
+On 01/09/2017 06:27 PM, Andrew Morton wrote:
+> On Tue, 13 Dec 2016 15:29:49 -0500 Yasuaki Ishimatsu <yasu.isimatu@gmail.com> wrote:
+>
+>> online_{kernel|movable} is used to change the memory zone to
+>> ZONE_{NORMAL|MOVABLE} and online the memory.
+>>
+>> To check that memory zone can be changed, zone_can_shift() is used.
+>> Currently the function returns minus integer value, plus integer
+>> value and 0. When the function returns minus or plus integer value,
+>> it means that the memory zone can be changed to ZONE_{NORNAL|MOVABLE}.
+>>
+>> But when the function returns 0, there is 2 meanings.
+>>
+>> One of the meanings is that the memory zone does not need to be changed.
+>> For example, when memory is in ZONE_NORMAL and onlined by online_kernel
+>> the memory zone does not need to be changed.
+>>
+>> Another meaning is that the memory zone cannot be changed. When memory
+>> is in ZONE_NORMAL and onlined by online_movable, the memory zone may
+>> not be changed to ZONE_MOVALBE due to memory online limitation(see
+>> Documentation/memory-hotplug.txt). In this case, memory must not be
+>> onlined.
+>>
+>> The patch changes the return type of zone_can_shift() so that memory
+>> is not onlined when memory zone cannot be changed.
+>
+> What are the user-visible runtime effects of this fix?
 
-Also, should this be a privileged interface in some way?  The hardware
-is storing these tags *somewhere* and that storage is consuming
-resources *somewhere*.  What stops a crafty attacker from mmap()'ing a
-128TB chunk of the zero pages and storing ADI tags for all of it?
-That'll be 128TB/64*4bits = 1TB worth of 4-bit tags.  Page tables, for
-instance, consume a comparable amount of storage, but the OS *knows*
-about those and can factor them into OOM decisions.
+The user-visible runtime effects of the fix are here:
+
+Before applying patch:
+   # grep -A 35 "Node 2" /proc/zoneinfo
+   Node 2, zone   Normal
+   <snip>
+      node_scanned  0
+           spanned  8388608
+           present  7864320
+           managed  7864320
+   # echo online_movable > memory4097/state
+   # grep -A 35 "Node 2" /proc/zoneinfo
+   Node 2, zone   Normal
+   <snip>
+      node_scanned  0
+           spanned  8388608
+           present  8388608
+           managed  8388608
+
+   online_movable operation succeeded. But memory is onlined as
+   ZONE_NORMAL, not ZONE_MOVABLE.
+
+After applying patch:
+   # grep -A 35 "Node 2" /proc/zoneinfo
+   Node 2, zone   Normal
+   <snip>
+      node_scanned  0
+           spanned  8388608
+           present  7864320
+           managed  7864320
+   # echo online_movable > memory4097/state
+   bash: echo: write error: Invalid argument
+   # grep -A 35 "Node 2" /proc/zoneinfo
+   Node 2, zone   Normal
+   <snip>
+      node_scanned  0
+           spanned  8388608
+           present  7864320
+           managed  7864320
+
+   online_movable operation failed because of failure of changing
+   the memory zone from ZONE_NORMAL to ZONE_MOVABLE
+
+> Please always include this info when fixing bugs - it is required so
+> that others can decide which kernel version(s) need the fix.
+
+I'll add the above information and resend the patch as v3.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
