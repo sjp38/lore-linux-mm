@@ -1,15 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E9B746B0253
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:26:08 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z67so201914059pgb.0
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:26:08 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y6si6520053pge.231.2017.01.11.10.26.07
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4CD6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:37:54 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id l1so19948864wja.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:37:54 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id io7si5216689wjb.58.2017.01.11.10.37.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 10:26:08 -0800 (PST)
+        Wed, 11 Jan 2017 10:37:53 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id c85so11867wmi.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:37:53 -0800 (PST)
+Date: Wed, 11 Jan 2017 21:37:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Message-ID: <20170111183750.GE4895@node.shutemov.name>
 References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
  <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
  <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com>
@@ -18,62 +23,69 @@ References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
  <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
  <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com>
  <20170111142904.GD4895@node.shutemov.name>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <3c886ad1-6c70-5875-1e69-4bcef4dbd881@intel.com>
-Date: Wed, 11 Jan 2017 10:26:03 -0800
+ <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170111142904.GD4895@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 01/11/2017 06:29 AM, Kirill A. Shutemov wrote:
-> +#define mmap_max_addr() \
-> +({									\
-> +	unsigned long max_addr = min(TASK_SIZE, rlimit(RLIMIT_VADDR));	\
-> +	/* At the moment, MPX cannot handle addresses above 47-bits */	\
-> +	if (max_addr > USER_VADDR_LIM &&				\
-> +			kernel_managing_mpx_tables(current->mm))	\
-> + 		max_addr = USER_VADDR_LIM;				\
-> + 	max_addr;							\
-> +})
+On Wed, Jan 11, 2017 at 10:09:17AM -0800, Andy Lutomirski wrote:
+> On Wed, Jan 11, 2017 at 6:29 AM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> > On Thu, Jan 05, 2017 at 12:49:44PM -0800, Dave Hansen wrote:
+> >> On 01/05/2017 12:14 PM, Andy Lutomirski wrote:
+> >> >> I'm not sure I'm comfortable with this.  Do other rlimit changes cause
+> >> >> silent data corruption?  I'm pretty sure doing this to MPX would.
+> >> >>
+> >> > What actually goes wrong in this case?  That is, what combination of
+> >> > MPX setup of subsequent allocations will cause a problem, and is the
+> >> > problem worse than just a segfault?  IMO it would be really nice to
+> >> > keep the messy case confined to MPX.
+> >>
+> >> The MPX bounds tables are indexed by virtual address.  They need to grow
+> >> if the virtual address space grows.   There's an MSR that controls
+> >> whether we use the 48-bit or 57-bit layout.  It basically decides
+> >> whether we need a 2GB (48-bit) or 1TB (57-bit) bounds directory.
+> >>
+> >> The question is what we do with legacy MPX applications.  We obviously
+> >> can't let them just allocate a 2GB table and then go let the hardware
+> >> pretend it's 1TB in size.  We also can't hand the hardware using a 2GB
+> >> table an address >48-bits.
+> >>
+> >> Ideally, I'd like to make sure that legacy MPX can't be enabled if this
+> >> RLIMIT is set over 48-bits (really 47).  I'd also like to make sure that
+> >> legacy MPX is active, that the RLIMIT can't be raised because all hell
+> >> will break loose when the new addresses show up.
+> >
+> > I think we can do this. See the patch below.
+> >
+> > Basically, we refuse to enable MPX and issue warning in dmesg if there's
+> > anything mapped above 47-bits. Once MPX is enabled, mmap_max_addr() cannot
+> > be higher than 47-bits too.
+> >
+> > Function call from mmap_max_addr() is unfortunate, but I don't see a
+> > way around.
+> 
+> How about preventing the max addr from being changed to too high a
+> value while MPX is on instead of overriding the set value?  This would
+> have the added benefit that it would prevent silent failures where you
+> think you've enabled large addresses but MPX is also on and mmap
+> refuses to return large addresses.
 
-The bad part about this is that it adds code to a relatively fast path,
-and the check that it's doing will not change its result for basically
-the entire life of the process.
+Setting rlimit high doesn't mean that you necessary will get access to
+full address space, even without MPX in picture. TASK_SIZE limits the
+available address space too.
 
-I'd much rather see this checking done at the point that MPX is enabled
-and at the point the limit is changed.  Those are both super-rare paths.
+I think it's consistent with other resources in rlimit: setting RLIMIT_RSS
+to unlimited doesn't really means you are not subject to other resource
+management.
 
->  extern u16 amd_get_nb_id(int cpu);
->  extern u32 amd_get_nodes_per_socket(void);
->  
-> diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
-> index 324e5713d386..04fa386a165a 100644
-> --- a/arch/x86/mm/mpx.c
-> +++ b/arch/x86/mm/mpx.c
-> @@ -354,10 +354,22 @@ int mpx_enable_management(void)
->  	 */
->  	bd_base = mpx_get_bounds_dir();
->  	down_write(&mm->mmap_sem);
-> +
-> +	/*
-> +	 * MPX doesn't support addresses above 47-bits yes.
-> +	 * Make sure nothing is mapped there before enabling.
-> +	 */
-> +	if (find_vma(mm, 1UL << 47)) {
-> +		pr_warn("%s (%d): MPX cannot handle addresses above 47-bits. "
-> +				"Disabling.", current->comm, current->pid);
-> +		ret = -ENXIO;
-> +		goto out;
-> +	}
-
-I don't think allowing userspace to spam unlimited amounts of message
-into the kernel log is a good idea. :)  But a WARN_ONCE() might not kill
-any puppies.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
