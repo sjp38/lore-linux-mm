@@ -1,59 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D52C06B0253
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 18:09:42 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id z128so7380040pfb.4
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 15:09:42 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CFD426B0253
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 18:15:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c73so7359651pfb.7
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 15:15:28 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p5si7131547pgn.170.2017.01.11.15.09.42
+        by mx.google.com with ESMTPS id t80si7136149pfk.213.2017.01.11.15.15.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 15:09:42 -0800 (PST)
-Date: Wed, 11 Jan 2017 15:09:40 -0800
+        Wed, 11 Jan 2017 15:15:28 -0800 (PST)
+Date: Wed, 11 Jan 2017 15:15:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 3/9] mm/swap: Split swap cache into 64MB trunks
-Message-Id: <20170111150940.25d951a121a62e1b7eff6f8d@linux-foundation.org>
-In-Reply-To: <735bab895e64c930581ffb0a05b661e01da82bc5.1484082593.git.tim.c.chen@linux.intel.com>
+Subject: Re: [PATCH v5 2/9] mm/swap: Add cluster lock
+Message-Id: <20170111151526.e905b91d6f1ee9f21e6907be@linux-foundation.org>
+In-Reply-To: <20170111160729.23e06078@lwn.net>
 References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
-	<735bab895e64c930581ffb0a05b661e01da82bc5.1484082593.git.tim.c.chen@linux.intel.com>
+	<dbb860bbd825b1aaba18988015e8963f263c3f0d.1484082593.git.tim.c.chen@linux.intel.com>
+	<20170111150029.29e942aa00af69f9c3c4e9b1@linux-foundation.org>
+	<20170111160729.23e06078@lwn.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-On Wed, 11 Jan 2017 09:55:13 -0800 Tim Chen <tim.c.chen@linux.intel.com> wrote:
+On Wed, 11 Jan 2017 16:07:29 -0700 Jonathan Corbet <corbet@lwn.net> wrote:
 
-> The patch is to improve the scalability of the swap out/in via using
-> fine grained locks for the swap cache.  In current kernel, one address
-> space will be used for each swap device.  And in the common
-> configuration, the number of the swap device is very small (one is
-> typical).  This causes the heavy lock contention on the radix tree of
-> the address space if multiple tasks swap out/in concurrently.  But in
-> fact, there is no dependency between pages in the swap cache.  So that,
-> we can split the one shared address space for each swap device into
-> several address spaces to reduce the lock contention.  In the patch, the
-> shared address space is split into 64MB trunks.  64MB is chosen to
-> balance the memory space usage and effect of lock contention reduction.
+> On Wed, 11 Jan 2017 15:00:29 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> The size of struct address_space on x86_64 architecture is 408B, so with
-> the patch, 6528B more memory will be used for every 1GB swap space on
-> x86_64 architecture.
+> > hm, bit_spin_lock() is a nasty thing.  It is slow and it doesn't have
+> > all the lockdep support.
+> > 
+> > Would the world end if we added a spinlock to swap_cluster_info?
 > 
-> One address space is still shared for the swap entries in the same 64M
-> trunks.  To avoid lock contention for the first round of swap space
-> allocation, the order of the swap clusters in the initial free clusters
-> list is changed.  The swap space distance between the consecutive swap
-> clusters in the free cluster list is at least 64M.  After the first
-> round of allocation, the swap clusters are expected to be freed
-> randomly, so the lock contention should be reduced effectively.
+> FWIW, I asked the same question in December, this is what I got:
+> 
+> ...
+>
+> > > Why the roll-your-own locking and data structures here?  To my naive
+> > > understanding, it seems like you could do something like:
+> > >
+> > >   struct swap_cluster_info {
+> > >   	spinlock_t lock;
+> > > 	atomic_t count;
+> > > 	unsigned int flags;
+> > >   };
+> > >
+> > > Then you could use proper spinlock operations which, among other things,
+> > > would make the realtime folks happier.  That might well help with the
+> > > cache-line sharing issues as well.  Some of the count manipulations could
+> > > perhaps be done without the lock entirely; similarly, atomic bitops might
+> > > save you the locking for some of the flag tweaks - though I'd have to look
+> > > more closely to be really sure of that.
+> > >
+> > > The cost, of course, is the growth of this structure, but you've already
+> > > noted that the overhead isn't all that high; seems like it could be worth
+> > > it.  
+> > 
+> > Yes.  The data structure you proposed is much easier to be used than the
+> > current one.  The main concern is the RAM usage.  The size of the data
+> > structure you proposed is about 80 bytes, while that of the current one
+> > is about 8 bytes.  There will be one struct swap_cluster_info for every
+> > 1MB swap space, so for 1TB swap space, the total size will be 80M
+> > compared with 8M of current implementation.
 
-Switching from a single radix-tree to an array of radix-trees to reduce
-contention seems a bit hacky.  That we can do this and have everything
-continue to work tells me that we're simply using an inappropriate data
-structure to hold this info.
+Where did this 80 bytes come from?  That swap_cluster_info is 12 bytes
+and could perhaps be squeezed into 8 bytes if we can get away with a
+24-bit "count".
+
+
+> > In the other hand, the return of the increased size is not overwhelming.
+> > The bit spinlock on cluster will not be heavy contended because it is a
+> > quite fine-grained lock.  So the benefit will be little to use lockless
+> > operations.  I guess the realtime issue isn't serious given the lock is
+> > not heavy contended and the operations protected by the lock is
+> > light-weight too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
