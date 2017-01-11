@@ -1,132 +1,347 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 35E7C6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 05:50:47 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id j82so208628075oih.6
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:50:47 -0800 (PST)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id x204si2123076oix.234.2017.01.11.02.50.46
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6623E6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 05:52:30 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id f2so146662462uaf.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:52:30 -0800 (PST)
+Received: from mail-vk0-x242.google.com (mail-vk0-x242.google.com. [2607:f8b0:400c:c05::242])
+        by mx.google.com with ESMTPS id w189si1439355vkf.54.2017.01.11.02.52.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 02:50:46 -0800 (PST)
-Received: by mail-oi0-x242.google.com with SMTP id x84so22592507oix.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:50:46 -0800 (PST)
+        Wed, 11 Jan 2017 02:52:29 -0800 (PST)
+Received: by mail-vk0-x242.google.com with SMTP id r136so5342399vke.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:52:29 -0800 (PST)
 MIME-Version: 1.0
-From: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
-Date: Wed, 11 Jan 2017 16:20:45 +0530
-Message-ID: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
-Subject: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
+In-Reply-To: <CALZtONAs9Gj6DR-ksoxEe9N31EMYZ_SFRinezbFjqpf9jp4sVA@mail.gmail.com>
+References: <20161226013016.968004f3db024ef2111dc458@gmail.com>
+ <20161226014059.d1aa11c9ed4ac3380bd35870@gmail.com> <CALZtONAs9Gj6DR-ksoxEe9N31EMYZ_SFRinezbFjqpf9jp4sVA@mail.gmail.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Wed, 11 Jan 2017 11:52:28 +0100
+Message-ID: <CAMJBoFNCiXs+S44z3aWkzgUtzWqEFrL1UdLqDgdDm50CoiBwTw@mail.gmail.com>
+Subject: Re: [PATCH/RESEND 5/5] z3fold: add kref refcounting
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+On Wed, Jan 4, 2017 at 7:42 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Sun, Dec 25, 2016 at 7:40 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>> With both coming and already present locking optimizations,
+>> introducing kref to reference-count z3fold objects is the right
+>> thing to do. Moreover, it makes buddied list no longer necessary,
+>> and allows for a simpler handling of headless pages.
+>>
+>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>> ---
+>>  mm/z3fold.c | 137 ++++++++++++++++++++++++++++++------------------------------
+>>  1 file changed, 68 insertions(+), 69 deletions(-)
+>>
+>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>> index 729a2da..4593493 100644
+>> --- a/mm/z3fold.c
+>> +++ b/mm/z3fold.c
+>> @@ -52,6 +52,7 @@ enum buddy {
+>>   *                     z3fold page, except for HEADLESS pages
+>>   * @buddy:     links the z3fold page into the relevant list in the pool
+>>   * @page_lock:         per-page lock
+>> + * @refcount:          reference cound for the z3fold page
+>>   * @first_chunks:      the size of the first buddy in chunks, 0 if free
+>>   * @middle_chunks:     the size of the middle buddy in chunks, 0 if free
+>>   * @last_chunks:       the size of the last buddy in chunks, 0 if free
+>> @@ -60,6 +61,7 @@ enum buddy {
+>>  struct z3fold_header {
+>>         struct list_head buddy;
+>>         raw_spinlock_t page_lock;
+>> +       struct kref refcount;
+>>         unsigned short first_chunks;
+>>         unsigned short middle_chunks;
+>>         unsigned short last_chunks;
+>> @@ -95,8 +97,6 @@ struct z3fold_header {
+>>   * @unbuddied: array of lists tracking z3fold pages that contain 2- buddies;
+>>   *             the lists each z3fold page is added to depends on the size of
+>>   *             its free region.
+>> - * @buddied:   list tracking the z3fold pages that contain 3 buddies;
+>> - *             these z3fold pages are full
+>>   * @lru:       list tracking the z3fold pages in LRU order by most recently
+>>   *             added buddy.
+>>   * @pages_nr:  number of z3fold pages in the pool.
+>> @@ -109,7 +109,6 @@ struct z3fold_header {
+>>  struct z3fold_pool {
+>>         spinlock_t lock;
+>>         struct list_head unbuddied[NCHUNKS];
+>> -       struct list_head buddied;
+>>         struct list_head lru;
+>>         atomic64_t pages_nr;
+>>         const struct z3fold_ops *ops;
+>> @@ -162,9 +161,21 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
+>>  }
+>>
+>>  /* Resets the struct page fields and frees the page */
+>> -static void free_z3fold_page(struct z3fold_header *zhdr)
+>> +static void free_z3fold_page(struct page *page)
+>>  {
+>> -       __free_page(virt_to_page(zhdr));
+>> +       __free_page(page);
+>> +}
+>> +
+>> +static void release_z3fold_page(struct kref *ref)
+>> +{
+>> +       struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
+>> +                                               refcount);
+>> +       struct page *page = virt_to_page(zhdr);
+>> +       if (!list_empty(&zhdr->buddy))
+>> +               list_del(&zhdr->buddy);
+>> +       if (!list_empty(&page->lru))
+>> +               list_del(&page->lru);
+>
+> wait, a page shouldn't ever be on a buddy or lru list if it's free,
+> should it?  these checks are bugs if they're true aren't they?
+> Relying on the release function to remove a page from its buddy and/or
+> lru list (and hoping no other code already took it off and it using
+> it) seems very error-prone.
 
-we are seeing OOM/stalls messages when we run ltp cpuset01(cpuset01 -I
-360) test for few minutes, even through the numa system has adequate
-memory on both nodes.
+Why? We manage not to care if page is on a list or not when it's
+become unused. When we release a page we don't actually know if anyone
+else is using it and that's ok.
 
-this we have observed same on both arm64/thunderx numa and on x86 numa system!
+>> +       free_z3fold_page(page);
+>>  }
+>>
+>>  /* Lock a z3fold page */
+>> @@ -256,9 +267,9 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+>>         if (!pool)
+>>                 return NULL;
+>>         spin_lock_init(&pool->lock);
+>> +       kref_init(&zhdr->refcount);
+>>         for_each_unbuddied_list(i, 0)
+>>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
+>> -       INIT_LIST_HEAD(&pool->buddied);
+>>         INIT_LIST_HEAD(&pool->lru);
+>>         atomic64_set(&pool->pages_nr, 0);
+>>         pool->ops = ops;
+>> @@ -383,7 +394,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>                         spin_lock(&pool->lock);
+>>                         zhdr = list_first_entry_or_null(&pool->unbuddied[i],
+>>                                                 struct z3fold_header, buddy);
+>> -                       if (!zhdr) {
+>> +                       if (!zhdr || !kref_get_unless_zero(&zhdr->refcount)) {
+>
+> if we can't rely on the kref to be safe under the pool lock, the kref
+> isn't very useful is it?  seems like it just makes things more
+> complicated.
 
-using latest ltp from master branch version 20160920-197-gbc4d3db
-and linux kernel version 4.9
+No, this is just an overkill check. I tried this patch with the direct
+kref_get() instead and it's ok.
 
-is this known bug already?
+> the kref should be assumed to be safe while holding the pool lock, or
+> whatever lock protects the list(s) the object is on, otherwise it
+> seems likely that use-after-free problems will result...but this goes
+> back to my concern about relying on the freeing function to remove
+> objects from their lists.
 
-below is the oops log:
-[ 2280.275193] cgroup: new mount options do not match the existing
-superblock, will be ignored
-[ 2316.565940] cgroup: new mount options do not match the existing
-superblock, will be ignored
-[ 2393.388361] cpuset01: page allocation stalls for 10051ms, order:0,
-mode:0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO)
-[ 2393.388371] CPU: 9 PID: 18188 Comm: cpuset01 Not tainted 4.9.0 #1
-[ 2393.388373] Hardware name: Dell Inc. PowerEdge T630/0W9WXC, BIOS
-1.0.4 08/29/2014
-[ 2393.388374]  ffffc9000c1afba8 ffffffff813c771e ffffffff81a40be8
-0000000000000001
-[ 2393.388377]  ffffc9000c1afc30 ffffffff811b8c9a 024280ca00000202
-ffffffff81a40be8
-[ 2393.388380]  ffffc9000c1afbd0 0000000000000010 ffffc9000c1afc40
-ffffc9000c1afbf0
-[ 2393.388383] Call Trace:
-[ 2393.388392]  [<ffffffff813c771e>] dump_stack+0x63/0x85
-[ 2393.388397]  [<ffffffff811b8c9a>] warn_alloc+0x13a/0x170
-[ 2393.388399]  [<ffffffff811b95c4>] __alloc_pages_slowpath+0x884/0xac0
-[ 2393.388402]  [<ffffffff811b9ac5>] __alloc_pages_nodemask+0x2c5/0x310
-[ 2393.388405]  [<ffffffff8120f663>] alloc_pages_vma+0xb3/0x260
-[ 2393.388410]  [<ffffffff811e0534>] ? anon_vma_interval_tree_insert+0x84/0x90
-[ 2393.388413]  [<ffffffff811ea42c>] handle_mm_fault+0x129c/0x1550
-[ 2393.388417]  [<ffffffff813d65bb>] ? call_rwsem_wake+0x1b/0x30
-[ 2393.388422]  [<ffffffff8106a362>] __do_page_fault+0x222/0x4b0
-[ 2393.388424]  [<ffffffff8106a61f>] do_page_fault+0x2f/0x80
-[ 2393.388429]  [<ffffffff817ca588>] page_fault+0x28/0x30
-[ 2393.388431] Mem-Info:
-[ 2393.388437] active_anon:92316 inactive_anon:21059 isolated_anon:32
- active_file:202031 inactive_file:137088 isolated_file:0
- unevictable:16 dirty:20 writeback:5883 unstable:0
- slab_reclaimable:40274 slab_unreclaimable:21605
- mapped:26819 shmem:28393 pagetables:11375 bounce:0
- free:5494728 free_pcp:549 free_cma:0
-[ 2393.388446] Node 0 active_anon:310368kB inactive_anon:25684kB
-active_file:807836kB inactive_file:548592kB unevictable:60kB
-isolated(anon):0kB isolated(file):0kB mapped:101672kB dirty:80kB
-writeback:148kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB
-anon_thp: 25780kB writeback_tmp:0kB unstable:0kB pages_scanned:0
-all_unreclaimable? no
-[ 2393.388455] Node 1 active_anon:58896kB inactive_anon:58552kB
-active_file:288kB inactive_file:0kB unevictable:4kB
-isolated(anon):128kB isolated(file):0kB mapped:5604kB dirty:0kB
-writeback:23384kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB
-anon_thp: 87792kB writeback_tmp:0kB unstable:0kB pages_scanned:0
-all_unreclaimable? no
-[ 2393.388457] Node 1 Normal free:11937124kB min:45532kB low:62044kB
-high:78556kB active_anon:58896kB inactive_anon:58552kB
-active_file:288kB inactive_file:0kB unevictable:4kB
-writepending:23384kB present:16777216kB managed:16512808kB mlocked:4kB
-slab_reclaimable:37876kB slab_unreclaimable:44812kB
-kernel_stack:4264kB pagetables:27612kB bounce:0kB free_pcp:2240kB
-local_pcp:0kB free_cma:0kB
-[ 2393.388462] lowmem_reserve[]: 0 0 0 0
-[ 2393.388465] Node 1 Normal: 1179*4kB (UME) 1396*8kB (UME) 1193*16kB
-(UME) 910*32kB (UME) 721*64kB (UME) 568*128kB (UME) 444*256kB (UME)
-328*512kB (ME) 223*1024kB (UM) 138*2048kB (ME) 2676*4096kB (M) =
-11936412kB
-[ 2393.388479] Node 0 hugepages_total=4 hugepages_free=4
-hugepages_surp=0 hugepages_size=1048576kB
-[ 2393.388481] Node 1 hugepages_total=4 hugepages_free=4
-hugepages_surp=0 hugepages_size=1048576kB
-[ 2393.388481] 374277 total pagecache pages
-[ 2393.388483] 6667 pages in swap cache
-[ 2393.388484] Swap cache stats: add 101786, delete 95119, find 393/682
-[ 2393.388485] Free swap  = 15979384kB
-[ 2393.388485] Total swap = 16383996kB
-[ 2393.388486] 8331071 pages RAM
-[ 2393.388486] 0 pages HighMem/MovableOnly
-[ 2393.388487] 152036 pages reserved
-[ 2393.388487] 0 pages hwpoisoned
-[ 2397.331098] cpuset01 invoked oom-killer:
-gfp_mask=0x24280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=1,
-order=0, oom_score_adj=0
+As long as kref_put() is called with the pool lock held it is no problem.
 
+>>                                 spin_unlock(&pool->lock);
+>>                                 continue;
+>>                         }
+>> @@ -403,10 +414,12 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>                         else if (zhdr->middle_chunks == 0)
+>>                                 bud = MIDDLE;
+>>                         else {
+>> +                               z3fold_page_unlock(zhdr);
+>>                                 spin_lock(&pool->lock);
+>> -                               list_add(&zhdr->buddy, &pool->buddied);
+>> +                               if (kref_put(&zhdr->refcount,
+>> +                                            release_z3fold_page))
+>> +                                       atomic64_dec(&pool->pages_nr);
+>>                                 spin_unlock(&pool->lock);
+>> -                               z3fold_page_unlock(zhdr);
+>>                                 pr_err("No free chunks in unbuddied\n");
+>>                                 WARN_ON(1);
+>>                                 continue;
+>> @@ -447,9 +460,6 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>                 /* Add to unbuddied list */
+>>                 freechunks = num_free_chunks(zhdr);
+>>                 list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>> -       } else {
+>> -               /* Add to buddied list */
+>> -               list_add(&zhdr->buddy, &pool->buddied);
+>>         }
+>>
+>>  headless:
+>> @@ -515,50 +525,39 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>
+>>         if (test_bit(UNDER_RECLAIM, &page->private)) {
+>>                 /* z3fold page is under reclaim, reclaim will free */
+>> -               if (bud != HEADLESS)
+>> +               if (bud != HEADLESS) {
+>>                         z3fold_page_unlock(zhdr);
+>> -               return;
+>> -       }
+>> -
+>> -       /* Remove from existing buddy list */
+>> -       if (bud != HEADLESS) {
+>> -               spin_lock(&pool->lock);
+>> -               /*
+>> -                * this object may have been removed from its list by
+>> -                * z3fold_alloc(). In that case we just do nothing,
+>> -                * z3fold_alloc() will allocate an object and add the page
+>> -                * to the relevant list.
+>> -                */
+>> -               if (!list_empty(&zhdr->buddy)) {
+>> -                       list_del(&zhdr->buddy);
+>> -               } else {
+>> +                       spin_lock(&pool->lock);
+>> +                       if (kref_put(&zhdr->refcount, release_z3fold_page))
+>> +                               atomic64_dec(&pool->pages_nr);
+>>                         spin_unlock(&pool->lock);
+>> -                       z3fold_page_unlock(zhdr);
+>> -                       return;
+>>                 }
+>> -               spin_unlock(&pool->lock);
+>> +               return;
+>>         }
+>>
+>> -       if (bud == HEADLESS ||
+>> -           (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
+>> -                       zhdr->last_chunks == 0)) {
+>> -               /* z3fold page is empty, free */
+>> +       if (bud == HEADLESS) {
+>>                 spin_lock(&pool->lock);
+>>                 list_del(&page->lru);
+>>                 spin_unlock(&pool->lock);
+>> -               clear_bit(PAGE_HEADLESS, &page->private);
+>> -               if (bud != HEADLESS)
+>> -                       z3fold_page_unlock(zhdr);
+>> -               free_z3fold_page(zhdr);
+>> +               free_z3fold_page(page);
+>>                 atomic64_dec(&pool->pages_nr);
+>>         } else {
+>> -               z3fold_compact_page(zhdr);
+>> -               /* Add to the unbuddied list */
+>> +               if (zhdr->first_chunks != 0 || zhdr->middle_chunks != 0 ||
+>> +                   zhdr->last_chunks != 0) {
+>> +                       z3fold_compact_page(zhdr);
+>> +                       /* Add to the unbuddied list */
+>> +                       spin_lock(&pool->lock);
+>> +                       if (!list_empty(&zhdr->buddy))
+>> +                               list_del(&zhdr->buddy);
+>> +                       freechunks = num_free_chunks(zhdr);
+>> +                       list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>> +                       spin_unlock(&pool->lock);
+>> +               }
+>> +               z3fold_page_unlock(zhdr);
+>>                 spin_lock(&pool->lock);
+>> -               freechunks = num_free_chunks(zhdr);
+>> -               list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>> +               if (kref_put(&zhdr->refcount, release_z3fold_page))
+>> +                       atomic64_dec(&pool->pages_nr);
+>>                 spin_unlock(&pool->lock);
+>> -               z3fold_page_unlock(zhdr);
+>>         }
+>>
+>>  }
+>> @@ -617,13 +616,15 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>                         return -EINVAL;
+>>                 }
+>>                 page = list_last_entry(&pool->lru, struct page, lru);
+>> -               list_del(&page->lru);
+>> +               list_del_init(&page->lru);
+>>
+>>                 /* Protect z3fold page against free */
+>>                 set_bit(UNDER_RECLAIM, &page->private);
+>
+> UNDER_RECLAIM shouldn't be needed anymore when kref counting is used,
+> and with the separate pool and page locks, z3fold_free and
+> z3fold_reclaim can race to set/check this bit anyway (it's set under
+> the pool lock, but checked under the page lock).
 
-[gkulkarni@xeon-numa ltp]$ numactl --hardware
-available: 2 nodes (0-1)
-node 0 cpus: 0 2 4 6 8 10 12 14 16 18 20 22
-node 0 size: 15823 MB
-node 0 free: 10211 MB
-node 1 cpus: 1 3 5 7 9 11 13 15 17 19 21 23
-node 1 size: 16125 MB
-node 1 free: 11628 MB
-node distances:
-node   0   1
-  0:  10  21
-  1:  21  10
+True; I'll refactor the patch to get rid of it.
 
+>>                 zhdr = page_address(page);
+>>                 if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>> -                       list_del(&zhdr->buddy);
+>> +                       if (!list_empty(&zhdr->buddy))
+>> +                               list_del_init(&zhdr->buddy);
+>> +                       kref_get(&zhdr->refcount);
+>>                         spin_unlock(&pool->lock);
+>>                         z3fold_page_lock(zhdr);
+>>                         /*
+>> @@ -664,30 +665,26 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>                                 goto next;
+>>                 }
+>>  next:
+>> -               if (!test_bit(PAGE_HEADLESS, &page->private))
+>> -                       z3fold_page_lock(zhdr);
+>>                 clear_bit(UNDER_RECLAIM, &page->private);
+>> -               if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
+>> -                   (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
+>> -                    zhdr->middle_chunks == 0)) {
+>> -                       /*
+>> -                        * All buddies are now free, free the z3fold page and
+>> -                        * return success.
+>> -                        */
+>> -                       if (!test_and_clear_bit(PAGE_HEADLESS, &page->private))
+>> +               if (test_bit(PAGE_HEADLESS, &page->private)) {
+>> +                       if (ret == 0) {
+>> +                               free_z3fold_page(page);
+>> +                               return 0;
+>> +                       }
+>> +               } else {
+>> +                       z3fold_page_lock(zhdr);
+>> +                       if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
+>> +                           zhdr->middle_chunks == 0) {
+>>                                 z3fold_page_unlock(zhdr);
+>> -                       free_z3fold_page(zhdr);
+>> -                       atomic64_dec(&pool->pages_nr);
+>> -                       return 0;
+>> -               }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+>> -                       if (zhdr->first_chunks != 0 &&
+>> -                           zhdr->last_chunks != 0 &&
+>> -                           zhdr->middle_chunks != 0) {
+>> -                               /* Full, add to buddied list */
+>>                                 spin_lock(&pool->lock);
+>> -                               list_add(&zhdr->buddy, &pool->buddied);
+>> +                               if (kref_put(&zhdr->refcount,
+>> +                                            release_z3fold_page))
+>> +                                       atomic64_dec(&pool->pages_nr);
+>>                                 spin_unlock(&pool->lock);
+>> -                       } else {
+>> +                               return 0;
+>> +                       } else if (zhdr->first_chunks == 0 ||
+>> +                                  zhdr->last_chunks == 0 ||
+>> +                                  zhdr->middle_chunks == 0) {
+>>                                 z3fold_compact_page(zhdr);
+>>                                 /* add to unbuddied list */
+>>                                 spin_lock(&pool->lock);
+>> @@ -696,10 +693,12 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+>>                                          &pool->unbuddied[freechunks]);
+>>                                 spin_unlock(&pool->lock);
+>>                         }
+>> -               }
+>> -
+>> -               if (!test_bit(PAGE_HEADLESS, &page->private))
+>>                         z3fold_page_unlock(zhdr);
+>> +                       spin_lock(&pool->lock);
+>> +                       if (kref_put(&zhdr->refcount, release_z3fold_page))
+>> +                               atomic64_dec(&pool->pages_nr);
+>> +                       spin_unlock(&pool->lock);
+>> +               }
+>
+> you can't put the zhdr above, and then go on to add the page to the
+> lru list; you don't have the kref anymore to allow you to do that.
 
-thanks
-Ganapat
+I don't think so since I do kref_get() in the beginning of reclaim
+function so strictly speaking kref_put should not release the page
+here.
+I can add an extra check though to just return 0 in case it did.
+
+>>
+>>                 spin_lock(&pool->lock);
+>>                 /* add to beginning of LRU */
+>> --
+>> 2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
