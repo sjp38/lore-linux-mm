@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D26A6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 01:22:30 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 127so778372203pfg.5
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 22:22:30 -0800 (PST)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id m23si4728049plk.231.2017.01.10.22.22.28
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jan 2017 22:22:29 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170110125552.4170-1-mhocko@kernel.org> <20170110125552.4170-3-mhocko@kernel.org>
-In-Reply-To: <20170110125552.4170-3-mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, vmscan: cleanup inactive_list_is_low
-Date: Wed, 11 Jan 2017 14:22:13 +0800
-Message-ID: <020301d26bd3$0c6e6a80$254b3f80$@alibaba-inc.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0DE6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:06:23 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so1278036423pgj.6
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:06:23 -0800 (PST)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id k25si4851808pfg.178.2017.01.10.23.06.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jan 2017 23:06:22 -0800 (PST)
+Received: by mail-pf0-x231.google.com with SMTP id y143so39229747pfb.0
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:06:22 -0800 (PST)
+Date: Tue, 10 Jan 2017 23:06:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
+In-Reply-To: <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
+References: <20170105053658.GA36383@juliacomputing.com> <20170105150558.GE17319@node.shutemov.name> <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michal Hocko' <mhocko@suse.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com, hughd@google.com
 
+On Tue, 10 Jan 2017, Hugh Dickins wrote:
+> On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
+> > On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
+> > >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> > >  		pmd_t *pmd, int flags)
+> > >  {
+> > > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> > >  
+> > >  	assert_spin_locked(pmd_lockptr(mm, pmd));
+> > >  
+> > > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
+> > > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
+> > >  		return NULL;
+> > 
+> > I don't think this part is needed: once we COW devmap PMD entry, we split
+> > it into PTE table, so IIUC we never get here with PMD.
+> 
+> Hi Kirill,
+> 
+> Would you mind double-checking that?  You certainly know devmap
+> better than me, but I feel safer with Keno's original as above.
+> 
+> I can see that fs/dax.c dax_iomap_pmd_fault() does
+> 
+> 	/* Fall back to PTEs if we're going to COW */
+> 	if (write && !(vma->vm_flags & VM_SHARED))
+> 		goto fallback;
+> 
+> But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
+> FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
 
-On Tuesday, January 10, 2017 8:56 PM Michal Hocko wrote: 
-> 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> inactive_list_is_low is duplicating logic implemented by
-> lruvec_lru_size_eligibe_zones. Let's use the dedicated function to get
-> the number of eligible pages on the lru list and ask use lruvec_lru_size
-> to get the total LRU lize only when the tracing is really requested. We
-> are still iterating over all LRUs two times in that case but a)
-> inactive_list_is_low is not a hot path and b) this can be addressed at
-> the tracing layer and only evaluate arguments only when the tracing is
-> enabled in future if that ever matters.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+And now I think I'm wrong, but please double-check even so: I think that
+case gets ruled out by the !is_cow_mapping(vm_flags) check in mm/gup.c,
+where we used to have a WARN_ON_ONCE() for a while.
 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
