@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AE376B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:45:30 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id v73so82922259ywg.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 07:45:30 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id u123si1828361ybf.159.2017.01.11.07.45.29
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B04846B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:52:43 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id l2so28782861wml.5
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 07:52:43 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t1si4877089wjf.2.2017.01.11.07.52.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 07:45:29 -0800 (PST)
-Date: Wed, 11 Jan 2017 10:45:26 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170111154526.tlydtezw5akf72c2@thunk.org>
-References: <20170110160224.GC6179@noname.redhat.com>
- <20170111050356.ldlx73n66zjdkh6i@thunk.org>
- <20170111094729.GH16116@quack2.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Jan 2017 07:52:42 -0800 (PST)
+Date: Wed, 11 Jan 2017 16:52:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
+ added to -mm tree
+Message-ID: <20170111155239.GD16365@dhcp22.suse.cz>
+References: <586edadc.figmHAGrTxvM7Wei%akpm@linux-foundation.org>
+ <20170110235250.GA7130@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170111094729.GH16116@quack2.suse.cz>
+In-Reply-To: <20170110235250.GA7130@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Kevin Wolf <kwolf@redhat.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, hillf.zj@alibaba-inc.com, mgorman@suse.de, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 11, 2017 at 10:47:29AM +0100, Jan Kara wrote:
-> Well, as Neil pointed out, the problem is that once the data hits page
-> cache, we lose the association with a file descriptor. So for example
-> background writeback or sync(2) can find the dirty data and try to write
-> it, get EIO, and then you have to do something about it because you don't
-> know whether fsync(2) is coming or not.
+On Wed 11-01-17 08:52:50, Minchan Kim wrote:
+[...]
+> > @@ -2055,8 +2055,8 @@ static bool inactive_list_is_low(struct
+> >  	if (!file && !total_swap_pages)
+> >  		return false;
+> >  
+> > -	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > -	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> > +	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > +	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> >  
+> 
+> the decision of deactivating is based on eligible zone's LRU size,
+> not whole zone so why should we need to get a trace of all zones's LRU?
 
-We could solve that by being able to track the number of open file
-descriptors in struct inode.  We have i_writecount and i_readcount (if
-CONFIG_IMA is defined).  So we can *almost* do this already.  If we
-always tracked i_readcount, then we would have the count of all struct
-files opened that are writeable or read-only.  So we *can* know
-whether or not the page is backed by an inode that has an open file
-descriptor.
+Strictly speaking, the total_ counters are not necessary for making the
+decision. I found reporting those numbers useful regardless because this
+will give us also an information how large is the eligible portion of
+the LRU list. We do not have any other tracepoint which would report
+that.
+ 
+[...]
+> > @@ -2223,7 +2228,7 @@ static void get_scan_count(struct lruvec
+> >  	 * lruvec even if it has plenty of old anonymous pages unless the
+> >  	 * system is under heavy pressure.
+> >  	 */
+> > -	if (!inactive_list_is_low(lruvec, true, sc) &&
+> > +	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+> 
+> Hmm, I was curious why you added trace boolean arguement and found it here.
+> Yes, here is not related to deactivation directly but couldn't we help to
+> trace it unconditionally?
 
-So the hueristic I'm suggesting is "if i_writecount + i_readcount is
-non-zero, then keep the pages".  The pages would be marked with the
-error flag, so fsync() can harvest the fact that there was an error,
-but afterwards, the pages would be left marked dirty.  After the last
-file descriptor is closed, on the next attempt to writeback those
-pages, if the I/O error is still occuring, we can make the pages go
-away.
+I've had it like that when I was debugging the mentioned bug and found
+it a bit disturbing. It generated more output than I would like and it
+wasn't really clear from which code path  this has been called from.
 
-					- Ted
+> With that, we can know why VM reclaim only
+> file-backed page on slow device although enough anonymous pages on fast
+> swap like zram are enough.
+
+That would be something for a separate tracepoint in g_s_c
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
