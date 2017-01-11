@@ -1,73 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 731906B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:26:16 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id z128so331395467pfb.4
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 20:26:16 -0800 (PST)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id g15si4432427plj.35.2017.01.10.20.26.15
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B92C6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 00:04:00 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id l23so426742759ybj.6
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:04:00 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id r36si1324140ybd.276.2017.01.10.21.03.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 20:26:15 -0800 (PST)
-Date: Tue, 10 Jan 2017 20:22:43 -0800
-From: John Hubbard <jhubbard@nvidia.com>
-Subject: [LSF/MM ATTEND] HMM, CDM and other infrastructure for device memory
- management
-Message-ID: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
+        Tue, 10 Jan 2017 21:03:59 -0800 (PST)
+Date: Wed, 11 Jan 2017 00:03:56 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
+Message-ID: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
+References: <20170110160224.GC6179@noname.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170110160224.GC6179@noname.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Serguei Sagalovitch <serguei.sagalovitch@amd.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Michael Repasy <mrepasy@nvidia.com>
+To: Kevin Wolf <kwolf@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
 
-Hi,
+A couple of thoughts.
 
-I would like to attend this topic that Jerome has proposed. Studying the 
-kernel is a deep personal interest in addition to my career focus, and it 
-would be a rare privilege to work directly with some of you to converge 
-on some nice, clean designs for the kernel and these "new" 
-(page-fault-capable) devices that we have now. Here's what I can bring to 
-the discussion:
+First of all, one of the reasons why this probably hasn't been
+addressed for so long is because programs who really care about issues
+like this tend to use Direct I/O, and don't use the page cache at all.
+And perhaps this is an option open to qemu as well?
 
-a) An NVIDIA perspective on, and experience with, using the HMM patchset, 
-versions 1-15, at the device driver level. In addition to working on the 
-nvidia-uvm.ko driver (which handles CPU and GPU page faulting) since its 
-inception, I've also helped develop and maintain various facets of our GPU 
-device driver for Linux, for the last 9 years.
+Secondly, one of the reasons why we mark the page clean is because we
+didn't want a failing disk to memory to be trapped with no way of
+releasing the pages.  For example, if a user plugs in a USB
+thumbstick, writes to it, and then rudely yanks it out before all of
+the pages have been writeback, it would be unfortunate if the dirty
+pages can only be released by rebooting the system.
 
-As a semi-relevant aside, our company is allocating engineering time, 
-including mine, for long-term kernel projects such as this one. We want to 
-participate in maintaining and improving the kernel. I find that highly 
-encouraging and I hope others do, too. Times really are changing.
+So an approach that might work is fsync() will keep the pages dirty
+--- but only while the file descriptor is open.  This could either be
+the default behavior, or something that has to be specifically
+requested via fcntl(2).  That way, as soon as the process exits (at
+which point it will be too late for it do anything to save the
+contents of the file) we also release the memory.  And if the process
+gets OOM killed, again, the right thing happens.  But if the process
+wants to take emergency measures to write the file somewhere else, it
+knows that the pages won't get lost until the file gets closed.
 
-b) Some thoughts about the dividing line between core kernel and drivers. 
-Our device drivers are starting to push the limits of what drivers should 
-really do (we are heading perhaps too deeply into memory management), and 
-of course I want to avoid going too far. For example, I've seen 
-recent comments on linux-mm that drivers shouldn't even take mmap_sem, 
-which is intriguing. We need to provide...something for that, though. 
+(BTW, a process could guarantee this today without any kernel changes
+by mmap'ing the whole file and mlock'ing the pages that it had
+modified.  That way, even if there is an I/O error and the fsync
+causes the pages to be marked clean, the pages wouldn't go away.
+However, this is really a hack, and it would probably be easier for
+the process to use Direct I/O instead.  :-)
 
-c) Some thoughts about dealing with both HMM and ATS in the same driver 
-(our devices have to support both--although, not at the same time).
 
---
+Finally, if the kernel knows that an error might be one that could be
+resolved by the simple expedient of waiting (for example, if a fibre
+channel cable is temporarily unplugged so it can be rerouted, but the
+user might plug it back in a minute or two later, or a dm-thin device
+is full, but the system administrator might do something to fix it),
+in the ideal world, the kernel should deal with it without requiring
+any magic from userspace applications.  There might be a helper system
+daemon that enacts policy (we've paged the sysadmin, so it's OK to
+keep the page dirty and retry the writebacks to the dm-thin volume
+after the helper daemon gives the all-clear), but we shouldn't require
+all user space applications to have magic, Linux-specific retry code.
 
-For this discussion track, I'm especially interested in simultaneously 
-considering:
+Cheers,
 
-1. HMM (Jerome's Heterogeneous Memory Management patchset): this solves a 
-similar problem as ATS (Address Translation Services: unified CPU and
-Device page tables), but without the need for specialized hardware. There 
-is a bit of overlap between the HMM and ATS+NUMA patchsets, as has been 
-discussed here before.
-
-2. IBM's ATS+NUMA patchset.
-
-3. Page-fault-capable devices in general.
-
-thanks,
-John Hubbard 
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
