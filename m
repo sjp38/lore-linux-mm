@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 347976B025E
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:33:04 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id gf1so2996626wjb.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:33:04 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w73si4804108wrb.0.2017.01.11.08.33.02
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2704B6B0260
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 11:33:36 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f188so1982193071pgc.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 08:33:36 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id k1si6284835pld.26.2017.01.11.08.33.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Jan 2017 08:33:03 -0800 (PST)
-Date: Wed, 11 Jan 2017 17:33:01 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
-Message-ID: <20170111163301.GI16365@dhcp22.suse.cz>
-References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
- <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 08:33:35 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+Date: Wed, 11 Jan 2017 08:33:30 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz>
+In-Reply-To: <cover.1483999591.git.khalid.aziz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ganapatrao Kulkarni <gpkulkarni@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Wed 11-01-17 12:05:44, Vlastimil Babka wrote:
-> On 01/11/2017 11:50 AM, Ganapatrao Kulkarni wrote:
-> > Hi,
-> > 
-> > we are seeing OOM/stalls messages when we run ltp cpuset01(cpuset01 -I
-> > 360) test for few minutes, even through the numa system has adequate
-> > memory on both nodes.
-> > 
-> > this we have observed same on both arm64/thunderx numa and on x86 numa system!
-> > 
-> > using latest ltp from master branch version 20160920-197-gbc4d3db
-> > and linux kernel version 4.9
-> > 
-> > is this known bug already?
-> 
-> Probably not.
-> 
-> Is it possible that cpuset limits the process to one node, and numa
-> mempolicy to the other node?
+On 01/11/2017 08:12 AM, Khalid Aziz wrote:
+> A userspace task enables ADI through mprotect(). This patch series adds
+> a page protection bit PROT_ADI and a corresponding VMA flag
+> VM_SPARC_ADI. VM_SPARC_ADI is used to trigger setting TTE.mcd bit in the
+> sparc pte that enables ADI checking on the corresponding page.
 
-No this shouldn't happen AFAICS. It is more likely that there is an
-unrelated memory pressure happenning at the same time.
--- 
-Michal Hocko
-SUSE Labs
+Is there a cost in the hardware associated with doing this "ADI
+checking"?  For instance, instead of having this new mprotect()
+interface, why not just always set TTE.mcd on all PTEs?
+
+Also, should this be a privileged interface in some way?  The hardware
+is storing these tags *somewhere* and that storage is consuming
+resources *somewhere*.  What stops a crafty attacker from mmap()'ing a
+128TB chunk of the zero pages and storing ADI tags for all of it?
+That'll be 128TB/64*4bits = 1TB worth of 4-bit tags.  Page tables, for
+instance, consume a comparable amount of storage, but the OS *knows*
+about those and can factor them into OOM decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
