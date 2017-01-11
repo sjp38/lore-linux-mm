@@ -1,76 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FB866B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 06:35:20 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id qs7so92435071wjc.4
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:35:20 -0800 (PST)
-Received: from mail-wj0-x242.google.com (mail-wj0-x242.google.com. [2a00:1450:400c:c01::242])
-        by mx.google.com with ESMTPS id s20si4180674wrb.195.2017.01.11.03.35.17
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C5D696B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 06:40:27 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id d201so140107492qkg.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:40:27 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p35si3595801qtd.35.2017.01.11.03.40.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 03:35:17 -0800 (PST)
-Received: by mail-wj0-x242.google.com with SMTP id ey1so11344946wjd.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 03:35:17 -0800 (PST)
-Date: Wed, 11 Jan 2017 14:35:15 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
-Message-ID: <20170111113515.GB4895@node.shutemov.name>
-References: <20170105053658.GA36383@juliacomputing.com>
- <20170105150558.GE17319@node.shutemov.name>
- <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
- <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
+        Wed, 11 Jan 2017 03:40:27 -0800 (PST)
+Date: Wed, 11 Jan 2017 12:40:23 +0100
+From: Kevin Wolf <kwolf@redhat.com>
+Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
+Message-ID: <20170111114023.GA4813@noname.redhat.com>
+References: <20170110160224.GC6179@noname.redhat.com>
+ <20170111050356.ldlx73n66zjdkh6i@thunk.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1701102300001.2996@eggly.anvils>
+In-Reply-To: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, Jan 10, 2017 at 11:06:10PM -0800, Hugh Dickins wrote:
-> On Tue, 10 Jan 2017, Hugh Dickins wrote:
-> > On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
-> > > On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
-> > > >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> > > >  		pmd_t *pmd, int flags)
-> > > >  {
-> > > > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> > > >  
-> > > >  	assert_spin_locked(pmd_lockptr(mm, pmd));
-> > > >  
-> > > > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-> > > > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
-> > > >  		return NULL;
-> > > 
-> > > I don't think this part is needed: once we COW devmap PMD entry, we split
-> > > it into PTE table, so IIUC we never get here with PMD.
-> > 
-> > Hi Kirill,
-> > 
-> > Would you mind double-checking that?  You certainly know devmap
-> > better than me, but I feel safer with Keno's original as above.
-> > 
-> > I can see that fs/dax.c dax_iomap_pmd_fault() does
-> > 
-> > 	/* Fall back to PTEs if we're going to COW */
-> > 	if (write && !(vma->vm_flags & VM_SHARED))
-> > 		goto fallback;
-> > 
-> > But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
-> > FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
+Am 11.01.2017 um 06:03 hat Theodore Ts'o geschrieben:
+> A couple of thoughts.
 > 
-> And now I think I'm wrong, but please double-check even so: I think that
-> case gets ruled out by the !is_cow_mapping(vm_flags) check in mm/gup.c,
-> where we used to have a WARN_ON_ONCE() for a while.
+> First of all, one of the reasons why this probably hasn't been
+> addressed for so long is because programs who really care about issues
+> like this tend to use Direct I/O, and don't use the page cache at all.
+> And perhaps this is an option open to qemu as well?
 
-Right, !is_cow_mapping(vm_flags) will filter the case out.
+For our immediate case, yes, O_DIRECT can be enabled as an option in
+qemu, and it is generally recommended to do that at least for long-lived
+VMs. For other cases it might be nice to use the cache e.g. for quicker
+startup, but those might be cases where error recovery isn't as
+important.
 
-Also there's no way we will get FOLL_COW set for file THP (dax or not): we
-never return VM_FAULT_WRITE there.
+I just see a much broader problem here than just for qemu. Essentially
+this approach would mean that every program that cares about the state
+it sees being safe on disk after a successful fsync() would have to use
+O_DIRECT. I'm not sure if that's what we want.
 
--- 
- Kirill A. Shutemov
+> Secondly, one of the reasons why we mark the page clean is because we
+> didn't want a failing disk to memory to be trapped with no way of
+> releasing the pages.  For example, if a user plugs in a USB
+> thumbstick, writes to it, and then rudely yanks it out before all of
+> the pages have been writeback, it would be unfortunate if the dirty
+> pages can only be released by rebooting the system.
+
+Yes, I understand that and permanent failure is definitely a case to
+consider while making any changes. That's why I suggested to still allow
+releasing such pages, but at a lower priority than actually clean pages.
+And of course, after losing data, an fsync() may never succeed again on
+a file descriptor that was open when the data was thrown away.
+
+> So an approach that might work is fsync() will keep the pages dirty
+> --- but only while the file descriptor is open.  This could either be
+> the default behavior, or something that has to be specifically
+> requested via fcntl(2).  That way, as soon as the process exits (at
+> which point it will be too late for it do anything to save the
+> contents of the file) we also release the memory.  And if the process
+> gets OOM killed, again, the right thing happens.  But if the process
+> wants to take emergency measures to write the file somewhere else, it
+> knows that the pages won't get lost until the file gets closed.
+
+This sounds more or less like what I had in mind, so I agree.
+
+The fcntl() flag is an interesting thought, too, but would there be
+any situation where the userspace would have an advantage from not
+requesting the flag?
+
+> (BTW, a process could guarantee this today without any kernel changes
+> by mmap'ing the whole file and mlock'ing the pages that it had
+> modified.  That way, even if there is an I/O error and the fsync
+> causes the pages to be marked clean, the pages wouldn't go away.
+> However, this is really a hack, and it would probably be easier for
+> the process to use Direct I/O instead.  :-)
+
+That, and even if the pages would still in memory, as I understand it,
+the writeout would never be retried because they are still marked clean.
+So it wouldn't be usable for a temporary failure, but only for reading
+the data back from the cache into a different file.
+
+> Finally, if the kernel knows that an error might be one that could be
+> resolved by the simple expedient of waiting (for example, if a fibre
+> channel cable is temporarily unplugged so it can be rerouted, but the
+> user might plug it back in a minute or two later, or a dm-thin device
+> is full, but the system administrator might do something to fix it),
+> in the ideal world, the kernel should deal with it without requiring
+> any magic from userspace applications.  There might be a helper system
+> daemon that enacts policy (we've paged the sysadmin, so it's OK to
+> keep the page dirty and retry the writebacks to the dm-thin volume
+> after the helper daemon gives the all-clear), but we shouldn't require
+> all user space applications to have magic, Linux-specific retry code.
+
+Yes and no. I agree that the kernel should mostly make things just work.
+We're talking about a relatively obscure error case here, so if
+userspace applications have to do something extraordinary, chances are
+they won't be doing it.
+
+On the other hand, indefinitely blocking on fsync() isn't really what we
+want either, so while the kernel should keep trying to get the data
+written in the background, a failing fsync() would be okay, as long as a
+succeeding fsync() afterwards means that we're fully consistent again.
+
+In qemu, indefinitely blocking read/write syscalls are already a problem
+(on NFS), because instead of getting an error and then stopping the VM,
+the request hangs so long that the guest kernel sees a timeout and
+offlines the disk anyway. But that's a separate problem...
+
+Kevin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
