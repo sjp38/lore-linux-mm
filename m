@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA4C36B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 22:23:20 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id f144so244900408pfa.3
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 19:23:20 -0800 (PST)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTP id w4si4233587pfi.279.2017.01.10.19.23.18
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jan 2017 19:23:19 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170106222912.o6vkh7rarxdak4ga@arch-test> <4f430912-d506-3904-c073-e1e121c3fc70@nvidia.com>
-In-Reply-To: <4f430912-d506-3904-c073-e1e121c3fc70@nvidia.com>
-Subject: Re: Benchmarks for the Linux kernel MM architecture
-Date: Wed, 11 Jan 2017 11:10:10 +0800
-Message-ID: <01f601d26bb8$380bfd30$a823f790$@alibaba-inc.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 731906B0033
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 23:26:16 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id z128so331395467pfb.4
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 20:26:16 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id g15si4432427plj.35.2017.01.10.20.26.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Jan 2017 20:26:15 -0800 (PST)
+Date: Tue, 10 Jan 2017 20:22:43 -0800
+From: John Hubbard <jhubbard@nvidia.com>
+Subject: [LSF/MM ATTEND] HMM, CDM and other infrastructure for device memory
+ management
+Message-ID: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset="US-ASCII"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'David Nellans' <dnellans@nvidia.com>, 'Till Smejkal' <till.smejkal@hpe.com>, linux-mm@kvack.org
+To: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Serguei Sagalovitch <serguei.sagalovitch@amd.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Michael Repasy <mrepasy@nvidia.com>
 
+Hi,
 
-On Tuesday, January 10, 2017 11:36 PM David Nellans wrote: 
-> 
-> On 01/06/2017 04:29 PM, Till Smejkal wrote:
-> > Dear Linux MM community
-> >
-> > My name is Till Smejkal and I am a PhD Student at Hewlett Packard Enterprise. For a
-> > couple of weeks I have been working on a patchset for the Linux kernel which
-> > introduces a new functionality that allows address spaces to be first class citizens
-> > in the OS. The implementation is based on a concept presented in this [1] paper.
-> >
-> > The basic idea of the patchset is that an AS not necessarily needs to be coupled with
-> > a process but can be created and destroyed independently. A process still has its own
-> > AS which is created with the process and which also gets destroyed with the process,
-> > but in addition there can be other AS in the OS which are not bound to the lifetime
-> > of any process. These additional AS have to be created and destroyed actively by the
-> > user and can be attached to a process as additional AS. Attaching such an AS to a
-> > process allows the process to have different views on the memory between which the
-> > process can switch arbitrarily during its executing.
-> >
-> > This feature can be used in various different ways. For example to compartmentalize a
-> > process for security reasons or to improve the performance of data-centric
-> > applications.
-> >
-> > However, before I intend to submit the patchset to LKML, I first like to perform
-> > some benchmarks to identify possible performance drawbacks introduced by my changes
-> > to the original memory management architecture. Hence, I would like to ask if anyone
-> > of you could point me to some benchmarks which I can run to test my patchset and
-> > compare it against the original implementation.
-> >
-> > If there are any questions, please feel free to ask me. I am happy to answer any
-> > question related to the patchset and its idea/intention.
-> >
-> > Regards
-> > Till
-> >
-> > P.S.: Please keep me in the CC since I am not subscribed to this mailing list.
-> >
-> > [1] http://impact.crhc.illinois.edu/shared/Papers/ASPLOS16-SpaceJMP.pdf
-> 
-> https://github.com/gormanm/mmtests
-> 
-And please take a look at linux-4.9/tools/testing/selftests/vm. 
+I would like to attend this topic that Jerome has proposed. Studying the 
+kernel is a deep personal interest in addition to my career focus, and it 
+would be a rare privilege to work directly with some of you to converge 
+on some nice, clean designs for the kernel and these "new" 
+(page-fault-capable) devices that we have now. Here's what I can bring to 
+the discussion:
 
-The last resort seems to ask Mel on linux-mm for 
-howtos he knows.
-	Mel Gorman <mgorman@techsingularity.net>
+a) An NVIDIA perspective on, and experience with, using the HMM patchset, 
+versions 1-15, at the device driver level. In addition to working on the 
+nvidia-uvm.ko driver (which handles CPU and GPU page faulting) since its 
+inception, I've also helped develop and maintain various facets of our GPU 
+device driver for Linux, for the last 9 years.
 
-Good luck
-Hillf
+As a semi-relevant aside, our company is allocating engineering time, 
+including mine, for long-term kernel projects such as this one. We want to 
+participate in maintaining and improving the kernel. I find that highly 
+encouraging and I hope others do, too. Times really are changing.
 
+b) Some thoughts about the dividing line between core kernel and drivers. 
+Our device drivers are starting to push the limits of what drivers should 
+really do (we are heading perhaps too deeply into memory management), and 
+of course I want to avoid going too far. For example, I've seen 
+recent comments on linux-mm that drivers shouldn't even take mmap_sem, 
+which is intriguing. We need to provide...something for that, though. 
+
+c) Some thoughts about dealing with both HMM and ATS in the same driver 
+(our devices have to support both--although, not at the same time).
+
+--
+
+For this discussion track, I'm especially interested in simultaneously 
+considering:
+
+1. HMM (Jerome's Heterogeneous Memory Management patchset): this solves a 
+similar problem as ATS (Address Translation Services: unified CPU and
+Device page tables), but without the need for specialized hardware. There 
+is a bit of overlap between the HMM and ATS+NUMA patchsets, as has been 
+discussed here before.
+
+2. IBM's ATS+NUMA patchset.
+
+3. Page-fault-capable devices in general.
+
+thanks,
+John Hubbard 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
