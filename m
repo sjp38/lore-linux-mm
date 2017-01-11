@@ -1,79 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9366B0253
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:05:43 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b22so768530287pfd.0
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:05:43 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e5si6486434pgd.111.2017.01.11.10.05.42
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 73F986B0253
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 13:09:39 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id j12so203529559vkd.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:09:39 -0800 (PST)
+Received: from mail-ua0-x22d.google.com (mail-ua0-x22d.google.com. [2607:f8b0:400c:c08::22d])
+        by mx.google.com with ESMTPS id a138si1753615vke.102.2017.01.11.10.09.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 10:05:42 -0800 (PST)
-Date: Wed, 11 Jan 2017 10:05:37 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] sharing pages between mappings
-Message-ID: <20170111180537.GA10498@birch.djwong.org>
-References: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
- <20170111115143.GJ16116@quack2.suse.cz>
+        Wed, 11 Jan 2017 10:09:38 -0800 (PST)
+Received: by mail-ua0-x22d.google.com with SMTP id 96so92111333uaq.3
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 10:09:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170111115143.GJ16116@quack2.suse.cz>
+In-Reply-To: <20170111142904.GD4895@node.shutemov.name>
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+ <20161227015413.187403-30-kirill.shutemov@linux.intel.com>
+ <5a3dcc25-b264-37c7-c090-09981b23940d@intel.com> <20170105192910.q26ozg4ci4i3j2ai@black.fi.intel.com>
+ <161ece66-fbf4-cb89-3da6-91b4851af69f@intel.com> <CALCETrUQ2+P424d9MW-Dy2yQ0+EnMfBuY80wd8NkNmc8is0AUw@mail.gmail.com>
+ <978d5f1a-ec4d-f747-93fd-27ecfe10cb88@intel.com> <20170111142904.GD4895@node.shutemov.name>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 11 Jan 2017 10:09:17 -0800
+Message-ID: <CALCETrUn=KNdOnoRYd8GcnXPNDHAhGkaMaHRTAri4o92FSC1qg@mail.gmail.com>
+Subject: Re: [RFC, PATCHv2 29/29] mm, x86: introduce RLIMIT_VADDR
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Jan 11, 2017 at 12:51:43PM +0100, Jan Kara wrote:
-> On Wed 11-01-17 11:29:28, Miklos Szeredi wrote:
-> > I know there's work on this for xfs, but could this be done in generic mm
-> > code?
-> > 
-> > What are the obstacles?  page->mapping and page->index are the obvious
-> > ones.
-> 
-> Yes, these two are the main that come to my mind. Also you'd need to
-> somehow share the mapping->i_mmap tree so that unmap_mapping_range() works.
-> 
-> > If that's too difficult is it maybe enough to share mappings between
-> > files while they are completely identical and clone the mapping when
-> > necessary?
-> 
-> Well, but how would the page->mapping->host indirection work? Even if you
-> have identical contents of the mappings, you still need to be aware there
-> are several inodes behind them and you need to pick the right one
-> somehow...
-> 
-> > All COW filesystems would benefit, as well as layered ones: lots of
-> > fuse fs, and in some cases overlayfs too.
-> > 
-> > Related:  what can DAX do in the presence of cloned block?
-> 
-> For DAX handling a block COW should be doable if that is what you are
-> asking about. Handling of blocks that can be written to while they are
-> shared will be rather difficult (you have problems with keeping dirty bits
-> in the radix tree consistent if nothing else).
+On Wed, Jan 11, 2017 at 6:29 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Thu, Jan 05, 2017 at 12:49:44PM -0800, Dave Hansen wrote:
+>> On 01/05/2017 12:14 PM, Andy Lutomirski wrote:
+>> >> I'm not sure I'm comfortable with this.  Do other rlimit changes cause
+>> >> silent data corruption?  I'm pretty sure doing this to MPX would.
+>> >>
+>> > What actually goes wrong in this case?  That is, what combination of
+>> > MPX setup of subsequent allocations will cause a problem, and is the
+>> > problem worse than just a segfault?  IMO it would be really nice to
+>> > keep the messy case confined to MPX.
+>>
+>> The MPX bounds tables are indexed by virtual address.  They need to grow
+>> if the virtual address space grows.   There's an MSR that controls
+>> whether we use the 48-bit or 57-bit layout.  It basically decides
+>> whether we need a 2GB (48-bit) or 1TB (57-bit) bounds directory.
+>>
+>> The question is what we do with legacy MPX applications.  We obviously
+>> can't let them just allocate a 2GB table and then go let the hardware
+>> pretend it's 1TB in size.  We also can't hand the hardware using a 2GB
+>> table an address >48-bits.
+>>
+>> Ideally, I'd like to make sure that legacy MPX can't be enabled if this
+>> RLIMIT is set over 48-bits (really 47).  I'd also like to make sure that
+>> legacy MPX is active, that the RLIMIT can't be raised because all hell
+>> will break loose when the new addresses show up.
+>
+> I think we can do this. See the patch below.
+>
+> Basically, we refuse to enable MPX and issue warning in dmesg if there's
+> anything mapped above 47-bits. Once MPX is enabled, mmap_max_addr() cannot
+> be higher than 47-bits too.
+>
+> Function call from mmap_max_addr() is unfortunate, but I don't see a
+> way around.
 
-I'm also interested in this topic, though I haven't gotten any further
-than a hand-wavy notion of handling cow by allocating new blocks, memcpy
-the contents to the new blocks (how?), then update the mappings to point
-to the new blocks (how?).  It looks a lot easier now with the iomap
-stuff, but that's as far as I got. :)
-
-(IOWs it basically took all the time since the last LSF to get reflink
-polished enough to handle regular files reasonably well.)
-
---D
-
-> 
-> 								Honza
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+How about preventing the max addr from being changed to too high a
+value while MPX is on instead of overriding the set value?  This would
+have the added benefit that it would prevent silent failures where you
+think you've enabled large addresses but MPX is also on and mmap
+refuses to return large addresses.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
