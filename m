@@ -1,154 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA4CE6B0033
-	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 20:57:52 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id z128so323806635pfb.4
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 17:57:52 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0074.outbound.protection.outlook.com. [104.47.0.74])
-        by mx.google.com with ESMTPS id f17si4012180plj.199.2017.01.10.17.57.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 10 Jan 2017 17:57:51 -0800 (PST)
-Date: Wed, 11 Jan 2017 09:57:39 +0800
-From: Dennis Chen <dennis.chen@arm.com>
-Subject: Re: [PATCH v29 1/9] memblock: add memblock_cap_memory_range()
-Message-ID: <20170111015737.GA518@arm.com>
-References: <20161228043347.27358-1-takahiro.akashi@linaro.org>
- <20161228043525.27420-1-takahiro.akashi@linaro.org>
- <20170110111617.GB21598@arm.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CA4C36B0033
+	for <linux-mm@kvack.org>; Tue, 10 Jan 2017 22:23:20 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f144so244900408pfa.3
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 19:23:20 -0800 (PST)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id w4si4233587pfi.279.2017.01.10.19.23.18
+        for <linux-mm@kvack.org>;
+        Tue, 10 Jan 2017 19:23:19 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170106222912.o6vkh7rarxdak4ga@arch-test> <4f430912-d506-3904-c073-e1e121c3fc70@nvidia.com>
+In-Reply-To: <4f430912-d506-3904-c073-e1e121c3fc70@nvidia.com>
+Subject: Re: Benchmarks for the Linux kernel MM architecture
+Date: Wed, 11 Jan 2017 11:10:10 +0800
+Message-ID: <01f601d26bb8$380bfd30$a823f790$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170110111617.GB21598@arm.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, AKASHI Takahiro <takahiro.akashi@linaro.org>
-Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, kuleshovmail@gmail.com, zijun_hu@htc.com, tj@kernel.orgnd@arm.com
+To: 'David Nellans' <dnellans@nvidia.com>, 'Till Smejkal' <till.smejkal@hpe.com>, linux-mm@kvack.org
 
-On Tue, Jan 10, 2017 at 11:16:18AM +0000, Will Deacon wrote:
-> [adding some more folks to cc]
-> 
-> On Wed, Dec 28, 2016 at 01:35:25PM +0900, AKASHI Takahiro wrote:
-> > Add memblock_cap_memory_range() which will remove all the memblock regions
-> > except the memory range specified in the arguments. In addition, rework is
-> > done on memblock_mem_limit_remove_map() to re-implement it using
-> > memblock_cap_memory_range().
-> > 
-> > This function, like memblock_mem_limit_remove_map(), will not remove
-> > memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-> > later as "device memory."
-> > See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-> > address the mem limit issue").
-> > 
-> > This function is used, in a succeeding patch in the series of arm64 kdump
-> > suuport, to limit the range of usable memory, or System RAM, on crash dump
-> > kernel.
-> > (Please note that "mem=" parameter is of little use for this purpose.)
-> > 
-> > Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-> > Reviewed-by: Will Deacon <will.deacon@arm.com>
-> > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> > Cc: linux-mm@kvack.org
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >  include/linux/memblock.h |  1 +
-> >  mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
-> >  2 files changed, 30 insertions(+), 15 deletions(-)
-> 
-> Whilst this patch looks fine to me, it would be nice if Dennis (author of
-> memblock_mem_limit_remove_map) or one of the mm chaps could provide an ack
-> before I merge it via arm64.
->
-Will feel free to add
-Acked-by: Dennis Chen <dennis.chen@arm.com>
 
-Thanks,
-Dennis
+On Tuesday, January 10, 2017 11:36 PM David Nellans wrote: 
 > 
-> Thanks,
+> On 01/06/2017 04:29 PM, Till Smejkal wrote:
+> > Dear Linux MM community
+> >
+> > My name is Till Smejkal and I am a PhD Student at Hewlett Packard Enterprise. For a
+> > couple of weeks I have been working on a patchset for the Linux kernel which
+> > introduces a new functionality that allows address spaces to be first class citizens
+> > in the OS. The implementation is based on a concept presented in this [1] paper.
+> >
+> > The basic idea of the patchset is that an AS not necessarily needs to be coupled with
+> > a process but can be created and destroyed independently. A process still has its own
+> > AS which is created with the process and which also gets destroyed with the process,
+> > but in addition there can be other AS in the OS which are not bound to the lifetime
+> > of any process. These additional AS have to be created and destroyed actively by the
+> > user and can be attached to a process as additional AS. Attaching such an AS to a
+> > process allows the process to have different views on the memory between which the
+> > process can switch arbitrarily during its executing.
+> >
+> > This feature can be used in various different ways. For example to compartmentalize a
+> > process for security reasons or to improve the performance of data-centric
+> > applications.
+> >
+> > However, before I intend to submit the patchset to LKML, I first like to perform
+> > some benchmarks to identify possible performance drawbacks introduced by my changes
+> > to the original memory management architecture. Hence, I would like to ask if anyone
+> > of you could point me to some benchmarks which I can run to test my patchset and
+> > compare it against the original implementation.
+> >
+> > If there are any questions, please feel free to ask me. I am happy to answer any
+> > question related to the patchset and its idea/intention.
+> >
+> > Regards
+> > Till
+> >
+> > P.S.: Please keep me in the CC since I am not subscribed to this mailing list.
+> >
+> > [1] http://impact.crhc.illinois.edu/shared/Papers/ASPLOS16-SpaceJMP.pdf
 > 
-> Will
+> https://github.com/gormanm/mmtests
 > 
-> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> > index 5b759c9acf97..fbfcacc50c29 100644
-> > --- a/include/linux/memblock.h
-> > +++ b/include/linux/memblock.h
-> > @@ -333,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
-> >  phys_addr_t memblock_start_of_DRAM(void);
-> >  phys_addr_t memblock_end_of_DRAM(void);
-> >  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-> > +void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
-> >  void memblock_mem_limit_remove_map(phys_addr_t limit);
-> >  bool memblock_is_memory(phys_addr_t addr);
-> >  int memblock_is_map_memory(phys_addr_t addr);
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 7608bc305936..fea1688fef60 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
-> >  			      (phys_addr_t)ULLONG_MAX);
-> >  }
-> >  
-> > +void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-> > +{
-> > +	int start_rgn, end_rgn;
-> > +	int i, ret;
-> > +
-> > +	if (!size)
-> > +		return;
-> > +
-> > +	ret = memblock_isolate_range(&memblock.memory, base, size,
-> > +						&start_rgn, &end_rgn);
-> > +	if (ret)
-> > +		return;
-> > +
-> > +	/* remove all the MAP regions */
-> > +	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-> > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> > +			memblock_remove_region(&memblock.memory, i);
-> > +
-> > +	for (i = start_rgn - 1; i >= 0; i--)
-> > +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> > +			memblock_remove_region(&memblock.memory, i);
-> > +
-> > +	/* truncate the reserved regions */
-> > +	memblock_remove_range(&memblock.reserved, 0, base);
-> > +	memblock_remove_range(&memblock.reserved,
-> > +			base + size, (phys_addr_t)ULLONG_MAX);
-> > +}
-> > +
-> >  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
-> >  {
-> > -	struct memblock_type *type = &memblock.memory;
-> >  	phys_addr_t max_addr;
-> > -	int i, ret, start_rgn, end_rgn;
-> >  
-> >  	if (!limit)
-> >  		return;
-> > @@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
-> >  	if (max_addr == (phys_addr_t)ULLONG_MAX)
-> >  		return;
-> >  
-> > -	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
-> > -				&start_rgn, &end_rgn);
-> > -	if (ret)
-> > -		return;
-> > -
-> > -	/* remove all the MAP regions above the limit */
-> > -	for (i = end_rgn - 1; i >= start_rgn; i--) {
-> > -		if (!memblock_is_nomap(&type->regions[i]))
-> > -			memblock_remove_region(type, i);
-> > -	}
-> > -	/* truncate the reserved regions */
-> > -	memblock_remove_range(&memblock.reserved, max_addr,
-> > -			      (phys_addr_t)ULLONG_MAX);
-> > +	memblock_cap_memory_range(0, max_addr);
-> >  }
-> >  
-> >  static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
-> > -- 
-> > 2.11.0
-> > 
+And please take a look at linux-4.9/tools/testing/selftests/vm. 
+
+The last resort seems to ask Mel on linux-mm for 
+howtos he knows.
+	Mel Gorman <mgorman@techsingularity.net>
+
+Good luck
+Hillf
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
