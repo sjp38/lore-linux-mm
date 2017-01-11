@@ -1,98 +1,363 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 912756B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 15:35:13 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id v96so3648896ioi.5
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:35:13 -0800 (PST)
-Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
-        by mx.google.com with ESMTPS id 184si6071468iox.230.2017.01.11.12.35.12
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4117C6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 15:51:34 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id k86so88610505lfi.4
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:51:34 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id l126si661493lfd.102.2017.01.11.12.51.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 12:35:12 -0800 (PST)
-Received: by mail-it0-x241.google.com with SMTP id o185so345002itb.1
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:35:12 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] sharing pages between mappings
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Content-Type: multipart/signed; boundary="Apple-Mail=_24F3C8FA-2453-4243-89D1-AB7658AA1EF6"; protocol="application/pgp-signature"; micalg=pgp-sha256
-From: Andreas Dilger <adilger@dilger.ca>
-In-Reply-To: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
-Date: Wed, 11 Jan 2017 13:35:02 -0700
-Message-Id: <F2092AFE-A2C8-438E-A8AA-4D74509344F5@dilger.ca>
-References: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
+        Wed, 11 Jan 2017 12:51:32 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id q89so12507976lfi.1
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:51:32 -0800 (PST)
+Date: Wed, 11 Jan 2017 21:51:29 +0100
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: Re: [PATCH/RESEND v2 5/5] z3fold: add kref refcounting
+Message-Id: <20170111215129.0ef265e4d1da4b0987b41b85@gmail.com>
+In-Reply-To: <CALZtONDFbsQTpFVmVEmfODVOVp03ndgfHKdJz0i=742KtWS3Jg@mail.gmail.com>
+References: <20170111155948.aa61c5b995b6523caf87d862@gmail.com>
+	<20170111160632.5b0f9fcee5577796c9cd7add@gmail.com>
+	<CALZtONBh808S459yH1Nwron-1Dnfcub3WJpeRf3VWEubsyhReg@mail.gmail.com>
+	<CAMJBoFOKGvToTeJAmJ5Ufw8PFhGBb+j_U6+J-UOq4XcggnNqRw@mail.gmail.com>
+	<CALZtOND7qpXYOJZ+KK+mKHF_+w5hWzkbbgLDNaTiPFqun=u5sg@mail.gmail.com>
+	<CAMJBoFPC-ugq1W-UiADB2H-hHGgN2wrW8C-PpOojnQMoO5OwWg@mail.gmail.com>
+	<CALZtONDFbsQTpFVmVEmfODVOVp03ndgfHKdJz0i=742KtWS3Jg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+
+On Wed, 11 Jan 2017 13:03:06 -0500
+Dan Streetman <ddstreet@ieee.org> wrote:
+
+<snip>
+> >>> provided that I take the lock for the headless case above. That will
+> >>> work won't it?
+> >>
+> >> in this specific case - since every single kref_put in the driver is
+> >> protected by the pool lock - yeah, you can do that, since you know
+> >> that specific kref_put didn't free the page and no other kref_put
+> >> could happen since you're holding the pool lock.
+> >>
+> >> but that specific requirement isn't made obvious by the code, and I
+> >> can see how a future patch could release the pool lock between the
+> >> kref_put and lru list add, without realizing that introduces a bug.
+> >> isn't it better to just add it to the lru list before you put the
+> >> kref?  just a suggestion.
+> >
+> > That would require to add it to the lru separately for headless pages
+> > above, I don't think it makes things better or less error prone.
+> > I would rather add a comment before list_add.
+> >
+> >> i'd also suggest the pages_nr dec go into the page release function,
+> >> instead of checking every kref_put return value; that's easier and
+> >> less prone to forgetting to check one of the kref_puts.
+> >
+> > That will mean z3fold_header should contain a pointer to its pool. I'm
+> > not sure it is worth it but I can do that :)
+> 
+> the header's already rounded up to chunk size, so if there's room then
+> it won't take any extra memory.  but it works either way.
+
+So let's have it like this then:
 
 
---Apple-Mail=_24F3C8FA-2453-4243-89D1-AB7658AA1EF6
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
+With both coming and already present locking optimizations,
+introducing kref to reference-count z3fold objects is the right
+thing to do. Moreover, it makes buddied list no longer necessary,
+and allows for a simpler handling of headless pages.
 
-On Jan 11, 2017, at 3:29 AM, Miklos Szeredi <miklos@szeredi.hu> wrote:
->=20
-> I know there's work on this for xfs, but could this be done in generic =
-mm code?
->=20
-> What are the obstacles?  page->mapping and page->index are the obvious =
-ones.
->=20
-> If that's too difficult is it maybe enough to share mappings between
-> files while they are completely identical and clone the mapping when
-> necessary?
->=20
-> All COW filesystems would benefit, as well as layered ones: lots of
-> fuse fs, and in some cases overlayfs too.
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 151 ++++++++++++++++++++++++++----------------------------------
+ 1 file changed, 66 insertions(+), 85 deletions(-)
 
-For layered filesystems it would also be useful to have an API to move
-pages between mappings easily.
-
-> Related:  what can DAX do in the presence of cloned block?
->=20
-> Thanks,
-> Miklos
-> --
-> To unsubscribe from this list: send the line "unsubscribe =
-linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
-
-Cheers, Andreas
-
-
-
-
-
-
---Apple-Mail=_24F3C8FA-2453-4243-89D1-AB7658AA1EF6
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP using GPGMail
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - http://gpgtools.org
-
-iQIVAwUBWHaW+nKl2rkXzB/gAQjc7w//a18EVoNWjZcRbvDR7W+hTNBjQcM4gkpZ
-8sh3xLTjApmxTp6CLpp1EdEGqHemyvuPlweFR/Yc5kKnqhHV7pP2PkRuUf42M2bd
-KGZ6DSD1z+hjdLJ9/gAotWEWUOlU9ou4UyEeHsRrv+upZv65/DrXsvkLfZr9Ych4
-yDCtPWI1AT47p3S7huGTAnsK+XJLfGsDVfwEuTp7QbJ1k/NsrVDNBAoV6ikhjKnr
-a9KfMCKrRnvb6HRVy/PaOZfUWF7JhRRSCxiTBxBSbwaQRXIjRQ0H/J5EaRalruQ9
-Y5dPsL80pe1tM9cDj1nyAFfgqHWJOKgdTN9cS8wH3/2OUwB3gyZyqrkMgqsRLW4q
-wztLpwO65Z+rdmp4k13EB0UuxNHg2wh3hX991aD+wztahN/dhfxeqAE7sCttO9tC
-S+6rj/9twfyUdOjpLxu31chowUgcNKMZespczTMLz0yIe6NFS7WI1vAfNFxtmhvn
-1D6f51F4bpEAtih9PzoxL3rN+qmENW+TO6LFpgTYhSw5iXy8QmfyS4Iz6DGfec+8
-NpuWZ8mp+Ak+NVTDH450T4yblKq9/3MCIXlPnHeethrYYwZrYvN5Q28Znfc5zNlQ
-KXOjP9pzgwOzjq1Rp0Uv1MWv4pbvTFgTA4Zimejx64mGU3PTRX7Noe4UdCvdV5mB
-OA/ov38SKWE=
-=EwIV
------END PGP SIGNATURE-----
-
---Apple-Mail=_24F3C8FA-2453-4243-89D1-AB7658AA1EF6--
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 4325bde..f0d2eaf 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -52,6 +52,7 @@ enum buddy {
+  *			z3fold page, except for HEADLESS pages
+  * @buddy:	links the z3fold page into the relevant list in the pool
+  * @page_lock:		per-page lock
++ * @refcount:		reference cound for the z3fold page
+  * @first_chunks:	the size of the first buddy in chunks, 0 if free
+  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
+  * @last_chunks:	the size of the last buddy in chunks, 0 if free
+@@ -60,6 +61,7 @@ enum buddy {
+ struct z3fold_header {
+ 	struct list_head buddy;
+ 	spinlock_t page_lock;
++	struct kref refcount;
+ 	unsigned short first_chunks;
+ 	unsigned short middle_chunks;
+ 	unsigned short last_chunks;
+@@ -95,8 +97,6 @@ struct z3fold_header {
+  * @unbuddied:	array of lists tracking z3fold pages that contain 2- buddies;
+  *		the lists each z3fold page is added to depends on the size of
+  *		its free region.
+- * @buddied:	list tracking the z3fold pages that contain 3 buddies;
+- *		these z3fold pages are full
+  * @lru:	list tracking the z3fold pages in LRU order by most recently
+  *		added buddy.
+  * @pages_nr:	number of z3fold pages in the pool.
+@@ -109,7 +109,6 @@ struct z3fold_header {
+ struct z3fold_pool {
+ 	spinlock_t lock;
+ 	struct list_head unbuddied[NCHUNKS];
+-	struct list_head buddied;
+ 	struct list_head lru;
+ 	atomic64_t pages_nr;
+ 	const struct z3fold_ops *ops;
+@@ -121,8 +120,7 @@ struct z3fold_pool {
+  * Internal z3fold page flags
+  */
+ enum z3fold_page_flags {
+-	UNDER_RECLAIM = 0,
+-	PAGE_HEADLESS,
++	PAGE_HEADLESS = 0,
+ 	MIDDLE_CHUNK_MAPPED,
+ };
+ 
+@@ -146,11 +144,11 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
+ 	struct z3fold_header *zhdr = page_address(page);
+ 
+ 	INIT_LIST_HEAD(&page->lru);
+-	clear_bit(UNDER_RECLAIM, &page->private);
+ 	clear_bit(PAGE_HEADLESS, &page->private);
+ 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
+ 
+ 	spin_lock_init(&zhdr->page_lock);
++	kref_init(&zhdr->refcount);
+ 	zhdr->first_chunks = 0;
+ 	zhdr->middle_chunks = 0;
+ 	zhdr->last_chunks = 0;
+@@ -161,9 +159,21 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
+ }
+ 
+ /* Resets the struct page fields and frees the page */
+-static void free_z3fold_page(struct z3fold_header *zhdr)
++static void free_z3fold_page(struct page *page)
+ {
+-	__free_page(virt_to_page(zhdr));
++	__free_page(page);
++}
++
++static void release_z3fold_page(struct kref *ref)
++{
++	struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
++						refcount);
++	struct page *page = virt_to_page(zhdr);
++	if (!list_empty(&zhdr->buddy))
++		list_del(&zhdr->buddy);
++	if (!list_empty(&page->lru))
++		list_del(&page->lru);
++	free_z3fold_page(page);
+ }
+ 
+ /* Lock a z3fold page */
+@@ -257,7 +267,6 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+ 	spin_lock_init(&pool->lock);
+ 	for_each_unbuddied_list(i, 0)
+ 		INIT_LIST_HEAD(&pool->unbuddied[i]);
+-	INIT_LIST_HEAD(&pool->buddied);
+ 	INIT_LIST_HEAD(&pool->lru);
+ 	atomic64_set(&pool->pages_nr, 0);
+ 	pool->ops = ops;
+@@ -378,6 +387,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 				spin_unlock(&pool->lock);
+ 				continue;
+ 			}
++			kref_get(&zhdr->refcount);
+ 			list_del_init(&zhdr->buddy);
+ 			spin_unlock(&pool->lock);
+ 
+@@ -394,10 +404,12 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 			else if (zhdr->middle_chunks == 0)
+ 				bud = MIDDLE;
+ 			else {
++				z3fold_page_unlock(zhdr);
+ 				spin_lock(&pool->lock);
+-				list_add(&zhdr->buddy, &pool->buddied);
++				if (kref_put(&zhdr->refcount,
++					     release_z3fold_page))
++					atomic64_dec(&pool->pages_nr);
+ 				spin_unlock(&pool->lock);
+-				z3fold_page_unlock(zhdr);
+ 				pr_err("No free chunks in unbuddied\n");
+ 				WARN_ON(1);
+ 				continue;
+@@ -438,9 +450,6 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 		/* Add to unbuddied list */
+ 		freechunks = num_free_chunks(zhdr);
+ 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+-	} else {
+-		/* Add to buddied list */
+-		list_add(&zhdr->buddy, &pool->buddied);
+ 	}
+ 
+ headless:
+@@ -504,52 +513,29 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		}
+ 	}
+ 
+-	if (test_bit(UNDER_RECLAIM, &page->private)) {
+-		/* z3fold page is under reclaim, reclaim will free */
+-		if (bud != HEADLESS)
+-			z3fold_page_unlock(zhdr);
+-		return;
+-	}
+-
+-	/* Remove from existing buddy list */
+-	if (bud != HEADLESS) {
+-		spin_lock(&pool->lock);
+-		/*
+-		 * this object may have been removed from its list by
+-		 * z3fold_alloc(). In that case we just do nothing,
+-		 * z3fold_alloc() will allocate an object and add the page
+-		 * to the relevant list.
+-		 */
+-		if (!list_empty(&zhdr->buddy)) {
+-			list_del(&zhdr->buddy);
+-		} else {
+-			spin_unlock(&pool->lock);
+-			z3fold_page_unlock(zhdr);
+-			return;
+-		}
+-		spin_unlock(&pool->lock);
+-	}
+-
+-	if (bud == HEADLESS ||
+-	    (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
+-			zhdr->last_chunks == 0)) {
+-		/* z3fold page is empty, free */
++	if (bud == HEADLESS) {
+ 		spin_lock(&pool->lock);
+ 		list_del(&page->lru);
+ 		spin_unlock(&pool->lock);
+-		clear_bit(PAGE_HEADLESS, &page->private);
+-		if (bud != HEADLESS)
+-			z3fold_page_unlock(zhdr);
+-		free_z3fold_page(zhdr);
++		free_z3fold_page(page);
+ 		atomic64_dec(&pool->pages_nr);
+ 	} else {
+-		z3fold_compact_page(zhdr);
+-		/* Add to the unbuddied list */
++		if (zhdr->first_chunks != 0 || zhdr->middle_chunks != 0 ||
++		    zhdr->last_chunks != 0) {
++			z3fold_compact_page(zhdr);
++			/* Add to the unbuddied list */
++			spin_lock(&pool->lock);
++			if (!list_empty(&zhdr->buddy))
++				list_del(&zhdr->buddy);
++			freechunks = num_free_chunks(zhdr);
++			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++			spin_unlock(&pool->lock);
++		}
++		z3fold_page_unlock(zhdr);
+ 		spin_lock(&pool->lock);
+-		freechunks = num_free_chunks(zhdr);
+-		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		if (kref_put(&zhdr->refcount, release_z3fold_page))
++			atomic64_dec(&pool->pages_nr);
+ 		spin_unlock(&pool->lock);
+-		z3fold_page_unlock(zhdr);
+ 	}
+ 
+ }
+@@ -608,13 +594,13 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 			return -EINVAL;
+ 		}
+ 		page = list_last_entry(&pool->lru, struct page, lru);
+-		list_del(&page->lru);
++		list_del_init(&page->lru);
+ 
+-		/* Protect z3fold page against free */
+-		set_bit(UNDER_RECLAIM, &page->private);
+ 		zhdr = page_address(page);
+ 		if (!test_bit(PAGE_HEADLESS, &page->private)) {
+-			list_del(&zhdr->buddy);
++			if (!list_empty(&zhdr->buddy))
++				list_del_init(&zhdr->buddy);
++			kref_get(&zhdr->refcount);
+ 			spin_unlock(&pool->lock);
+ 			z3fold_page_lock(zhdr);
+ 			/*
+@@ -655,30 +641,19 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 				goto next;
+ 		}
+ next:
+-		if (!test_bit(PAGE_HEADLESS, &page->private))
+-			z3fold_page_lock(zhdr);
+-		clear_bit(UNDER_RECLAIM, &page->private);
+-		if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
+-		    (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
+-		     zhdr->middle_chunks == 0)) {
+-			/*
+-			 * All buddies are now free, free the z3fold page and
+-			 * return success.
+-			 */
+-			if (!test_and_clear_bit(PAGE_HEADLESS, &page->private))
+-				z3fold_page_unlock(zhdr);
+-			free_z3fold_page(zhdr);
+-			atomic64_dec(&pool->pages_nr);
+-			return 0;
+-		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+-			if (zhdr->first_chunks != 0 &&
+-			    zhdr->last_chunks != 0 &&
+-			    zhdr->middle_chunks != 0) {
+-				/* Full, add to buddied list */
+-				spin_lock(&pool->lock);
+-				list_add(&zhdr->buddy, &pool->buddied);
+-				spin_unlock(&pool->lock);
++		if (test_bit(PAGE_HEADLESS, &page->private)) {
++			if (ret == 0) {
++				free_z3fold_page(page);
++				return 0;
+ 			} else {
++				spin_lock(&pool->lock);
++			}
++		} else {
++			z3fold_page_lock(zhdr);
++			if ((zhdr->first_chunks || zhdr->last_chunks ||
++			     zhdr->middle_chunks) &&
++			    !(zhdr->first_chunks && zhdr->last_chunks &&
++			      zhdr->middle_chunks)) {
+ 				z3fold_compact_page(zhdr);
+ 				/* add to unbuddied list */
+ 				spin_lock(&pool->lock);
+@@ -687,13 +662,19 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 					 &pool->unbuddied[freechunks]);
+ 				spin_unlock(&pool->lock);
+ 			}
+-		}
+-
+-		if (!test_bit(PAGE_HEADLESS, &page->private))
+ 			z3fold_page_unlock(zhdr);
++			spin_lock(&pool->lock);
++			if (kref_put(&zhdr->refcount, release_z3fold_page))
++				atomic64_dec(&pool->pages_nr);
++				return 0;
++			}
++		}
+ 
+-		spin_lock(&pool->lock);
+-		/* add to beginning of LRU */
++		/*
++		 * Add to the beginning of LRU.
++		 * Pool lock has to be kept here to ensure the page has
++		 * not already been released
++		 */
+ 		list_add(&page->lru, &pool->lru);
+ 	}
+ 	spin_unlock(&pool->lock);
+-- 
+2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
