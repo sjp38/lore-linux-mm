@@ -1,75 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B92C6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 00:04:00 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id l23so426742759ybj.6
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:04:00 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id r36si1324140ybd.276.2017.01.10.21.03.59
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 488A86B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 00:41:54 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f188so1957590809pgc.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:41:54 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id s21si4638367pfi.53.2017.01.10.21.41.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 21:03:59 -0800 (PST)
-Date: Wed, 11 Jan 2017 00:03:56 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
-References: <20170110160224.GC6179@noname.redhat.com>
+        Tue, 10 Jan 2017 21:41:53 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id 14so33469231pgg.1
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:41:53 -0800 (PST)
+Date: Tue, 10 Jan 2017 21:41:43 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
+In-Reply-To: <20170105150558.GE17319@node.shutemov.name>
+Message-ID: <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
+References: <20170105053658.GA36383@juliacomputing.com> <20170105150558.GE17319@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170110160224.GC6179@noname.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Wolf <kwolf@redhat.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com, hughd@google.com
 
-A couple of thoughts.
+On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
+> On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
+> >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> >  		pmd_t *pmd, int flags)
+> >  {
+> > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
+> >  
+> >  	assert_spin_locked(pmd_lockptr(mm, pmd));
+> >  
+> > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
+> > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
+> >  		return NULL;
+> 
+> I don't think this part is needed: once we COW devmap PMD entry, we split
+> it into PTE table, so IIUC we never get here with PMD.
 
-First of all, one of the reasons why this probably hasn't been
-addressed for so long is because programs who really care about issues
-like this tend to use Direct I/O, and don't use the page cache at all.
-And perhaps this is an option open to qemu as well?
+Hi Kirill,
 
-Secondly, one of the reasons why we mark the page clean is because we
-didn't want a failing disk to memory to be trapped with no way of
-releasing the pages.  For example, if a user plugs in a USB
-thumbstick, writes to it, and then rudely yanks it out before all of
-the pages have been writeback, it would be unfortunate if the dirty
-pages can only be released by rebooting the system.
+Would you mind double-checking that?  You certainly know devmap
+better than me, but I feel safer with Keno's original as above.
 
-So an approach that might work is fsync() will keep the pages dirty
---- but only while the file descriptor is open.  This could either be
-the default behavior, or something that has to be specifically
-requested via fcntl(2).  That way, as soon as the process exits (at
-which point it will be too late for it do anything to save the
-contents of the file) we also release the memory.  And if the process
-gets OOM killed, again, the right thing happens.  But if the process
-wants to take emergency measures to write the file somewhere else, it
-knows that the pages won't get lost until the file gets closed.
+I can see that fs/dax.c dax_iomap_pmd_fault() does
 
-(BTW, a process could guarantee this today without any kernel changes
-by mmap'ing the whole file and mlock'ing the pages that it had
-modified.  That way, even if there is an I/O error and the fsync
-causes the pages to be marked clean, the pages wouldn't go away.
-However, this is really a hack, and it would probably be easier for
-the process to use Direct I/O instead.  :-)
+	/* Fall back to PTEs if we're going to COW */
+	if (write && !(vma->vm_flags & VM_SHARED))
+		goto fallback;
 
+But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
+FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
 
-Finally, if the kernel knows that an error might be one that could be
-resolved by the simple expedient of waiting (for example, if a fibre
-channel cable is temporarily unplugged so it can be rerouted, but the
-user might plug it back in a minute or two later, or a dm-thin device
-is full, but the system administrator might do something to fix it),
-in the ideal world, the kernel should deal with it without requiring
-any magic from userspace applications.  There might be a helper system
-daemon that enacts policy (we've paged the sysadmin, so it's OK to
-keep the page dirty and retry the writebacks to the dm-thin volume
-after the helper daemon gives the all-clear), but we shouldn't require
-all user space applications to have magic, Linux-specific retry code.
-
-Cheers,
-
-					- Ted
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
