@@ -1,60 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 488A86B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 00:41:54 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f188so1957590809pgc.1
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:41:54 -0800 (PST)
-Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
-        by mx.google.com with ESMTPS id s21si4638367pfi.53.2017.01.10.21.41.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jan 2017 21:41:53 -0800 (PST)
-Received: by mail-pg0-x231.google.com with SMTP id 14so33469231pgg.1
-        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 21:41:53 -0800 (PST)
-Date: Tue, 10 Jan 2017 21:41:43 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Respect FOLL_FORCE/FOLL_COW for thp
-In-Reply-To: <20170105150558.GE17319@node.shutemov.name>
-Message-ID: <alpine.LSU.2.11.1701102112120.2361@eggly.anvils>
-References: <20170105053658.GA36383@juliacomputing.com> <20170105150558.GE17319@node.shutemov.name>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF2D6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 01:18:51 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 127so778310363pfg.5
+        for <linux-mm@kvack.org>; Tue, 10 Jan 2017 22:18:51 -0800 (PST)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id z128si4738440pfz.92.2017.01.10.22.18.48
+        for <linux-mm@kvack.org>;
+        Tue, 10 Jan 2017 22:18:50 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170110125552.4170-1-mhocko@kernel.org> <20170110125552.4170-2-mhocko@kernel.org>
+In-Reply-To: <20170110125552.4170-2-mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: consider eligible zones in get_scan_count
+Date: Wed, 11 Jan 2017 14:18:33 +0800
+Message-ID: <020201d26bd2$8958ad40$9c0a07c0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Keno Fischer <keno@juliacomputing.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, gthelen@google.com, npiggin@gmail.com, w@1wt.eu, oleg@redhat.com, keescook@chromium.org, luto@kernel.org, mhocko@suse.com, rientjes@google.com, hughd@google.com
+To: 'Michal Hocko' <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Michal Hocko' <mhocko@suse.com>
 
-On Thu, 5 Jan 2017, Kirill A. Shutemov wrote:
-> On Thu, Jan 05, 2017 at 12:36:58AM -0500, Keno Fischer wrote:
-> >  struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> >  		pmd_t *pmd, int flags)
-> >  {
-> > @@ -783,7 +793,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-> >  
-> >  	assert_spin_locked(pmd_lockptr(mm, pmd));
-> >  
-> > -	if (flags & FOLL_WRITE && !pmd_write(*pmd))
-> > +	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
-> >  		return NULL;
+
+
+On Tuesday, January 10, 2017 8:56 PM Michal Hocko wrote: 
 > 
-> I don't think this part is needed: once we COW devmap PMD entry, we split
-> it into PTE table, so IIUC we never get here with PMD.
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> get_scan_count considers the whole node LRU size when
+> - doing SCAN_FILE due to many page cache inactive pages
+> - calculating the number of pages to scan
+> 
+> in both cases this might lead to unexpected behavior especially on 32b
+> systems where we can expect lowmem memory pressure very often.
+> 
+> A large highmem zone can easily distort SCAN_FILE heuristic because
+> there might be only few file pages from the eligible zones on the node
+> lru and we would still enforce file lru scanning which can lead to
+> trashing while we could still scan anonymous pages.
+> 
+> The later use of lruvec_lru_size can be problematic as well. Especially
+> when there are not many pages from the eligible zones. We would have to
+> skip over many pages to find anything to reclaim but shrink_node_memcg
+> would only reduce the remaining number to scan by SWAP_CLUSTER_MAX
+> at maximum. Therefore we can end up going over a large LRU many times
+> without actually having chance to reclaim much if anything at all. The
+> closer we are out of memory on lowmem zone the worse the problem will
+> be.
+> 
+> Changes since v1
+> - s@lruvec_lru_size_zone_idx@lruvec_lru_size_eligibe_zones@
+> 
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
 
-Hi Kirill,
-
-Would you mind double-checking that?  You certainly know devmap
-better than me, but I feel safer with Keno's original as above.
-
-I can see that fs/dax.c dax_iomap_pmd_fault() does
-
-	/* Fall back to PTEs if we're going to COW */
-	if (write && !(vma->vm_flags & VM_SHARED))
-		goto fallback;
-
-But isn't there a case of O_RDWR fd, VM_SHARED PROT_READ mmap, and
-FOLL_FORCE write to it, which does not COW (but relies on FOLL_COW)?
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
