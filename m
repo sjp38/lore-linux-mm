@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 577F36B026A
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:55:53 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so64433810pfb.7
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 09:55:53 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E7C6B026B
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 12:55:54 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 194so244220490pgd.7
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 09:55:54 -0800 (PST)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id m13si6442061pga.262.2017.01.11.09.55.52
+        by mx.google.com with ESMTPS id m13si6442061pga.262.2017.01.11.09.55.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 09:55:52 -0800 (PST)
+        Wed, 11 Jan 2017 09:55:53 -0800 (PST)
 From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: [PATCH v5 8/9] mm/swap: Enable swap slots cache usage
-Date: Wed, 11 Jan 2017 09:55:18 -0800
-Message-Id: <07cbc94882fa95d4ac3cfc50b8dce0b1ec231b93.1484082593.git.tim.c.chen@linux.intel.com>
+Subject: [PATCH v5 9/9] mm/swap: Skip readahead only when swap slot cache is enabled
+Date: Wed, 11 Jan 2017 09:55:19 -0800
+Message-Id: <5e2c5f6abe8e6eb0797408897b1bba80938e9b9d.1484082593.git.tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1484082593.git.tim.c.chen@linux.intel.com>
 References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
 In-Reply-To: <cover.1484082593.git.tim.c.chen@linux.intel.com>
@@ -20,51 +20,72 @@ References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+Cc: Huang Ying <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Tim Chen <tim.c.chen@linux.intel.com>
 
-Initialize swap slots cache and enable it on swap on.
-Drain all swap slots on swap off.
+From: Huang Ying <ying.huang@intel.com>
 
+Because during swap off, a swap entry may have swap_map[] ==
+SWAP_HAS_CACHE (for example, just allocated).  If we return NULL in
+__read_swap_cache_async(), the swap off will abort.  So when swap slot
+cache is disabled, (for swap off), we will wait for page to be put
+into swap cache in such race condition.  This should not be a problem
+for swap slot cache, because swap slot cache should be drained after
+clearing swap_slot_cache_enabled.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 ---
- mm/swapfile.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ include/linux/swap_slots.h |  2 ++
+ mm/swap_slots.c            |  2 +-
+ mm/swap_state.c            | 11 +++++++++--
+ 3 files changed, 12 insertions(+), 3 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index e6c30ed..14d9ea2 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2181,6 +2181,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	spin_unlock(&p->lock);
- 	spin_unlock(&swap_lock);
+diff --git a/include/linux/swap_slots.h b/include/linux/swap_slots.h
+index a59e6e2..fb90734 100644
+--- a/include/linux/swap_slots.h
++++ b/include/linux/swap_slots.h
+@@ -25,4 +25,6 @@ void reenable_swap_slots_cache_unlock(void);
+ int enable_swap_slots_cache(void);
+ int free_swap_slot(swp_entry_t entry);
  
-+	disable_swap_slots_cache_lock();
++extern bool swap_slot_cache_enabled;
 +
- 	set_current_oom_origin();
- 	err = try_to_unuse(p->type, false, 0); /* force unuse all pages */
- 	clear_current_oom_origin();
-@@ -2188,9 +2190,12 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (err) {
- 		/* re-insert swap space back into swap_list */
- 		reinsert_swap_info(p);
-+		reenable_swap_slots_cache_unlock();
- 		goto out_dput;
- 	}
+ #endif /* _LINUX_SWAP_SLOTS_H */
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index b816839..8cf941e 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -36,7 +36,7 @@
  
-+	reenable_swap_slots_cache_unlock();
-+
- 	flush_work(&p->discard_work);
+ static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
+ static bool	swap_slot_cache_active;
+-static bool	swap_slot_cache_enabled;
++bool	swap_slot_cache_enabled;
+ static bool	swap_slot_cache_initialized;
+ DEFINE_MUTEX(swap_slots_cache_mutex);
+ /* Serialize swap slots cache enable/disable operations */
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index e1f07ca..2126e9b 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -324,8 +324,15 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		if (found_page)
+ 			break;
  
- 	destroy_swap_extents(p);
-@@ -2868,6 +2873,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		putname(name);
- 	if (inode && S_ISREG(inode->i_mode))
- 		inode_unlock(inode);
-+	if (!error)
-+		enable_swap_slots_cache();
- 	return error;
- }
+-		/* Just skip read ahead for unused swap slot */
+-		if (!__swp_swapcount(entry))
++		/*
++		 * Just skip read ahead for unused swap slot.
++		 * During swap_off when swap_slot_cache is disabled,
++		 * we have to handle the race between putting
++		 * swap entry in swap cache and marking swap slot
++		 * as SWAP_HAS_CACHE.  That's done in later part of code or
++		 * else swap_off will be aborted if we return NULL.
++		 */
++		if (!__swp_swapcount(entry) && swap_slot_cache_enabled)
+ 			return NULL;
  
+ 		/*
 -- 
 2.5.5
 
