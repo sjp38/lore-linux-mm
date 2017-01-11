@@ -1,79 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE9E6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 04:47:32 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r126so13059886wmr.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 01:47:32 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h25si3942422wrb.231.2017.01.11.01.47.30
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 286436B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 05:29:31 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id 3so993699740oih.5
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:29:31 -0800 (PST)
+Received: from mail-oi0-x22e.google.com (mail-oi0-x22e.google.com. [2607:f8b0:4003:c06::22e])
+        by mx.google.com with ESMTPS id l55si2112432ote.46.2017.01.11.02.29.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Jan 2017 01:47:30 -0800 (PST)
-Date: Wed, 11 Jan 2017 10:47:29 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170111094729.GH16116@quack2.suse.cz>
-References: <20170110160224.GC6179@noname.redhat.com>
- <20170111050356.ldlx73n66zjdkh6i@thunk.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 02:29:29 -0800 (PST)
+Received: by mail-oi0-x22e.google.com with SMTP id u143so172490345oif.3
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 02:29:29 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170111050356.ldlx73n66zjdkh6i@thunk.org>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 11 Jan 2017 11:29:28 +0100
+Message-ID: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
+Subject: [LSF/MM TOPIC] sharing pages between mappings
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Kevin Wolf <kwolf@redhat.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, lsf-pc@lists.linux-foundation.org
 
-On Wed 11-01-17 00:03:56, Ted Tso wrote:
-> A couple of thoughts.
-> 
-> First of all, one of the reasons why this probably hasn't been
-> addressed for so long is because programs who really care about issues
-> like this tend to use Direct I/O, and don't use the page cache at all.
-> And perhaps this is an option open to qemu as well?
-> 
-> Secondly, one of the reasons why we mark the page clean is because we
-> didn't want a failing disk to memory to be trapped with no way of
-> releasing the pages.  For example, if a user plugs in a USB
-> thumbstick, writes to it, and then rudely yanks it out before all of
-> the pages have been writeback, it would be unfortunate if the dirty
-> pages can only be released by rebooting the system.
-> 
-> So an approach that might work is fsync() will keep the pages dirty
-> --- but only while the file descriptor is open.  This could either be
-> the default behavior, or something that has to be specifically
-> requested via fcntl(2).  That way, as soon as the process exits (at
-> which point it will be too late for it do anything to save the
-> contents of the file) we also release the memory.  And if the process
-> gets OOM killed, again, the right thing happens.  But if the process
-> wants to take emergency measures to write the file somewhere else, it
-> knows that the pages won't get lost until the file gets closed.
+I know there's work on this for xfs, but could this be done in generic mm code?
 
-Well, as Neil pointed out, the problem is that once the data hits page
-cache, we lose the association with a file descriptor. So for example
-background writeback or sync(2) can find the dirty data and try to write
-it, get EIO, and then you have to do something about it because you don't
-know whether fsync(2) is coming or not.
+What are the obstacles?  page->mapping and page->index are the obvious ones.
 
-That being said if we'd just keep the pages which failed write out dirty,
-the system will eventually block all writers in balance_dirty_pages() and
-at that point it is IMO a policy decision (probably per device or per fs)
-whether you should just keep things blocked waiting for better times or
-whether you just want to start discarding dirty data on a failed write.
-Now discarding data that failed to write only when we are close to dirty
-limit (or after some timeout or whatever) has a disadvantage that it is
-not easy to predict from user POV so I'm not sure if we want to go down
-that path. But I can see two options making sense:
+If that's too difficult is it maybe enough to share mappings between
+files while they are completely identical and clone the mapping when
+necessary?
 
-1) Just hold onto data and wait indefinitely. Possibly provide a way for
-   userspace to forcibly unmount a filesystem in such state.
+All COW filesystems would benefit, as well as layered ones: lots of
+fuse fs, and in some cases overlayfs too.
 
-2) Do what we do now.
- 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Related:  what can DAX do in the presence of cloned block?
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
