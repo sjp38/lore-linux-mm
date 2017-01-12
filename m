@@ -1,64 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1526B0253
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:53:52 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c73so64958328pfb.7
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:53:52 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0062.outbound.protection.outlook.com. [104.47.0.62])
-        by mx.google.com with ESMTPS id x3si9363371pfi.274.2017.01.12.09.53.51
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE1086B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 13:58:41 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y143so68257336pfb.6
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:58:41 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0057.outbound.protection.outlook.com. [104.47.34.57])
+        by mx.google.com with ESMTPS id 44si10064710plc.225.2017.01.12.10.58.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 09:53:52 -0800 (PST)
-Subject: Re: [RFC PATCH 3/4] arch, mm: remove arch specific show_mem
-References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-4-mhocko@kernel.org>
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Message-ID: <283030f8-bcfa-2948-4461-26d09f4a5bb0@mellanox.com>
-Date: Thu, 12 Jan 2017 12:53:37 -0500
+        Thu, 12 Jan 2017 10:58:41 -0800 (PST)
+Date: Thu, 12 Jan 2017 19:58:25 +0100
+From: Robert Richter <robert.richter@cavium.com>
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20170112185825.GE5020@rric.localdomain>
+References: <20161216165437.21612-1-rrichter@cavium.com>
+ <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+ <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
+ <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+ <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
+ <20170109115320.GI4930@rric.localdomain>
+ <20170112160535.GF13843@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170112131659.23058-4-mhocko@kernel.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170112160535.GF13843@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "James E.J.
- Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "David S.
- Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 1/12/2017 8:16 AM, Michal Hocko wrote:
-> From: Michal Hocko<mhocko@suse.com>
->
-> We have a generic implementation for quite some time already. If there
-> is any arch specific information to be printed then we should add a
-> callback called from the generic code rather than duplicate the whole
-> show_mem. The current code has resulted in the code duplication and
-> the output divergence which is both confusing and adds maintainance
-> costs. Let's just get rid of this mess.
->
-> Cc: Tony Luck<tony.luck@intel.com>
-> Cc: Fenghua Yu<fenghua.yu@intel.com>
-> Cc: "James E.J. Bottomley"<jejb@parisc-linux.org>
-> Cc: Helge Deller<deller@gmx.de>
-> Cc: "David S. Miller"<davem@davemloft.net>
-> Cc: Chris Metcalf<cmetcalf@mellanox.com>
-> Cc: Guan Xuetao<gxt@mprc.pku.edu.cn>
-> Cc:linux-ia64@vger.kernel.org
-> Cc:linux-parisc@vger.kernel.org
-> Signed-off-by: Michal Hocko<mhocko@suse.com>
-> ---
->   arch/ia64/mm/init.c      | 48 -----------------------------------------------
->   arch/parisc/mm/init.c    | 49 ------------------------------------------------
->   arch/sparc/mm/init_32.c  | 11 -----------
->   arch/tile/mm/pgtable.c   | 45 --------------------------------------------
->   arch/unicore32/mm/init.c | 44 -------------------------------------------
->   5 files changed, 197 deletions(-)
+On 12.01.17 16:05:36, Will Deacon wrote:
+> On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
 
-Acked-by: Chris Metcalf <cmetcalf@mellanox.com> [for tile]
+> > Kernel compile times (3 runs each):
+> > 
+> > pfn_valid_within():
+> > 
+> > real    6m4.088s
+> > user    372m57.607s
+> > sys     16m55.158s
+> > 
+> > real    6m1.532s
+> > user    372m48.453s
+> > sys     16m50.370s
+> > 
+> > real    6m4.061s
+> > user    373m18.753s
+> > sys     16m57.027s
+> 
+> Did you reboot the machine between each build here, or only when changing
+> kernel? If the latter, do you see variations in kernel build time by simply
+> rebooting the same Image?
 
--- 
-Chris Metcalf, Mellanox Technologies
-http://www.mellanox.com
+I built it in a loop on the shell, so no reboots between builds. Note
+that I was building the kernel in /dev/shm to not access harddisks. I
+think build times should be comparable then since there is no fs
+caching.
+
+-Robert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
