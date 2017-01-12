@@ -1,54 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E95196B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 06:10:03 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id iq1so3111353wjb.1
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 03:10:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d21si7014084wrc.113.2017.01.12.03.10.02
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EAEF6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:56:08 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id z128so48686232pfb.4
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 04:56:08 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id o2si9219747pga.26.2017.01.12.04.56.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 03:10:02 -0800 (PST)
-Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
-References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
- <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz>
- <0ea1cfeb-7c4a-3a3e-9be9-967298ba303c@suse.cz>
- <CAFpQJXWD8pSaWUrkn5Rxy-hjTCvrczuf0F3TdZ8VHj4DSYpivg@mail.gmail.com>
- <20170111164616.GJ16365@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <45ed555a-c6a3-fc8e-1e87-c347c8ed086b@suse.cz>
-Date: Thu, 12 Jan 2017 12:10:00 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jan 2017 04:56:07 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id 127so3503594pfg.0
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 04:56:07 -0800 (PST)
+Date: Thu, 12 Jan 2017 21:55:38 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: shrink_inactive_list() failed to reclaim pages
+Message-ID: <20170112125538.GA424@tigerII.localdomain>
+References: <CAPJVTTimt2CeiiX868+EY2HbbWmKsG05u7QOBbuTb74f-ZrpPQ@mail.gmail.com>
+ <20170111173802.GK16365@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170111164616.GJ16365@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170111173802.GK16365@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Ganapatrao Kulkarni <gpkulkarni@gmail.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Cheng-yu Lee <cylee@google.com>, linux-mm@kvack.org, Luigi Semenzato <semenzato@google.com>, Ben Cheng <bccheng@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-On 01/11/2017 05:46 PM, Michal Hocko wrote:
-> On Wed 11-01-17 21:52:29, Ganapatrao Kulkarni wrote:
->
->> [ 2398.169391] Node 1 Normal: 951*4kB (UME) 1308*8kB (UME) 1034*16kB (UME) 742*32kB (UME) 581*64kB (UME) 450*128kB (UME) 362*256kB (UME) 275*512kB (ME) 189*1024kB (UM) 117*2048kB (ME) 2742*4096kB (M) = 12047196kB
->
-> Most of the memblocks are marked Unmovable (except for the 4MB bloks)
+Hello,
 
-No, UME here means that e.g. 4kB blocks are available on unmovable, movable and 
-reclaimable lists.
+On (01/11/17 18:38), Michal Hocko wrote:
+> On Thu 12-01-17 01:16:11, Cheng-yu Lee wrote:
+> > Hi community,
+> > 
+> > I have a x86_64 Chromebook running 3.14 kernel with 8G of memory. Using
+> 
+> Do you see the same with the current Linus tree?
+> 
+> > zram with swap size set to ~12GB. When in low memory, kswapd is awaken to
+> > reclaim pages, but under some circumstances the kernel can not find pages
+> > to reclaim while I'm sure there're still plenty of memory which could be
+> > reclaimed from background processes (For example, I run some C programs
+> > which just malloc() lots of memory and get suspended in the background.
+> > There's no reason they could't be swapped). The consequence is that most of
+> > CPU time is spent on page reclamation. The system hangs or becomes very
+> > laggy for a long period. Sometimes it even triggers a kernel panic by the
+> > hung task detector like:
+> > <0>[46246.676366] Kernel panic - not syncing: hung_task: blocked tasks
+> > 
+> > I've added kernel message to trace the problem. I found shrink_inactive_list()
+> > can barely find any page to reclaim. More precisely, when the problem
+> > happens, lots of page have _count > 2 in __remove_mapping(). So the
+> > condition at line 662 of vmscan.c holds:
+> > http://lxr.free-electrons.com/source/mm/vmscan.c#L662
+> > Thus the kernel fails to reclaim those pages at line 1209
+> > http://lxr.free-electrons.com/source/mm/vmscan.c#L1209
+> 
+> I assume that you are talking about the anonymous LRU
 
-> which shouldn't matter because we can fallback to unmovable blocks for
-> movable allocation AFAIR so we shouldn't really fail the request. I
-> really fail to see what is going on there but it smells really
-> suspicious.
+hm. as a side note, I think this is not the first time I see
+"kswapd consumes 100% cpu" report.
 
-Perhaps there's something wrong with zonelists and we are skipping the Node 1 
-Normal zone. Or there's some race with cpuset operations (but can't see how).
+https://bugzilla.kernel.org/show_bug.cgi?id=65201#c50
 
-The question is, how reproducible is this? And what exactly the test cpuset01 
-does? Is it doing multiple things in a loop that could be reduced to a single 
-testcase?
+http://lkml.iu.edu//hypermail/linux/kernel/1601.2/03564.html
 
+https://marc.info/?l=linux-mm&m=145442159521487
+
+https://marc.info/?l=linux-mm&m=145443027124595
+
+	-ss
+
+> > It's weird that the inactive anonymous list is huge (several GB), but
+> > nothing can really be freed. So I did some hack to see if moving more pages
+> > from the active list helps. I commented out the "inactive_list_is_low()"
+> > checking at line 2420
+> > in shrink_node_memcg() so shrink_active_list() is always called.
+> > http://lxr.free-electrons.com/source/mm/vmscan.c#L2420
+> > It turns out that the hack helps. If moving more pages from the active
+> > list, kswapd works smoothly. The whole 12G zram can be used up before
+> > system enters OOM condition.
+> > 
+> > Any idea why the whole inactive anonymous LRU is occupied by pages which
+> > can not be freed for la long time (several minutes before system dies) ?
+> > Are there any parameters I can tune to help the situation ? I've tried
+> > swappiness but it doesn't help.
+> > 
+> > An alternative is to patch the kernel to call shrink_active_list() more
+> > frequently when it finds there's nothing that can be reclaimed . But I am
+> > not sure if it's the right direction. Also it's not so trivial to figure
+> > out where to add the call.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
