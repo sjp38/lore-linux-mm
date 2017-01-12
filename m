@@ -1,68 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8014B6B0253
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 15:15:14 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id w194so37603189ybe.2
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:15:14 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s22si2975729ybs.151.2017.01.12.12.15.13
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 95C776B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 16:12:30 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c85so8705465wmi.6
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 13:12:30 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id b26si8556741wra.300.2017.01.12.13.12.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 12:15:13 -0800 (PST)
-Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
- variants
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-6-mhocko@kernel.org>
-From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Message-ID: <09bbc480-1490-da27-732c-046e0ebfa89f@oracle.com>
-Date: Thu, 12 Jan 2017 15:14:54 -0500
-MIME-Version: 1.0
-In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+        Thu, 12 Jan 2017 13:12:29 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id r144so6688158wme.0
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 13:12:29 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, vmscan: do not count freed pages as PGDEACTIVATE
+Date: Thu, 12 Jan 2017 22:12:21 +0100
+Message-Id: <20170112211221.17636-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
+From: Michal Hocko <mhocko@suse.com>
 
-> diff --git a/drivers/xen/evtchn.c b/drivers/xen/evtchn.c
-> index 6890897a6f30..10f1ef582659 100644
-> --- a/drivers/xen/evtchn.c
-> +++ b/drivers/xen/evtchn.c
-> @@ -87,18 +87,6 @@ struct user_evtchn {
->  	bool enabled;
->  };
-> =20
-> -static evtchn_port_t *evtchn_alloc_ring(unsigned int size)
-> -{
-> -	evtchn_port_t *ring;
-> -	size_t s =3D size * sizeof(*ring);
-> -
-> -	ring =3D kmalloc(s, GFP_KERNEL);
-> -	if (!ring)
-> -		ring =3D vmalloc(s);
-> -
-> -	return ring;
-> -}
-> -
->  static void evtchn_free_ring(evtchn_port_t *ring)
->  {
->  	kvfree(ring);
-> @@ -334,7 +322,7 @@ static int evtchn_resize_ring(struct per_user_data =
-*u)
->  	else
->  		new_size =3D 2 * u->ring_size;
-> =20
-> -	new_ring =3D evtchn_alloc_ring(new_size);
-> +	new_ring =3D kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
->  	if (!new_ring)
->  		return -ENOMEM;
-> =20
+PGDEACTIVATE represents the number of pages moved from the active list
+to the inactive list. At least this sounds like the original motivation
+of the counter. move_active_pages_to_lru, however, counts pages which
+got freed in the mean time as deactivated as well. This is a very rare
+event and counting them as deactivation in itself is not harmful but it
+makes the code more convoluted than necessary - we have to count both
+all pages and those which are freed which is a bit confusing.
 
-Xen bits:
+After this patch the PGDEACTIVATE should have a slightly more clear
+semantic and only count those pages which are moved from the active to
+the inactive list which is a plus.
 
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+Vlastimil has pointed out [1] that move_active_pages_to_lru is more
+confusing than necessary because we count two things, pgmoved and
+nr_moved. I believe that counting freed pages as PGDEACTIVATE is more
+confusing than helpful. I doubt that this patch will make any real
+difference in the real life but it at least makes the code easier which
+is a plus so I think this is more a cleanup than any bug fix.
+
+[1] http://lkml.kernel.org/r/646c3551-e794-611c-5247-490bd89133db@suse.cz
+
+ mm/vmscan.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index cf940af609fd..7e1c3cd91fab 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1878,7 +1878,6 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
+ 				     enum lru_list lru)
+ {
+ 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+-	unsigned long pgmoved = 0;
+ 	struct page *page;
+ 	int nr_pages;
+ 	int nr_moved = 0;
+@@ -1893,7 +1892,6 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
+ 		nr_pages = hpage_nr_pages(page);
+ 		update_lru_size(lruvec, lru, page_zonenum(page), nr_pages);
+ 		list_move(&page->lru, &lruvec->lists[lru]);
+-		pgmoved += nr_pages;
+ 
+ 		if (put_page_testzero(page)) {
+ 			__ClearPageLRU(page);
+@@ -1913,7 +1911,7 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
+ 	}
+ 
+ 	if (!is_active_lru(lru))
+-		__count_vm_events(PGDEACTIVATE, pgmoved);
++		__count_vm_events(PGDEACTIVATE, nr_moved);
+ 
+ 	return nr_moved;
+ }
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
