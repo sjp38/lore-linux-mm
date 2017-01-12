@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E1AC56B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:17:08 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c206so3693245wme.3
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:17:08 -0800 (PST)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id w63si7286181wrb.1.2017.01.12.05.17.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E5566B0069
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:17:09 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so3658412wmi.6
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:17:09 -0800 (PST)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id eh3si7425300wjd.247.2017.01.12.05.17.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 05:17:07 -0800 (PST)
-Received: by mail-wm0-f65.google.com with SMTP id l2so3629965wml.2
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:17:07 -0800 (PST)
+        Thu, 12 Jan 2017 05:17:08 -0800 (PST)
+Received: by mail-wm0-f66.google.com with SMTP id l2so3630105wml.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:17:08 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/4] show_mem updates
-Date: Thu, 12 Jan 2017 14:16:55 +0100
-Message-Id: <20170112131659.23058-1-mhocko@kernel.org>
+Subject: [PATCH 1/4] mm, page_alloc: do not report all nodes in show_mem
+Date: Thu, 12 Jan 2017 14:16:56 +0100
+Message-Id: <20170112131659.23058-2-mhocko@kernel.org>
+In-Reply-To: <20170112131659.23058-1-mhocko@kernel.org>
+References: <20170112131659.23058-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Fenghua Yu <fenghua.yu@intel.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Helge Deller <deller@gmx.de>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-this is a mixture of one bug fix (patch 1), an enhancement (patch 2)
-and cleanups (the rest of the series). First two patches should be
-really straightforward. Patch 3 removes some arch specific show_mem
-implementations because I think they are quite outdated and do not
-really serve any useful purpose anymore. I might be missing something
-which is why this patch is RFC. I think we should really strive to have
-a consistent show_mem output regardless of the architecture. If some
-architecture is really special and wants to dump something additional we
-should do that via an arch specific hook.
-The last patch adds nodemask parameter so that we do not rely on
-the hardcoded mems_allowed of the current task when doing the node
-filtering.  I consider this more a cleanup than a fix because basically
-all users use a nodemask which is a subset of mems_allowed. There is
-only one call path in the memory hotplug which doesn't comply with this
-but that is hardly something to worry about.
+From: Michal Hocko <mhocko@suse.com>
 
-Thoughts, comments?
+599d0c954f91 ("mm, vmscan: move LRU lists to node") has added per numa
+node statistics to show_mem but it forgot to add skip_free_areas_node
+to fileter out nodes which are outside of the allocating task numa
+policy. Add this check to not pollute the output with the pointless
+information.
 
-Michal Hocko (4):
-      mm, page_alloc: do not report all nodes in show_mem
-      mm, page_alloc: warn_alloc print nodemask
-      arch, mm: remove arch specific show_mem
-      lib/show_mem.c: teach show_mem to work with the given nodemask
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/page_alloc.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
- arch/ia64/mm/init.c                 | 48 ------------------------------------
- arch/parisc/mm/init.c               | 49 -------------------------------------
- arch/powerpc/xmon/xmon.c            |  2 +-
- arch/sparc/kernel/setup_32.c        |  2 +-
- arch/sparc/mm/init_32.c             | 11 ---------
- arch/tile/mm/pgtable.c              | 45 ----------------------------------
- arch/unicore32/mm/init.c            | 44 ---------------------------------
- drivers/net/ethernet/sgi/ioc3-eth.c |  2 +-
- drivers/tty/sysrq.c                 |  2 +-
- drivers/tty/vt/keyboard.c           |  2 +-
- include/linux/mm.h                  |  9 +++----
- lib/show_mem.c                      |  4 +--
- mm/nommu.c                          |  6 ++---
- mm/oom_kill.c                       |  2 +-
- mm/page_alloc.c                     | 48 +++++++++++++++++++-----------------
- mm/vmalloc.c                        |  4 +--
- 16 files changed, 43 insertions(+), 237 deletions(-)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8ff25883c172..8f4f306d804c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4345,6 +4345,9 @@ void show_free_areas(unsigned int filter)
+ 		global_page_state(NR_FREE_CMA_PAGES));
+ 
+ 	for_each_online_pgdat(pgdat) {
++		if (skip_free_areas_node(filter, pgdat->node_id))
++			continue;
++
+ 		printk("Node %d"
+ 			" active_anon:%lukB"
+ 			" inactive_anon:%lukB"
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
