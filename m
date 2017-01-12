@@ -1,95 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD016B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:46:00 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id z128so15752664pfb.4
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 17:46:00 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id w61si7484925plb.328.2017.01.11.17.45.57
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jan 2017 17:45:58 -0800 (PST)
-Date: Thu, 12 Jan 2017 10:41:01 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v4 04/15] lockdep: Add a function building a chain
- between two classes
-Message-ID: <20170112014101.GV2279@X58A-UD3R>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
- <1481260331-360-5-git-send-email-byungchul.park@lge.com>
- <20170110210038.GF3092@twins.programming.kicks-ass.net>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A6A6B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:47:56 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id z128so15833342pfb.4
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 17:47:56 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d2si7517629pli.105.2017.01.11.17.47.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 17:47:55 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH v5 2/9] mm/swap: Add cluster lock
+References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
+	<dbb860bbd825b1aaba18988015e8963f263c3f0d.1484082593.git.tim.c.chen@linux.intel.com>
+	<20170111150029.29e942aa00af69f9c3c4e9b1@linux-foundation.org>
+	<20170111160729.23e06078@lwn.net>
+	<20170111151526.e905b91d6f1ee9f21e6907be@linux-foundation.org>
+Date: Thu, 12 Jan 2017 09:47:51 +0800
+In-Reply-To: <20170111151526.e905b91d6f1ee9f21e6907be@linux-foundation.org>
+	(Andrew Morton's message of "Wed, 11 Jan 2017 15:15:26 -0800")
+Message-ID: <8760ll122g.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170110210038.GF3092@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, Tim Chen <tim.c.chen@linux.intel.com>, "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-On Tue, Jan 10, 2017 at 10:00:38PM +0100, Peter Zijlstra wrote:
-> > +static inline int add_chain_cache_classes(unsigned int prev,
-> > +					  unsigned int next,
-> > +					  unsigned int irq_context,
-> > +					  u64 chain_key)
-> > +{
-> > +	struct hlist_head *hash_head = chainhashentry(chain_key);
-> > +	struct lock_chain *chain;
-> > +
-> > +	/*
-> > +	 * Allocate a new chain entry from the static array, and add
-> > +	 * it to the hash:
-> > +	 */
-> > +
-> > +	/*
-> > +	 * We might need to take the graph lock, ensure we've got IRQs
-> > +	 * disabled to make this an IRQ-safe lock.. for recursion reasons
-> > +	 * lockdep won't complain about its own locking errors.
-> > +	 */
-> > +	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
-> > +		return 0;
-> > +
-> > +	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
-> > +		if (!debug_locks_off_graph_unlock())
-> > +			return 0;
-> > +
-> > +		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
-> > +		dump_stack();
-> > +		return 0;
-> > +	}
-> > +
-> > +	chain = lock_chains + nr_lock_chains++;
-> > +	chain->chain_key = chain_key;
-> > +	chain->irq_context = irq_context;
-> > +	chain->depth = 2;
-> > +	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
-> > +		chain->base = nr_chain_hlocks;
-> > +		nr_chain_hlocks += chain->depth;
-> > +		chain_hlocks[chain->base] = prev - 1;
-> > +		chain_hlocks[chain->base + 1] = next -1;
-> > +	}
-> 
-> You didn't copy this part right. There is no error when >
-> MAX_LOCKDEP_CHAIN_HLOCKS.
+Hi, Andrew,
 
-Oh my god! I am sorry. I missed it.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Thank you,
-Byungchul
+> On Wed, 11 Jan 2017 16:07:29 -0700 Jonathan Corbet <corbet@lwn.net> wrote:
+>
+>> On Wed, 11 Jan 2017 15:00:29 -0800
+>> Andrew Morton <akpm@linux-foundation.org> wrote:
+>> 
+>> > hm, bit_spin_lock() is a nasty thing.  It is slow and it doesn't have
+>> > all the lockdep support.
+>> > 
+>> > Would the world end if we added a spinlock to swap_cluster_info?
+>> 
+>> FWIW, I asked the same question in December, this is what I got:
+>> 
+>> ...
+>>
+>> > > Why the roll-your-own locking and data structures here?  To my naive
+>> > > understanding, it seems like you could do something like:
+>> > >
+>> > >   struct swap_cluster_info {
+>> > >   	spinlock_t lock;
+>> > > 	atomic_t count;
+>> > > 	unsigned int flags;
+>> > >   };
+>> > >
+>> > > Then you could use proper spinlock operations which, among other things,
+>> > > would make the realtime folks happier.  That might well help with the
+>> > > cache-line sharing issues as well.  Some of the count manipulations could
+>> > > perhaps be done without the lock entirely; similarly, atomic bitops might
+>> > > save you the locking for some of the flag tweaks - though I'd have to look
+>> > > more closely to be really sure of that.
+>> > >
+>> > > The cost, of course, is the growth of this structure, but you've already
+>> > > noted that the overhead isn't all that high; seems like it could be worth
+>> > > it.  
+>> > 
+>> > Yes.  The data structure you proposed is much easier to be used than the
+>> > current one.  The main concern is the RAM usage.  The size of the data
+>> > structure you proposed is about 80 bytes, while that of the current one
+>> > is about 8 bytes.  There will be one struct swap_cluster_info for every
+>> > 1MB swap space, so for 1TB swap space, the total size will be 80M
+>> > compared with 8M of current implementation.
+>
+> Where did this 80 bytes come from?  That swap_cluster_info is 12 bytes
+> and could perhaps be squeezed into 8 bytes if we can get away with a
+> 24-bit "count".
 
-> 
-> 
-> > +	hlist_add_head_rcu(&chain->entry, hash_head);
-> > +	debug_atomic_inc(chain_lookup_misses);
-> > +	inc_chains();
-> > +
-> > +	return 1;
-> > +}
-> > +
-> >  static inline int add_chain_cache(struct task_struct *curr,
-> >  				  struct held_lock *hlock,
-> >  				  u64 chain_key)
-> > -- 
-> > 1.9.1
-> > 
+Sorry, I made a mistake when measuring the size of swap_cluster_info
+when I sent that email, because I turned on the lockdep when measuring.
+I have sent out a correction email to Jonathan when I realized that
+later.
+
+So the latest size measuring result is:
+
+If we use bit_spin_lock, the size of cluster_swap_info will,
+
+- increased from 4 bytes to 8 bytes on 64 bit platform
+- keep as 4 bytes on 32 bit platform
+
+If we use normal spinlock (queue spinlock), the size of cluster_swap_info will,
+
+- increased from 4 bytes to 8 bytes on 64 bit platform
+- increased from 4 bytes to 8 bytes on 32 bit platform
+
+So the difference occurs on 32 bit platform.  If the size increment on
+32 bit platform is OK, then I think it should be good to use normal
+spinlock instead of bit_spin_lock.  Personally, I am OK for that.  But I
+don't know whether there will be some embedded world people don't like
+it.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
