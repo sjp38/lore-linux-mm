@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 504A46B026B
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:29:42 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id x49so16421993qtc.7
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:29:42 -0800 (PST)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3E2C6B026D
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:29:43 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id a29so16467289qtb.6
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:29:43 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e36si2422314qtd.261.2017.01.12.07.29.40
+        by mx.google.com with ESMTPS id p39si6319156qtp.30.2017.01.12.07.29.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 07:29:40 -0800 (PST)
+        Thu, 12 Jan 2017 07:29:42 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v16 09/15] mm/hmm/mirror: device page fault handler
-Date: Thu, 12 Jan 2017 11:30:36 -0500
-Message-Id: <1484238642-10674-10-git-send-email-jglisse@redhat.com>
+Subject: [HMM v16 11/15] mm/hmm/migrate: add new boolean copy flag to migratepage() callback
+Date: Thu, 12 Jan 2017 11:30:38 -0500
+Message-Id: <1484238642-10674-12-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
 References: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,443 +21,501 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-This handle page fault on behalf of device driver, unlike handle_mm_fault()
-it does not trigger migration back to system memory for device memory.
+Allow migration without copy in case destination page already have
+source page content. This is usefull for HMM migration to device
+where we copy page before doing the final migration step.
+
+This feature need carefull audit of filesystem code to make sure
+that no one can write to the source page while it is unmapped and
+locked. It should be safe for most filesystem but as precaution
+return error until support for device migration is added to them.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h |  26 +++++
- mm/hmm.c            | 269 ++++++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 267 insertions(+), 28 deletions(-)
+ drivers/staging/lustre/lustre/llite/rw26.c |  8 +++--
+ fs/aio.c                                   |  7 +++-
+ fs/btrfs/disk-io.c                         | 11 ++++--
+ fs/hugetlbfs/inode.c                       |  9 +++--
+ fs/nfs/internal.h                          |  5 +--
+ fs/nfs/write.c                             |  9 +++--
+ fs/ubifs/file.c                            |  8 ++++-
+ include/linux/balloon_compaction.h         |  3 +-
+ include/linux/fs.h                         | 13 ++++---
+ include/linux/migrate.h                    |  7 ++--
+ mm/balloon_compaction.c                    |  2 +-
+ mm/migrate.c                               | 56 +++++++++++++++++++-----------
+ mm/zsmalloc.c                              | 12 ++++++-
+ 13 files changed, 106 insertions(+), 44 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index b5eafdc..f19c2a0 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -288,6 +288,32 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 		     unsigned long end,
- 		     hmm_pfn_t *pfns);
- bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
+diff --git a/drivers/staging/lustre/lustre/llite/rw26.c b/drivers/staging/lustre/lustre/llite/rw26.c
+index 26f3a37..5a225ca 100644
+--- a/drivers/staging/lustre/lustre/llite/rw26.c
++++ b/drivers/staging/lustre/lustre/llite/rw26.c
+@@ -43,6 +43,7 @@
+ #include <linux/uaccess.h>
+ 
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ #include <linux/fs.h>
+ #include <linux/buffer_head.h>
+ #include <linux/mpage.h>
+@@ -635,9 +636,12 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
+ #ifdef CONFIG_MIGRATION
+ static int ll_migratepage(struct address_space *mapping,
+ 			  struct page *newpage, struct page *page,
+-			  enum migrate_mode mode
+-		)
++			  enum migrate_mode mode, bool copy)
+ {
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(newpage))
++		return -EINVAL;
 +
+ 	/* Always fail page migration until we have a proper implementation */
+ 	return -EIO;
+ }
+diff --git a/fs/aio.c b/fs/aio.c
+index 428484f..30cf06c 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -37,6 +37,7 @@
+ #include <linux/blkdev.h>
+ #include <linux/compat.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ #include <linux/ramfs.h>
+ #include <linux/percpu-refcount.h>
+ #include <linux/mount.h>
+@@ -366,13 +367,17 @@ static const struct file_operations aio_ring_fops = {
+ 
+ #if IS_ENABLED(CONFIG_MIGRATION)
+ static int aio_migratepage(struct address_space *mapping, struct page *new,
+-			struct page *old, enum migrate_mode mode)
++			   struct page *old, enum migrate_mode mode, bool copy)
+ {
+ 	struct kioctx *ctx;
+ 	unsigned long flags;
+ 	pgoff_t idx;
+ 	int rc;
+ 
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(new))
++		return -EINVAL;
++
+ 	rc = 0;
+ 
+ 	/* mapping->private_lock here protects against the kioctx teardown.  */
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 3a57f99..6ccd3c9 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -27,6 +27,7 @@
+ #include <linux/kthread.h>
+ #include <linux/slab.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ #include <linux/ratelimit.h>
+ #include <linux/uuid.h>
+ #include <linux/semaphore.h>
+@@ -1046,9 +1047,13 @@ static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
+ 
+ #ifdef CONFIG_MIGRATION
+ static int btree_migratepage(struct address_space *mapping,
+-			struct page *newpage, struct page *page,
+-			enum migrate_mode mode)
++			     struct page *newpage, struct page *page,
++			     enum migrate_mode mode, bool copy)
+ {
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(newpage))
++		return -EINVAL;
++
+ 	/*
+ 	 * we can't safely write a btree page from here,
+ 	 * we haven't done the locking hook
+@@ -1062,7 +1067,7 @@ static int btree_migratepage(struct address_space *mapping,
+ 	if (page_has_private(page) &&
+ 	    !try_to_release_page(page, GFP_KERNEL))
+ 		return -EAGAIN;
+-	return migrate_page(mapping, newpage, page, mode);
++	return migrate_page(mapping, newpage, page, mode, copy);
+ }
+ #endif
+ 
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 4fb7b10..b52dd44 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -35,6 +35,7 @@
+ #include <linux/security.h>
+ #include <linux/magic.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ #include <linux/uio.h>
+ 
+ #include <asm/uaccess.h>
+@@ -842,11 +843,15 @@ static int hugetlbfs_set_page_dirty(struct page *page)
+ }
+ 
+ static int hugetlbfs_migrate_page(struct address_space *mapping,
+-				struct page *newpage, struct page *page,
+-				enum migrate_mode mode)
++				  struct page *newpage, struct page *page,
++				  enum migrate_mode mode, bool copy)
+ {
+ 	int rc;
+ 
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(newpage))
++		return -EINVAL;
++
+ 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index 80bcc0b..12d9d8d 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -535,8 +535,9 @@ void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
+ #endif
+ 
+ #ifdef CONFIG_MIGRATION
+-extern int nfs_migrate_page(struct address_space *,
+-		struct page *, struct page *, enum migrate_mode);
++extern int nfs_migrate_page(struct address_space *mapping,
++			    struct page *newpage, struct page *page,
++			    enum migrate_mode, bool copy);
+ #endif
+ 
+ static inline int
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index 5321183..d7130a5 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -14,6 +14,7 @@
+ #include <linux/writeback.h>
+ #include <linux/swap.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ 
+ #include <linux/sunrpc/clnt.h>
+ #include <linux/nfs_fs.h>
+@@ -2023,8 +2024,12 @@ int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder)
+ 
+ #ifdef CONFIG_MIGRATION
+ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
+-		struct page *page, enum migrate_mode mode)
++		     struct page *page, enum migrate_mode mode, bool copy)
+ {
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(newpage))
++		return -EINVAL;
++
+ 	/*
+ 	 * If PagePrivate is set, then the page is currently associated with
+ 	 * an in-progress read or write request. Don't try to migrate it.
+@@ -2039,7 +2044,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
+ 	if (!nfs_fscache_release_page(page, GFP_KERNEL))
+ 		return -EBUSY;
+ 
+-	return migrate_page(mapping, newpage, page, mode);
++	return migrate_page(mapping, newpage, page, mode, copy);
+ }
+ #endif
+ 
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index b4fbeef..f625cac 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -53,6 +53,7 @@
+ #include <linux/mount.h>
+ #include <linux/slab.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ 
+ static int read_block(struct inode *inode, void *addr, unsigned int block,
+ 		      struct ubifs_data_node *dn)
+@@ -1455,10 +1456,15 @@ static int ubifs_set_page_dirty(struct page *page)
+ 
+ #ifdef CONFIG_MIGRATION
+ static int ubifs_migrate_page(struct address_space *mapping,
+-		struct page *newpage, struct page *page, enum migrate_mode mode)
++			      struct page *newpage, struct page *page,
++			      enum migrate_mode mode, bool copy)
+ {
+ 	int rc;
+ 
++	/* Can only migrate addressable memory for now */
++	if (!is_addressable_page(newpage))
++		return -EINVAL;
++
+ 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index 79542b2..27cf3e3 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -85,7 +85,8 @@ extern bool balloon_page_isolate(struct page *page,
+ extern void balloon_page_putback(struct page *page);
+ extern int balloon_page_migrate(struct address_space *mapping,
+ 				struct page *newpage,
+-				struct page *page, enum migrate_mode mode);
++				struct page *page, enum migrate_mode mode,
++				bool copy);
+ 
+ /*
+  * balloon_page_insert - insert a page into the balloon's page list and make
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 2f63d44..431f0d3 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -398,8 +398,9 @@ struct address_space_operations {
+ 	 * migrate the contents of a page to the specified target. If
+ 	 * migrate_mode is MIGRATE_ASYNC, it must not block.
+ 	 */
+-	int (*migratepage) (struct address_space *,
+-			struct page *, struct page *, enum migrate_mode);
++	int (*migratepage)(struct address_space *mapping,
++			   struct page *newpage, struct page *page,
++			   enum migrate_mode, bool copy);
+ 	bool (*isolate_page)(struct page *, isolate_mode_t);
+ 	void (*putback_page)(struct page *);
+ 	int (*launder_page) (struct page *);
+@@ -3010,9 +3011,11 @@ extern int generic_file_fsync(struct file *, loff_t, loff_t, int);
+ extern int generic_check_addressable(unsigned, u64);
+ 
+ #ifdef CONFIG_MIGRATION
+-extern int buffer_migrate_page(struct address_space *,
+-				struct page *, struct page *,
+-				enum migrate_mode);
++extern int buffer_migrate_page(struct address_space *mapping,
++			       struct page *newpage,
++			       struct page *page,
++			       enum migrate_mode,
++			       bool copy);
+ #else
+ #define buffer_migrate_page NULL
+ #endif
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ae8d475..37b77ba 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -33,8 +33,11 @@ extern char *migrate_reason_names[MR_TYPES];
+ #ifdef CONFIG_MIGRATION
+ 
+ extern void putback_movable_pages(struct list_head *l);
+-extern int migrate_page(struct address_space *,
+-			struct page *, struct page *, enum migrate_mode);
++extern int migrate_page(struct address_space *mapping,
++			struct page *newpage,
++			struct page *page,
++			enum migrate_mode,
++			bool copy);
+ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+ 		unsigned long private, enum migrate_mode mode, int reason);
+ extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index da91df5..ed5cacb 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -135,7 +135,7 @@ void balloon_page_putback(struct page *page)
+ /* move_to_new_page() counterpart for a ballooned page */
+ int balloon_page_migrate(struct address_space *mapping,
+ 		struct page *newpage, struct page *page,
+-		enum migrate_mode mode)
++		enum migrate_mode mode, bool copy)
+ {
+ 	struct balloon_dev_info *balloon = balloon_page_device(page);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 5de87d5..36e2ed9 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -622,18 +622,10 @@ static void copy_huge_page(struct page *dst, struct page *src)
+ 	}
+ }
+ 
+-/*
+- * Copy the page to its new location
+- */
+-void migrate_page_copy(struct page *newpage, struct page *page)
++static void migrate_page_states(struct page *newpage, struct page *page)
+ {
+ 	int cpupid;
+ 
+-	if (PageHuge(page) || PageTransHuge(page))
+-		copy_huge_page(newpage, page);
+-	else
+-		copy_highpage(newpage, page);
+-
+ 	if (PageError(page))
+ 		SetPageError(newpage);
+ 	if (PageReferenced(page))
+@@ -687,6 +679,19 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+ 
+ 	mem_cgroup_migrate(page, newpage);
+ }
 +
 +/*
-+ * Fault memory on behalf of device driver unlike handle_mm_fault() it will not
-+ * migrate any device memory back to system memory. The hmm_pfn_t array will be
-+ * updated with fault result and current snapshot of the CPU page table for the
-+ * range.
-+ *
-+ * The mmap_sem must be taken in read mode before entering and it might be drop
-+ * by the function if block argument is false, when that happen the function
-+ * returns -EAGAIN.
-+ *
-+ * Return value does not reflect if the fault was successfull for every single
-+ * address or not, you need to inspect the hmm_pfn_t array to determine fault
-+ * status for that address. Trying to fault inside an invalid vma will result
-+ * in -EINVAL.
-+ *
-+ * See function description in mm/hmm.c for documentation.
++ * Copy the page to its new location
 + */
-+int hmm_vma_fault(struct vm_area_struct *vma,
-+		  struct hmm_range *range,
-+		  unsigned long start,
-+		  unsigned long end,
-+		  hmm_pfn_t *pfns,
-+		  bool write,
-+		  bool block);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 0ef06df..a397d45 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -288,6 +288,15 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
- }
- EXPORT_SYMBOL(hmm_mirror_unregister);
- 
-+
-+static void hmm_pfns_error(hmm_pfn_t *pfns,
-+			   unsigned long addr,
-+			   unsigned long end)
++void migrate_page_copy(struct page *newpage, struct page *page)
 +{
-+	for (; addr < end; addr += PAGE_SIZE, pfns++)
-+		*pfns = HMM_PFN_ERROR;
-+}
++	if (PageHuge(page) || PageTransHuge(page))
++		copy_huge_page(newpage, page);
++	else
++		copy_highpage(newpage, page);
 +
- static void hmm_pfns_empty(hmm_pfn_t *pfns,
- 			   unsigned long addr,
- 			   unsigned long end)
-@@ -304,10 +313,43 @@ static void hmm_pfns_special(hmm_pfn_t *pfns,
- 		*pfns = HMM_PFN_SPECIAL;
- }
++	migrate_page_states(newpage, page);
++}
+ EXPORT_SYMBOL(migrate_page_copy);
  
--static void hmm_vma_walk(struct vm_area_struct *vma,
--			 unsigned long start,
--			 unsigned long end,
--			 hmm_pfn_t *pfns)
-+static void hmm_pfns_clear(hmm_pfn_t *pfns,
-+			   unsigned long addr,
-+			   unsigned long end)
-+{
-+	unsigned long npfns = (end - addr) >> PAGE_SHIFT;
-+
-+	memset(pfns, 0, sizeof(*pfns) * npfns);
-+}
-+
-+static int hmm_vma_do_fault(struct vm_area_struct *vma,
-+			    const hmm_pfn_t fault,
-+			    unsigned long addr,
-+			    hmm_pfn_t *pfn,
-+			    bool block)
-+{
-+	unsigned flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_REMOTE;
-+	int r;
-+
-+	flags |= block ? 0 : FAULT_FLAG_ALLOW_RETRY;
-+	flags |= (fault & HMM_PFN_WRITE) ? FAULT_FLAG_WRITE : 0;
-+	r = handle_mm_fault(vma, addr, flags);
-+	if (r & VM_FAULT_RETRY)
-+		return -EAGAIN;
-+	if (r & VM_FAULT_ERROR) {
-+		*pfn = HMM_PFN_ERROR;
-+		return -EFAULT;
-+	}
-+
-+	return 0;
-+}
-+
-+static int hmm_vma_walk(struct vm_area_struct *vma,
-+			const hmm_pfn_t fault,
-+			unsigned long start,
-+			unsigned long end,
-+			hmm_pfn_t *pfns,
-+			bool block)
+ /************************************************************
+@@ -700,8 +705,8 @@ EXPORT_SYMBOL(migrate_page_copy);
+  * Pages are locked upon entry and exit.
+  */
+ int migrate_page(struct address_space *mapping,
+-		struct page *newpage, struct page *page,
+-		enum migrate_mode mode)
++		 struct page *newpage, struct page *page,
++		 enum migrate_mode mode, bool copy)
  {
- 	unsigned long addr, next;
- 	hmm_pfn_t flag;
-@@ -321,6 +363,7 @@ static void hmm_vma_walk(struct vm_area_struct *vma,
- 		pmd_t *pmdp;
- 		pte_t *ptep;
- 		pmd_t pmd;
-+		int ret;
+ 	int rc;
  
- 		/*
- 		 * We are accessing/faulting for a device from an unknown
-@@ -331,15 +374,37 @@ static void hmm_vma_walk(struct vm_area_struct *vma,
- 		next = pgd_addr_end(addr, end);
- 		pgdp = pgd_offset(vma->vm_mm, addr);
- 		if (pgd_none(*pgdp) || pgd_bad(*pgdp)) {
--			hmm_pfns_empty(&pfns[i], addr, next);
--			continue;
-+			if (!(vma->vm_flags & VM_READ)) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			if (!fault) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			pudp = pud_alloc(vma->vm_mm, pgdp, addr);
-+			if (!pudp) {
-+				hmm_pfns_error(&pfns[i], addr, next);
-+				continue;
-+			}
- 		}
+@@ -712,7 +717,11 @@ int migrate_page(struct address_space *mapping,
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
  
- 		next = pud_addr_end(addr, end);
- 		pudp = pud_offset(pgdp, addr);
- 		if (pud_none(*pudp) || pud_bad(*pudp)) {
--			hmm_pfns_empty(&pfns[i], addr, next);
--			continue;
-+			if (!(vma->vm_flags & VM_READ)) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			if (!fault) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			pmdp = pmd_alloc(vma->vm_mm, pudp, addr);
-+			if (!pmdp) {
-+				hmm_pfns_error(&pfns[i], addr, next);
-+				continue;
-+			}
- 		}
- 
- 		next = pmd_addr_end(addr, end);
-@@ -347,8 +412,24 @@ static void hmm_vma_walk(struct vm_area_struct *vma,
- 		pmd = pmd_read_atomic(pmdp);
- 		barrier();
- 		if (pmd_none(pmd) || pmd_bad(pmd)) {
--			hmm_pfns_empty(&pfns[i], addr, next);
--			continue;
-+			if (!(vma->vm_flags & VM_READ)) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			if (!fault) {
-+				hmm_pfns_empty(&pfns[i], addr, next);
-+				continue;
-+			}
-+			/*
-+			 * Use pte_alloc() instead of pte_alloc_map, because we
-+			 * can't run pte_offset_map on the pmd, if an huge pmd
-+			 * could materialize from under us.
-+			 */
-+			if (unlikely(pte_alloc(vma->vm_mm, pmdp, addr))) {
-+				hmm_pfns_error(&pfns[i], addr, next);
-+				continue;
-+			}
-+			pmd = *pmdp;
- 		}
- 		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
- 			unsigned long pfn = pmd_pfn(pmd) + pte_index(addr);
-@@ -356,10 +437,14 @@ static void hmm_vma_walk(struct vm_area_struct *vma,
- 
- 			if (pmd_protnone(pmd)) {
- 				hmm_pfns_clear(&pfns[i], addr, next);
-+				if (fault)
-+					goto fault;
- 				continue;
- 			}
- 			flags |= pmd_write(*pmdp) ? HMM_PFN_WRITE : 0;
- 			flags |= pmd_devmap(pmd) ? HMM_PFN_DEVICE : 0;
-+			if ((flags & fault) != fault)
-+				goto fault;
- 			for (; addr < next; addr += PAGE_SIZE, i++, pfn++)
- 				pfns[i] = hmm_pfn_from_pfn(pfn) | flags;
- 			continue;
-@@ -370,41 +455,63 @@ static void hmm_vma_walk(struct vm_area_struct *vma,
- 			swp_entry_t entry;
- 			pte_t pte = *ptep;
- 
--			pfns[i] = 0;
--
- 			if (pte_none(pte)) {
-+				if (fault) {
-+					pte_unmap(ptep);
-+					goto fault;
-+				}
- 				pfns[i] = HMM_PFN_EMPTY;
- 				continue;
- 			}
- 
- 			entry = pte_to_swp_entry(pte);
- 			if (!pte_present(pte) && !non_swap_entry(entry)) {
-+				if (fault) {
-+					pte_unmap(ptep);
-+					goto fault;
-+				}
-+				pfns[i] = 0;
- 				continue;
- 			}
- 
- 			if (pte_present(pte)) {
- 				pfns[i] = hmm_pfn_from_pfn(pte_pfn(pte))|flag;
- 				pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
--				continue;
--			}
--
--			/*
--			 * This is a special swap entry, ignore migration, use
--			 * device and report anything else as error.
--			*/
--			if (is_device_entry(entry)) {
-+			} else if (is_device_entry(entry)) {
-+				/* Do not fault device entry */
- 				pfns[i] = hmm_pfn_from_pfn(swp_offset(entry));
- 				if (is_write_device_entry(entry))
- 					pfns[i] |= HMM_PFN_WRITE;
- 				pfns[i] |= HMM_PFN_DEVICE;
- 				pfns[i] |= HMM_PFN_UNADDRESSABLE;
- 				pfns[i] |= flag;
--			} else if (!is_migration_entry(entry)) {
-+			} else if (is_migration_entry(entry) && fault) {
-+				migration_entry_wait(vma->vm_mm, pmdp, addr);
-+				/* Start again for current address */
-+				next = addr;
-+				ptep++;
-+				break;
-+			} else {
-+				/* Report error for everything else */
- 				pfns[i] = HMM_PFN_ERROR;
- 			}
-+			if ((fault & pfns[i]) != fault) {
-+				pte_unmap(ptep);
-+				goto fault;
-+			}
- 		}
- 		pte_unmap(ptep - 1);
-+		continue;
+-	migrate_page_copy(newpage, page);
++	if (copy)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
 +
-+fault:
-+		ret = hmm_vma_do_fault(vma, fault, addr, &pfns[i], block);
-+		if (ret)
-+			return ret;
-+		/* Start again for current address */
-+		next = addr;
- 	}
-+
-+	return 0;
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+ EXPORT_SYMBOL(migrate_page);
+@@ -724,13 +733,14 @@ EXPORT_SYMBOL(migrate_page);
+  * exist.
+  */
+ int buffer_migrate_page(struct address_space *mapping,
+-		struct page *newpage, struct page *page, enum migrate_mode mode)
++			struct page *newpage, struct page *page,
++			enum migrate_mode mode, bool copy)
+ {
+ 	struct buffer_head *bh, *head;
+ 	int rc;
+ 
+ 	if (!page_has_buffers(page))
+-		return migrate_page(mapping, newpage, page, mode);
++		return migrate_page(mapping, newpage, page, mode, copy);
+ 
+ 	head = page_buffers(page);
+ 
+@@ -762,12 +772,15 @@ int buffer_migrate_page(struct address_space *mapping,
+ 
+ 	SetPagePrivate(newpage);
+ 
+-	migrate_page_copy(newpage, page);
++	if (copy)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
+ 
+ 	bh = head;
+ 	do {
+ 		unlock_buffer(bh);
+- 		put_bh(bh);
++		put_bh(bh);
+ 		bh = bh->b_this_page;
+ 
+ 	} while (bh != head);
+@@ -822,7 +835,8 @@ static int writeout(struct address_space *mapping, struct page *page)
+  * Default handling if a filesystem does not provide a migration function.
+  */
+ static int fallback_migrate_page(struct address_space *mapping,
+-	struct page *newpage, struct page *page, enum migrate_mode mode)
++				 struct page *newpage, struct page *page,
++				 enum migrate_mode mode)
+ {
+ 	if (PageDirty(page)) {
+ 		/* Only writeback pages in full synchronous migration */
+@@ -839,7 +853,7 @@ static int fallback_migrate_page(struct address_space *mapping,
+ 	    !try_to_release_page(page, GFP_KERNEL))
+ 		return -EAGAIN;
+ 
+-	return migrate_page(mapping, newpage, page, mode);
++	return migrate_page(mapping, newpage, page, mode, true);
  }
  
  /*
-@@ -463,7 +570,7 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 	list_add_rcu(&range->list, &hmm->ranges);
- 	spin_unlock(&hmm->lock);
+@@ -867,7 +881,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
  
--	hmm_vma_walk(vma, start, end, pfns);
-+	hmm_vma_walk(vma, 0, start, end, pfns, false);
- 	return 0;
+ 	if (likely(is_lru)) {
+ 		if (!mapping)
+-			rc = migrate_page(mapping, newpage, page, mode);
++			rc = migrate_page(mapping, newpage, page, mode, true);
+ 		else if (mapping->a_ops->migratepage)
+ 			/*
+ 			 * Most pages have a mapping and most filesystems
+@@ -877,7 +891,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 			 * for page migration.
+ 			 */
+ 			rc = mapping->a_ops->migratepage(mapping, newpage,
+-							page, mode);
++							page, mode, true);
+ 		else
+ 			rc = fallback_migrate_page(mapping, newpage,
+ 							page, mode);
+@@ -894,7 +908,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 		}
+ 
+ 		rc = mapping->a_ops->migratepage(mapping, newpage,
+-						page, mode);
++						page, mode, true);
+ 		WARN_ON_ONCE(rc == MIGRATEPAGE_SUCCESS &&
+ 			!PageIsolated(page));
+ 	}
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index b0bc023..bf73222 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -52,6 +52,7 @@
+ #include <linux/zpool.h>
+ #include <linux/mount.h>
+ #include <linux/migrate.h>
++#include <linux/memremap.h>
+ #include <linux/pagemap.h>
+ 
+ #define ZSPAGE_MAGIC	0x58
+@@ -2015,7 +2016,7 @@ bool zs_page_isolate(struct page *page, isolate_mode_t mode)
  }
- EXPORT_SYMBOL(hmm_vma_get_pfns);
-@@ -474,14 +581,22 @@ EXPORT_SYMBOL(hmm_vma_get_pfns);
-  * @range: range being track
-  * Returns: false if range data have been invalidated, true otherwise
-  *
-- * Range struct is use to track update to CPU page table after call to
-- * hmm_vma_get_pfns(). Once device driver is done using or want to lock update
-- * to data it gots from this function it calls hmm_vma_range_done() which stop
-- * the tracking.
-+ * Range struct is use to track update to CPU page table after call to either
-+ * hmm_vma_get_pfns() or hmm_vma_fault(). Once device driver is done using or
-+ * want to lock update to data it gots from those functions it must call the
-+ * hmm_vma_range_done() function which stop tracking CPU page table update.
-+ *
-+ * Note that device driver must still implement general CPU page table update
-+ * tracking either by using hmm_mirror (see hmm_mirror_register()) or by using
-+ * mmu_notifier API directly.
-+ *
-+ * CPU page table update tracking done through hmm_range is only temporary and
-+ * to be use while trying to duplicate CPU page table content for a range of
-+ * virtual address.
-  *
-  * There is 2 way to use this :
-  * again:
-- *   hmm_vma_get_pfns(vma, range, start, end, pfns);
-+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);
-  *   trans = device_build_page_table_update_transaction(pfns);
-  *   device_page_table_lock();
-  *   if (!hmm_vma_range_done(vma, range)) {
-@@ -492,7 +607,7 @@ EXPORT_SYMBOL(hmm_vma_get_pfns);
-  *   device_page_table_unlock();
-  *
-  * Or:
-- *   hmm_vma_get_pfns(vma, range, start, end, pfns);
-+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);
-  *   device_page_table_lock();
-  *   hmm_vma_range_done(vma, range);
-  *   device_update_page_table(pfns);
-@@ -521,4 +636,102 @@ bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range)
- 	return range->valid;
- }
- EXPORT_SYMBOL(hmm_vma_range_done);
-+
-+/*
-+ * hmm_vma_fault() - try to fault some address in a virtual address range
-+ * @vma: virtual memory area containing the virtual address range
-+ * @range: use to track pfns array content validity
-+ * @start: fault range virtual start address (inclusive)
-+ * @end: fault range virtual end address (exclusive)
-+ * @pfns: array of hmm_pfn_t, only entry with fault flag set will be faulted
-+ * @write: is it a write fault
-+ * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
-+ * Returns: 0 success, error otherwise (-EAGAIN means mmap_sem have been drop)
-+ *
-+ * This is similar to a regular CPU page fault except that it will not trigger
-+ * any memory migration if the memory being faulted is not accessible by CPUs.
-+ *
-+ * On error, for one virtual address in the range, the function will set the
-+ * hmm_pfn_t error flag for the corresponding pfn entry.
-+ *
-+ * Expected use pattern:
-+ * retry:
-+ *   down_read(&mm->mmap_sem);
-+ *   // Find vma and address device wants to fault, initialize hmm_pfn_t
-+ *   // array accordingly
-+ *   ret = hmm_vma_fault(vma, start, end, pfns, allow_retry);
-+ *   switch (ret) {
-+ *   case -EAGAIN:
-+ *     hmm_vma_range_done(vma, range);
-+ *     // You might want to rate limit or yield to play nicely, you may
-+ *     // also commit any valid pfn in the array assuming that you are
-+ *     // getting true from hmm_vma_range_monitor_end()
-+ *     goto retry;
-+ *   case 0:
-+ *     break;
-+ *   default:
-+ *     // Handle error !
-+ *     up_read(&mm->mmap_sem)
-+ *     return;
-+ *   }
-+ *   // Take device driver lock that serialize device page table update
-+ *   driver_lock_device_page_table_update();
-+ *   hmm_vma_range_done(vma, range);
-+ *   // Commit pfns we got from hmm_vma_fault()
-+ *   driver_unlock_device_page_table_update();
-+ *   up_read(&mm->mmap_sem)
-+ *
-+ * YOU MUST CALL hmm_vma_range_done() AFTER THIS FUNCTION RETURN SUCCESS (0)
-+ * BEFORE FREEING THE range struct OR YOU WILL HAVE SERIOUS MEMORY CORRUPTION !
-+ *
-+ * YOU HAVE BEEN WARN !
-+ */
-+int hmm_vma_fault(struct vm_area_struct *vma,
-+		  struct hmm_range *range,
-+		  unsigned long start,
-+		  unsigned long end,
-+		  hmm_pfn_t *pfns,
-+		  bool write,
-+		  bool block)
-+{
-+	hmm_pfn_t fault = HMM_PFN_READ | (write ? HMM_PFN_WRITE : 0);
-+	struct hmm *hmm;
-+	int ret;
-+
-+	/* Sanity check, this really should not happen ! */
-+	if (start < vma->vm_start || start >= vma->vm_end)
-+		return -EINVAL;
-+	if (end < vma->vm_start || end > vma->vm_end)
+ 
+ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+-		struct page *page, enum migrate_mode mode)
++		    struct page *page, enum migrate_mode mode, bool copy)
+ {
+ 	struct zs_pool *pool;
+ 	struct size_class *class;
+@@ -2033,6 +2034,15 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 	VM_BUG_ON_PAGE(!PageMovable(page), page);
+ 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+ 
++	/*
++	 * Offloading copy operation for zspage require special considerations
++	 * due to locking so for now we only support regular migration. I do
++	 * not expect we will ever want to support offloading copy. See hmm.h
++	 * for more informations on hmm_vma_migrate() and offload copy.
++	 */
++	if (!copy || !is_addressable_page(newpage))
 +		return -EINVAL;
 +
-+	hmm = hmm_register(vma->vm_mm);
-+	if (!hmm) {
-+		hmm_pfns_clear(pfns, start, end);
-+		return -ENOMEM;
-+	}
-+	/* Caller must have register a mirror (with hmm_mirror_register()) ! */
-+	if (!hmm->mmu_notifier.ops)
-+		return -EINVAL;
-+
-+	/* Initialize range to track CPU page table update */
-+	range->start = start;
-+	range->pfns = pfns;
-+	range->end = end;
-+	spin_lock(&hmm->lock);
-+	range->valid = true;
-+	list_add_rcu(&range->list, &hmm->ranges);
-+	spin_unlock(&hmm->lock);
-+
-+	/* FIXME support hugetlb fs */
-+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
-+		hmm_pfns_special(pfns, start, end);
-+		return 0;
-+	}
-+
-+	ret = hmm_vma_walk(vma, fault, start, end, pfns, block);
-+	if (ret)
-+		hmm_vma_range_done(vma, range);
-+	return ret;
-+}
-+EXPORT_SYMBOL(hmm_vma_fault);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ 	zspage = get_zspage(page);
+ 
+ 	/* Concurrent compactor cannot migrate any subpage in zspage */
 -- 
 2.4.3
 
