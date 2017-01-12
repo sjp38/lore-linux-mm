@@ -1,31 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 435366B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:29:13 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c206so6717445wme.3
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:29:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c137si2458168wmd.151.2017.01.12.09.29.11
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 09:29:11 -0800 (PST)
-Date: Thu, 12 Jan 2017 18:29:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
- variants
-Message-ID: <20170112172906.GB31509@dhcp22.suse.cz>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-6-mhocko@kernel.org>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1166B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:33:52 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 80so64184865pfy.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:33:52 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g9si9876895plk.185.2017.01.12.09.33.51
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jan 2017 09:33:51 -0800 (PST)
+Date: Thu, 12 Jan 2017 17:33:53 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCHv7 00/11] CONFIG_DEBUG_VIRTUAL for arm64
+Message-ID: <20170112173352.GJ13843@arm.com>
+References: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
+In-Reply-To: <1484084150-1523-1-git-send-email-labbott@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Florian Fainelli <f.fainelli@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-arm-kernel@lists.infradead.org, Christoffer Dall <christoffer.dall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, xen-devel@lists.xenproject.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, Eric Biederman <ebiederm@xmission.com>, kexec@lists.infradead.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>
 
-Ilya has noticed that I've screwed up some k[zc]alloc conversions and
-didn't use the kvzalloc. This is an updated patch with some acks
-collected on the way
----
+On Tue, Jan 10, 2017 at 01:35:39PM -0800, Laura Abbott wrote:
+> This is v7 of the patches to add CONFIG_DEBUG_VIRTUAL for arm64. This is
+> a simple reordering of patches from v6 per request of Will Deacon for ease
+> of merging support for arm which depends on this series.
+> 
+> Laura Abbott (11):
+>   lib/Kconfig.debug: Add ARCH_HAS_DEBUG_VIRTUAL
+>   mm/cma: Cleanup highmem check
+>   mm: Introduce lm_alias
+>   kexec: Switch to __pa_symbol
+>   mm/kasan: Switch to using __pa_symbol and lm_alias
+>   mm/usercopy: Switch to using lm_alias
+>   drivers: firmware: psci: Use __pa_symbol for kernel symbol
+>   arm64: Move some macros under #ifndef __ASSEMBLY__
+>   arm64: Add cast for virt_to_pfn
+>   arm64: Use __pa_symbol for kernel symbols
+>   arm64: Add support for CONFIG_DEBUG_VIRTUAL
+
+I've pushed this into linux-next and, assuming it survives the
+autobuilders etc I'll co-ordinate with Russell to get the common parts
+pulled into the ARM tree too (so he can take Florian's series). They're
+currently split out on the arm64 for-next/debug-virtual branch.
+
+Thanks!
+
+Will
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
