@@ -1,121 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8CD6B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 22:13:11 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 80so20302441pfy.2
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 19:13:11 -0800 (PST)
-Received: from out0-137.mail.aliyun.com (out0-137.mail.aliyun.com. [140.205.0.137])
-        by mx.google.com with ESMTP id b189si7708309pgc.242.2017.01.11.19.13.10
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jan 2017 19:13:10 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170111005535.13832-1-aarcange@redhat.com> <20170111005535.13832-2-aarcange@redhat.com>
-In-Reply-To: <20170111005535.13832-2-aarcange@redhat.com>
-Subject: Re: [PATCH 1/1] userfaultfd: fix SIGBUS resulting from false rwsem wakeups
-Date: Thu, 12 Jan 2017 11:13:03 +0800
-Message-ID: <022401d26c81$c9fce1e0$5df6a5a0$@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2F096B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 23:02:45 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j13so14278738iod.6
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:02:45 -0800 (PST)
+Received: from nm6-vm4.bullet.mail.ne1.yahoo.com (nm6-vm4.bullet.mail.ne1.yahoo.com. [98.138.91.166])
+        by mx.google.com with ESMTPS id z69si6932690ioz.60.2017.01.11.20.02.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Jan 2017 20:02:45 -0800 (PST)
+Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Subject: Re: shrink_inactive_list() failed to reclaim pages
+From: Pintu Kumar <pintu_agarwal@yahoo.com>
+In-Reply-To: <20170111173802.GK16365@dhcp22.suse.cz>
+Date: Thu, 12 Jan 2017 09:32:35 +0530
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <443501E9-8994-4CA3-ABE9-CA2A6C7B5288@yahoo.com>
+References: <CAPJVTTimt2CeiiX868+EY2HbbWmKsG05u7QOBbuTb74f-ZrpPQ@mail.gmail.com> <20170111173802.GK16365@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrea Arcangeli' <aarcange@redhat.com>, linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Michael Rapoport' <RAPOPORT@il.ibm.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@parallels.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Cheng-yu Lee <cylee@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Luigi Semenzato <semenzato@google.com>, Ben Cheng <bccheng@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>, Pintu Kumar <pintu_agarwal@yahoo.com>, Pintu Kumar <pintu.k@samsung.com>
 
-On Wednesday, January 11, 2017 8:56 AM Andrea Arcangeli wrote: 
-> 
-> With >=32 CPUs the userfaultfd selftest triggered a graceful but
-> unexpected SIGBUS because VM_FAULT_RETRY was returned by
-> handle_userfault() despite the UFFDIO_COPY wasn't completed.
-> 
-> This seems caused by rwsem waking the thread blocked in
-> handle_userfault() and we can't run up_read() before the wait_event
-> sequence is complete.
-> 
-> Keeping the wait_even sequence identical to the first one, would
-> require running userfaultfd_must_wait() again to know if the loop
-> should be repeated, and it would also require retaking the rwsem and
-> revalidating the whole vma status.
-> 
-> It seems simpler to wait the targeted wakeup so that if false wakeups
-> materialize we still wait for our specific wakeup event, unless of
-> course there are signals or the uffd was released.
-> 
-> Debug code collecting the stack trace of the wakeup showed this:
-> 
-> $ ./userfaultfd 100 99999
-> nr_pages: 25600, nr_pages_per_cpu: 800
-> bounces: 99998, mode: racing ver poll, userfaults: 32 35 90 232 30 138 69 82 34 30 139 40 40 31 20 19 43 13 15 28 27 38 21 43 56
-22 1 17 31
-> 8 4 2
-> bounces: 99997, mode: rnd ver poll, Bus error (core dumped)
-> 
->    [<ffffffff8102e19b>] save_stack_trace+0x2b/0x50
->    [<ffffffff8110b1d6>] try_to_wake_up+0x2a6/0x580
->    [<ffffffff8110b502>] wake_up_q+0x32/0x70
->    [<ffffffff8113d7a0>] rwsem_wake+0xe0/0x120
->    [<ffffffff8148361b>] call_rwsem_wake+0x1b/0x30
->    [<ffffffff81131d5b>] up_write+0x3b/0x40
->    [<ffffffff812280fc>] vm_mmap_pgoff+0x9c/0xc0
->    [<ffffffff81244b79>] SyS_mmap_pgoff+0x1a9/0x240
->    [<ffffffff810228f2>] SyS_mmap+0x22/0x30
->    [<ffffffff81842dfc>] entry_SYSCALL_64_fastpath+0x1f/0xbd
->    [<ffffffffffffffff>] 0xffffffffffffffff
-> FAULT_FLAG_ALLOW_RETRY missing 70
-> CPU: 24 PID: 1054 Comm: userfaultfd Tainted: G        W       4.8.0+ #30
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.9.3-0-ge2fc41e-prebuilt.qemu-project.org 04/01/2014
->  0000000000000000 ffff880218027d40 ffffffff814749f6 ffff8802180c4a80
->  ffff880231ead4c0 ffff880218027e18 ffffffff812e0102 ffffffff81842b1c
->  ffff880218027dd0 ffff880218082960 0000000000000000 0000000000000000
-> Call Trace:
->  [<ffffffff814749f6>] dump_stack+0xb8/0x112
->  [<ffffffff812e0102>] handle_userfault+0x572/0x650
->  [<ffffffff81842b1c>] ? _raw_spin_unlock_irq+0x2c/0x50
->  [<ffffffff812407b4>] ? handle_mm_fault+0xcf4/0x1520
->  [<ffffffff81240d7e>] ? handle_mm_fault+0x12be/0x1520
->  [<ffffffff81240d8b>] handle_mm_fault+0x12cb/0x1520
->  [<ffffffff81483588>] ? call_rwsem_down_read_failed+0x18/0x30
->  [<ffffffff810572c5>] __do_page_fault+0x175/0x500
->  [<ffffffff810576f1>] trace_do_page_fault+0x61/0x270
->  [<ffffffff81050739>] do_async_page_fault+0x19/0x90
->  [<ffffffff81843ef5>] async_page_fault+0x25/0x30
-> 
-> This always happens when the main userfault selftest thread is running
-> clone() while glibc runs either mprotect or mmap (both taking mmap_sem
-> down_write()) to allocate the thread stack of the background threads,
-> while locking/userfault threads already run at full throttle and are
-> susceptible to false wakeups that may cause handle_userfault() to
-> return before than expected (which results in graceful SIGBUS at the
-> next attempt).
-> 
-> This was reproduced only with >=32 CPUs because the loop to start the
-> thread where clone() is too quick with fewer CPUs, while with 32 CPUs
-> there's already significant activity on ~32 locking and userfault
-> threads when the last background threads are started with clone().
-> 
-> This >=32 CPUs SMP race condition is likely reproducible only with the
-> selftest because of the much heavier userfault load it generates if
-> compared to real apps.
-> 
-> We'll have to allow "one more" VM_FAULT_RETRY for the WP support and a
-> patch floating around that provides it also hidden this problem but in
-> reality only is successfully at hiding the problem. False wakeups
-> could still happen again the second time handle_userfault() is
-> invoked, even if it's a so rare race condition that getting false
-> wakeups twice in a row is impossible to reproduce. This full fix is
-> needed for correctness, the only alternative would be to allow
-> VM_FAULT_RETRY to be returned infinitely. With this fix the WP support
-> can stick to a strict "one more" VM_FAULT_RETRY logic (no need of
-> returning it infinite times to avoid the SIGBUS).
-> 
-> Reported-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Adding my self
 
+> On 11-Jan-2017, at 11:08 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> [CC Minchan and Sergey for the zram part]
+>=20
+> On Thu 12-01-17 01:16:11, Cheng-yu Lee wrote:
+>> Hi community,
+>>=20
+>> I have a x86_64 Chromebook running 3.14 kernel with 8G of memory. =
+Using
+>=20
+> Do you see the same with the current Linus tree?
+>=20
+>> zram with swap size set to ~12GB. When in low memory, kswapd is =
+awaken to
+>> reclaim pages, but under some circumstances the kernel can not find =
+pages
+>> to reclaim while I'm sure there're still plenty of memory which could =
+be
+>> reclaimed from background processes (For example, I run some C =
+programs
+>> which just malloc() lots of memory and get suspended in the =
+background.
+>> There's no reason they could't be swapped). The consequence is that =
+most of
+>> CPU time is spent on page reclamation. The system hangs or becomes =
+very
+>> laggy for a long period. Sometimes it even triggers a kernel panic by =
+the
+>> hung task detector like:
+>> <0>[46246.676366] Kernel panic - not syncing: hung_task: blocked =
+tasks
+>>=20
+>> I've added kernel message to trace the problem. I found =
+shrink_inactive_list()
+>> can barely find any page to reclaim. More precisely, when the problem
+>> happens, lots of page have _count > 2 in __remove_mapping(). So the
+>> condition at line 662 of vmscan.c holds:
+>> http://lxr.free-electrons.com/source/mm/vmscan.c#L662
+>> Thus the kernel fails to reclaim those pages at line 1209
+>> http://lxr.free-electrons.com/source/mm/vmscan.c#L1209
+>=20
+> I assume that you are talking about the anonymous LRU
+>=20
+>> It's weird that the inactive anonymous list is huge (several GB), but
+>> nothing can really be freed. So I did some hack to see if moving more =
+pages
+>> from the active list helps. I commented out the =
+"inactive_list_is_low()"
+>> checking at line 2420
+>> in shrink_node_memcg() so shrink_active_list() is always called.
+>> http://lxr.free-electrons.com/source/mm/vmscan.c#L2420
+>> It turns out that the hack helps. If moving more pages from the =
+active
+>> list, kswapd works smoothly. The whole 12G zram can be used up before
+>> system enters OOM condition.
+>>=20
+>> Any idea why the whole inactive anonymous LRU is occupied by pages =
+which
+>> can not be freed for la long time (several minutes before system =
+dies) ?
+>> Are there any parameters I can tune to help the situation ? I've =
+tried
+>> swappiness but it doesn't help.
+>>=20
+>> An alternative is to patch the kernel to call shrink_active_list() =
+more
+>> frequently when it finds there's nothing that can be reclaimed . But =
+I am
+>> not sure if it's the right direction. Also it's not so trivial to =
+figure
+>> out where to add the call.
+>>=20
+>> Thanks,
+>> Cheng-Yu
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
