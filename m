@@ -1,64 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F506B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 16:58:49 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id d140so9178068wmd.4
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 13:58:49 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j53si8672467wra.334.2017.01.12.13.58.47
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 394DE6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:43:05 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id a194so5782579oib.5
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 14:43:05 -0800 (PST)
+Received: from mail-ot0-x232.google.com (mail-ot0-x232.google.com. [2607:f8b0:4003:c0f::232])
+        by mx.google.com with ESMTPS id 61si4184549otp.77.2017.01.12.14.43.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 13:58:47 -0800 (PST)
-Subject: Re: [LSF/MM ATTEND] 2017 userfaultfd-WP, node reclaim vs zone
- compaction, THP
-References: <20170112192611.GO4947@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <73b60b0a-33c2-739c-3d1e-d74b73f204e9@suse.cz>
-Date: Thu, 12 Jan 2017 22:58:46 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jan 2017 14:43:04 -0800 (PST)
+Received: by mail-ot0-x232.google.com with SMTP id 65so3675120otq.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 14:43:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170112192611.GO4947@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 12 Jan 2017 14:43:03 -0800
+Message-ID: <CAPcyv4hWNL7=MmnUj65A+gz=eHAnUrVzqV+24QiNQDW--ag8WQ@mail.gmail.com>
+Subject: [LSF/MM TOPIC] Memory hotplug, ZONE_DEVICE, and the future of struct page
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org
+Cc: Stephen Bates <sbates@raithlin.com>, Logan Gunthorpe <logang@deltatee.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 
-On 01/12/2017 08:26 PM, Andrea Arcangeli wrote:
-> 2) the s/zone/node/ conversion of the page LRU feels still incomplete,
->    as compaction still works zone based and can't compact memory
->    crossing the zone boundaries. While it's is simpler to do
->    compaction that way, it's not ideal because reclaim works node
->    based.
+Back when we were first attempting to support DMA for DAX mappings of
+persistent memory the plan was to forgo 'struct page' completely and
+develop a pfn-to-scatterlist capability for the dma-mapping-api. That
+effort died in this thread:
 
-I don't think it's that big issue. Node based reclaim is better than zone based 
-because it avoids imbalanced aging between zones. Zone-based compaction doesn't 
-have such problem.
+    https://lkml.org/lkml/2015/8/14/3
 
->    To avoid dropping some patches that implement "compaction aware
->    zone_reclaim_mode" (i.e. now node_reclaim_mode) I'm still running
->    with zone LRU, although I don't disagree with the node LRU per se,
->    my only issue is that compaction still work zone based and that
->    collides with those changes.
->
->    With reclaim working node based and compaction working zone
->    based, I would need to call a blind for_each_zone(node)
->    compaction() loop which is far from ideal compared to compaction
->    crossing the zone boundary.
+...where we learned that the dependencies on struct page for dma
+mapping are deeper than a PFN_PHYS() conversion for some
+architectures. That was the moment we pivoted to ZONE_DEVICE and
+arranged for a 'struct page' to be available for any persistent memory
+range that needs to be the target of DMA. ZONE_DEVICE enables any
+device-driver that can target "System RAM" to also be able to target
+persistent memory through a DAX mapping.
 
-Compaction does a lot of watermark checking, which is also per-zone based, so we 
-would likely have to do these for_each_zone() dances for the watermark checks, 
-I'm afraid. At the same time it should make sure that it doesn't exhaust free 
-pages of each single zone below the watermark. The result would look ugly, 
-unless we switch to per-node watermarks.
+Since that time the "page-less" DAX path has continued to mature [1]
+without growing new dependencies on struct page, but at the same time
+continuing to rely on ZONE_DEVICE to satisfy get_user_pages().
 
->    Most pages that can be migrated by
->    compaction can go in any zone, not all but we could record the page
->    classzone.
+Peer-to-peer DMA appears to be evolving from a niche embedded use case
+to something general purpose platforms will need to comprehend. The
+"map_peer_resource" [2] approach looks to be headed to the same
+destination as the pfn-to-scatterlist effort. It's difficult to avoid
+'struct page' for describing DMA operations without custom driver
+code.
 
-Finding space for that in struct page also wouldn't be easy.
+With that background, a statement and a question to discuss at LSF/MM:
 
-What benefits do you expect from this?
+General purpose DMA, i.e. any DMA setup through the dma-mapping-api,
+requires pfn_to_page() support across the entire physical address
+range mapped.
+
+Is ZONE_DEVICE the proper vehicle for this? We've already seen that it
+collides with platform alignment assumptions [3], and if there's a
+wider effort to rework memory hotplug [4] it seems DMA support should
+be part of the discussion.
+
+---
+
+This topic focuses on the mechanism to enable pfn_to_page() for an
+arbitrary physical address range, and the proposed peer-to-peer DMA
+topic [5] touches on the userspace presentation of this mechanism. I
+might be good to combine these topics if there's interest? In any
+event, I'm interested in both as well Michal's concern about memory
+hotplug in general.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2016-November/007672.html
+[2]: http://www.spinics.net/lists/linux-pci/msg44560.html
+[3]: https://lkml.org/lkml/2016/12/1/740
+[4]: http://www.spinics.net/lists/linux-mm/msg119369.html
+[5]: http://marc.info/?l=linux-mm&m=148156541804940&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
