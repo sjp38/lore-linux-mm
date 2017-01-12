@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25EC86B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:34:20 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id t8so13266996vke.3
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:34:20 -0800 (PST)
-Received: from mail-vk0-x22c.google.com (mail-vk0-x22c.google.com. [2607:f8b0:400c:c05::22c])
-        by mx.google.com with ESMTPS id 90si2626523uan.187.2017.01.12.08.34.19
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 85CBA6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:38:04 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id q20so32664461ioi.0
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:38:04 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id f128si8574764ioe.103.2017.01.12.08.38.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 08:34:19 -0800 (PST)
-Received: by mail-vk0-x22c.google.com with SMTP id x75so15944364vke.2
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:34:19 -0800 (PST)
+        Thu, 12 Jan 2017 08:38:03 -0800 (PST)
+Date: Thu, 12 Jan 2017 17:37:57 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 06/15] lockdep: Make save_trace can skip stack tracing
+ of the current
+Message-ID: <20170112163757.GC3144@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-7-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <20170111173802.GK16365@dhcp22.suse.cz>
-References: <CAPJVTTimt2CeiiX868+EY2HbbWmKsG05u7QOBbuTb74f-ZrpPQ@mail.gmail.com>
- <20170111173802.GK16365@dhcp22.suse.cz>
-From: Cheng-yu Lee <cylee@google.com>
-Date: Fri, 13 Jan 2017 00:34:18 +0800
-Message-ID: <CAPJVTTgf=gDHQr7iF1+NQtEer_dGAH2Bw0e1rKnNz9Enj7Fnaw@mail.gmail.com>
-Subject: Re: shrink_inactive_list() failed to reclaim pages
-Content-Type: multipart/alternative; boundary=001a114d6606f3c5fd0545e849ce
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1481260331-360-7-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Luigi Semenzato <semenzato@google.com>, Ben Cheng <bccheng@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
---001a114d6606f3c5fd0545e849ce
-Content-Type: text/plain; charset=UTF-8
+On Fri, Dec 09, 2016 at 02:12:02PM +0900, Byungchul Park wrote:
+> Currently, save_trace() always performs save_stack_trace() for the
+> current. However, crossrelease needs to use stack trace data of another
+> context instead of the current. So add a parameter for skipping stack
+> tracing of the current and make it use trace data, which is already
+> saved by crossrelease framework.
+> 
+> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> ---
+>  kernel/locking/lockdep.c | 33 ++++++++++++++++++++-------------
+>  1 file changed, 20 insertions(+), 13 deletions(-)
+> 
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index 3eaa11c..11580ec 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -387,15 +387,22 @@ static void print_lockdep_off(const char *bug_msg)
+>  #endif
+>  }
+>  
+> -static int save_trace(struct stack_trace *trace)
+> +static int save_trace(struct stack_trace *trace, int skip_tracing)
+>  {
+> -	trace->nr_entries = 0;
+> -	trace->max_entries = MAX_STACK_TRACE_ENTRIES - nr_stack_trace_entries;
+> -	trace->entries = stack_trace + nr_stack_trace_entries;
+> +	unsigned int nr_avail = MAX_STACK_TRACE_ENTRIES - nr_stack_trace_entries;
+>  
+> -	trace->skip = 3;
+> -
+> -	save_stack_trace(trace);
+> +	if (skip_tracing) {
+> +		trace->nr_entries = min(trace->nr_entries, nr_avail);
+> +		memcpy(stack_trace + nr_stack_trace_entries, trace->entries,
+> +				trace->nr_entries * sizeof(trace->entries[0]));
+> +		trace->entries = stack_trace + nr_stack_trace_entries;
+> +	} else {
+> +		trace->nr_entries = 0;
+> +		trace->max_entries = nr_avail;
+> +		trace->entries = stack_trace + nr_stack_trace_entries;
+> +		trace->skip = 3;
+> +		save_stack_trace(trace);
+> +	}
+>  
+>  	/*
+>  	 * Some daft arches put -1 at the end to indicate its a full trace.
 
->
-> > I have a x86_64 Chromebook running 3.14 kernel with 8G of memory. Using
->
-> Do you see the same with the current Linus tree?
->
-
-I haven't tried on ToT because it takes much effort to port to the specific
-device.
-But I've managed to try it on v4.4 .
-Surprisingly the problem goes away.
-
-
-
-> > Thus the kernel fails to reclaim those pages at line 1209
-> > http://lxr.free-electrons.com/source/mm/vmscan.c#L1209
->
-> I assume that you are talking about the anonymous LRU
->
-
-Yes, I mean anonymous LRU.
-
---001a114d6606f3c5fd0545e849ce
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote"><blo=
-ckquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #c=
-cc solid;padding-left:1ex"><span class=3D"">&gt; I have a x86_64 Chromebook=
- running 3.14 kernel with 8G of memory. Using<br>
-<br>
-</span>Do you see the same with the current Linus tree?<br></blockquote><di=
-v><br></div><div>I haven&#39;t tried on ToT because it takes much effort to=
- port to the specific device.</div><div>But I&#39;ve managed to try it on v=
-4.4 .=C2=A0</div><div>Surprisingly the problem goes away.</div><div><br></d=
-iv><div>=C2=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0=
- .8ex;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">
-&gt; Thus the kernel fails to reclaim those pages at line 1209<br>
-&gt; <a href=3D"http://lxr.free-electrons.com/source/mm/vmscan.c#L1209" rel=
-=3D"noreferrer" target=3D"_blank">http://lxr.free-electrons.com/<wbr>source=
-/mm/vmscan.c#L1209</a><br>
-<br>
-</span>I assume that you are talking about the anonymous LRU<br></blockquot=
-e><div><br></div><div>Yes, I mean anonymous LRU.</div></div></div></div>
-
---001a114d6606f3c5fd0545e849ce--
+That's pretty nasty semantics.. so when skip_tracing it modifies trace
+in-place.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
