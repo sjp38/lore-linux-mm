@@ -1,80 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7D36B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:47:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c73so61331882pfb.7
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:47:19 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id r39si9763636pld.128.2017.01.12.08.47.18
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 182FE6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:51:09 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id l7so18284665qtd.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:51:09 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z21si9768209pgi.50.2017.01.12.08.51.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 08:47:18 -0800 (PST)
-Date: Thu, 12 Jan 2017 08:47:18 -0800
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: Re: [PATCH v5 3/9] mm/swap: Split swap cache into 64MB trunks
-Message-ID: <20170112164717.GA26499@linux.intel.com>
-Reply-To: tim.c.chen@linux.intel.com
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <735bab895e64c930581ffb0a05b661e01da82bc5.1484082593.git.tim.c.chen@linux.intel.com>
- <20170111150940.25d951a121a62e1b7eff6f8d@linux-foundation.org>
- <20170111231937.GH8388@tassilo.jf.intel.com>
+        Thu, 12 Jan 2017 08:51:08 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+ <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+ <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
+ <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
+ <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
+ <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <b480fdcc-e08a-eea7-9bac-12bc236422c6@oracle.com>
+Date: Thu, 12 Jan 2017 09:50:35 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Q68bSM7Ycu6FN28Q"
-Content-Disposition: inline
-In-Reply-To: <20170111231937.GH8388@tassilo.jf.intel.com>
+In-Reply-To: <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
+On 01/11/2017 05:49 PM, Dave Hansen wrote:
+> On 01/11/2017 04:22 PM, Khalid Aziz wrote:
+> ...
+>> All of the tag coordination can happen in userspace. Once a process sets
+>> a tag on a physical page mapped in its address space, another process
+>> that has mapped the same physical page in its address space can only set
+>> the tag to exact same value. Attempts to set a different tag are caught
+>> by memory controller and result in MCD trap and kernel sends SIGSEGV to
+>> the process trying to set a different tag.
+>
+> Again, I don't think these semantics will work for anything other than
+> explicitly shared memory.  This behavior ensures that it is *entirely*
+> unsafe to use ADI on any data that any process you do not control might
+> be able to mmap().  That's a *HUGE* caveat for the feature and can't
+> imagine ever seeing this get merged without addressing it.
+>
+> I think it's fairly simple to address, though a bit expensive.  First,
+> you can't allow the VMA bit to get set on non-writable mappings.
+> Second, you'll have to force COW to occur on read-only pages in writable
+> mappings before the PTE bit can get set.  I think you can probably even
+> do this in the faults that presumably occur when you try to set ADI tags
+> on memory mapped with non-ADI PTEs.
 
---Q68bSM7Ycu6FN28Q
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi Dave,
 
-On Wed, Jan 11, 2017 at 03:19:37PM -0800, Andi Kleen wrote:
-> > Switching from a single radix-tree to an array of radix-trees to reduce
-> > contention seems a bit hacky.  That we can do this and have everything
-> > continue to work tells me that we're simply using an inappropriate data
-> > structure to hold this info.
->=20
-> What would you use instead?
+You have brought up an interesting scenario with COW pages. I had 
+started out with the following policies regarding ADI that made sense:
 
-I agree that this approach is a bit hacky.  However, it is pretty
-effective and simple.  If later on we come up with a better solution to
-scale modfication of the radix tree, we can collapse the radix trees.
+1. New data pages do not get full ADI protection by default, i.e. 
+TTE.mcd is not set and tags are not set on the new pages. A task that 
+creates a new data page must make decision to protect these new pages or 
+not.
 
-I think developing a scalable radix tree with write modifications will
-take quite a while and is a non-trivial effort. With almost memory speed
-SSDs coming on the market soon, I think having a workable solution now
-and optimizing it for long term is reasonabale.
+2. Any shared page that has ADI protection enabled on it, must stay ADI 
+protected across all processes sharing it.
 
-Tim
+COW creates an intersection of the two. It creates a new copy of the 
+shared data. It is a new data page and hence the process creating it 
+must be the one responsible for enabling ADI protection on it. It is 
+also a copy of what was ADI protected data, so should it inherit the 
+protection instead?
 
+I misspoke earlier. I had misinterpreted the results of test I ran. 
+Changing the tag on shared memory is allowed by memory controller. The 
+requirement is every one sharing the page must switch to the new tag or 
+else they get SIGSEGV.
 
---Q68bSM7Ycu6FN28Q
-Content-Type: application/pgp-signature; name="signature.asc"
+I am inclined to suggest we copy the tags to the new data page on COW 
+and that will continue to enforce ADI on the COW'd pages even though 
+COW'd pages are new data pages. This is the logically consistent 
+behavior. Does that make sense?
 
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJYd7MVAAoJEKJntYqi1rhJ37gP+gMpkfG7NapantPNemSYIdLh
-b/h5HDj83mCZ5kZjygBKkYtSn+IbBbMWdMmtKRZlDBcKfrx+AS50Rbdw8MoJqGsv
-i0p1NwNv9gdhETq3NdT3EVJA3Ot2oj8wDPf4hRvJNPuoz+2OeLZfN5rsJ7GHlFMz
-0POIJZVE3Qxw95A4y4IHaf2il4kc/ATDBUA03eSCL/fw/EOPB9vgY19sdxOcVvGP
-wpn0B3u/FS3OzFZ6G/nLKyof0dAYgHQ9wC6j1Nv4+mEZmlHBCa2gjYgMakSjKuXN
-T+BV5fLOef7eDdQnUeKuvknxkTrSfoFo/004cgM3FHabN3O8GmZmUVqt1bdh0e1g
-45hgOEZsJNdPXvA7Ap9JyIso9zGnPhvgJKdnBS6bHVLR2LCR8BiIlswxx783elM/
-+lvB0Ije8zj4vOF5mfQXk/7Mi8UAAgrk9nEdDRDlPkgNfGursTF88dfhJpcsNngV
-eMCfYJwPoCNLLEeTCnsR9U3s9Gws9JN1JpoH3A9hXUdNpJLK3WRqkJnSOk1D0tfK
-jKosZiQC8y+aQ4iuzguLqmmjzereMLfBi5BXxpiek87r7bwKL5e/+dv/wGlaHeEu
-pv1Tv5Q1+E+dbJ2z4ipNCxpxXitAFJr8ul4aFcUVrhoGoe2g84D2ykzB786+emS7
-gPm4I7//CrNh8TXGqwfV
-=FkNN
------END PGP SIGNATURE-----
-
---Q68bSM7Ycu6FN28Q--
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
