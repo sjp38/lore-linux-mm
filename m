@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 54F306B0253
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 15:11:25 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id l2so8423946wml.5
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:11:25 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
-        by mx.google.com with ESMTPS id c134si2962867wme.33.2017.01.12.12.11.23
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8014B6B0253
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 15:15:14 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id w194so37603189ybe.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:15:14 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id s22si2975729ybs.151.2017.01.12.12.15.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 12:11:24 -0800 (PST)
-Subject: Re: [RFC PATCH 3/4] arch, mm: remove arch specific show_mem
-References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-4-mhocko@kernel.org>
-From: Helge Deller <deller@gmx.de>
-Message-ID: <2ca95061-4fb3-9f15-1f99-22e3ddd927dc@gmx.de>
-Date: Thu, 12 Jan 2017 21:04:18 +0100
+        Thu, 12 Jan 2017 12:15:13 -0800 (PST)
+Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
+ variants
+References: <20170112153717.28943-1-mhocko@kernel.org>
+ <20170112153717.28943-6-mhocko@kernel.org>
+From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Message-ID: <09bbc480-1490-da27-732c-046e0ebfa89f@oracle.com>
+Date: Thu, 12 Jan 2017 15:14:54 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170112131659.23058-4-mhocko@kernel.org>
+In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
 Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
 
-On 12.01.2017 14:16, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> We have a generic implementation for quite some time already. If there
-> is any arch specific information to be printed then we should add a
-> callback called from the generic code rather than duplicate the whole
-> show_mem. The current code has resulted in the code duplication and
-> the output divergence which is both confusing and adds maintainance
-> costs. Let's just get rid of this mess.
-> 
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
-> Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-> Cc: Helge Deller <deller@gmx.de>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Chris Metcalf <cmetcalf@mellanox.com>
-> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linux-parisc@vger.kernel.org
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  arch/ia64/mm/init.c      | 48 -----------------------------------------------
->  arch/parisc/mm/init.c    | 49 ------------------------------------------------
->  arch/sparc/mm/init_32.c  | 11 -----------
->  arch/tile/mm/pgtable.c   | 45 --------------------------------------------
->  arch/unicore32/mm/init.c | 44 -------------------------------------------
->  5 files changed, 197 deletions(-)
 
-Thanks!
+> diff --git a/drivers/xen/evtchn.c b/drivers/xen/evtchn.c
+> index 6890897a6f30..10f1ef582659 100644
+> --- a/drivers/xen/evtchn.c
+> +++ b/drivers/xen/evtchn.c
+> @@ -87,18 +87,6 @@ struct user_evtchn {
+>  	bool enabled;
+>  };
+> =20
+> -static evtchn_port_t *evtchn_alloc_ring(unsigned int size)
+> -{
+> -	evtchn_port_t *ring;
+> -	size_t s =3D size * sizeof(*ring);
+> -
+> -	ring =3D kmalloc(s, GFP_KERNEL);
+> -	if (!ring)
+> -		ring =3D vmalloc(s);
+> -
+> -	return ring;
+> -}
+> -
+>  static void evtchn_free_ring(evtchn_port_t *ring)
+>  {
+>  	kvfree(ring);
+> @@ -334,7 +322,7 @@ static int evtchn_resize_ring(struct per_user_data =
+*u)
+>  	else
+>  		new_size =3D 2 * u->ring_size;
+> =20
+> -	new_ring =3D evtchn_alloc_ring(new_size);
+> +	new_ring =3D kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
+>  	if (!new_ring)
+>  		return -ENOMEM;
+> =20
 
-Acked-by: Helge Deller <deller@gmx.de> [for parisc] 
+Xen bits:
+
+Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
