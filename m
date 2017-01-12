@@ -1,161 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B84A6B0069
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:51:10 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id f4so19468133qte.1
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:51:10 -0800 (PST)
-Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
-        by mx.google.com with ESMTPS id j22si6590848qtj.123.2017.01.12.09.51.09
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 472356B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 12:53:29 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so64371086pfa.3
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:53:29 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id n8si9904760pgc.160.2017.01.12.09.53.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 09:51:09 -0800 (PST)
-Received: by mail-qt0-x242.google.com with SMTP id n13so3286630qtc.0
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 09:51:09 -0800 (PST)
+        Thu, 12 Jan 2017 09:53:28 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+ <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+ <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
+ <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
+ <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
+ <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
+ <b480fdcc-e08a-eea7-9bac-12bc236422c6@oracle.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <b0a6341d-fb85-9f50-4803-304f3e28b4ab@linux.intel.com>
+Date: Thu, 12 Jan 2017 09:53:24 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170111215242.53cb8fab64beec599dcea847@gmail.com>
-References: <20170111155948.aa61c5b995b6523caf87d862@gmail.com>
- <20170111160622.44ac261b12ed4778556c56dc@gmail.com> <CALZtONDmfWaJ2u-dO4BGnK0jztOGMEKb8WxEZ1iEurAdkMoxGA@mail.gmail.com>
- <CAMJBoFNyo2KRvECFNwd9_5nVtLaQ3gP86aHAP3tud+3i33AXXg@mail.gmail.com> <20170111215242.53cb8fab64beec599dcea847@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 12 Jan 2017 12:50:29 -0500
-Message-ID: <CALZtOND2DVUNAAO-F-Pg2Q4mY_qv9=NaW9DzNa4jw_zVkeJY+w@mail.gmail.com>
-Subject: Re: [PATCH/RESEND v2 3/5] z3fold: extend compaction function
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <b480fdcc-e08a-eea7-9bac-12bc236422c6@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 11, 2017 at 3:52 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> On Wed, 11 Jan 2017 17:43:13 +0100
-> Vitaly Wool <vitalywool@gmail.com> wrote:
->
->> On Wed, Jan 11, 2017 at 5:28 PM, Dan Streetman <ddstreet@ieee.org> wrote:
->> > On Wed, Jan 11, 2017 at 10:06 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
->> >> z3fold_compact_page() currently only handles the situation when
->> >> there's a single middle chunk within the z3fold page. However it
->> >> may be worth it to move middle chunk closer to either first or
->> >> last chunk, whichever is there, if the gap between them is big
->> >> enough.
->> >>
->> >> This patch adds the relevant code, using BIG_CHUNK_GAP define as
->> >> a threshold for middle chunk to be worth moving.
->> >>
->> >> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
->> >> ---
->> >>  mm/z3fold.c | 26 +++++++++++++++++++++++++-
->> >>  1 file changed, 25 insertions(+), 1 deletion(-)
->> >>
->> >> diff --git a/mm/z3fold.c b/mm/z3fold.c
->> >> index 98ab01f..fca3310 100644
->> >> --- a/mm/z3fold.c
->> >> +++ b/mm/z3fold.c
->> >> @@ -268,6 +268,7 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
->> >>                        zhdr->middle_chunks << CHUNK_SHIFT);
->> >>  }
->> >>
->> >> +#define BIG_CHUNK_GAP  3
->> >>  /* Has to be called with lock held */
->> >>  static int z3fold_compact_page(struct z3fold_header *zhdr)
->> >>  {
->> >> @@ -286,8 +287,31 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
->> >>                 zhdr->middle_chunks = 0;
->> >>                 zhdr->start_middle = 0;
->> >>                 zhdr->first_num++;
->> >> +               return 1;
->> >>         }
->> >> -       return 1;
->> >> +
->> >> +       /*
->> >> +        * moving data is expensive, so let's only do that if
->> >> +        * there's substantial gain (at least BIG_CHUNK_GAP chunks)
->> >> +        */
->> >> +       if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
->> >> +           zhdr->start_middle - (zhdr->first_chunks + ZHDR_CHUNKS) >=
->> >> +                       BIG_CHUNK_GAP) {
->> >> +               mchunk_memmove(zhdr, zhdr->first_chunks + 1);
->> >> +               zhdr->start_middle = zhdr->first_chunks + 1;
->> >
->> > this should be first_chunks + ZHDR_CHUNKS, not + 1.
->> >
->> >> +               return 1;
->> >> +       } else if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
->> >> +                  TOTAL_CHUNKS - (zhdr->last_chunks + zhdr->start_middle
->> >> +                                       + zhdr->middle_chunks) >=
->> >> +                       BIG_CHUNK_GAP) {
->> >> +               unsigned short new_start = NCHUNKS - zhdr->last_chunks -
->> >
->> > this should be TOTAL_CHUNKS, not NCHUNKS.
->>
->> Right :/
->
-> So here we go:
->
->
-> z3fold_compact_page() currently only handles the situation when
-> there's a single middle chunk within the z3fold page. However it
-> may be worth it to move middle chunk closer to either first or
-> last chunk, whichever is there, if the gap between them is big
-> enough.
->
-> This patch adds the relevant code, using BIG_CHUNK_GAP define as
-> a threshold for middle chunk to be worth moving.
->
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+On 01/12/2017 08:50 AM, Khalid Aziz wrote:
+> 2. Any shared page that has ADI protection enabled on it, must stay ADI
+> protected across all processes sharing it.
 
-Acked-by: Dan Streetman <ddstreet@ieee.org>
+Is that true?
 
-> ---
->  mm/z3fold.c | 26 +++++++++++++++++++++++++-
->  1 file changed, 25 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 98ab01f..fca3310 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -268,6 +268,7 @@ static inline void *mchunk_memmove(struct z3fold_header *zhdr,
->                        zhdr->middle_chunks << CHUNK_SHIFT);
->  }
->
-> +#define BIG_CHUNK_GAP  3
->  /* Has to be called with lock held */
->  static int z3fold_compact_page(struct z3fold_header *zhdr)
->  {
-> @@ -286,8 +287,31 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
->                 zhdr->middle_chunks = 0;
->                 zhdr->start_middle = 0;
->                 zhdr->first_num++;
-> +               return 1;
->         }
-> -       return 1;
-> +
-> +       /*
-> +        * moving data is expensive, so let's only do that if
-> +        * there's substantial gain (at least BIG_CHUNK_GAP chunks)
-> +        */
-> +       if (zhdr->first_chunks != 0 && zhdr->last_chunks == 0 &&
-> +           zhdr->start_middle - (zhdr->first_chunks + ZHDR_CHUNKS) >=
-> +                       BIG_CHUNK_GAP) {
-> +               mchunk_memmove(zhdr, zhdr->first_chunks + ZHDR_CHUNKS);
-> +               zhdr->start_middle = zhdr->first_chunks + ZHDR_CHUNKS;
-> +               return 1;
-> +       } else if (zhdr->last_chunks != 0 && zhdr->first_chunks == 0 &&
-> +                  TOTAL_CHUNKS - (zhdr->last_chunks + zhdr->start_middle
-> +                                       + zhdr->middle_chunks) >=
-> +                       BIG_CHUNK_GAP) {
-> +               unsigned short new_start = TOTAL_CHUNKS - zhdr->last_chunks -
-> +                       zhdr->middle_chunks;
-> +               mchunk_memmove(zhdr, new_start);
-> +               zhdr->start_middle = new_start;
-> +               return 1;
-> +       }
-> +
-> +       return 0;
->  }
->
->  /**
-> --
-> 2.4.2
+What happens if a page with ADI tags set is accessed via a PTE without
+the ADI enablement bit set?
+
+> COW creates an intersection of the two. It creates a new copy of the
+> shared data. It is a new data page and hence the process creating it
+> must be the one responsible for enabling ADI protection on it.
+
+Do you mean that the application must be responsible?  Or the kernel
+running in the context of the new process must be responsible?
+
+> It is also a copy of what was ADI protected data, so should it
+> inherit the protection instead?
+
+I think the COW'd copy must inherit the VMA bit, the PTE bits, and the
+tags on the cachelines.
+
+> I misspoke earlier. I had misinterpreted the results of test I ran.
+> Changing the tag on shared memory is allowed by memory controller. The
+> requirement is every one sharing the page must switch to the new tag or
+> else they get SIGSEGV.
+
+I asked this in the last mail, but I guess I'll ask it again.  Please
+answer this directly.
+
+If we require that everyone coordinate their tags on the backing
+physical memory, and we allow a lower-privileged program to access the
+same data as a more-privileged one, then the lower-privilege app can
+cause arbitrary crashes in the privileged application.
+
+For instance, say sudo mmap()'s /etc/passwd and uses ADI tags to protect
+the mapping.  Couldn't any other app in the system prevent sudo from
+working?
+
+How can we *EVER* allow tags to be set on non-writable mappings?
+
+> I am inclined to suggest we copy the tags to the new data page on COW
+> and that will continue to enforce ADI on the COW'd pages even though
+> COW'd pages are new data pages. This is the logically consistent
+> behavior. Does that make sense?
+
+Yes, I think this is what you have to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
