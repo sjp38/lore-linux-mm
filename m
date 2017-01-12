@@ -1,73 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 852986B0268
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:06:16 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id s63so5756568wms.7
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:06:16 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p26si7639289wrp.311.2017.01.12.08.06.15
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A16066B0261
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:12:04 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id l7so17627525qtd.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:12:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o38si6365822qkh.312.2017.01.12.08.12.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 08:06:15 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id v0CG42ag119163
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:06:14 -0500
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 27xb1cwjyk-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:06:13 -0500
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 12 Jan 2017 09:06:13 -0700
-Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
- variants
+        Thu, 12 Jan 2017 08:12:03 -0800 (PST)
+Date: Thu, 12 Jan 2017 18:12:01 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 2/6] mm: support __GFP_REPEAT in kvmalloc_node for >=64kB
+Message-ID: <20170112181142-mutt-send-email-mst@kernel.org>
 References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-6-mhocko@kernel.org>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Thu, 12 Jan 2017 17:05:58 +0100
+ <20170112153717.28943-3-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <1a293278-63ab-c54d-0872-0bed42e9710e@de.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170112153717.28943-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 01/12/2017 04:37 PM, Michal Hocko wrote:
-> diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
-> index 4f74511015b8..e6bbb33d2956 100644
-> --- a/arch/s390/kvm/kvm-s390.c
-> +++ b/arch/s390/kvm/kvm-s390.c
-> @@ -1126,10 +1126,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
->  	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
->  		return -EINVAL;
+On Thu, Jan 12, 2017 at 04:37:13PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> -	keys = kmalloc_array(args->count, sizeof(uint8_t),
-> -			     GFP_KERNEL | __GFP_NOWARN);
-> -	if (!keys)
-> -		keys = vmalloc(sizeof(uint8_t) * args->count);
-> +	keys = kvmalloc(args->count * sizeof(uint8_t), GFP_KERNEL);
->  	if (!keys)
+> vhost code uses __GFP_REPEAT when allocating vhost_virtqueue resp.
+> vhost_vsock because it would really like to prefer kmalloc to the
+> vmalloc fallback - see 23cc5a991c7a ("vhost-net: extend device
+> allocation to vmalloc") for more context. Michael Tsirkin has also
+> noted:
+> "
+> __GFP_REPEAT overhead is during allocation time.  Using vmalloc means all
+> accesses are slowed down.  Allocation is not on data path, accesses are.
+> "
+> 
+> The similar applies to other vhost_kvzalloc users.
+> 
+> Let's teach kvmalloc_node to handle __GFP_REPEAT properly. There are two
+> things to be careful about. First we should prevent from the OOM killer
+> and so have to involve __GFP_NORETRY by default and secondly override
+> __GFP_REPEAT for !costly order requests as the __GFP_REPEAT is ignored
+> for !costly orders.
+> 
+> Supporting __GFP_REPEAT like semantic for !costly request is possible
+> it would require changes in the page allocator. This is out of scope of
+> this patch.
+> 
+> This patch shouldn't introduce any functional change.
+> 
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
+
+> ---
+>  drivers/vhost/net.c   |  9 +++------
+>  drivers/vhost/vhost.c | 15 +++------------
+>  drivers/vhost/vsock.c |  9 +++------
+>  mm/util.c             | 17 ++++++++++++++---
+>  4 files changed, 23 insertions(+), 27 deletions(-)
+> 
+> diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+> index 5dc34653274a..105cd04c7414 100644
+> --- a/drivers/vhost/net.c
+> +++ b/drivers/vhost/net.c
+> @@ -797,12 +797,9 @@ static int vhost_net_open(struct inode *inode, struct file *f)
+>  	struct vhost_virtqueue **vqs;
+>  	int i;
+>  
+> -	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -	if (!n) {
+> -		n = vmalloc(sizeof *n);
+> -		if (!n)
+> -			return -ENOMEM;
+> -	}
+> +	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_REPEAT);
+> +	if (!n)
+> +		return -ENOMEM;
+>  	vqs = kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
+>  	if (!vqs) {
+>  		kvfree(n);
+> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+> index d6432603880c..d2bf8a41f55e 100644
+> --- a/drivers/vhost/vhost.c
+> +++ b/drivers/vhost/vhost.c
+> @@ -515,18 +515,9 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
+>  }
+>  EXPORT_SYMBOL_GPL(vhost_dev_set_owner);
+>  
+> -static void *vhost_kvzalloc(unsigned long size)
+> -{
+> -	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -
+> -	if (!n)
+> -		n = vzalloc(size);
+> -	return n;
+> -}
+> -
+>  struct vhost_umem *vhost_dev_reset_owner_prepare(void)
+>  {
+> -	return vhost_kvzalloc(sizeof(struct vhost_umem));
+> +	return kvzalloc(sizeof(struct vhost_umem), GFP_KERNEL);
+>  }
+>  EXPORT_SYMBOL_GPL(vhost_dev_reset_owner_prepare);
+>  
+> @@ -1190,7 +1181,7 @@ EXPORT_SYMBOL_GPL(vhost_vq_access_ok);
+>  
+>  static struct vhost_umem *vhost_umem_alloc(void)
+>  {
+> -	struct vhost_umem *umem = vhost_kvzalloc(sizeof(*umem));
+> +	struct vhost_umem *umem = kvzalloc(sizeof(*umem), GFP_KERNEL);
+>  
+>  	if (!umem)
+>  		return NULL;
+> @@ -1216,7 +1207,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
+>  		return -EOPNOTSUPP;
+>  	if (mem.nregions > max_mem_regions)
+>  		return -E2BIG;
+> -	newmem = vhost_kvzalloc(size + mem.nregions * sizeof(*m->regions));
+> +	newmem = kvzalloc(size + mem.nregions * sizeof(*m->regions), GFP_KERNEL);
+>  	if (!newmem)
 >  		return -ENOMEM;
-> 
-> @@ -1171,10 +1168,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
->  	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
->  		return -EINVAL;
-> 
-> -	keys = kmalloc_array(args->count, sizeof(uint8_t),
-> -			     GFP_KERNEL | __GFP_NOWARN);
-> -	if (!keys)
-> -		keys = vmalloc(sizeof(uint8_t) * args->count);
-> +	keys = kvmalloc(sizeof(uint8_t) * args->count, GFP_KERNEL);
->  	if (!keys)
->  		return -ENOMEM;
-
-KVM/s390 parts
-
-Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
+>  
+> diff --git a/drivers/vhost/vsock.c b/drivers/vhost/vsock.c
+> index bbbf588540ed..7e0159867553 100644
+> --- a/drivers/vhost/vsock.c
+> +++ b/drivers/vhost/vsock.c
+> @@ -455,12 +455,9 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
+>  	/* This struct is large and allocation could fail, fall back to vmalloc
+>  	 * if there is no other way.
+>  	 */
+> -	vsock = kzalloc(sizeof(*vsock), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -	if (!vsock) {
+> -		vsock = vmalloc(sizeof(*vsock));
+> -		if (!vsock)
+> -			return -ENOMEM;
+> -	}
+> +	vsock = kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_REPEAT);
+> +	if (!vsock)
+> +		return -ENOMEM;
+>  
+>  	vqs = kmalloc_array(ARRAY_SIZE(vsock->vqs), sizeof(*vqs), GFP_KERNEL);
+>  	if (!vqs) {
+> diff --git a/mm/util.c b/mm/util.c
+> index 7e0c240b5760..9306244b9f41 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -333,7 +333,8 @@ EXPORT_SYMBOL(vm_mmap);
+>   * Uses kmalloc to get the memory but if the allocation fails then falls back
+>   * to the vmalloc allocator. Use kvfree for freeing the memory.
+>   *
+> - * Reclaim modifiers - __GFP_NORETRY, __GFP_REPEAT and __GFP_NOFAIL are not supported
+> + * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
+> + * is supported only for large (>64kB) allocations
+>   */
+>  void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+> @@ -350,8 +351,18 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  	 * Make sure that larger requests are not too disruptive - no OOM
+>  	 * killer and no allocation failure warnings as we have a fallback
+>  	 */
+> -	if (size > PAGE_SIZE)
+> -		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> +	if (size > PAGE_SIZE) {
+> +		kmalloc_flags |= __GFP_NOWARN;
+> +
+> +		/*
+> +		 * We have to override __GFP_REPEAT by __GFP_NORETRY for !costly
+> +		 * requests because there is no other way to tell the allocator
+> +		 * that we want to fail rather than retry endlessly.
+> +		 */
+> +		if (!(kmalloc_flags & __GFP_REPEAT) ||
+> +				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> +			kmalloc_flags |= __GFP_NORETRY;
+> +	}
+>  
+>  	ret = kmalloc_node(size, kmalloc_flags, node);
+>  
+> -- 
+> 2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
