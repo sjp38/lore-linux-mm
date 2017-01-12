@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E2C6B026D
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:29:43 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id a29so16467289qtb.6
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:29:43 -0800 (PST)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C4B586B026E
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:29:44 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id l7so16736003qtd.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:29:44 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p39si6319156qtp.30.2017.01.12.07.29.42
+        by mx.google.com with ESMTPS id o123si2153489qkd.196.2017.01.12.07.29.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 07:29:42 -0800 (PST)
+        Thu, 12 Jan 2017 07:29:43 -0800 (PST)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM v16 11/15] mm/hmm/migrate: add new boolean copy flag to migratepage() callback
-Date: Thu, 12 Jan 2017 11:30:38 -0500
-Message-Id: <1484238642-10674-12-git-send-email-jglisse@redhat.com>
+Subject: [HMM v16 12/15] mm/hmm/migrate: new memory migration helper for use with device memory v2
+Date: Thu, 12 Jan 2017 11:30:39 -0500
+Message-Id: <1484238642-10674-13-git-send-email-jglisse@redhat.com>
 In-Reply-To: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
 References: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,501 +21,643 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-Allow migration without copy in case destination page already have
-source page content. This is usefull for HMM migration to device
-where we copy page before doing the final migration step.
+This patch add a new memory migration helpers, which migrate memory
+backing a range of virtual address of a process to different memory
+(which can be allocated through special allocator). It differs from
+numa migration by working on a range of virtual address and thus by
+doing migration in chunk that can be large enough to use DMA engine
+or special copy offloading engine.
 
-This feature need carefull audit of filesystem code to make sure
-that no one can write to the source page while it is unmapped and
-locked. It should be safe for most filesystem but as precaution
-return error until support for device migration is added to them.
+Expected users are any one with heterogeneous memory where different
+memory have different characteristics (latency, bandwidth, ...). As
+an example IBM platform with CAPI bus can make use of this feature
+to migrate between regular memory and CAPI device memory. New CPU
+architecture with a pool of high performance memory not manage as
+cache but presented as regular memory (while being faster and with
+lower latency than DDR) will also be prime user of this patch.
+
+Migration to private device memory will be usefull for device that
+have large pool of such like GPU, NVidia plans to use HMM for that.
+
+Changed since v1:
+  - typos fix
+  - split early unmap optimization for page with single mapping
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- drivers/staging/lustre/lustre/llite/rw26.c |  8 +++--
- fs/aio.c                                   |  7 +++-
- fs/btrfs/disk-io.c                         | 11 ++++--
- fs/hugetlbfs/inode.c                       |  9 +++--
- fs/nfs/internal.h                          |  5 +--
- fs/nfs/write.c                             |  9 +++--
- fs/ubifs/file.c                            |  8 ++++-
- include/linux/balloon_compaction.h         |  3 +-
- include/linux/fs.h                         | 13 ++++---
- include/linux/migrate.h                    |  7 ++--
- mm/balloon_compaction.c                    |  2 +-
- mm/migrate.c                               | 56 +++++++++++++++++++-----------
- mm/zsmalloc.c                              | 12 ++++++-
- 13 files changed, 106 insertions(+), 44 deletions(-)
+ include/linux/hmm.h |  66 +++++++-
+ mm/Kconfig          |  13 ++
+ mm/migrate.c        | 460 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 536 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/staging/lustre/lustre/llite/rw26.c b/drivers/staging/lustre/lustre/llite/rw26.c
-index 26f3a37..5a225ca 100644
---- a/drivers/staging/lustre/lustre/llite/rw26.c
-+++ b/drivers/staging/lustre/lustre/llite/rw26.c
-@@ -43,6 +43,7 @@
- #include <linux/uaccess.h>
- 
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- #include <linux/fs.h>
- #include <linux/buffer_head.h>
- #include <linux/mpage.h>
-@@ -635,9 +636,12 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
- #ifdef CONFIG_MIGRATION
- static int ll_migratepage(struct address_space *mapping,
- 			  struct page *newpage, struct page *page,
--			  enum migrate_mode mode
--		)
-+			  enum migrate_mode mode, bool copy)
- {
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(newpage))
-+		return -EINVAL;
-+
- 	/* Always fail page migration until we have a proper implementation */
- 	return -EIO;
- }
-diff --git a/fs/aio.c b/fs/aio.c
-index 428484f..30cf06c 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -37,6 +37,7 @@
- #include <linux/blkdev.h>
- #include <linux/compat.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- #include <linux/ramfs.h>
- #include <linux/percpu-refcount.h>
- #include <linux/mount.h>
-@@ -366,13 +367,17 @@ static const struct file_operations aio_ring_fops = {
- 
- #if IS_ENABLED(CONFIG_MIGRATION)
- static int aio_migratepage(struct address_space *mapping, struct page *new,
--			struct page *old, enum migrate_mode mode)
-+			   struct page *old, enum migrate_mode mode, bool copy)
- {
- 	struct kioctx *ctx;
- 	unsigned long flags;
- 	pgoff_t idx;
- 	int rc;
- 
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(new))
-+		return -EINVAL;
-+
- 	rc = 0;
- 
- 	/* mapping->private_lock here protects against the kioctx teardown.  */
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 3a57f99..6ccd3c9 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -27,6 +27,7 @@
- #include <linux/kthread.h>
- #include <linux/slab.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- #include <linux/ratelimit.h>
- #include <linux/uuid.h>
- #include <linux/semaphore.h>
-@@ -1046,9 +1047,13 @@ static int btree_submit_bio_hook(struct inode *inode, struct bio *bio,
- 
- #ifdef CONFIG_MIGRATION
- static int btree_migratepage(struct address_space *mapping,
--			struct page *newpage, struct page *page,
--			enum migrate_mode mode)
-+			     struct page *newpage, struct page *page,
-+			     enum migrate_mode mode, bool copy)
- {
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(newpage))
-+		return -EINVAL;
-+
- 	/*
- 	 * we can't safely write a btree page from here,
- 	 * we haven't done the locking hook
-@@ -1062,7 +1067,7 @@ static int btree_migratepage(struct address_space *mapping,
- 	if (page_has_private(page) &&
- 	    !try_to_release_page(page, GFP_KERNEL))
- 		return -EAGAIN;
--	return migrate_page(mapping, newpage, page, mode);
-+	return migrate_page(mapping, newpage, page, mode, copy);
- }
- #endif
- 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 4fb7b10..b52dd44 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -35,6 +35,7 @@
- #include <linux/security.h>
- #include <linux/magic.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- #include <linux/uio.h>
- 
- #include <asm/uaccess.h>
-@@ -842,11 +843,15 @@ static int hugetlbfs_set_page_dirty(struct page *page)
- }
- 
- static int hugetlbfs_migrate_page(struct address_space *mapping,
--				struct page *newpage, struct page *page,
--				enum migrate_mode mode)
-+				  struct page *newpage, struct page *page,
-+				  enum migrate_mode mode, bool copy)
- {
- 	int rc;
- 
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(newpage))
-+		return -EINVAL;
-+
- 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
-diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
-index 80bcc0b..12d9d8d 100644
---- a/fs/nfs/internal.h
-+++ b/fs/nfs/internal.h
-@@ -535,8 +535,9 @@ void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
- #endif
- 
- #ifdef CONFIG_MIGRATION
--extern int nfs_migrate_page(struct address_space *,
--		struct page *, struct page *, enum migrate_mode);
-+extern int nfs_migrate_page(struct address_space *mapping,
-+			    struct page *newpage, struct page *page,
-+			    enum migrate_mode, bool copy);
- #endif
- 
- static inline int
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 5321183..d7130a5 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -14,6 +14,7 @@
- #include <linux/writeback.h>
- #include <linux/swap.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- 
- #include <linux/sunrpc/clnt.h>
- #include <linux/nfs_fs.h>
-@@ -2023,8 +2024,12 @@ int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder)
- 
- #ifdef CONFIG_MIGRATION
- int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
--		struct page *page, enum migrate_mode mode)
-+		     struct page *page, enum migrate_mode mode, bool copy)
- {
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(newpage))
-+		return -EINVAL;
-+
- 	/*
- 	 * If PagePrivate is set, then the page is currently associated with
- 	 * an in-progress read or write request. Don't try to migrate it.
-@@ -2039,7 +2044,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
- 	if (!nfs_fscache_release_page(page, GFP_KERNEL))
- 		return -EBUSY;
- 
--	return migrate_page(mapping, newpage, page, mode);
-+	return migrate_page(mapping, newpage, page, mode, copy);
- }
- #endif
- 
-diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-index b4fbeef..f625cac 100644
---- a/fs/ubifs/file.c
-+++ b/fs/ubifs/file.c
-@@ -53,6 +53,7 @@
- #include <linux/mount.h>
- #include <linux/slab.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- 
- static int read_block(struct inode *inode, void *addr, unsigned int block,
- 		      struct ubifs_data_node *dn)
-@@ -1455,10 +1456,15 @@ static int ubifs_set_page_dirty(struct page *page)
- 
- #ifdef CONFIG_MIGRATION
- static int ubifs_migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page, enum migrate_mode mode)
-+			      struct page *newpage, struct page *page,
-+			      enum migrate_mode mode, bool copy)
- {
- 	int rc;
- 
-+	/* Can only migrate addressable memory for now */
-+	if (!is_addressable_page(newpage))
-+		return -EINVAL;
-+
- 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index 79542b2..27cf3e3 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -85,7 +85,8 @@ extern bool balloon_page_isolate(struct page *page,
- extern void balloon_page_putback(struct page *page);
- extern int balloon_page_migrate(struct address_space *mapping,
- 				struct page *newpage,
--				struct page *page, enum migrate_mode mode);
-+				struct page *page, enum migrate_mode mode,
-+				bool copy);
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index f19c2a0..b1de4e1 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -88,10 +88,13 @@ struct hmm;
+  * HMM_PFN_ERROR: corresponding CPU page table entry point to poisonous memory
+  * HMM_PFN_EMPTY: corresponding CPU page table entry is none (pte_none() true)
+  * HMM_PFN_DEVICE: this is device memory (ie a ZONE_DEVICE page)
++ * HMM_PFN_LOCKED: underlying struct page is lock
+  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special ie result of
+  *      vm_insert_pfn() or vm_insert_page() and thus should not be mirror by a
+  *      device (the entry will never have HMM_PFN_VALID set and the pfn value
+  *      is undefine)
++ * HMM_PFN_MIGRATE: use by hmm_vma_migrate() to signify which address can be
++ *      migrated
+  * HMM_PFN_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
+  */
+ typedef unsigned long hmm_pfn_t;
+@@ -102,9 +105,11 @@ typedef unsigned long hmm_pfn_t;
+ #define HMM_PFN_ERROR (1 << 3)
+ #define HMM_PFN_EMPTY (1 << 4)
+ #define HMM_PFN_DEVICE (1 << 5)
+-#define HMM_PFN_SPECIAL (1 << 6)
+-#define HMM_PFN_UNADDRESSABLE (1 << 7)
+-#define HMM_PFN_SHIFT 8
++#define HMM_PFN_LOCKED (1 << 6)
++#define HMM_PFN_SPECIAL (1 << 7)
++#define HMM_PFN_MIGRATE (1 << 8)
++#define HMM_PFN_UNADDRESSABLE (1 << 9)
++#define HMM_PFN_SHIFT 10
  
  /*
-  * balloon_page_insert - insert a page into the balloon's page list and make
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 2f63d44..431f0d3 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -398,8 +398,9 @@ struct address_space_operations {
- 	 * migrate the contents of a page to the specified target. If
- 	 * migrate_mode is MIGRATE_ASYNC, it must not block.
- 	 */
--	int (*migratepage) (struct address_space *,
--			struct page *, struct page *, enum migrate_mode);
-+	int (*migratepage)(struct address_space *mapping,
-+			   struct page *newpage, struct page *page,
-+			   enum migrate_mode, bool copy);
- 	bool (*isolate_page)(struct page *, isolate_mode_t);
- 	void (*putback_page)(struct page *);
- 	int (*launder_page) (struct page *);
-@@ -3010,9 +3011,11 @@ extern int generic_file_fsync(struct file *, loff_t, loff_t, int);
- extern int generic_check_addressable(unsigned, u64);
+  * hmm_pfn_to_page() - return struct page pointed to by a valid hmm_pfn_t
+@@ -317,6 +322,61 @@ int hmm_vma_fault(struct vm_area_struct *vma,
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
  
- #ifdef CONFIG_MIGRATION
--extern int buffer_migrate_page(struct address_space *,
--				struct page *, struct page *,
--				enum migrate_mode);
-+extern int buffer_migrate_page(struct address_space *mapping,
-+			       struct page *newpage,
-+			       struct page *page,
-+			       enum migrate_mode,
-+			       bool copy);
- #else
- #define buffer_migrate_page NULL
- #endif
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index ae8d475..37b77ba 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -33,8 +33,11 @@ extern char *migrate_reason_names[MR_TYPES];
- #ifdef CONFIG_MIGRATION
  
- extern void putback_movable_pages(struct list_head *l);
--extern int migrate_page(struct address_space *,
--			struct page *, struct page *, enum migrate_mode);
-+extern int migrate_page(struct address_space *mapping,
-+			struct page *newpage,
-+			struct page *page,
-+			enum migrate_mode,
-+			bool copy);
- extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
- 		unsigned long private, enum migrate_mode mode, int reason);
- extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index da91df5..ed5cacb 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -135,7 +135,7 @@ void balloon_page_putback(struct page *page)
- /* move_to_new_page() counterpart for a ballooned page */
- int balloon_page_migrate(struct address_space *mapping,
- 		struct page *newpage, struct page *page,
--		enum migrate_mode mode)
-+		enum migrate_mode mode, bool copy)
- {
- 	struct balloon_dev_info *balloon = balloon_page_device(page);
++#if IS_ENABLED(CONFIG_HMM_MIGRATE)
++/*
++ * struct hmm_migrate_ops - migrate operation callback
++ *
++ * @alloc_and_copy: alloc destination memoiry and copy source to it
++ * @finalize_and_map: allow caller to inspect successfull migrated page
++ *
++ * The new HMM migrate helper hmm_vma_migrate() allow memory migration to use
++ * device DMA engine to perform copy from source to destination memory it also
++ * allow caller to use its own memory allocator for destination memory.
++ *
++ * Note that in alloc_and_copy device driver can decide not to migrate some of
++ * the entry by simply setting corresponding dst_pfns to 0.
++ *
++ * Destination page must locked and HMM_PFN_LOCKED flag set in corresponding
++ * hmm_pfn_t entry of dst_pfns array. It is expected that page allocated will
++ * have an elevated refcount and that a put_page() will free the page.
++ *
++ * Device driver might want to allocate with an extra-refcount if they want to
++ * control deallocation of failed migration inside finalize_and_map() callback.
++ *
++ * Inside finalize_and_map() device driver must use the HMM_PFN_MIGRATE flag to
++ * determine which page have been successfully migrated (this is set inside the
++ * src_pfns array).
++ *
++ * For migration from device memory to system memory device driver must set any
++ * dst_pfns entry to HMM_PFN_ERROR for any entry it can not migrate back due to
++ * hardware fatal failure that can not be recovered. Such failure will trigger
++ * a SIGBUS for the process trying to access such memory.
++ */
++struct hmm_migrate_ops {
++	void (*alloc_and_copy)(struct vm_area_struct *vma,
++			       const hmm_pfn_t *src_pfns,
++			       hmm_pfn_t *dst_pfns,
++			       unsigned long start,
++			       unsigned long end,
++			       void *private);
++	void (*finalize_and_map)(struct vm_area_struct *vma,
++				 const hmm_pfn_t *src_pfns,
++				 hmm_pfn_t *dst_pfns,
++				 unsigned long start,
++				 unsigned long end,
++				 void *private);
++};
++
++int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
++		    struct vm_area_struct *vma,
++		    hmm_pfn_t *src_pfns,
++		    hmm_pfn_t *dst_pfns,
++		    unsigned long start,
++		    unsigned long end,
++		    void *private);
++#endif /* IS_ENABLED(CONFIG_HMM_MIGRATE) */
++
++
+ /* Below are for HMM internal use only ! Not to be used by device driver ! */
+ void hmm_mm_destroy(struct mm_struct *mm);
+ 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 598c38a..3806d69 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -308,6 +308,19 @@ config HMM_MIRROR
+ 	  range of virtual address. This require careful synchronization with
+ 	  CPU page table update.
+ 
++config HMM_MIGRATE
++	bool "HMM migrate virtual range of process using device driver DMA"
++	select HMM
++	select MIGRATION
++	help
++	  HMM migrate is a new helper to migrate range of virtual address using
++	  special page allocator and copy callback. This allow device driver to
++	  migrate range of a process memory to its memory using its DMA engine.
++
++	  It obyes all rules of memory migration, except that it supports the
++	  migration of ZONE_DEVICE page that have MEMOY_DEVICE_ALLOW_MIGRATE
++	  flag set.
++
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
  
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 5de87d5..36e2ed9 100644
+index 36e2ed9..365b615 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -622,18 +622,10 @@ static void copy_huge_page(struct page *dst, struct page *src)
- 	}
- }
+@@ -41,6 +41,7 @@
+ #include <linux/page_idle.h>
+ #include <linux/page_owner.h>
+ #include <linux/memremap.h>
++#include <linux/hmm.h>
  
--/*
-- * Copy the page to its new location
-- */
--void migrate_page_copy(struct page *newpage, struct page *page)
-+static void migrate_page_states(struct page *newpage, struct page *page)
- {
- 	int cpupid;
+ #include <asm/tlbflush.h>
  
--	if (PageHuge(page) || PageTransHuge(page))
--		copy_huge_page(newpage, page);
--	else
--		copy_highpage(newpage, page);
--
- 	if (PageError(page))
- 		SetPageError(newpage);
- 	if (PageReferenced(page))
-@@ -687,6 +679,19 @@ void migrate_page_copy(struct page *newpage, struct page *page)
- 
- 	mem_cgroup_migrate(page, newpage);
- }
-+
-+/*
-+ * Copy the page to its new location
-+ */
-+void migrate_page_copy(struct page *newpage, struct page *page)
-+{
-+	if (PageHuge(page) || PageTransHuge(page))
-+		copy_huge_page(newpage, page);
-+	else
-+		copy_highpage(newpage, page);
-+
-+	migrate_page_states(newpage, page);
-+}
- EXPORT_SYMBOL(migrate_page_copy);
- 
- /************************************************************
-@@ -700,8 +705,8 @@ EXPORT_SYMBOL(migrate_page_copy);
-  * Pages are locked upon entry and exit.
-  */
- int migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page,
--		enum migrate_mode mode)
-+		 struct page *newpage, struct page *page,
-+		 enum migrate_mode mode, bool copy)
- {
- 	int rc;
- 
-@@ -712,7 +717,11 @@ int migrate_page(struct address_space *mapping,
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
- 
--	migrate_page_copy(newpage, page);
-+	if (copy)
-+		migrate_page_copy(newpage, page);
-+	else
-+		migrate_page_states(newpage, page);
-+
- 	return MIGRATEPAGE_SUCCESS;
- }
- EXPORT_SYMBOL(migrate_page);
-@@ -724,13 +733,14 @@ EXPORT_SYMBOL(migrate_page);
-  * exist.
-  */
- int buffer_migrate_page(struct address_space *mapping,
--		struct page *newpage, struct page *page, enum migrate_mode mode)
-+			struct page *newpage, struct page *page,
-+			enum migrate_mode mode, bool copy)
- {
- 	struct buffer_head *bh, *head;
- 	int rc;
- 
- 	if (!page_has_buffers(page))
--		return migrate_page(mapping, newpage, page, mode);
-+		return migrate_page(mapping, newpage, page, mode, copy);
- 
- 	head = page_buffers(page);
- 
-@@ -762,12 +772,15 @@ int buffer_migrate_page(struct address_space *mapping,
- 
- 	SetPagePrivate(newpage);
- 
--	migrate_page_copy(newpage, page);
-+	if (copy)
-+		migrate_page_copy(newpage, page);
-+	else
-+		migrate_page_states(newpage, page);
- 
- 	bh = head;
- 	do {
- 		unlock_buffer(bh);
-- 		put_bh(bh);
-+		put_bh(bh);
- 		bh = bh->b_this_page;
- 
- 	} while (bh != head);
-@@ -822,7 +835,8 @@ static int writeout(struct address_space *mapping, struct page *page)
-  * Default handling if a filesystem does not provide a migration function.
-  */
- static int fallback_migrate_page(struct address_space *mapping,
--	struct page *newpage, struct page *page, enum migrate_mode mode)
-+				 struct page *newpage, struct page *page,
-+				 enum migrate_mode mode)
- {
- 	if (PageDirty(page)) {
- 		/* Only writeback pages in full synchronous migration */
-@@ -839,7 +853,7 @@ static int fallback_migrate_page(struct address_space *mapping,
- 	    !try_to_release_page(page, GFP_KERNEL))
- 		return -EAGAIN;
- 
--	return migrate_page(mapping, newpage, page, mode);
-+	return migrate_page(mapping, newpage, page, mode, true);
- }
- 
- /*
-@@ -867,7 +881,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 
- 	if (likely(is_lru)) {
- 		if (!mapping)
--			rc = migrate_page(mapping, newpage, page, mode);
-+			rc = migrate_page(mapping, newpage, page, mode, true);
- 		else if (mapping->a_ops->migratepage)
- 			/*
- 			 * Most pages have a mapping and most filesystems
-@@ -877,7 +891,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 			 * for page migration.
- 			 */
- 			rc = mapping->a_ops->migratepage(mapping, newpage,
--							page, mode);
-+							page, mode, true);
- 		else
- 			rc = fallback_migrate_page(mapping, newpage,
- 							page, mode);
-@@ -894,7 +908,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 		}
- 
- 		rc = mapping->a_ops->migratepage(mapping, newpage,
--						page, mode);
-+						page, mode, true);
- 		WARN_ON_ONCE(rc == MIGRATEPAGE_SUCCESS &&
- 			!PageIsolated(page));
- 	}
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b0bc023..bf73222 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -52,6 +52,7 @@
- #include <linux/zpool.h>
- #include <linux/mount.h>
- #include <linux/migrate.h>
-+#include <linux/memremap.h>
- #include <linux/pagemap.h>
- 
- #define ZSPAGE_MAGIC	0x58
-@@ -2015,7 +2016,7 @@ bool zs_page_isolate(struct page *page, isolate_mode_t mode)
- }
- 
- int zs_page_migrate(struct address_space *mapping, struct page *newpage,
--		struct page *page, enum migrate_mode mode)
-+		    struct page *page, enum migrate_mode mode, bool copy)
- {
- 	struct zs_pool *pool;
- 	struct size_class *class;
-@@ -2033,6 +2034,15 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 	VM_BUG_ON_PAGE(!PageMovable(page), page);
- 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+@@ -421,6 +422,14 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 	int expected_count = 1 + extra_count;
+ 	void **pslot;
  
 +	/*
-+	 * Offloading copy operation for zspage require special considerations
-+	 * due to locking so for now we only support regular migration. I do
-+	 * not expect we will ever want to support offloading copy. See hmm.h
-+	 * for more informations on hmm_vma_migrate() and offload copy.
++	 * ZONE_DEVICE pages have 1 refcount always held by their device
++	 *
++	 * Note that DAX memory will never reach that point as it does not have
++	 * the MEMORY_DEVICE_ALLOW_MIGRATE flag set (see memory_hotplug.h).
 +	 */
-+	if (!copy || !is_addressable_page(newpage))
++	expected_count += is_zone_device_page(page);
++
+ 	if (!mapping) {
+ 		/* Anonymous page without mapping */
+ 		if (page_count(page) != expected_count)
+@@ -2087,3 +2096,454 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+ #endif /* CONFIG_NUMA */
++
++
++#if IS_ENABLED(CONFIG_HMM_MIGRATE)
++struct hmm_migrate {
++	struct vm_area_struct	*vma;
++	hmm_pfn_t		*dst_pfns;
++	hmm_pfn_t		*src_pfns;
++	unsigned long		npages;
++	unsigned long		start;
++	unsigned long		end;
++};
++
++static int hmm_collect_walk_pmd(pmd_t *pmdp,
++				unsigned long start,
++				unsigned long end,
++				struct mm_walk *walk)
++{
++	struct hmm_migrate *migrate = walk->private;
++	struct mm_struct *mm = walk->vma->vm_mm;
++	unsigned long addr = start;
++	hmm_pfn_t *src_pfns;
++	spinlock_t *ptl;
++	pte_t *ptep;
++
++again:
++	if (pmd_none(*pmdp))
++		return 0;
++
++	split_huge_pmd(walk->vma, pmdp, addr);
++	if (pmd_trans_unstable(pmdp))
++		goto again;
++
++	src_pfns = &migrate->src_pfns[(addr - migrate->start) >> PAGE_SHIFT];
++	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
++
++	for (; addr < end; addr += PAGE_SIZE, src_pfns++, ptep++) {
++		unsigned long pfn;
++		swp_entry_t entry;
++		struct page *page;
++		hmm_pfn_t flags;
++		bool write;
++		pte_t pte;
++
++		pte = *ptep;
++
++		if (!pte_present(pte)) {
++			if (pte_none(pte))
++				continue;
++
++			/*
++			 * Only care about un-addressable device page special
++			 * page table entry. Other special swap entry are not
++			 * migratable and we ignore regular swaped page.
++			 */
++			entry = pte_to_swp_entry(pte);
++			if (!is_device_entry(entry))
++				continue;
++
++			flags = HMM_PFN_DEVICE | HMM_PFN_UNADDRESSABLE;
++			write = is_write_device_entry(entry);
++			page = device_entry_to_page(entry);
++			pfn = page_to_pfn(page);
++
++			if (!dev_page_allow_migrate(page))
++				continue;
++		} else {
++			pfn = pte_pfn(pte);
++			write = pte_write(pte);
++			page = pfn_to_page(pfn);
++			flags = is_zone_device_page(page) ? HMM_PFN_DEVICE : 0;
++		}
++
++		/* FIXME support THP see hmm_migrate_page_check() */
++		if (PageTransCompound(page))
++			continue;
++
++		/*
++		 * Corner case handling:
++		 * 1. When a new swap-cache page is read into, it is added to
++		 * the LRU and treated as swapcache but it has no rmap yet. Skip
++		 * those.
++		 */
++		if (!page->mapping)
++			continue;
++
++		*src_pfns = hmm_pfn_from_pfn(pfn) | HMM_PFN_MIGRATE | flags;
++		*src_pfns |= write ? HMM_PFN_WRITE : 0;
++		migrate->npages++;
++
++		/*
++		 * By getting a reference on the page we pin it and blocks any
++		 * kind of migration. Side effect is that it "freeze" the pte.
++		 *
++		 * We drop this reference after isolating the page from the lru
++		 * for non device page (device page are not on the lru and thus
++		 * can't be drop from it).
++		 */
++		get_page(page);
++	}
++	pte_unmap_unlock(ptep - 1, ptl);
++
++	return 0;
++}
++
++/*
++ * hmm_migrate_collect() - collect page over range of virtual address
++ * @migrate: migrate struct containing all migration informations
++ *
++ * This will go over the CPU page table and for each virtual address back by a
++ * valid page it update the src_pfns array and take a reference on the page in
++ * order to pin the page until we lock it and unmap it.
++ */
++static void hmm_migrate_collect(struct hmm_migrate *migrate)
++{
++	struct mm_walk mm_walk;
++
++	mm_walk.pmd_entry = hmm_collect_walk_pmd;
++	mm_walk.pte_entry = NULL;
++	mm_walk.pte_hole = NULL;
++	mm_walk.hugetlb_entry = NULL;
++	mm_walk.test_walk = NULL;
++	mm_walk.vma = migrate->vma;
++	mm_walk.mm = migrate->vma->vm_mm;
++	mm_walk.private = migrate;
++
++	mmu_notifier_invalidate_range_start(mm_walk.mm,
++					    migrate->start,
++					    migrate->end);
++	walk_page_range(migrate->start, migrate->end, &mm_walk);
++	mmu_notifier_invalidate_range_end(mm_walk.mm,
++					  migrate->start,
++					  migrate->end);
++}
++
++/*
++ * hmm_migrate_page_check() - check if page is pin or not
++ * @page: struct page to check
++ *
++ * Pinned page can not be migrated. Same test in migrate_page_move_mapping()
++ * except that here we allow migration of ZONE_DEVICE page.
++ */
++static inline bool hmm_migrate_page_check(struct page *page)
++{
++	/*
++	 * One extra ref because caller hold an extra reference either from
++	 * either isolate_lru_page() for regular page or hmm_migrate_collect()
++	 * for device page.
++	 */
++	int extra = 1;
++
++	/*
++	 * FIXME support THP (transparent huge page), it is bit more complex to
++	 * check them then regular page because they can be map with a pmd or
++	 * with a pte (split pte mapping).
++	 */
++	if (PageCompound(page))
++		return false;
++
++	/* Page from ZONE_DEVICE have one extra reference */
++	if (is_zone_device_page(page)) {
++		if (!dev_page_allow_migrate(page))
++			return false;
++		extra++;
++	}
++
++	if ((page_count(page) - extra) > page_mapcount(page))
++		return false;
++
++	return true;
++}
++
++/*
++ * hmm_migrate_lock_and_isolate() - lock pages and isolate them from the lru
++ * @migrate: migrate struct containing all migration informations
++ *
++ * This lock pages that have been collected by hmm_migrate_collect(). Once page
++ * is locked it is isolated from the lru (for non device page). Finaly the ref
++ * taken by hmm_migrate_collect() is drop as locked page can not be migrated by
++ * concurrent kernel thread.
++ */
++static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)
++{
++	unsigned long addr = migrate->start, i = 0;
++	bool allow_drain = true;
++
++	lru_add_drain();
++
++	for (; (addr<migrate->end) && migrate->npages; addr+=PAGE_SIZE, i++) {
++		struct page *page = hmm_pfn_to_page(migrate->src_pfns[i]);
++
++		if (!page)
++			continue;
++
++		lock_page(page);
++		migrate->src_pfns[i] |= HMM_PFN_LOCKED;
++
++		/* ZONE_DEVICE page are not on LRU */
++		if (!is_zone_device_page(page)) {
++			if (!PageLRU(page) && allow_drain) {
++				/* Drain CPU's pagevec */
++				lru_add_drain_all();
++				allow_drain = false;
++			}
++
++			if (isolate_lru_page(page)) {
++				migrate->src_pfns[i] = 0;
++				migrate->npages--;
++				unlock_page(page);
++				put_page(page);
++			} else
++				/* Drop the reference we took in collect */
++				put_page(page);
++		}
++
++		if (!hmm_migrate_page_check(page)) {
++			migrate->src_pfns[i] = 0;
++			migrate->npages--;
++			unlock_page(page);
++			put_page(page);
++		}
++	}
++}
++
++/*
++ * hmm_migrate_unmap() - replace page mapping with special migration pte entry
++ * @migrate: migrate struct containing all migration informations
++ *
++ * Replace page mapping (CPU page table pte) with special migration pte entry
++ * and check again if it has be pin. Pin page are restore because we can not
++ * migrate them.
++ *
++ * This is the last step before we call the device driver callback to allocate
++ * destination memory and copy content of original page over to new page.
++ */
++static void hmm_migrate_unmap(struct hmm_migrate *migrate)
++{
++	int flags = TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
++	unsigned long addr = migrate->start, i = 0, restore = 0;
++
++	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
++		struct page *page = hmm_pfn_to_page(migrate->src_pfns[i]);
++
++		if (!page || !(migrate->src_pfns[i] & HMM_PFN_MIGRATE))
++			continue;
++
++		try_to_unmap(page, flags);
++		if (page_mapped(page) || !hmm_migrate_page_check(page)) {
++			migrate->src_pfns[i] &= ~HMM_PFN_MIGRATE;
++			migrate->npages--;
++			restore++;
++		}
++	}
++
++	for (; (addr < migrate->end) && restore; addr += PAGE_SIZE, i++) {
++		struct page *page = hmm_pfn_to_page(migrate->src_pfns[i]);
++
++		if (!page || (migrate->src_pfns[i] & HMM_PFN_MIGRATE))
++			continue;
++
++		remove_migration_ptes(page, page, false);
++
++		migrate->src_pfns[i] = 0;
++		unlock_page(page);
++		restore--;
++
++		if (is_zone_device_page(page))
++			put_page(page);
++		else
++			putback_lru_page(page);
++	}
++}
++
++/*
++ * hmm_migrate_struct_page() - migrate meta-data from src page to dst page
++ * @migrate: migrate struct containing all migration informations
++ *
++ * This migrate struct page meta-data from source struct page to destination
++ * struct page. This effectively finish the migration from source page to the
++ * destination page.
++ */
++static void hmm_migrate_struct_page(struct hmm_migrate *migrate)
++{
++	unsigned long addr = migrate->start, i = 0;
++
++	for (; addr < migrate->end; addr += PAGE_SIZE, i++) {
++		struct page *newpage = hmm_pfn_to_page(migrate->dst_pfns[i]);
++		struct page *page = hmm_pfn_to_page(migrate->src_pfns[i]);
++		struct address_space *mapping;
++		int r;
++
++		if (!page || !newpage)
++			continue;
++		if (!(migrate->src_pfns[i] & HMM_PFN_MIGRATE))
++			continue;
++
++		mapping = page_mapping(page);
++
++		/*
++		 * For now only support private anonymous when migrating
++		 * to un-addressable device memory.
++		 */
++		if (mapping && is_zone_device_page(newpage) &&
++		    !is_addressable_page(newpage)) {
++			migrate->src_pfns[i] &= ~HMM_PFN_MIGRATE;
++			continue;
++		}
++
++		r = migrate_page(mapping, newpage, page, MIGRATE_SYNC, false);
++		if (r != MIGRATEPAGE_SUCCESS)
++			migrate->src_pfns[i] &= ~HMM_PFN_MIGRATE;
++	}
++}
++
++/*
++ * hmm_migrate_remove_migration_pte() - restore CPU page table entry
++ * @migrate: migrate struct containing all migration informations
++ *
++ * This replace the special migration pte entry with either a mapping to the
++ * new page if migration was successful for that page or to the original page
++ * otherwise.
++ *
++ * This also unlock the page and put them back on the lru or drop the extra
++ * ref for device page.
++ */
++static void hmm_migrate_remove_migration_pte(struct hmm_migrate *migrate)
++{
++	unsigned long addr = migrate->start, i = 0;
++
++	for (; (addr<migrate->end) && migrate->npages; addr+=PAGE_SIZE, i++) {
++		struct page *newpage = hmm_pfn_to_page(migrate->dst_pfns[i]);
++		struct page *page = hmm_pfn_to_page(migrate->src_pfns[i]);
++
++		if (!page)
++			continue;
++		newpage = newpage ? newpage : page;
++
++		remove_migration_ptes(page, newpage, false);
++		unlock_page(page);
++		migrate->npages--;
++
++		if (is_zone_device_page(page))
++			put_page(page);
++		else
++			putback_lru_page(page);
++
++		if (newpage != page) {
++			unlock_page(newpage);
++			if (is_zone_device_page(newpage))
++				put_page(newpage);
++			else
++				putback_lru_page(newpage);
++		}
++	}
++}
++
++/*
++ * hmm_vma_migrate() - migrate a range of memory inside vma using accel copy
++ *
++ * @ops: migration callback for allocating destination memory and copying
++ * @vma: virtual memory area containing the range to be migrated
++ * @src_pfns: array of hmm_pfn_t containing source pfns
++ * @dst_pfns: array of hmm_pfn_t containing destination pfns
++ * @start: start address of the range to migrate (inclusive)
++ * @end: end address of the range to migrate (exclusive)
++ * @private: pointer passed back to each of the callback
++ * Returns: 0 on success, error code otherwise
++ *
++ * This will try to migrate a range of memory using callback to allocate and
++ * copy memory from source to destination. This function will first collect,
++ * lock and unmap pages in the range and then call alloc_and_copy() callback
++ * for device driver to allocate destination memory and copy from source.
++ *
++ * Then it will proceed and try to effectively migrate the page (struct page
++ * metadata) a step that can fail for various reasons. Before updating CPU page
++ * table it will call finalize_and_map() callback so that device driver can
++ * inspect what have been successfully migrated and update its own page table
++ * (this latter aspect is not mandatory and only make sense for some user of
++ * this API).
++ *
++ * Finaly the function update CPU page table and unlock the pages before
++ * returning 0.
++ *
++ * It will return an error code only if one of the argument is invalid.
++ */
++int hmm_vma_migrate(const struct hmm_migrate_ops *ops,
++		    struct vm_area_struct *vma,
++		    hmm_pfn_t *src_pfns,
++		    hmm_pfn_t *dst_pfns,
++		    unsigned long start,
++		    unsigned long end,
++		    void *private)
++{
++	struct hmm_migrate migrate;
++
++	/* Sanity check the arguments */
++	start &= PAGE_MASK;
++	end &= PAGE_MASK;
++	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
++		return -EINVAL;
++	if (!vma || !ops || !src_pfns || !dst_pfns || start >= end)
++		return -EINVAL;
++	if (start < vma->vm_start || start >= vma->vm_end)
++		return -EINVAL;
++	if (end <= vma->vm_start || end > vma->vm_end)
 +		return -EINVAL;
 +
- 	zspage = get_zspage(page);
- 
- 	/* Concurrent compactor cannot migrate any subpage in zspage */
++	memset(src_pfns, 0, sizeof(*src_pfns) * ((end - start) >> PAGE_SHIFT));
++	migrate.src_pfns = src_pfns;
++	migrate.dst_pfns = dst_pfns;
++	migrate.start = start;
++	migrate.npages = 0;
++	migrate.end = end;
++	migrate.vma = vma;
++
++	/* Collect, and try to unmap source pages */
++	hmm_migrate_collect(&migrate);
++	if (!migrate.npages)
++		return 0;
++
++	/* Lock and isolate page */
++	hmm_migrate_lock_and_isolate(&migrate);
++	if (!migrate.npages)
++		return 0;
++
++	/* Unmap pages */
++	hmm_migrate_unmap(&migrate);
++	if (!migrate.npages)
++		return 0;
++
++	/*
++	 * At this point pages are lock and unmap and thus they have stable
++	 * content and can safely be copied to destination memory that is
++	 * allocated by the callback.
++	 *
++	 * Note that migration can fail in hmm_migrate_struct_page() for each
++	 * individual page.
++	 */
++	ops->alloc_and_copy(vma, src_pfns, dst_pfns, start, end, private);
++
++	/* This does the real migration of struct page */
++	hmm_migrate_struct_page(&migrate);
++
++	ops->finalize_and_map(vma, src_pfns, dst_pfns, start, end, private);
++
++	/* Unlock and remap pages */
++	hmm_migrate_remove_migration_pte(&migrate);
++
++	return 0;
++}
++EXPORT_SYMBOL(hmm_vma_migrate);
++#endif /* IS_ENABLED(CONFIG_HMM_MIGRATE) */
 -- 
 2.4.3
 
