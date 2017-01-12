@@ -1,65 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C37FD6B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:46:36 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y143so81345183pfb.6
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 14:46:36 -0800 (PST)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id 17si10598320pfb.89.2017.01.12.14.46.35
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 14EA56B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 18:14:35 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id t56so25619328qte.3
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 15:14:35 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n4si7169049qtb.99.2017.01.12.15.14.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 14:46:35 -0800 (PST)
-Received: by mail-pf0-x232.google.com with SMTP id y143so19887330pfb.0
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 14:46:35 -0800 (PST)
-Date: Thu, 12 Jan 2017 14:46:34 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, memcg: do not retry precharge charges
-In-Reply-To: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1701121446130.12738@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com>
+        Thu, 12 Jan 2017 15:14:34 -0800 (PST)
+Date: Thu, 12 Jan 2017 18:14:31 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Memory hotplug, ZONE_DEVICE, and the future of
+ struct page
+Message-ID: <20170112231430.GA10096@redhat.com>
+References: <CAPcyv4hWNL7=MmnUj65A+gz=eHAnUrVzqV+24QiNQDW--ag8WQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4hWNL7=MmnUj65A+gz=eHAnUrVzqV+24QiNQDW--ag8WQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, linux-block@vger.kernel.org, Stephen Bates <sbates@raithlin.com>, Logan Gunthorpe <logang@deltatee.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 
-When memory.move_charge_at_immigrate is enabled and precharges are
-depleted during move, mem_cgroup_move_charge_pte_range() will attempt to
-increase the size of the precharge.
+On Thu, Jan 12, 2017 at 02:43:03PM -0800, Dan Williams wrote:
+> Back when we were first attempting to support DMA for DAX mappings of
+> persistent memory the plan was to forgo 'struct page' completely and
+> develop a pfn-to-scatterlist capability for the dma-mapping-api. That
+> effort died in this thread:
+> 
+>     https://lkml.org/lkml/2015/8/14/3
+> 
+> ...where we learned that the dependencies on struct page for dma
+> mapping are deeper than a PFN_PHYS() conversion for some
+> architectures. That was the moment we pivoted to ZONE_DEVICE and
+> arranged for a 'struct page' to be available for any persistent memory
+> range that needs to be the target of DMA. ZONE_DEVICE enables any
+> device-driver that can target "System RAM" to also be able to target
+> persistent memory through a DAX mapping.
+> 
+> Since that time the "page-less" DAX path has continued to mature [1]
+> without growing new dependencies on struct page, but at the same time
+> continuing to rely on ZONE_DEVICE to satisfy get_user_pages().
+> 
+> Peer-to-peer DMA appears to be evolving from a niche embedded use case
+> to something general purpose platforms will need to comprehend. The
+> "map_peer_resource" [2] approach looks to be headed to the same
+> destination as the pfn-to-scatterlist effort. It's difficult to avoid
+> 'struct page' for describing DMA operations without custom driver
+> code.
+> 
+> With that background, a statement and a question to discuss at LSF/MM:
+> 
+> General purpose DMA, i.e. any DMA setup through the dma-mapping-api,
+> requires pfn_to_page() support across the entire physical address
+> range mapped.
 
-This can be allowed to do reclaim, but should not call the oom killer to
-oom kill a process.  It's better to fail the attach rather than oom kill
-a process attached to the memcg hierarchy.
+Note that in my case it is even worse. The pfn of the page does not
+correspond to anything so it need to go through a special function
+to find if a page can be mapped for another device and to provide a
+valid pfn at which the page can be access by other device.
 
-Prevent precharges from ever looping by setting __GFP_NORETRY.  This was
-probably the intention of the GFP_KERNEL & ~__GFP_NORETRY, which is
-pointless as written.
+Basicly the PCIE bar is like a window into the device memory that is
+dynamicly remap to specific page of the device memory. Not all device
+memory can be expose through PCIE bar because of PCIE issues.
 
-Fixes: 0029e19ebf84 ("mm: memcontrol: remove explicit OOM parameter in charge path")
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memcontrol.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+> 
+> Is ZONE_DEVICE the proper vehicle for this? We've already seen that it
+> collides with platform alignment assumptions [3], and if there's a
+> wider effort to rework memory hotplug [4] it seems DMA support should
+> be part of the discussion.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4353,9 +4353,12 @@ static int mem_cgroup_do_precharge(unsigned long count)
- 		return ret;
- 	}
- 
--	/* Try charges one by one with reclaim */
-+	/*
-+	 * Try charges one by one with reclaim, but do not retry.  This avoids
-+	 * calling the oom killer when the precharge should just fail.
-+	 */
- 	while (count--) {
--		ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_NORETRY, 1);
-+		ret = try_charge(mc.to, GFP_KERNEL | __GFP_NORETRY, 1);
- 		if (ret)
- 			return ret;
- 		mc.precharge++;
+Obvioulsy i would like to join this discussion :)
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
