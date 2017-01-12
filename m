@@ -1,50 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E236B0261
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 10:58:07 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so5562005wmi.6
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 07:58:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y23si7633696wra.86.2017.01.12.07.58.05
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 07:58:06 -0800 (PST)
-Date: Thu, 12 Jan 2017 16:57:43 +0100
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
- variants
-Message-ID: <20170112155743.GN12081@suse.cz>
-Reply-To: dsterba@suse.cz
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-6-mhocko@kernel.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A5A6B0261
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 11:05:35 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 80so59349348pfy.2
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:05:35 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 196si9617626pgc.321.2017.01.12.08.05.34
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jan 2017 08:05:34 -0800 (PST)
+Date: Thu, 12 Jan 2017 16:05:36 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20170112160535.GF13843@arm.com>
+References: <20161216165437.21612-1-rrichter@cavium.com>
+ <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+ <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
+ <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+ <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
+ <20170109115320.GI4930@rric.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
+In-Reply-To: <20170109115320.GI4930@rric.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Colin Cross <ccross@android.com>, Hariprasad S <hariprasad@chelsio.com>, Santosh Raspatur <santosh@chelsio.com>, Kees Cook <keescook@chromium.org>, Johannes Weiner <hannes@cmpxchg.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Anton Vorontsov <anton@enomsg.org>, Eric Dumazet <eric.dumazet@gmail.com>, Ilya Dryomov <idryomov@gmail.com>, Kent Overstreet <kent.overstreet@gmail.com>, Herbert Xu <herbert@gondor.apana.org.au>, David Rientjes <rientjes@google.com>, Andreas Dilger <andreas.dilger@intel.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Tony Luck <tony.luck@intel.com>, Alexei Starovoitov <ast@kernel.org>, linux-mm@kvack.org, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Ben Skeggs <bskeggs@redhat.com>, Zheng Yan <zyan@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Michal Hocko <MHocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
+To: Robert Richter <robert.richter@cavium.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Jan 12, 2017 at 04:37:16PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+Hi Robert,
+
+On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
+> On 06.01.17 08:37:25, Ard Biesheuvel wrote:
+> > Any comments on the performance impact (including boot time) ?
 > 
-> There are many code paths opencoding kvmalloc. Let's use the helper
-> instead. The main difference to kvmalloc is that those users are usually
-> not considering all the aspects of the memory allocator. E.g. allocation
-> requests < 64kB are basically never failing and invoke OOM killer to
-> satisfy the allocation. This sounds too disruptive for something that
-> has a reasonable fallback - the vmalloc. On the other hand those
-> requests might fallback to vmalloc even when the memory allocator would
-> succeed after several more reclaim/compaction attempts previously. There
-> is no guarantee something like that happens though.
+> I did a kernel compile test and kernel mode time increases by about
+> 2.2%. Though this is already significant, we need a more suitable mem
+> benchmark here for further testing.
+
+Thanks for doing this.
+
+> For boot time I dont see significant changes.
 > 
-> This patch converts many of those places to kv[mz]alloc* helpers because
-> they are more conservative.
+> -Robert
+> 
+> 
+> Boot times:
+> 
+> pfn_valid_within():
+> [   25.929134]
+> [   25.548830]
+> [   25.503225]
+> 
+> early_pfn_valid() v3:
+> [   25.773814]
+> [   25.548428]
+> [   25.765290]
+> 
+> 
+> Kernel compile times (3 runs each):
+> 
+> pfn_valid_within():
+> 
+> real    6m4.088s
+> user    372m57.607s
+> sys     16m55.158s
+> 
+> real    6m1.532s
+> user    372m48.453s
+> sys     16m50.370s
+> 
+> real    6m4.061s
+> user    373m18.753s
+> sys     16m57.027s
 
-For the btrfs bits,
+Did you reboot the machine between each build here, or only when changing
+kernel? If the latter, do you see variations in kernel build time by simply
+rebooting the same Image?
 
-Acked-by: David Sterba <dsterba@suse.com>
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
