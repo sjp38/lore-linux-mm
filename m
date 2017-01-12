@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A347A6B0253
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:48:53 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id l23so24508608ybj.6
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:48:53 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 66DE76B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 08:49:45 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c206so4040628wme.3
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 05:49:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h125si1948428wme.3.2017.01.12.05.48.52
+        by mx.google.com with ESMTPS id j189si1919509wmd.1.2017.01.12.05.49.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Jan 2017 05:48:52 -0800 (PST)
-Date: Thu, 12 Jan 2017 13:48:46 +0000
+        Thu, 12 Jan 2017 05:49:44 -0800 (PST)
+Date: Thu, 12 Jan 2017 13:49:42 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 3/4] arch, mm: remove arch specific show_mem
-Message-ID: <20170112134846.rdrqoulc6in5bllj@suse.de>
+Subject: Re: [PATCH 4/4] lib/show_mem.c: teach show_mem to work with the
+ given nodemask
+Message-ID: <20170112134942.46d6adcjshfeyj4r@suse.de>
 References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-4-mhocko@kernel.org>
+ <20170112131659.23058-5-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170112131659.23058-4-mhocko@kernel.org>
+In-Reply-To: <20170112131659.23058-5-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Jan 12, 2017 at 02:16:58PM +0100, Michal Hocko wrote:
+On Thu, Jan 12, 2017 at 02:16:59PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> We have a generic implementation for quite some time already. If there
-> is any arch specific information to be printed then we should add a
-> callback called from the generic code rather than duplicate the whole
-> show_mem. The current code has resulted in the code duplication and
-> the output divergence which is both confusing and adds maintainance
-> costs. Let's just get rid of this mess.
+> show_mem() allows to filter out node specific data which is irrelevant
+> to the allocation request via SHOW_MEM_FILTER_NODES. The filtering
+> is done in skip_free_areas_node which skips all nodes which are not
+> in the mems_allowed of the current process. This works most of the
+> time as expected because the nodemask shouldn't be outside of the
+> allocating task but there are some exceptions. E.g. memory hotplug might
+> want to request allocations from outside of the allowed nodes (see
+> new_node_page).
 > 
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
-> Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-> Cc: Helge Deller <deller@gmx.de>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Chris Metcalf <cmetcalf@mellanox.com>
-> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linux-parisc@vger.kernel.org
+> Get rid of this hardcoded behavior and push the allocation mask down the
+> show_mem path and use it instead of cpuset_current_mems_allowed. NULL
+> nodemask is interpreted as cpuset_current_mems_allowed.
+> 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-This is overdue. The last time it was brought up, no one objected to
-arch-specific information from show_mem but maybe they weren't looking
-that carefully. For me;
+Fairly marginal but
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
