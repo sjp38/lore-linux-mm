@@ -1,80 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A88126B0253
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 19:49:08 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id f144so12850038pfa.3
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 16:49:08 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f17si7374882pgj.23.2017.01.11.16.49.07
+	by kanga.kvack.org (Postfix) with ESMTP id A12096B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:14:59 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f144so14187067pfa.3
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 17:14:59 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s186si7433261pgb.6.2017.01.11.17.14.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 16:49:07 -0800 (PST)
-Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
- SPARC M7
-References: <cover.1483999591.git.khalid.aziz@oracle.com>
- <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
- <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
- <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
- <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
- <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
- <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
-Date: Wed, 11 Jan 2017 16:49:05 -0800
+        Wed, 11 Jan 2017 17:14:58 -0800 (PST)
+Date: Wed, 11 Jan 2017 17:14:57 -0800
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-01-11-17-14 uploaded
+Message-ID: <5876d891.KO+lq262YUFdAzyd%akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On 01/11/2017 04:22 PM, Khalid Aziz wrote:
-...
-> All of the tag coordination can happen in userspace. Once a process sets
-> a tag on a physical page mapped in its address space, another process
-> that has mapped the same physical page in its address space can only set
-> the tag to exact same value. Attempts to set a different tag are caught
-> by memory controller and result in MCD trap and kernel sends SIGSEGV to
-> the process trying to set a different tag.
+The mm-of-the-moment snapshot 2017-01-11-17-14 has been uploaded to
 
-Again, I don't think these semantics will work for anything other than
-explicitly shared memory.  This behavior ensures that it is *entirely*
-unsafe to use ADI on any data that any process you do not control might
-be able to mmap().  That's a *HUGE* caveat for the feature and can't
-imagine ever seeing this get merged without addressing it.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-I think it's fairly simple to address, though a bit expensive.  First,
-you can't allow the VMA bit to get set on non-writable mappings.
-Second, you'll have to force COW to occur on read-only pages in writable
-mappings before the PTE bit can get set.  I think you can probably even
-do this in the faults that presumably occur when you try to set ADI tags
-on memory mapped with non-ADI PTEs.
+mmotm-readme.txt says
 
->> If you want to use it on copy-on-write'able data, you've got to ensure
->> that you've got entirely private copies.  I'm not sure we even have an
->> interface to guarantee that.  How could this work after a fork() on
->> un-COW'd, but COW'able data?
-> 
-> On COW, kernel maps the the source and destination pages with
-> kmap_atomic() and copies the data over to the new page and the new page
-> wouldn't be ADI protected unless the child process chooses to do so.
+README for mm-of-the-moment:
 
-What do you mean by "ADI protection"?
+http://www.ozlabs.org/~akpm/mmotm/
 
-I think of ADI _protection_ as coming from the PTE and/or VMA bits.
-Those are copied at fork() from the old VMA to the new one.  Is there a
-reason the child won't implicitly inherit these that I missed?
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-Whether the parent or the child does the COW fault is basically random.
-Whether they get the ADI-tagged page, or the non-ADI-tagged copy is thus
-effectively random.  Assuming that the new page has its tags cleared
-(and thus is tagged not to be protected), whether your data continues to
-be protected or not after a fork() is random.
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-That doesn't seem like workable behavior.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.10-rc3:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  i-need-old-gcc.patch
+* memory_hotplug-zone_can_shift-returns-boolean-value.patch
+* mm-respect-foll_force-foll_cow-for-thp.patch
+* mm-respect-foll_force-foll_cow-for-thp-checkpatch-fixes.patch
+* dax-fix-build-warnings-with-fs_dax-and-fs_iomap.patch
+* memstick-core-avoid-wnonnull-warning.patch
+* userfaultfd-fix-sigbus-resulting-from-false-rwsem-wakeups.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* tracing-add-__print_flags_u64.patch
+* dax-add-tracepoint-infrastructure-pmd-tracing.patch
+* dax-update-maintainers-entries-for-fs-dax.patch
+* dax-add-tracepoints-to-dax_pmd_load_hole.patch
+* dax-add-tracepoints-to-dax_pmd_insert_mapping.patch
+* mm-dax-make-pmd_fault-and-friends-to-be-the-same-as-fault.patch
+* mm-dax-move-pmd_fault-to-take-only-vmf-parameter.patch
+* scripts-spellingtxt-add-several-more-common-spelling-mistakes.patch
+* scripts-lindent-clean-up-and-optimize.patch
+* m32r-use-generic-currenth.patch
+* debugobjects-track-number-of-kmem_cache_alloc-kmem_cache_free-done.patch
+* debugobjects-scale-thresholds-with-of-cpus.patch
+* debugobjects-reduce-contention-on-the-global-pool_lock.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
+* ocfs2-dlmglue-prepare-tracking-logic-to-avoid-recursive-cluster-lock.patch
+* ocfs2-fix-deadlocks-when-taking-inode-lock-at-vfs-entry-points.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* kernel-watchdog-prevent-false-hardlockup-on-overloaded-system.patch
+* kernel-watchdog-prevent-false-hardlockup-on-overloaded-system-fix.patch
+* kernel-watchdogc-do-not-hardcode-cpu-0-as-the-initial-thread.patch
+  mm.patch
+* slub-do-not-merge-cache-if-slub_debug-contains-a-never-merge-flag.patch
+* tmpfs-change-shmem_mapping-to-test-shmem_aops.patch
+* mm-throttle-show_mem-from-warn_alloc.patch
+* mm-throttle-show_mem-from-warn_alloc-fix.patch
+* mm-page_alloc-dont-convert-pfn-to-idx-when-merging.patch
+* mm-page_alloc-avoid-page_to_pfn-when-merging-buddies.patch
+* mm-vmallocc-use-rb_entry_safe.patch
+* mm-page_alloc-convert-page_group_by_mobility_disable-to-static-key.patch
+* mm-trace-extract-compaction_status-and-zone_type-to-a-common-header.patch
+* oom-trace-add-oom-detection-tracepoints.patch
+* oom-trace-add-compaction-retry-tracepoint.patch
+* userfaultfd-document-_ior-_iow.patch
+* userfaultfd-correct-comment-about-uffd_feature_pagefault_flag_wp.patch
+* userfaultfd-convert-bug-to-warn_on_once.patch
+* userfaultfd-use-vma_is_anonymous.patch
+* userfaultfd-non-cooperative-split-the-find_userfault-routine.patch
+* userfaultfd-non-cooperative-add-ability-to-report-non-pf-events-from-uffd-descriptor.patch
+* userfaultfd-non-cooperative-report-all-available-features-to-userland.patch
+* userfaultfd-non-cooperative-add-fork-event.patch
+* userfaultfd-non-cooperative-add-fork-event-build-warning-fix.patch
+* userfaultfd-non-cooperative-dup_userfaultfd-use-mm_count-instead-of-mm_users.patch
+* userfaultfd-non-cooperative-add-mremap-event.patch
+* userfaultfd-non-cooperative-optimize-mremap_userfaultfd_complete.patch
+* userfaultfd-non-cooperative-add-madvise-event-for-madv_dontneed-request.patch
+* userfaultfd-non-cooperative-avoid-madv_dontneed-race-condition.patch
+* userfaultfd-non-cooperative-wake-userfaults-after-uffdio_unregister.patch
+* userfaultfd-hugetlbfs-add-copy_huge_page_from_user-for-hugetlb-userfaultfd-support.patch
+* userfaultfd-hugetlbfs-add-hugetlb_mcopy_atomic_pte-for-userfaultfd-support.patch
+* userfaultfd-hugetlbfs-add-__mcopy_atomic_hugetlb-for-huge-page-uffdio_copy.patch
+* userfaultfd-hugetlbfs-fix-__mcopy_atomic_hugetlb-retry-error-processing.patch
+* userfaultfd-hugetlbfs-add-userfaultfd-hugetlb-hook.patch
+* userfaultfd-hugetlbfs-allow-registration-of-ranges-containing-huge-pages.patch
+* userfaultfd-hugetlbfs-add-userfaultfd_hugetlb-test.patch
+* userfaultfd-hugetlbfs-userfaultfd_huge_must_wait-for-hugepmd-ranges.patch
+* userfaultfd-hugetlbfs-gup-support-vm_fault_retry.patch
+* userfaultfd-hugetlbfs-reserve-count-on-error-in-__mcopy_atomic_hugetlb.patch
+* userfaultfd-hugetlbfs-uffd_feature_missing_hugetlbfs.patch
+* userfaultfd-introduce-vma_can_userfault.patch
+* userfaultfd-shmem-add-shmem_mcopy_atomic_pte-for-userfaultfd-support.patch
+* userfaultfd-shmem-introduce-vma_is_shmem.patch
+* userfaultfd-shmem-add-tlbflushh-header-for-microblaze.patch
+* userfaultfd-shmem-use-shmem_mcopy_atomic_pte-for-shared-memory.patch
+* userfaultfd-shmem-add-userfaultfd-hook-for-shared-memory-faults.patch
+* userfaultfd-shmem-allow-registration-of-shared-memory-ranges.patch
+* userfaultfd-shmem-add-userfaultfd_shmem-test.patch
+* userfaultfd-shmem-lock-the-page-before-adding-it-to-pagecache.patch
+* userfaultfd-shmem-avoid-leaking-blocks-and-used-blocks-in-uffdio_copy.patch
+* userfaultfd-hugetlbfs-uffd_feature_missing_shmem.patch
+* userfaultfd-non-cooperative-selftest-introduce-userfaultfd_open.patch
+* userfaultfd-non-cooperative-selftest-add-ufd-parameter-to-copy_page.patch
+* userfaultfd-non-cooperative-selftest-add-test-for-fork-madvdontneed-and-remap-events.patch
+* userfaultfd-selftest-test-uffdio_zeropage-on-all-memory-types.patch
+* mm-mprotect-use-pmd_trans_unstable-instead-of-taking-the-pmd_lock.patch
+* mm-vmscan-remove-unused-mm_vmscan_memcg_isolate.patch
+* mm-vmscan-add-active-list-aging-tracepoint.patch
+* mm-vmscan-add-active-list-aging-tracepoint-update.patch
+* mm-vmscan-show-the-number-of-skipped-pages-in-mm_vmscan_lru_isolate.patch
+* mm-vmscan-show-lru-name-in-mm_vmscan_lru_isolate-tracepoint.patch
+* mm-vmscan-extract-shrink_page_list-reclaim-counters-into-a-struct.patch
+* mm-vmscan-enhance-mm_vmscan_lru_shrink_inactive-tracepoint.patch
+* mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
+* trace-vmscan-postprocess-sync-with-tracepoints-updates.patch
+* nfs-no-pg_private-waiters-remain-remove-waker.patch
+* mm-un-export-wake_up_page-functions.patch
+* mm-fix-filemapc-kernel-doc-warnings.patch
+* mm-page_alloc-swap-likely-to-unlikely-as-code-logic-is-different-for-next_zones_zonelist.patch
+* mm-compaction-add-vmstats-for-kcompactd-work.patch
+* mm-page_alloc-skip-over-regions-of-invalid-pfns-where-possible.patch
+* mmcompaction-serialize-waitqueue_active-checks.patch
+* mm-bootmemc-cosmetic-improvement-of-code-readability.patch
+* mm-fix-some-typos-in-mm-zsmallocc.patch
+* mm-memblockc-trivial-code-refine-in-memblock_is_region_memory.patch
+* mm-memblockc-check-return-value-of-memblock_reserve-in-memblock_virt_alloc_internal.patch
+* mm-sparse-use-page_private-to-get-page-private-value.patch
+* mm-memory_hotplug-set-magic-number-to-page-freelsit-instead-of-page-lrunext.patch
+* powerpc-do-not-make-the-entire-heap-executable.patch
+* mm-swap-fix-kernel-message-in-swap_info_get.patch
+* mm-swap-add-cluster-lock.patch
+* mm-swap-split-swap-cache-into-64mb-trunks.patch
+* mm-swap-skip-read-ahead-for-unreferenced-swap-slots.patch
+* mm-swap-allocate-swap-slots-in-batches.patch
+* mm-swap-free-swap-slots-in-batch.patch
+* mm-swap-add-cache-for-swap-slots-allocation.patch
+* mm-swap-enable-swap-slots-cache-usage.patch
+* mm-swap-skip-readahead-only-when-swap-slot-cache-is-enabled.patch
+* mm-thp-add-new-defermadvise-defrag-option.patch
+* z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* kasan-drain-quarantine-of-memcg-slab-objects.patch
+* kasan-add-memcg-kmem_cache-test.patch
+* proc-use-rb_entry.patch
+* proc-less-code-duplication-in-proc-cmdline.patch
+* notifier-simplify-expression.patch
+* timerqueue-use-rb_entry_safe.patch
+* lib-add-module-support-to-crc32-tests.patch
+* lib-add-module-support-to-glob-tests.patch
+* lib-add-module-support-to-atomic64-tests.patch
+* find_bit-micro-optimise-find_next__bit.patch
+* find_bit-micro-optimise-find_next__bit-v2.patch
+* linux-kernelh-fix-div_round_closest-to-support-negative-divisors.patch
+* linux-kernelh-fix-div_round_closest-to-support-negative-divisors-fix.patch
+* rbtree-use-designated-initializers.patch
+* lib-add-config_test_sort-to-enable-self-test-of-sort.patch
+* checkpatch-warn-on-embedded-function-names.patch
+* checkpatch-warn-on-logging-continuations.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* rapidio-use-get_user_pages_unlocked.patch
+* config-android-recommended-disable-aio-support.patch
+* config-android-base-enable-hardened-usercopy-and-kernel-aslr.patch
+* fonts-keep-non-sparc-fonts-listed-together.patch
+* scripts-gdb-add-lx-fdtdump-command.patch
+* ipc-semc-avoid-using-spin_unlock_wait.patch
+* ipc-sem-add-hysteresis.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* fs-add-i_blocksize.patch
+* reimplement-idr-and-ida-using-the-radix-tree.patch
+* reimplement-idr-and-ida-using-the-radix-tree-support-storing-null-in-the-idr.patch
+* reimplement-idr-and-ida-using-the-radix-tree-support-storing-null-in-the-idr-checkpatch-fixes.patch
+* reimplement-idr-and-ida-using-the-radix-tree-fix.patch
+* scripts-spellingtxt-add-swith-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-swithc-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-user-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-union-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-one-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-partiton-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-aligment-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-algined-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-efective-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-varible-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-embeded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-againt-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-neded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-unneded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-intialization-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-initialiazation-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-intialised-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-comsumer-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-disbled-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overide-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overrided-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-configuartion-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-applys-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-explictely-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-omited-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-disassocation-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-deintialized-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overwritting-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overwriten-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-therfore-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-followings-pattern-and-fix-typo-instances.patch
+* lib-vsprintfc-remove-%z-support.patch
+* checkpatchpl-warn-against-using-%z.patch
+* checkpatchpl-warn-against-using-%z-fix.patch
+* kernel-exit-compute-current-directly.patch
+* drivers-tty-compute-current-directly.patch
+* kernel-locking-compute-current-directly.patch
+* sched-remove-set_task_state.patch
+* mm-add-new-mmgrab-helper.patch
+* mm-add-new-mmget-helper.patch
+* mm-use-mmget_not_zero-helper.patch
+* mm-clarify-mm_structmm_userscount-documentation.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
