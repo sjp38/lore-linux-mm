@@ -1,102 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4806B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 19:16:49 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y143so10783520pfb.6
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 16:16:49 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p15si7266907pgg.270.2017.01.11.16.16.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0A46B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 19:22:37 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so11380365pfa.3
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 16:22:37 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id x128si7315275pfd.87.2017.01.11.16.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 16:16:49 -0800 (PST)
-Date: Wed, 11 Jan 2017 16:16:47 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2] mm, thp: add new defer+madvise defrag option
-Message-Id: <20170111161647.306e511a2478132ac9a3969e@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701041532040.67903@chino.kir.corp.google.com>
-	<20170105101330.bvhuglbbeudubgqb@techsingularity.net>
-	<fe83f15e-2d9f-e36c-3a89-ce1a2b39e3ca@suse.cz>
-	<alpine.DEB.2.10.1701051446140.19790@chino.kir.corp.google.com>
-	<558ce85c-4cb4-8e56-6041-fc4bce2ee27f@suse.cz>
-	<alpine.DEB.2.10.1701061407300.138109@chino.kir.corp.google.com>
-	<baeae644-30c4-5f99-2f99-6042766d7885@suse.cz>
-	<alpine.DEB.2.10.1701091818340.61862@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1701101614330.41805@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 11 Jan 2017 16:22:36 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+ <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+ <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
+ <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
+Date: Wed, 11 Jan 2017 17:22:06 -0700
+MIME-Version: 1.0
+In-Reply-To: <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Jonathan Corbet <corbet@lwn.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Tue, 10 Jan 2017 16:15:27 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On 01/11/2017 12:11 PM, Dave Hansen wrote:
+> On 01/11/2017 10:50 AM, Khalid Aziz wrote:
+>> On 01/11/2017 11:13 AM, Dave Hansen wrote:
+>>> On 01/11/2017 08:56 AM, Khalid Aziz wrote:
+>>> For memory shared by two different processes, do they have to agree on
+>>> what the tags are, or can they differ?
+>>
+>> The two processes have to agree on the tag. This is part of the security
+>> design to prevent other processes from accessing pages belonging to
+>> another process unless they know the tag set on those pages.
+>
+> So what do you do with static data, say from a shared executable?  You
+> need to ensure that two different processes from two different privilege
+> domains can't set different tags on the same physical memory.  That
+> would seem to mean that you must not allow tags to be set of memory
+> unless you have write access to it.  Or, you have to ensure that any
+> file that you might want to use this feature on is entirely unreadable
+> (well, un-mmap()-able really) by anybody that you are not coordinating with.
 
-> There is no thp defrag option that currently allows MADV_HUGEPAGE regions 
-> to do direct compaction and reclaim while all other thp allocations simply 
-> trigger kswapd and kcompactd in the background and fail immediately.
-> 
-> The "defer" setting simply triggers background reclaim and compaction for 
-> all regions, regardless of MADV_HUGEPAGE, which makes it unusable for our 
-> userspace where MADV_HUGEPAGE is being used to indicate the application is 
-> willing to wait for work for thp memory to be available.
-> 
-> The "madvise" setting will do direct compaction and reclaim for these
-> MADV_HUGEPAGE regions, but does not trigger kswapd and kcompactd in the 
-> background for anybody else.
-> 
-> For reasonable usage, there needs to be a mesh between the two options.  
-> This patch introduces a fifth mode, "defer+madvise", that will do direct 
-> reclaim and compaction for MADV_HUGEPAGE regions and trigger background 
-> reclaim and compaction for everybody else so that hugepages may be 
-> available in the near future.
-> 
-> A proposal to allow direct reclaim and compaction for MADV_HUGEPAGE 
-> regions as part of the "defer" mode, making it a very powerful setting and 
-> avoids breaking userspace, was offered: 
-> http://marc.info/?t=148236612700003.  This additional mode is a 
-> compromise.
-> 
-> A second proposal to allow both "defer" and "madvise" to be selected at
-> the same time was also offered: http://marc.info/?t=148357345300001.
-> This is possible, but there was a concern that it might break existing
-> userspaces the parse the output of the defrag mode, so the fifth option
-> was introduced instead.
-> 
-> This patch also cleans up the helper function for storing to "enabled" 
-> and "defrag" since the former supports three modes while the latter 
-> supports five and triple_flag_store() was getting unnecessarily messy.
-> 
-> --- a/Documentation/vm/transhuge.txt
-> +++ b/Documentation/vm/transhuge.txt
-> @@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
->  
->  echo always >/sys/kernel/mm/transparent_hugepage/defrag
->  echo defer >/sys/kernel/mm/transparent_hugepage/defrag
-> +echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
->  echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
->  echo never >/sys/kernel/mm/transparent_hugepage/defrag
->  
-> @@ -120,10 +121,15 @@ that benefit heavily from THP use and are willing to delay the VM start
->  to utilise them.
->  
->  "defer" means that an application will wake kswapd in the background
-> -to reclaim pages and wake kcompact to compact memory so that THP is
-> +to reclaim pages and wake kcompactd to compact memory so that THP is
->  available in the near future. It's the responsibility of khugepaged
->  to then install the THP pages later.
->  
-> +"defer+madvise" will enter direct reclaim and compaction like "always", but
-> +only for regions that have used madvise(MADV_HUGEPAGE); all other regions
-> +will wake kswapd in the background to reclaim pages and wake kcompactd to
-> +compact memory so that THP is available in the near future.
-> +
+All of the tag coordination can happen in userspace. Once a process sets 
+a tag on a physical page mapped in its address space, another process 
+that has mapped the same physical page in its address space can only set 
+the tag to exact same value. Attempts to set a different tag are caught 
+by memory controller and result in MCD trap and kernel sends SIGSEGV to 
+the process trying to set a different tag.
 
-It would be helpful if this text were to tell the reader why they may
-choose to use this option: runtime effects, advantages, when-to-use,
-when-not-to-use, etc.
+>
+> If you want to use it on copy-on-write'able data, you've got to ensure
+> that you've got entirely private copies.  I'm not sure we even have an
+> interface to guarantee that.  How could this work after a fork() on
+> un-COW'd, but COW'able data?
 
+On COW, kernel maps the the source and destination pages with 
+kmap_atomic() and copies the data over to the new page and the new page 
+wouldn't be ADI protected unless the child process chooses to do so. 
+This wouldn't change with ADI as far as private copies are concerned. 
+Please do correct me if I get something wrong here. Quick tests with COW 
+data show everything working as expected but your asking about COW has 
+raised a few questions in my own mind. I am researching through docs and 
+running experiments to validate my thinking and I will give you more 
+definite information on whether COW would mess ADI up.
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
