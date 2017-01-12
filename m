@@ -1,114 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C2F096B0033
-	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 23:02:45 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id j13so14278738iod.6
-        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:02:45 -0800 (PST)
-Received: from nm6-vm4.bullet.mail.ne1.yahoo.com (nm6-vm4.bullet.mail.ne1.yahoo.com. [98.138.91.166])
-        by mx.google.com with ESMTPS id z69si6932690ioz.60.2017.01.11.20.02.44
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 56C356B0033
+	for <linux-mm@kvack.org>; Wed, 11 Jan 2017 23:32:15 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 80so24021911pfy.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:32:15 -0800 (PST)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id v9si7909394pfl.280.2017.01.11.20.32.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jan 2017 20:02:45 -0800 (PST)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: shrink_inactive_list() failed to reclaim pages
-From: Pintu Kumar <pintu_agarwal@yahoo.com>
-In-Reply-To: <20170111173802.GK16365@dhcp22.suse.cz>
-Date: Thu, 12 Jan 2017 09:32:35 +0530
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <443501E9-8994-4CA3-ABE9-CA2A6C7B5288@yahoo.com>
-References: <CAPJVTTimt2CeiiX868+EY2HbbWmKsG05u7QOBbuTb74f-ZrpPQ@mail.gmail.com> <20170111173802.GK16365@dhcp22.suse.cz>
+        Wed, 11 Jan 2017 20:32:14 -0800 (PST)
+Received: by mail-pf0-x22b.google.com with SMTP id f144so5830874pfa.2
+        for <linux-mm@kvack.org>; Wed, 11 Jan 2017 20:32:14 -0800 (PST)
+Date: Wed, 11 Jan 2017 20:32:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, memcg: do not retry precharge charges
+Message-ID: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Cheng-yu Lee <cylee@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Luigi Semenzato <semenzato@google.com>, Ben Cheng <bccheng@google.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>, Pintu Kumar <pintu_agarwal@yahoo.com>, Pintu Kumar <pintu.k@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Adding my self
+When memory.move_charge_at_immigrate is enabled and precharges are
+depleted during move, mem_cgroup_move_charge_pte_range() will attempt to
+increase the size of the precharge.
 
-> On 11-Jan-2017, at 11:08 PM, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> [CC Minchan and Sergey for the zram part]
->=20
-> On Thu 12-01-17 01:16:11, Cheng-yu Lee wrote:
->> Hi community,
->>=20
->> I have a x86_64 Chromebook running 3.14 kernel with 8G of memory. =
-Using
->=20
-> Do you see the same with the current Linus tree?
->=20
->> zram with swap size set to ~12GB. When in low memory, kswapd is =
-awaken to
->> reclaim pages, but under some circumstances the kernel can not find =
-pages
->> to reclaim while I'm sure there're still plenty of memory which could =
-be
->> reclaimed from background processes (For example, I run some C =
-programs
->> which just malloc() lots of memory and get suspended in the =
-background.
->> There's no reason they could't be swapped). The consequence is that =
-most of
->> CPU time is spent on page reclamation. The system hangs or becomes =
-very
->> laggy for a long period. Sometimes it even triggers a kernel panic by =
-the
->> hung task detector like:
->> <0>[46246.676366] Kernel panic - not syncing: hung_task: blocked =
-tasks
->>=20
->> I've added kernel message to trace the problem. I found =
-shrink_inactive_list()
->> can barely find any page to reclaim. More precisely, when the problem
->> happens, lots of page have _count > 2 in __remove_mapping(). So the
->> condition at line 662 of vmscan.c holds:
->> http://lxr.free-electrons.com/source/mm/vmscan.c#L662
->> Thus the kernel fails to reclaim those pages at line 1209
->> http://lxr.free-electrons.com/source/mm/vmscan.c#L1209
->=20
-> I assume that you are talking about the anonymous LRU
->=20
->> It's weird that the inactive anonymous list is huge (several GB), but
->> nothing can really be freed. So I did some hack to see if moving more =
-pages
->> from the active list helps. I commented out the =
-"inactive_list_is_low()"
->> checking at line 2420
->> in shrink_node_memcg() so shrink_active_list() is always called.
->> http://lxr.free-electrons.com/source/mm/vmscan.c#L2420
->> It turns out that the hack helps. If moving more pages from the =
-active
->> list, kswapd works smoothly. The whole 12G zram can be used up before
->> system enters OOM condition.
->>=20
->> Any idea why the whole inactive anonymous LRU is occupied by pages =
-which
->> can not be freed for la long time (several minutes before system =
-dies) ?
->> Are there any parameters I can tune to help the situation ? I've =
-tried
->> swappiness but it doesn't help.
->>=20
->> An alternative is to patch the kernel to call shrink_active_list() =
-more
->> frequently when it finds there's nothing that can be reclaimed . But =
-I am
->> not sure if it's the right direction. Also it's not so trivial to =
-figure
->> out where to add the call.
->>=20
->> Thanks,
->> Cheng-Yu
->=20
-> --=20
-> Michal Hocko
-> SUSE Labs
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+This livelocks if reclaim fails and if an oom killed process attached to
+the destination memcg is trying to exit, which requires 
+cgroup_threadgroup_rwsem, since we're holding the mutex (we also livelock
+while holding mm->mmap_sem for read).
+
+Prevent precharges from ever looping by setting __GFP_NORETRY.  This was
+probably the intention of the GFP_KERNEL & ~__GFP_NORETRY, which is
+pointless as written.
+
+This also restructures mem_cgroup_wait_acct_move() since it is not
+possible for mc.moving_task to be current.
+
+Fixes: 0029e19ebf84 ("mm: memcontrol: remove explicit OOM parameter in charge path")
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memcontrol.c | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1125,18 +1125,19 @@ static bool mem_cgroup_under_move(struct mem_cgroup *memcg)
+ 
+ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
+ {
+-	if (mc.moving_task && current != mc.moving_task) {
+-		if (mem_cgroup_under_move(memcg)) {
+-			DEFINE_WAIT(wait);
+-			prepare_to_wait(&mc.waitq, &wait, TASK_INTERRUPTIBLE);
+-			/* moving charge context might have finished. */
+-			if (mc.moving_task)
+-				schedule();
+-			finish_wait(&mc.waitq, &wait);
+-			return true;
+-		}
++	DEFINE_WAIT(wait);
++
++	if (likely(!mem_cgroup_under_move(memcg)))
++		return false;
++
++	prepare_to_wait(&mc.waitq, &wait, TASK_INTERRUPTIBLE);
++	/* moving charge context might have finished. */
++	if (mc.moving_task) {
++		WARN_ON_ONCE(mc.moving_task == current);
++		schedule();
+ 	}
+-	return false;
++	finish_wait(&mc.waitq, &wait);
++	return true;
+ }
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+@@ -4355,9 +4356,14 @@ static int mem_cgroup_do_precharge(unsigned long count)
+ 		return ret;
+ 	}
+ 
+-	/* Try charges one by one with reclaim */
++	/*
++	 * Try charges one by one with reclaim, but do not retry.  This avoids
++	 * looping forever when try_charge() cannot reclaim memory and the oom
++	 * killer defers while waiting for a process to exit which is trying to
++	 * acquire cgroup_threadgroup_rwsem in the exit path.
++	 */
+ 	while (count--) {
+-		ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_NORETRY, 1);
++		ret = try_charge(mc.to, GFP_KERNEL | __GFP_NORETRY, 1);
+ 		if (ret)
+ 			return ret;
+ 		mc.precharge++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
