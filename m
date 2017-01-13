@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 404F26B0038
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 09:58:59 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id an2so391156wjc.3
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:58:59 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 450E16B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 10:08:37 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r144so16809068wme.0
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 07:08:37 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u133si2421863wmu.53.2017.01.13.06.58.57
+        by mx.google.com with ESMTPS id 34si11526712wrc.11.2017.01.13.07.08.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Jan 2017 06:58:58 -0800 (PST)
-Date: Fri, 13 Jan 2017 15:58:56 +0100
+        Fri, 13 Jan 2017 07:08:36 -0800 (PST)
+Date: Fri, 13 Jan 2017 16:08:34 +0100
 From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 2/4] mm, page_alloc: warn_alloc print nodemask
-Message-ID: <20170113145856.GM25212@dhcp22.suse.cz>
+Subject: Re: [PATCH 4/4] lib/show_mem.c: teach show_mem to work with the
+ given nodemask
+Message-ID: <20170113150834.GN25212@dhcp22.suse.cz>
 References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-3-mhocko@kernel.org>
- <dedb6ad3-f41e-7da1-29da-bb42e53ed3e7@suse.cz>
+ <20170112131659.23058-5-mhocko@kernel.org>
+ <13903870-92bd-1ea2-aefc-0481c850da19@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <dedb6ad3-f41e-7da1-29da-bb42e53ed3e7@suse.cz>
+In-Reply-To: <13903870-92bd-1ea2-aefc-0481c850da19@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>
 
-On Fri 13-01-17 12:31:52, Vlastimil Babka wrote:
+On Fri 13-01-17 14:08:34, Vlastimil Babka wrote:
 > On 01/12/2017 02:16 PM, Michal Hocko wrote:
 > > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > warn_alloc is currently used for to report an allocation failure or an
-> > allocation stall. We print some details of the allocation request like
-> > the gfp mask and the request order. We do not print the allocation
-> > nodemask which is important when debugging the reason for the allocation
-> > failure as well. We alreaddy print the nodemask in the OOM report.
-> > 
-> > Add nodemask to warn_alloc and print it in warn_alloc as well.
+> > show_mem() allows to filter out node specific data which is irrelevant
+> > to the allocation request via SHOW_MEM_FILTER_NODES. The filtering
+> > is done in skip_free_areas_node which skips all nodes which are not
+> > in the mems_allowed of the current process. This works most of the
+> > time as expected because the nodemask shouldn't be outside of the
+> > allocating task but there are some exceptions. E.g. memory hotplug might
+> > want to request allocations from outside of the allowed nodes (see
+> > new_node_page).
 > 
-> That's helpful, but still IMHO incomplete compared to oom killer, see below.
-> 
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3031,12 +3031,13 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
-> >  	show_mem(filter);
-> >  }
-> > 
-> > -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
-> > +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
-> >  {
-> >  	struct va_format vaf;
-> >  	va_list args;
-> >  	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
-> >  				      DEFAULT_RATELIMIT_BURST);
-> > +	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
-> 
-> Yes that's same as oom's dump_header() does it. But what if there's both
-> mempolicy nodemask and cpuset at play? From oom report you'll see that as it
-> also calls cpuset_print_current_mems_allowed(). So could we do that here as
-> well?
+> Hm AFAICS memory hotplug's new_node_page() is restricted both by cpusets (by
+> using GFP_USER), and by the nodemask it constructs. That's probably a bug in
+> itself, as it shouldn't matter which task is triggering the offline?
 
-OK, I will add it. It cannot be harmful.
+yes that is true. A task bound to a node which is offlined would be
+funny...
+
+> Which probably means that if show_mem() wants to be really precise, it would
+> have to start from nodemask and intersect with cpuset when the allocation in
+> question cannot escape it. But if we accept that it's ok when we print too
+> many nodes (because we can filter them out when reading the output by having
+> also nodemask and mems_allowed printed), and strive only to not miss any
+> nodes, then this patch could really fix cases when we do miss (although
+> new_node_page() currently isn't such example).
+
+I guess it should be sufficient to add cpuset_print_current_mems_allowed()
+in warn_alloc. This should give us the full picture without doing too
+much twiddling. What do you think?
+
 -- 
 Michal Hocko
 SUSE Labs
