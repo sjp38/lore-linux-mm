@@ -1,69 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 697846B0069
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 04:19:04 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so113142184pfb.7
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 01:19:04 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d11si12024879plj.282.2017.01.13.01.19.03
-        for <linux-mm@kvack.org>;
-        Fri, 13 Jan 2017 01:19:03 -0800 (PST)
-Date: Fri, 13 Jan 2017 09:19:04 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-Message-ID: <20170113091903.GA22538@arm.com>
-References: <20161216165437.21612-1-rrichter@cavium.com>
- <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
- <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
- <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
- <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
- <20170109115320.GI4930@rric.localdomain>
- <20170112160535.GF13843@arm.com>
- <20170112185825.GE5020@rric.localdomain>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 026BE6B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 04:24:26 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c206so13840015wme.3
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 01:24:25 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d5si10526030wrc.145.2017.01.13.01.24.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Jan 2017 01:24:24 -0800 (PST)
+Date: Fri, 13 Jan 2017 10:24:21 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH 0/5] pro-active compaction
+Message-ID: <20170113092420.GF25212@dhcp22.suse.cz>
+References: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170112185825.GE5020@rric.localdomain>
+In-Reply-To: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Richter <robert.richter@cavium.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Jan 12, 2017 at 07:58:25PM +0100, Robert Richter wrote:
-> On 12.01.17 16:05:36, Will Deacon wrote:
-> > On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
+On Fri 13-01-17 16:14:28, Joonsoo Kim wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> > > Kernel compile times (3 runs each):
-> > > 
-> > > pfn_valid_within():
-> > > 
-> > > real    6m4.088s
-> > > user    372m57.607s
-> > > sys     16m55.158s
-> > > 
-> > > real    6m1.532s
-> > > user    372m48.453s
-> > > sys     16m50.370s
-> > > 
-> > > real    6m4.061s
-> > > user    373m18.753s
-> > > sys     16m57.027s
-> > 
-> > Did you reboot the machine between each build here, or only when changing
-> > kernel? If the latter, do you see variations in kernel build time by simply
-> > rebooting the same Image?
+> Hello,
 > 
-> I built it in a loop on the shell, so no reboots between builds. Note
-> that I was building the kernel in /dev/shm to not access harddisks. I
-> think build times should be comparable then since there is no fs
-> caching.
+> This is a patchset for pro-active compaction to reduce fragmentation.
+> It is a just RFC patchset so implementation detail isn't good.
+> I submit this for people who want to check the effect of pro-active
+> compaction.
+> 
+> Patch 1 ~ 4 introduces new metric for checking fragmentation. I think
+> that this new metric is useful to check fragmentation state
+> regardless of usefulness of pro-active compaction. Please let me know
+> if someone see that this new metric is useful. I'd like to submit it,
+> separately.
 
-I guess I'm really asking what the standard deviation is if you *do* reboot
-between builds, using the same kernel. It's hard to tell whether the numbers
-are due to the patches, or just because of noise incurred by the way things
-happen to initialise.
-
-Will
+Could you describe this metric from a high level POV please?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
