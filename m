@@ -1,65 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F30AD6B0069
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 11:29:25 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id q3so41091583qtf.4
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 08:29:25 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f72si3981820qka.229.2017.01.13.08.29.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6970E6B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 11:56:41 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id d140so17425263wmd.4
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 08:56:41 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id t141si2744854wme.100.2017.01.13.08.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jan 2017 08:29:25 -0800 (PST)
-Subject: Re: [patch v2 linux-next] userfaultfd: hugetlbfs: unmap the correct
- pointer
-References: <20170112193327.GB8558@dhcp22.suse.cz>
- <20170113082608.GA3548@mwanda> <20170113084044.GC25212@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <90d5f4a9-9a87-407d-18dc-246c6cea151f@oracle.com>
-Date: Fri, 13 Jan 2017 08:29:14 -0800
-MIME-Version: 1.0
-In-Reply-To: <20170113084044.GC25212@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Fri, 13 Jan 2017 08:56:39 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id r144so79348444wme.1
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 08:56:39 -0800 (PST)
+From: Daniel Thompson <daniel.thompson@linaro.org>
+Subject: [PATCH] tools/vm: Add missing Makefile rules
+Date: Fri, 13 Jan 2017 16:56:30 +0000
+Message-Id: <20170113165630.27541-1-daniel.thompson@linaro.org>
+In-Reply-To: <20170113164948.25588-1-daniel.thompson@linaro.org>
+References: <20170113164948.25588-1-daniel.thompson@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dan Williams <dan.j.williams@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Thompson <daniel.thompson@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, patches@linaro.org
 
-On 01/13/2017 12:40 AM, Michal Hocko wrote:
-> On Fri 13-01-17 11:26:08, Dan Carpenter wrote:
->> kunmap_atomic() and kunmap() take different pointers.  People often get
->> these mixed up.
->>
->> Fixes: 16374db2e9a0 ("userfaultfd: hugetlbfs: fix __mcopy_atomic_hugetlb retry/error processing")
->> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+Currently the tools/vm Makefile has a rather arbitrary implicit build
+rule; page-types is the first value in TARGETS so lets just build that
+one! Additionally there is no install rule and this is needed for
+make -C tools vm_install to work properly.
 
-Thanks for catching this!
+Provide a more sensible implicit build rule and a new install rule.
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Note that the variables names used by the install rule (DESTDIR and
+sbindir) are copied from prior-art in tools/power/cpupower.
 
--- 
-Mike Kravetz
+Signed-off-by: Daniel Thompson <daniel.thompson@linaro.org>
+---
 
-> 
->> ---
->> v2: I was also unmapping the wrong pointer because I had a typo.
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 6012a05..aca8ef6 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -4172,7 +4172,7 @@ long copy_huge_page_from_user(struct page *dst_page,
->>  				(const void __user *)(src + i * PAGE_SIZE),
->>  				PAGE_SIZE);
->>  		if (allow_pagefault)
->> -			kunmap(page_kaddr);
->> +			kunmap(page_kaddr + i);
->>  		else
->>  			kunmap_atomic(page_kaddr);
->>  
-> 
+Notes:
+    This is a resend with the linux-mm list spelled correctly (and with
+    special apologies to Andrew for the spam).
+
+ tools/vm/Makefile | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/tools/vm/Makefile b/tools/vm/Makefile
+index 93aadaf7ff63..006029456988 100644
+--- a/tools/vm/Makefile
++++ b/tools/vm/Makefile
+@@ -9,6 +9,8 @@ CC = $(CROSS_COMPILE)gcc
+ CFLAGS = -Wall -Wextra -I../lib/
+ LDFLAGS = $(LIBS)
+
++all: $(TARGETS)
++
+ $(TARGETS): $(LIBS)
+
+ $(LIBS):
+@@ -20,3 +22,9 @@ $(LIBS):
+ clean:
+ 	$(RM) page-types slabinfo page_owner_sort
+ 	make -C $(LIB_DIR) clean
++
++sbindir ?= /usr/sbin
++
++install: all
++	install -d $(DESTDIR)$(sbindir)
++	install -m 755 -p $(TARGETS) $(DESTDIR)$(sbindir)
+--
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
