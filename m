@@ -1,85 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 288876B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:11:55 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 80so89726026pfy.2
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:11:55 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id z18si2448035pfg.247.2017.01.12.17.11.54
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4A86B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:32:22 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id v96so47178197ioi.5
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:32:22 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p23si10976303pfl.37.2017.01.12.17.32.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 17:11:54 -0800 (PST)
-From: "Dilger, Andreas" <andreas.dilger@intel.com>
-Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
- variants
-Date: Fri, 13 Jan 2017 01:11:51 +0000
-Message-ID: <0B164192-F549-4D5E-BB07-B51886D936B0@intel.com>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-6-mhocko@kernel.org>
-In-Reply-To: <20170112153717.28943-6-mhocko@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <FCAE4B7494D2EB4C9A20DA989F97BADD@intel.com>
-Content-Transfer-Encoding: quoted-printable
+        Thu, 12 Jan 2017 17:32:21 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+ <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+ <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
+ <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
+ <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
+ <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
+ <b480fdcc-e08a-eea7-9bac-12bc236422c6@oracle.com>
+ <b0a6341d-fb85-9f50-4803-304f3e28b4ab@linux.intel.com>
+ <ae1662fa-4e51-d92d-7f19-403c92406194@oracle.com>
+From: Rob Gardner <rob.gardner@oracle.com>
+Message-ID: <ee959bf4-73db-f9bb-c697-20b47dd8d55f@oracle.com>
+Date: Thu, 12 Jan 2017 18:31:45 -0700
 MIME-Version: 1.0
+In-Reply-To: <ae1662fa-4e51-d92d-7f19-403c92406194@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin
- Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, "Luck, Tony" <tony.luck@intel.com>, "Rafael J.
- Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent
- Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, "Williams, Dan J" <dan.j.williams@intel.com>, "Drokin, Oleg" <oleg.drokin@intel.com>, Boris
- Ostrovsky <boris.ostrovsky@oracle.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei
- Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>, Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
+Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+
+On 01/12/2017 05:22 PM, Khalid Aziz wrote:
+> On 01/12/2017 10:53 AM, Dave Hansen wrote:
+>> On 01/12/2017 08:50 AM, Khalid Aziz wrote:
+>>> 2. Any shared page that has ADI protection enabled on it, must stay ADI
+>>> protected across all processes sharing it.
+>>
+>> Is that true?
+>>
+>> What happens if a page with ADI tags set is accessed via a PTE without
+>> the ADI enablement bit set?
+>
+> ADI protection applies across all processes in terms of all of them 
+> must use the same tag to access the shared memory, but if a process 
+> accesses a shared page with TTE.mcde bit cleared, access will be granted.
+>
+>>
+>>> COW creates an intersection of the two. It creates a new copy of the
+>>> shared data. It is a new data page and hence the process creating it
+>>> must be the one responsible for enabling ADI protection on it.
+>>
+>> Do you mean that the application must be responsible?  Or the kernel
+>> running in the context of the new process must be responsible?
+>>
+>>> It is also a copy of what was ADI protected data, so should it
+>>> inherit the protection instead?
+>>
+>> I think the COW'd copy must inherit the VMA bit, the PTE bits, and the
+>> tags on the cachelines.
+>>
+>>> I misspoke earlier. I had misinterpreted the results of test I ran.
+>>> Changing the tag on shared memory is allowed by memory controller. The
+>>> requirement is every one sharing the page must switch to the new tag or
+>>> else they get SIGSEGV.
+>>
+>> I asked this in the last mail, but I guess I'll ask it again. Please
+>> answer this directly.
+>>
+>> If we require that everyone coordinate their tags on the backing
+>> physical memory, and we allow a lower-privileged program to access the
+>> same data as a more-privileged one, then the lower-privilege app can
+>> cause arbitrary crashes in the privileged application.
+>>
+>> For instance, say sudo mmap()'s /etc/passwd and uses ADI tags to protect
+>> the mapping.  Couldn't any other app in the system prevent sudo from
+>> working?
+>>
+>> How can we *EVER* allow tags to be set on non-writable mappings?
+
+I don't think you can write a tag to memory if you don't have write 
+access in the TTE. Writing a tag requires a store instruction, and if 
+the machine is at all sane, this will fault if you don't have write access.
+
+Rob
 
 
-> On Jan 12, 2017, at 08:37, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> From: Michal Hocko <mhocko@suse.com>
->=20
-> There are many code paths opencoding kvmalloc. Let's use the helper
-> instead. The main difference to kvmalloc is that those users are usually
-> not considering all the aspects of the memory allocator. E.g. allocation
-> requests < 64kB are basically never failing and invoke OOM killer to
-> satisfy the allocation. This sounds too disruptive for something that
-> has a reasonable fallback - the vmalloc. On the other hand those
-> requests might fallback to vmalloc even when the memory allocator would
-> succeed after several more reclaim/compaction attempts previously. There
-> is no guarantee something like that happens though.
->=20
-> This patch converts many of those places to kv[mz]alloc* helpers because
-> they are more conservative.
->=20
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Lustre part can be
-Acked-by: Andreas Dilger <andreas.dilger@intel.com>
-
-[snip]
-
-> diff --git a/drivers/staging/lustre/lnet/libcfs/linux/linux-mem.c b/drive=
-rs/staging/lustre/lnet/libcfs/linux/linux-mem.c
-> index a6a76a681ea9..8f638267e704 100644
-> --- a/drivers/staging/lustre/lnet/libcfs/linux/linux-mem.c
-> +++ b/drivers/staging/lustre/lnet/libcfs/linux/linux-mem.c
-> @@ -45,15 +45,6 @@ EXPORT_SYMBOL(libcfs_kvzalloc);
-> void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t si=
-ze,
-> 			  gfp_t flags)
-> {
-> -	void *ret;
-> -
-> -	ret =3D kzalloc_node(size, flags | __GFP_NOWARN,
-> -			   cfs_cpt_spread_node(cptab, cpt));
-> -	if (!ret) {
-> -		WARN_ON(!(flags & (__GFP_FS | __GFP_HIGH)));
-> -		ret =3D vmalloc_node(size, cfs_cpt_spread_node(cptab, cpt));
-> -	}
-> -
-> -	return ret;
-> +	return kvzalloc_node(size, flags, cfs_cpt_spread_node(cptab, cpt));
-> }
-> EXPORT_SYMBOL(libcfs_kvzalloc_cpt);
+>
+> I understand your quetion better now. That is a very valid concern. 
+> Using ADI tags to prevent an unauthorized process from just reading 
+> data in memory, say an in-memory copy of database, is one of the use 
+> cases for ADI. This means there is a reasonable case to allow enabling 
+> ADI and setting tags even on non-writable mappings. On the other hand, 
+> if an unauthorized process manages to map the right memory pages in 
+> its address space, it can read them any way by not setting TTE.mcd.
+>
+> Userspace app can set tag on any memory it has mapped in without 
+> requiring assistance from kernel. Can this problem be solved by not 
+> allowing setting TTE.mcd on non-writable mappings? Doesn't the same 
+> problem occur on writable mappings? If a privileged process mmap()'s a 
+> writable file with MAP_SHARED, enables ADI and sets tag on the mmap'd 
+> memory region, then another lower privilege process mmap's the same 
+> file writable (assuming file permissions allow it to), enables ADI and 
+> sets a different tag on it, the privileged process would get SIGSEGV 
+> when it tries to access the mmap'd file. Right?
 
 
 
