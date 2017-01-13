@@ -1,118 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4A86B0033
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:32:22 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id v96so47178197ioi.5
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:32:22 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p23si10976303pfl.37.2017.01.12.17.32.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 17:32:21 -0800 (PST)
-Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
- SPARC M7
-References: <cover.1483999591.git.khalid.aziz@oracle.com>
- <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
- <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
- <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
- <4978715f-e5e8-824e-3804-597eaa0beb95@oracle.com>
- <558ad70b-4b19-3a78-038a-b12dc7af8585@linux.intel.com>
- <5d28f71e-1ad2-b2f9-1174-ea4eb6399d23@oracle.com>
- <a7ab2796-d777-df7b-2372-2d76f2906ead@linux.intel.com>
- <b480fdcc-e08a-eea7-9bac-12bc236422c6@oracle.com>
- <b0a6341d-fb85-9f50-4803-304f3e28b4ab@linux.intel.com>
- <ae1662fa-4e51-d92d-7f19-403c92406194@oracle.com>
-From: Rob Gardner <rob.gardner@oracle.com>
-Message-ID: <ee959bf4-73db-f9bb-c697-20b47dd8d55f@oracle.com>
-Date: Thu, 12 Jan 2017 18:31:45 -0700
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E30E6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:37:39 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id b22so87303201pfd.0
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 17:37:39 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id p15si10946811pgg.270.2017.01.12.17.37.28
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jan 2017 17:37:38 -0800 (PST)
+Date: Fri, 13 Jan 2017 10:37:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: + mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
+ added to -mm tree
+Message-ID: <20170113013724.GA23494@bbox>
+References: <586edadc.figmHAGrTxvM7Wei%akpm@linux-foundation.org>
+ <20170110235250.GA7130@bbox>
+ <20170111155239.GD16365@dhcp22.suse.cz>
+ <20170112051247.GA8387@bbox>
+ <20170112081554.GB2264@dhcp22.suse.cz>
+ <20170112084813.GA24030@bbox>
+ <20170112091016.GE2264@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <ae1662fa-4e51-d92d-7f19-403c92406194@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170112091016.GE2264@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, Dave Hansen <dave.hansen@linux.intel.com>, davem@davemloft.net, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org
-Cc: hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, hillf.zj@alibaba-inc.com, mgorman@suse.de, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On 01/12/2017 05:22 PM, Khalid Aziz wrote:
-> On 01/12/2017 10:53 AM, Dave Hansen wrote:
->> On 01/12/2017 08:50 AM, Khalid Aziz wrote:
->>> 2. Any shared page that has ADI protection enabled on it, must stay ADI
->>> protected across all processes sharing it.
->>
->> Is that true?
->>
->> What happens if a page with ADI tags set is accessed via a PTE without
->> the ADI enablement bit set?
->
-> ADI protection applies across all processes in terms of all of them 
-> must use the same tag to access the shared memory, but if a process 
-> accesses a shared page with TTE.mcde bit cleared, access will be granted.
->
->>
->>> COW creates an intersection of the two. It creates a new copy of the
->>> shared data. It is a new data page and hence the process creating it
->>> must be the one responsible for enabling ADI protection on it.
->>
->> Do you mean that the application must be responsible?  Or the kernel
->> running in the context of the new process must be responsible?
->>
->>> It is also a copy of what was ADI protected data, so should it
->>> inherit the protection instead?
->>
->> I think the COW'd copy must inherit the VMA bit, the PTE bits, and the
->> tags on the cachelines.
->>
->>> I misspoke earlier. I had misinterpreted the results of test I ran.
->>> Changing the tag on shared memory is allowed by memory controller. The
->>> requirement is every one sharing the page must switch to the new tag or
->>> else they get SIGSEGV.
->>
->> I asked this in the last mail, but I guess I'll ask it again. Please
->> answer this directly.
->>
->> If we require that everyone coordinate their tags on the backing
->> physical memory, and we allow a lower-privileged program to access the
->> same data as a more-privileged one, then the lower-privilege app can
->> cause arbitrary crashes in the privileged application.
->>
->> For instance, say sudo mmap()'s /etc/passwd and uses ADI tags to protect
->> the mapping.  Couldn't any other app in the system prevent sudo from
->> working?
->>
->> How can we *EVER* allow tags to be set on non-writable mappings?
+Hello,
 
-I don't think you can write a tag to memory if you don't have write 
-access in the TTE. Writing a tag requires a store instruction, and if 
-the machine is at all sane, this will fault if you don't have write access.
+On Thu, Jan 12, 2017 at 10:10:17AM +0100, Michal Hocko wrote:
+> On Thu 12-01-17 17:48:13, Minchan Kim wrote:
+> > On Thu, Jan 12, 2017 at 09:15:54AM +0100, Michal Hocko wrote:
+> > > On Thu 12-01-17 14:12:47, Minchan Kim wrote:
+> > > > Hello,
+> > > > 
+> > > > On Wed, Jan 11, 2017 at 04:52:39PM +0100, Michal Hocko wrote:
+> > > > > On Wed 11-01-17 08:52:50, Minchan Kim wrote:
+> > > > > [...]
+> > > > > > > @@ -2055,8 +2055,8 @@ static bool inactive_list_is_low(struct
+> > > > > > >  	if (!file && !total_swap_pages)
+> > > > > > >  		return false;
+> > > > > > >  
+> > > > > > > -	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > > > > > > -	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> > > > > > > +	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > > > > > > +	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> > > > > > >  
+> > > > > > 
+> > > > > > the decision of deactivating is based on eligible zone's LRU size,
+> > > > > > not whole zone so why should we need to get a trace of all zones's LRU?
+> > > > > 
+> > > > > Strictly speaking, the total_ counters are not necessary for making the
+> > > > > decision. I found reporting those numbers useful regardless because this
+> > > > > will give us also an information how large is the eligible portion of
+> > > > > the LRU list. We do not have any other tracepoint which would report
+> > > > > that.
+> > > > 
+> > > > The patch doesn't say anything why it's useful. Could you tell why it's
+> > > > useful and inactive_list_is_low should be right place?
+> > > > 
+> > > > Don't get me wrong, please. I don't want to bother you.
+> > > > I really don't want to add random stuff although it's tracepoint for
+> > > > debugging.
+> > > 
+> > > This doesn't sounds random to me. We simply do not have a full picture
+> > > on 32b systems without this information. Especially when memcgs are
+> > > involved and global numbers spread over different LRUs.
+> > 
+> > Could you elaborate it?
+> 
+> The problem with 32b systems is that you only can consider a part of the
+> LRU for the lowmem requests. While we have global counters to see how
+> much lowmem inactive/active pages we have, those get distributed to
+> memcg LRUs. And that distribution is impossible to guess. So my thinking
+> is that it can become a real head scratcher to realize why certain
+> active LRUs are aged while others are not. This was the case when I was
+> debugging the last issue which triggered all this. All of the sudden I
+> have seen many invocations when inactive and active were zero which
+> sounded weird, until I realized that those are memcg's lruvec which is
+> what total numbers told me...
 
-Rob
+Hmm, it seems I miss something. AFAIU, what you need is just memcg
+identifier, not all lru size. If it isn't, please tell more detail
+usecase of all lru size in that particular tracepoint.
 
+> 
+> Later on I would like to add an memcg identifier to the vmscan
+> tracepoints but I didn't get there yet.
+>  
+> > "
+> > Currently we have tracepoints for both active and inactive LRU lists
+> > reclaim but we do not have any which would tell us why we we decided to
+> > age the active list.  Without that it is quite hard to diagnose
+> > active/inactive lists balancing.  Add mm_vmscan_inactive_list_is_low
+> > tracepoint to tell us this information.
+> > "
+> > 
+> > Your description says "why we decided to age the active list".
+> > So, what's needed?
+> > 
+> > >  
+> > > > > [...]
+> > > > > > > @@ -2223,7 +2228,7 @@ static void get_scan_count(struct lruvec
+> > > > > > >  	 * lruvec even if it has plenty of old anonymous pages unless the
+> > > > > > >  	 * system is under heavy pressure.
+> > > > > > >  	 */
+> > > > > > > -	if (!inactive_list_is_low(lruvec, true, sc) &&
+> > > > > > > +	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+> > > > > > 
+> > > > > > Hmm, I was curious why you added trace boolean arguement and found it here.
+> > > > > > Yes, here is not related to deactivation directly but couldn't we help to
+> > > > > > trace it unconditionally?
+> > > > > 
+> > > > > I've had it like that when I was debugging the mentioned bug and found
+> > > > > it a bit disturbing. It generated more output than I would like and it
+> > > > > wasn't really clear from which code path  this has been called from.
+> > > > 
+> > > > Indeed.
+> > > > 
+> > > > Personally, I want to move inactive_list_is_low in shrink_active_list
+> > > > and shrink_active_list calls inactive_list_is_low(...., true),
+> > > > unconditionally so that it can make code simple/clear but cannot remove
+> > > > trace boolean variable , which what I want. So, it's okay if you love
+> > > > your version.
+> > > 
+> > > I am not sure I am following. Why is the additional parameter a problem?
+> > 
+> > Well, to me, it's not a elegance. Is it? If we need such boolean variable
+> > to control show the trace, it means it's not a good place or think
+> > refactoring.
+> 
+> But, even when you refactor the code there will be other callers of
+> inactive_list_is_low outside of shrink_active_list...
 
-
->
-> I understand your quetion better now. That is a very valid concern. 
-> Using ADI tags to prevent an unauthorized process from just reading 
-> data in memory, say an in-memory copy of database, is one of the use 
-> cases for ADI. This means there is a reasonable case to allow enabling 
-> ADI and setting tags even on non-writable mappings. On the other hand, 
-> if an unauthorized process manages to map the right memory pages in 
-> its address space, it can read them any way by not setting TTE.mcd.
->
-> Userspace app can set tag on any memory it has mapped in without 
-> requiring assistance from kernel. Can this problem be solved by not 
-> allowing setting TTE.mcd on non-writable mappings? Doesn't the same 
-> problem occur on writable mappings? If a privileged process mmap()'s a 
-> writable file with MAP_SHARED, enables ADI and sets tag on the mmap'd 
-> memory region, then another lower privilege process mmap's the same 
-> file writable (assuming file permissions allow it to), enables ADI and 
-> sets a different tag on it, the privileged process would get SIGSEGV 
-> when it tries to access the mmap'd file. Right?
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes, that's why I said "it's okay if you love your version". However,
+we can do refactoring to remove "bool trace" and even, it makes code
+more readable, I believe.
