@@ -1,142 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC15E6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:00:26 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id v96so59047918ioi.5
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 03:00:26 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e82si10816322ioi.193.2017.01.13.03.00.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D8C86B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:03:26 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so14572327wmi.6
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 03:03:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k2si1707459wmg.135.2017.01.13.03.03.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Jan 2017 03:00:25 -0800 (PST)
-Subject: Re: [PATCH] mm: Ignore __GFP_NOWARN when reporting stalls
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1484132120-35288-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170111161228.GE16365@dhcp22.suse.cz>
-In-Reply-To: <20170111161228.GE16365@dhcp22.suse.cz>
-Message-Id: <201701132000.HJB81754.VOQtFMSJOFFHLO@I-love.SAKURA.ne.jp>
-Date: Fri, 13 Jan 2017 20:00:11 +0900
-Mime-Version: 1.0
+        Fri, 13 Jan 2017 03:03:24 -0800 (PST)
+Date: Fri, 13 Jan 2017 12:03:23 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20170113110323.GH14894@pathway.suse.cz>
+References: <20161220153948.GA575@tigerII.localdomain>
+ <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
+ <20161222134250.GE413@tigerII.localdomain>
+ <201612222301.AFG57832.QOFMSVFOJHLOtF@I-love.SAKURA.ne.jp>
+ <20161222140930.GF413@tigerII.localdomain>
+ <201612261954.FJE69201.OFLVtFJSQFOHMO@I-love.SAKURA.ne.jp>
+ <20161226113407.GA515@tigerII.localdomain>
+ <20170112141844.GA20462@pathway.suse.cz>
+ <20170113022843.GA9360@jagdpanzerIV.localdomain>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170113022843.GA9360@jagdpanzerIV.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.cz>, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Wed 11-01-17 19:55:20, Tetsuo Handa wrote:
-> > Currently, warn_alloc() prints warning messages only if __GFP_NOWARN
-> > is not specified. When warn_alloc() was proposed, I asserted that
-> > warn_alloc() should print stall warning messages even if __GFP_NOWARN
-> > is specified, but that assertion was not accepted [1].
+On Fri 2017-01-13 11:28:43, Sergey Senozhatsky wrote:
+> On (01/12/17 15:18), Petr Mladek wrote:
+> > On Mon 2016-12-26 20:34:07, Sergey Senozhatsky wrote:
+> > > console_trylock() used to always forbid rescheduling; but it got changed
+> > > like a yaer ago.
+> > > 
+> > > the other thing is... do we really need to console_conditional_schedule()
+> > > from fbcon_*()? console_unlock() does cond_resched() after every line it
+> > > prints. wouldn't that be enough?
+> > > 
+> > > so may be we can drop some of console_conditional_schedule()
+> > > call sites in fbcon. or update console_conditional_schedule()
+> > > function to always return the current preemption value, not the
+> > > one we saw in console_trylock().
 > > 
-> > Compared to asynchronous watchdog [2], warn_alloc() for reporting stalls
-> > is broken in many aspects. First of all, we can't guarantee forward
-> > progress of memory allocation request. It is important to understand that
-> > the reason is not limited to the "too small to fail" memory-allocation
-> > rule [3]. We need to learn that the caller may fail to call warn_alloc()
-> >  from page allocator whereas warn_alloc() assumes that stalling threads
-> > can call warn_alloc() from page allocator.
+> > I was curious if it makes sense to remove
+> > console_conditional_schedule() completely.
+> 
+> I was looking at this option at some point as well.
+> 
+> > In practice, it never allows rescheduling when the console driver
+> > is called via console_unlock(). It is since 2006 and the commit
+> > 78944e549d36673eb62 ("vt: printk: Fix framebuffer console
+> > triggering might_sleep assertion"). This commit added
+> > that
 > > 
-> > An easily reproducible situation is that kswapd is blocked on other
-> > threads doing memory allocations while other threads doing memory
-> > allocations are blocked on kswapd [4].
+> > 	console_may_schedule = 0;
+> >
+> > into console_unlock() before the console drivers are called.
+> > 
+> > 
+> > On the other hand, it seems that the rescheduling was always
+> > enabled when some console operations were called via
+> > tty_operations. For example:
+> > 
+> > struct tty_operations con_ops
+> > 
+> >   con_ops->con_write()
+> >   -> do_con_write()  #calls console_lock()
+> >    -> do_con_trol()
+> >     -> fbcon_scroll()
+> >      -> fbcon_redraw_move()
+> >       -> console_conditional_schedule()
+> > 
+> > , where console_lock() sets console_may_schedule = 1;
+> > 
+> > 
+> > A complete console scroll/redraw might take a while. The rescheduling
+> > would make sense => IMHO, we should keep console_conditional_schedule()
+> > or some alternative in the console drivers as well.
+> > 
+> > But I am afraid that we could not use the automatic detection.
+> > We are not able to detect preemption when CONFIG_PREEMPT_COUNT
 > 
-> This all is unrelated to whether we should or shouldn't warn when
-> __GFP_NOWARN is specified.
+> can one actually have a preemptible kernel with !CONFIG_PREEMPT_COUNT?
+> how? it's not even possible to change CONFIG_PREEMPT_COUNT in menuconfig.
+> the option is automatically selected by PREEMPT. and if PREEMPT is not
+> selected then _cond_resched() is just "{ rcu_all_qs(); return 0; }"
+
+CONFIG_PREEMPT_COUNT is always enabled in preemptive kernel. But
+we do not mind about preemtible kernel. It reschedules automatically
+anywhere in preemptive context.
+
+The problem is non-preemptive kernel. It is able to reschedule
+only when someone explicitely calls cond_resched() or schedule().
+In this case, we are able to detect the preemtive context
+automatically only with CONFIG_PREEMPT_COUNT enabled.
+We must not call cond_resched() if we are not sure.
+
+> ...
+> > We cannot put the automatic detection into console_conditional_schedule().
 > 
-> > But what is silly is that, even
-> > if some allocation request was lucky enough to escape from
-> > too_many_isolated() loop because it was GFP_NOIO or GFP_NOFS, it fails
-> > to print warning messages because it was __GFP_NOWARN when all other
-> > allocations were looping inside too_many_isolated() loop (an example [5]
-> > is shown below). We are needlessly discarding a chance to know that
-> > the system got livelocked.
+> why can't we?
+
+Because it would newer call cond_resched() in non-preemptive kernel
+with CONFIG_PREEMPT_COUNT disabled. IMHO, we want to call it,
+for example, when we scroll the entire screen from tty_operations.
+
+Or do I miss anything?
+
+
+> > I am going to prepare a patch for this.
 > 
-> But the caller had some reason to not warn. So why should we ignore
-> that? The reason this flag is usually added is that the allocation
-> failure is tolerable and it shouldn't alarm the admin to do any action.
+> I'm on it.
 
-Majority of __GFP_DIRECT_RECLAIM allocation requests are tolerable with
-allocation failure (and they will be willing to give up upon SIGKILL if
-they are from syscall) and do not need to alarm the admin to do any action.
-If they are not tolerable with allocation failure, they will add __GFP_NOFAIL.
+Uff, I already have one and am very close to send it.
 
-Apart from the reality that they are not tested well because they are
-currently protected by the "too small to fail" memory-allocation rule,
-they are ready to add __GFP_NOWARN. And current behavior (i.e. !costly
-__GFP_DIRECT_RECLAIM allocation requests won't fail unless __GFP_NORETRY
-is set or TIF_MEMDIE is set after SIGKILL was delivered) keeps them away
- from adding __GFP_NOFAIL.
+Sigh, I do not want to race who will prepare and send the patch.
+I just do not feel comfortable in the reviewer-only role.
+I feel like just searching for problems in other's patches
+and annoying them with my complains. I know that it is important
+but I also want to produce something.
 
-> 
-> So rather than repeating why you think that warn_alloc is worse than a
-> different solution which you are trying to push through you should in
-> fact explain why we should handle stall and allocation failure warnings
-> differently and how are we going to handle potential future users who
-> would like to disable warning for both. Because once you change the
-> semantic we will have problems to change it like for other gfp flags.
+Also I feel that I still need to improve my coding skills.
+And I need some training.
 
-Oh, thank you very much for positive (or at least neutral) response to
-asynchronous watchdog. I don't mean to change the semantic of GFP flags
-if we can go with asynchronous watchdog. I'm posting this patch because
-there is no progress with asynchronous watchdog.
+Finally, I would not start writing my patch if your one needed
+only small updates. But my investigation pushed me very
+different way from your proposal. It looked ugly to push
+all coding to your side.
 
-I'm not sure what "why we should handle stall and allocation failure
-warnings differently" means. Which one did you mean?
-
-  (a) "why we should handle stall warning by synchronous watchdog
-      (e.g. warn_alloc()) and allocation failure warnings differently"
-
-  (b) "why we should handle stall warning by asynchronous watchdog
-      (e.g. kmallocwd) and allocation failure warnings differently"
-
-If you meant (a), it is because allocation livelock is a problem which
-current GFP flags semantics cannot handle. We had been considering only
-allocation failures. We have never considered allocation livelock which
-is observed as allocation stalls. (The allocation livelock after the OOM
-killer is invoked was solved by the OOM reaper. But I'm talking about
-allocation livelock before the OOM killer is invoked, and I don't think
-this problem can be solved within a few years because this problem is
-caused by optimistic direct reclaim. Thus, I'm proposing to start from
-checking whether this problem is occurring and providing diagnostic
-information.)
-
-__GFP_NOWARN considers only about allocation failures. It is legal to set
-both __GFP_NOFAIL and __GFP_NOWARN despite __GFP_NOWARN is pointless from
-the point of view of allocation failures because __GFP_NOFAIL never fails.
-But __GFP_NOWARN is an intruder from the point of view of reporting
-allocation livelock (regardless of whether __GFP_NOFAIL is also set).
-
-If you meant (b), it is because synchronous watchdog is not reliable and
-cannot provide enough diagnostic information. Since allocation livelock
-involves several threads due to dependency, it is important to take a
-snapshot of possibly relevant threads. By using asynchronous watchdog,
-we can not only take a snapshot but also take more actions for obtaining
-diagnostic information (e.g. enabling tracepoints when allocation stalls
-are detected).
-
-I'm not sure what "how are we going to handle potential future users who
-would like to disable warning for both" means. Which one did you mean?
-
-  (c) "how are we going to handle potential future system administrators
-      who would like to disable warning for both allocation failures and
-      allocation stalls"
-
-  (d) "how are we going to handle potential future kernel developers
-      who would like to disable warning for both allocation failures and
-      allocation stalls"
-
-If you meant (c), kmallocwd v6 allows system administrators to disable
-stall warnings by setting /proc/sys/kernel/memalloc_task_timeout_secs to 0.
-
-If you meant (d), I don't think we need to worry about it. Current
-warn_alloc() implementation for reporting allocation stalls (i.e. report
-unless __GFP_NOWARN is set) is already preventing system administrators
-and kernel developers from disabling allocation stall warnings. We will be
-able to get rid of warn_alloc() for reporting stalls and asynchronous
-watchdog when we managed to guarantee forward progress of memory allocation
-and prove that allocation livelock is impossible.
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
