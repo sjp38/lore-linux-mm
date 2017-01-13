@@ -1,80 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8A056B0038
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 09:22:01 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id j82so47938420ybg.0
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:22:01 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id h65si3682971yba.281.2017.01.13.06.22.00
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 249656B0038
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 09:45:13 -0500 (EST)
+Received: by mail-yw0-f200.google.com with SMTP id l75so59084413ywb.0
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:45:13 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m130si3710258ywd.201.2017.01.13.06.45.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jan 2017 06:22:01 -0800 (PST)
-Date: Fri, 13 Jan 2017 09:21:54 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170113142154.iycjjhjujqt5u2ab@thunk.org>
-References: <20170110160224.GC6179@noname.redhat.com>
- <87k2a2ig2c.fsf@notabene.neil.brown.name>
- <20170113110959.GA4981@noname.redhat.com>
+        Fri, 13 Jan 2017 06:45:12 -0800 (PST)
+Date: Fri, 13 Jan 2017 09:45:08 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM v16 01/15] mm/memory/hotplug: convert device bool to int to
+ allow for more flags v2
+Message-ID: <20170113144508.GA3758@redhat.com>
+References: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
+ <1484238642-10674-2-git-send-email-jglisse@redhat.com>
+ <20170113135741.GA26827@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170113110959.GA4981@noname.redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170113135741.GA26827@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Wolf <kwolf@redhat.com>
-Cc: NeilBrown <neilb@suse.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Ric Wheeler <rwheeler@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Russell King <linux@armlinux.org.uk>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Fri, Jan 13, 2017 at 12:09:59PM +0100, Kevin Wolf wrote:
-> Now even if at the moment there were no storage backend where a write
-> failure can be temporary (which I find hard to believe, but who knows),
-> a single new driver is enough to expose the problem. Are you confident
-> enough that no single driver will ever behave this way to make data
-> integrity depend on the assumption?
+On Fri, Jan 13, 2017 at 07:27:41PM +0530, Balbir Singh wrote:
+> On Thu, Jan 12, 2017 at 11:30:28AM -0500, Jerome Glisse wrote:
+> > When hotpluging memory we want more informations on the type of memory and
+> > its properties. Replace the device boolean flag by an int and define a set
+> > of flags.
+> > 
+> > New property for device memory is an opt-in flag to allow page migration
+> > from and to a ZONE_DEVICE. Existing user of ZONE_DEVICE are not expecting
+> > page migration to work for their pages. New changes to page migration i
+> > changing that and we now need a flag to explicitly opt-in page migration.
+> 
+> Given that ZONE_DEVICE is dependent on X86_64, do we need to touch all
+> architectures? I guess we could selectively enable things as we enable
+> ZONE_DEVICE for other architectures?
 
-This is really a philosophical question.  It very much simplifiees
-things if we can make the assumption that a driver that *does* behave
-this way is **broken**.  If the I/O error is temporary, then the
-driver should simply not complete the write, and wait.  If it fails,
-it should only be because it has timed out on waiting and has assumed
-that the problem is permanent.
+Yes i need to change all architecture because the function prototype changes.
 
-Otherwise, every single application is going to have to learn how to
-deal with temporary errors, and everything that implies (throwing up
-dialog boxes to the user, who may not be able to do anything --- this
-is why in the dm-thin case, if you think it should be temporary,
-dm-thin should be calling out to a usr space program that pages an
-system administrator; why do you think the process or the user who
-started the process can do anything about it/)
+I add the bug stuff to be bullet proof from new feature added that might
+cause trouble if arch does not handle them explicitly. If the bug stuff scares
+people i can remove it.
 
-Now, perhaps there ought to be a way for the application to say, "you
-know, if you are going to have to wait more than <timeval>, don't
-bother".  This might be interesting from a general sense, even for
-working hardware, since there are HDD's with media extensions where
-you can tell the disk drive not to bother with the I/O operation if
-it's going to take more than XX milliseconds, and if there is a way to
-reflect that back to userspace, that can be useful for other
-applications, such as video or other soft realtime programs.
-
-But forcing every single application to have to deal with retries in
-the case of temporary errors?  That way lies madness, and there's no
-way we can get to all of the applications to make them do the right
-thing.
-
-> Note that I didn't think of a "keep-data-after-write-error" flag,
-> neither per-fd nor per-file, because I assumed that everyone would want
-> it as long as there is some hope that the data could still be
-> successfully written out later.
-
-But not everyone is going to know to do this.  This is why the retry
-really should be done by the device driver, and if it fails, everyone
-lives will be much simpler if the failure should be a permanent
-failure where there is no hope.
-
-Are there use cases you are concerned about where this model wouldn't
-suit?
-
-	       	    	      	      	    - Ted
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
