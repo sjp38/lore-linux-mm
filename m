@@ -1,95 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4837B6B0253
-	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:24:33 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 204so99030118pfx.1
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:24:33 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id x32si11417506pld.31.2017.01.12.20.24.32
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AEF6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:35:46 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id a194so17457724oib.5
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:35:46 -0800 (PST)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id w35si4480250otb.160.2017.01.12.20.35.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 20:24:32 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id b22so6377808pfd.3
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:24:32 -0800 (PST)
-Date: Fri, 13 Jan 2017 13:24:44 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
-Message-ID: <20170113042444.GE9360@jagdpanzerIV.localdomain>
-References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
- <20170109234110.GA10298@bbox>
+        Thu, 12 Jan 2017 20:35:45 -0800 (PST)
+Received: by mail-oi0-x244.google.com with SMTP id u143so5519909oif.3
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 20:35:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170109234110.GA10298@bbox>
+In-Reply-To: <45ed555a-c6a3-fc8e-1e87-c347c8ed086b@suse.cz>
+References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
+ <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz> <0ea1cfeb-7c4a-3a3e-9be9-967298ba303c@suse.cz>
+ <CAFpQJXWD8pSaWUrkn5Rxy-hjTCvrczuf0F3TdZ8VHj4DSYpivg@mail.gmail.com>
+ <20170111164616.GJ16365@dhcp22.suse.cz> <45ed555a-c6a3-fc8e-1e87-c347c8ed086b@suse.cz>
+From: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
+Date: Fri, 13 Jan 2017 10:05:45 +0530
+Message-ID: <CAFpQJXUVRKXLUvM5PnpjT_UH+ac-0=caND43F882oP+Rm5gxUQ@mail.gmail.com>
+Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: zhouxianrong@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hello,
+On Thu, Jan 12, 2017 at 4:40 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 01/11/2017 05:46 PM, Michal Hocko wrote:
+>>
+>> On Wed 11-01-17 21:52:29, Ganapatrao Kulkarni wrote:
+>>
+>>> [ 2398.169391] Node 1 Normal: 951*4kB (UME) 1308*8kB (UME) 1034*16kB
+>>> (UME) 742*32kB (UME) 581*64kB (UME) 450*128kB (UME) 362*256kB (UME)
+>>> 275*512kB (ME) 189*1024kB (UM) 117*2048kB (ME) 2742*4096kB (M) = 12047196kB
+>>
+>>
+>> Most of the memblocks are marked Unmovable (except for the 4MB bloks)
+>
+>
+> No, UME here means that e.g. 4kB blocks are available on unmovable, movable
+> and reclaimable lists.
+>
+>> which shouldn't matter because we can fallback to unmovable blocks for
+>> movable allocation AFAIR so we shouldn't really fail the request. I
+>> really fail to see what is going on there but it smells really
+>> suspicious.
+>
+>
+> Perhaps there's something wrong with zonelists and we are skipping the Node
+> 1 Normal zone. Or there's some race with cpuset operations (but can't see
+> how).
+>
+> The question is, how reproducible is this? And what exactly the test
+> cpuset01 does? Is it doing multiple things in a loop that could be reduced
+> to a single testcase?
 
-sorry, was mostly offline for the past few days, now catching up.
+IIUC, this test does node change to  cpuset.mems in loop in parent
+process in loop and child processes(equal to no of cpus) keeps on
+allocation and freeing
+10 pages till the execution time is over.
+more details at
+https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/cpuset/cpuset01.c
 
-On (01/10/17 08:41), Minchan Kim wrote:
-> > the idea is that without doing more calculations we extend zero pages
-> > to same element pages for zram. zero page is special case of
-> > same element page with zero element.
-> > 
+thanks
+Ganapat
 
-interesting idea.
-
-[..]
-> >  	flush_dcache_page(page);
-> > @@ -431,7 +479,7 @@ static ssize_t mm_stat_show(struct device *dev,
-> >  			mem_used << PAGE_SHIFT,
-> >  			zram->limit_pages << PAGE_SHIFT,
-> >  			max_used << PAGE_SHIFT,
-> > -			(u64)atomic64_read(&zram->stats.zero_pages),
-> > +			(u64)atomic64_read(&zram->stats.same_pages),
-> 
-> Unfortunately, we cannot replace zero pages stat with same pages's one right
-> now due to compatibility problem. Please add same_pages to tail of the stat
-> and we should warn deprecated zero_pages stat so we finally will remove it
-> two year later. Please reference Documentation/ABI/obsolete/sysfs-block-zram
-> And add zero-pages to the document.
-> 
-> For example,
-> 
-> ... mm_stat_show()
-> {
->         pr_warn_once("zero pages was deprecated so it will be removed at 2019 Jan");
-> }
-> 
-> Sergey, what's your opinion?
-
-oh, I was going to ask you whether you have any work in progress at
-the moment or not. because deprecated attrs are scheduled to be removed
-in 4.11. IOW, we must send the clean up patch, well, right now. so I can
-prepare the patch, but it can conflict with someone's 'more serious/relevant'
-work.
-
-we also have zram hot/addd sysfs attr, which must be deprecated and
-converted to a char device. per Greg KH.
-
-> Please add same_pages to tail of the stat
-
-sounds ok to me. and yes, can deprecate zero_pages.
-
-seems that with that patch the concept of ZRAM_ZERO disappears. both
-ZERO and SAME_ELEMENT pages are considered to be the same thing now.
-which is fine and makes sense to me, I think. and if ->.same_pages will
-replace ->.zero_pages in mm_stat() then I'm also OK. yes, we will see
-increased number in the last column of mm_stat file, but I don't tend
-to see any issues here. Minchan, what do you think?
-
-
-> -ZRAM_ATTR_RO(zero_pages);
-> +ZRAM_ATTR_RO(same_pages);
-
-this part is a no-no-no-no :)  we can't simply rename the user space
-visible attrs.
-
-	-ss
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
