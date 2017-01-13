@@ -1,55 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 116496B0069
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 08:08:38 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id d140so15933144wmd.4
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 05:08:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d7si11171689wra.193.2017.01.13.05.08.36
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F68C6B0069
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 08:15:17 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y143so124635725pfb.6
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 05:15:17 -0800 (PST)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0086.outbound.protection.outlook.com. [104.47.36.86])
+        by mx.google.com with ESMTPS id 62si12732524ply.143.2017.01.13.05.15.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Jan 2017 05:08:36 -0800 (PST)
-Subject: Re: [PATCH 4/4] lib/show_mem.c: teach show_mem to work with the given
- nodemask
-References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-5-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <13903870-92bd-1ea2-aefc-0481c850da19@suse.cz>
-Date: Fri, 13 Jan 2017 14:08:34 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 13 Jan 2017 05:15:16 -0800 (PST)
+Date: Fri, 13 Jan 2017 14:15:00 +0100
+From: Robert Richter <robert.richter@cavium.com>
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20170113131500.GS4930@rric.localdomain>
+References: <20161216165437.21612-1-rrichter@cavium.com>
+ <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+ <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
+ <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+ <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
+ <20170109115320.GI4930@rric.localdomain>
+ <20170112160535.GF13843@arm.com>
+ <20170112185825.GE5020@rric.localdomain>
+ <20170113091903.GA22538@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170112131659.23058-5-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170113091903.GA22538@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/12/2017 02:16 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> show_mem() allows to filter out node specific data which is irrelevant
-> to the allocation request via SHOW_MEM_FILTER_NODES. The filtering
-> is done in skip_free_areas_node which skips all nodes which are not
-> in the mems_allowed of the current process. This works most of the
-> time as expected because the nodemask shouldn't be outside of the
-> allocating task but there are some exceptions. E.g. memory hotplug might
-> want to request allocations from outside of the allowed nodes (see
-> new_node_page).
+On 13.01.17 09:19:04, Will Deacon wrote:
+> On Thu, Jan 12, 2017 at 07:58:25PM +0100, Robert Richter wrote:
+> > On 12.01.17 16:05:36, Will Deacon wrote:
+> > > On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
+> > 
+> > > > Kernel compile times (3 runs each):
+> > > > 
+> > > > pfn_valid_within():
+> > > > 
+> > > > real    6m4.088s
+> > > > user    372m57.607s
+> > > > sys     16m55.158s
+> > > > 
+> > > > real    6m1.532s
+> > > > user    372m48.453s
+> > > > sys     16m50.370s
+> > > > 
+> > > > real    6m4.061s
+> > > > user    373m18.753s
+> > > > sys     16m57.027s
+> > > 
+> > > Did you reboot the machine between each build here, or only when changing
+> > > kernel? If the latter, do you see variations in kernel build time by simply
+> > > rebooting the same Image?
+> > 
+> > I built it in a loop on the shell, so no reboots between builds. Note
+> > that I was building the kernel in /dev/shm to not access harddisks. I
+> > think build times should be comparable then since there is no fs
+> > caching.
+> 
+> I guess I'm really asking what the standard deviation is if you *do* reboot
+> between builds, using the same kernel. It's hard to tell whether the numbers
+> are due to the patches, or just because of noise incurred by the way things
+> happen to initialise.
 
-Hm AFAICS memory hotplug's new_node_page() is restricted both by cpusets (by 
-using GFP_USER), and by the nodemask it constructs. That's probably a bug in 
-itself, as it shouldn't matter which task is triggering the offline?
+Ok, I am going to test this.
 
-Which probably means that if show_mem() wants to be really precise, it would 
-have to start from nodemask and intersect with cpuset when the allocation in 
-question cannot escape it. But if we accept that it's ok when we print too many 
-nodes (because we can filter them out when reading the output by having also 
-nodemask and mems_allowed printed), and strive only to not miss any nodes, then 
-this patch could really fix cases when we do miss (although new_node_page() 
-currently isn't such example).
-
-Or am I wrong?
+-Robert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
