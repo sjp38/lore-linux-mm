@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 085976B0069
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:15:32 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r144so14839431wme.0
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 03:15:31 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD496B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 06:31:57 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id d140so15020819wmd.4
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 03:31:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v203si1769275wmb.51.2017.01.13.03.15.30
+        by mx.google.com with ESMTPS id q2si10861274wra.219.2017.01.13.03.31.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Jan 2017 03:15:30 -0800 (PST)
-Date: Fri, 13 Jan 2017 12:15:29 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20170113111529.GJ14894@pathway.suse.cz>
-References: <20161220153948.GA575@tigerII.localdomain>
- <201612221927.BGE30207.OSFJMFLFOHQtOV@I-love.SAKURA.ne.jp>
- <20161222134250.GE413@tigerII.localdomain>
- <201612222301.AFG57832.QOFMSVFOJHLOtF@I-love.SAKURA.ne.jp>
- <20161222140930.GF413@tigerII.localdomain>
- <201612261954.FJE69201.OFLVtFJSQFOHMO@I-love.SAKURA.ne.jp>
- <20161226113407.GA515@tigerII.localdomain>
- <20170112131017.GF14894@pathway.suse.cz>
- <20170113025212.GB9360@jagdpanzerIV.localdomain>
- <20170113035307.GD9360@jagdpanzerIV.localdomain>
+        Fri, 13 Jan 2017 03:31:55 -0800 (PST)
+Subject: Re: [PATCH 2/4] mm, page_alloc: warn_alloc print nodemask
+References: <20170112131659.23058-1-mhocko@kernel.org>
+ <20170112131659.23058-3-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <dedb6ad3-f41e-7da1-29da-bb42e53ed3e7@suse.cz>
+Date: Fri, 13 Jan 2017 12:31:52 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170113035307.GD9360@jagdpanzerIV.localdomain>
+In-Reply-To: <20170112131659.23058-3-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jiri Slaby <jslaby@suse.cz>, linux-fbdev@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
 
-On Fri 2017-01-13 12:53:07, Sergey Senozhatsky wrote:
-> On (01/13/17 11:52), Sergey Senozhatsky wrote:
-> [..]
-> > and we really don't want to cond_resched() when we are in panic.
-> > that's why console_flush_on_panic() sets it to zero explicitly.
-> > 
-> > console_trylock() checks oops_in_progress, so re-taking the semaphore
-> > when we are in
-> > 
-> > 	panic()
-> > 	 console_flush_on_panic()
-> >           console_unlock()
-> >            console_trylock()
-> > 
-> > should be OK. as well as doing get_console_conditional_schedule() somewhere
-> > in console driver code.
-> 
-> d'oh... no, this is false. console_flush_on_panic() is called after we
-> bust_spinlocks(0), BUT with local IRQs disabled. so console_trylock()
-> would still set console_may_schedule to 0.
+On 01/12/2017 02:16 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> warn_alloc is currently used for to report an allocation failure or an
+> allocation stall. We print some details of the allocation request like
+> the gfp mask and the request order. We do not print the allocation
+> nodemask which is important when debugging the reason for the allocation
+> failure as well. We alreaddy print the nodemask in the OOM report.
+>
+> Add nodemask to warn_alloc and print it in warn_alloc as well.
 
-Ah, you found it yourself.
+That's helpful, but still IMHO incomplete compared to oom killer, see below.
 
-Best Regards,
-Petr
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3031,12 +3031,13 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
+>  	show_mem(filter);
+>  }
+>
+> -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+> +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>  {
+>  	struct va_format vaf;
+>  	va_list args;
+>  	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
+>  				      DEFAULT_RATELIMIT_BURST);
+> +	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
+
+Yes that's same as oom's dump_header() does it. But what if there's both 
+mempolicy nodemask and cpuset at play? From oom report you'll see that as it 
+also calls cpuset_print_current_mems_allowed(). So could we do that here as well?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
