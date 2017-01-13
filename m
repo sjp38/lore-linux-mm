@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C42E6B0253
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 02:15:06 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j18so54311010ioe.3
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:15:06 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8626C6B0260
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 02:15:11 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id d9so49839392itc.4
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:15:11 -0800 (PST)
 Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id k1si11825293plb.309.2017.01.12.23.15.05
+        by mx.google.com with ESMTPS id l24si11813390pgn.200.2017.01.12.23.15.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Jan 2017 23:15:05 -0800 (PST)
-Received: by mail-pf0-x242.google.com with SMTP id y143so7116685pfb.1
-        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:15:05 -0800 (PST)
+        Thu, 12 Jan 2017 23:15:10 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id b22so7077385pfd.3
+        for <linux-mm@kvack.org>; Thu, 12 Jan 2017 23:15:10 -0800 (PST)
 From: js1304@gmail.com
-Subject: [RFC PATCH 1/5] mm/vmstat: retrieve suitable free pageblock information just once
-Date: Fri, 13 Jan 2017 16:14:29 +0900
-Message-Id: <1484291673-2239-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 2/5] mm/vmstat: rename variables/functions about buddyinfo
+Date: Fri, 13 Jan 2017 16:14:30 +0900
+Message-Id: <1484291673-2239-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,111 +24,76 @@ Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vlastimil Babka <vbabk
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-It's inefficient to retrieve buddy information for fragmentation index
-calculation on every order. By using some stack memory, we could retrieve
-it once and reuse it to compute all the required values. MAX_ORDER is
-usually small enough so there is no big risk about stack overflow.
+Following patch will introduce interface about fragmentation information
+and "frag" prefix would be more suitable for it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/vmstat.c | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+ mm/vmstat.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7c28df3..e1ca5eb 100644
+index e1ca5eb..cd0c331 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -821,7 +821,7 @@ unsigned long node_page_state(struct pglist_data *pgdat,
- struct contig_page_info {
- 	unsigned long free_pages;
- 	unsigned long free_blocks_total;
--	unsigned long free_blocks_suitable;
-+	unsigned long free_blocks_order[MAX_ORDER];
+@@ -1138,7 +1138,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ #endif
+ 
+ #ifdef CONFIG_PROC_FS
+-static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
++static void buddyinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 						struct zone *zone)
+ {
+ 	int order;
+@@ -1152,10 +1152,10 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ /*
+  * This walks the free areas for each zone.
+  */
+-static int frag_show(struct seq_file *m, void *arg)
++static int buddyinfo_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+-	walk_zones_in_node(m, pgdat, frag_show_print);
++	walk_zones_in_node(m, pgdat, buddyinfo_show_print);
+ 	return 0;
+ }
+ 
+@@ -1300,20 +1300,20 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+ 	return 0;
+ }
+ 
+-static const struct seq_operations fragmentation_op = {
++static const struct seq_operations buddyinfo_op = {
+ 	.start	= frag_start,
+ 	.next	= frag_next,
+ 	.stop	= frag_stop,
+-	.show	= frag_show,
++	.show	= buddyinfo_show,
  };
  
- /*
-@@ -833,16 +833,14 @@ struct contig_page_info {
-  * figured out from userspace
-  */
- static void fill_contig_page_info(struct zone *zone,
--				unsigned int suitable_order,
- 				struct contig_page_info *info)
+-static int fragmentation_open(struct inode *inode, struct file *file)
++static int buddyinfo_open(struct inode *inode, struct file *file)
  {
- 	unsigned int order;
- 
- 	info->free_pages = 0;
- 	info->free_blocks_total = 0;
--	info->free_blocks_suitable = 0;
- 
--	for (order = 0; order < MAX_ORDER; order++) {
-+	for (order = MAX_ORDER - 1; order >= 0 && order < MAX_ORDER; order--) {
- 		unsigned long blocks;
- 
- 		/* Count number of free blocks */
-@@ -851,11 +849,12 @@ static void fill_contig_page_info(struct zone *zone,
- 
- 		/* Count free base pages */
- 		info->free_pages += blocks << order;
-+		info->free_blocks_order[order] = blocks;
-+		if (order == MAX_ORDER - 1)
-+			continue;
- 
--		/* Count the suitable free blocks */
--		if (order >= suitable_order)
--			info->free_blocks_suitable += blocks <<
--						(order - suitable_order);
-+		info->free_blocks_order[order] +=
-+			(info->free_blocks_order[order + 1] << 1);
- 	}
+-	return seq_open(file, &fragmentation_op);
++	return seq_open(file, &buddyinfo_op);
  }
  
-@@ -874,7 +873,7 @@ static int __fragmentation_index(unsigned int order, struct contig_page_info *in
- 		return 0;
- 
- 	/* Fragmentation index only makes sense when a request would fail */
--	if (info->free_blocks_suitable)
-+	if (info->free_blocks_order[order])
- 		return -1000;
- 
- 	/*
-@@ -891,7 +890,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- {
- 	struct contig_page_info info;
- 
--	fill_contig_page_info(zone, order, &info);
-+	fill_contig_page_info(zone, &info);
- 	return __fragmentation_index(order, &info);
- }
+-static const struct file_operations fragmentation_file_operations = {
+-	.open		= fragmentation_open,
++static const struct file_operations buddyinfo_file_operations = {
++	.open		= buddyinfo_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+ 	.release	= seq_release,
+@@ -1781,7 +1781,7 @@ static int __init setup_vmstat(void)
+ 	start_shepherd_timer();
  #endif
-@@ -1811,7 +1810,7 @@ static int unusable_free_index(unsigned int order,
- 	 * 0 => no fragmentation
- 	 * 1 => high fragmentation
- 	 */
--	return div_u64((info->free_pages - (info->free_blocks_suitable << order)) * 1000ULL, info->free_pages);
-+	return div_u64((info->free_pages - (info->free_blocks_order[order] << order)) * 1000ULL, info->free_pages);
- 
- }
- 
-@@ -1825,8 +1824,8 @@ static void unusable_show_print(struct seq_file *m,
- 	seq_printf(m, "Node %d, zone %8s ",
- 				pgdat->node_id,
- 				zone->name);
-+	fill_contig_page_info(zone, &info);
- 	for (order = 0; order < MAX_ORDER; ++order) {
--		fill_contig_page_info(zone, order, &info);
- 		index = unusable_free_index(order, &info);
- 		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
- 	}
-@@ -1887,8 +1886,8 @@ static void extfrag_show_print(struct seq_file *m,
- 	seq_printf(m, "Node %d, zone %8s ",
- 				pgdat->node_id,
- 				zone->name);
-+	fill_contig_page_info(zone, &info);
- 	for (order = 0; order < MAX_ORDER; ++order) {
--		fill_contig_page_info(zone, order, &info);
- 		index = __fragmentation_index(order, &info);
- 		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
- 	}
+ #ifdef CONFIG_PROC_FS
+-	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
++	proc_create("buddyinfo", S_IRUGO, NULL, &buddyinfo_file_operations);
+ 	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+ 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+ 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
 -- 
 1.9.1
 
