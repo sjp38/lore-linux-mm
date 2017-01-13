@@ -1,59 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 19CA86B0033
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 05:09:56 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id q20so58256024ioi.0
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 02:09:56 -0800 (PST)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id h123si12258839pfc.212.2017.01.13.02.09.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jan 2017 02:09:55 -0800 (PST)
-Received: by mail-pf0-x22b.google.com with SMTP id 189so29485619pfu.3
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 02:09:55 -0800 (PST)
-Date: Fri, 13 Jan 2017 02:09:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, memcg: do not retry precharge charges
-In-Reply-To: <20170113084014.GB25212@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1701130208510.69402@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com> <alpine.DEB.2.10.1701121446130.12738@chino.kir.corp.google.com> <20170113084014.GB25212@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DA08F6B0253
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 05:11:47 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 127so109829339pfg.5
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 02:11:47 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f17si12250376pgg.308.2017.01.13.02.11.46
+        for <linux-mm@kvack.org>;
+        Fri, 13 Jan 2017 02:11:47 -0800 (PST)
+Date: Fri, 13 Jan 2017 19:11:43 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4 05/15] lockdep: Make check_prev_add can use a separate
+ stack_trace
+Message-ID: <20170113101143.GE3326@X58A-UD3R>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-6-git-send-email-byungchul.park@lge.com>
+ <20170112161643.GB3144@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170112161643.GB3144@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-When memory.move_charge_at_immigrate is enabled and precharges are
-depleted during move, mem_cgroup_move_charge_pte_range() will attempt to
-increase the size of the precharge.
-
-Prevent precharges from ever looping by setting __GFP_NORETRY.  This was
-probably the intention of the GFP_KERNEL & ~__GFP_NORETRY, which is
-pointless as written.
-
-Fixes: 0029e19ebf84 ("mm: memcontrol: remove explicit OOM parameter in charge path")
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memcontrol.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4353,9 +4353,9 @@ static int mem_cgroup_do_precharge(unsigned long count)
- 		return ret;
- 	}
- 
--	/* Try charges one by one with reclaim */
-+	/* Try charges one by one with reclaim, but do not retry */
- 	while (count--) {
--		ret = try_charge(mc.to, GFP_KERNEL & ~__GFP_NORETRY, 1);
-+		ret = try_charge(mc.to, GFP_KERNEL | __GFP_NORETRY, 1);
- 		if (ret)
- 			return ret;
- 		mc.precharge++;
+What do you think about the following patches doing it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
