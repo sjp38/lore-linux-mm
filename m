@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5CB16B0033
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 09:00:52 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id o12so31354671lfg.7
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 06:00:52 -0800 (PST)
-Received: from smtp23.mail.ru (smtp23.mail.ru. [94.100.181.178])
-        by mx.google.com with ESMTPS id l136si2724604lfg.4.2017.01.14.06.00.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9CCD6B0033
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:19:25 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 80so187032756pfy.2
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:19:25 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id u21si16004293plj.19.2017.01.14.07.19.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 14 Jan 2017 06:00:51 -0800 (PST)
-Date: Sat, 14 Jan 2017 17:00:43 +0300
-From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: [PATCH 9/9] slab: remove slub sysfs interface files early for
- empty memcg caches
-Message-ID: <20170114140043.GH2668@esperanza>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 14 Jan 2017 07:19:24 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id 75so1193785pgf.3
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:19:24 -0800 (PST)
+Date: Sat, 14 Jan 2017 10:19:21 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/9] slab: remove synchronous rcu_barrier() call in memcg
+ cache release path
+Message-ID: <20170114151921.GA32693@mtj.duckdns.org>
 References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-10-tj@kernel.org>
+ <20170114055449.11044-3-tj@kernel.org>
+ <20170114131939.GA2668@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114055449.11044-10-tj@kernel.org>
+In-Reply-To: <20170114131939.GA2668@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: Vladimir Davydov <vdavydov@tarantool.org>
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Sat, Jan 14, 2017 at 12:54:49AM -0500, Tejun Heo wrote:
-> With kmem cgroup support enabled, kmem_caches can be created and
-> destroyed frequently and a great number of near empty kmem_caches can
-> accumulate if there are a lot of transient cgroups and the system is
-> not under memory pressure.  When memory reclaim starts under such
-> conditions, it can lead to consecutive deactivation and destruction of
-> many kmem_caches, easily hundreds of thousands on moderately large
-> systems, exposing scalability issues in the current slab management
-> code.  This is one of the patches to address the issue.
-> 
-> Each cache has a number of sysfs interface files under
-> /sys/kernel/slab.  On a system with a lot of memory and transient
-> memcgs, the number of interface files which have to be removed once
-> memory reclaim kicks in can reach millions.
-> 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Reported-by: Jay Vana <jsvana@fb.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
+Hello, Vladimir.
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+On Sat, Jan 14, 2017 at 04:19:39PM +0300, Vladimir Davydov wrote:
+> On Sat, Jan 14, 2017 at 12:54:42AM -0500, Tejun Heo wrote:
+> > This patch updates the cache release path so that it simply uses
+> > call_rcu() instead of the synchronous rcu_barrier() + custom batching.
+> > This doesn't cost more while being logically simpler and way more
+> > scalable.
+> 
+> The point of rcu_barrier() is to wait until all rcu calls freeing slabs
+> from the cache being destroyed are over (rcu_free_slab, kmem_rcu_free).
+> I'm not sure if call_rcu() guarantees that for all rcu implementations
+> too. If it did, why would we need rcu_barrier() at all?
+
+Yeah, I had a similar question and scanned its users briefly.  Looks
+like it's used in combination with ctors so that its users can
+opportunistically dereference objects and e.g. check ids / state /
+whatever without worrying about the objects' lifetimes.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
