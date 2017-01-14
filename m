@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9CCD6B0033
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:19:25 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 80so187032756pfy.2
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:19:25 -0800 (PST)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id u21si16004293plj.19.2017.01.14.07.19.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B48866B0253
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:38:04 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id z128so187139153pfb.4
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:38:04 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id i19si16016919pgk.91.2017.01.14.07.38.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 07:19:24 -0800 (PST)
-Received: by mail-pg0-x244.google.com with SMTP id 75so1193785pgf.3
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:19:24 -0800 (PST)
-Date: Sat, 14 Jan 2017 10:19:21 -0500
+        Sat, 14 Jan 2017 07:38:03 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 204so1216942pge.2
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:38:03 -0800 (PST)
+Date: Sat, 14 Jan 2017 10:38:01 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/9] slab: remove synchronous rcu_barrier() call in memcg
- cache release path
-Message-ID: <20170114151921.GA32693@mtj.duckdns.org>
+Subject: Re: [PATCH 3/9] slab: simplify shutdown_memcg_caches()
+Message-ID: <20170114153801.GB32693@mtj.duckdns.org>
 References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-3-tj@kernel.org>
- <20170114131939.GA2668@esperanza>
+ <20170114055449.11044-4-tj@kernel.org>
+ <20170114132722.GB2668@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114131939.GA2668@esperanza>
+In-Reply-To: <20170114132722.GB2668@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@tarantool.org>
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-Hello, Vladimir.
-
-On Sat, Jan 14, 2017 at 04:19:39PM +0300, Vladimir Davydov wrote:
-> On Sat, Jan 14, 2017 at 12:54:42AM -0500, Tejun Heo wrote:
-> > This patch updates the cache release path so that it simply uses
-> > call_rcu() instead of the synchronous rcu_barrier() + custom batching.
-> > This doesn't cost more while being logically simpler and way more
-> > scalable.
+On Sat, Jan 14, 2017 at 04:27:22PM +0300, Vladimir Davydov wrote:
+> > -	 * Second, shutdown all caches left from memory cgroups that are now
+> > -	 * offline.
+> > +	 * Shutdown all caches.
+> >  	 */
+> >  	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
+> >  				 memcg_params.list)
+> >  		shutdown_cache(c);
 > 
-> The point of rcu_barrier() is to wait until all rcu calls freeing slabs
-> from the cache being destroyed are over (rcu_free_slab, kmem_rcu_free).
-> I'm not sure if call_rcu() guarantees that for all rcu implementations
-> too. If it did, why would we need rcu_barrier() at all?
+> The point of this complexity was to leave caches that happen to have
+> objects when kmem_cache_destroy() is called on the list, so that they
+> could be reused later. This behavior was inherited from the global
 
-Yeah, I had a similar question and scanned its users briefly.  Looks
-like it's used in combination with ctors so that its users can
-opportunistically dereference objects and e.g. check ids / state /
-whatever without worrying about the objects' lifetimes.
+Ah, right, I misread the branch.  I don't quite get how the cache can
+be reused later tho?  This is called when the memcg gets released and
+a clear error condition - the caller, kmem_cache_destroy(), handles it
+as an error condition too.
 
-Thanks.
+> caches - if kmem_cache_destroy() is called on a cache that still has
+> object, we print a warning message and don't destroy the cache. This
+> patch changes this behavior.
+
+Hmm... yeah, we're missing the error return propagation.  I think
+that's the only meaningful difference tho, right?  Will update the
+patch.
+
+Thanks!
 
 -- 
 tejun
