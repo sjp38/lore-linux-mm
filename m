@@ -1,38 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 40A706B025E
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:39:12 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 204so187751002pfx.1
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:39:12 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id q17si16012232pgh.96.2017.01.14.07.39.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF0E6B0260
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:39:37 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c73so187756211pfb.7
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:39:37 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id l3si16035997pld.52.2017.01.14.07.39.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 07:39:11 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 204so1218391pge.2
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:39:11 -0800 (PST)
-Date: Sat, 14 Jan 2017 10:39:08 -0500
+        Sat, 14 Jan 2017 07:39:37 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id 19so702151pfo.3
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:39:36 -0800 (PST)
+Date: Sat, 14 Jan 2017 10:39:34 -0500
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 6/9] slab: don't put memcg caches on slab_caches list
-Message-ID: <20170114153908.GC32693@mtj.duckdns.org>
+Subject: Re: [PATCH 7/9] slab: introduce __kmemcg_cache_deactivate()
+Message-ID: <20170114153934.GD32693@mtj.duckdns.org>
 References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-7-tj@kernel.org>
- <20170114133918.GE2668@esperanza>
+ <20170114055449.11044-8-tj@kernel.org>
+ <20170114134211.GF2668@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114133918.GE2668@esperanza>
+In-Reply-To: <20170114134211.GF2668@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@tarantool.org>
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Sat, Jan 14, 2017 at 04:39:18PM +0300, Vladimir Davydov wrote:
-> IIRC the slab_caches list is also used on cpu/mem online/offline, so you
-> have to patch those places to ensure that memcg caches get updated too.
-> Other than that the patch looks good to me.
+On Sat, Jan 14, 2017 at 04:42:11PM +0300, Vladimir Davydov wrote:
+> > +#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+> > +void __kmemcg_cache_deactivate(struct kmem_cache *s);
+> > +#endif
+> 
+> nit: ifdef is not necessary
 
-Right, will update.  Thanks!
+Will drop, thanks.
 
 -- 
 tejun
