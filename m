@@ -1,88 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D68926B0069
-	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 19:20:10 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id b22so155886708pfd.0
-        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 16:20:10 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id a90si14129224plc.330.2017.01.13.16.20.09
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C9F86B0033
+	for <linux-mm@kvack.org>; Fri, 13 Jan 2017 21:44:14 -0500 (EST)
+Received: by mail-yw0-f200.google.com with SMTP id u68so78155337ywg.4
+        for <linux-mm@kvack.org>; Fri, 13 Jan 2017 18:44:14 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id f185si4137632ywd.95.2017.01.13.18.44.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Jan 2017 16:20:09 -0800 (PST)
-Date: Fri, 13 Jan 2017 17:20:08 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [LSF/MM TOPIC] Future direction of DAX
-Message-ID: <20170114002008.GA25379@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Jan 2017 18:44:12 -0800 (PST)
+Subject: Re: [PATCH 2/6] mm: support __GFP_REPEAT in kvmalloc_node for >=64kB
+References: <20170112153717.28943-1-mhocko@kernel.org>
+ <20170112153717.28943-3-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <b4b9bb2c-86e2-a5ca-b072-593613924929@I-love.SAKURA.ne.jp>
+Date: Sat, 14 Jan 2017 11:42:09 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20170112153717.28943-3-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-This past year has seen a lot of new DAX development.  We have added support
-for fsync/msync, moved to the new iomap I/O data structure, introduced radix
-tree based locking, re-enabled PMD support (twice!), and have fixed a bunch of
-bugs.
+On 2017/01/13 0:37, Michal Hocko wrote:
+> diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+> index 5dc34653274a..105cd04c7414 100644
+> --- a/drivers/vhost/net.c
+> +++ b/drivers/vhost/net.c
+> @@ -797,12 +797,9 @@ static int vhost_net_open(struct inode *inode, struct file *f)
+>  	struct vhost_virtqueue **vqs;
+>  	int i;
+>  
+> -	n = kmalloc(sizeof *n, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> -	if (!n) {
+> -		n = vmalloc(sizeof *n);
+> -		if (!n)
+> -			return -ENOMEM;
+> -	}
+> +	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_REPEAT);
 
-We still have a lot of work to do, though, and I'd like to propose a discussion
-around what features people would like to see enabled in the coming year as
-well as what what use cases their customers have that we might not be aware of.
+An opportunity to standardize as sizeof(*n) like other allocations.
 
-Here are a few topics to start the conversation:
+> diff --git a/mm/util.c b/mm/util.c
+> index 7e0c240b5760..9306244b9f41 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -333,7 +333,8 @@ EXPORT_SYMBOL(vm_mmap);
+>   * Uses kmalloc to get the memory but if the allocation fails then falls back
+>   * to the vmalloc allocator. Use kvfree for freeing the memory.
+>   *
+> - * Reclaim modifiers - __GFP_NORETRY, __GFP_REPEAT and __GFP_NOFAIL are not supported
+> + * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
+> + * is supported only for large (>64kB) allocations
 
-- The current plan to allow users to safely flush dirty data from userspace is
-  built around the PMEM_IMMUTABLE feature [1].  I'm hoping that by LSF/MM we
-  will have at least started work on PMEM_IMMUTABLE, but I'm guessing there
-  will be more to discuss.
+Isn't this ">32kB" (i.e. __GFP_REPEAT is supported for 64kB allocation) ?
 
-- The DAX fsync/msync model was built for platforms that need to flush dirty
-  processor cache lines in order to make data durable on NVDIMMs.  There exist
-  platforms, however, that are set up so that the processor caches are
-  effectively part of the ADR safe zone.  This means that dirty data can be
-  assumed to be durable even in the processor cache, obviating the need to
-  manually flush the cache during fsync/msync.  These platforms still need to
-  call fsync/msync to ensure that filesystem metadata updates are properly
-  written to media.  Our first idea on how to properly support these platforms
-  would be for DAX to be made aware that in some cases doesn't need to keep
-  metadata about dirty cache lines.  A similar issue exists for volatile uses
-  of DAX such as with BRD or with PMEM and the memmap command line parameter,
-  and we'd like a solution that covers them all.
-
-- If I recall correctly, at one point Dave Chinner suggested that we change
-  DAX so that I/O would use cached stores instead of the non-temporal stores
-  that it currently uses.  We would then track pages that were written to by
-  DAX in the radix tree so that they would be flushed later during
-  fsync/msync.  Does this sound like a win?  Also, assuming that we can find a
-  solution for platforms where the processor cache is part of the ADR safe
-  zone (above topic) this would be a clear improvement, moving us from using
-  non-temporal stores to faster cached stores with no downside.
-
-- Jan suggested [2] that we could use the radix tree as a cache to service DAX
-  faults without needing to call into the filesystem.  Are there any issues
-  with this approach, and should we move forward with it as an optimization?
-
-- Whenever you mount a filesystem with DAX, it spits out a message that says
-  "DAX enabled. Warning: EXPERIMENTAL, use at your own risk".  What criteria
-  needs to be met for DAX to no longer be considered experimental?
-
-- When we msync() a huge page, if the range is less than the entire huge page,
-  should we flush the entire huge page and mark it clean in the radix tree, or
-  should we only flush the requested range and leave the radix tree entry
-  dirty?
-
-- Should we enable 1 GiB huge pages in filesystem DAX?  Does anyone have any
-  specific customer requests for this or performance data suggesting it would
-  be a win?  If so, what work needs to be done to get 1 GiB sized and aligned
-  filesystem block allocations, to get the required enabling in the MM layer,
-  etc?
-
-Thanks,
-- Ross
-
-[1] https://lkml.org/lkml/2016/12/19/571
-[2] https://lkml.org/lkml/2016/10/12/70
+>   */
+>  void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  {
+> @@ -350,8 +351,18 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  	 * Make sure that larger requests are not too disruptive - no OOM
+>  	 * killer and no allocation failure warnings as we have a fallback
+>  	 */
+> -	if (size > PAGE_SIZE)
+> -		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
+> +	if (size > PAGE_SIZE) {
+> +		kmalloc_flags |= __GFP_NOWARN;
+> +
+> +		/*
+> +		 * We have to override __GFP_REPEAT by __GFP_NORETRY for !costly
+> +		 * requests because there is no other way to tell the allocator
+> +		 * that we want to fail rather than retry endlessly.
+> +		 */
+> +		if (!(kmalloc_flags & __GFP_REPEAT) ||
+> +				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> +			kmalloc_flags |= __GFP_NORETRY;
+> +	}
+>  
+>  	ret = kmalloc_node(size, kmalloc_flags, node);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
