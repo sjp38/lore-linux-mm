@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C26916B0253
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 10:53:50 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 67so96570684ioh.1
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:53:50 -0800 (PST)
-Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
-        by mx.google.com with ESMTPS id b131si4327922itb.34.2017.01.14.07.53.50
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D03B6B0253
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:12:44 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id c7so1407123wjb.7
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:12:44 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y23si15209452wra.86.2017.01.14.08.12.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 07:53:50 -0800 (PST)
-Received: by mail-io0-x243.google.com with SMTP id q20so8454397ioi.3
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 07:53:50 -0800 (PST)
-Date: Sat, 14 Jan 2017 10:53:43 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/9] slab: simplify shutdown_memcg_caches()
-Message-ID: <20170114155343.GA13589@mtj.duckdns.org>
-References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-4-tj@kernel.org>
- <20170114132722.GB2668@esperanza>
- <20170114153801.GB32693@mtj.duckdns.org>
+        Sat, 14 Jan 2017 08:12:43 -0800 (PST)
+Date: Sat, 14 Jan 2017 11:12:36 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: consider eligible zones in
+ get_scan_count
+Message-ID: <20170114161236.GB26139@cmpxchg.org>
+References: <20170110125552.4170-1-mhocko@kernel.org>
+ <20170110125552.4170-2-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114153801.GB32693@mtj.duckdns.org>
+In-Reply-To: <20170110125552.4170-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@tarantool.org>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Sat, Jan 14, 2017 at 10:38:01AM -0500, Tejun Heo wrote:
-> On Sat, Jan 14, 2017 at 04:27:22PM +0300, Vladimir Davydov wrote:
-> > > -	 * Second, shutdown all caches left from memory cgroups that are now
-> > > -	 * offline.
-> > > +	 * Shutdown all caches.
-> > >  	 */
-> > >  	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
-> > >  				 memcg_params.list)
-> > >  		shutdown_cache(c);
-> > 
-> > The point of this complexity was to leave caches that happen to have
-> > objects when kmem_cache_destroy() is called on the list, so that they
-> > could be reused later. This behavior was inherited from the global
+On Tue, Jan 10, 2017 at 01:55:51PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Ah, right, I misread the branch.  I don't quite get how the cache can
-> be reused later tho?  This is called when the memcg gets released and
-> a clear error condition - the caller, kmem_cache_destroy(), handles it
-> as an error condition too.
+> get_scan_count considers the whole node LRU size when
+> - doing SCAN_FILE due to many page cache inactive pages
+> - calculating the number of pages to scan
+> 
+> in both cases this might lead to unexpected behavior especially on 32b
+> systems where we can expect lowmem memory pressure very often.
 
-I think I understand it now.  This is the alias being able to find and
-reuse the cache.  Heh, that's a weird optimization for a corner error
-case.  Anyways, I'll drop this patch.
+The amount of retrofitting zones back into reclaim is disappointing :/
 
-Thanks.
+>  /*
+> + * Return the number of pages on the given lru which are eligible for the
+> + * given zone_idx
+> + */
+> +static unsigned long lruvec_lru_size_eligibe_zones(struct lruvec *lruvec,
+> +		enum lru_list lru, int zone_idx)
+> +{
+> +	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> +	unsigned long lru_size;
+> +	int zid;
+> +
+> +	lru_size = lruvec_lru_size(lruvec, lru);
+> +	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
+> +		struct zone *zone = &pgdat->node_zones[zid];
+> +		unsigned long size;
+> +
+> +		if (!managed_zone(zone))
+> +			continue;
+> +
+> +		size = lruvec_zone_lru_size(lruvec, lru, zid);
+> +		lru_size -= min(size, lru_size);
+> +	}
+> +
+> +	return lru_size;
 
--- 
-tejun
+The only other use of lruvec_lru_size() is also in get_scan_count(),
+where it decays the LRU pressure balancing ratios. That caller wants
+to operate on the entire lruvec.
+
+Can you instead add the filtering logic to lruvec_lru_size() directly,
+and pass MAX_NR_ZONES when operating on the entire lruvec? That would
+make the code quite a bit clearer than having 3 different lruvec size
+querying functions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
