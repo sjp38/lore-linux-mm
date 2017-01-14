@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8087F6B0033
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:29:32 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id d140so21596447wmd.4
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:29:32 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1186B0033
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:39:15 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id p192so21621662wme.1
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:39:15 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id l2si15278480wrc.6.2017.01.14.08.29.31
+        by mx.google.com with ESMTPS id t3si6191493wmd.79.2017.01.14.08.39.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 08:29:31 -0800 (PST)
-Date: Sat, 14 Jan 2017 11:29:15 -0500
+        Sat, 14 Jan 2017 08:39:13 -0800 (PST)
+Date: Sat, 14 Jan 2017 11:39:08 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 3/4] arch, mm: remove arch specific show_mem
-Message-ID: <20170114162915.GF26139@cmpxchg.org>
-References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-4-mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmscan: do not count freed pages as PGDEACTIVATE
+Message-ID: <20170114163908.GH26139@cmpxchg.org>
+References: <20170112211221.17636-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170112131659.23058-4-mhocko@kernel.org>
+In-Reply-To: <20170112211221.17636-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Jan 12, 2017 at 02:16:58PM +0100, Michal Hocko wrote:
+On Thu, Jan 12, 2017 at 10:12:21PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> We have a generic implementation for quite some time already. If there
-> is any arch specific information to be printed then we should add a
-> callback called from the generic code rather than duplicate the whole
-> show_mem. The current code has resulted in the code duplication and
-> the output divergence which is both confusing and adds maintainance
-> costs. Let's just get rid of this mess.
+> PGDEACTIVATE represents the number of pages moved from the active list
+> to the inactive list. At least this sounds like the original motivation
+> of the counter. move_active_pages_to_lru, however, counts pages which
+> got freed in the mean time as deactivated as well. This is a very rare
+> event and counting them as deactivation in itself is not harmful but it
+> makes the code more convoluted than necessary - we have to count both
+> all pages and those which are freed which is a bit confusing.
 > 
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
-> Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-> Cc: Helge Deller <deller@gmx.de>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Chris Metcalf <cmetcalf@mellanox.com>
-> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linux-parisc@vger.kernel.org
+> After this patch the PGDEACTIVATE should have a slightly more clear
+> semantic and only count those pages which are moved from the active to
+> the inactive list which is a plus.
+> 
+> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+I bet it's a small inaccuracy in practice, but now that the trace
+patches added a proper counter, might as well consolidate into the
+correct one.
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
