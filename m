@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A52A6B0253
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 03:45:58 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id an2so4042139wjc.3
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 00:45:58 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B0E76B0260
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 03:49:17 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c206so20531746wme.3
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 00:49:17 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si5057923wmu.42.2017.01.14.00.45.56
+        by mx.google.com with ESMTPS id e7si14160574wrd.188.2017.01.14.00.49.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 14 Jan 2017 00:45:56 -0800 (PST)
-Date: Sat, 14 Jan 2017 09:45:53 +0100
+        Sat, 14 Jan 2017 00:49:16 -0800 (PST)
+Date: Sat, 14 Jan 2017 09:49:13 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/6] mm: support __GFP_REPEAT in kvmalloc_node for >=64kB
-Message-ID: <20170114084552.GA9962@dhcp22.suse.cz>
+Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
+ variants
+Message-ID: <20170114084912.GB9962@dhcp22.suse.cz>
 References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-3-mhocko@kernel.org>
- <b4b9bb2c-86e2-a5ca-b072-593613924929@I-love.SAKURA.ne.jp>
+ <20170112153717.28943-6-mhocko@kernel.org>
+ <20170112172906.GB31509@dhcp22.suse.cz>
+ <c0b2f24d-a5e1-5ac7-ccba-347e0f17fd62@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b4b9bb2c-86e2-a5ca-b072-593613924929@I-love.SAKURA.ne.jp>
+In-Reply-To: <c0b2f24d-a5e1-5ac7-ccba-347e0f17fd62@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat 14-01-17 11:42:09, Tetsuo Handa wrote:
-> On 2017/01/13 0:37, Michal Hocko wrote:
-[...]
-> > diff --git a/mm/util.c b/mm/util.c
-> > index 7e0c240b5760..9306244b9f41 100644
-> > --- a/mm/util.c
-> > +++ b/mm/util.c
-> > @@ -333,7 +333,8 @@ EXPORT_SYMBOL(vm_mmap);
-> >   * Uses kmalloc to get the memory but if the allocation fails then falls back
-> >   * to the vmalloc allocator. Use kvfree for freeing the memory.
-> >   *
-> > - * Reclaim modifiers - __GFP_NORETRY, __GFP_REPEAT and __GFP_NOFAIL are not supported
-> > + * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
-> > + * is supported only for large (>64kB) allocations
+On Sat 14-01-17 12:01:50, Tetsuo Handa wrote:
+> On 2017/01/13 2:29, Michal Hocko wrote:
+> > Ilya has noticed that I've screwed up some k[zc]alloc conversions and
+> > didn't use the kvzalloc. This is an updated patch with some acks
+> > collected on the way
+> > ---
+> > From a7b89c6d0a3c685045e37740c8f97b065f37e0a4 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Wed, 4 Jan 2017 13:30:32 +0100
+> > Subject: [PATCH] treewide: use kv[mz]alloc* rather than opencoded variants
+> > 
+> > There are many code paths opencoding kvmalloc. Let's use the helper
+> > instead. The main difference to kvmalloc is that those users are usually
+> > not considering all the aspects of the memory allocator. E.g. allocation
+> > requests < 64kB are basically never failing and invoke OOM killer to
 > 
-> Isn't this ">32kB" (i.e. __GFP_REPEAT is supported for 64kB allocation) ?
+> Isn't this "requests <= 32kB" because allocation requests for 33kB will be
+> rounded up to 64kB?
 
-True, I will update the patch to use >32kB
+Yes
 
-Thanks!
+> Same for "smaller than 64kB" in PATCH 6/6. But strictly speaking, isn't
+> it bogus to refer actual size because PAGE_SIZE is not always 4096?
+
+This is just an example and I didn't want to pull
+PAGE_ALLOC_COSTLY_ORDER here. So I've instead fixed the wording to:
+"
+E.g. allocation requests <= 32kB (with 4kB pages) are basically never
+failing and invoke OOM killer to satisfy the allocation.
+"
 -- 
 Michal Hocko
 SUSE Labs
