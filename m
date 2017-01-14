@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B17A6B0253
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:30:08 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id o12so31191101lfg.7
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 05:30:07 -0800 (PST)
-Received: from smtp48.i.mail.ru (smtp48.i.mail.ru. [94.100.177.108])
-        by mx.google.com with ESMTPS id m28si6016908lfj.63.2017.01.14.05.30.06
+	by kanga.kvack.org (Postfix) with ESMTP id 013F46B0253
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:34:08 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id x1so31492995lff.6
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 05:34:07 -0800 (PST)
+Received: from smtp24.mail.ru (smtp24.mail.ru. [94.100.181.179])
+        by mx.google.com with ESMTPS id a63si9835747lfe.376.2017.01.14.05.34.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 14 Jan 2017 05:30:06 -0800 (PST)
-Date: Sat, 14 Jan 2017 16:30:00 +0300
+        Sat, 14 Jan 2017 05:34:06 -0800 (PST)
+Date: Sat, 14 Jan 2017 16:33:56 +0300
 From: Vladimir Davydov <vdavydov@tarantool.org>
-Subject: Re: [PATCH 4/9] slab: reorganize memcg_cache_params
-Message-ID: <20170114133000.GC2668@esperanza>
+Subject: Re: [PATCH 5/9] slab: link memcg kmem_caches on their associated
+ memory cgroup
+Message-ID: <20170114133356.GD2668@esperanza>
 References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-5-tj@kernel.org>
+ <20170114055449.11044-6-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114055449.11044-5-tj@kernel.org>
+In-Reply-To: <20170114055449.11044-6-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Sat, Jan 14, 2017 at 12:54:44AM -0500, Tejun Heo wrote:
-> We're gonna change how memcg caches are iterated.  In preparation,
-> clean up and reorganize memcg_cache_params.
+On Sat, Jan 14, 2017 at 12:54:45AM -0500, Tejun Heo wrote:
+> With kmem cgroup support enabled, kmem_caches can be created and
+> destroyed frequently and a great number of near empty kmem_caches can
+> accumulate if there are a lot of transient cgroups and the system is
+> not under memory pressure.  When memory reclaim starts under such
+> conditions, it can lead to consecutive deactivation and destruction of
+> many kmem_caches, easily hundreds of thousands on moderately large
+> systems, exposing scalability issues in the current slab management
+> code.  This is one of the patches to address the issue.
 > 
-> * The shared ->list is replaced by ->children in root and
->   ->children_node in children.
+> While a memcg kmem_cache is listed on its root cache's ->children
+> list, there is no direct way to iterate all kmem_caches which are
+> assocaited with a memory cgroup.  The only way to iterate them is
+> walking all caches while filtering out caches which don't match, which
+> would be most of them.
 > 
-> * ->is_root_cache is removed.  Instead ->root_cache is moved out of
->   the child union and now used by both root and children.  NULL
->   indicates root cache.  Non-NULL a memcg one.
+> This makes memcg destruction operations O(N^2) where N is the total
+> number of slab caches which can be huge.  This combined with the
+> synchronous RCU operations can tie up a CPU and affect the whole
+> machine for many hours when memory reclaim triggers offlining and
+> destruction of the stale memcgs.
 > 
-> This patch doesn't cause any observable behavior changes.
+> This patch adds mem_cgroup->kmem_caches list which goes through
+> memcg_cache_params->kmem_caches_node of all kmem_caches which are
+> associated with the memcg.  All memcg specific iterations, including
+> stat file access, are updated to use the new list instead.
 > 
 > Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reported-by: Jay Vana <jsvana@fb.com>
 > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 > Cc: Christoph Lameter <cl@linux.com>
 > Cc: Pekka Enberg <penberg@kernel.org>
