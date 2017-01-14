@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C52326B0033
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:26:19 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c206so21568566wme.3
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:26:19 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8087F6B0033
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:29:32 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id d140so21596447wmd.4
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:29:32 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 82si1306734wmo.19.2017.01.14.08.26.18
+        by mx.google.com with ESMTPS id l2si15278480wrc.6.2017.01.14.08.29.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 08:26:18 -0800 (PST)
-Date: Sat, 14 Jan 2017 11:26:13 -0500
+        Sat, 14 Jan 2017 08:29:31 -0800 (PST)
+Date: Sat, 14 Jan 2017 11:29:15 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/4] mm, page_alloc: do not report all nodes in show_mem
-Message-ID: <20170114162613.GE26139@cmpxchg.org>
+Subject: Re: [RFC PATCH 3/4] arch, mm: remove arch specific show_mem
+Message-ID: <20170114162915.GF26139@cmpxchg.org>
 References: <20170112131659.23058-1-mhocko@kernel.org>
- <20170112131659.23058-2-mhocko@kernel.org>
+ <20170112131659.23058-4-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170112131659.23058-2-mhocko@kernel.org>
+In-Reply-To: <20170112131659.23058-4-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org
 
-On Thu, Jan 12, 2017 at 02:16:56PM +0100, Michal Hocko wrote:
+On Thu, Jan 12, 2017 at 02:16:58PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> 599d0c954f91 ("mm, vmscan: move LRU lists to node") has added per numa
-> node statistics to show_mem but it forgot to add skip_free_areas_node
-> to fileter out nodes which are outside of the allocating task numa
-> policy. Add this check to not pollute the output with the pointless
-> information.
+> We have a generic implementation for quite some time already. If there
+> is any arch specific information to be printed then we should add a
+> callback called from the generic code rather than duplicate the whole
+> show_mem. The current code has resulted in the code duplication and
+> the output divergence which is both confusing and adds maintainance
+> costs. Let's just get rid of this mess.
 > 
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Fenghua Yu <fenghua.yu@intel.com>
+> Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
+> Cc: Helge Deller <deller@gmx.de>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> Cc: Chris Metcalf <cmetcalf@mellanox.com>
+> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+> Cc: linux-ia64@vger.kernel.org
+> Cc: linux-parisc@vger.kernel.org
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
