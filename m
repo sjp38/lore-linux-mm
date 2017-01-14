@@ -1,50 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5D76B0033
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:16:53 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so21311966wmi.6
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:16:53 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20BD46B0033
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:22:48 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id ez4so1913029wjd.2
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:22:48 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u73si15247881wrc.271.2017.01.14.08.16.52
+        by mx.google.com with ESMTPS id c1si15224125wra.308.2017.01.14.08.22.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 08:16:52 -0800 (PST)
-Date: Sat, 14 Jan 2017 11:16:48 -0500
+        Sat, 14 Jan 2017 08:22:46 -0800 (PST)
+Date: Sat, 14 Jan 2017 11:22:38 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 2/2] mm, vmscan: cleanup inactive_list_is_low
-Message-ID: <20170114161648.GC26139@cmpxchg.org>
-References: <20170110125552.4170-1-mhocko@kernel.org>
- <20170110125552.4170-3-mhocko@kernel.org>
+Subject: Re: [patch v2] mm, memcg: do not retry precharge charges
+Message-ID: <20170114162238.GD26139@cmpxchg.org>
+References: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1701121446130.12738@chino.kir.corp.google.com>
+ <20170113084014.GB25212@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1701130208510.69402@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170110125552.4170-3-mhocko@kernel.org>
+In-Reply-To: <alpine.DEB.2.10.1701130208510.69402@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 10, 2017 at 01:55:52PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Fri, Jan 13, 2017 at 02:09:53AM -0800, David Rientjes wrote:
+> When memory.move_charge_at_immigrate is enabled and precharges are
+> depleted during move, mem_cgroup_move_charge_pte_range() will attempt to
+> increase the size of the precharge.
 > 
-> inactive_list_is_low is duplicating logic implemented by
-> lruvec_lru_size_eligibe_zones. Let's use the dedicated function to get
-> the number of eligible pages on the lru list and ask use lruvec_lru_size
-> to get the total LRU lize only when the tracing is really requested. We
-> are still iterating over all LRUs two times in that case but a)
-> inactive_list_is_low is not a hot path and b) this can be addressed at
-> the tracing layer and only evaluate arguments only when the tracing is
-> enabled in future if that ever matters.
+> Prevent precharges from ever looping by setting __GFP_NORETRY.  This was
+> probably the intention of the GFP_KERNEL & ~__GFP_NORETRY, which is
+> pointless as written.
 
-lruvec_zone_lru_size() is no longer needed after this. Again, it would
-be better to consolidate everything into one lruvec_lru_size() that
-takes a reclaim index. Trivial to rebase on top of that, though, so:
-
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Thanks
+The OOM killer livelock was the motivation for this patch. With that
+ruled out, what's the point of this patch? Try a bit less hard to move
+charges during task migration?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
