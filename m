@@ -1,75 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D03B6B0253
-	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:12:44 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id c7so1407123wjb.7
-        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:12:44 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AD5D76B0033
+	for <linux-mm@kvack.org>; Sat, 14 Jan 2017 11:16:53 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c85so21311966wmi.6
+        for <linux-mm@kvack.org>; Sat, 14 Jan 2017 08:16:53 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y23si15209452wra.86.2017.01.14.08.12.42
+        by mx.google.com with ESMTPS id u73si15247881wrc.271.2017.01.14.08.16.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Jan 2017 08:12:43 -0800 (PST)
-Date: Sat, 14 Jan 2017 11:12:36 -0500
+        Sat, 14 Jan 2017 08:16:52 -0800 (PST)
+Date: Sat, 14 Jan 2017 11:16:48 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: consider eligible zones in
- get_scan_count
-Message-ID: <20170114161236.GB26139@cmpxchg.org>
+Subject: Re: [RFC PATCH 2/2] mm, vmscan: cleanup inactive_list_is_low
+Message-ID: <20170114161648.GC26139@cmpxchg.org>
 References: <20170110125552.4170-1-mhocko@kernel.org>
- <20170110125552.4170-2-mhocko@kernel.org>
+ <20170110125552.4170-3-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170110125552.4170-2-mhocko@kernel.org>
+In-Reply-To: <20170110125552.4170-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Jan 10, 2017 at 01:55:51PM +0100, Michal Hocko wrote:
+On Tue, Jan 10, 2017 at 01:55:52PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> get_scan_count considers the whole node LRU size when
-> - doing SCAN_FILE due to many page cache inactive pages
-> - calculating the number of pages to scan
-> 
-> in both cases this might lead to unexpected behavior especially on 32b
-> systems where we can expect lowmem memory pressure very often.
+> inactive_list_is_low is duplicating logic implemented by
+> lruvec_lru_size_eligibe_zones. Let's use the dedicated function to get
+> the number of eligible pages on the lru list and ask use lruvec_lru_size
+> to get the total LRU lize only when the tracing is really requested. We
+> are still iterating over all LRUs two times in that case but a)
+> inactive_list_is_low is not a hot path and b) this can be addressed at
+> the tracing layer and only evaluate arguments only when the tracing is
+> enabled in future if that ever matters.
 
-The amount of retrofitting zones back into reclaim is disappointing :/
+lruvec_zone_lru_size() is no longer needed after this. Again, it would
+be better to consolidate everything into one lruvec_lru_size() that
+takes a reclaim index. Trivial to rebase on top of that, though, so:
 
->  /*
-> + * Return the number of pages on the given lru which are eligible for the
-> + * given zone_idx
-> + */
-> +static unsigned long lruvec_lru_size_eligibe_zones(struct lruvec *lruvec,
-> +		enum lru_list lru, int zone_idx)
-> +{
-> +	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-> +	unsigned long lru_size;
-> +	int zid;
-> +
-> +	lru_size = lruvec_lru_size(lruvec, lru);
-> +	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
-> +		struct zone *zone = &pgdat->node_zones[zid];
-> +		unsigned long size;
-> +
-> +		if (!managed_zone(zone))
-> +			continue;
-> +
-> +		size = lruvec_zone_lru_size(lruvec, lru, zid);
-> +		lru_size -= min(size, lru_size);
-> +	}
-> +
-> +	return lru_size;
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-The only other use of lruvec_lru_size() is also in get_scan_count(),
-where it decays the LRU pressure balancing ratios. That caller wants
-to operate on the entire lruvec.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Can you instead add the filtering logic to lruvec_lru_size() directly,
-and pass MAX_NR_ZONES when operating on the entire lruvec? That would
-make the code quite a bit clearer than having 3 different lruvec size
-querying functions.
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
