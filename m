@@ -1,47 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B526F6B0033
-	for <linux-mm@kvack.org>; Sun, 15 Jan 2017 10:19:26 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r144so24157643wme.0
-        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 07:19:26 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 34si18384050wrc.11.2017.01.15.07.19.24
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 15A5F6B0038
+	for <linux-mm@kvack.org>; Sun, 15 Jan 2017 18:54:39 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id j18so127071883ioe.3
+        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 15:54:39 -0800 (PST)
+Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
+        by mx.google.com with ESMTPS id z128si8031361itg.118.2017.01.15.15.54.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Jan 2017 07:19:24 -0800 (PST)
-Date: Sun, 15 Jan 2017 10:19:14 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v2] mm, memcg: do not retry precharge charges
-Message-ID: <20170115151914.GA28947@cmpxchg.org>
-References: <alpine.DEB.2.10.1701112031250.94269@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1701121446130.12738@chino.kir.corp.google.com>
- <20170113084014.GB25212@dhcp22.suse.cz>
- <alpine.DEB.2.10.1701130208510.69402@chino.kir.corp.google.com>
- <20170114162238.GD26139@cmpxchg.org>
- <alpine.DEB.2.10.1701142137020.8668@chino.kir.corp.google.com>
+        Sun, 15 Jan 2017 15:54:38 -0800 (PST)
+Received: by mail-it0-x244.google.com with SMTP id o138so10715547ito.3
+        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 15:54:38 -0800 (PST)
+Date: Sun, 15 Jan 2017 18:54:31 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] writeback: use rb_entry()
+Message-ID: <20170115235431.GF14446@mtj.duckdns.org>
+References: <5b23d0cb523f4719673a462ab1569ae99084337e.1483685419.git.geliangtang@gmail.com>
+ <671275de093d93ddc7c6f77ddc0d357149691a39.1484306840.git.geliangtang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1701142137020.8668@chino.kir.corp.google.com>
+In-Reply-To: <671275de093d93ddc7c6f77ddc0d357149691a39.1484306840.git.geliangtang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Geliang Tang <geliangtang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jens Axboe <axboe@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Jan 14, 2017 at 09:42:48PM -0800, David Rientjes wrote:
-> On Sat, 14 Jan 2017, Johannes Weiner wrote:
+On Fri, Jan 13, 2017 at 11:17:12PM +0800, Geliang Tang wrote:
+> To make the code clearer, use rb_entry() instead of container_of() to
+> deal with rbtree.
 > 
-> > The OOM killer livelock was the motivation for this patch. With that
-> > ruled out, what's the point of this patch? Try a bit less hard to move
-> > charges during task migration?
-> > 
+> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+> ---
+>  mm/backing-dev.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> Most important part is to fail ->can_attach() instead of oom killing 
-> processes when attaching a process to a memcg hierarchy.
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 3bfed5ab..ffb77a1 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -410,8 +410,8 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+>  
+>  	while (*node != NULL) {
+>  		parent = *node;
+> -		congested = container_of(parent, struct bdi_writeback_congested,
+> -					 rb_node);
+> +		congested = rb_entry(parent, struct bdi_writeback_congested,
+> +				     rb_node);
 
-Ah, that makes sense.
+I don't get the rb_entry() macro.  It's just another name for
+container_of().  I have no objection to the patch but this macro is a
+bit silly.
 
-Could you please update the changelog to reflect this? Thanks!
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
