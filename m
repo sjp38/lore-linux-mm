@@ -1,89 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BDF476B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 08:35:42 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 204so16068768pge.5
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 05:35:42 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y96si21598722plh.249.2017.01.16.05.35.41
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 912D56B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 08:41:25 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id c80so141951209iod.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 05:41:25 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id f5si19287495ioa.4.2017.01.16.05.41.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 05:35:41 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0GDXs2S115649
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 08:35:41 -0500
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 280u3mt88r-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 08:35:40 -0500
-Received: from localhost
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 16 Jan 2017 19:05:37 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 14F3A3940062
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 19:05:36 +0530 (IST)
-Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0GDZVLM39256158
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 19:05:32 +0530
-Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
-	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0GDZVBO018924
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 19:05:31 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [LSF/MM ATTEND] CDM, HMM, ZONE_DEVICE, Device Memory Infrastructure,
- Page Allocator, CMA
-Date: Mon, 16 Jan 2017 19:05:20 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 Jan 2017 05:41:25 -0800 (PST)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: respect pre-allocated storage mapping for memmap
+Date: Mon, 16 Jan 2017 21:38:05 +0800
+Message-ID: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <8954f383-2a25-f89d-e6db-aa7bc12564bd@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Minchan Kim <minchan@kernel.org>, Jerome Glisse <jglisse@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>
+To: dan.j.williams@intel.com, hannes@cmpxchg.org, mhocko@suse.com
+Cc: linux-mm@kvack.org
 
-Hello,
+From: zhong jiang <zhongjiang@huawei.com>
 
-I have been working on a coherent device memory (CDM) representation in
-the kernel. Last year, I had posted these two RFCs in this regard which
-attempts to represent non-system RAM coherent device memory as a NUMA
-node with some allocation restrictions.
+At present, we skip the reservation storage by the driver for
+the zone_dvice. but the free pages set aside for the memmap is
+ignored. And since the free pages is only used as the memmap,
+so we can also skip the corresponding pages.
 
-https://lkml.org/lkml/2016/10/24/19  (CDM with modified zonelists)
-https://lkml.org/lkml/2016/11/22/339 (CDM with modified cpusets)
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-During the course of this work, I had experimented with existing device
-memory frameworks like ZONE_DEVICE, HMM etc. In my quest for isolation,
-also looked into how early system boot allocated CMA region can be used
-in this regard. Thought I would like to participate primarily on the
-device memory management infrastructure discussions (detailed TOPICs
-list can be found below) but would also like to contribute in those
-areas where I had faced some limitations or the other during the CDM
-work.
-
-I would like to attend to discuss on the listed topics on the mailing
-list as mentioned below which I have already replied in their respective
-threads as well.
-
-(1) [LSF/MM TOPIC/ATTEND] Memory Types
-(2) [LSF/MM TOPIC] Un-addressable device memory and block/fs implications
-(3) [LSF/MM TOPIC] Memory hotplug, ZONE_DEVICE, and the future of struct page
-(4) [LSF/MM ATTEND] HMM, CDM and other infrastructure for device memory management
-
-Apart from this, would like to discuss on the following generic topics
-as I had mentioned earlier.
-
-(1) Support for memory hotplug as CMA regions
-(2) Seamless migration between LRU pages and device managed non LRU CMA pages
-(3) Explore the possibility of enforcing CDM node isolation through a changed
-    buddy page allocator specifically how it currently handles requested
-    nodemask_t along with cpuset based nodemask at various phases of fast path
-    and slow path
-
-Regards
-Anshuman
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d604d25..51d8d03 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5047,7 +5047,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 	 * memory
+ 	 */
+ 	if (altmap && start_pfn == altmap->base_pfn)
+-		start_pfn += altmap->reserve;
++		start_pfn += vmem_altmap_offset(altmap);
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+ 		/*
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
