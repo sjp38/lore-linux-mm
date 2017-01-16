@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 15A5F6B0038
-	for <linux-mm@kvack.org>; Sun, 15 Jan 2017 18:54:39 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id j18so127071883ioe.3
-        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 15:54:39 -0800 (PST)
-Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
-        by mx.google.com with ESMTPS id z128si8031361itg.118.2017.01.15.15.54.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4875E6B0038
+	for <linux-mm@kvack.org>; Sun, 15 Jan 2017 19:19:59 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id n189so64021717pga.4
+        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 16:19:59 -0800 (PST)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id d24si19759810plj.113.2017.01.15.16.19.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Jan 2017 15:54:38 -0800 (PST)
-Received: by mail-it0-x244.google.com with SMTP id o138so10715547ito.3
-        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 15:54:38 -0800 (PST)
-Date: Sun, 15 Jan 2017 18:54:31 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] writeback: use rb_entry()
-Message-ID: <20170115235431.GF14446@mtj.duckdns.org>
-References: <5b23d0cb523f4719673a462ab1569ae99084337e.1483685419.git.geliangtang@gmail.com>
- <671275de093d93ddc7c6f77ddc0d357149691a39.1484306840.git.geliangtang@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <671275de093d93ddc7c6f77ddc0d357149691a39.1484306840.git.geliangtang@gmail.com>
+        Sun, 15 Jan 2017 16:19:58 -0800 (PST)
+Received: by mail-pf0-x22e.google.com with SMTP id 189so48627738pfu.3
+        for <linux-mm@kvack.org>; Sun, 15 Jan 2017 16:19:58 -0800 (PST)
+Message-ID: <1484525991.27533.31.camel@dubeyko.com>
+Subject: Re: [LSF/MM TOPIC] Future direction of DAX
+From: Viacheslav Dubeyko <slava@dubeyko.com>
+Date: Sun, 15 Jan 2017 16:19:51 -0800
+In-Reply-To: <20170114082621.GC10498@birch.djwong.org>
+References: <20170114002008.GA25379@linux.intel.com>
+	 <20170114082621.GC10498@birch.djwong.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jens Axboe <axboe@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jan 13, 2017 at 11:17:12PM +0800, Geliang Tang wrote:
-> To make the code clearer, use rb_entry() instead of container_of() to
-> deal with rbtree.
-> 
-> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
-> ---
->  mm/backing-dev.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 3bfed5ab..ffb77a1 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -410,8 +410,8 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
->  
->  	while (*node != NULL) {
->  		parent = *node;
-> -		congested = container_of(parent, struct bdi_writeback_congested,
-> -					 rb_node);
-> +		congested = rb_entry(parent, struct bdi_writeback_congested,
-> +				     rb_node);
+On Sat, 2017-01-14 at 00:26 -0800, Darrick J. Wong wrote:
 
-I don't get the rb_entry() macro.  It's just another name for
-container_of().  I have no objection to the patch but this macro is a
-bit silly.
+<skipped>
 
-Thanks.
+> Some day we'll start designing a pmem-native fs, I guess. :P
 
--- 
-tejun
+There are research efforts in this direction already ([1]-[15]). The
+latest one is NOVA, as far as I can see. But, frankly speaking, I
+believe that we need in new hardware paradigm/architecture and new OS
+paradigm for the next generation of NVM memory. The DAX is
+simpleA palliative, temporary solution. But, from my point of view,
+pmem-native fs is also not good direction because, anyway, memory
+subsystem will be affected significantly. And, finally, evolution of
+memory subsystem will reveal something completely different that we can
+imagine right now.
+
+Thanks,
+Vyacheslav Dubeyko.A 
+
+[1]A http://pages.cs.wisc.edu/~swift/papers/eurosys14-aerie.pdf
+[2]A https://www.researchgate.net/publication/282792714_A_User-Level_File_System_for_Fast_Storage_Devices
+[3] https://people.eecs.berkeley.edu/~dcoetzee/publications/Better%20IO%20Through%20Byte-Addressable,%20Persistent%20Memory.pdf
+[4] https://www.computer.org/csdl/proceedings/msst/2013/0217/00/06558440.pdf
+[5] https://users.soe.ucsc.edu/~scott/papers/MASCOTS04b.pdf
+[6] http://ieeexplore.ieee.org/document/4142472/
+[7] https://cseweb.ucsd.edu/~swanson/papers/FAST2016NOVA.pdf
+[8] http://cesg.tamu.edu/wp-content/uploads/2012/02/MSST13.pdf
+[9] http://ieeexplore.ieee.org/document/5487498/
+[10] https://pdfs.semanticscholar.org/544c/1ddf24b90c3dfba7b1934049911b869c99b4.pdf
+[11] http://pramfs.sourceforge.net/tech.html
+[12] https://pdfs.semanticscholar.org/2981/b5abcbe1023b9f3cd962b0be7ef8bd45acfd.pdf
+[13] http://ieeexplore.ieee.org/document/6232378/
+[14] http://ieeexplore.ieee.org/document/7304365/
+[15] http://ieeexplore.ieee.org/document/6272446/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
