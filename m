@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 190A96B0038
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 14:41:03 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r126so29556327wmr.2
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 11:41:03 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f124si13527877wmd.64.2017.01.16.11.41.01
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 361056B0038
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 15:00:43 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id g49so105302416qta.0
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 12:00:43 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k71si14947837qkl.47.2017.01.16.12.00.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 11:41:01 -0800 (PST)
-Date: Mon, 16 Jan 2017 20:40:53 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
-Message-ID: <20170116194052.GA9382@dhcp22.suse.cz>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-2-mhocko@kernel.org>
- <bf1815ec-766a-77f2-2823-c19abae5edb3@nvidia.com>
- <20170116084717.GA13641@dhcp22.suse.cz>
- <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jan 2017 12:00:42 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Future direction of DAX
+References: <20170114002008.GA25379@linux.intel.com>
+	<20170114082621.GC10498@birch.djwong.org>
+Date: Mon, 16 Jan 2017 15:00:41 -0500
+In-Reply-To: <20170114082621.GC10498@birch.djwong.org> (Darrick J. Wong's
+	message of "Sat, 14 Jan 2017 00:26:21 -0800")
+Message-ID: <x49wpduzseu.fsf@dhcp-25-115.bos.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 16-01-17 11:09:37, John Hubbard wrote:
-> 
-> 
-> On 01/16/2017 12:47 AM, Michal Hocko wrote:
-> > On Sun 15-01-17 20:34:13, John Hubbard wrote:
-[...]
-> > > Is that "Reclaim modifiers" line still true, or is it a leftover from an
-> > > earlier approach? I am having trouble reconciling it with rest of the
-> > > patchset, because:
-> > > 
-> > > a) the flags argument below is effectively passed on to either kmalloc_node
-> > > (possibly adding, but not removing flags), or to __vmalloc_node_flags.
-> > 
-> > The above only says thos are _unsupported_ - in other words the behavior
-> > is not defined. Even if flags are passed down to kmalloc resp. vmalloc
-> > it doesn't mean they are used that way.  Remember that vmalloc uses
-> > some hardcoded GFP_KERNEL allocations.  So while I could be really
-> > strict about this and mask away these flags I doubt this is worth the
-> > additional code.
-> 
-> I do wonder about passing those flags through to kmalloc. Maybe it is worth
-> stripping out __GFP_NORETRY and __GFP_NOFAIL, after all. It provides some
-> insulation from any future changes to the implementation of kmalloc, and it
-> also makes the documentation more believable.
+"Darrick J. Wong" <darrick.wong@oracle.com> writes:
 
-I am not really convinced that we should take an extra steps for these
-flags. There are no existing users for those flags and new users should
-follow the documentation.
+>> - Whenever you mount a filesystem with DAX, it spits out a message that says
+>>   "DAX enabled. Warning: EXPERIMENTAL, use at your own risk".  What criteria
+>>   needs to be met for DAX to no longer be considered experimental?
+>
+> For XFS I'd like to get reflink working with it, for starters.
 
--- 
-Michal Hocko
-SUSE Labs
+What do you mean by this, exactly?  When Dave outlined the requirements
+for PMEM_IMMUTABLE, it was very clear that metadata updates would not be
+possible.  And would you really cosider this a barrier to marking dax
+fully supported?  I wouldn't.
+
+> We probably need a bunch more verification work to show that file IO
+> doesn't adopt any bad quirks having turned on the per-inode DAX flag.
+
+Can you be more specific?  We have ltp and xfstests.  If you have some
+mkfs/mount options that you think should be tested, speak up.  Beyond
+that, if it passes ./check -g auto and ltp, are we good?
+
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
