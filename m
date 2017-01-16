@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 815216B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 10:10:07 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id j18so144242855ioe.3
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:10:07 -0800 (PST)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D8DE06B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 10:13:21 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id m98so143821585iod.2
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:13:21 -0800 (PST)
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 72si5075477ior.247.2017.01.16.07.10.06
+        by mx.google.com with ESMTPS id t3si2169376ioe.59.2017.01.16.07.13.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 07:10:06 -0800 (PST)
-Date: Mon, 16 Jan 2017 16:10:01 +0100
+        Mon, 16 Jan 2017 07:13:21 -0800 (PST)
+Date: Mon, 16 Jan 2017 16:13:19 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20170116151001.GD3144@twins.programming.kicks-ass.net>
+Message-ID: <20170116151319.GE3144@twins.programming.kicks-ass.net>
 References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
  <1481260331-360-8-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
@@ -25,308 +25,23 @@ To: Byungchul Park <byungchul.park@lge.com>
 Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
 On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
-
-> @@ -143,6 +149,9 @@ struct lock_class_stats lock_stats(struct lock_class *class);
->  void clear_lock_stats(struct lock_class *class);
->  #endif
->  
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +struct cross_lock;
-> +#endif
-
-That seems like pointless wrappery, unused (fwd) declarations are
-harmless.
-
->  /*
->   * Map the lock object (the lock instance) to the lock-class object.
->   * This is embedded into specific lock instances:
-> @@ -155,6 +164,9 @@ struct lockdep_map {
->  	int				cpu;
->  	unsigned long			ip;
->  #endif
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +	struct cross_lock		*xlock;
-> +#endif
-
-The use of this escapes me; why does the lockdep_map need a pointer to
-this?
-
->  };
->  
->  static inline void lockdep_copy_map(struct lockdep_map *to,
-> @@ -258,7 +270,82 @@ struct held_lock {
->  	unsigned int hardirqs_off:1;
->  	unsigned int references:12;					/* 32 bits */
->  	unsigned int pin_count;
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
 > +	/*
-> +	 * This is used to find out the first plock among plocks having
-> +	 * been acquired since a crosslock was held. Crossrelease feature
-> +	 * uses chain cache between the crosslock and the first plock to
-> +	 * avoid building unnecessary dependencies, like how lockdep uses
-> +	 * a sort of chain cache for normal locks.
-> +	 */
-> +	unsigned int gen_id;
-> +#endif
-> +};
-
-Makes sense, except we'll have a bunch of different generation numbers
-(see below), so I think it makes sense to name it more explicitly.
-
-> +
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +#define MAX_PLOCK_TRACE_ENTRIES		5
-
-Why 5? ;-)
-
-> +/*
-> + * This is for keeping locks waiting for commit to happen so that
-> + * dependencies are actually built later at commit step.
-> + *
-> + * Every task_struct has an array of pend_lock. Each entiry will be
-> + * added with a lock whenever lock_acquire() is called for normal lock.
-> + */
-> +struct pend_lock {
-
-Like said before, I'm not sure "pending" is the right word, we track
-locks that have very much been released. Would something like "lock
-history" make more sense?
-
-> +	/*
-> +	 * prev_gen_id is used to check whether any other hlock in the
-> +	 * current is already dealing with the xlock, with which commit
-> +	 * is performed. If so, this plock can be skipped.
-> +	 */
-> +	unsigned int		prev_gen_id;
-
-Confused..
-
-> +	/*
-> +	 * A kind of global timestamp increased and set when this plock
-> +	 * is inserted.
-> +	 */
-> +	unsigned int		gen_id;
-
-Right, except you also have pend_lock::hlock::gen_id, which I think is
-the very same generation number, no?
-
-> +
-> +	int			hardirq_context;
-> +	int			softirq_context;
-
-This would fit in 2 bit, why do you use 8 bytes?
-
-> +
-> +	/*
-> +	 * Whenever irq happens, these are updated so that we can
-> +	 * distinguish each irq context uniquely.
-> +	 */
-> +	unsigned int		hardirq_id;
-> +	unsigned int		softirq_id;
-
-An alternative approach would be to 'unwind' or discard all historical
-events from a nested context once we exit it.
-
-After all, all we care about is the history of the release context, once
-the context is gone, we don't care.
-
-> +
-> +	/*
-> +	 * Seperate stack_trace data. This will be used at commit step.
-> +	 */
-> +	struct stack_trace	trace;
-> +	unsigned long		trace_entries[MAX_PLOCK_TRACE_ENTRIES];
-> +
-> +	/*
-> +	 * Seperate hlock instance. This will be used at commit step.
-> +	 */
-> +	struct held_lock	hlock;
-> +};
-> +
-> +/*
-> + * One cross_lock per one lockdep_map.
-> + *
-> + * To initialize a lock as crosslock, lockdep_init_map_crosslock() should
-> + * be used instead of lockdep_init_map(), where the pointer of cross_lock
-> + * instance should be passed as a parameter.
-> + */
-> +struct cross_lock {
-> +	unsigned int		gen_id;
-
-Again, you already have hlock::gen_id for this, no?
-
-> +	struct list_head	xlock_entry;
-> +
-> +	/*
-> +	 * Seperate hlock instance. This will be used at commit step.
-> +	 */
-> +	struct held_lock	hlock;
-> +
-> +	int			ref; /* reference count */
->  };
-
-Why not do something like:
-
-struct lockdep_map_cross {
-	struct lockdep_map	map;
-	struct held_lock	hlock;
-}
-
-That saves at least that pointer.
-
-But I still have to figure out why we need this hlock.
-
-Also note that a full hlock contains superfluous information:
-
- - prev_chain_key; not required, we can compute the 2 entry chain hash
- 		   on demand when we need.
- - instance: we already have the lockdep_map right here, pointers to
- 	     self are kinda pointless
- - nest_lock: not sure that makes sense wrt this stuff.
- - class_idx: can recompute if we have lockdep_map
- - reference: see nest_lock
-
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 253538f..592ee368 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1719,6 +1719,11 @@ struct task_struct {
->  	struct held_lock held_locks[MAX_LOCK_DEPTH];
->  	gfp_t lockdep_reclaim_gfp;
->  #endif
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +#define MAX_PLOCKS_NR 1024UL
-> +	int plock_index;
-> +	struct pend_lock *plocks;
-> +#endif
-
-That's a giant heap of memory.. why 1024?
-
-
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 4a7ec0c..91ab81b 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-
-> @@ -1443,6 +1451,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
->  	p->lockdep_depth = 0; /* no locks held yet */
->  	p->curr_chain_key = 0;
->  	p->lockdep_recursion = 0;
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +	p->plock_index = 0;
-> +	p->plocks = vzalloc(sizeof(struct pend_lock) * MAX_PLOCKS_NR);
-
-And while I understand why you need vmalloc for that amount of memory,
-do realize that on 32bit kernels you'll very quickly run out of space
-this way.
-
-That pend_lock thing could maybe be shrunk to 128 bytes, at which point
-you can fit 64 in two pages, is that not sufficient?
-
-
-> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> index 11580ec..2c8b2c1 100644
-> --- a/kernel/locking/lockdep.c
-> +++ b/kernel/locking/lockdep.c
-
-> +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> +
-> +static LIST_HEAD(xlocks_head);
-
-Still not explanation for what this list is for...
-
-> +
-> +/*
-> + * Whenever a crosslock is held, cross_gen_id will be increased.
-> + */
-> +static atomic_t cross_gen_id; /* Can be wrapped */
-> +
-> +/* Implement a circular buffer - for internal use */
-> +#define cir_p(n, i)		((i) ? (i) - 1 : (n) - 1)
-
-This is broken, I think you'll want something like: (((i)-1) % (n))
-
-> +#define cir_n(n, i)		((i) == (n) - 1 ? 0 : (i) + 1)
-
-Idem
-
-> +/*
-> + * Crossrelease needs to distinguish each hardirq context.
-> + */
-> +static DEFINE_PER_CPU(unsigned int, hardirq_id);
-> +void crossrelease_hardirq_start(void)
-> +{
-> +	per_cpu(hardirq_id, smp_processor_id())++;
-> +}
-> +
-> +/*
-> + * Crossrelease needs to distinguish each softirq context.
-> + */
-> +static DEFINE_PER_CPU(unsigned int, softirq_id);
-> +void crossrelease_softirq_start(void)
-> +{
-> +	per_cpu(softirq_id, smp_processor_id())++;
-> +}
-
-See above, I don't think we need to retain the plock stuff once a
-context finishes, and therefore we don't need context generation numbers
-to differentiate them.
-
-> +/*
-> + * To find the earlist crosslock among all crosslocks not released yet.
-> + */
-> +static unsigned int gen_id_begin(void)
-> +{
-> +	struct cross_lock *xlock = list_entry_rcu(xlocks_head.next,
-> +			struct cross_lock, xlock_entry);
-> +
-> +	/* If empty */
-> +	if (&xlock->xlock_entry == &xlocks_head)
-> +		return (unsigned int)atomic_read(&cross_gen_id) + 1;
-> +
-> +	return READ_ONCE(xlock->gen_id);
-> +}
-> +
-> +/*
-> + * To find the latest crosslock among all crosslocks already released.
-> + */
-> +static inline unsigned int gen_id_done(void)
-> +{
-> +	return gen_id_begin() - 1;
-> +}
-
-I'm not sure about these... if you increment the generation count on any
-cross action (both acquire and release) and tag all hlocks with the
-current reading, you have all the ordering required, no?
-
-> +/*
-> + * No contention. Irq disable is only required.
-> + */
-> +static void add_plock(struct held_lock *hlock, unsigned int prev_gen_id,
-> +		unsigned int gen_id_done)
-> +{
-> +	struct task_struct *curr = current;
-> +	int cpu = smp_processor_id();
-> +	struct pend_lock *plock;
-> +	/*
-> +	 *	CONTEXT 1		CONTEXT 2
-> +	 *	---------		---------
-> +	 *	acquire A (cross)
-> +	 *	X = atomic_inc_return()
-> +	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ serialize
-> +	 *				Y = atomic_read_acquire()
-> +	 *				acquire B
-> +	 *				acquire C
+> +	 * We assign class_idx here redundantly even though following
+> +	 * memcpy will cover it, in order to ensure a rcu reader can
+> +	 * access the class_idx atomically without lock.
 > +	 *
-> +	 * For ordering between this and all following LOCKs.
-> +	 * This way we ensure the order A -> B -> C when CONTEXT 2
-> +	 * can see Y is equal to or greater than X.
-> +	 *
-> +	 * Pairs with atomic_inc_return() in add_xlock().
-> +	 */
-> +	unsigned int gen_id = (unsigned int)atomic_read_acquire(&cross_gen_id);
+> +	 * Here we assume setting a word-sized variable is atomic.
 
-fails to explain why this is important.
+which one, where?
+
+> +	 */
+> +	xlock->hlock.class_idx = hlock->class_idx;
+> +	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
+> +	WRITE_ONCE(xlock->gen_id, gen_id);
+> +	memcpy(&xlock->hlock, hlock, sizeof(struct held_lock));
+> +	INIT_LIST_HEAD(&xlock->xlock_entry);
+> +	list_add_tail_rcu(&xlock->xlock_entry, &xlocks_head);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
