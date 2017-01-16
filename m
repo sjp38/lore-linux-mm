@@ -1,99 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E456B0253
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:14 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id 203so139576656ith.3
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:20:14 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t64si9457769itg.86.2017.01.16.04.20.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ECEE16B0253
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:36:38 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f5so49432032pgi.1
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:36:38 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00106.outbound.protection.outlook.com. [40.107.0.106])
+        by mx.google.com with ESMTPS id i8si1695660pll.65.2017.01.16.04.36.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 04:20:14 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0GCIg74062459
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:13 -0500
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 280t0e1vuw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:13 -0500
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 16 Jan 2017 17:49:52 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B92E8125805C
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:51:24 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0GCJmVq39256128
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:49:48 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0GCJjp2011802
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:49:47 +0530
-Subject: Re: [LSF/MM ATTEND] HMM, CDM and other infrastructure for device
- memory management
-References: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 16 Jan 2017 17:49:36 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 Jan 2017 04:36:38 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv2 0/5] Fix compatible mmap() return pointer over 4Gb
+Date: Mon, 16 Jan 2017 15:33:05 +0300
+Message-ID: <20170116123310.22697-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <752ef94a-d5ba-7e14-c7d5-6c212e894edc@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Serguei Sagalovitch <serguei.sagalovitch@amd.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Michael Repasy <mrepasy@nvidia.com>
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
 
-On 01/11/2017 09:52 AM, John Hubbard wrote:
-> Hi,
-> 
-> I would like to attend this topic that Jerome has proposed. Studying the 
-> kernel is a deep personal interest in addition to my career focus, and it 
-> would be a rare privilege to work directly with some of you to converge 
-> on some nice, clean designs for the kernel and these "new" 
-> (page-fault-capable) devices that we have now. Here's what I can bring to 
-> the discussion:
-> 
-> a) An NVIDIA perspective on, and experience with, using the HMM patchset, 
-> versions 1-15, at the device driver level. In addition to working on the 
-> nvidia-uvm.ko driver (which handles CPU and GPU page faulting) since its 
-> inception, I've also helped develop and maintain various facets of our GPU 
-> device driver for Linux, for the last 9 years.
-> 
-> As a semi-relevant aside, our company is allocating engineering time, 
-> including mine, for long-term kernel projects such as this one. We want to 
-> participate in maintaining and improving the kernel. I find that highly 
-> encouraging and I hope others do, too. Times really are changing.
-> 
-> b) Some thoughts about the dividing line between core kernel and drivers. 
-> Our device drivers are starting to push the limits of what drivers should 
-> really do (we are heading perhaps too deeply into memory management), and 
-> of course I want to avoid going too far. For example, I've seen 
-> recent comments on linux-mm that drivers shouldn't even take mmap_sem, 
-> which is intriguing. We need to provide...something for that, though. 
-> 
-> c) Some thoughts about dealing with both HMM and ATS in the same driver 
-> (our devices have to support both--although, not at the same time).
-> 
-> --
-> 
-> For this discussion track, I'm especially interested in simultaneously 
-> considering:
-> 
-> 1. HMM (Jerome's Heterogeneous Memory Management patchset): this solves a 
-> similar problem as ATS (Address Translation Services: unified CPU and
-> Device page tables), but without the need for specialized hardware. There 
-> is a bit of overlap between the HMM and ATS+NUMA patchsets, as has been 
-> discussed here before.
-> 
-> 2. IBM's ATS+NUMA patchset.
-> 
-> 3. Page-fault-capable devices in general.
+Changes since v1:
+- Recalculate mmap_base instead of using max possible virtual address
+  for compat/native syscall. That will make policy for allocation the
+  same in 32-bit binaries and in 32-bit syscalls in 64-bit binaries.
+  I need this because sys_mmap() in restored 32-bit process shouldn't
+  hit the stack area.
+- Fixed mmap() with MAP_32BIT flag in the same usecases
+- used in_compat_syscall() helper rather TS_COMPAT check (Andy noticed)
+- introduced find_top() helper as suggested by Andy to simplify code
+- fixed test error-handeling: it checked the result of sys_mmap() with
+  MMAP_FAILED, which is not correct, as it calls raw syscall - now
+  checks return value to be aligned to PAGE_SIZE.
 
-Initially thought there would be a single common discussion TOPIC for all of
-the "device memory management infrastructure" but seems like its getting
-split into multiple TOPICs. Hence I am trying to sign up for all them
-individually.
+Description from v1 [2]:
+
+A fix for bug in mmap() that I referenced in [1].
+Also selftest for it.
+
+I would like to mark the fix as for stable v4.9 kernel if it'll
+be accepted, as I try to support compatible 32-bit C/R
+after v4.9 and working compatible mmap() is really wanted there.
+
+[1]: https://marc.info/?l=linux-kernel&m=148311451525315
+[2]: https://marc.info/?l=linux-kernel&m=148415888707662
+
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: x86@kernel.org
+Cc: linux-mm@kvack.org
+
+Dmitry Safonov (5):
+  x86/mm: split arch_mmap_rnd() on compat/native versions
+  x86/mm: introduce mmap_{,legacy}_base
+  x86/mm: fix native mmap() in compat bins and vice-versa
+  x86/mm: for MAP_32BIT check in_compat_syscall() instead TIF_ADDR32
+  selftests/x86: add test to check compat mmap() return addr
+
+ arch/x86/include/asm/elf.h                     |  14 +-
+ arch/x86/include/asm/processor.h               |   2 +-
+ arch/x86/kernel/sys_x86_64.c                   |  48 +++++-
+ arch/x86/mm/hugetlbpage.c                      |   2 +-
+ arch/x86/mm/mmap.c                             |  56 ++++---
+ tools/testing/selftests/x86/Makefile           |   2 +-
+ tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
+ 7 files changed, 301 insertions(+), 31 deletions(-)
+ create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
