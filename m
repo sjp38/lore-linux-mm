@@ -1,98 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 45D3A6B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:02:42 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id kq3so11267615wjc.1
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:02:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n65si12257002wmn.94.2017.01.16.04.02.40
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B56D66B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:05:15 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id j18so140217837ioe.3
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:05:15 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id o124si2626968itc.58.2017.01.16.04.05.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 04:02:40 -0800 (PST)
-Date: Mon, 16 Jan 2017 13:02:36 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 0/9] mm/swap: Regular page swap optimizations
-Message-ID: <20170116120236.GG13641@dhcp22.suse.cz>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jan 2017 04:05:15 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0GC4q9f083501
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:05:14 -0500
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 280sn7t7af-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:05:11 -0500
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 16 Jan 2017 22:05:07 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 1522B3578052
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:05:04 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0GC54ta29819018
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:05:04 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0GC53ar030272
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:05:03 +1100
+Subject: Re: [LSF/MM ATTEND] Un-addressable device memory and block/fs
+ implications
+References: <20161213181511.GB2305@redhat.com>
+ <87lgvgwoos.fsf@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 16 Jan 2017 17:34:51 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1484082593.git.tim.c.chen@linux.intel.com>
+In-Reply-To: <87lgvgwoos.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <6304634e-3351-ea81-2970-506b69bc588f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-Hi,
-I am seeing a lot of preempt unsafe warnings with the current mmotm and
-I assume that this patchset has introduced the issue. I haven't checked
-more closely but get_swap_page didn't use this_cpu_ptr before "mm/swap:
-add cache for swap slots allocation"
+On 12/16/2016 08:44 AM, Aneesh Kumar K.V wrote:
+> Jerome Glisse <jglisse@redhat.com> writes:
+> 
+>> I would like to discuss un-addressable device memory in the context of
+>> filesystem and block device. Specificaly how to handle write-back, read,
+>> ... when a filesystem page is migrated to device memory that CPU can not
+>> access.
+>>
+>> I intend to post a patchset leveraging the same idea as the existing
+>> block bounce helper (block/bounce.c) to handle this. I believe this is
+>> worth discussing during summit see how people feels about such plan and
+>> if they have better ideas.
+>>
+>>
+>> I also like to join discussions on:
+>>   - Peer-to-Peer DMAs between PCIe devices
+>>   - CDM coherent device memory
+>>   - PMEM
+>>   - overall mm discussions
+> I would like to attend this discussion. I can talk about coherent device
+> memory and how having HMM handle that will make it easy to have one
+> interface for device driver. For Coherent device case we definitely need
+> page cache migration support.
 
-[   57.812314] BUG: using smp_processor_id() in preemptible [00000000] code: kswapd0/527
-[   57.814360] caller is debug_smp_processor_id+0x17/0x19
-[   57.815237] CPU: 1 PID: 527 Comm: kswapd0 Tainted: G        W 4.9.0-mmotm-00135-g4e9a9895ebef #1042
-[   57.816019] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.1-1 04/01/2014
-[   57.816019]  ffffc900001939c0 ffffffff81329c60 0000000000000001 ffffffff81a0ce06
-[   57.816019]  ffffc900001939f0 ffffffff81343c2a 00000000000137a0 ffffea0000dfd2a0
-[   57.816019]  ffff88003c49a700 ffffc90000193b10 ffffc90000193a00 ffffffff81343c53
-[   57.816019] Call Trace:
-[   57.816019]  [<ffffffff81329c60>] dump_stack+0x68/0x92
-[   57.816019]  [<ffffffff81343c2a>] check_preemption_disabled+0xce/0xe0
-[   57.816019]  [<ffffffff81343c53>] debug_smp_processor_id+0x17/0x19
-[   57.816019]  [<ffffffff8115f06f>] get_swap_page+0x19/0x183
-[   57.816019]  [<ffffffff8114e01d>] shmem_writepage+0xce/0x38c
-[   57.816019]  [<ffffffff81148916>] shrink_page_list+0x81f/0xdbf
-[   57.816019]  [<ffffffff81149652>] shrink_inactive_list+0x2ab/0x594
-[   57.816019]  [<ffffffff8114a22f>] shrink_node_memcg+0x4c7/0x673
-[   57.816019]  [<ffffffff8114a49f>] shrink_node+0xc4/0x282
-[   57.816019]  [<ffffffff8114a49f>] ? shrink_node+0xc4/0x282
-[   57.816019]  [<ffffffff8114b8cb>] kswapd+0x656/0x834
-[   57.816019]  [<ffffffff8114b275>] ? mem_cgroup_shrink_node+0x2e1/0x2e1
-[   57.816019]  [<ffffffff81069fb4>] ? call_usermodehelper_exec_async+0x124/0x12d
-[   57.816019]  [<ffffffff81073621>] kthread+0xf9/0x101
-[   57.816019]  [<ffffffff81660198>] ? _raw_spin_unlock_irq+0x2c/0x4a
-[   57.816019]  [<ffffffff81073528>] ? kthread_park+0x5a/0x5a
-[   57.816019]  [<ffffffff81069e90>] ? umh_complete+0x25/0x25
-[   57.816019]  [<ffffffff81660b07>] ret_from_fork+0x27/0x40
-
-I thought a simple 
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 8cf941e09941..732194de58a4 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -303,7 +303,7 @@ swp_entry_t get_swap_page(void)
- 	swp_entry_t entry, *pentry;
- 	struct swap_slots_cache *cache;
- 
--	cache = this_cpu_ptr(&swp_slots);
-+	cache = &get_cpu_var(swp_slots);
- 
- 	entry.val = 0;
- 	if (check_cache_active()) {
-@@ -322,11 +322,13 @@ swp_entry_t get_swap_page(void)
- 		}
- 		mutex_unlock(&cache->alloc_lock);
- 		if (entry.val)
--			return entry;
-+			goto out;
- 	}
- 
- 	get_swap_pages(1, &entry);
- 
-+out:
-+	put_cpu_var(swp_slots);
- 	return entry;
- }
- 
-
-would be a way to go but the function takes a sleeping lock so disabling
-the preemption is not a way forward. So this is either preempt safe
-for some reason - which should be IMHO documented in a comment - and
-raw_cpu_ptr can be used or this needs a deeper thought.
--- 
-Michal Hocko
-SUSE Labs
+I have been in the discussion on the mailing list about HMM since V13 which
+got posted back in October. Touched upon many points including how it changes
+ZONE_DEVICE to accommodate un-addressable device memory, migration capability
+of currently supported ZONE_DEVICE based persistent memory etc. Looked at the
+HMM more closely from the perspective whether it can also accommodate coherent
+device memory which has been already discussed by others on this thread. I too
+would like to attend to discuss more on this topic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
