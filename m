@@ -1,165 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ECAE6B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:14:19 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id k15so94058866qtg.5
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:14:19 -0800 (PST)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id 2si14111565qke.29.2017.01.16.04.14.17
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A9E456B0253
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:14 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id 203so139576656ith.3
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:20:14 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t64si9457769itg.86.2017.01.16.04.20.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 04:14:17 -0800 (PST)
-Received: by mail-qk0-x244.google.com with SMTP id 11so16163297qkl.0
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:14:17 -0800 (PST)
-Message-ID: <1484568855.2719.3.camel@poochiereds.net>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-From: Jeff Layton <jlayton@poochiereds.net>
-Date: Mon, 16 Jan 2017 07:14:15 -0500
-In-Reply-To: <87mveufvbu.fsf@notabene.neil.brown.name>
-References: <20170110160224.GC6179@noname.redhat.com>
-	 <87k2a2ig2c.fsf@notabene.neil.brown.name>
-	 <20170113110959.GA4981@noname.redhat.com>
-	 <20170113142154.iycjjhjujqt5u2ab@thunk.org>
-	 <20170113160022.GC4981@noname.redhat.com>
-	 <87mveufvbu.fsf@notabene.neil.brown.name>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Mon, 16 Jan 2017 04:20:14 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0GCIg74062459
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:13 -0500
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 280t0e1vuw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:20:13 -0500
+Received: from localhost
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 16 Jan 2017 17:49:52 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B92E8125805C
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:51:24 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0GCJmVq39256128
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:49:48 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0GCJjp2011802
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:49:47 +0530
+Subject: Re: [LSF/MM ATTEND] HMM, CDM and other infrastructure for device
+ memory management
+References: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 16 Jan 2017 17:49:36 +0530
+MIME-Version: 1.0
+In-Reply-To: <alpine.LNX.2.20.1701101600280.38701@blueforge.nvidia.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <752ef94a-d5ba-7e14-c7d5-6c212e894edc@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>, Kevin Wolf <kwolf@redhat.com>, Theodore Ts'o <tytso@mit.edu>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
+To: John Hubbard <jhubbard@nvidia.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Serguei Sagalovitch <serguei.sagalovitch@amd.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Michael Repasy <mrepasy@nvidia.com>
 
-On Sat, 2017-01-14 at 09:28 +1100, NeilBrown wrote:
-> On Sat, Jan 14 2017, Kevin Wolf wrote:
+On 01/11/2017 09:52 AM, John Hubbard wrote:
+> Hi,
 > 
-> > Am 13.01.2017 um 15:21 hat Theodore Ts'o geschrieben:
-> > > On Fri, Jan 13, 2017 at 12:09:59PM +0100, Kevin Wolf wrote:
-> > > > Now even if at the moment there were no storage backend where a write
-> > > > failure can be temporary (which I find hard to believe, but who knows),
-> > > > a single new driver is enough to expose the problem. Are you confident
-> > > > enough that no single driver will ever behave this way to make data
-> > > > integrity depend on the assumption?
-> > > 
-> > > This is really a philosophical question.  It very much simplifiees
-> > > things if we can make the assumption that a driver that *does* behave
-> > > this way is **broken**.  If the I/O error is temporary, then the
-> > > driver should simply not complete the write, and wait.
-> > 
-> > If we are sure that (at least we make it so that) every error is
-> > permanent, then yes, this simplifies things a bit because it saves you
-> > the retries that we know wouldn't succeed anyway.
-> > 
-> > In that case, what's possibly left is modifying fsync() so that it
-> > consistently returns an error; or if not, we need to promise this
-> > behaviour to userspace so that on the first fsync() failure it can give
-> > up on the file without doing less for the user than it could do.
+> I would like to attend this topic that Jerome has proposed. Studying the 
+> kernel is a deep personal interest in addition to my career focus, and it 
+> would be a rare privilege to work directly with some of you to converge 
+> on some nice, clean designs for the kernel and these "new" 
+> (page-fault-capable) devices that we have now. Here's what I can bring to 
+> the discussion:
 > 
-> I think we can (and implicitly do) make that promise: if you get EIO
-> From fsync, then there is no credible recovery action you can try.
+> a) An NVIDIA perspective on, and experience with, using the HMM patchset, 
+> versions 1-15, at the device driver level. In addition to working on the 
+> nvidia-uvm.ko driver (which handles CPU and GPU page faulting) since its 
+> inception, I've also helped develop and maintain various facets of our GPU 
+> device driver for Linux, for the last 9 years.
 > 
-> > 
-> > > If it fails, it should only be because it has timed out on waiting and
-> > > has assumed that the problem is permanent.
-> > 
-> > If a manual action is required to restore the functionality, how can you
-> > use a timeout for determining whether a problem is permanent or not?
+> As a semi-relevant aside, our company is allocating engineering time, 
+> including mine, for long-term kernel projects such as this one. We want to 
+> participate in maintaining and improving the kernel. I find that highly 
+> encouraging and I hope others do, too. Times really are changing.
 > 
-> If manual action is required, and can reasonably be expected, then the
-> device driver should block indefinitely.
-> As an example, the IBM s390 systems have a "dasd" storage driver, which
-> I think is a fiber-attached storage array.  If the connection to the
-> array stops working (and no more paths are available), it will (by
-> default) block indefinitely.  I presume it logs the problem and the
-> sysadmin can find out and fix things - or if "things" are unfixable,
-> they can change the configuration to report an error.
+> b) Some thoughts about the dividing line between core kernel and drivers. 
+> Our device drivers are starting to push the limits of what drivers should 
+> really do (we are heading perhaps too deeply into memory management), and 
+> of course I want to avoid going too far. For example, I've seen 
+> recent comments on linux-mm that drivers shouldn't even take mmap_sem, 
+> which is intriguing. We need to provide...something for that, though. 
 > 
-> Similary the DM multipath module has an option "queue_if_no_path" (aka
-> "no_path_retry") which means that if no working paths are found, the
-> request should be queued and retried (no error reported).
+> c) Some thoughts about dealing with both HMM and ATS in the same driver 
+> (our devices have to support both--although, not at the same time).
 > 
-> If manual action is an option, then the driver must be configured to wait for
-> manual action.
+> --
 > 
-> > 
-> > This is exactly the kind of errors from which we want to recover in
-> > qemu instead of killing the VMs. Assuming that errors are permanent when
-> > they aren't, but just require some action before they can succeed, is
-> > not a solution to the problem, but it's pretty much the description of
-> > the problem that we had before we implemented the retry logic.
-> > 
-> > So if you say that all errors are permanent, fine; but if some of them
-> > are actually temporary, we're back to square one.
-> > 
-> > > Otherwise, every single application is going to have to learn how to
-> > > deal with temporary errors, and everything that implies (throwing up
-> > > dialog boxes to the user, who may not be able to do anything
-> > 
-> > Yes, that's obviously not a realistic option.
-> > 
-> > > --- this is why in the dm-thin case, if you think it should be
-> > > temporary, dm-thin should be calling out to a usr space program that
-> > > pages an system administrator; why do you think the process or the
-> > > user who started the process can do anything about it/)
-> > 
-> > In the case of qemu, we can't do anything about it in terms of making
-> > the request work, but we can do something useful with the information:
-> > We limit the damage done, by pausing the VM and preventing it from
-> > seeing a broken hard disk from which it wouldn't recover without a
-> > reboot. So in our case, both the system administrator and the process
-> > want to be informed.
+> For this discussion track, I'm especially interested in simultaneously 
+> considering:
 > 
-> In theory, using aio_fsync() should allow the process to determine if
-> any writes are blocking indefinitely.   I have a suspicion that
-> aio_fsync() is not actually asynchronous, but that might be old
-> information.
-> Alternately a child process could call "fsync" and report when it completed.
+> 1. HMM (Jerome's Heterogeneous Memory Management patchset): this solves a 
+> similar problem as ATS (Address Translation Services: unified CPU and
+> Device page tables), but without the need for specialized hardware. There 
+> is a bit of overlap between the HMM and ATS+NUMA patchsets, as has been 
+> discussed here before.
 > 
-> > 
-> > A timeout could serve as a trigger for qemu, but we could possibly do
-> > better for things like the dm-thin case where we know immediately that
-> > we'll have to wait for manual action.
+> 2. IBM's ATS+NUMA patchset.
 > 
-> A consistent way for devices to be able to report "operator
-> intervention required" would certainly be useful.  I'm not sure how easy
-> it would be for a particular application to determine if such a report
-> was relevant for any of its IO though.
-> 
-> It might not be too hard to add a flag to "sync_file_range()" to ask it to
-> report the status of queues, e.g.:
->  0 - nothing queued, no data to sync
->  1 - writes are being queued, and progress appears to be normal
->  2 - queue appears to be stalled
->  3 - queue reports that admin intervention is required.
-> 
-> The last one would require a fair bit of plumbing to get the information
-> to the right place.  The others are probably fairly easy if they can be
-> defined properly.
-> If you look in /sys/kernel/bdi/*/stats you will see statistic for each
-> bdi (backing device info) which roughly correspond to filesystems.  You
-> can easily map from a file descriptor to a bdi.
-> The "BdiWriteBandwidth" will (presumably) drop if there is data to be
-> written which cannot get out.  Monitoring these stats might give an
-> application a useful understanding about what is happening in a particular
-> storage device.
-> I don't suggest that qemu should access this file, because it is a
-> 'debugfs' file and not part of the api.  But the information is there
-> and might be useful.  If you can show that it is directly useful to an
-> application in some way, that would a useful step towards making the
-> information more directly available in an api-stable way.
-> 
+> 3. Page-fault-capable devices in general.
 
-I think my main takeaway from reading this discussion is that the
-write/fsync model as a whole is really unsuitable for this (common) use
-case. Given that we're already discussing using Linux specific
-interfaces (sync_file_range, for instance), maybe we should turn this
-topic around:
-
-What would an ideal kernel<->userland interface for this use case look
-like?
-
--- 
-Jeff Layton <jlayton@poochiereds.net>
+Initially thought there would be a single common discussion TOPIC for all of
+the "device memory management infrastructure" but seems like its getting
+split into multiple TOPICs. Hence I am trying to sign up for all them
+individually.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
