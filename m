@@ -1,80 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FEAD6B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 05:18:52 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 201so83155617pfw.5
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 02:18:52 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id f123si21136670pfb.188.2017.01.16.02.18.51
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 106326B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 05:41:10 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id v85so209367607oia.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 02:41:10 -0800 (PST)
+Received: from mail-ot0-x241.google.com (mail-ot0-x241.google.com. [2607:f8b0:4003:c0f::241])
+        by mx.google.com with ESMTPS id k6si8485214oif.23.2017.01.16.02.41.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 02:18:51 -0800 (PST)
-Date: Mon, 16 Jan 2017 12:18:52 +0200
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [PATCH] mm/slub: Add a dump_stack() to the unexpected GFP check
-Message-ID: <20170116101852.GF32481@mtr-leonro.local>
-References: <20170116091643.15260-1-bp@alien8.de>
- <20170116092840.GC32481@mtr-leonro.local>
- <20170116093702.tp7sbbosh23cxzng@pd.tnic>
- <20170116094851.GD32481@mtr-leonro.local>
- <20170116095522.lrqcoqktozvoeaql@pd.tnic>
- <20170116100930.GE32481@mtr-leonro.local>
- <20170116101310.4n5qof3skqpoyvup@pd.tnic>
+        Mon, 16 Jan 2017 02:41:08 -0800 (PST)
+Received: by mail-ot0-x241.google.com with SMTP id 36so6167040otx.3
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 02:41:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="3oCie2+XPXTnK5a5"
-Content-Disposition: inline
-In-Reply-To: <20170116101310.4n5qof3skqpoyvup@pd.tnic>
+In-Reply-To: <89fec1bd-52b7-7861-2e02-a719c5631610@suse.cz>
+References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
+ <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz> <0ea1cfeb-7c4a-3a3e-9be9-967298ba303c@suse.cz>
+ <CAFpQJXWD8pSaWUrkn5Rxy-hjTCvrczuf0F3TdZ8VHj4DSYpivg@mail.gmail.com>
+ <20170111164616.GJ16365@dhcp22.suse.cz> <45ed555a-c6a3-fc8e-1e87-c347c8ed086b@suse.cz>
+ <CAFpQJXUVRKXLUvM5PnpjT_UH+ac-0=caND43F882oP+Rm5gxUQ@mail.gmail.com> <89fec1bd-52b7-7861-2e02-a719c5631610@suse.cz>
+From: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
+Date: Mon, 16 Jan 2017 16:11:08 +0530
+Message-ID: <CAFpQJXUq_O=UAhCb7fwq2txYxg_owO77rRdQFUjR0_Mj9p=3pA@mail.gmail.com>
+Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-
---3oCie2+XPXTnK5a5
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Mon, Jan 16, 2017 at 11:13:10AM +0100, Borislav Petkov wrote:
-> On Mon, Jan 16, 2017 at 12:09:30PM +0200, Leon Romanovsky wrote:
-> > And doesn't dump_stack do the same? It pollutes the log too.
+On Fri, Jan 13, 2017 at 2:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 01/13/2017 05:35 AM, Ganapatrao Kulkarni wrote:
+>> On Thu, Jan 12, 2017 at 4:40 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>> On 01/11/2017 05:46 PM, Michal Hocko wrote:
+>>>>
+>>>> On Wed 11-01-17 21:52:29, Ganapatrao Kulkarni wrote:
+>>>>
+>>>>> [ 2398.169391] Node 1 Normal: 951*4kB (UME) 1308*8kB (UME) 1034*16kB
+>>>>> (UME) 742*32kB (UME) 581*64kB (UME) 450*128kB (UME) 362*256kB (UME)
+>>>>> 275*512kB (ME) 189*1024kB (UM) 117*2048kB (ME) 2742*4096kB (M) = 12047196kB
+>>>>
+>>>>
+>>>> Most of the memblocks are marked Unmovable (except for the 4MB bloks)
+>>>
+>>>
+>>> No, UME here means that e.g. 4kB blocks are available on unmovable, movable
+>>> and reclaimable lists.
+>>>
+>>>> which shouldn't matter because we can fallback to unmovable blocks for
+>>>> movable allocation AFAIR so we shouldn't really fail the request. I
+>>>> really fail to see what is going on there but it smells really
+>>>> suspicious.
+>>>
+>>>
+>>> Perhaps there's something wrong with zonelists and we are skipping the Node
+>>> 1 Normal zone. Or there's some race with cpuset operations (but can't see
+>>> how).
+>>>
+>>> The question is, how reproducible is this? And what exactly the test
+>>> cpuset01 does? Is it doing multiple things in a loop that could be reduced
+>>> to a single testcase?
+>>
+>> IIUC, this test does node change to  cpuset.mems in loop in parent
+>> process in loop and child processes(equal to no of cpus) keeps on
+>> allocation and freeing
+>> 10 pages till the execution time is over.
+>> more details at
+>> https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/cpuset/cpuset01.c
 >
-> It is not about polluting the log - it is about tainting.
+> Ah, thanks for explaining. Looks like there might be a race where determining
+> ac.preferred_zone using current_mems_allowed as ac.nodemask skips the only zone
+> that is allowed after the cpuset.mems update, and we only recalculate
+> ac.preferred_zone for allocations that are allowed to escape cpusets/watermarks.
+> Thus we see only part of the zonelist, missing the only allowed zone. This would
+> be due to commit 682a3385e773 ("mm, page_alloc: inline the fast path of the
+> zonelist iterator") and/or some others from that series.
 >
-> __warn()->add_taint(taint, LOCKDEP_STILL_OK);
-
-Thanks,
-I had something different in mind for word "taint".
-Sorry for that.
-
+> Could you try with the following patch please? It also tries to protect from
+> race with last non-root cpuset removal, which could cause cpusets_enable() to
+> become false in the middle of the function.
 >
+> ----8<----
+> From 9f041839401681f2678edf5040c851d11963c5fe Mon Sep 17 00:00:00 2001
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Fri, 13 Jan 2017 10:01:26 +0100
+> Subject: [PATCH] mm, page_alloc: fix race with cpuset update or removal
+>
+> Changelog and S-O-B TBD.
+> ---
+>  mm/page_alloc.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6de9440e3ae2..c397f146843a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3775,9 +3775,17 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>         /*
+>          * Restore the original nodemask if it was potentially replaced with
+>          * &cpuset_current_mems_allowed to optimize the fast-path attempt.
+> +        * Also recalculate the starting point for the zonelist iterator or
+> +        * we could end up iterating over non-eligible zones endlessly.
+>          */
+> -       if (cpusets_enabled())
+> +       if (unlikely(ac.nodemask != nodemask)) {
+>                 ac.nodemask = nodemask;
+> +               ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
+> +                                               ac.high_zoneidx, ac.nodemask);
+> +               if (!ac.preferred_zoneref)
+> +                       goto no_zone;
+> +       }
+> +
+>         page = __alloc_pages_slowpath(alloc_mask, order, &ac);
+>
+>  no_zone:
 > --
-> Regards/Gruss,
->     Boris.
+> 2.11.0
 >
-> Good mailing practices for 400: avoid top-posting and trim the reply.
 
---3oCie2+XPXTnK5a5
-Content-Type: application/pgp-signature; name="signature.asc"
+this patch did not fix the issue.
+issue still exists!
+i did bisect and this test passes in 4.4,4.5 and 4.6
+test failing since 4.7-rc1
 
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAlh8ngsACgkQ5GN7iDZy
-WKdzWhAAtOdOKuRojA/IuGghqpVnhmz29oD10rUFBiJvPIOMH8XdHvJsA5/Z36HC
-FD3ALo88t1hgq24AWKK/F6V3Ca8Tf1sOaCyg7STMy0ob/XqCAXNQnvJzykb8bdZF
-cG9UQaxhxduyf8l/N/nG8rtEkdMmUmBylUIIMbypvWfzqU4ipI/aHF4jzDs+9m16
-JsVaVWZjwpFqKRrjQvTNsTh7rhT4E9Cl6H1i123od8krrOYq8ilTzjEQT/1Z6lyL
-nRzx5l27RvYVO2iZXO5QVZL9kLH15yzI9qDsmsN5VndYTeXzE85KgduZani9wYA6
-QTwnYuGHCuUhQUe3zX5mBRL5BuC3YJbwhLRLT3e8cIU53RLRKLLLM9CF6LP9RRHO
-Qd+H1KKA+T7g+wbYjHfUnlrLlrq9l/iMpAge5PAmioHqlkCY/SeSTD7UslSHSHBf
-YIfRrrTtxJKqDI45YPX0QUIYDzuPt+9lou+8RPqdiUcRceyVDSfhtlqLGQYKbxn1
-OQAnjHBUdSC51e6wdeIhASKMjU7U4NvhmTU3j26cS4dgZbm5Bi9bi7TgZlINiyl1
-Aq3V/E7+KaxL/CM6LkohRFdShZYKWYlroLeBRWt0AXvu6fLevPPrBvwOrkYLoh0K
-ZTT0+2b+PRXsQSohqNEiEFctA4E/t8lz5S7C0AQpgUynDjBSPIE=
-=1wzQ
------END PGP SIGNATURE-----
-
---3oCie2+XPXTnK5a5--
+thanks
+Ganapat
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
