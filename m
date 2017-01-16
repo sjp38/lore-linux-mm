@@ -1,105 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E056B0253
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 16:57:45 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id d134so93586288pfd.0
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 13:57:45 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id a67si22743943pfj.216.2017.01.16.13.57.44
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A246B0038
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 17:45:20 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 204so268232226pfx.1
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 14:45:20 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id b84si13094356pfl.88.2017.01.16.14.45.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 13:57:44 -0800 (PST)
-Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-2-mhocko@kernel.org>
- <bf1815ec-766a-77f2-2823-c19abae5edb3@nvidia.com>
- <20170116084717.GA13641@dhcp22.suse.cz>
- <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
- <20170116194052.GA9382@dhcp22.suse.cz>
- <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
- <20170116214822.GB9382@dhcp22.suse.cz>
+        Mon, 16 Jan 2017 14:45:19 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC/ATTEND] Memory Types
+References: <9a0ae921-34df-db23-a25e-022f189608f4@intel.com>
+ <22fbcb9f-f69a-6532-691f-c0f757cf6b8b@linux.vnet.ibm.com>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
-Date: Mon, 16 Jan 2017 13:57:43 -0800
+Message-ID: <7cb30765-6e04-427f-47ea-23fd4158a910@nvidia.com>
+Date: Mon, 16 Jan 2017 14:45:18 -0800
 MIME-Version: 1.0
-In-Reply-To: <20170116214822.GB9382@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+In-Reply-To: <22fbcb9f-f69a-6532-691f-c0f757cf6b8b@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>
 
 
 
-On 01/16/2017 01:48 PM, Michal Hocko wrote:
-> On Mon 16-01-17 13:15:08, John Hubbard wrote:
+On 01/16/2017 02:59 AM, Anshuman Khandual wrote:
+> On 01/16/2017 10:59 AM, Dave Hansen wrote:
+>> Historically, computers have sped up memory accesses by either adding
+>> cache (or cache layers), or by moving to faster memory technologies
+>> (like the DDR3 to DDR4 transition).  Today we are seeing new types of
+>> memory being exposed not as caches, but as RAM [1].
 >>
+>> I'd like to discuss how the NUMA APIs are being reused to manage not
+>> just the physical locality of memory, but the various types.  I'd also
+>> like to discuss the parts of the NUMA API that are a bit lacking to
+>> manage these types, like the inability to have fallback lists based on
+>> memory type instead of location.
 >>
->> On 01/16/2017 11:40 AM, Michal Hocko wrote:
->>> On Mon 16-01-17 11:09:37, John Hubbard wrote:
->>>>
->>>>
->>>> On 01/16/2017 12:47 AM, Michal Hocko wrote:
->>>>> On Sun 15-01-17 20:34:13, John Hubbard wrote:
->>> [...]
->>>>>> Is that "Reclaim modifiers" line still true, or is it a leftover from an
->>>>>> earlier approach? I am having trouble reconciling it with rest of the
->>>>>> patchset, because:
->>>>>>
->>>>>> a) the flags argument below is effectively passed on to either kmalloc_node
->>>>>> (possibly adding, but not removing flags), or to __vmalloc_node_flags.
->>>>>
->>>>> The above only says thos are _unsupported_ - in other words the behavior
->>>>> is not defined. Even if flags are passed down to kmalloc resp. vmalloc
->>>>> it doesn't mean they are used that way.  Remember that vmalloc uses
->>>>> some hardcoded GFP_KERNEL allocations.  So while I could be really
->>>>> strict about this and mask away these flags I doubt this is worth the
->>>>> additional code.
->>>>
->>>> I do wonder about passing those flags through to kmalloc. Maybe it is worth
->>>> stripping out __GFP_NORETRY and __GFP_NOFAIL, after all. It provides some
->>>> insulation from any future changes to the implementation of kmalloc, and it
->>>> also makes the documentation more believable.
->>>
->>> I am not really convinced that we should take an extra steps for these
->>> flags. There are no existing users for those flags and new users should
->>> follow the documentation.
->>
->> OK, let's just fortify the documentation ever so slightly, then, so that
->> users are more likely to do the right thing. How's this sound:
->>
->> * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. (Even
->> * though the current implementation passes the flags on through to kmalloc and
->> * vmalloc, that is done for efficiency and to avoid unnecessary code. The caller
->> * should not pass in these flags.)
->> *
->> * __GFP_REPEAT is supported, but only for large (>64kB) allocations.
->>
->>
->> ? Or is that documentation overkill?
+>> I believe this needs to be a distinct discussion from Jerome's HMM
+>> topic.  All of the cases we care about are cache-coherent and can be
+>> treated as "normal" RAM by the VM.  The HMM model is for on-device
+>> memory and is largely managed outside the core VM.
 >
-> Dunno, it sounds like an overkill to me. It is telling more than
-> necessary. If we want to be so vocal about gfp flags then we would have
-> to say much more I suspect. E.g. what about __GFP_HIGHMEM? This flag is
-> supported for vmalloc while unsupported for kmalloc. I am pretty sure
-> there would be other gfp flags to consider and then this would grow
-> borringly large and uninteresting to the point when people simply stop
-> reading it. Let's just be as simple as possible.
+> Agreed. In future core VM should be able to deal with these type of
+> coherent memory directly as part of the generic NUMA API and page
+> allocator framework. The type of the coherent memory must be a factor
+> other than NUMA distances while dealing with it from a NUMA perspective
+> as well from page allocation fallback sequence perspective. I have been
+> working on a very similar solution called CDM (Coherent Device Memory)
+> where we change the zonelist building process as well mbind() interface
+> to accommodate a different type of coherent memory other than existing
+> normal system RAM. Here are the related postings and discussions.
+>
+> https://lkml.org/lkml/2016/10/24/19 (CDM with modified zonelists)
+> https://lkml.org/lkml/2016/11/22/339 (CDM with modified cpusets)
+>
+> Though named as "device" for now, it can very well evolve into a generic
+> solution to accommodate all kinds of coherent memory (which warrants
+> them to be treated at par with system RAM in the core VM in the first
+> place). I would like to attend to discuss this topic.
 
-Agreed, on the simplicity point: simple and clear is ideal. But here, it's merely short, and not 
-quite simple. :)  People will look at that short bit of documentation, and then notice that the 
-flags are, in fact, all passed right on through down to both kmalloc_node and __vmalloc_node_flags.
+Yes. I'm also very interested in working through a clear way to describe memory, and use it, for 
+CDM, NUMA devices, and HMM situations.
 
-If you don't want too much documentation, then I'd be inclined to say something higher-level, about 
-the intent, rather than mentioning those two flags directly. Because as it stands, the documentation 
-contradicts what the code does.
+I agree that hardware-based memory coherence should be a major dividing line, as Anshuman mentions 
+above. So for non-coherent memory, something very like HMM still has to exist...or so I believe, in 
+the absence of seeing any better ideas. (16 proposed versions of HMM have gone by, and still no 
+better ideas yet, so it's probably about right.)
 
-Sorry to go on and on about such a minor point. I'll let it go after this last note.
+We also need to work through the memory hot plug questions, and the pfn and struct pages questions: 
+avoiding conflicts with real physical memory. I'm still hoping for something like "just put the 
+device struct pages above the physical limit for CPU struct pages", but I approximately recall that 
+there were a few CPU arch's that didn't like that (might be mis-remembering that point).
 
+Beyond that, there is also: whether a CPU or device should move pages around, or map pages. That's 
+often a fairly dynamic (runtime) question, depending on both the machine layout (there are a *lot* 
+of subtle variations, and more are coming), and the workload.
+
+Furthermore, similar questions apply to memory that can be shared peer-to-peer. So far, both those 
+points are handled in device drivers, but as the kernel becomes more aware of high-speed, 
+page-fault-capable remote devices, we may want to move some of this into the main kernel.
+
+Also, as Anshuman pointed out in another thread, these topics go together (although it's unlikely to 
+fit into a single hour, so maybe a couple of slots is better):
+
+(1) [LSF/MM TOPIC/ATTEND] Memory Types
+(2) [LSF/MM TOPIC] Un-addressable device memory and block/fs implications
+(3) [LSF/MM TOPIC] Memory hotplug, ZONE_DEVICE, and the future of struct page
+(4) [LSF/MM ATTEND] HMM, CDM and other infrastructure for device memory management
+
+I'm interested in all of the above.
+
+thanks
+John Hubbard
+NVIDIA
+
+>
 > --
-> Michal Hocko
-> SUSE Labs
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
 
 --
