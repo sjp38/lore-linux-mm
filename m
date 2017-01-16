@@ -1,277 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B21336B0268
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:36:48 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 201so86609821pfw.5
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:36:48 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00122.outbound.protection.outlook.com. [40.107.0.122])
-        by mx.google.com with ESMTPS id c29si21452554pfe.272.2017.01.16.04.36.47
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEFB6B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:58:33 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id c80so140978594iod.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:58:33 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a2si9530251itd.61.2017.01.16.04.58.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 04:36:47 -0800 (PST)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv2 5/5] selftests/x86: add test to check compat mmap() return addr
-Date: Mon, 16 Jan 2017 15:33:10 +0300
-Message-ID: <20170116123310.22697-6-dsafonov@virtuozzo.com>
-In-Reply-To: <20170116123310.22697-1-dsafonov@virtuozzo.com>
-References: <20170116123310.22697-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jan 2017 04:58:32 -0800 (PST)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0GCuPm3069428
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:58:32 -0500
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 280sw73gek-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 07:58:31 -0500
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 16 Jan 2017 22:58:29 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 75A9E3578057
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:58:27 +1100 (EST)
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0GCwTHQ56164510
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:58:29 +1100
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0GCwRgH001925
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:58:27 +1100
+Subject: Re: [LSF/MM TOPIC] Memory hotplug, ZONE_DEVICE, and the future of
+ struct page
+References: <CAPcyv4hWNL7=MmnUj65A+gz=eHAnUrVzqV+24QiNQDW--ag8WQ@mail.gmail.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 16 Jan 2017 18:28:21 +0530
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAPcyv4hWNL7=MmnUj65A+gz=eHAnUrVzqV+24QiNQDW--ag8WQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <729bbe0c-d305-f4bd-7fed-b937dafd16ef@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org
+Cc: Stephen Bates <sbates@raithlin.com>, Logan Gunthorpe <logang@deltatee.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 
-We can't just add segfault handler and use addr, returned by compat
-mmap() syscall, because the lower 4 bytes can be the same as already
-existed VMA. So, the test parses /proc/self/maps file, founds new
-VMAs those appeared after compatible sys_mmap() and checks if mmaped
-VMA is in that list.
+On 01/13/2017 04:13 AM, Dan Williams wrote:
+> Back when we were first attempting to support DMA for DAX mappings of
+> persistent memory the plan was to forgo 'struct page' completely and
+> develop a pfn-to-scatterlist capability for the dma-mapping-api. That
+> effort died in this thread:
+> 
+>     https://lkml.org/lkml/2015/8/14/3
+> 
+> ...where we learned that the dependencies on struct page for dma
+> mapping are deeper than a PFN_PHYS() conversion for some
+> architectures. That was the moment we pivoted to ZONE_DEVICE and
+> arranged for a 'struct page' to be available for any persistent memory
+> range that needs to be the target of DMA. ZONE_DEVICE enables any
+> device-driver that can target "System RAM" to also be able to target
+> persistent memory through a DAX mapping.
+> 
+> Since that time the "page-less" DAX path has continued to mature [1]
+> without growing new dependencies on struct page, but at the same time
+> continuing to rely on ZONE_DEVICE to satisfy get_user_pages().
+> 
+> Peer-to-peer DMA appears to be evolving from a niche embedded use case
+> to something general purpose platforms will need to comprehend. The
+> "map_peer_resource" [2] approach looks to be headed to the same
+> destination as the pfn-to-scatterlist effort. It's difficult to avoid
+> 'struct page' for describing DMA operations without custom driver
+> code.
+> 
+> With that background, a statement and a question to discuss at LSF/MM:
+> 
+> General purpose DMA, i.e. any DMA setup through the dma-mapping-api,
+> requires pfn_to_page() support across the entire physical address
+> range mapped.
+> 
+> Is ZONE_DEVICE the proper vehicle for this? We've already seen that it
+> collides with platform alignment assumptions [3], and if there's a
+> wider effort to rework memory hotplug [4] it seems DMA support should
+> be part of the discussion.
 
-On failure it prints:
-[NOTE]	Allocated mmap 0x6f36a000, sized 0x400000
-[NOTE]	New mapping appeared: 0x7f936f36a000
-[FAIL]	Found VMA [0x7f936f36a000, 0x7f936f76a000] in maps file, that was allocated with compat syscall
+I had experimented with ZONE_DEVICE representation from migration point of
+view. Tried migration of both anonymous pages as well as file cache pages
+into and away from ZONE_DEVICE memory. Learned that the lack of 'page->lru'
+element in the struct page of the ZONE_DEVICE memory makes it difficult
+for it to represent file backed mapping in it's present form. But given
+that ZONE_DEVICE was created to enable direct mapping (DAX) bypassing page
+cache, it came as no surprise. My objective has been how ZONE_DEVICE can
+accommodate movable coherent device memory. In our HMM discussions I had
+brought to the attention how ZONE_DEVICE going forward should evolve to
+represent all these three types of device memory.
 
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: linux-kselftest@vger.kernel.org
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- tools/testing/selftests/x86/Makefile           |   2 +-
- tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
- 2 files changed, 209 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
+* Unmovable addressable device memory   (persistent memory)
+* Movable addressable device memory     (similar memory represented as CDM)
+* Movable un-addressable device memory  (similar memory represented as HMM)
 
-diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
-index 8c1cb423cfe6..9c3e746a6064 100644
---- a/tools/testing/selftests/x86/Makefile
-+++ b/tools/testing/selftests/x86/Makefile
-@@ -10,7 +10,7 @@ TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_sysc
- TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
- 			test_FCMOV test_FCOMI test_FISTTP \
- 			vdso_restorer
--TARGETS_C_64BIT_ONLY := fsgsbase
-+TARGETS_C_64BIT_ONLY := fsgsbase test_compat_mmap
- 
- TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
- TARGETS_C_64BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_64BIT_ONLY)
-diff --git a/tools/testing/selftests/x86/test_compat_mmap.c b/tools/testing/selftests/x86/test_compat_mmap.c
-new file mode 100644
-index 000000000000..245d9407653e
---- /dev/null
-+++ b/tools/testing/selftests/x86/test_compat_mmap.c
-@@ -0,0 +1,208 @@
-+/*
-+ * Check that compat 32-bit mmap() returns address < 4Gb on 64-bit.
-+ *
-+ * Copyright (c) 2017 Dmitry Safonov (Virtuozzo)
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+#include <sys/mman.h>
-+#include <sys/types.h>
-+
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <stdint.h>
-+#include <signal.h>
-+#include <stdlib.h>
-+
-+#define PAGE_SIZE 4096
-+#define MMAP_SIZE (PAGE_SIZE*1024)
-+#define MAX_VMAS 50
-+#define BUF_SIZE 1024
-+
-+#ifndef __NR32_mmap2
-+#define __NR32_mmap2 192
-+#endif
-+
-+struct syscall_args32 {
-+	uint32_t nr, arg0, arg1, arg2, arg3, arg4, arg5;
-+};
-+
-+static void do_full_int80(struct syscall_args32 *args)
-+{
-+	asm volatile ("int $0x80"
-+		      : "+a" (args->nr),
-+			"+b" (args->arg0), "+c" (args->arg1), "+d" (args->arg2),
-+			"+S" (args->arg3), "+D" (args->arg4),
-+			"+rbp" (args->arg5)
-+			: : "r8", "r9", "r10", "r11");
-+}
-+
-+void *mmap2(void *addr, size_t len, int prot, int flags,
-+	int fildes, off_t off)
-+{
-+	struct syscall_args32 s;
-+
-+	s.nr	= __NR32_mmap2;
-+	s.arg0	= (uint32_t)(uintptr_t)addr;
-+	s.arg1	= (uint32_t)len;
-+	s.arg2	= prot;
-+	s.arg3	= flags;
-+	s.arg4	= fildes;
-+	s.arg5	= (uint32_t)off;
-+
-+	do_full_int80(&s);
-+
-+	return (void *)(uintptr_t)s.nr;
-+}
-+
-+struct vm_area {
-+	unsigned long start;
-+	unsigned long end;
-+};
-+
-+static struct vm_area vmas_before_mmap[MAX_VMAS];
-+static struct vm_area vmas_after_mmap[MAX_VMAS];
-+
-+static char buf[BUF_SIZE];
-+
-+int parse_maps(struct vm_area *vmas)
-+{
-+	FILE *maps;
-+	int i;
-+
-+	maps = fopen("/proc/self/maps", "r");
-+	if (maps == NULL) {
-+		printf("[ERROR]\tFailed to open maps file: %m\n");
-+		return -1;
-+	}
-+
-+	for (i = 0; i < MAX_VMAS; i++) {
-+		struct vm_area *v = &vmas[i];
-+		char *end;
-+
-+		if (fgets(buf, BUF_SIZE, maps) == NULL)
-+			break;
-+
-+		v->start = strtoul(buf, &end, 16);
-+		v->end = strtoul(end + 1, NULL, 16);
-+		//printf("[NOTE]\tVMA: [%#lx, %#lx]\n", v->start, v->end);
-+	}
-+
-+	if (i == MAX_VMAS) {
-+		printf("[ERROR]\tNumber of VMAs is bigger than reserved array's size\n");
-+		return -1;
-+	}
-+
-+	if (fclose(maps)) {
-+		printf("[ERROR]\tFailed to close maps file: %m\n");
-+		return -1;
-+	}
-+	return 0;
-+}
-+
-+int compare_vmas(struct vm_area *vmax, struct vm_area *vmay)
-+{
-+	if (vmax->start > vmay->start)
-+		return 1;
-+	if (vmax->start < vmay->start)
-+		return -1;
-+	if (vmax->end > vmay->end)
-+		return 1;
-+	if (vmax->end < vmay->end)
-+		return -1;
-+	return 0;
-+}
-+
-+unsigned long vma_size(struct vm_area *v)
-+{
-+	return v->end - v->start;
-+}
-+
-+int find_new_vma_like(struct vm_area *vma)
-+{
-+	int i, j = 0, found_alike = -1;
-+
-+	for (i = 0; i < MAX_VMAS && j < MAX_VMAS; i++, j++) {
-+		int cmp = compare_vmas(&vmas_before_mmap[i],
-+				&vmas_after_mmap[j]);
-+
-+		if (cmp == 0)
-+			continue;
-+		if (cmp < 0) {/* Lost mapping */
-+			printf("[NOTE]\tLost mapping: %#lx\n",
-+				vmas_before_mmap[i].start);
-+			j--;
-+			continue;
-+		}
-+
-+		printf("[NOTE]\tNew mapping appeared: %#lx\n",
-+				vmas_after_mmap[j].start);
-+		i--;
-+		if (!compare_vmas(&vmas_after_mmap[j], vma))
-+			return 0;
-+
-+		if (((vmas_after_mmap[j].start & 0xffffffff) == vma->start) &&
-+				(vma_size(&vmas_after_mmap[j]) == vma_size(vma)))
-+			found_alike = j;
-+	}
-+
-+	/* Left new vmas in tail */
-+	for (; i < MAX_VMAS; i++)
-+		if (!compare_vmas(&vmas_after_mmap[j], vma))
-+			return 0;
-+
-+	if (found_alike != -1) {
-+		printf("[FAIL]\tFound VMA [%#lx, %#lx] in maps file, that was allocated with compat syscall\n",
-+			vmas_after_mmap[found_alike].start,
-+			vmas_after_mmap[found_alike].end);
-+		return -1;
-+	}
-+
-+	printf("[ERROR]\tCan't find [%#lx, %#lx] in maps file\n",
-+		vma->start, vma->end);
-+	return -1;
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	void *map;
-+	struct vm_area vma;
-+
-+	if (parse_maps(vmas_before_mmap)) {
-+		printf("[ERROR]\tFailed to parse maps file\n");
-+		return 1;
-+	}
-+
-+	map = mmap2(0, MMAP_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
-+			MAP_PRIVATE | MAP_ANON, -1, 0);
-+	if (((uintptr_t)map) % PAGE_SIZE) {
-+		printf("[ERROR]\tmmap2 failed: %d\n",
-+				(~(uint32_t)(uintptr_t)map) + 1);
-+		return 1;
-+	} else {
-+		printf("[NOTE]\tAllocated mmap %p, sized %#x\n", map, MMAP_SIZE);
-+	}
-+
-+	if (parse_maps(vmas_after_mmap)) {
-+		printf("[ERROR]\tFailed to parse maps file\n");
-+		return 1;
-+	}
-+
-+	munmap(map, MMAP_SIZE);
-+
-+	vma.start = (unsigned long)(uintptr_t)map;
-+	vma.end = vma.start + MMAP_SIZE;
-+	if (find_new_vma_like(&vma))
-+		return 1;
-+
-+	printf("[OK]\n");
-+
-+	return 0;
-+}
--- 
-2.11.0
+I would like to attend to discuss on the road map for ZONE_DEVICE, struct
+pages and device memory in general. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
