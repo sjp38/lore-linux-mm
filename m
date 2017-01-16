@@ -1,79 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A4896B0069
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:29:59 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id d140so26986776wmd.4
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 01:29:59 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BCFC6B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 04:38:49 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id ez4so7401450wjd.2
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 01:38:49 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 82si6991399wmo.19.2017.01.16.01.29.58
+        by mx.google.com with ESMTPS id a63si20944113wrc.293.2017.01.16.01.38.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 01:29:58 -0800 (PST)
-Date: Mon, 16 Jan 2017 10:29:56 +0100
+        Mon, 16 Jan 2017 01:38:48 -0800 (PST)
+Date: Mon, 16 Jan 2017 10:38:47 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: consider eligible zones in
- get_scan_count
-Message-ID: <20170116092956.GC13641@dhcp22.suse.cz>
-References: <20170110125552.4170-1-mhocko@kernel.org>
- <20170110125552.4170-2-mhocko@kernel.org>
- <20170114161236.GB26139@cmpxchg.org>
+Subject: Re: [PATCH] mm/slub: Add a dump_stack() to the unexpected GFP check
+Message-ID: <20170116093846.GD13641@dhcp22.suse.cz>
+References: <20170116091643.15260-1-bp@alien8.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114161236.GB26139@cmpxchg.org>
+In-Reply-To: <20170116091643.15260-1-bp@alien8.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat 14-01-17 11:12:36, Johannes Weiner wrote:
-> On Tue, Jan 10, 2017 at 01:55:51PM +0100, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > get_scan_count considers the whole node LRU size when
-> > - doing SCAN_FILE due to many page cache inactive pages
-> > - calculating the number of pages to scan
-> > 
-> > in both cases this might lead to unexpected behavior especially on 32b
-> > systems where we can expect lowmem memory pressure very often.
-> 
-> The amount of retrofitting zones back into reclaim is disappointing :/
+[Let's add Andrew]
 
-Agreed
- 
-> >  /*
-> > + * Return the number of pages on the given lru which are eligible for the
-> > + * given zone_idx
-> > + */
-> > +static unsigned long lruvec_lru_size_eligibe_zones(struct lruvec *lruvec,
-> > +		enum lru_list lru, int zone_idx)
-> > +{
-> > +	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-> > +	unsigned long lru_size;
-> > +	int zid;
-> > +
-> > +	lru_size = lruvec_lru_size(lruvec, lru);
-> > +	for (zid = zone_idx + 1; zid < MAX_NR_ZONES; zid++) {
-> > +		struct zone *zone = &pgdat->node_zones[zid];
-> > +		unsigned long size;
-> > +
-> > +		if (!managed_zone(zone))
-> > +			continue;
-> > +
-> > +		size = lruvec_zone_lru_size(lruvec, lru, zid);
-> > +		lru_size -= min(size, lru_size);
-> > +	}
-> > +
-> > +	return lru_size;
+On Mon 16-01-17 10:16:43, Borislav Petkov wrote:
+> From: Borislav Petkov <bp@suse.de>
 > 
-> The only other use of lruvec_lru_size() is also in get_scan_count(),
-> where it decays the LRU pressure balancing ratios. That caller wants
-> to operate on the entire lruvec.
-> 
-> Can you instead add the filtering logic to lruvec_lru_size() directly,
-> and pass MAX_NR_ZONES when operating on the entire lruvec? That would
-> make the code quite a bit clearer than having 3 different lruvec size
-> querying functions.
+> We wanna know who's doing such a thing. Like slab.c does that.
 
-OK, fair point. What about this?
----
+Yes this was an omission on my side in 72baeef0c271 ("slab: do not panic
+on invalid gfp_mask").
+> 
+> Signed-off-by: Borislav Petkov <bp@suse.de>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+>  mm/slub.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 067598a00849..1b0fa7625d6d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1623,6 +1623,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  		flags &= ~GFP_SLAB_BUG_MASK;
+>  		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
+>  				invalid_mask, &invalid_mask, flags, &flags);
+> +		dump_stack();
+>  	}
+>  
+>  	return allocate_slab(s,
+> -- 
+> 2.11.0
+
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
