@@ -1,44 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3034F6B0260
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:31:45 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 204so69425952pge.5
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:45 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id h91si18552574pld.68.2017.01.17.12.31.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B70B6B0268
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:31:46 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 204so69426984pge.5
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:46 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id b25si25971899pfl.96.2017.01.17.12.31.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 12:31:44 -0800 (PST)
-From: "Chen, Tim C" <tim.c.chen@intel.com>
-Subject: RE: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Date: Tue, 17 Jan 2017 20:31:27 +0000
-Message-ID: <045D8A5597B93E4EBEDDCBF1FC15F50935C9FB53@fmsmsx104.amr.corp.intel.com>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
- <20170117101631.GG19699@dhcp22.suse.cz>
- <045D8A5597B93E4EBEDDCBF1FC15F50935C9F523@fmsmsx104.amr.corp.intel.com>
- <20170117200338.GA26217@dhcp22.suse.cz>
-In-Reply-To: <20170117200338.GA26217@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 17 Jan 2017 12:31:45 -0800 (PST)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 776E92043C
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 20:31:44 +0000 (UTC)
+Received: from mail-ua0-f181.google.com (mail-ua0-f181.google.com [209.85.217.181])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D436720462
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 20:31:40 +0000 (UTC)
+Received: by mail-ua0-f181.google.com with SMTP id 96so111513824uaq.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:40 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20170116123310.22697-1-dsafonov@virtuozzo.com>
+References: <20170116123310.22697-1-dsafonov@virtuozzo.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 17 Jan 2017 12:31:19 -0800
+Message-ID: <CALCETrUy8NhAZfHMJ9Fs=1cYt2Wg8EVSfvU9QhdBN2e9pkqAbw@mail.gmail.com>
+Subject: Re: [PATCHv2 0/5] Fix compatible mmap() return pointer over 4Gb
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Shuah Khan <shuah@kernel.org>, "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>
 
-> > >
-> >
-> > The cache->slots_ret  is protected by cache->free_lock and
-> > cache->slots is protected by cache->free_lock.
+Kirill, can you take a careful look at this series?  I bet you're
+going to run into this stuff too.
 
-Typo.  cache->slots is protected by cache->alloc_lock.
-
-Tim
+On Mon, Jan 16, 2017 at 4:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+> Changes since v1:
+> - Recalculate mmap_base instead of using max possible virtual address
+>   for compat/native syscall. That will make policy for allocation the
+>   same in 32-bit binaries and in 32-bit syscalls in 64-bit binaries.
+>   I need this because sys_mmap() in restored 32-bit process shouldn't
+>   hit the stack area.
+> - Fixed mmap() with MAP_32BIT flag in the same usecases
+> - used in_compat_syscall() helper rather TS_COMPAT check (Andy noticed)
+> - introduced find_top() helper as suggested by Andy to simplify code
+> - fixed test error-handeling: it checked the result of sys_mmap() with
+>   MMAP_FAILED, which is not correct, as it calls raw syscall - now
+>   checks return value to be aligned to PAGE_SIZE.
+>
+> Description from v1 [2]:
+>
+> A fix for bug in mmap() that I referenced in [1].
+> Also selftest for it.
+>
+> I would like to mark the fix as for stable v4.9 kernel if it'll
+> be accepted, as I try to support compatible 32-bit C/R
+> after v4.9 and working compatible mmap() is really wanted there.
+>
+> [1]: https://marc.info/?l=linux-kernel&m=148311451525315
+> [2]: https://marc.info/?l=linux-kernel&m=148415888707662
+>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Borislav Petkov <bp@suse.de>
+> Cc: x86@kernel.org
+> Cc: linux-mm@kvack.org
+>
+> Dmitry Safonov (5):
+>   x86/mm: split arch_mmap_rnd() on compat/native versions
+>   x86/mm: introduce mmap_{,legacy}_base
+>   x86/mm: fix native mmap() in compat bins and vice-versa
+>   x86/mm: for MAP_32BIT check in_compat_syscall() instead TIF_ADDR32
+>   selftests/x86: add test to check compat mmap() return addr
+>
+>  arch/x86/include/asm/elf.h                     |  14 +-
+>  arch/x86/include/asm/processor.h               |   2 +-
+>  arch/x86/kernel/sys_x86_64.c                   |  48 +++++-
+>  arch/x86/mm/hugetlbpage.c                      |   2 +-
+>  arch/x86/mm/mmap.c                             |  56 ++++---
+>  tools/testing/selftests/x86/Makefile           |   2 +-
+>  tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
+>  7 files changed, 301 insertions(+), 31 deletions(-)
+>  create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
+>
+> --
+> 2.11.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
