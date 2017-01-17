@@ -1,62 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7F56B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 19:02:00 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f5so70881654pgi.1
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 16:02:00 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id g73si23026489pfa.11.2017.01.16.16.01.58
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B006B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 19:06:59 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 75so104742712pgf.3
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 16:06:59 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 137si23024135pfa.58.2017.01.16.16.06.58
         for <linux-mm@kvack.org>;
-        Mon, 16 Jan 2017 16:01:59 -0800 (PST)
-Date: Tue, 17 Jan 2017 09:07:54 +0900
+        Mon, 16 Jan 2017 16:06:58 -0800 (PST)
+Date: Tue, 17 Jan 2017 09:12:57 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/9] slab: remove synchronous rcu_barrier() call in memcg
- cache release path
-Message-ID: <20170117000754.GA25218@js1304-P5Q-DELUXE>
-References: <20170114055449.11044-1-tj@kernel.org>
- <20170114055449.11044-3-tj@kernel.org>
- <20170114131939.GA2668@esperanza>
- <20170114151921.GA32693@mtj.duckdns.org>
+Subject: Re: [PATCHSET v2] slab: make memcg slab destruction scalable
+Message-ID: <20170117001256.GB25218@js1304-P5Q-DELUXE>
+References: <20170114184834.8658-1-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114151921.GA32693@mtj.duckdns.org>
+In-Reply-To: <20170114184834.8658-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
-Cc: Vladimir Davydov <vdavydov@tarantool.org>, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
+Cc: vdavydov.dev@gmail.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Sat, Jan 14, 2017 at 10:19:21AM -0500, Tejun Heo wrote:
-> Hello, Vladimir.
+On Sat, Jan 14, 2017 at 01:48:26PM -0500, Tejun Heo wrote:
+> This is v2.  Changes from the last version[L] are
 > 
-> On Sat, Jan 14, 2017 at 04:19:39PM +0300, Vladimir Davydov wrote:
-> > On Sat, Jan 14, 2017 at 12:54:42AM -0500, Tejun Heo wrote:
-> > > This patch updates the cache release path so that it simply uses
-> > > call_rcu() instead of the synchronous rcu_barrier() + custom batching.
-> > > This doesn't cost more while being logically simpler and way more
-> > > scalable.
-> > 
-> > The point of rcu_barrier() is to wait until all rcu calls freeing slabs
-> > from the cache being destroyed are over (rcu_free_slab, kmem_rcu_free).
-> > I'm not sure if call_rcu() guarantees that for all rcu implementations
-> > too. If it did, why would we need rcu_barrier() at all?
+> * 0002-slab-remove-synchronous-rcu_barrier-call-in-memcg-ca.patch was
+>   incorrect and dropped.
 > 
-> Yeah, I had a similar question and scanned its users briefly.  Looks
-> like it's used in combination with ctors so that its users can
-> opportunistically dereference objects and e.g. check ids / state /
-> whatever without worrying about the objects' lifetimes.
+> * 0006-slab-don-t-put-memcg-caches-on-slab_caches-list.patch
+>   incorrectly converted places which needed to walk all caches.
+>   Replaced with 0005-slab-implement-slab_root_caches-list.patch which
+>   adds root-only list instead of converting slab_caches list to list
+>   only root caches.
+> 
+> * Misc fixes.
+> 
+> With kmem cgroup support enabled, kmem_caches can be created and
+> destroyed frequently and a great number of near empty kmem_caches can
+> accumulate if there are a lot of transient cgroups and the system is
+> not under memory pressure.  When memory reclaim starts under such
+> conditions, it can lead to consecutive deactivation and destruction of
+> many kmem_caches, easily hundreds of thousands on moderately large
+> systems, exposing scalability issues in the current slab management
+> code.
+> 
+> I've seen machines which end up with hundred thousands of caches and
+> many millions of kernfs_nodes.  The current code is O(N^2) on the
+> total number of caches and has synchronous rcu_barrier() and
+> synchronize_sched() in cgroup offline / release path which is executed
+> while holding cgroup_mutex.  Combined, this leads to very expensive
+> and slow cache destruction operations which can easily keep running
+> for half a day.
+> 
+> This also messes up /proc/slabinfo along with other cache iterating
+> operations.  seq_file operates on 4k chunks and on each 4k boundary
+> tries to seek to the last position in the list.  With a huge number of
+> caches on the list, this becomes very slow and very prone to the list
+> content changing underneath it leading to a lot of missing and/or
+> duplicate entries.
+> 
+> This patchset addresses the scalability problem.
+> 
+> * Add root and per-memcg lists.  Update each user to use the
+>   appropriate list.
+> 
+> * Replace rcu_barrier() and synchronize_rcu() with call_rcu() and
+>   call_rcu_sched().
+> 
+> * For dying empty slub caches, remove the sysfs files after
+>   deactivation so that we don't end up with millions of sysfs files
+>   without any useful information on them.
 
-Hello, Tejun.
+Could you confirm that your series solves the problem that is reported
+by Doug? It would be great if the result is mentioned to the patch
+description.
 
-Long time no see! :)
-
-IIUC, rcu_barrier() here prevents to destruct the kmem_cache until all
-slab pages in it are freed. These slab pages are freed through call_rcu().
-
-Your patch changes it to another call_rcu() and, I think, if sequence of
-executing rcu callbacks is the same with sequence of adding rcu
-callbacks, it would work. However, I'm not sure that it is
-guaranteed by RCU API. Am I missing something?
+https://bugzilla.kernel.org/show_bug.cgi?id=172991
 
 Thanks.
 
