@@ -1,78 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8C26B0253
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:18:21 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id t18so18777676wmt.7
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 07:18:21 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 5A4146B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:46:41 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p192so34369163wme.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 07:46:41 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 33si9512650wrp.122.2017.01.17.07.18.20
+        by mx.google.com with ESMTPS id b79si16329047wma.103.2017.01.17.07.46.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 07:18:20 -0800 (PST)
-Date: Tue, 17 Jan 2017 16:18:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
-Message-ID: <20170117151817.GR19699@dhcp22.suse.cz>
-References: <20170106141107.23953-1-mhocko@kernel.org>
- <20170106141107.23953-9-mhocko@kernel.org>
- <20170117025607.frrcdbduthhutrzj@thunk.org>
- <20170117082425.GD19699@dhcp22.suse.cz>
+        Tue, 17 Jan 2017 07:46:40 -0800 (PST)
+Date: Tue, 17 Jan 2017 16:46:37 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] sharing pages between mappings
+Message-ID: <20170117154637.GT2517@quack2.suse.cz>
+References: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
+ <20170111115143.GJ16116@quack2.suse.cz>
+ <CAJfpeguuBgypYh3G1Ew1a37o4WuRozPzLe=D_gh2BbtYXE=zzg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170117082425.GD19699@dhcp22.suse.cz>
+In-Reply-To: <CAJfpeguuBgypYh3G1Ew1a37o4WuRozPzLe=D_gh2BbtYXE=zzg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, lsf-pc@lists.linux-foundation.org
 
-On Tue 17-01-17 09:24:25, Michal Hocko wrote:
-> On Mon 16-01-17 21:56:07, Theodore Ts'o wrote:
-> > On Fri, Jan 06, 2017 at 03:11:07PM +0100, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > This reverts commit 216553c4b7f3e3e2beb4981cddca9b2027523928. Now that
-> > > the transaction context uses memalloc_nofs_save and all allocations
-> > > within the this context inherit GFP_NOFS automatically, there is no
-> > > reason to mark specific allocations explicitly.
-> > > 
-> > > This patch should not introduce any functional change. The main point
-> > > of this change is to reduce explicit GFP_NOFS usage inside ext4 code
-> > > to make the review of the remaining usage easier.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > Reviewed-by: Jan Kara <jack@suse.cz>
-> > 
-> > Changes in the jbd2 layer aren't going to guarantee that
-> > memalloc_nofs_save() will be executed if we are running ext4 without a
-> > journal (aka in no journal mode).  And this is a *very* common
-> > configuration; it's how ext4 is used inside Google in our production
-> > servers.
+On Wed 11-01-17 15:13:19, Miklos Szeredi wrote:
+> On Wed, Jan 11, 2017 at 12:51 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Wed 11-01-17 11:29:28, Miklos Szeredi wrote:
+> >> I know there's work on this for xfs, but could this be done in generic mm
+> >> code?
+> >>
+> >> What are the obstacles?  page->mapping and page->index are the obvious
+> >> ones.
+> >
+> > Yes, these two are the main that come to my mind. Also you'd need to
+> > somehow share the mapping->i_mmap tree so that unmap_mapping_range() works.
+> >
+> >> If that's too difficult is it maybe enough to share mappings between
+> >> files while they are completely identical and clone the mapping when
+> >> necessary?
+> >
+> > Well, but how would the page->mapping->host indirection work? Even if you
+> > have identical contents of the mappings, you still need to be aware there
+> > are several inodes behind them and you need to pick the right one
+> > somehow...
 > 
-> OK, I wasn't aware of that.
+> When do we actually need page->mapping->host?  The only place where
+> it's not available is page writeback.  Then we can know that the
+> original page was already cow-ed and after being cowed, the page
+> belong only to a single inode.
+
+Yeah, in principle the information may exist, however propagating it to all
+appropriate place may be a mess.
+
+> What then happens if the newly written data is cloned before being
+> written back?   We can either write back the page during the clone, so
+> that only clean pages are ever shared.  Or we can let dirty pages be
+> shared between inodes.
+
+The former is what I'd suggest for sanity... I.e. share only read-only
+pages.
+
+> In that latter case the question is: do we
+> care about which inode we use for writing back the data?  Is the inode
+> needed at all?  I don't know enough about filesystem internals to see
+> clearly what happens in such a situation.
 > 
-> > So that means the earlier patches will probably need to be changed so
-> > the nOFS scope is done in the ext4_journal_{start,stop} functions in
-> > fs/ext4/ext4_jbd2.c.
+> >> All COW filesystems would benefit, as well as layered ones: lots of
+> >> fuse fs, and in some cases overlayfs too.
+> >>
+> >> Related:  what can DAX do in the presence of cloned block?
+> >
+> > For DAX handling a block COW should be doable if that is what you are
+> > asking about. Handling of blocks that can be written to while they are
+> > shared will be rather difficult (you have problems with keeping dirty bits
+> > in the radix tree consistent if nothing else).
 > 
-> I could definitely appreciated some help here. The call paths are rather
-> complex and I am not familiar with the code enough. On of the biggest
-> problem I have currently is that there doesn't seem to be an easy place
-> to store the old allocation context. 
+> What happens if you do:
+> 
+> - clone_file_range(A, off1, B, off2, len);
+> 
+> - mmap both A and B using DAX.
+> 
+> The mapping will contain the same struct page for two different mappings, no?
 
-OK, so I've been staring into the code and AFAIU current->journal_info
-can contain my stored information. I could either hijack part of the
-word as the ref counting is only consuming low 12b. But that looks too
-ugly to live. Or I can allocate some placeholder.
+Not the same struct page, as DAX does not have pages with struct page.
+However the same pfn will be underlying off1 of A and off2 of B. And for
+reads this is just fine. Once you want to write, you have to make sure you
+COW before you start modifying the data or you'll get data corruption (we
+synchronize operations using the exceptional entries in mapping->page_tree
+in DAX and these are separate for A and B).
 
-But before going to play with that I am really wondering whether we need
-all this with no journal at all. AFAIU what Jack told me it is the
-journal lock(s) which is the biggest problem from the reclaim recursion
-point of view. What would cause a deadlock in no journal mode?
-
+									Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
