@@ -1,90 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EB066B0069
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:49:45 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id t18so16507784wmt.7
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:49:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 378F76B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:51:04 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id d140so31873871wmd.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:51:04 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y14si24132949wry.225.2017.01.16.23.49.43
+        by mx.google.com with ESMTPS id d26si15009492wmh.142.2017.01.16.23.51.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 23:49:44 -0800 (PST)
-Date: Tue, 17 Jan 2017 08:49:39 +0100
+        Mon, 16 Jan 2017 23:51:02 -0800 (PST)
+Date: Tue, 17 Jan 2017 08:51:01 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5 0/9] mm/swap: Regular page swap optimizations
-Message-ID: <20170117074939.GA19699@dhcp22.suse.cz>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <20170116120236.GG13641@dhcp22.suse.cz>
- <878tqapkar.fsf@yhuang-dev.intel.com>
+Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
+Message-ID: <20170117075100.GB19699@dhcp22.suse.cz>
+References: <20170112153717.28943-1-mhocko@kernel.org>
+ <20170112153717.28943-2-mhocko@kernel.org>
+ <bf1815ec-766a-77f2-2823-c19abae5edb3@nvidia.com>
+ <20170116084717.GA13641@dhcp22.suse.cz>
+ <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
+ <20170116194052.GA9382@dhcp22.suse.cz>
+ <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
+ <20170116214822.GB9382@dhcp22.suse.cz>
+ <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <878tqapkar.fsf@yhuang-dev.intel.com>
+In-Reply-To: <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Tue 17-01-17 09:06:04, Huang, Ying wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
+On Mon 16-01-17 13:57:43, John Hubbard wrote:
 > 
-> > Hi,
-> > I am seeing a lot of preempt unsafe warnings with the current mmotm and
-> > I assume that this patchset has introduced the issue. I haven't checked
-> > more closely but get_swap_page didn't use this_cpu_ptr before "mm/swap:
-> > add cache for swap slots allocation"
-> >
-> > [   57.812314] BUG: using smp_processor_id() in preemptible [00000000] code: kswapd0/527
-> > [   57.814360] caller is debug_smp_processor_id+0x17/0x19
-> > [   57.815237] CPU: 1 PID: 527 Comm: kswapd0 Tainted: G        W 4.9.0-mmotm-00135-g4e9a9895ebef #1042
-> > [   57.816019] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.1-1 04/01/2014
-> > [   57.816019]  ffffc900001939c0 ffffffff81329c60 0000000000000001 ffffffff81a0ce06
-> > [   57.816019]  ffffc900001939f0 ffffffff81343c2a 00000000000137a0 ffffea0000dfd2a0
-> > [   57.816019]  ffff88003c49a700 ffffc90000193b10 ffffc90000193a00 ffffffff81343c53
-> > [   57.816019] Call Trace:
-> > [   57.816019]  [<ffffffff81329c60>] dump_stack+0x68/0x92
-> > [   57.816019]  [<ffffffff81343c2a>] check_preemption_disabled+0xce/0xe0
-> > [   57.816019]  [<ffffffff81343c53>] debug_smp_processor_id+0x17/0x19
-> > [   57.816019]  [<ffffffff8115f06f>] get_swap_page+0x19/0x183
-> > [   57.816019]  [<ffffffff8114e01d>] shmem_writepage+0xce/0x38c
-> > [   57.816019]  [<ffffffff81148916>] shrink_page_list+0x81f/0xdbf
-> > [   57.816019]  [<ffffffff81149652>] shrink_inactive_list+0x2ab/0x594
-> > [   57.816019]  [<ffffffff8114a22f>] shrink_node_memcg+0x4c7/0x673
-> > [   57.816019]  [<ffffffff8114a49f>] shrink_node+0xc4/0x282
-> > [   57.816019]  [<ffffffff8114a49f>] ? shrink_node+0xc4/0x282
-> > [   57.816019]  [<ffffffff8114b8cb>] kswapd+0x656/0x834
-> > [   57.816019]  [<ffffffff8114b275>] ? mem_cgroup_shrink_node+0x2e1/0x2e1
-> > [   57.816019]  [<ffffffff81069fb4>] ? call_usermodehelper_exec_async+0x124/0x12d
-> > [   57.816019]  [<ffffffff81073621>] kthread+0xf9/0x101
-> > [   57.816019]  [<ffffffff81660198>] ? _raw_spin_unlock_irq+0x2c/0x4a
-> > [   57.816019]  [<ffffffff81073528>] ? kthread_park+0x5a/0x5a
-> > [   57.816019]  [<ffffffff81069e90>] ? umh_complete+0x25/0x25
-> > [   57.816019]  [<ffffffff81660b07>] ret_from_fork+0x27/0x40
 > 
-> Sorry for bothering, we should have tested this before.
-
-I am always running my tests with CONFIG_DEBUG_PREEMPT=y which is what
-has caught this one.
-
-[...]
-> > would be a way to go but the function takes a sleeping lock so disabling
-> > the preemption is not a way forward. So this is either preempt safe
-> > for some reason - which should be IMHO documented in a comment - and
-> > raw_cpu_ptr can be used or this needs a deeper thought.
+> On 01/16/2017 01:48 PM, Michal Hocko wrote:
+> > On Mon 16-01-17 13:15:08, John Hubbard wrote:
+> > > 
+> > > 
+> > > On 01/16/2017 11:40 AM, Michal Hocko wrote:
+> > > > On Mon 16-01-17 11:09:37, John Hubbard wrote:
+> > > > > 
+> > > > > 
+> > > > > On 01/16/2017 12:47 AM, Michal Hocko wrote:
+> > > > > > On Sun 15-01-17 20:34:13, John Hubbard wrote:
+> > > > [...]
+> > > > > > > Is that "Reclaim modifiers" line still true, or is it a leftover from an
+> > > > > > > earlier approach? I am having trouble reconciling it with rest of the
+> > > > > > > patchset, because:
+> > > > > > > 
+> > > > > > > a) the flags argument below is effectively passed on to either kmalloc_node
+> > > > > > > (possibly adding, but not removing flags), or to __vmalloc_node_flags.
+> > > > > > 
+> > > > > > The above only says thos are _unsupported_ - in other words the behavior
+> > > > > > is not defined. Even if flags are passed down to kmalloc resp. vmalloc
+> > > > > > it doesn't mean they are used that way.  Remember that vmalloc uses
+> > > > > > some hardcoded GFP_KERNEL allocations.  So while I could be really
+> > > > > > strict about this and mask away these flags I doubt this is worth the
+> > > > > > additional code.
+> > > > > 
+> > > > > I do wonder about passing those flags through to kmalloc. Maybe it is worth
+> > > > > stripping out __GFP_NORETRY and __GFP_NOFAIL, after all. It provides some
+> > > > > insulation from any future changes to the implementation of kmalloc, and it
+> > > > > also makes the documentation more believable.
+> > > > 
+> > > > I am not really convinced that we should take an extra steps for these
+> > > > flags. There are no existing users for those flags and new users should
+> > > > follow the documentation.
+> > > 
+> > > OK, let's just fortify the documentation ever so slightly, then, so that
+> > > users are more likely to do the right thing. How's this sound:
+> > > 
+> > > * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. (Even
+> > > * though the current implementation passes the flags on through to kmalloc and
+> > > * vmalloc, that is done for efficiency and to avoid unnecessary code. The caller
+> > > * should not pass in these flags.)
+> > > *
+> > > * __GFP_REPEAT is supported, but only for large (>64kB) allocations.
+> > > 
+> > > 
+> > > ? Or is that documentation overkill?
+> > 
+> > Dunno, it sounds like an overkill to me. It is telling more than
+> > necessary. If we want to be so vocal about gfp flags then we would have
+> > to say much more I suspect. E.g. what about __GFP_HIGHMEM? This flag is
+> > supported for vmalloc while unsupported for kmalloc. I am pretty sure
+> > there would be other gfp flags to consider and then this would grow
+> > borringly large and uninteresting to the point when people simply stop
+> > reading it. Let's just be as simple as possible.
 > 
-> Thanks for pointing out this.
+> Agreed, on the simplicity point: simple and clear is ideal. But here, it's
+> merely short, and not quite simple. :)  People will look at that short bit
+> of documentation, and then notice that the flags are, in fact, all passed
+> right on through down to both kmalloc_node and __vmalloc_node_flags.
 > 
-> We think this is preempt safe.  During the development, we have
-> considered the possible preemption between getting the per-CPU pointer
-> and its usage, and implemented the code to make it work at that
-> situation.  We will change the code to use raw_cpu_ptr() and add a
-> comment for it.
+> If you don't want too much documentation, then I'd be inclined to say
+> something higher-level, about the intent, rather than mentioning those two
+> flags directly. Because as it stands, the documentation contradicts what the
+> code does.
 
-FWIW s@this_cpu_ptr@raw_cpu_ptr@ which I am using as a workaround now
-hasn't seemed to cause any issue. At least nothing observable like a
-crash.
+Feel free to suggest a better wording. I am, of course, open to any
+changes.
 
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
