@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C1BB26B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:27:38 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id k15so140572278qtg.5
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 08:27:38 -0800 (PST)
-Received: from bugs.linux-mips.org (eddie.linux-mips.org. [2a01:4f8:201:92aa::3])
-        by mx.google.com with ESMTP id q39si16920967qte.292.2017.01.17.08.27.38
-        for <linux-mm@kvack.org>;
-        Tue, 17 Jan 2017 08:27:38 -0800 (PST)
-Received: from localhost.localdomain ([127.0.0.1]:36406 "EHLO linux-mips.org"
-        rhost-flags-OK-OK-OK-FAIL) by eddie.linux-mips.org with ESMTP
-        id S23993894AbdAQQ1hb9qiB (ORCPT <rfc822;linux-mm@kvack.org>);
-        Tue, 17 Jan 2017 17:27:37 +0100
-Date: Tue, 17 Jan 2017 17:27:34 +0100
-From: Ralf Baechle <ralf@linux-mips.org>
-Subject: Re: [PATCH 1/30] mm: Export init_mm for MIPS KVM use of pgd_alloc()
-Message-ID: <20170117162734.GG24215@linux-mips.org>
-References: <cover.d6d201de414322ed2c1372e164254e6055ef7db9.1483665879.git-series.james.hogan@imgtec.com>
- <a8df39719fb0570cb38e3fbb5c128fe2618e92d6.1483665879.git-series.james.hogan@imgtec.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 642846B0260
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:37:48 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f144so292200712pfa.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 08:37:48 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id r21si25410577pgg.64.2017.01.17.08.37.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 08:37:47 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id t6so4308186pgt.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 08:37:47 -0800 (PST)
+Date: Tue, 17 Jan 2017 08:37:45 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/9] slab: remove synchronous rcu_barrier() call in memcg
+ cache release path
+Message-ID: <20170117163745.GA8352@mtj.duckdns.org>
+References: <20170114055449.11044-1-tj@kernel.org>
+ <20170114055449.11044-3-tj@kernel.org>
+ <20170114131939.GA2668@esperanza>
+ <20170114151921.GA32693@mtj.duckdns.org>
+ <20170117000754.GA25218@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a8df39719fb0570cb38e3fbb5c128fe2618e92d6.1483665879.git-series.james.hogan@imgtec.com>
+In-Reply-To: <20170117000754.GA25218@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <james.hogan@imgtec.com>
-Cc: linux-mips@linux-mips.org, linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vladimir Davydov <vdavydov@tarantool.org>, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Jan 06, 2017 at 01:32:33AM +0000, James Hogan wrote:
+Hello, Joonsoo.
 
-> Export the init_mm symbol to GPL modules so that MIPS KVM can use
-> pgd_alloc() to create GVA page directory tables for trap & emulate mode,
-> which runs guest code in user mode. On MIPS pgd_alloc() is implemented
-> inline and refers to init_mm in order to copy kernel address space
-> mappings into the new page directory.
+On Tue, Jan 17, 2017 at 09:07:54AM +0900, Joonsoo Kim wrote:
+> Long time no see! :)
 
->clickety-acky< error, once again for patchwork to pick this up correctly:
+Yeah, happy new year!
 
-Acked-by: Ralf Baechle <ralf@linux-mips.org>
+> IIUC, rcu_barrier() here prevents to destruct the kmem_cache until all
+> slab pages in it are freed. These slab pages are freed through call_rcu().
 
-  Ralf
+Hmm... why do we need that tho?  SLAB_DESTROY_BY_RCU only needs to
+protect the slab pages, not kmem cache struct.  I thought that this
+was because kmem cache destruction is allowed to release pages w/o RCU
+delaying it.
+
+> Your patch changes it to another call_rcu() and, I think, if sequence of
+> executing rcu callbacks is the same with sequence of adding rcu
+> callbacks, it would work. However, I'm not sure that it is
+> guaranteed by RCU API. Am I missing something?
+
+The call sequence doesn't matter.  Whether you're using call_rcu() or
+rcu_barrier(), you're just waiting for a grace period to pass before
+continuing.  It doens't give any other ordering guarantees, so the new
+code should be equivalent to the old one except for being asynchronous.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
