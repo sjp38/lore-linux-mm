@@ -1,166 +1,466 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 659186B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 21:00:41 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id g49so117759224qta.0
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 18:00:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e185si15479884qkd.62.2017.01.16.18.00.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 18:00:40 -0800 (PST)
-Date: Mon, 16 Jan 2017 21:00:35 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM v16 04/15] mm/ZONE_DEVICE/unaddressable: add support for
- un-addressable device memory v2
-Message-ID: <20170117020032.GA2309@redhat.com>
-References: <1484238642-10674-1-git-send-email-jglisse@redhat.com>
- <1484238642-10674-5-git-send-email-jglisse@redhat.com>
- <CAPcyv4gnXyxHGitBCLbksy8PnHtePQ8260DKiF7CX8FXj2CtFQ@mail.gmail.com>
- <20170116151713.GA4182@redhat.com>
- <CAPcyv4jajtY4Q1PtPe9Jr4PwYUPAxhaGBno7tmt+KraSwCNswQ@mail.gmail.com>
- <20170116201311.GB4182@redhat.com>
- <CAPcyv4gLrykv-Dn9dKM-8kDVdYwtRU4XDXt+OndYAnrzP73U6g@mail.gmail.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2C66B0033
+	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 21:05:50 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 204so39164400pge.5
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 18:05:50 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id c8si2723736pfj.54.2017.01.16.18.05.48
+        for <linux-mm@kvack.org>;
+        Mon, 16 Jan 2017 18:05:48 -0800 (PST)
+Date: Tue, 17 Jan 2017 11:05:42 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
+Message-ID: <20170117020541.GF3326@X58A-UD3R>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-8-git-send-email-byungchul.park@lge.com>
+ <20170116151001.GD3144@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4gLrykv-Dn9dKM-8kDVdYwtRU4XDXt+OndYAnrzP73U6g@mail.gmail.com>
+In-Reply-To: <20170116151001.GD3144@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Mon, Jan 16, 2017 at 04:58:24PM -0800, Dan Williams wrote:
-> On Mon, Jan 16, 2017 at 12:13 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Mon, Jan 16, 2017 at 11:31:39AM -0800, Dan Williams wrote:
-> [..]
-> >> >> dev_pagemap is only meant for get_user_pages() to do lookups of ptes
-> >> >> with _PAGE_DEVMAP and take a reference against the hosting device..
-> >> >
-> >> > And i want to build on top of that to extend _PAGE_DEVMAP to support
-> >> > a new usecase for unaddressable device memory.
-> >> >
-> >> >>
-> >> >> Why can't HMM use the typical vm_operations_struct fault path and push
-> >> >> more of these details to a driver rather than the core?
-> >> >
-> >> > Because the vm_operations_struct has nothing to do with the device.
-> >> > We are talking about regular vma here. Think malloc, mmap, share
-> >> > memory, ...  not about mmap(/dev/thedevice,...)
-> >> >
-> >> > So the vm_operations_struct is never under device control and we can
-> >> > not, nor want to, rely on that.
-> >>
-> >> Can you explain more what's behind that "can not, nor want to"
-> >> statement? It seems to me that any awkwardness of moving to a
-> >> standalone device file interface is less than a maintaining a new /
-> >> parallel mm fault path through dev_pagemap.
-> >
-> > The whole point of HMM is to allow transparent usage of process address
-> > space on to a device like GPU. So it imply any vma (vm_area_struct) that
-> > result from usual mmap (ie any mmap either PRIVATE or SHARE as long as it
-> > is not a an mmap of a device file).
-> >
-> > It means that application can use malloc or the usual memory allocation
-> > primitive of the langage (c++, rust, python, ...) and directly use the
-> > memory it gets from that with the device.
+On Mon, Jan 16, 2017 at 04:10:01PM +0100, Peter Zijlstra wrote:
+> On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
 > 
-> So you need 100% support of all these mm paths for this hardware to be
-> useful at all? Does a separate device-driver and a userpace helper
-> library get you something like 80% of the functionality and then we
-> can debate the core mm changes to get the final 20%? Or am I just
-> completely off base with how people want to use this hardware?
-
-Can't do that. Think library want to use GPU but you do not want to update
-every single program that use that library and library get its memory from
-the application. This is just one scenario. Then you have mmaped file, or
-share memory, ...
-
-Transparent address space is where the industry is moving and sadly on some
-platform (like Intel) we can not rely on hardware to solve it for us.
-
-
-> > Device like GPU have a large pool of device memory that is not accessible
-> > by the CPU. This device memory has 10 times more bandwidth than system
-> > memory and has better latency then PCIE. Hence for the whole thing to
-> > make sense you need to allow to use it.
-> >
-> > For that you need to allow migration from system memory to device memory.
-> > Because you can not rely on special userspace allocator you have to
-> > assume that the vma (vm_area_struct) is a regular one. So we are left
-> > with having struct page for the device memory to allow migration to
-> > work without requiring too much changes to existing mm.
-> >
-> > Because device memory is not accessible by the CPU, you can not allow
-> > anyone to pin it and thus get_user_page* must trigger a migration back
-> > as CPU page fault would.
-> >
-> >
-> >> > So what we looking for here is struct page that can behave mostly
-> >> > like anyother except that we do not want to allow GUP to take a
-> >> > reference almost exactly what ZONE_DEVICE already provide.
-> >> >
-> >> > So do you have any fundamental objections to this patchset ? And if
-> >> > so, how do you propose i solve the problem i am trying to address ?
-> >> > Because hardware exist today and without something like HMM we will
-> >> > not be able to support such hardware.
-> >>
-> >> My pushback stems from it being a completely different use case for
-> >> devm_memremap_pages(), as evidenced by it growing from 4 arguments to
-> >> 9, and the ongoing maintenance overhead of understanding HMM
-> >> requirements when updating the pmem usage of ZONE_DEVICE.
-> >
-> > I rather reuse something existing and modify it to support more use case
-> > than try to add ZONE_DEVICE2 or ZONE_DEVICE_I_AM_DIFFERENT. I have made
-> > sure that my modifications to ZONE_DEVICE can be use without HMM. It is
-> > just a generic interface to support page fault and to allow to track last
-> > user of a device page. Both can be use indepentently from each other.
-> >
-> > To me the whole point of kernel is trying to share infrastructure accross
-> > as many hardware as possible and i am doing just that. I do not think HMM
-> > should be block because something that use to be for one specific use case
-> > now support 2 use cases. I am not breaking anything existing. Is it more
-> > work for you ? Maybe, but at Red Hat we intend to support it for as long
-> > as it is needed so you always have some one to talk to if you want to
-> > update ZONE_DEVICE.
+> > @@ -143,6 +149,9 @@ struct lock_class_stats lock_stats(struct lock_class *class);
+> >  void clear_lock_stats(struct lock_class *class);
+> >  #endif
+> >  
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +struct cross_lock;
+> > +#endif
 > 
-> Sharing infrastructure should not come at the expense of type safety
-> and clear usage rules.
+> That seems like pointless wrappery, unused (fwd) declarations are
+> harmless.
 
-And where exactly do i violate that ?
- 
-> For example the pmem case, before exposing ZONE_DEVICE memory to other
-> parts of the kernel, introduced the pfn_t type to distinguish DMA
-> capable pfns from other raw pfns. All programmatic ways of discovering
-> if a pmem range can support DMA use this type and explicit flags.
+OK.
 
-I am protected from this because i do not allow GUP. GUP trigger migration
-back to regular system memory.
+> >  /*
+> >   * Map the lock object (the lock instance) to the lock-class object.
+> >   * This is embedded into specific lock instances:
+> > @@ -155,6 +164,9 @@ struct lockdep_map {
+> >  	int				cpu;
+> >  	unsigned long			ip;
+> >  #endif
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +	struct cross_lock		*xlock;
+> > +#endif
+> 
+> The use of this escapes me; why does the lockdep_map need a pointer to
+> this?
+
+Lockdep interfaces e.g. lock_acquire(), lock_release() and lock_commit()
+use lockdep_map as an arg, but crossrelease need to extract cross_lock
+instances from that.
 
 > 
-> While we may not need ZONE_DEVICE2 we obviously need a different
-> wrapper around arch_add_memory() than devm_memremap_pages() for HMM
-> and likely a different physical address radix than pgmap_radix because
-> they are servicing 2 distinct purposes. For example, I don't think HMM
-> should be using unmodified arch_add_memory(). We shouldn't add
-> unaddressable memory to the linear address mappings when we know there
-> is nothing behind it, especially when it seems all you need from
-> arch_add_memory() is pfn_to_page() to be valid.
+> >  };
+> >  
+> >  static inline void lockdep_copy_map(struct lockdep_map *to,
+> > @@ -258,7 +270,82 @@ struct held_lock {
+> >  	unsigned int hardirqs_off:1;
+> >  	unsigned int references:12;					/* 32 bits */
+> >  	unsigned int pin_count;
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +	/*
+> > +	 * This is used to find out the first plock among plocks having
+> > +	 * been acquired since a crosslock was held. Crossrelease feature
+> > +	 * uses chain cache between the crosslock and the first plock to
+> > +	 * avoid building unnecessary dependencies, like how lockdep uses
+> > +	 * a sort of chain cache for normal locks.
+> > +	 */
+> > +	unsigned int gen_id;
+> > +#endif
+> > +};
+> 
+> Makes sense, except we'll have a bunch of different generation numbers
+> (see below), so I think it makes sense to name it more explicitly.
 
-And my patchset does just that, i do not add the device pfn to the linear
-mapping because there is nothing there. In arch_add_memory() x86, ppc, arm
-do barely more than setting up linear mapping and adding struct page. So
-instead of splitting in two this function i just made the linear mapping
-conditional.
+Right. I will try it.
 
-I can split HMM from devm_memremap_pages() and thus from a different
-pgmap_radix. You have to understand that this will not change most of
-my patchset.
+> > +
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +#define MAX_PLOCK_TRACE_ENTRIES		5
+> 
+> Why 5? ;-)
 
+What nr are you recommanding to store one stack_trace?
 
-Cheers,
-Jerome
+> 
+> > +/*
+> > + * This is for keeping locks waiting for commit to happen so that
+> > + * dependencies are actually built later at commit step.
+> > + *
+> > + * Every task_struct has an array of pend_lock. Each entiry will be
+> > + * added with a lock whenever lock_acquire() is called for normal lock.
+> > + */
+> > +struct pend_lock {
+> 
+> Like said before, I'm not sure "pending" is the right word, we track
+> locks that have very much been released. Would something like "lock
+> history" make more sense?
+
+Good idea. But I want to avoid using 'h'istory lock because it could be
+confused with 'h'eld lock when I call something like hlock_class(). But
+I will use "lock history" if I cannot find better words. What about
+"logged lock"?
+
+> 
+> > +	/*
+> > +	 * prev_gen_id is used to check whether any other hlock in the
+> > +	 * current is already dealing with the xlock, with which commit
+> > +	 * is performed. If so, this plock can be skipped.
+> > +	 */
+> > +	unsigned int		prev_gen_id;
+> 
+> Confused..
+
+Sorry. My explanation is insufficient. I will try to make it sufficient.
+
+For example,
+
+Context X
+---------
+gen_id : 10 when acquiring AX (crosslock)
+
+Context Y
+---------
+gen_id : 9 when acquiring B
+gen_id : 12 when acquiring C (Original lockdep adds B -> C)
+gen_id : 15 when acquiring D (Original lockdep adds C -> D)
+gen_id : 19 when acquiring E (Original lockdep adds D -> E)
+release AX <- focus here!
+(will release E, D, C and B in future..)
+
+In this situation, it's enough to connect only AX and C, "AX -> C".
+"AX -> D" and "AX -> E" are unnecessary because it can be covered by
+"AX -> C", "C -> D" and "D -> E", even though "AX -> D" and "AX -> E"
+are also true dependencies, but unnecessary.
+
+To handle this optimization, I decided to keep prev_gen_id in pend_lock
+which stores gen_id of the previous lock in held_locks so that I can
+decide whether the previous lock can be handled with the xlock. If so,
+I can skip this dependency because this can be covered by
+"the xlock -> the previous lock" and "the previous lock -> current lock".
+
+> 
+> > +	/*
+> > +	 * A kind of global timestamp increased and set when this plock
+> > +	 * is inserted.
+
+Sorry. This comment is wrong. I will fix it. This should be,
+
+"This will be set to a value of a global timestamp, cross_gen_id, when
+inserting this plock."
+
+> > +	 */
+> > +	unsigned int		gen_id;
+> 
+> Right, except you also have pend_lock::hlock::gen_id, which I think is
+> the very same generation number, no?
+
+pend_lock::gen_id is equal to or greater than pend_lock::hlock::gen_id
+because atomic_inc_return(&cross_gen_id) can happen between these two
+stores.
+
+pend_lock::gen_id is used to compare with cross_lock::gen_id when
+identifying dependencies.
+
+held_lock::gen_id is used to decide whether the previous lock in held_locks
+can handle necessary dependencies on behalf of current lock.
+
+> > +
+> > +	int			hardirq_context;
+> > +	int			softirq_context;
+> 
+> This would fit in 2 bit, why do you use 8 bytes?
+
+Right. 2 bits are enough. I will change it.
+
+> 
+> > +
+> > +	/*
+> > +	 * Whenever irq happens, these are updated so that we can
+> > +	 * distinguish each irq context uniquely.
+> > +	 */
+> > +	unsigned int		hardirq_id;
+> > +	unsigned int		softirq_id;
+> 
+> An alternative approach would be to 'unwind' or discard all historical
+> events from a nested context once we exit it.
+
+That's one of what I considered. However, it would make code complex to
+detect if pend_lock ring buffer was wrapped.
+
+> 
+> After all, all we care about is the history of the release context, once
+> the context is gone, we don't care.
+
+We must care it and decide if the next plock in the ring buffer might be
+valid one or not.
+
+> 
+> > +
+> > +	/*
+> > +	 * Seperate stack_trace data. This will be used at commit step.
+> > +	 */
+> > +	struct stack_trace	trace;
+> > +	unsigned long		trace_entries[MAX_PLOCK_TRACE_ENTRIES];
+> > +
+> > +	/*
+> > +	 * Seperate hlock instance. This will be used at commit step.
+> > +	 */
+> > +	struct held_lock	hlock;
+> > +};
+> > +
+> > +/*
+> > + * One cross_lock per one lockdep_map.
+> > + *
+> > + * To initialize a lock as crosslock, lockdep_init_map_crosslock() should
+> > + * be used instead of lockdep_init_map(), where the pointer of cross_lock
+> > + * instance should be passed as a parameter.
+> > + */
+> > +struct cross_lock {
+> > +	unsigned int		gen_id;
+> 
+> Again, you already have hlock::gen_id for this, no?
+
+(Not implemented yet though) To add "xlock -> xlock", xlock should be both a
+pend_lock and a cross_lock.
+
+hlock::gen_id should have the time holding it to decide representative locks
+among held_locks to handle dependencies in a optimized way.
+
+xlock::gen_id should have increased value when acquiring crosslock and be
+used to compare with plock::gen_id and decide true dependencies.
+
+I think both are necessary.
+
+> > +	struct list_head	xlock_entry;
+> > +
+> > +	/*
+> > +	 * Seperate hlock instance. This will be used at commit step.
+> > +	 */
+> > +	struct held_lock	hlock;
+> > +
+> > +	int			ref; /* reference count */
+> >  };
+> 
+> Why not do something like:
+> 
+> struct lockdep_map_cross {
+> 	struct lockdep_map	map;
+> 	struct held_lock	hlock;
+> }
+> 
+> That saves at least that pointer.
+> 
+> But I still have to figure out why we need this hlock.
+> 
+> Also note that a full hlock contains superfluous information:
+> 
+>  - prev_chain_key; not required, we can compute the 2 entry chain hash
+>  		   on demand when we need.
+>  - instance: we already have the lockdep_map right here, pointers to
+>  	     self are kinda pointless
+>  - nest_lock: not sure that makes sense wrt this stuff.
+>  - class_idx: can recompute if we have lockdep_map
+>  - reference: see nest_lock
+
+I agree with you. I will try to extract only necessary fields from hlock
+and remove held_lock from xlock.
+
+> 
+> > diff --git a/include/linux/sched.h b/include/linux/sched.h
+> > index 253538f..592ee368 100644
+> > --- a/include/linux/sched.h
+> > +++ b/include/linux/sched.h
+> > @@ -1719,6 +1719,11 @@ struct task_struct {
+> >  	struct held_lock held_locks[MAX_LOCK_DEPTH];
+> >  	gfp_t lockdep_reclaim_gfp;
+> >  #endif
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +#define MAX_PLOCKS_NR 1024UL
+> > +	int plock_index;
+> > +	struct pend_lock *plocks;
+> > +#endif
+> 
+> That's a giant heap of memory.. why 1024?
+
+Could you recommand the nr which is the size of ring buffer for plocks?
+
+> 
+> 
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index 4a7ec0c..91ab81b 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> 
+> > @@ -1443,6 +1451,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+> >  	p->lockdep_depth = 0; /* no locks held yet */
+> >  	p->curr_chain_key = 0;
+> >  	p->lockdep_recursion = 0;
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +	p->plock_index = 0;
+> > +	p->plocks = vzalloc(sizeof(struct pend_lock) * MAX_PLOCKS_NR);
+> 
+> And while I understand why you need vmalloc for that amount of memory,
+> do realize that on 32bit kernels you'll very quickly run out of space
+> this way.
+
+OK. I also think it should be smaller. Please recommand proper nr.
+
+> That pend_lock thing could maybe be shrunk to 128 bytes, at which point
+> you can fit 64 in two pages, is that not sufficient?
+
+Do you think 64 is sufficient? I will apply it. Actually the size is not
+much important, it only causes missing some dependencies. By the way, I
+forgot how much nr was used while running crossrelease. I will check it
+again and let you know.
+
+> 
+> 
+> > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> > index 11580ec..2c8b2c1 100644
+> > --- a/kernel/locking/lockdep.c
+> > +++ b/kernel/locking/lockdep.c
+> 
+> > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > +
+> > +static LIST_HEAD(xlocks_head);
+> 
+> Still not explanation for what this list is for...
+
+This is for tracking crosslocks in progress so that crossrelase can
+decide gen_id_done. Is there other ways?
+
+Actually every thing becomes simple if ring buffer was not used. But
+I think I should use ring buffer for plocks. Any alternatives?
+
+> 
+> > +
+> > +/*
+> > + * Whenever a crosslock is held, cross_gen_id will be increased.
+> > + */
+> > +static atomic_t cross_gen_id; /* Can be wrapped */
+> > +
+> > +/* Implement a circular buffer - for internal use */
+> > +#define cir_p(n, i)		((i) ? (i) - 1 : (n) - 1)
+> 
+> This is broken, I think you'll want something like: (((i)-1) % (n))
+
+This is not broken because 0 <= i < MAX_PLOCKS_NR. And the result must be
+MAX_PLOCKS_NR - 1 when i = 0. What you recommand provides wrong result.
+
+> 
+> > +#define cir_n(n, i)		((i) == (n) - 1 ? 0 : (i) + 1)
+> 
+> Idem
+
+I can change this as you recommand.
+
+> 
+> > +/*
+> > + * Crossrelease needs to distinguish each hardirq context.
+> > + */
+> > +static DEFINE_PER_CPU(unsigned int, hardirq_id);
+> > +void crossrelease_hardirq_start(void)
+> > +{
+> > +	per_cpu(hardirq_id, smp_processor_id())++;
+> > +}
+> > +
+> > +/*
+> > + * Crossrelease needs to distinguish each softirq context.
+> > + */
+> > +static DEFINE_PER_CPU(unsigned int, softirq_id);
+> > +void crossrelease_softirq_start(void)
+> > +{
+> > +	per_cpu(softirq_id, smp_processor_id())++;
+> > +}
+> 
+> See above, I don't think we need to retain the plock stuff once a
+> context finishes, and therefore we don't need context generation numbers
+> to differentiate them.
+
+I stongly want to implement as you recommand. But it makes ring buffer
+implementation difficult. Unwinding when finishing nested contexts needs
+some more jobs to distinguish between wrapped case and unwinded case.
+If you prefer the latter, then I will re-work to replace the former way
+with the latter.
+
+> 
+> > +/*
+> > + * To find the earlist crosslock among all crosslocks not released yet.
+> > + */
+> > +static unsigned int gen_id_begin(void)
+> > +{
+> > +	struct cross_lock *xlock = list_entry_rcu(xlocks_head.next,
+> > +			struct cross_lock, xlock_entry);
+> > +
+> > +	/* If empty */
+> > +	if (&xlock->xlock_entry == &xlocks_head)
+> > +		return (unsigned int)atomic_read(&cross_gen_id) + 1;
+> > +
+> > +	return READ_ONCE(xlock->gen_id);
+> > +}
+> > +
+> > +/*
+> > + * To find the latest crosslock among all crosslocks already released.
+> > + */
+> > +static inline unsigned int gen_id_done(void)
+> > +{
+> > +	return gen_id_begin() - 1;
+> > +}
+> 
+> I'm not sure about these... if you increment the generation count on any
+> cross action (both acquire and release) and tag all hlocks with the
+> current reading, you have all the ordering required, no?
+
+This is for implementing ring buffer to distinguish between plock entries,
+whether it is in progress or finished. This might be removed if we just
+overwrite plocks when overflowing the ring. It seems to be better. I will
+change it so that crossrelease just overwrite old ones when overflowing.
+
+And I will remove gen_id_begin() and gen_id_done(). Let me check it.
+
+> 
+> > +/*
+> > + * No contention. Irq disable is only required.
+> > + */
+> > +static void add_plock(struct held_lock *hlock, unsigned int prev_gen_id,
+> > +		unsigned int gen_id_done)
+> > +{
+> > +	struct task_struct *curr = current;
+> > +	int cpu = smp_processor_id();
+> > +	struct pend_lock *plock;
+> > +	/*
+> > +	 *	CONTEXT 1		CONTEXT 2
+> > +	 *	---------		---------
+> > +	 *	acquire A (cross)
+> > +	 *	X = atomic_inc_return()
+> > +	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ serialize
+> > +	 *				Y = atomic_read_acquire()
+> > +	 *				acquire B
+> > +	 *				acquire C
+> > +	 *
+> > +	 * For ordering between this and all following LOCKs.
+> > +	 * This way we ensure the order A -> B -> C when CONTEXT 2
+> > +	 * can see Y is equal to or greater than X.
+> > +	 *
+> > +	 * Pairs with atomic_inc_return() in add_xlock().
+> > +	 */
+> > +	unsigned int gen_id = (unsigned int)atomic_read_acquire(&cross_gen_id);
+> 
+> fails to explain why this is important.
+
+It's important if context 2 can see acquire A when acquiring B, because it
+has a dependency only in that case. So I needed to prove it via
+RELEASE-ACQUIRE of cross_gen_id. Wrong?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
