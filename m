@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBFC86B0260
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:29:29 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id jz4so18194058wjb.5
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:29:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z39si25775373wrz.96.2017.01.17.09.29.28
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0576B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 13:07:38 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id k15so145174303qtg.5
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:07:38 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g8si17162454qtc.212.2017.01.17.10.07.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 09:29:28 -0800 (PST)
-Date: Tue, 17 Jan 2017 18:29:25 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
-Message-ID: <20170117172925.GA2486@quack2.suse.cz>
-References: <20170106141107.23953-1-mhocko@kernel.org>
- <20170106141107.23953-9-mhocko@kernel.org>
- <20170117025607.frrcdbduthhutrzj@thunk.org>
- <20170117082425.GD19699@dhcp22.suse.cz>
- <20170117151817.GR19699@dhcp22.suse.cz>
- <20170117155916.dcizr65bwa6behe7@thunk.org>
- <20170117161618.GT19699@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 10:07:37 -0800 (PST)
+Date: Tue, 17 Jan 2017 19:07:32 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 1/4] mm, page_alloc: Split buffered_rmqueue
+Message-ID: <20170117190732.0fc733ec@redhat.com>
+In-Reply-To: <20170117092954.15413-2-mgorman@techsingularity.net>
+References: <20170117092954.15413-1-mgorman@techsingularity.net>
+	<20170117092954.15413-2-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170117161618.GT19699@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, brouer@redhat.com, Michal Hocko <mhocko@suse.com>
 
-On Tue 17-01-17 17:16:19, Michal Hocko wrote:
-> > > But before going to play with that I am really wondering whether we need
-> > > all this with no journal at all. AFAIU what Jack told me it is the
-> > > journal lock(s) which is the biggest problem from the reclaim recursion
-> > > point of view. What would cause a deadlock in no journal mode?
-> > 
-> > We still have the original problem for why we need GFP_NOFS even in
-> > ext2.  If we are in a writeback path, and we need to allocate memory,
-> > we don't want to recurse back into the file system's writeback path.
-> 
-> But we do not enter the writeback path from the direct reclaim. Or do
-> you mean something other than pageout()'s mapping->a_ops->writepage?
-> There is only try_to_release_page where we get back to the filesystems
-> but I do not see any NOFS protection in ext4_releasepage.
 
-Maybe to expand a bit: These days, direct reclaim can call ->releasepage()
-callback, ->evict_inode() callback (and only for inodes with i_nlink > 0),
-shrinkers. That's it. So the recursion possibilities are rather more limited
-than they used to be several years ago and we likely do not need as much
-GFP_NOFS protection as we used to.
+On Tue, 17 Jan 2017 09:29:51 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-								Honza
+> +/* Lock and remove page from the per-cpu list */
+> +static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+> +			struct zone *zone, unsigned int order,
+> +			gfp_t gfp_flags, int migratetype)
+> +{
+> +	struct per_cpu_pages *pcp;
+> +	struct list_head *list;
+> +	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+> +	struct page *page;
+> +	unsigned long flags;
+> +
+> +	local_irq_save(flags);
+> +	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> +	list = &pcp->lists[migratetype];
+> +	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
+> +	if (page) {
+> +		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+> +		zone_statistics(preferred_zone, zone, gfp_flags);
+
+Word-of-warning: The zone_statistics() call changed number of
+parameters in commit 41b6167e8f74 ("mm: get rid of __GFP_OTHER_NODE").
+(Not sure what tree you are based on)
+
+> +	}
+> +	local_irq_restore(flags);
+> +	return page;
+> +}
+
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
