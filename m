@@ -1,53 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B80936B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 01:47:52 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so279908917pfb.7
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:47:52 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id f3si23983451pld.153.2017.01.16.22.47.51
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 708416B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 01:58:23 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id n189so114515923pga.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:58:23 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 1si24024551pli.45.2017.01.16.22.58.21
         for <linux-mm@kvack.org>;
-        Mon, 16 Jan 2017 22:47:52 -0800 (PST)
-Date: Tue, 17 Jan 2017 15:47:48 +0900
+        Mon, 16 Jan 2017 22:58:22 -0800 (PST)
+Date: Tue, 17 Jan 2017 15:58:19 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: consider eligible zones in
- get_scan_count
-Message-ID: <20170117064747.GB9812@blaptop>
-References: <20170110125552.4170-1-mhocko@kernel.org>
- <20170110125552.4170-2-mhocko@kernel.org>
- <20170113091804.GE25212@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/3] mm, vmscan: cleanup lru size claculations
+Message-ID: <20170117065818.GC9812@blaptop>
+References: <20170116160123.GB30300@cmpxchg.org>
+ <20170116193317.20390-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170116193317.20390-1-mhocko@kernel.org>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170113091804.GE25212@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri, Jan 13, 2017 at 10:18:05AM +0100, Michal Hocko wrote:
-> On Tue 10-01-17 13:55:51, Michal Hocko wrote:
-> [...]
-> > @@ -2280,7 +2306,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
-> >  			unsigned long size;
-> >  			unsigned long scan;
-> >  
-> > -			size = lruvec_lru_size(lruvec, lru);
-> > +			size = lruvec_lru_size_eligibe_zones(lruvec, lru, sc->reclaim_idx);
-> >  			scan = size >> sc->priority;
-> >  
-> >  			if (!scan && pass && force_scan)
+On Mon, Jan 16, 2017 at 08:33:15PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> I have just come across inactive_reclaimable_pages and it seems it is
-> unnecessary after this, right Minchan?
+> lruvec_lru_size returns the full size of the LRU list while we sometimes
+> need a value reduced only to eligible zones (e.g. for lowmem requests).
+> inactive_list_is_low is one such user. Later patches will add more of
+> them. Add a new parameter to lruvec_lru_size and allow it filter out
+> zones which are not eligible for the given context.
+> 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/mmzone.h |  2 +-
+>  mm/vmscan.c            | 88 ++++++++++++++++++++++++--------------------------
+>  mm/workingset.c        |  2 +-
+>  3 files changed, 45 insertions(+), 47 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index d1d440cff60e..91f69aa0d581 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -780,7 +780,7 @@ static inline struct pglist_data *lruvec_pgdat(struct lruvec *lruvec)
+>  #endif
+>  }
+>  
+> -extern unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru);
+> +extern unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone_idx);
+>  
+>  #ifdef CONFIG_HAVE_MEMORY_PRESENT
+>  void memory_present(int nid, unsigned long start, unsigned long end);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index cf940af609fd..1cb0ebdef305 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -234,22 +234,38 @@ bool pgdat_reclaimable(struct pglist_data *pgdat)
+>  		pgdat_reclaimable_pages(pgdat) * 6;
+>  }
+>  
+> -unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru)
+> +/** lruvec_lru_size -  Returns the number of pages on the given LRU list.
 
-Good catch.
+minor:
 
-At that time, I also wanted to change get_scan_count to fix the problem but
-be lack of report and other guys didn't want it. :-(
+/*
+ * lruvec_lru_size
 
-I'm happy to see it now.
-Thanks.
+I don't have any preferance but just found.
+
+Otherwise,
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
