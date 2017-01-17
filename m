@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 646E96B0266
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:56:54 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 65so43644362otq.2
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 08:56:54 -0800 (PST)
-Received: from mail-ot0-x22b.google.com (mail-ot0-x22b.google.com. [2607:f8b0:4003:c0f::22b])
-        by mx.google.com with ESMTPS id 34si5907165otf.6.2017.01.17.08.56.53
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5799F6B026A
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:02:18 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id t6so109758513pgt.6
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:02:18 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id u90si25488140pfk.38.2017.01.17.09.02.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 08:56:53 -0800 (PST)
-Received: by mail-ot0-x22b.google.com with SMTP id 73so66725677otj.0
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 08:56:53 -0800 (PST)
+        Tue, 17 Jan 2017 09:02:17 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 75so8460419pgf.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:02:17 -0800 (PST)
+Date: Tue, 17 Jan 2017 09:02:15 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/9] slab: remove synchronous rcu_barrier() call in memcg
+ cache release path
+Message-ID: <20170117170215.GC28948@mtj.duckdns.org>
+References: <20170114055449.11044-1-tj@kernel.org>
+ <20170114055449.11044-3-tj@kernel.org>
+ <20170114131939.GA2668@esperanza>
+ <20170114151921.GA32693@mtj.duckdns.org>
+ <20170117000754.GA25218@js1304-P5Q-DELUXE>
+ <20170117163745.GA8352@mtj.duckdns.org>
 MIME-Version: 1.0
-In-Reply-To: <20170117155910.GU2517@quack2.suse.cz>
-References: <20170114002008.GA25379@linux.intel.com> <20170117155910.GU2517@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 17 Jan 2017 08:56:52 -0800
-Message-ID: <CAPcyv4hO5ZjrBk=L1DLkf4SP5fFeTAD+o7GUQDv0fcJj4Q+pCg@mail.gmail.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Future direction of DAX
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170117163745.GA8352@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, lsf-pc@lists.linux-foundation.org, Linux MM <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vladimir Davydov <vdavydov@tarantool.org>, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Tue, Jan 17, 2017 at 7:59 AM, Jan Kara <jack@suse.cz> wrote:
-> On Fri 13-01-17 17:20:08, Ross Zwisler wrote:
->> - The DAX fsync/msync model was built for platforms that need to flush dirty
->>   processor cache lines in order to make data durable on NVDIMMs.  There exist
->>   platforms, however, that are set up so that the processor caches are
->>   effectively part of the ADR safe zone.  This means that dirty data can be
->>   assumed to be durable even in the processor cache, obviating the need to
->>   manually flush the cache during fsync/msync.  These platforms still need to
->>   call fsync/msync to ensure that filesystem metadata updates are properly
->>   written to media.  Our first idea on how to properly support these platforms
->>   would be for DAX to be made aware that in some cases doesn't need to keep
->>   metadata about dirty cache lines.  A similar issue exists for volatile uses
->>   of DAX such as with BRD or with PMEM and the memmap command line parameter,
->>   and we'd like a solution that covers them all.
->
-> Well, we still need the radix tree entries for locking. And you still need
-> to keep track of which file offsets are writeably mapped (which we
-> currently implicitely keep via dirty radix tree entries) so that you can
-> writeprotect them if needed (during filesystem freezing, for reflink, ...).
-> So I think what is going to gain the most by far is simply to avoid doing
-> the writeback at all in such situations.
+On Tue, Jan 17, 2017 at 08:37:45AM -0800, Tejun Heo wrote:
+> The call sequence doesn't matter.  Whether you're using call_rcu() or
+> rcu_barrier(), you're just waiting for a grace period to pass before
+> continuing.  It doens't give any other ordering guarantees, so the new
+> code should be equivalent to the old one except for being asynchronous.
 
-I came to the same conclusion when taking a look at this. I have some
-patches that simply make the writeback optional, but do not touch any
-of the other dirty tracking infrastructure. I'll send them out shortly
-after a bit more testing. This also dovetails with the request from
-Linus to push pmem flushing routines into the driver and stop abusing
-__copy_user_nocache.
+Oh I was confusing synchronize_rcu() with rcu_barrier(), so you're
+right, kmem_cache struct needs to stay around for the slab pages to be
+freed after RCU grace period.  Will revise the patch accordingly,
+thanks.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
