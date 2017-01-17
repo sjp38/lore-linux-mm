@@ -1,62 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C2DC66B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 05:12:50 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r144so32447393wme.0
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:12:50 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 837596B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 05:16:38 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id c7so12318081wjb.7
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:16:38 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y70si15346648wmh.162.2017.01.17.02.12.49
+        by mx.google.com with ESMTPS id f87si15409498wmh.24.2017.01.17.02.16.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 02:12:49 -0800 (PST)
-Date: Tue, 17 Jan 2017 11:12:47 +0100
+        Tue, 17 Jan 2017 02:16:37 -0800 (PST)
+Date: Tue, 17 Jan 2017 11:16:32 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
- added to -mm tree
-Message-ID: <20170117101247.GF19699@dhcp22.suse.cz>
-References: <20170111155239.GD16365@dhcp22.suse.cz>
- <20170112051247.GA8387@bbox>
- <20170112081554.GB2264@dhcp22.suse.cz>
- <20170112084813.GA24030@bbox>
- <20170112091016.GE2264@dhcp22.suse.cz>
- <20170113013724.GA23494@bbox>
- <20170113074705.GA21784@dhcp22.suse.cz>
- <20170113085734.GC8018@bbox>
- <20170113091009.GD25212@dhcp22.suse.cz>
- <20170117064531.GA9812@blaptop>
+Subject: Re: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
+ allocation
+Message-ID: <20170117101631.GG19699@dhcp22.suse.cz>
+References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
+ <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
+ <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170117064531.GA9812@blaptop>
+In-Reply-To: <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, hillf.zj@alibaba-inc.com, mgorman@suse.de, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Tim C Chen <tim.c.chen@intel.com>
 
-On Tue 17-01-17 15:45:31, Minchan Kim wrote:
+On Tue 17-01-17 10:55:47, Huang, Ying wrote:
 [...]
-> Actually, IMO, there is no need to insert any tracepoint in inactive_list_is_low.
-> Instead, if we add tracepint in get_scan_count to record each LRU list size and
-> nr[LRU_{INACTIVE,ACTIVE}_{ANON|FILE}], it could be general and more helpful.
+> +int free_swap_slot(swp_entry_t entry)
+> +{
+> +	struct swap_slots_cache *cache;
+> +
+> +	BUG_ON(!swap_slot_cache_initialized);
+> +
+> +	cache = &get_cpu_var(swp_slots);
+> +	if (use_swap_slot_cache && cache->slots_ret) {
+> +		spin_lock_irq(&cache->free_lock);
+> +		/* Swap slots cache may be deactivated before acquiring lock */
+> +		if (!use_swap_slot_cache) {
+> +			spin_unlock_irq(&cache->free_lock);
+> +			goto direct_free;
+> +		}
+> +		if (cache->n_ret >= SWAP_SLOTS_CACHE_SIZE) {
+> +			/*
+> +			 * Return slots to global pool.
+> +			 * The current swap_map value is SWAP_HAS_CACHE.
+> +			 * Set it to 0 to indicate it is available for
+> +			 * allocation in global pool
+> +			 */
+> +			swapcache_free_entries(cache->slots_ret, cache->n_ret);
+> +			cache->n_ret = 0;
+> +		}
+> +		cache->slots_ret[cache->n_ret++] = entry;
+> +		spin_unlock_irq(&cache->free_lock);
+> +	} else {
+> +direct_free:
+> +		swapcache_free_entries(&entry, 1);
+> +	}
+> +	put_cpu_var(swp_slots);
+> +
+> +	return 0;
+> +}
+> +
+> +swp_entry_t get_swap_page(void)
+> +{
+> +	swp_entry_t entry, *pentry;
+> +	struct swap_slots_cache *cache;
+> +
+> +	/*
+> +	 * Preemption need to be turned on here, because we may sleep
+> +	 * in refill_swap_slots_cache().  But it is safe, because
+> +	 * accesses to the per-CPU data structure are protected by a
+> +	 * mutex.
+> +	 */
 
-You are free to propose patches of course. I just worry that you are
-overthinking this. This is no rocket science, really. We have a set of
-trace points at places where we make a decision. Having a tracepoint in
-inactive_list_is_low sounds like a proper fit to me. get_scan_count has
-a different responsibility. We might disagree on that, though, but as
-long as you preserve the debugability I won't be opposed.
+the comment doesn't really explain why it is safe. THere are other users
+which are not using the lock. E.g. just look at free_swap_slot above. 
+How can
+	cache->slots_ret[cache->n_ret++] = entry;
+be safe wrt.
+	pentry = &cache->slots[cache->cur++];
+	entry = *pentry;
 
-I really do not see much point in discussing this further and spend more
-time repeating arguments. After all the whole point of the series was
-to make the debugging easier.  Which I believe is the case. Different
-people do debugging differently so it is not really all that surprising
-that we disagree on some parts. I really consider these tracepoints as a
-debugging aid and exporting more than less has proven being useful in
-the past. The worst thing really is when numbers do not make sense
-because you are just missing part of the picture. I definitely agree
-with you on the general objective to keep this debugging tools out of hot
-paths and being too disruptive or spill over to the regular code to
-cause a maintenance burden but I _believe_ this is not the case here.
+Both of them might touch the same slot, no? Btw. I would rather prefer
+this would be a follow up fix with the trace and the detailed
+explanation.
+
+> +	cache = raw_cpu_ptr(&swp_slots);
+> +
+> +	entry.val = 0;
+> +	if (check_cache_active()) {
+> +		mutex_lock(&cache->alloc_lock);
+> +		if (cache->slots) {
+> +repeat:
+> +			if (cache->nr) {
+> +				pentry = &cache->slots[cache->cur++];
+> +				entry = *pentry;
+> +				pentry->val = 0;
+> +				cache->nr--;
+> +			} else {
+> +				if (refill_swap_slots_cache(cache))
+> +					goto repeat;
+> +			}
+> +		}
+> +		mutex_unlock(&cache->alloc_lock);
+> +		if (entry.val)
+> +			return entry;
+> +	}
+> +
+> +	get_swap_pages(1, &entry);
+> +
+> +	return entry;
+> +}
 -- 
 Michal Hocko
 SUSE Labs
