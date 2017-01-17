@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 236FA6B0260
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:54:22 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 204so309942334pfx.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:22 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CF2D6B0261
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:54:23 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d134so137113896pfd.0
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:23 -0800 (PST)
 Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id j19si26391237pgk.236.2017.01.17.15.54.21
+        by mx.google.com with ESMTPS id i64si23448772pfk.182.2017.01.17.15.54.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 15:54:21 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id 204so9133178pge.2
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:21 -0800 (PST)
+        Tue, 17 Jan 2017 15:54:22 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 204so9133229pge.2
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:22 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 04/10] slab: reorganize memcg_cache_params
-Date: Tue, 17 Jan 2017 15:54:05 -0800
-Message-Id: <20170117235411.9408-5-tj@kernel.org>
+Subject: [PATCH 05/10] slab: link memcg kmem_caches on their associated memory cgroup
+Date: Tue, 17 Jan 2017 15:54:06 -0800
+Message-Id: <20170117235411.9408-6-tj@kernel.org>
 In-Reply-To: <20170117235411.9408-1-tj@kernel.org>
 References: <20170117235411.9408-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,19 +22,37 @@ List-ID: <linux-mm.kvack.org>
 To: vdavydov.dev@gmail.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 Cc: jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com, Tejun Heo <tj@kernel.org>
 
-We're gonna change how memcg caches are iterated.  In preparation,
-clean up and reorganize memcg_cache_params.
+With kmem cgroup support enabled, kmem_caches can be created and
+destroyed frequently and a great number of near empty kmem_caches can
+accumulate if there are a lot of transient cgroups and the system is
+not under memory pressure.  When memory reclaim starts under such
+conditions, it can lead to consecutive deactivation and destruction of
+many kmem_caches, easily hundreds of thousands on moderately large
+systems, exposing scalability issues in the current slab management
+code.  This is one of the patches to address the issue.
 
-* The shared ->list is replaced by ->children in root and
-  ->children_node in children.
+While a memcg kmem_cache is listed on its root cache's ->children
+list, there is no direct way to iterate all kmem_caches which are
+assocaited with a memory cgroup.  The only way to iterate them is
+walking all caches while filtering out caches which don't match, which
+would be most of them.
 
-* ->is_root_cache is removed.  Instead ->root_cache is moved out of
-  the child union and now used by both root and children.  NULL
-  indicates root cache.  Non-NULL a memcg one.
+This makes memcg destruction operations O(N^2) where N is the total
+number of slab caches which can be huge.  This combined with the
+synchronous RCU operations can tie up a CPU and affect the whole
+machine for many hours when memory reclaim triggers offlining and
+destruction of the stale memcgs.
 
-This patch doesn't cause any observable behavior changes.
+This patch adds mem_cgroup->kmem_caches list which goes through
+memcg_cache_params->kmem_caches_node of all kmem_caches which are
+associated with the memcg.  All memcg specific iterations, including
+stat file access, are updated to use the new list instead.
+
+v2: Initial version made slab_{start|next|stop}() static; however,
+    mm/slab.c still needs them.  Leave them global.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
+Reported-by: Jay Vana <jsvana@fb.com>
 Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>
@@ -42,162 +60,165 @@ Cc: David Rientjes <rientjes@google.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/slab.h | 33 ++++++++++++++++++++++++---------
- mm/slab.h            |  6 +++---
- mm/slab_common.c     | 25 +++++++++++++------------
- 3 files changed, 40 insertions(+), 24 deletions(-)
+ include/linux/memcontrol.h |  1 +
+ include/linux/slab.h       |  3 +++
+ mm/memcontrol.c            |  7 ++++---
+ mm/slab.h                  |  3 +++
+ mm/slab_common.c           | 36 +++++++++++++++++++++++++++++-------
+ 5 files changed, 40 insertions(+), 10 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 61d20c1..4de925c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -253,6 +253,7 @@ struct mem_cgroup {
+         /* Index in the kmem_cache->memcg_params.memcg_caches array */
+ 	int kmemcg_id;
+ 	enum memcg_kmem_state kmem_state;
++	struct list_head kmem_caches;
+ #endif
+ 
+ 	int last_scanned_node;
 diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 084b12b..2e83922 100644
+index 2e83922..95b4d9d 100644
 --- a/include/linux/slab.h
 +++ b/include/linux/slab.h
-@@ -545,22 +545,37 @@ struct memcg_cache_array {
-  * array to be accessed without taking any locks, on relocation we free the old
-  * version only after a grace period.
+@@ -565,6 +565,8 @@ struct memcg_cache_array {
+  * @memcg:	Pointer to the memcg this cache belongs to.
   *
-- * Child caches will hold extra metadata needed for its operation. Fields are:
-+ * Root and child caches hold different metadata.
-  *
-- * @memcg: pointer to the memcg this cache belongs to
-- * @root_cache: pointer to the global, root cache, this cache was derived from
-+ * @root_cache:	Common to root and child caches.  NULL for root, pointer to
-+ *		the root cache for children.
-  *
-- * Both root and child caches of the same kind are linked into a list chained
-- * through @list.
-+ * The following fields are specific to root caches.
+  * @children_node: List node for @root_cache->children list.
 + *
-+ * @memcg_caches: kmemcg ID indexed table of child caches.  This table is
-+ *		used to index child cachces during allocation and cleared
-+ *		early during shutdown.
-+ *
-+ * @children:	List of all child caches.  While the child caches are also
-+ *		reachable through @memcg_caches, a child cache remains on
-+ *		this list until it is actually destroyed.
-+ *
-+ * The following fields are specific to child caches.
-+ *
-+ * @memcg:	Pointer to the memcg this cache belongs to.
-+ *
-+ * @children_node: List node for @root_cache->children list.
++ * @kmem_caches_node: List node for @memcg->kmem_caches list.
   */
  struct memcg_cache_params {
--	bool is_root_cache;
--	struct list_head list;
-+	struct kmem_cache *root_cache;
- 	union {
--		struct memcg_cache_array __rcu *memcg_caches;
-+		struct {
-+			struct memcg_cache_array __rcu *memcg_caches;
-+			struct list_head children;
-+		};
+ 	struct kmem_cache *root_cache;
+@@ -576,6 +578,7 @@ struct memcg_cache_params {
  		struct {
  			struct mem_cgroup *memcg;
--			struct kmem_cache *root_cache;
-+			struct list_head children_node;
+ 			struct list_head children_node;
++			struct list_head kmem_caches_node;
  		};
  	};
  };
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 4048897..a2b20f7f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2839,6 +2839,7 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
+ 	 */
+ 	memcg->kmemcg_id = memcg_id;
+ 	memcg->kmem_state = KMEM_ONLINE;
++	INIT_LIST_HEAD(&memcg->kmem_caches);
+ 
+ 	return 0;
+ }
+@@ -4004,9 +4005,9 @@ static struct cftype mem_cgroup_legacy_files[] = {
+ #ifdef CONFIG_SLABINFO
+ 	{
+ 		.name = "kmem.slabinfo",
+-		.seq_start = slab_start,
+-		.seq_next = slab_next,
+-		.seq_stop = slab_stop,
++		.seq_start = memcg_slab_start,
++		.seq_next = memcg_slab_next,
++		.seq_stop = memcg_slab_stop,
+ 		.seq_show = memcg_slab_show,
+ 	},
+ #endif
 diff --git a/mm/slab.h b/mm/slab.h
-index 4acc644..ce6b063 100644
+index ce6b063..4cb67a3 100644
 --- a/mm/slab.h
 +++ b/mm/slab.h
-@@ -200,12 +200,12 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-  * slab_mutex.
-  */
- #define for_each_memcg_cache(iter, root) \
--	list_for_each_entry(iter, &(root)->memcg_params.list, \
--			    memcg_params.list)
-+	list_for_each_entry(iter, &(root)->memcg_params.children, \
-+			    memcg_params.children_node)
+@@ -488,6 +488,9 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+ void *slab_start(struct seq_file *m, loff_t *pos);
+ void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+ void slab_stop(struct seq_file *m, void *p);
++void *memcg_slab_start(struct seq_file *m, loff_t *pos);
++void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos);
++void memcg_slab_stop(struct seq_file *m, void *p);
+ int memcg_slab_show(struct seq_file *m, void *p);
  
- static inline bool is_root_cache(struct kmem_cache *s)
- {
--	return s->memcg_params.is_root_cache;
-+	return !s->memcg_params.root_cache;
- }
- 
- static inline bool slab_equal_or_root(struct kmem_cache *s,
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index c6fd297..76afe15 100644
+index 76afe15..85292cc 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -140,9 +140,9 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- void slab_init_memcg_params(struct kmem_cache *s)
- {
--	s->memcg_params.is_root_cache = true;
--	INIT_LIST_HEAD(&s->memcg_params.list);
-+	s->memcg_params.root_cache = NULL;
- 	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
-+	INIT_LIST_HEAD(&s->memcg_params.children);
- }
- 
- static int init_memcg_params(struct kmem_cache *s,
-@@ -150,10 +150,10 @@ static int init_memcg_params(struct kmem_cache *s,
- {
- 	struct memcg_cache_array *arr;
- 
--	if (memcg) {
--		s->memcg_params.is_root_cache = false;
--		s->memcg_params.memcg = memcg;
-+	if (root_cache) {
+@@ -154,6 +154,7 @@ static int init_memcg_params(struct kmem_cache *s,
  		s->memcg_params.root_cache = root_cache;
-+		s->memcg_params.memcg = memcg;
-+		INIT_LIST_HEAD(&s->memcg_params.children_node);
+ 		s->memcg_params.memcg = memcg;
+ 		INIT_LIST_HEAD(&s->memcg_params.children_node);
++		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
  		return 0;
  	}
  
-@@ -223,7 +223,7 @@ int memcg_update_all_caches(int num_memcgs)
- 
+@@ -224,6 +225,7 @@ int memcg_update_all_caches(int num_memcgs)
  static void unlink_memcg_cache(struct kmem_cache *s)
  {
--	list_del(&s->memcg_params.list);
-+	list_del(&s->memcg_params.children_node);
+ 	list_del(&s->memcg_params.children_node);
++	list_del(&s->memcg_params.kmem_caches_node);
  }
  #else
  static inline int init_memcg_params(struct kmem_cache *s,
-@@ -591,7 +591,8 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 		goto out_unlock;
- 	}
+@@ -593,6 +595,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
  
--	list_add(&s->memcg_params.list, &root_cache->memcg_params.list);
-+	list_add(&s->memcg_params.children_node,
-+		 &root_cache->memcg_params.children);
+ 	list_add(&s->memcg_params.children_node,
+ 		 &root_cache->memcg_params.children);
++	list_add(&s->memcg_params.kmem_caches_node, &memcg->kmem_caches);
  
  	/*
  	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
-@@ -687,7 +688,7 @@ static int shutdown_memcg_caches(struct kmem_cache *s)
- 			 * list so as not to try to destroy it for a second
- 			 * time while iterating over inactive caches below.
- 			 */
--			list_move(&c->memcg_params.list, &busy);
-+			list_move(&c->memcg_params.children_node, &busy);
- 		else
- 			/*
- 			 * The cache is empty and will be destroyed soon. Clear
-@@ -702,17 +703,17 @@ static int shutdown_memcg_caches(struct kmem_cache *s)
- 	 * Second, shutdown all caches left from memory cgroups that are now
- 	 * offline.
- 	 */
--	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
--				 memcg_params.list)
-+	list_for_each_entry_safe(c, c2, &s->memcg_params.children,
-+				 memcg_params.children_node)
- 		shutdown_cache(c);
+@@ -648,9 +651,8 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+ 	get_online_mems();
  
--	list_splice(&busy, &s->memcg_params.list);
-+	list_splice(&busy, &s->memcg_params.children);
+ 	mutex_lock(&slab_mutex);
+-	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+-		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
+-			continue;
++	list_for_each_entry_safe(s, s2, &memcg->kmem_caches,
++				 memcg_params.kmem_caches_node) {
+ 		/*
+ 		 * The cgroup is about to be freed and therefore has no charges
+ 		 * left. Hence, all its caches must be empty by now.
+@@ -1201,15 +1203,35 @@ static int slab_show(struct seq_file *m, void *p)
+ }
  
- 	/*
- 	 * A cache being destroyed must be empty. In particular, this means
- 	 * that all per memcg caches attached to it must be empty too.
- 	 */
--	if (!list_empty(&s->memcg_params.list))
-+	if (!list_empty(&s->memcg_params.children))
- 		return -EBUSY;
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
++void *memcg_slab_start(struct seq_file *m, loff_t *pos)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
++
++	mutex_lock(&slab_mutex);
++	return seq_list_start(&memcg->kmem_caches, *pos);
++}
++
++void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
++
++	return seq_list_next(p, &memcg->kmem_caches, pos);
++}
++
++void memcg_slab_stop(struct seq_file *m, void *p)
++{
++	mutex_unlock(&slab_mutex);
++}
++
+ int memcg_slab_show(struct seq_file *m, void *p)
+ {
+-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
++	struct kmem_cache *s = list_entry(p, struct kmem_cache,
++					  memcg_params.kmem_caches_node);
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+ 
+-	if (p == slab_caches.next)
++	if (p == memcg->kmem_caches.next)
+ 		print_slabinfo_header(m);
+-	if (!is_root_cache(s) && s->memcg_params.memcg == memcg)
+-		cache_show(s, m);
++	cache_show(s, m);
  	return 0;
  }
+ #endif
 -- 
 2.9.3
 
