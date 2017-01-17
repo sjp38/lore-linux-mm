@@ -1,106 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 378F76B0253
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:51:04 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id d140so31873871wmd.4
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:51:04 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BCDB96B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:54:54 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id ez4so12154069wjd.2
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:54:54 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d26si15009492wmh.142.2017.01.16.23.51.02
+        by mx.google.com with ESMTPS id b195si15025681wmg.134.2017.01.16.23.54.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Jan 2017 23:51:02 -0800 (PST)
-Date: Tue, 17 Jan 2017 08:51:01 +0100
+        Mon, 16 Jan 2017 23:54:53 -0800 (PST)
+Date: Tue, 17 Jan 2017 08:54:51 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
-Message-ID: <20170117075100.GB19699@dhcp22.suse.cz>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-2-mhocko@kernel.org>
- <bf1815ec-766a-77f2-2823-c19abae5edb3@nvidia.com>
- <20170116084717.GA13641@dhcp22.suse.cz>
- <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
- <20170116194052.GA9382@dhcp22.suse.cz>
- <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
- <20170116214822.GB9382@dhcp22.suse.cz>
- <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
+Subject: Re: [PATCH 7/8] Revert "ext4: avoid deadlocks in the writeback path
+ by using sb_getblk_gfp"
+Message-ID: <20170117075450.GC19699@dhcp22.suse.cz>
+References: <20170106141107.23953-1-mhocko@kernel.org>
+ <20170106141107.23953-8-mhocko@kernel.org>
+ <20170117030118.727jqyamjhojzajb@thunk.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
+In-Reply-To: <20170117030118.727jqyamjhojzajb@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 16-01-17 13:57:43, John Hubbard wrote:
-> 
-> 
-> On 01/16/2017 01:48 PM, Michal Hocko wrote:
-> > On Mon 16-01-17 13:15:08, John Hubbard wrote:
-> > > 
-> > > 
-> > > On 01/16/2017 11:40 AM, Michal Hocko wrote:
-> > > > On Mon 16-01-17 11:09:37, John Hubbard wrote:
-> > > > > 
-> > > > > 
-> > > > > On 01/16/2017 12:47 AM, Michal Hocko wrote:
-> > > > > > On Sun 15-01-17 20:34:13, John Hubbard wrote:
-> > > > [...]
-> > > > > > > Is that "Reclaim modifiers" line still true, or is it a leftover from an
-> > > > > > > earlier approach? I am having trouble reconciling it with rest of the
-> > > > > > > patchset, because:
-> > > > > > > 
-> > > > > > > a) the flags argument below is effectively passed on to either kmalloc_node
-> > > > > > > (possibly adding, but not removing flags), or to __vmalloc_node_flags.
-> > > > > > 
-> > > > > > The above only says thos are _unsupported_ - in other words the behavior
-> > > > > > is not defined. Even if flags are passed down to kmalloc resp. vmalloc
-> > > > > > it doesn't mean they are used that way.  Remember that vmalloc uses
-> > > > > > some hardcoded GFP_KERNEL allocations.  So while I could be really
-> > > > > > strict about this and mask away these flags I doubt this is worth the
-> > > > > > additional code.
-> > > > > 
-> > > > > I do wonder about passing those flags through to kmalloc. Maybe it is worth
-> > > > > stripping out __GFP_NORETRY and __GFP_NOFAIL, after all. It provides some
-> > > > > insulation from any future changes to the implementation of kmalloc, and it
-> > > > > also makes the documentation more believable.
-> > > > 
-> > > > I am not really convinced that we should take an extra steps for these
-> > > > flags. There are no existing users for those flags and new users should
-> > > > follow the documentation.
-> > > 
-> > > OK, let's just fortify the documentation ever so slightly, then, so that
-> > > users are more likely to do the right thing. How's this sound:
-> > > 
-> > > * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. (Even
-> > > * though the current implementation passes the flags on through to kmalloc and
-> > > * vmalloc, that is done for efficiency and to avoid unnecessary code. The caller
-> > > * should not pass in these flags.)
-> > > *
-> > > * __GFP_REPEAT is supported, but only for large (>64kB) allocations.
-> > > 
-> > > 
-> > > ? Or is that documentation overkill?
+On Mon 16-01-17 22:01:18, Theodore Ts'o wrote:
+> On Fri, Jan 06, 2017 at 03:11:06PM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > Dunno, it sounds like an overkill to me. It is telling more than
-> > necessary. If we want to be so vocal about gfp flags then we would have
-> > to say much more I suspect. E.g. what about __GFP_HIGHMEM? This flag is
-> > supported for vmalloc while unsupported for kmalloc. I am pretty sure
-> > there would be other gfp flags to consider and then this would grow
-> > borringly large and uninteresting to the point when people simply stop
-> > reading it. Let's just be as simple as possible.
+> > This reverts commit c45653c341f5c8a0ce19c8f0ad4678640849cb86 because
+> > sb_getblk_gfp is not really needed as
+> > sb_getblk
+> >   __getblk_gfp
+> >     __getblk_slow
+> >       grow_buffers
+> >         grow_dev_page
+> > 	  gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp
+> > 
+> > so __GFP_FS is cleared unconditionally and therefore the above commit
+> > didn't have any real effect in fact.
+> > 
+> > This patch should not introduce any functional change. The main point
+> > of this change is to reduce explicit GFP_NOFS usage inside ext4 code to
+> > make the review of the remaining usage easier.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > Reviewed-by: Jan Kara <jack@suse.cz>
 > 
-> Agreed, on the simplicity point: simple and clear is ideal. But here, it's
-> merely short, and not quite simple. :)  People will look at that short bit
-> of documentation, and then notice that the flags are, in fact, all passed
-> right on through down to both kmalloc_node and __vmalloc_node_flags.
-> 
-> If you don't want too much documentation, then I'd be inclined to say
-> something higher-level, about the intent, rather than mentioning those two
-> flags directly. Because as it stands, the documentation contradicts what the
-> code does.
+> If I'm not mistaken, this patch is not dependent on any of the other
+> patches in this series (and the other patches are not dependent on
+> this one).  Hence, I could take this patch via the ext4 tree, correct?
 
-Feel free to suggest a better wording. I am, of course, open to any
-changes.
+Yes, that is correct
 
 -- 
 Michal Hocko
