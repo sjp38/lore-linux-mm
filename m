@@ -1,101 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A4146B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:46:41 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p192so34369163wme.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 07:46:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b79si16329047wma.103.2017.01.17.07.46.39
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AFF3A6B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:54:39 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id 203so172020352ith.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 07:54:39 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id g96si22306971iod.228.2017.01.17.07.54.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 07:46:40 -0800 (PST)
-Date: Tue, 17 Jan 2017 16:46:37 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] sharing pages between mappings
-Message-ID: <20170117154637.GT2517@quack2.suse.cz>
-References: <CAJfpegv9EhT4Y3QjTZBHoMKSiVGtfmTGPhJp_rh3a7=rFCHu5A@mail.gmail.com>
- <20170111115143.GJ16116@quack2.suse.cz>
- <CAJfpeguuBgypYh3G1Ew1a37o4WuRozPzLe=D_gh2BbtYXE=zzg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 07:54:38 -0800 (PST)
+Date: Tue, 17 Jan 2017 16:54:31 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 05/15] lockdep: Make check_prev_add can use a separate
+ stack_trace
+Message-ID: <20170117155431.GE5680@worktop>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-6-git-send-email-byungchul.park@lge.com>
+ <20170112161643.GB3144@twins.programming.kicks-ass.net>
+ <20170113101143.GE3326@X58A-UD3R>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJfpeguuBgypYh3G1Ew1a37o4WuRozPzLe=D_gh2BbtYXE=zzg@mail.gmail.com>
+In-Reply-To: <20170113101143.GE3326@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Wed 11-01-17 15:13:19, Miklos Szeredi wrote:
-> On Wed, Jan 11, 2017 at 12:51 PM, Jan Kara <jack@suse.cz> wrote:
-> > On Wed 11-01-17 11:29:28, Miklos Szeredi wrote:
-> >> I know there's work on this for xfs, but could this be done in generic mm
-> >> code?
-> >>
-> >> What are the obstacles?  page->mapping and page->index are the obvious
-> >> ones.
-> >
-> > Yes, these two are the main that come to my mind. Also you'd need to
-> > somehow share the mapping->i_mmap tree so that unmap_mapping_range() works.
-> >
-> >> If that's too difficult is it maybe enough to share mappings between
-> >> files while they are completely identical and clone the mapping when
-> >> necessary?
-> >
-> > Well, but how would the page->mapping->host indirection work? Even if you
-> > have identical contents of the mappings, you still need to be aware there
-> > are several inodes behind them and you need to pick the right one
-> > somehow...
-> 
-> When do we actually need page->mapping->host?  The only place where
-> it's not available is page writeback.  Then we can know that the
-> original page was already cow-ed and after being cowed, the page
-> belong only to a single inode.
+On Fri, Jan 13, 2017 at 07:11:43PM +0900, Byungchul Park wrote:
+> What do you think about the following patches doing it?
 
-Yeah, in principle the information may exist, however propagating it to all
-appropriate place may be a mess.
+I was more thinking about something like so...
 
-> What then happens if the newly written data is cloned before being
-> written back?   We can either write back the page during the clone, so
-> that only clean pages are ever shared.  Or we can let dirty pages be
-> shared between inodes.
+Also, I think I want to muck with struct stack_trace; the members:
+max_nr_entries and skip are input arguments to save_stack_trace() and
+bloat the structure for no reason.
 
-The former is what I'd suggest for sanity... I.e. share only read-only
-pages.
-
-> In that latter case the question is: do we
-> care about which inode we use for writing back the data?  Is the inode
-> needed at all?  I don't know enough about filesystem internals to see
-> clearly what happens in such a situation.
-> 
-> >> All COW filesystems would benefit, as well as layered ones: lots of
-> >> fuse fs, and in some cases overlayfs too.
-> >>
-> >> Related:  what can DAX do in the presence of cloned block?
-> >
-> > For DAX handling a block COW should be doable if that is what you are
-> > asking about. Handling of blocks that can be written to while they are
-> > shared will be rather difficult (you have problems with keeping dirty bits
-> > in the radix tree consistent if nothing else).
-> 
-> What happens if you do:
-> 
-> - clone_file_range(A, off1, B, off2, len);
-> 
-> - mmap both A and B using DAX.
-> 
-> The mapping will contain the same struct page for two different mappings, no?
-
-Not the same struct page, as DAX does not have pages with struct page.
-However the same pfn will be underlying off1 of A and off2 of B. And for
-reads this is just fine. Once you want to write, you have to make sure you
-COW before you start modifying the data or you'll get data corruption (we
-synchronize operations using the exceptional entries in mapping->page_tree
-in DAX and these are separate for A and B).
-
-									Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+---
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 7c38f8f3d97b..f2df300a96ee 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -430,6 +430,21 @@ static int save_trace(struct stack_trace *trace)
+ 	return 1;
+ }
+ 
++static bool return_trace(struct stack_trace *trace)
++{
++	/*
++	 * If @trace is the last trace generated by save_trace(), then we can
++	 * return the entries by simply subtracting @nr_stack_trace_entries
++	 * again.
++	 */
++	if (trace->entries != stack_trace + nr_stack_trace_entries - trace->nr_entres)
++		return false;
++
++	nr_stack_trace_entries -= trace->nr_entries;
++	trace->entries = NULL;
++	return true;
++}
++
+ unsigned int nr_hardirq_chains;
+ unsigned int nr_softirq_chains;
+ unsigned int nr_process_chains;
+@@ -1797,20 +1812,12 @@ static inline void inc_chains(void)
+  */
+ static int
+ check_prev_add(struct task_struct *curr, struct held_lock *prev,
+-	       struct held_lock *next, int distance, int *stack_saved)
++	       struct held_lock *next, int distance, struct stack_trace *trace)
+ {
+ 	struct lock_list *entry;
+ 	int ret;
+ 	struct lock_list this;
+ 	struct lock_list *uninitialized_var(target_entry);
+-	/*
+-	 * Static variable, serialized by the graph_lock().
+-	 *
+-	 * We use this static variable to save the stack trace in case
+-	 * we call into this function multiple times due to encountering
+-	 * trylocks in the held lock stack.
+-	 */
+-	static struct stack_trace trace;
+ 
+ 	/*
+ 	 * Prove that the new <prev> -> <next> dependency would not
+@@ -1858,11 +1865,7 @@ static inline void inc_chains(void)
+ 		}
+ 	}
+ 
+-	if (!*stack_saved) {
+-		if (!save_trace(&trace))
+-			return 0;
+-		*stack_saved = 1;
+-	}
++	trace->skip = 1; /* mark used */
+ 
+ 	/*
+ 	 * Ok, all validations passed, add the new lock
+@@ -1870,14 +1873,14 @@ static inline void inc_chains(void)
+ 	 */
+ 	ret = add_lock_to_list(hlock_class(next),
+ 			       &hlock_class(prev)->locks_after,
+-			       next->acquire_ip, distance, &trace);
++			       next->acquire_ip, distance, trace);
+ 
+ 	if (!ret)
+ 		return 0;
+ 
+ 	ret = add_lock_to_list(hlock_class(prev),
+ 			       &hlock_class(next)->locks_before,
+-			       next->acquire_ip, distance, &trace);
++			       next->acquire_ip, distance, trace);
+ 	if (!ret)
+ 		return 0;
+ 
+@@ -1885,8 +1888,6 @@ static inline void inc_chains(void)
+ 	 * Debugging printouts:
+ 	 */
+ 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
+-		/* We drop graph lock, so another thread can overwrite trace. */
+-		*stack_saved = 0;
+ 		graph_unlock();
+ 		printk("\n new dependency: ");
+ 		print_lock_name(hlock_class(prev));
+@@ -1908,10 +1909,15 @@ static inline void inc_chains(void)
+ static int
+ check_prevs_add(struct task_struct *curr, struct held_lock *next)
+ {
++	struct stack_trace trace = { .nr_entries = 0, .skip = 0, };
+ 	int depth = curr->lockdep_depth;
+-	int stack_saved = 0;
+ 	struct held_lock *hlock;
+ 
++	if (!save_trace(&trace))
++		goto out_bug;
++
++	trace.skip = 0; /* abuse to mark usage */
++
+ 	/*
+ 	 * Debugging checks.
+ 	 *
+@@ -1936,7 +1942,7 @@ static inline void inc_chains(void)
+ 		 */
+ 		if (hlock->read != 2 && hlock->check) {
+ 			if (!check_prev_add(curr, hlock, next,
+-						distance, &stack_saved))
++					    distance, &trace))
+ 				return 0;
+ 			/*
+ 			 * Stop after the first non-trylock entry,
+@@ -1962,6 +1968,9 @@ static inline void inc_chains(void)
+ 	}
+ 	return 1;
+ out_bug:
++	if (trace.nr_entries && !trace.skip)
++		return_trace(&trace);
++
+ 	if (!debug_locks_off_graph_unlock())
+ 		return 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
