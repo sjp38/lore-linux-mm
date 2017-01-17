@@ -1,45 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E11F76B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:57:39 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id f5so82313197pgi.1
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:57:39 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id k190si24104091pge.246.2017.01.16.23.57.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 727216B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 03:13:12 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id d140so31968182wmd.4
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 00:13:12 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t7si24195304wrb.5.2017.01.17.00.13.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 23:57:39 -0800 (PST)
-Date: Mon, 16 Jan 2017 23:57:35 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [LSF/MM TOPIC] Future direction of DAX
-Message-ID: <20170117075735.GB19654@infradead.org>
-References: <20170114002008.GA25379@linux.intel.com>
- <20170114082621.GC10498@birch.djwong.org>
- <x49wpduzseu.fsf@dhcp-25-115.bos.redhat.com>
- <20170117015033.GD10498@birch.djwong.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Jan 2017 00:13:11 -0800 (PST)
+Subject: Re: getting oom/stalls for ltp test cpuset01 with latest/4.9 kernel
+References: <CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com>
+ <075075cc-3149-0df3-dd45-a81df1f1a506@suse.cz>
+ <0ea1cfeb-7c4a-3a3e-9be9-967298ba303c@suse.cz>
+ <CAFpQJXWD8pSaWUrkn5Rxy-hjTCvrczuf0F3TdZ8VHj4DSYpivg@mail.gmail.com>
+ <20170111164616.GJ16365@dhcp22.suse.cz>
+ <45ed555a-c6a3-fc8e-1e87-c347c8ed086b@suse.cz>
+ <CAFpQJXUVRKXLUvM5PnpjT_UH+ac-0=caND43F882oP+Rm5gxUQ@mail.gmail.com>
+ <89fec1bd-52b7-7861-2e02-a719c5631610@suse.cz>
+ <CAFpQJXUq_O=UAhCb7fwq2txYxg_owO77rRdQFUjR0_Mj9p=3pA@mail.gmail.com>
+ <a374d6b6-c299-b50d-d7e0-f85ac78525aa@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7c8ed170-ced9-aa6a-25e0-47cdc6d66eb2@suse.cz>
+Date: Tue, 17 Jan 2017 09:13:09 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170117015033.GD10498@birch.djwong.org>
+In-Reply-To: <a374d6b6-c299-b50d-d7e0-f85ac78525aa@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Mon, Jan 16, 2017 at 05:50:33PM -0800, Darrick J. Wong wrote:
-> I wouldn't consider it a barrier in general (since ext4 also prints
-> EXPERIMENTAL warnings for DAX), merely one for XFS.  I don't even think
-> it's that big of a hurdle -- afaict XFS ought to be able to achieve this
-> by modifying iomap_begin to allocate new pmem blocks, memcpy the
-> contents, and update the memory mappings.  I think.
+On 01/16/2017 02:22 PM, Vlastimil Babka wrote:
+>>>
+>>>  no_zone:
+>>> --
+>>> 2.11.0
+>>>
+>>
+>> this patch did not fix the issue.
+>> issue still exists!
+> 
+> Hmm, that's unfortunate.
+> 
+>> i did bisect and this test passes in 4.4,4.5 and 4.6
+>> test failing since 4.7-rc1
+> 
+> 4.7 would match the commit I was trying to fix. But I don't see other
+> problems now. Could you bisect to a single commit then, to be sure? Thanks.
 
-Yes, and I have a working prototype for that.  I'm just way to busy
-with lots of bugfixing at the moment but I plan to get to it in this
-merge window.  I also agree that we can't mark a feature as fully
-supported until it doesn't conflict with other features.
+Ah, nevermind, I can reproduce the issue easily. After some more poking
+I now think the bisect would lead to the OOM rework, but it would be a
+red herring. Seems like this is an interaction between bind mempolicy
+and cpuset and I see several potential bugs in that area. Which also
+means there's a non-null nodemask and thus the code in the commit I
+originally suspected (replacing NULL nodemask with cpuset's
+mems_allowed) doesn't trigger at all here.
 
-And I'm not going to get start on the PMEM_IMMUTABLE bullshit, please
-don't even go there folks, it's a dead end.
+Thanks,
+Vlastimil
+
+>> thanks
+>> Ganapat
+>>>
+>>>
+>>>
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
