@@ -1,58 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 15CBB6B0033
-	for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:47:56 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 75so111647898pgf.3
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 20:47:56 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id g12si23699278pln.18.2017.01.16.20.47.55
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jan 2017 20:47:55 -0800 (PST)
-Date: Mon, 16 Jan 2017 23:47:49 -0500 (EST)
-Message-Id: <20170116.234749.545252655332977761.davem@davemloft.net>
-Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced
- by SPARC M7
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
-References: <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
-	<f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
-	<11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 645BF6B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 01:23:47 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 5so113656814pgi.2
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:23:47 -0800 (PST)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id q78si18939851pfj.291.2017.01.16.22.23.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jan 2017 22:23:46 -0800 (PST)
+Received: by mail-pf0-x241.google.com with SMTP id 19so4796354pfo.3
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:23:46 -0800 (PST)
+Date: Tue, 17 Jan 2017 14:24:08 +0800
+From: Boqun Feng <boqun.feng@gmail.com>
+Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
+Message-ID: <20170117062408.GE15084@tardis.cn.ibm.com>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-8-git-send-email-byungchul.park@lge.com>
+ <20170116151319.GE3144@twins.programming.kicks-ass.net>
+ <20170117023341.GG3326@X58A-UD3R>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="oOB74oR0WcNeq9Zb"
+Content-Disposition: inline
+In-Reply-To: <20170117023341.GG3326@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@linux.intel.com
-Cc: khalid.aziz@oracle.com, corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org, hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 11 Jan 2017 10:13:54 -0800
 
-> For memory shared by two different processes, do they have to agree on
-> what the tags are, or can they differ?
+--oOB74oR0WcNeq9Zb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Whoever allocates the memory (does the mmap()+mprotect() or whatever),
-decides on the tag.  They set it, and this determines which virtual
-address is valid to access that mapping.
+On Tue, Jan 17, 2017 at 11:33:41AM +0900, Byungchul Park wrote:
+> On Mon, Jan 16, 2017 at 04:13:19PM +0100, Peter Zijlstra wrote:
+> > On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
+> > > +	/*
+> > > +	 * We assign class_idx here redundantly even though following
+> > > +	 * memcpy will cover it, in order to ensure a rcu reader can
+> > > +	 * access the class_idx atomically without lock.
+> > > +	 *
+> > > +	 * Here we assume setting a word-sized variable is atomic.
+> >=20
+> > which one, where?
+>=20
+> I meant xlock_class(xlock) in check_add_plock().
+>=20
+> I was not sure about the following two.
+>=20
+> 1. Is it ordered between following a and b?
+>    a. memcpy -> list_add_tail_rcu
+>    b. list_for_each_entry_rcu -> load class_idx (xlock_class)
+>    I assumed that it's not ordered.
+> 2. Does memcpy guarantee atomic store for each word?
+>    I assumed that it doesn't.
+>=20
+> But I think I was wrong.. The first might be ordered. I will remove
+> the following redundant statement. It'd be orderd, right?
+>=20
 
-It's like kmalloc() returns pointers with some weird bits set in the
-upper bits of the address.  Behind the scenes kmalloc() sets the
-TAG bits appropriately.
+Yes, a and b are ordered, IOW, they could be paired, meaning when we
+got the item in a list_for_each_entry_rcu() loop, all memory operations
+before the corresponding list_add_tail_rcu() should be observed by us.
 
-It doesn't, in that sense, matter where in the non-tagged virtual
-address space the memory is mapped.  All that matters is that, for
-a given page, the TAG bits in the virtual address used for loads
-and stores to that mapping are set properly.
+Regards,
+Boqun
 
-I think the fundamental thing being missed is that the TAG bits in the
-virtual address are not interpreted by the TLB.  They are chopped off
-before virtual address translation occurs.
+> >=20
+> > > +	 */
+> > > +	xlock->hlock.class_idx =3D hlock->class_idx;
+> > > +	gen_id =3D (unsigned int)atomic_inc_return(&cross_gen_id);
+> > > +	WRITE_ONCE(xlock->gen_id, gen_id);
+> > > +	memcpy(&xlock->hlock, hlock, sizeof(struct held_lock));
+> > > +	INIT_LIST_HEAD(&xlock->xlock_entry);
+> > > +	list_add_tail_rcu(&xlock->xlock_entry, &xlocks_head);
+> >=20
 
-The TAG bits of the virtual address serve only to indicate what ADI
-value the load or store thinks is valid to use for access to that
-piece of memory.
+--oOB74oR0WcNeq9Zb
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Or something like that... :-)
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlh9uIUACgkQSXnow7UH
++ri78gf/eTrWmPpF6cancS8OeQqNgb2AZC9XhbkRlPN8gBBm9zZhzwPUIIBZ4lpY
+Q7KoNqRpwFjT6oHbmeskywgQY4jivpsnPJoxpaeoOrvQZ3T9RIVKc/YdDdyCbraC
+tIwSHi6rAEdrIofLheQad6As14v4wgRdkuzz8wTttV7kWSOBdLXgE2UTiTl+dg22
+I80Gxj94F3hXtv4ppd8YO9lKM+bYRRUNeJEPAmkvbc0n7RZdKT87UKMBskXmnCH6
+/WUVTYfZidz7xqn+mrKrjR4wyRkNvAQjbxZUI+60WVypyA3HySWdojRWKnHriFmK
+TxjDHxGQh0N01IWhmp1H6iIFpcf4DA==
+=VijH
+-----END PGP SIGNATURE-----
+
+--oOB74oR0WcNeq9Zb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
