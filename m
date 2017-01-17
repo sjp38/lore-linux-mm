@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 299266B0069
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:54:18 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 201so147019358pfw.5
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:18 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id p5si26402957pgn.170.2017.01.17.15.54.17
+	by kanga.kvack.org (Postfix) with ESMTP id 74FC46B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:54:19 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id z128so309272888pfb.4
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:19 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id m1si26445195plk.48.2017.01.17.15.54.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 15:54:17 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id y143so17147009pfb.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:17 -0800 (PST)
+        Tue, 17 Jan 2017 15:54:18 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id 204so9133065pge.2
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:18 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 01/10] Revert "slub: move synchronize_sched out of slab_mutex on shrink"
-Date: Tue, 17 Jan 2017 15:54:02 -0800
-Message-Id: <20170117235411.9408-2-tj@kernel.org>
+Subject: [PATCH 02/10] slub: separate out sysfs_slab_release() from sysfs_slab_remove()
+Date: Tue, 17 Jan 2017 15:54:03 -0800
+Message-Id: <20170117235411.9408-3-tj@kernel.org>
 In-Reply-To: <20170117235411.9408-1-tj@kernel.org>
 References: <20170117235411.9408-1-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,24 +22,12 @@ List-ID: <linux-mm.kvack.org>
 To: vdavydov.dev@gmail.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 Cc: jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com, Tejun Heo <tj@kernel.org>
 
-This reverts commit 89e364db71fb5e7fc8d93228152abfa67daf35fa.
-
-With kmem cgroup support enabled, kmem_caches can be created and
-destroyed frequently and a great number of near empty kmem_caches can
-accumulate if there are a lot of transient cgroups and the system is
-not under memory pressure.  When memory reclaim starts under such
-conditions, it can lead to consecutive deactivation and destruction of
-many kmem_caches, easily hundreds of thousands on moderately large
-systems, exposing scalability issues in the current slab management
-code.  This is one of the patches to address the issue.
-
-Moving synchronize_sched() out of slab_mutex isn't enough as it's
-still inside cgroup_mutex.  The whole deactivation / release path will
-be updated to avoid all synchronous RCU operations.  Revert this
-insufficient optimization in preparation to ease future changes.
+Separate out slub sysfs removal and release, and call the former
+earlier from __kmem_cache_shutdown().  There's no reason to defer
+sysfs removal through RCU and this will later allow us to remove sysfs
+files way earlier during memory cgroup offline instead of release.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Reported-by: Jay Vana <jsvana@fb.com>
 Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Pekka Enberg <penberg@kernel.org>
@@ -47,157 +35,86 @@ Cc: David Rientjes <rientjes@google.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/slab.c        |  4 ++--
- mm/slab.h        |  2 +-
- mm/slab_common.c | 27 ++-------------------------
- mm/slob.c        |  2 +-
- mm/slub.c        | 19 +++++++++++++++++--
- 5 files changed, 23 insertions(+), 31 deletions(-)
+ include/linux/slub_def.h | 4 ++--
+ mm/slab_common.c         | 2 +-
+ mm/slub.c                | 9 ++++++++-
+ 3 files changed, 11 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 29bc6c0..767e8e4 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2314,7 +2314,7 @@ static int drain_freelist(struct kmem_cache *cache,
- 	return nr_freed;
- }
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 75f56c2..07ef550 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -113,9 +113,9 @@ struct kmem_cache {
  
--int __kmem_cache_shrink(struct kmem_cache *cachep)
-+int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+ #ifdef CONFIG_SYSFS
+ #define SLAB_SUPPORTS_SYSFS
+-void sysfs_slab_remove(struct kmem_cache *);
++void sysfs_slab_release(struct kmem_cache *);
+ #else
+-static inline void sysfs_slab_remove(struct kmem_cache *s)
++static inline void sysfs_slab_release(struct kmem_cache *s)
  {
- 	int ret = 0;
- 	int node;
-@@ -2334,7 +2334,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
- 
- int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	return __kmem_cache_shrink(cachep);
-+	return __kmem_cache_shrink(cachep, false);
  }
- 
- void __kmem_cache_release(struct kmem_cache *cachep)
-diff --git a/mm/slab.h b/mm/slab.h
-index de6579d..4acc644 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -161,7 +161,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
- 
- int __kmem_cache_shutdown(struct kmem_cache *);
- void __kmem_cache_release(struct kmem_cache *);
--int __kmem_cache_shrink(struct kmem_cache *);
-+int __kmem_cache_shrink(struct kmem_cache *, bool);
- void slab_kmem_cache_release(struct kmem_cache *);
- 
- struct seq_file;
+ #endif
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index ae32384..46ff746 100644
+index 46ff746..3bc4bb8 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -579,29 +579,6 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
- 	get_online_cpus();
- 	get_online_mems();
+@@ -480,7 +480,7 @@ static void release_caches(struct list_head *release, bool need_rcu_barrier)
  
--#ifdef CONFIG_SLUB
--	/*
--	 * In case of SLUB, we need to disable empty slab caching to
--	 * avoid pinning the offline memory cgroup by freeable kmem
--	 * pages charged to it. SLAB doesn't need this, as it
--	 * periodically purges unused slabs.
--	 */
--	mutex_lock(&slab_mutex);
--	list_for_each_entry(s, &slab_caches, list) {
--		c = is_root_cache(s) ? cache_from_memcg_idx(s, idx) : NULL;
--		if (c) {
--			c->cpu_partial = 0;
--			c->min_partial = 0;
--		}
--	}
--	mutex_unlock(&slab_mutex);
--	/*
--	 * kmem_cache->cpu_partial is checked locklessly (see
--	 * put_cpu_partial()). Make sure the change is visible.
--	 */
--	synchronize_sched();
--#endif
--
- 	mutex_lock(&slab_mutex);
- 	list_for_each_entry(s, &slab_caches, list) {
- 		if (!is_root_cache(s))
-@@ -613,7 +590,7 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
- 		if (!c)
- 			continue;
- 
--		__kmem_cache_shrink(c);
-+		__kmem_cache_shrink(c, true);
- 		arr->entries[idx] = NULL;
- 	}
- 	mutex_unlock(&slab_mutex);
-@@ -784,7 +761,7 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
- 	get_online_cpus();
- 	get_online_mems();
- 	kasan_cache_shrink(cachep);
--	ret = __kmem_cache_shrink(cachep);
-+	ret = __kmem_cache_shrink(cachep, false);
- 	put_online_mems();
- 	put_online_cpus();
- 	return ret;
-diff --git a/mm/slob.c b/mm/slob.c
-index eac04d4..5ec1580 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -634,7 +634,7 @@ void __kmem_cache_release(struct kmem_cache *c)
- {
- }
- 
--int __kmem_cache_shrink(struct kmem_cache *d)
-+int __kmem_cache_shrink(struct kmem_cache *d, bool deactivate)
- {
- 	return 0;
- }
+ 	list_for_each_entry_safe(s, s2, release, list) {
+ #ifdef SLAB_SUPPORTS_SYSFS
+-		sysfs_slab_remove(s);
++		sysfs_slab_release(s);
+ #else
+ 		slab_kmem_cache_release(s);
+ #endif
 diff --git a/mm/slub.c b/mm/slub.c
-index 067598a..68b84f9 100644
+index 68b84f9..2b78c82 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3883,7 +3883,7 @@ EXPORT_SYMBOL(kfree);
-  * being allocated from last increasing the chance that the last objects
-  * are freed in them.
-  */
--int __kmem_cache_shrink(struct kmem_cache *s)
-+int __kmem_cache_shrink(struct kmem_cache *s, bool deactivate)
- {
- 	int node;
- 	int i;
-@@ -3895,6 +3895,21 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 	unsigned long flags;
- 	int ret = 0;
+@@ -214,11 +214,13 @@ enum track_item { TRACK_ALLOC, TRACK_FREE };
+ static int sysfs_slab_add(struct kmem_cache *);
+ static int sysfs_slab_alias(struct kmem_cache *, const char *);
+ static void memcg_propagate_slab_attrs(struct kmem_cache *s);
++static void sysfs_slab_remove(struct kmem_cache *s);
+ #else
+ static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
+ static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
+ 							{ return 0; }
+ static inline void memcg_propagate_slab_attrs(struct kmem_cache *s) { }
++static inline void sysfs_slab_remove(struct kmem_cache *s) { }
+ #endif
  
-+	if (deactivate) {
-+		/*
-+		 * Disable empty slabs caching. Used to avoid pinning offline
-+		 * memory cgroups by kmem pages that can be freed.
-+		 */
-+		s->cpu_partial = 0;
-+		s->min_partial = 0;
-+
-+		/*
-+		 * s->cpu_partial is checked locklessly (see put_cpu_partial),
-+		 * so we have to make sure the change is visible.
-+		 */
-+		synchronize_sched();
-+	}
-+
- 	flush_all(s);
- 	for_each_kmem_cache_node(s, node, n) {
- 		INIT_LIST_HEAD(&discard);
-@@ -3951,7 +3966,7 @@ static int slab_mem_going_offline_callback(void *arg)
- 
- 	mutex_lock(&slab_mutex);
- 	list_for_each_entry(s, &slab_caches, list)
--		__kmem_cache_shrink(s);
-+		__kmem_cache_shrink(s, false);
- 	mutex_unlock(&slab_mutex);
- 
+ static inline void stat(const struct kmem_cache *s, enum stat_item si)
+@@ -3679,6 +3681,7 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
+ 		if (n->nr_partial || slabs_node(s, node))
+ 			return 1;
+ 	}
++	sysfs_slab_remove(s);
  	return 0;
+ }
+ 
+@@ -5629,7 +5632,7 @@ static int sysfs_slab_add(struct kmem_cache *s)
+ 	goto out;
+ }
+ 
+-void sysfs_slab_remove(struct kmem_cache *s)
++static void sysfs_slab_remove(struct kmem_cache *s)
+ {
+ 	if (slab_state < FULL)
+ 		/*
+@@ -5643,6 +5646,10 @@ void sysfs_slab_remove(struct kmem_cache *s)
+ #endif
+ 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
+ 	kobject_del(&s->kobj);
++}
++
++void sysfs_slab_release(struct kmem_cache *s)
++{
+ 	kobject_put(&s->kobj);
+ }
+ 
 -- 
 2.9.3
 
