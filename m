@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 722696B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 06:13:23 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r126so32752508wmr.2
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 03:13:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v204si15555427wmg.18.2017.01.17.03.13.21
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 200186B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:03:54 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id s36so41866476otd.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 06:03:54 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id j18si9486579oih.336.2017.01.17.06.03.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 03:13:22 -0800 (PST)
-Date: Tue, 17 Jan 2017 11:13:16 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/3] follow up nodereclaim for 32b fix
-Message-ID: <20170117111316.6eakdx7ow6yodtf2@suse.de>
-References: <20170117103702.28542-1-mhocko@kernel.org>
+        Tue, 17 Jan 2017 06:03:53 -0800 (PST)
+Message-ID: <587E22F2.7060809@huawei.com>
+Date: Tue, 17 Jan 2017 21:58:10 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170117103702.28542-1-mhocko@kernel.org>
+Subject: Re: [PATCH] mm: respect pre-allocated storage mapping for memmap
+References: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com> <20170117102532.GH19699@dhcp22.suse.cz>
+In-Reply-To: <20170117102532.GH19699@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: dan.j.williams@intel.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Tue, Jan 17, 2017 at 11:36:59AM +0100, Michal Hocko wrote:
-> Hi,
-> I have previously posted this as an RFC [1] but there didn't seem to be
-> any objections other than some requests to reorganize the changes in
-> a slightly different way so I am reposting the series and asking for
-> inclusion.
-> 
-> This is a follow up on top of [2]. The patch 1 cleans up the code a bit.
-> I haven't seen any real issues or bug reports but conceptualy ignoring
-> the maximum eligible zone in get_scan_count is wrong by definition. This
-> is what patch 2 does.  Patch 3 removes inactive_reclaimable_pages
-> which was a kind of hack around for the problem which should have been
-> addressed at get_scan_count.
-> 
-> There is one more place which needs a special handling which is not
-> a part of this series. too_many_isolated can get confused as well. I
-> already have some preliminary work but it still needs some testing so I
-> will post it separatelly.
-> 
-> Michal Hocko (3):
->       mm, vmscan: cleanup lru size claculations
->       mm, vmscan: consider eligible zones in get_scan_count
->       Revert "mm: bail out in shrink_inactive_list()"
-> 
+On 2017/1/17 18:25, Michal Hocko wrote:
+> On Mon 16-01-17 21:38:05, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> At present, we skip the reservation storage by the driver for
+>> the zone_dvice. but the free pages set aside for the memmap is
+>> ignored. And since the free pages is only used as the memmap,
+>> so we can also skip the corresponding pages.
+> I have really hard time to understand what this patch does and why it
+> matters.  Could you please rephrase the changelog to state, the problem,
+> how it affects users and what is the fix please?
+>  
+  Hi, Michal
+ 
+  The patch maybe incorrect if free pages for memmap mapping is accouted for zone_device.
+  I am just a little confusing about the implement.  it maybe simple and  stupid.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+  first pfn for dev_mappage come from vmem_altmap_offset, and free pages reserved for
+  memmap mapping need to be accounted. I do not know the meaning.
 
--- 
-Mel Gorman
-SUSE Labs
+  Another issue is in sparse_remove_one_section.  A section belongs to  zone_device is not
+  always need to consider the  map_offset. is it right ?  From pfn_first to end , that section
+  should no need to consider the map_offet.
+
+  Thanks
+  zhongjiang
+ 
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  mm/page_alloc.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index d604d25..51d8d03 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5047,7 +5047,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>  	 * memory
+>>  	 */
+>>  	if (altmap && start_pfn == altmap->base_pfn)
+>> -		start_pfn += altmap->reserve;
+>> +		start_pfn += vmem_altmap_offset(altmap);
+>>  
+>>  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+>>  		/*
+>> -- 
+>> 1.8.3.1
+>>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
