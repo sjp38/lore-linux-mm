@@ -1,86 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C33B36B0069
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:16:58 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id t6so114947288pgt.6
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:16:58 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r82si25821300pfl.199.2017.01.17.11.16.57
-        for <linux-mm@kvack.org>;
-        Tue, 17 Jan 2017 11:16:57 -0800 (PST)
-Date: Tue, 17 Jan 2017 19:16:56 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
-Message-ID: <20170117191656.GS27328@arm.com>
-References: <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
- <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
- <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
- <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
- <20170109115320.GI4930@rric.localdomain>
- <20170112160535.GF13843@arm.com>
- <20170112185825.GE5020@rric.localdomain>
- <20170113091903.GA22538@arm.com>
- <20170113131500.GS4930@rric.localdomain>
- <20170117100015.GG5020@rric.localdomain>
+	by kanga.kvack.org (Postfix) with ESMTP id 92C676B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:33:08 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id z67so135502540pgb.0
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:33:08 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id b84si16094939pfl.88.2017.01.17.11.33.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 11:33:07 -0800 (PST)
+Subject: Re: [PATCH v4 4/4] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <cover.1483999591.git.khalid.aziz@oracle.com>
+ <0c08eb00e5a9735d7d0bcbeaadeacaa761011aab.1483999591.git.khalid.aziz@oracle.com>
+ <20170116.233924.374841184595409216.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <767310a9-d3bd-9721-2d20-ce2c60cddd06@oracle.com>
+Date: Tue, 17 Jan 2017 12:32:46 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170117100015.GG5020@rric.localdomain>
+In-Reply-To: <20170116.233924.374841184595409216.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Richter <robert.richter@cavium.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>
+Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-On Tue, Jan 17, 2017 at 11:00:15AM +0100, Robert Richter wrote:
-> On 13.01.17 14:15:00, Robert Richter wrote:
-> > On 13.01.17 09:19:04, Will Deacon wrote:
-> > > On Thu, Jan 12, 2017 at 07:58:25PM +0100, Robert Richter wrote:
-> > > > On 12.01.17 16:05:36, Will Deacon wrote:
-> > > > > On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
-> > > > 
-> > > > > > Kernel compile times (3 runs each):
-> > > > > > 
-> > > > > > pfn_valid_within():
-> > > > > > 
-> > > > > > real    6m4.088s
-> > > > > > user    372m57.607s
-> > > > > > sys     16m55.158s
-> > > > > > 
-> > > > > > real    6m1.532s
-> > > > > > user    372m48.453s
-> > > > > > sys     16m50.370s
-> > > > > > 
-> > > > > > real    6m4.061s
-> > > > > > user    373m18.753s
-> > > > > > sys     16m57.027s
-> > > > > 
-> > > > > Did you reboot the machine between each build here, or only when changing
-> > > > > kernel? If the latter, do you see variations in kernel build time by simply
-> > > > > rebooting the same Image?
-> > > > 
-> > > > I built it in a loop on the shell, so no reboots between builds. Note
-> > > > that I was building the kernel in /dev/shm to not access harddisks. I
-> > > > think build times should be comparable then since there is no fs
-> > > > caching.
-> > > 
-> > > I guess I'm really asking what the standard deviation is if you *do* reboot
-> > > between builds, using the same kernel. It's hard to tell whether the numbers
-> > > are due to the patches, or just because of noise incurred by the way things
-> > > happen to initialise.
-> > 
-> > Ok, I am going to test this.
-> 
-> See below the data for a test with reboots between every 3 builds (9
-> builds per kernel). Though some deviation can be seen between reboots
-> there is a trend.
+On 01/16/2017 09:39 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Wed, 11 Jan 2017 09:12:54 -0700
+>
+>> +		__asm__ __volatile__(
+>> +			".word 0xa1438000\n\t"	/* rd  %mcdper, %l0 */
+>
+> Just use "rd %%asr14, %0" this way you don't have to play all of these
+> fixed register games which kill the code generated by gcc.  If you
+> forcefully clobber a windowed register like %l0 it means the function
+> being emitted can never be a leaf function, tail calls are no longer
+> allowed, etc.
 
-I can't really see the trend given that, for system time, your
-pfn_valid_within results have a variance of ~9 and the early_pfn_valid
-results have a variance of ~92. Given that the variance seems to come
-about due to the reboots, I think we need more numbers to establish whether
-the data sets end up largely overlapping or if they really are disjoint.
+Hi David,
 
-Will
+"rd %%asr14, %0" should work but does not due to bugs in assembler - 
+<https://sourceware.org/ml/binutils/2016-03/msg00302.html>, and 
+<https://sourceware.org/ml/binutils/2016-03/msg00303.html>. These bugs 
+were fixed in binutils 2.27 but older assemblers will cause kernel build 
+to fail. Using byte coded equivalent is the safest option.
+
+>
+>> +			".word 0x9d800011\n\t"	/* wr  %g0, %l1, %mcdper */
+>
+> Likewise use "wr %%g0, %0, %%asr14"
+>
+>> +		".word 0xaf900001\n\t"	/* wrpr  %g0, %g1, %pmcdper */
+>
+> Hmmm, which %asr encodes %pmcdper?
+
+%pmcdper is not an asr, rather a privileged register (pr23).
+
+Thanks,
+Khalid
+
+>
+>> diff --git a/arch/sparc/kernel/mdesc.c b/arch/sparc/kernel/mdesc.c
+>> index 8a6982d..68b03bf 100644
+>> --- a/arch/sparc/kernel/mdesc.c
+>> +++ b/arch/sparc/kernel/mdesc.c
+>> @@ -20,6 +20,7 @@
+>>  #include <asm/uaccess.h>
+>>  #include <asm/oplib.h>
+>>  #include <asm/smp.h>
+>> +#include <asm/adi.h>
+>>
+>>  /* Unlike the OBP device tree, the machine description is a full-on
+>>   * DAG.  An arbitrary number of ARCs are possible from one
+>> @@ -1104,5 +1105,8 @@ void __init sun4v_mdesc_init(void)
+>>
+>>  	cur_mdesc = hp;
+>>
+>> +#ifdef CONFIG_SPARC64
+>
+> mdesc.c is only built on sparc64, this ifdef is superfluous.
+>
+>> +/* Update the state of MCDPER register in current task's mm context before
+>> + * dup so the dup'd task will inherit flags in this register correctly.
+>> + * Current task may have updated flags since it started running.
+>> + */
+>> +int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+>> +{
+>> +	if (adi_capable() && src->mm) {
+>> +		register unsigned long tmp_mcdper;
+>> +
+>> +		__asm__ __volatile__(
+>> +			".word 0x83438000\n\t"	/* rd %mcdper, %g1 */
+>> +			"mov %%g1, %0\n\t"
+>> +			: "=r" (tmp_mcdper)
+>> +			:
+>> +			: "g1");
+>> +		src->mm->context.mcdper = tmp_mcdper;
+>
+> I don't like the idea of duplicating 'mm' state using the task struct
+> copy.  Why do not the MM handling interfaces handle this properly?
+>
+> Maybe it means you've abstracted the ADI register handling in the
+> wrong place.  Maybe it's a thread property which is "pushed" from
+> the MM context.
+> --
+> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
