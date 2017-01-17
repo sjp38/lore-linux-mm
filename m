@@ -1,162 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B77AA6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 16:42:36 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z67so139847159pgb.0
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 13:42:36 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id g1si26107130pgc.92.2017.01.17.13.42.35
+	by kanga.kvack.org (Postfix) with ESMTP id 4B55E6B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 16:43:36 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f5so106704306pgi.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 13:43:36 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id p5si26110697pgn.170.2017.01.17.13.43.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 13:42:35 -0800 (PST)
-Date: Tue, 17 Jan 2017 13:42:35 -0800
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: Re: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Message-ID: <20170117214234.GA14383@linux.intel.com>
-Reply-To: tim.c.chen@linux.intel.com
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
+        Tue, 17 Jan 2017 13:43:35 -0800 (PST)
+Subject: Re: [PATCH v4 0/4] Application Data Integrity feature introduced by
+ SPARC M7
+References: <621cfed0-3e56-13e6-689a-0637bce164fe@linux.intel.com>
+ <f70cd704-f486-ed5c-7961-b71278fc8f9a@oracle.com>
+ <11d20dac-2c0f-6e9a-7f98-3839c749adb6@linux.intel.com>
+ <20170116.234749.545252655332977761.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <c1c944f7-d5e6-38ec-6fde-9e6d5c1af6d0@oracle.com>
+Date: Tue, 17 Jan 2017 14:43:07 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="vkogqOf2sHV7VnPd"
-Content-Disposition: inline
-In-Reply-To: <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
+In-Reply-To: <20170116.234749.545252655332977761.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Tim C Chen <tim.c.chen@intel.com>
+To: David Miller <davem@davemloft.net>, dave.hansen@linux.intel.com
+Cc: corbet@lwn.net, arnd@arndb.de, akpm@linux-foundation.org, hpa@zytor.com, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, chris.hyser@oracle.com, tushar.n.dave@oracle.com, sowmini.varadhan@oracle.com, mike.kravetz@oracle.com, adam.buchbinder@gmail.com, minchan@kernel.org, hughd@google.com, kirill.shutemov@linux.intel.com, keescook@chromium.org, allen.pais@oracle.com, aryabinin@virtuozzo.com, atish.patra@oracle.com, joe@perches.com, pmladek@suse.com, jslaby@suse.cz, cmetcalf@mellanox.com, paul.gortmaker@windriver.com, mhocko@suse.com, jmarchan@redhat.com, lstoakes@gmail.com, 0x7f454c46@gmail.com, vbabka@suse.cz, tglx@linutronix.de, mingo@redhat.com, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, namit@vmware.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
+On 01/16/2017 09:47 PM, David Miller wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> Date: Wed, 11 Jan 2017 10:13:54 -0800
+>
+>> For memory shared by two different processes, do they have to agree on
+>> what the tags are, or can they differ?
+>
+> Whoever allocates the memory (does the mmap()+mprotect() or whatever),
+> decides on the tag.  They set it, and this determines which virtual
+> address is valid to access that mapping.
+>
+> It's like kmalloc() returns pointers with some weird bits set in the
+> upper bits of the address.  Behind the scenes kmalloc() sets the
+> TAG bits appropriately.
+>
+> It doesn't, in that sense, matter where in the non-tagged virtual
+> address space the memory is mapped.  All that matters is that, for
+> a given page, the TAG bits in the virtual address used for loads
+> and stores to that mapping are set properly.
+>
+> I think the fundamental thing being missed is that the TAG bits in the
+> virtual address are not interpreted by the TLB.  They are chopped off
+> before virtual address translation occurs.
+>
+> The TAG bits of the virtual address serve only to indicate what ADI
+> value the load or store thinks is valid to use for access to that
+> piece of memory.
+>
+> Or something like that... :-)
 
---vkogqOf2sHV7VnPd
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi David,
 
-On Tue, Jan 17, 2017 at 10:55:47AM +0800, Huang, Ying wrote:
-> Hi, Andrew,
->=20
-> This update patch is to fix the preemption warning raised by Michal
-> Hocko.  raw_cpu_ptr() is used to replace this_cpu_ptr() and comments are
-> added for why it is used.
->=20
+Your explanation is spot on. MMU looks at the tag bits only to determine 
+if the process has permission to access the memory address. Tag bits are 
+not part of VA->PA translation. The tags are stored in physical memory 
+though and MMU compares the tag stored at physical address obtained from 
+TLB translation to the tag embedded in VA. What that means is if two 
+processes map the same physical page in their address space, they both 
+must embed the same tag in the VA they present to MMU irrespective of 
+where in each process' address space the page is mapped in. If one 
+process changes the tag, stored in physical memory, the other process 
+must also embed the new tag in its VA when accessing this shared mapped 
+page. This is something to consider because a tag can be set and changed 
+entirely from userspace with no kernel involvement as long as the 
+process has write access to memory.
 
-Andrew & Michal,
-
-Here's a fix that's a follow on patch instead of an updated patch
-as Michal has suggested.  I've updated the comments a bit to make it
-clearer.
-
-Thanks.
-
-Tim
-
---->8---
-Date: Tue, 17 Jan 2017 12:57:00 -0800
-Subject: [PATCH] mm/swap: Use raw_cpu_ptr over this_cpu_ptr for swap slots
- access
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.inte=
-l.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org=
-, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Ki=
-m <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <a=
-arcange@redhat.com>, Kirill A . Shutemov <kirill.shutemov@linux.intel.com>,=
- Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg=
-=2Eorg>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-i=
-nc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <c=
-orbet@lwn.net>
-
-=46rom: "Huang, Ying" <ying.huang@intel.com>
-
-The usage of this_cpu_ptr in get_swap_page causes a bug warning
-as it is used in pre-emptible code.
-
-[   57.812314] BUG: using smp_processor_id() in preemptible [00000000] code=
-: kswapd0/527
-[   57.814360] caller is debug_smp_processor_id+0x17/0x19
-[   57.815237] CPU: 1 PID: 527 Comm: kswapd0 Tainted: G        W 4.9.0-mmot=
-m-00135-g4e9a9895ebef #1042
-[   57.816019] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS =
-1.10.1-1 04/01/2014
-[   57.816019]  ffffc900001939c0 ffffffff81329c60 0000000000000001 ffffffff=
-81a0ce06
-[   57.816019]  ffffc900001939f0 ffffffff81343c2a 00000000000137a0 ffffea00=
-00dfd2a0
-[   57.816019]  ffff88003c49a700 ffffc90000193b10 ffffc90000193a00 ffffffff=
-81343c53
-[   57.816019] Call Trace:
-[   57.816019]  [<ffffffff81329c60>] dump_stack+0x68/0x92
-[   57.816019]  [<ffffffff81343c2a>] check_preemption_disabled+0xce/0xe0
-[   57.816019]  [<ffffffff81343c53>] debug_smp_processor_id+0x17/0x19
-[   57.816019]  [<ffffffff8115f06f>] get_swap_page+0x19/0x183
-[   57.816019]  [<ffffffff8114e01d>] shmem_writepage+0xce/0x38c
-[   57.816019]  [<ffffffff81148916>] shrink_page_list+0x81f/0xdbf
-[   57.816019]  [<ffffffff81149652>] shrink_inactive_list+0x2ab/0x594
-[   57.816019]  [<ffffffff8114a22f>] shrink_node_memcg+0x4c7/0x673
-[   57.816019]  [<ffffffff8114a49f>] shrink_node+0xc4/0x282
-[   57.816019]  [<ffffffff8114a49f>] ? shrink_node+0xc4/0x282
-[   57.816019]  [<ffffffff8114b8cb>] kswapd+0x656/0x834
-
-Logic wise, We do allow pre-emption as per cpu ptr cache->slots is
-protected by the mutex cache->alloc_lock.  We switch the
-inappropriately used this_cpu_ptr to raw_cpu_ptr for per cpu ptr
-access of cache->slots.
-
-Reported-by: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- mm/swap_slots.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 8cf941e..9b5bc86 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -303,7 +303,16 @@ swp_entry_t get_swap_page(void)
- 	swp_entry_t entry, *pentry;
- 	struct swap_slots_cache *cache;
-=20
--	cache =3D this_cpu_ptr(&swp_slots);
-+	/*
-+	 * Preemption is allowed here, because we may sleep
-+	 * in refill_swap_slots_cache().  But it is safe, because
-+	 * accesses to the per-CPU data structure are protected by the
-+	 * mutex cache->alloc_lock.
-+	 *
-+	 * The alloc path here does not touch cache->slots_ret
-+	 * so cache->free_lock is not taken.
-+	 */
-+	cache =3D raw_cpu_ptr(&swp_slots);
-=20
- 	entry.val =3D 0;
- 	if (check_cache_active()) {
---=20
-2.5.5
-
-
---vkogqOf2sHV7VnPd
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJYfo/KAAoJEKJntYqi1rhJMU8QAKlUQOzi7jp8od1tdH/7A+Qh
-R6quSzU3d4sUUlX4o1eA4FCeFFqTKrAJozAury1869ZBwnoswR1J0Jq9sBZQCxrP
-bvf4XAHC0oa4faUFgWYuEMx0N6Sh3j1EQBKAdupveffV9NUA2MQf7choNPi9bWKF
-fWIwOThmO7CPQ/3XmpP2kdvzYIfqqpMVvGdpfGlL1qMd8W8HH36d5y1leo7GtmET
-Fs/n5FQTFYOEXyrz1fnNcpCvOjpWcMDMNJtj0yenPLyUCJJxLVgyNkOBXMfbxCA9
-WTSWXA0KhX/qK4sr4bIX7bVsfOgQdVWkzF09nnLCG7XA6laV4H+EXQgExAr3feso
-LJ3mI7ieQfzrDTuV/q21MqNQMs7UvDitjk4yhhmQW4bsYv5tZRbSLad9BRXYQI0t
-HpkGoBpWaoB1OvNyzBo8nUK276XCRLIMkvMYK9YxdupEwupQvngu5CxBCBYUoUdZ
-u0uq+pwlZl83Mfu/YV+7OAbq83MnFK2PqzL9tpi4+vqtAZoybTrwBexhTilYGl6C
-B76nGQhaN8jX20j7ECPIh/afcXHo51LAi4ifW6YQhTnVKFVVc2+TFvAD5a3D+CRD
-A0R9klL+PXRDIAX39g7vlEAg3wsA8iNHu871zFYju295DbHzdz/ktMIFkcixOTZf
-8Xi0QOCixeujF2w/82mN
-=CuaE
------END PGP SIGNATURE-----
-
---vkogqOf2sHV7VnPd--
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
