@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F7DA6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:12:30 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so114709529pgd.7
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:12:30 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 026746B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:15:01 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c73so280535240pfb.7
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:15:00 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 63si24050946plf.32.2017.01.16.23.12.28
+        by mx.google.com with ESMTPS id n2si1289099pgn.27.2017.01.16.23.15.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 23:12:29 -0800 (PST)
-Date: Tue, 17 Jan 2017 08:12:20 +0100
+        Mon, 16 Jan 2017 23:15:00 -0800 (PST)
+Date: Tue, 17 Jan 2017 08:14:56 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20170117071220.GJ25813@worktop.programming.kicks-ass.net>
+Message-ID: <20170117071456.GK25813@worktop.programming.kicks-ass.net>
 References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
  <1481260331-360-8-git-send-email-byungchul.park@lge.com>
  <20170116151001.GD3144@twins.programming.kicks-ass.net>
@@ -30,66 +30,34 @@ On Tue, Jan 17, 2017 at 11:05:42AM +0900, Byungchul Park wrote:
 > On Mon, Jan 16, 2017 at 04:10:01PM +0100, Peter Zijlstra wrote:
 > > On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
 
-> > > +
-> > > +	/*
-> > > +	 * Whenever irq happens, these are updated so that we can
-> > > +	 * distinguish each irq context uniquely.
-> > > +	 */
-> > > +	unsigned int		hardirq_id;
-> > > +	unsigned int		softirq_id;
+> > > @@ -155,6 +164,9 @@ struct lockdep_map {
+> > >  	int				cpu;
+> > >  	unsigned long			ip;
+> > >  #endif
+> > > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > > +	struct cross_lock		*xlock;
+> > > +#endif
 > > 
-> > An alternative approach would be to 'unwind' or discard all historical
-> > events from a nested context once we exit it.
+> > The use of this escapes me; why does the lockdep_map need a pointer to
+> > this?
 > 
-> That's one of what I considered. However, it would make code complex to
-> detect if pend_lock ring buffer was wrapped.
+> Lockdep interfaces e.g. lock_acquire(), lock_release() and lock_commit()
+> use lockdep_map as an arg, but crossrelease need to extract cross_lock
+> instances from that.
 
-I'm not sure I see the need for detecting that...
-
+> > Why not do something like:
 > > 
-> > After all, all we care about is the history of the release context, once
-> > the context is gone, we don't care.
-> 
-> We must care it and decide if the next plock in the ring buffer might be
-> valid one or not.
+> > struct lockdep_map_cross {
+> > 	struct lockdep_map	map;
+> > 	struct held_lock	hlock;
+> > }
 
-So I was thinking this was an overwriting ring buffer; something like
-so:
+Using a structure like that, you can pass lockdep_map_cross around just
+fine, since the lockdep_map is the first member, so the pointers are
+interchangeable. At worst we might need to munge a few typecasts.
 
-struct pend_lock plocks[64];
-unsigned int plocks_idx;
-
-static void plocks_add(..)
-{
-	unsigned int idx = (plocks_idx++) % 64;
-
-	plocks[idx] = ...;
-}
-
-static void plocks_close_context(int ctx)
-{
-	for (i = 0; i < 64; i++) {
-		int idx = (plocks_idx - 1) % 64;
-		if (plocks[idx].ctx != ctx)
-			break;
-
-		plocks_idx--;
-	}
-}
-
-Similarly for the release, it need only look at 64 entries and terminate
-early if the generation number is too old.
-
-static void plocks_release(unsigned int gen)
-{
-	for (i = 0; i < 64; i++) {
-		int idx = (plocks_idx - 1 - i) % 64;
-		if ((int)(plocks[idx].gen_id - gen) < 0)
-			break;
-
-		/* do release muck */
-	}
-}
+But then the cross release code can simply cast to the bigger type and
+have access to the extra data it knows to be there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
