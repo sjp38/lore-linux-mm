@@ -1,67 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 942E36B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 13:17:46 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id an2so18313487wjc.3
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 10:17:46 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b205si16796081wmd.127.2017.01.17.10.17.44
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 260106B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:11:30 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id a29so147631193qtb.6
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:11:30 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b29si976841qtb.178.2017.01.17.11.11.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 10:17:44 -0800 (PST)
-Subject: Re: [PATCH 1/4] mm, page_alloc: Split buffered_rmqueue
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-2-mgorman@techsingularity.net>
- <20170117190732.0fc733ec@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2df88f73-a32d-4b71-d4de-3a0ad8831d9a@suse.cz>
-Date: Tue, 17 Jan 2017 19:17:22 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 11:11:29 -0800 (PST)
+Date: Tue, 17 Jan 2017 21:11:26 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v6 kernel 2/5] virtio-balloon: define
+ new feature bit and head struct
+Message-ID: <20170117210845-mutt-send-email-mst@kernel.org>
+References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
+ <1482303148-22059-3-git-send-email-liang.z.li@intel.com>
+ <20170112185719-mutt-send-email-mst@kernel.org>
+ <F2CBF3009FA73547804AE4C663CAB28E3C351AE8@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170117190732.0fc733ec@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3C351AE8@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "david@redhat.com" <david@redhat.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>
 
-On 01/17/2017 07:07 PM, Jesper Dangaard Brouer wrote:
+On Fri, Jan 13, 2017 at 09:24:22AM +0000, Li, Liang Z wrote:
+> > On Wed, Dec 21, 2016 at 02:52:25PM +0800, Liang Li wrote:
+> > > Add a new feature which supports sending the page information with
+> > > range array. The current implementation uses PFNs array, which is not
+> > > very efficient. Using ranges can improve the performance of
+> > > inflating/deflating significantly.
+> > >
+> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > > Cc: Michael S. Tsirkin <mst@redhat.com>
+> > > Cc: Paolo Bonzini <pbonzini@redhat.com>
+> > > Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
+> > > Cc: Amit Shah <amit.shah@redhat.com>
+> > > Cc: Dave Hansen <dave.hansen@intel.com>
+> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > > Cc: David Hildenbrand <david@redhat.com>
+> > > ---
+> > >  include/uapi/linux/virtio_balloon.h | 12 ++++++++++++
+> > >  1 file changed, 12 insertions(+)
+> > >
+> > > diff --git a/include/uapi/linux/virtio_balloon.h
+> > > b/include/uapi/linux/virtio_balloon.h
+> > > index 343d7dd..2f850bf 100644
+> > > --- a/include/uapi/linux/virtio_balloon.h
+> > > +++ b/include/uapi/linux/virtio_balloon.h
+> > > @@ -34,10 +34,14 @@
+> > >  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before
+> > reclaiming pages */
+> > >  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue
+> > */
+> > >  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon
+> > on OOM */
+> > > +#define VIRTIO_BALLOON_F_PAGE_RANGE	3 /* Send page info
+> > with ranges */
+> > >
+> > >  /* Size of a PFN in the balloon interface. */  #define
+> > > VIRTIO_BALLOON_PFN_SHIFT 12
+> > >
+> > > +/* Bits width for the length of the pfn range */
+> > 
+> > What does this mean? Couldn't figure it out.
+> > 
+> > > +#define VIRTIO_BALLOON_NR_PFN_BITS 12
+> > > +
+> > >  struct virtio_balloon_config {
+> > >  	/* Number of pages host wants Guest to give up. */
+> > >  	__u32 num_pages;
+> > > @@ -82,4 +86,12 @@ struct virtio_balloon_stat {
+> > >  	__virtio64 val;
+> > >  } __attribute__((packed));
+> > >
+> > > +/* Response header structure */
+> > > +struct virtio_balloon_resp_hdr {
+> > > +	__le64 cmd : 8; /* Distinguish different requests type */
+> > > +	__le64 flag: 8; /* Mark status for a specific request type */
+> > > +	__le64 id : 16; /* Distinguish requests of a specific type */
+> > > +	__le64 data_len: 32; /* Length of the following data, in bytes */
+> > 
+> > This use of __le64 makes no sense.  Just use u8/le16/le32 pls.
+> > 
 > 
-> On Tue, 17 Jan 2017 09:29:51 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> Got it, will change in the next version. 
 > 
->> +/* Lock and remove page from the per-cpu list */
->> +static struct page *rmqueue_pcplist(struct zone *preferred_zone,
->> +			struct zone *zone, unsigned int order,
->> +			gfp_t gfp_flags, int migratetype)
->> +{
->> +	struct per_cpu_pages *pcp;
->> +	struct list_head *list;
->> +	bool cold = ((gfp_flags & __GFP_COLD) != 0);
->> +	struct page *page;
->> +	unsigned long flags;
->> +
->> +	local_irq_save(flags);
->> +	pcp = &this_cpu_ptr(zone->pageset)->pcp;
->> +	list = &pcp->lists[migratetype];
->> +	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
->> +	if (page) {
->> +		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
->> +		zone_statistics(preferred_zone, zone, gfp_flags);
+> And could help take a look at other parts? as well as the QEMU part.
 > 
-> Word-of-warning: The zone_statistics() call changed number of
-> parameters in commit 41b6167e8f74 ("mm: get rid of __GFP_OTHER_NODE").
-> (Not sure what tree you are based on)
+> Thanks!
+> Liang
 
-Yeah and there will likely be more conflicts with fixes wrt the "getting
-oom/stalls for ltp test cpuset01 with latest/4.9 kernela??" thread,
-hopefully tomorrow.
+Yes but first I would like to understand how come no fields
+in this new structure come up if I search for them in the
+following patch. I don't see why should I waste time on
+reviewing the implementation if the interface isn't
+reasonable. You don't have to waste it too - just send RFC
+patches with the header until we can agree on it.
 
->> +	}
->> +	local_irq_restore(flags);
->> +	return page;
->> +}
-> 
-> 
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
