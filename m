@@ -1,64 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF726B0260
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:24:18 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 75so131124905pgf.3
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:24:18 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id h7si21214535plk.119.2017.01.17.09.24.17
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CBFC86B0260
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:29:29 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id jz4so18194058wjb.5
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:29:29 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z39si25775373wrz.96.2017.01.17.09.29.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 09:24:17 -0800 (PST)
-From: "Chen, Tim C" <tim.c.chen@intel.com>
-Subject: RE: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Date: Tue, 17 Jan 2017 17:24:15 +0000
-Message-ID: <045D8A5597B93E4EBEDDCBF1FC15F50935C9F523@fmsmsx104.amr.corp.intel.com>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
- <20170117101631.GG19699@dhcp22.suse.cz>
-In-Reply-To: <20170117101631.GG19699@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Jan 2017 09:29:28 -0800 (PST)
+Date: Tue, 17 Jan 2017 18:29:25 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
+Message-ID: <20170117172925.GA2486@quack2.suse.cz>
+References: <20170106141107.23953-1-mhocko@kernel.org>
+ <20170106141107.23953-9-mhocko@kernel.org>
+ <20170117025607.frrcdbduthhutrzj@thunk.org>
+ <20170117082425.GD19699@dhcp22.suse.cz>
+ <20170117151817.GR19699@dhcp22.suse.cz>
+ <20170117155916.dcizr65bwa6behe7@thunk.org>
+ <20170117161618.GT19699@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170117161618.GT19699@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "Lu,
- Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-> > +	/*
-> > +	 * Preemption need to be turned on here, because we may sleep
-> > +	 * in refill_swap_slots_cache().  But it is safe, because
-> > +	 * accesses to the per-CPU data structure are protected by a
-> > +	 * mutex.
-> > +	 */
->=20
-> the comment doesn't really explain why it is safe. THere are other users
-> which are not using the lock. E.g. just look at free_swap_slot above.
-> How can
-> 	cache->slots_ret[cache->n_ret++] =3D entry; be safe wrt.
-> 	pentry =3D &cache->slots[cache->cur++];
-> 	entry =3D *pentry;
->=20
-> Both of them might touch the same slot, no? Btw. I would rather prefer th=
-is
-> would be a follow up fix with the trace and the detailed explanation.
->=20
+On Tue 17-01-17 17:16:19, Michal Hocko wrote:
+> > > But before going to play with that I am really wondering whether we need
+> > > all this with no journal at all. AFAIU what Jack told me it is the
+> > > journal lock(s) which is the biggest problem from the reclaim recursion
+> > > point of view. What would cause a deadlock in no journal mode?
+> > 
+> > We still have the original problem for why we need GFP_NOFS even in
+> > ext2.  If we are in a writeback path, and we need to allocate memory,
+> > we don't want to recurse back into the file system's writeback path.
+> 
+> But we do not enter the writeback path from the direct reclaim. Or do
+> you mean something other than pageout()'s mapping->a_ops->writepage?
+> There is only try_to_release_page where we get back to the filesystems
+> but I do not see any NOFS protection in ext4_releasepage.
 
-The cache->slots_ret  is protected by cache->free_lock and cache->slots is
-protected by cache->free_lock.  They are two separate structures, one for
-caching the slots returned and one for caching the slots allocated.  So
-they do no touch the same slots.  We'll update the comments so it is cleare=
-r.
+Maybe to expand a bit: These days, direct reclaim can call ->releasepage()
+callback, ->evict_inode() callback (and only for inodes with i_nlink > 0),
+shrinkers. That's it. So the recursion possibilities are rather more limited
+than they used to be several years ago and we likely do not need as much
+GFP_NOFS protection as we used to.
 
-Sure. We can issue a follow up fix on top of the current patchset.
-
-Thanks.
-
-Tim
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
