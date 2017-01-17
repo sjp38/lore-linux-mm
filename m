@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 132096B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:03:45 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id p192so35731641wme.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:03:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q8si29191wrd.173.2017.01.17.12.03.43
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B736B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:12:54 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id 203so179373518ith.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:12:54 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id g206si6468727ioa.97.2017.01.17.12.12.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 12:03:43 -0800 (PST)
-Date: Tue, 17 Jan 2017 21:03:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Message-ID: <20170117200338.GA26217@dhcp22.suse.cz>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
- <20170117101631.GG19699@dhcp22.suse.cz>
- <045D8A5597B93E4EBEDDCBF1FC15F50935C9F523@fmsmsx104.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 12:12:54 -0800 (PST)
+Subject: Re: [PATCH v4 4/4] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <0c08eb00e5a9735d7d0bcbeaadeacaa761011aab.1483999591.git.khalid.aziz@oracle.com>
+ <20170116.233924.374841184595409216.davem@davemloft.net>
+ <767310a9-d3bd-9721-2d20-ce2c60cddd06@oracle.com>
+ <20170117.144254.1482863576417019498.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <7e2eb04c-99fc-0adc-5712-6307eedab214@oracle.com>
+Date: Tue, 17 Jan 2017 13:12:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <045D8A5597B93E4EBEDDCBF1FC15F50935C9F523@fmsmsx104.amr.corp.intel.com>
+In-Reply-To: <20170117.144254.1482863576417019498.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Chen, Tim C" <tim.c.chen@intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
+To: David Miller <davem@davemloft.net>
+Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-On Tue 17-01-17 17:24:15, Chen, Tim C wrote:
-> > > +	/*
-> > > +	 * Preemption need to be turned on here, because we may sleep
-> > > +	 * in refill_swap_slots_cache().  But it is safe, because
-> > > +	 * accesses to the per-CPU data structure are protected by a
-> > > +	 * mutex.
-> > > +	 */
-> > 
-> > the comment doesn't really explain why it is safe. THere are other users
-> > which are not using the lock. E.g. just look at free_swap_slot above.
-> > How can
-> > 	cache->slots_ret[cache->n_ret++] = entry; be safe wrt.
-> > 	pentry = &cache->slots[cache->cur++];
-> > 	entry = *pentry;
-> > 
-> > Both of them might touch the same slot, no? Btw. I would rather prefer this
-> > would be a follow up fix with the trace and the detailed explanation.
-> > 
-> 
-> The cache->slots_ret  is protected by cache->free_lock and cache->slots is
-> protected by cache->free_lock.
+On 01/17/2017 12:42 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Tue, 17 Jan 2017 12:32:46 -0700
+>
+>> On 01/16/2017 09:39 PM, David Miller wrote:
+>>> From: Khalid Aziz <khalid.aziz@oracle.com>
+>>> Date: Wed, 11 Jan 2017 09:12:54 -0700
+>>>
+>>>> +		__asm__ __volatile__(
+>>>> +			".word 0xa1438000\n\t"	/* rd  %mcdper, %l0 */
+>>>
+>>> Just use "rd %%asr14, %0" this way you don't have to play all of these
+>>> fixed register games which kill the code generated by gcc.  If you
+>>> forcefully clobber a windowed register like %l0 it means the function
+>>> being emitted can never be a leaf function, tail calls are no longer
+>>> allowed, etc.
+>>
+>> Hi David,
+>>
+>> "rd %%asr14, %0" should work but does not due to bugs in assembler -
+>> <https://sourceware.org/ml/binutils/2016-03/msg00302.html>, and
+>> <https://sourceware.org/ml/binutils/2016-03/msg00303.html>. These bugs
+>> were fixed in binutils 2.27 but older assemblers will cause kernel
+>> build to fail. Using byte coded equivalent is the safest option.
+>
+> Fair enough.
+>
+> Then please at least use %g1 or another usable global register to
+> avoid at least some of the problems I mentioned.
+>
 
-Ohh, I have misread those names and considered them the same thing.
-Sorry about the confusion. I will look at code more deeply tomorrow.
+Sure, I will do that. Thanks for the review and feedback.
 
-> They are two separate structures, one for
-> caching the slots returned and one for caching the slots allocated.  So
-> they do no touch the same slots.  We'll update the comments so it is clearer.
-
-That would be really appreciated.
-
--- 
-Michal Hocko
-SUSE Labs
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
