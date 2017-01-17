@@ -1,127 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A8166B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:20:12 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id an2so18917331wjc.3
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:20:12 -0800 (PST)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id k2si17145196wmg.135.2017.01.17.12.20.11
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EF26B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:22:51 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 194so137391349pgd.7
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:22:51 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x69si14409869pgd.263.2017.01.17.12.22.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 12:20:11 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id B3E6598F76
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 20:20:10 +0000 (UTC)
-Date: Tue, 17 Jan 2017 20:20:08 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/4] mm, page_alloc: Split buffered_rmqueue
-Message-ID: <20170117202008.pcufk5qencdgkgpj@techsingularity.net>
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-2-mgorman@techsingularity.net>
- <20170117190732.0fc733ec@redhat.com>
- <2df88f73-a32d-4b71-d4de-3a0ad8831d9a@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <2df88f73-a32d-4b71-d4de-3a0ad8831d9a@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 12:22:51 -0800 (PST)
+Date: Tue, 17 Jan 2017 12:22:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+Message-Id: <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+In-Reply-To: <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+References: <bug-192571-27@https.bugzilla.kernel.org/>
+	<bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>
+To: Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, sss123next@list.ru
 
-On Tue, Jan 17, 2017 at 07:17:22PM +0100, Vlastimil Babka wrote:
-> On 01/17/2017 07:07 PM, Jesper Dangaard Brouer wrote:
-> > 
-> > On Tue, 17 Jan 2017 09:29:51 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
-> > 
-> >> +/* Lock and remove page from the per-cpu list */
-> >> +static struct page *rmqueue_pcplist(struct zone *preferred_zone,
-> >> +			struct zone *zone, unsigned int order,
-> >> +			gfp_t gfp_flags, int migratetype)
-> >> +{
-> >> +	struct per_cpu_pages *pcp;
-> >> +	struct list_head *list;
-> >> +	bool cold = ((gfp_flags & __GFP_COLD) != 0);
-> >> +	struct page *page;
-> >> +	unsigned long flags;
-> >> +
-> >> +	local_irq_save(flags);
-> >> +	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> >> +	list = &pcp->lists[migratetype];
-> >> +	page = __rmqueue_pcplist(zone,  migratetype, cold, pcp, list);
-> >> +	if (page) {
-> >> +		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
-> >> +		zone_statistics(preferred_zone, zone, gfp_flags);
-> > 
-> > Word-of-warning: The zone_statistics() call changed number of
-> > parameters in commit 41b6167e8f74 ("mm: get rid of __GFP_OTHER_NODE").
-> > (Not sure what tree you are based on)
+
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Sat, 14 Jan 2017 17:32:04 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=192571
 > 
-
-Yes, there's a conflict. The fix is trivial and shouldn't affect the
-overall series. Not that it matters because of ths next part
-
-> Yeah and there will likely be more conflicts with fixes wrt the "getting
-> oom/stalls for ltp test cpuset01 with latest/4.9 kernel???" thread,
-> hopefully tomorrow.
+> --- Comment #1 from Gluzskiy Alexandr <sss123next@list.ru> ---
+> [199961.576604] ------------[ cut here ]------------
+> [199961.577830] kernel BUG at mm/zswap.c:1108!
+> [199961.579006] invalid opcode: 0000 [#1] SMP
+> [199961.580166] Modules linked in: uvcvideo gspca_zc3xx xt_sctp zram ccm
+> act_mirred ifb sch_ingress cls_u32 sch_sfq sch_htb nf_conntrack_netlink
+> nfnetlink sit tunnel4 ip_tunnel iptable_mangle ipt_REJECT nf_reject_ipv4
+> xt_recent xt_TCPMSS nf_conntrack_ipv6 nf_defrag_ipv6 iptable_filter
+> ipt_MASQUERADE nf_nat_masquerade_ipv4 xt_conntrack xt_nat xt_tcpudp
+> xt_multiport ip6table_filter ip6table_raw ip6_tables iptable_nat
+> nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_raw
+> ip_tables x_tables radeon ath9k led_class ath9k_common i2c_algo_bit btrfs
+> ath9k_hw ttm mac80211 drm_kms_helper xor snd_hda_codec_via
+> snd_hda_codec_generic cfbfillrect ath syscopyarea cfbimgblt cfg80211
+> sysfillrect sysimgblt fb_sys_fops cfbcopyarea rfkill drm snd_hda_intel
+> snd_hda_codec r8169 xhci_pci xhci_hcd backlight
+> [199961.587843]  parport_pc ohci_pci raid6_pq snd_hda_core mii button ohci_hcd
+> asus_atk0110 i2c_piix4 acpi_cpufreq processor sch_fq_codel br_netfilter bridge
+> stp llc snd_usb_audio snd_hwdep snd_usbmidi_lib snd_pcm snd_rawmidi
+> snd_seq_device snd_timer snd soundcore vhost_net tun nfsd vhost macvtap
+> auth_rpcgss macvlan oid_registry nfs_acl lockd grace kvm_amd kvm irqbypass
+> gspca_main v4l2_common k10temp hwmon videobuf2_vmalloc videobuf2_memops
+> videobuf2_v4l2 videodev videobuf2_core i2c_core parport fbcon bitblit
+> softcursor fb fbdev font sunrpc autofs4 [last unloaded: uvcvideo]
+> [199961.594974] CPU: 2 PID: 2755 Comm: syncthing Not tainted 4.9.2 #4
+> [199961.596459] Hardware name: System manufacturer System Product Name/M4A77TD,
+> BIOS 2104    06/28/2010
+> [199961.597974] task: ffff880035c19680 task.stack: ffffc90000510000
+> [199961.599490] RIP: 0010:[<ffffffff8112c6c2>]  [<ffffffff8112c6c2>]
+> zswap_frontswap_load+0x142/0x160
+> [199961.601042] RSP: 0000:ffffc90000513cb0  EFLAGS: 00010282
+> [199961.602588] RAX: ffffffff818263a0 RBX: ffff88036b2fb930 RCX:
+> ffffc90000513c98
+> [199961.604141] RDX: ffff8801a75da000 RSI: ffff8802ee9d0240 RDI:
+> ffff88041c25d000
+> [199961.605687] RBP: ffff880035c19680 R08: ffff8802ee9d0249 R09:
+> ffff8801a75da0ac
+> [199961.607240] R10: ffff8801a75db000 R11: ffff8802ee9d027d R12:
+> 00000000ffffffea
+> [199961.608788] R13: ffff8804176e3830 R14: ffff8804176e3838 R15:
+> 000000c42a6ac008
+> [199961.610315] FS:  00007fe1fa7fc700(0000) GS:ffff88042fc80000(0000)
+> knlGS:0000000000000000
+> [199961.611838] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [199961.613357] CR2: 000000c42a6ac008 CR3: 00000000a8411000 CR4:
+> 00000000000006e0
+> [199961.614864] Stack:
+> [199961.616327]  00001000fffffffe ffffffff81823780 000000000014487b
+> ffffea00069d7680
+> [199961.617820]  0000000000000001 ffff880418614c00 ffffffff8112b768
+> ffffea00069d7680
+> [199961.619310]  ffff880418614c00 000000000014487b 00000000024200ca
+> ffff88011d834900
+> [199961.620799] Call Trace:
+> [199961.622250]  [<ffffffff8112b768>] ? __frontswap_load+0x68/0xc0
+> [199961.623689]  [<ffffffff8112666c>] ? swap_readpage+0x8c/0x120
+> [199961.625115]  [<ffffffff81126e61>] ? read_swap_cache_async+0x21/0x40
+> [199961.626545]  [<ffffffff81126f96>] ? swapin_readahead+0x116/0x1e0
+> [199961.627973]  [<ffffffff812b704e>] ? radix_tree_lookup_slot+0xe/0x20
+> [199961.629398]  [<ffffffff8111236f>] ? do_swap_page+0x42f/0x660
+> [199961.630799]  [<ffffffff81114bca>] ? handle_mm_fault+0x76a/0x1080
+> [199961.632163]  [<ffffffff811544ec>] ? new_sync_read+0xac/0xe0
+> [199961.633496]  [<ffffffff8102c7a9>] ? __do_page_fault+0x169/0x3e0
+> [199961.634798]  [<ffffffff8102ca5b>] ? do_page_fault+0x1b/0x60
+> [199961.636106]  [<ffffffff810e3cc9>] ?
+> __context_tracking_exit.part.1+0x49/0x60
+> [199961.637424]  [<ffffffff8157c7cf>] ? page_fault+0x1f/0x30
+> [199961.638739] Code: fb ff ff 41 c6 45 08 00 48 83 c4 08 44 89 e0 5b 5d 41 5c
+> 41 5d 41 5e c3 be 0f 00 00 00 48 c7 c7 12 d6 6d 81 e8 e0 d2 f1 ff eb b0 <0f> 0b
+> 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66 
+> [199961.641538] RIP  [<ffffffff8112c6c2>] zswap_frontswap_load+0x142/0x160
+> [199961.642922]  RSP <ffffc90000513cb0>
+> [199961.648971] ---[ end trace 76742a0cd4818a78 ]---
 > 
-
-It's was on my list to look closer at that thread tomorrow. I only took a
-quick look for the first time a few minutes ago and it looks bad. There
-is at least a flaw in the retry sequence if cpusets are disabled during
-an allocation that fails as it won't retry. That leaves a small window if
-the last cpuset disappeared during which an allocation could artifically
-fail but that can't be what's going on here.
-
-It could still be the retry logic because the nodemask is not necessarily
-synced up with cpuset_current_mems_allowed. I'll try reproducing this
-in the morning. The fix is almost certainly going to conflict with this
-series but this series can wait until after that gets resolved and I'll
-rebase on top of mmotm.
-
-It's late so I'm fairly tired but assuming I can reproduce this in the
-morning, the first thing I'll try is something like this to force a reread
-of mems_allowed;
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebea51cc0135..3fc2b3a8d301 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3774,13 +3774,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		.migratetype = gfpflags_to_migratetype(gfp_mask),
- 	};
- 
--	if (cpusets_enabled()) {
--		alloc_mask |= __GFP_HARDWALL;
--		alloc_flags |= ALLOC_CPUSET;
--		if (!ac.nodemask)
--			ac.nodemask = &cpuset_current_mems_allowed;
--	}
--
- 	gfp_mask &= gfp_allowed_mask;
- 
- 	lockdep_trace_alloc(gfp_mask);
-@@ -3802,6 +3795,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		alloc_flags |= ALLOC_CMA;
- 
- retry_cpuset:
-+	if (cpusets_enabled()) {
-+		alloc_mask |= __GFP_HARDWALL;
-+		alloc_flags |= ALLOC_CPUSET;
-+		if (!nodemask)
-+			ac.nodemask = &cpuset_current_mems_allowed;
-+	}
-+
- 	cpuset_mems_cookie = read_mems_allowed_begin();
- 
- 	/* Dirty zone balancing only done in the fast path */
-
-If that doesn't work out then I'll start kicking the problem properly
-unless you've beaten me to the correct solution already :)
-
--- 
-Mel Gorman
-SUSE Labs
+> -- 
+> You are receiving this mail because:
+> You are the assignee for the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
