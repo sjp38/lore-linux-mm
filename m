@@ -1,100 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 645BF6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 01:23:47 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 5so113656814pgi.2
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:23:47 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id q78si18939851pfj.291.2017.01.16.22.23.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jan 2017 22:23:46 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id 19so4796354pfo.3
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:23:46 -0800 (PST)
-Date: Tue, 17 Jan 2017 14:24:08 +0800
-From: Boqun Feng <boqun.feng@gmail.com>
-Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20170117062408.GE15084@tardis.cn.ibm.com>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
- <1481260331-360-8-git-send-email-byungchul.park@lge.com>
- <20170116151319.GE3144@twins.programming.kicks-ass.net>
- <20170117023341.GG3326@X58A-UD3R>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E3E96B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 01:45:35 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 80so279489245pfy.2
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 22:45:35 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id n29si8092527pfi.246.2017.01.16.22.45.33
+        for <linux-mm@kvack.org>;
+        Mon, 16 Jan 2017 22:45:34 -0800 (PST)
+Date: Tue, 17 Jan 2017 15:45:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: + mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
+ added to -mm tree
+Message-ID: <20170117064531.GA9812@blaptop>
+References: <20170110235250.GA7130@bbox>
+ <20170111155239.GD16365@dhcp22.suse.cz>
+ <20170112051247.GA8387@bbox>
+ <20170112081554.GB2264@dhcp22.suse.cz>
+ <20170112084813.GA24030@bbox>
+ <20170112091016.GE2264@dhcp22.suse.cz>
+ <20170113013724.GA23494@bbox>
+ <20170113074705.GA21784@dhcp22.suse.cz>
+ <20170113085734.GC8018@bbox>
+ <20170113091009.GD25212@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="oOB74oR0WcNeq9Zb"
-Content-Disposition: inline
-In-Reply-To: <20170117023341.GG3326@X58A-UD3R>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
-
-
---oOB74oR0WcNeq9Zb
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170113091009.GD25212@dhcp22.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, hillf.zj@alibaba-inc.com, mgorman@suse.de, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 17, 2017 at 11:33:41AM +0900, Byungchul Park wrote:
-> On Mon, Jan 16, 2017 at 04:13:19PM +0100, Peter Zijlstra wrote:
-> > On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
-> > > +	/*
-> > > +	 * We assign class_idx here redundantly even though following
-> > > +	 * memcpy will cover it, in order to ensure a rcu reader can
-> > > +	 * access the class_idx atomically without lock.
-> > > +	 *
-> > > +	 * Here we assume setting a word-sized variable is atomic.
-> >=20
-> > which one, where?
->=20
-> I meant xlock_class(xlock) in check_add_plock().
->=20
-> I was not sure about the following two.
->=20
-> 1. Is it ordered between following a and b?
->    a. memcpy -> list_add_tail_rcu
->    b. list_for_each_entry_rcu -> load class_idx (xlock_class)
->    I assumed that it's not ordered.
-> 2. Does memcpy guarantee atomic store for each word?
->    I assumed that it doesn't.
->=20
-> But I think I was wrong.. The first might be ordered. I will remove
-> the following redundant statement. It'd be orderd, right?
->=20
+Hello,
 
-Yes, a and b are ordered, IOW, they could be paired, meaning when we
-got the item in a list_for_each_entry_rcu() loop, all memory operations
-before the corresponding list_add_tail_rcu() should be observed by us.
+On Fri, Jan 13, 2017 at 10:10:09AM +0100, Michal Hocko wrote:
+> On Fri 13-01-17 17:57:34, Minchan Kim wrote:
+> > On Fri, Jan 13, 2017 at 08:47:07AM +0100, Michal Hocko wrote:
+> > > On Fri 13-01-17 10:37:24, Minchan Kim wrote:
+> > > > Hello,
+> > > > 
+> > > > On Thu, Jan 12, 2017 at 10:10:17AM +0100, Michal Hocko wrote:
+> > > > > On Thu 12-01-17 17:48:13, Minchan Kim wrote:
+> > > > > > On Thu, Jan 12, 2017 at 09:15:54AM +0100, Michal Hocko wrote:
+> > > > > > > On Thu 12-01-17 14:12:47, Minchan Kim wrote:
+> > > > > > > > Hello,
+> > > > > > > > 
+> > > > > > > > On Wed, Jan 11, 2017 at 04:52:39PM +0100, Michal Hocko wrote:
+> > > > > > > > > On Wed 11-01-17 08:52:50, Minchan Kim wrote:
+> > > > > > > > > [...]
+> > > > > > > > > > > @@ -2055,8 +2055,8 @@ static bool inactive_list_is_low(struct
+> > > > > > > > > > >  	if (!file && !total_swap_pages)
+> > > > > > > > > > >  		return false;
+> > > > > > > > > > >  
+> > > > > > > > > > > -	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > > > > > > > > > > -	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> > > > > > > > > > > +	total_inactive = inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+> > > > > > > > > > > +	total_active = active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+> > > > > > > > > > >  
+> > > > > > > > > > 
+> > > > > > > > > > the decision of deactivating is based on eligible zone's LRU size,
+> > > > > > > > > > not whole zone so why should we need to get a trace of all zones's LRU?
+> > > > > > > > > 
+> > > > > > > > > Strictly speaking, the total_ counters are not necessary for making the
+> > > > > > > > > decision. I found reporting those numbers useful regardless because this
+> > > > > > > > > will give us also an information how large is the eligible portion of
+> > > > > > > > > the LRU list. We do not have any other tracepoint which would report
+> > > > > > > > > that.
+> > > > > > > > 
+> > > > > > > > The patch doesn't say anything why it's useful. Could you tell why it's
+> > > > > > > > useful and inactive_list_is_low should be right place?
+> > > > > > > > 
+> > > > > > > > Don't get me wrong, please. I don't want to bother you.
+> > > > > > > > I really don't want to add random stuff although it's tracepoint for
+> > > > > > > > debugging.
+> > > > > > > 
+> > > > > > > This doesn't sounds random to me. We simply do not have a full picture
+> > > > > > > on 32b systems without this information. Especially when memcgs are
+> > > > > > > involved and global numbers spread over different LRUs.
+> > > > > > 
+> > > > > > Could you elaborate it?
+> > > > > 
+> > > > > The problem with 32b systems is that you only can consider a part of the
+> > > > > LRU for the lowmem requests. While we have global counters to see how
+> > > > > much lowmem inactive/active pages we have, those get distributed to
+> > > > > memcg LRUs. And that distribution is impossible to guess. So my thinking
+> > > > > is that it can become a real head scratcher to realize why certain
+> > > > > active LRUs are aged while others are not. This was the case when I was
+> > > > > debugging the last issue which triggered all this. All of the sudden I
+> > > > > have seen many invocations when inactive and active were zero which
+> > > > > sounded weird, until I realized that those are memcg's lruvec which is
+> > > > > what total numbers told me...
+> > > > 
+> > > > Hmm, it seems I miss something. AFAIU, what you need is just memcg
+> > > > identifier, not all lru size. If it isn't, please tell more detail
+> > > > usecase of all lru size in that particular tracepoint.
+> > > 
+> > > Having memcg id would be definitely helpful but that alone wouldn't tell
+> > > us how is the lowmem distributed. To be honest I really fail to see why
+> > > this bothers you all that much.
+> > 
+> > Because I fail to understand why you want to need additional all zone's
+> > LRU stat in inactive_list_is_low. With clear understanding, we can think
+> > over that it's really needed and right place to achieve the goal.
+> > 
+> > Could you say with a example you can think? It's really helpful to
+> > understand why it's needed.
+> 
+> OK, I feel I am repeating myself but let me try again. Without the
+> total_ numbers we really do not know how is the lowmem distributed over
+> lruvecs. There is simply no way to get this information from existing
+> counters if memcg is enabled.
 
-Regards,
-Boqun
+I can't understand clearly why you need to know distribution.
+Anyway, if we need it, why do you think such particular inactive_list_is_low
+is right place?
 
-> >=20
-> > > +	 */
-> > > +	xlock->hlock.class_idx =3D hlock->class_idx;
-> > > +	gen_id =3D (unsigned int)atomic_inc_return(&cross_gen_id);
-> > > +	WRITE_ONCE(xlock->gen_id, gen_id);
-> > > +	memcpy(&xlock->hlock, hlock, sizeof(struct held_lock));
-> > > +	INIT_LIST_HEAD(&xlock->xlock_entry);
-> > > +	list_add_tail_rcu(&xlock->xlock_entry, &xlocks_head);
-> >=20
-
---oOB74oR0WcNeq9Zb
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlh9uIUACgkQSXnow7UH
-+ri78gf/eTrWmPpF6cancS8OeQqNgb2AZC9XhbkRlPN8gBBm9zZhzwPUIIBZ4lpY
-Q7KoNqRpwFjT6oHbmeskywgQY4jivpsnPJoxpaeoOrvQZ3T9RIVKc/YdDdyCbraC
-tIwSHi6rAEdrIofLheQad6As14v4wgRdkuzz8wTttV7kWSOBdLXgE2UTiTl+dg22
-I80Gxj94F3hXtv4ppd8YO9lKM+bYRRUNeJEPAmkvbc0n7RZdKT87UKMBskXmnCH6
-/WUVTYfZidz7xqn+mrKrjR4wyRkNvAQjbxZUI+60WVypyA3HySWdojRWKnHriFmK
-TxjDHxGQh0N01IWhmp1H6iIFpcf4DA==
-=VijH
------END PGP SIGNATURE-----
-
---oOB74oR0WcNeq9Zb--
+Actually, IMO, there is no need to insert any tracepoint in inactive_list_is_low.
+Instead, if we add tracepint in get_scan_count to record each LRU list size and
+nr[LRU_{INACTIVE,ACTIVE}_{ANON|FILE}], it could be general and more helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
