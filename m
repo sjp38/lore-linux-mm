@@ -1,118 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 837596B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 05:16:38 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id c7so12318081wjb.7
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:16:38 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F5D76B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 05:25:36 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id an2so15972308wjc.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:25:36 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f87si15409498wmh.24.2017.01.17.02.16.37
+        by mx.google.com with ESMTPS id d12si24529737wrb.2.2017.01.17.02.25.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 02:16:37 -0800 (PST)
-Date: Tue, 17 Jan 2017 11:16:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Message-ID: <20170117101631.GG19699@dhcp22.suse.cz>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
+        Tue, 17 Jan 2017 02:25:34 -0800 (PST)
+Date: Tue, 17 Jan 2017 11:25:32 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm: respect pre-allocated storage mapping for memmap
+Message-ID: <20170117102532.GH19699@dhcp22.suse.cz>
+References: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
+In-Reply-To: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Tim C Chen <tim.c.chen@intel.com>
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: dan.j.williams@intel.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Tue 17-01-17 10:55:47, Huang, Ying wrote:
-[...]
-> +int free_swap_slot(swp_entry_t entry)
-> +{
-> +	struct swap_slots_cache *cache;
-> +
-> +	BUG_ON(!swap_slot_cache_initialized);
-> +
-> +	cache = &get_cpu_var(swp_slots);
-> +	if (use_swap_slot_cache && cache->slots_ret) {
-> +		spin_lock_irq(&cache->free_lock);
-> +		/* Swap slots cache may be deactivated before acquiring lock */
-> +		if (!use_swap_slot_cache) {
-> +			spin_unlock_irq(&cache->free_lock);
-> +			goto direct_free;
-> +		}
-> +		if (cache->n_ret >= SWAP_SLOTS_CACHE_SIZE) {
-> +			/*
-> +			 * Return slots to global pool.
-> +			 * The current swap_map value is SWAP_HAS_CACHE.
-> +			 * Set it to 0 to indicate it is available for
-> +			 * allocation in global pool
-> +			 */
-> +			swapcache_free_entries(cache->slots_ret, cache->n_ret);
-> +			cache->n_ret = 0;
-> +		}
-> +		cache->slots_ret[cache->n_ret++] = entry;
-> +		spin_unlock_irq(&cache->free_lock);
-> +	} else {
-> +direct_free:
-> +		swapcache_free_entries(&entry, 1);
-> +	}
-> +	put_cpu_var(swp_slots);
-> +
-> +	return 0;
-> +}
-> +
-> +swp_entry_t get_swap_page(void)
-> +{
-> +	swp_entry_t entry, *pentry;
-> +	struct swap_slots_cache *cache;
-> +
-> +	/*
-> +	 * Preemption need to be turned on here, because we may sleep
-> +	 * in refill_swap_slots_cache().  But it is safe, because
-> +	 * accesses to the per-CPU data structure are protected by a
-> +	 * mutex.
-> +	 */
+On Mon 16-01-17 21:38:05, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> 
+> At present, we skip the reservation storage by the driver for
+> the zone_dvice. but the free pages set aside for the memmap is
+> ignored. And since the free pages is only used as the memmap,
+> so we can also skip the corresponding pages.
 
-the comment doesn't really explain why it is safe. THere are other users
-which are not using the lock. E.g. just look at free_swap_slot above. 
-How can
-	cache->slots_ret[cache->n_ret++] = entry;
-be safe wrt.
-	pentry = &cache->slots[cache->cur++];
-	entry = *pentry;
+I have really hard time to understand what this patch does and why it
+matters.  Could you please rephrase the changelog to state, the problem,
+how it affects users and what is the fix please?
+ 
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  mm/page_alloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d604d25..51d8d03 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5047,7 +5047,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>  	 * memory
+>  	 */
+>  	if (altmap && start_pfn == altmap->base_pfn)
+> -		start_pfn += altmap->reserve;
+> +		start_pfn += vmem_altmap_offset(altmap);
+>  
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+>  		/*
+> -- 
+> 1.8.3.1
+> 
 
-Both of them might touch the same slot, no? Btw. I would rather prefer
-this would be a follow up fix with the trace and the detailed
-explanation.
-
-> +	cache = raw_cpu_ptr(&swp_slots);
-> +
-> +	entry.val = 0;
-> +	if (check_cache_active()) {
-> +		mutex_lock(&cache->alloc_lock);
-> +		if (cache->slots) {
-> +repeat:
-> +			if (cache->nr) {
-> +				pentry = &cache->slots[cache->cur++];
-> +				entry = *pentry;
-> +				pentry->val = 0;
-> +				cache->nr--;
-> +			} else {
-> +				if (refill_swap_slots_cache(cache))
-> +					goto repeat;
-> +			}
-> +		}
-> +		mutex_unlock(&cache->alloc_lock);
-> +		if (entry.val)
-> +			return entry;
-> +	}
-> +
-> +	get_swap_pages(1, &entry);
-> +
-> +	return entry;
-> +}
 -- 
 Michal Hocko
 SUSE Labs
