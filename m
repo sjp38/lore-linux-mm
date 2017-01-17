@@ -1,43 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DD86B0261
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:31:08 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id f2so95050865uaf.2
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:08 -0800 (PST)
-Received: from mail-vk0-x234.google.com (mail-vk0-x234.google.com. [2607:f8b0:400c:c05::234])
-        by mx.google.com with ESMTPS id l82si6961404vke.180.2017.01.17.12.31.07
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3034F6B0260
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:31:45 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 204so69425952pge.5
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:45 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id h91si18552574pld.68.2017.01.17.12.31.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 12:31:07 -0800 (PST)
-Received: by mail-vk0-x234.google.com with SMTP id k127so54720997vke.0
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 12:31:07 -0800 (PST)
+        Tue, 17 Jan 2017 12:31:44 -0800 (PST)
+From: "Chen, Tim C" <tim.c.chen@intel.com>
+Subject: RE: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
+ allocation
+Date: Tue, 17 Jan 2017 20:31:27 +0000
+Message-ID: <045D8A5597B93E4EBEDDCBF1FC15F50935C9FB53@fmsmsx104.amr.corp.intel.com>
+References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
+ <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
+ <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
+ <20170117101631.GG19699@dhcp22.suse.cz>
+ <045D8A5597B93E4EBEDDCBF1FC15F50935C9F523@fmsmsx104.amr.corp.intel.com>
+ <20170117200338.GA26217@dhcp22.suse.cz>
+In-Reply-To: <20170117200338.GA26217@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20170116123310.22697-5-dsafonov@virtuozzo.com>
-References: <20170116123310.22697-1-dsafonov@virtuozzo.com> <20170116123310.22697-5-dsafonov@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 17 Jan 2017 12:30:47 -0800
-Message-ID: <CALCETrWXCr_nYMb41JSgVSAmMYkkkkDfWtLfQhh7S5Enz8YJCA@mail.gmail.com>
-Subject: Re: [PATCHv2 4/5] x86/mm: for MAP_32BIT check in_compat_syscall()
- instead TIF_ADDR32
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Mon, Jan 16, 2017 at 4:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
-> At this momet, logic in arch_get_unmapped_area{,_topdown} for mmaps with
-> MAP_32BIT flag checks TIF_ADDR32 which means:
-> o if 32-bit ELF changes mode to 64-bit on x86_64 and then tries to
->   mmap() with MAP_32BIT it'll result in addr over 4Gb (as default is
->   top-down allocation)
-> o if 64-bit ELF changes mode to 32-bit and tries mmap() with MAP_32BIT,
->   it'll allocate only memory in 1GB space: [0x40000000, 0x80000000).
->
-> Fix it by handeling MAP_32BIT in 64-bit syscalls only.
-> As a little bonus it'll make thread flag a little less used.
+> > >
+> >
+> > The cache->slots_ret  is protected by cache->free_lock and
+> > cache->slots is protected by cache->free_lock.
 
-Seems like an improvement.  Also, jeez, the mmap code is complicated.
+Typo.  cache->slots is protected by cache->alloc_lock.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
