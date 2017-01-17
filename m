@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 81A3A6B0253
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 979B46B0260
 	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 17:16:27 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id c7so15841294wjb.7
+Received: by mail-wm0-f71.google.com with SMTP id c85so35989269wmi.6
         for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:16:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w81si17489666wmg.39.2017.01.17.14.16.26
+        by mx.google.com with ESMTPS id k2si17534966wmg.13.2017.01.17.14.16.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 17 Jan 2017 14:16:26 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 2/4] mm, page_alloc: fix fast-path race with cpuset update or removal
-Date: Tue, 17 Jan 2017 23:16:08 +0100
-Message-Id: <20170117221610.22505-3-vbabka@suse.cz>
+Subject: [RFC 3/4] mm, page_alloc: move cpuset seqcount checking to slowpath
+Date: Tue, 17 Jan 2017 23:16:09 +0100
+Message-Id: <20170117221610.22505-4-vbabka@suse.cz>
 In-Reply-To: <20170117221610.22505-1-vbabka@suse.cz>
 References: <20170117221610.22505-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,53 +20,124 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>, Ganapatrao Kulkarni <gpkulkarni@gmail.com>
 Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-Ganapatrao Kulkarni reported that the LTP test cpuset01 in stress mode triggers
-OOM killer in few seconds, despite lots of free memory. The test attemps to
-repeatedly fault in memory in one process in a cpuset, while changing allowed
-nodes of the cpuset between 0 and 1 in another process.
+This is a preparation for the following patch to make review simpler. While
+the primary motivation is a bug fix, this could also save some cycles in the
+fast path.
 
-One possible cause is that in the fast path we find the preferred zoneref
-according to current mems_allowed, so that it points to the middle of the
-zonelist, skipping e.g. zones of node 1 completely. If the mems_allowed is
-updated to contain only node 1, we never reach it in the zonelist, and trigger
-OOM before checking the cpuset_mems_cookie.
-
-This patch fixes the particular case by redoing the preferred zoneref search
-if we switch back to the original nodemask. The condition is also slightly
-changed so that when the last non-root cpuset is removed, we don't miss it.
-
-Note that this is not a full fix, and more patches will follow.
-
-Reported-by: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
-Fixes: 682a3385e773 ("mm, page_alloc: inline the fast path of the zonelist iterator")
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/page_alloc.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 46 +++++++++++++++++++++++++---------------------
+ 1 file changed, 25 insertions(+), 21 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 593a11d8bc6b..dedadb4a779f 100644
+index dedadb4a779f..bbc3f015f796 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3783,9 +3783,17 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+@@ -3502,12 +3502,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page = NULL;
+ 	unsigned int alloc_flags;
+ 	unsigned long did_some_progress;
+-	enum compact_priority compact_priority = DEF_COMPACT_PRIORITY;
++	enum compact_priority compact_priority;
+ 	enum compact_result compact_result;
+-	int compaction_retries = 0;
+-	int no_progress_loops = 0;
++	int compaction_retries;
++	int no_progress_loops;
+ 	unsigned long alloc_start = jiffies;
+ 	unsigned int stall_timeout = 10 * HZ;
++	unsigned int cpuset_mems_cookie;
+ 
  	/*
- 	 * Restore the original nodemask if it was potentially replaced with
- 	 * &cpuset_current_mems_allowed to optimize the fast-path attempt.
-+	 * Also recalculate the starting point for the zonelist iterator or
-+	 * we could end up iterating over non-eligible zones endlessly.
- 	 */
--	if (cpusets_enabled())
-+	if (unlikely(ac.nodemask != nodemask)) {
- 		ac.nodemask = nodemask;
-+		ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
-+						ac.high_zoneidx, ac.nodemask);
-+		if (!ac.preferred_zoneref->zone)
-+			goto no_zone;
-+	}
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3528,6 +3529,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 				(__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)))
+ 		gfp_mask &= ~__GFP_ATOMIC;
+ 
++retry_cpuset:
++	compaction_retries = 0;
++	no_progress_loops = 0;
++	compact_priority = DEF_COMPACT_PRIORITY;
++	cpuset_mems_cookie = read_mems_allowed_begin();
 +
+ 	/*
+ 	 * The fast path uses conservative alloc_flags to succeed only until
+ 	 * kswapd needs to be woken up, and to avoid the cost of setting up
+@@ -3699,6 +3706,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	}
+ 
+ nopage:
++	/*
++	 * When updating a task's mems_allowed, it is possible to race with
++	 * parallel threads in such a way that an allocation can fail while
++	 * the mask is being updated. If a page allocation is about to fail,
++	 * check if the cpuset changed during allocation and if so, retry.
++	 */
++	if (read_mems_allowed_retry(cpuset_mems_cookie))
++		goto retry_cpuset;
++
+ 	warn_alloc(gfp_mask,
+ 			"page allocation failure: order:%u", order);
+ got_pg:
+@@ -3713,7 +3729,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 			struct zonelist *zonelist, nodemask_t *nodemask)
+ {
+ 	struct page *page;
+-	unsigned int cpuset_mems_cookie;
+ 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
+ 	gfp_t alloc_mask = gfp_mask; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = {
+@@ -3750,9 +3765,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+ 
+-retry_cpuset:
+-	cpuset_mems_cookie = read_mems_allowed_begin();
+-
+ 	/* Dirty zone balancing only done in the fast path */
+ 	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
+ 
+@@ -3765,6 +3777,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 					ac.high_zoneidx, ac.nodemask);
+ 	if (!ac.preferred_zoneref->zone) {
+ 		page = NULL;
++		/*
++		 * This might be due to race with cpuset_current_mems_allowed
++		 * update, so make sure we retry with original nodemask.
++		 */
+ 		goto no_zone;
+ 	}
+ 
+@@ -3787,27 +3803,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	 * we could end up iterating over non-eligible zones endlessly.
+ 	 */
+ 	if (unlikely(ac.nodemask != nodemask)) {
++no_zone:
+ 		ac.nodemask = nodemask;
+ 		ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
+ 						ac.high_zoneidx, ac.nodemask);
+-		if (!ac.preferred_zoneref->zone)
+-			goto no_zone;
++		/* If we have NULL preferred zone, slowpath wll handle that */
+ 	}
+ 
  	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
  
- no_zone:
+-no_zone:
+-	/*
+-	 * When updating a task's mems_allowed, it is possible to race with
+-	 * parallel threads in such a way that an allocation can fail while
+-	 * the mask is being updated. If a page allocation is about to fail,
+-	 * check if the cpuset changed during allocation and if so, retry.
+-	 */
+-	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie))) {
+-		alloc_mask = gfp_mask;
+-		goto retry_cpuset;
+-	}
+-
+ out:
+ 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
+ 	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
 -- 
 2.11.0
 
