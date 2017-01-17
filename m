@@ -1,77 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 200186B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:03:54 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id s36so41866476otd.3
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 06:03:54 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id j18si9486579oih.336.2017.01.17.06.03.51
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C15136B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 09:54:29 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id l7so137289836qtd.2
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 06:54:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p132si16728998qka.274.2017.01.17.06.54.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 06:03:53 -0800 (PST)
-Message-ID: <587E22F2.7060809@huawei.com>
-Date: Tue, 17 Jan 2017 21:58:10 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 06:54:29 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Future direction of DAX
+References: <20170114002008.GA25379@linux.intel.com>
+	<20170114082621.GC10498@birch.djwong.org>
+	<x49wpduzseu.fsf@dhcp-25-115.bos.redhat.com>
+	<20170117015033.GD10498@birch.djwong.org>
+	<20170117075735.GB19654@infradead.org>
+Date: Tue, 17 Jan 2017 09:54:27 -0500
+In-Reply-To: <20170117075735.GB19654@infradead.org> (Christoph Hellwig's
+	message of "Mon, 16 Jan 2017 23:57:35 -0800")
+Message-ID: <x49mvep4tzw.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: respect pre-allocated storage mapping for memmap
-References: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com> <20170117102532.GH19699@dhcp22.suse.cz>
-In-Reply-To: <20170117102532.GH19699@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: dan.j.williams@intel.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On 2017/1/17 18:25, Michal Hocko wrote:
-> On Mon 16-01-17 21:38:05, zhongjiang wrote:
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> At present, we skip the reservation storage by the driver for
->> the zone_dvice. but the free pages set aside for the memmap is
->> ignored. And since the free pages is only used as the memmap,
->> so we can also skip the corresponding pages.
-> I have really hard time to understand what this patch does and why it
-> matters.  Could you please rephrase the changelog to state, the problem,
-> how it affects users and what is the fix please?
->  
-  Hi, Michal
- 
-  The patch maybe incorrect if free pages for memmap mapping is accouted for zone_device.
-  I am just a little confusing about the implement.  it maybe simple and  stupid.
+Christoph Hellwig <hch@infradead.org> writes:
 
-  first pfn for dev_mappage come from vmem_altmap_offset, and free pages reserved for
-  memmap mapping need to be accounted. I do not know the meaning.
+> On Mon, Jan 16, 2017 at 05:50:33PM -0800, Darrick J. Wong wrote:
+>> I wouldn't consider it a barrier in general (since ext4 also prints
+>> EXPERIMENTAL warnings for DAX), merely one for XFS.  I don't even think
+>> it's that big of a hurdle -- afaict XFS ought to be able to achieve this
+>> by modifying iomap_begin to allocate new pmem blocks, memcpy the
+>> contents, and update the memory mappings.  I think.
 
-  Another issue is in sparse_remove_one_section.  A section belongs to  zone_device is not
-  always need to consider the  map_offset. is it right ?  From pfn_first to end , that section
-  should no need to consider the map_offet.
+Ah, I wasn't even thinking about non PMEM_IMMUTABLE usage.
 
-  Thanks
-  zhongjiang
- 
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  mm/page_alloc.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index d604d25..51d8d03 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -5047,7 +5047,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->>  	 * memory
->>  	 */
->>  	if (altmap && start_pfn == altmap->base_pfn)
->> -		start_pfn += altmap->reserve;
->> +		start_pfn += vmem_altmap_offset(altmap);
->>  
->>  	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
->>  		/*
->> -- 
->> 1.8.3.1
->>
+> Yes, and I have a working prototype for that.  I'm just way to busy
+> with lots of bugfixing at the moment but I plan to get to it in this
+> merge window.  I also agree that we can't mark a feature as fully
+> supported until it doesn't conflict with other features.
 
+Fair enough.
+
+> And I'm not going to get start on the PMEM_IMMUTABLE bullshit, please
+> don't even go there folks, it's a dead end.
+
+I spoke with Dave before the holidays, and he indicated that
+PMEM_IMMUTABLE would be an acceptable solution to allowing applications
+to flush data completely from userspace.  I know this subject has been
+beaten to death, but would you mind just summarizing your opinion on
+this one more time?  I'm guessing this will be something more easily
+hashed out at LSF, though.
+
+Thanks,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
