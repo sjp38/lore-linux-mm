@@ -1,66 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C01FB6B0069
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:45:17 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 204so281047813pfx.1
-        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:45:17 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id u71si24104658pfj.167.2017.01.16.23.45.16
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 059E16B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 02:49:44 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id z128so280525044pfb.4
+        for <linux-mm@kvack.org>; Mon, 16 Jan 2017 23:49:43 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 33si24122275plg.204.2017.01.16.23.49.42
         for <linux-mm@kvack.org>;
-        Mon, 16 Jan 2017 23:45:17 -0800 (PST)
-Date: Tue, 17 Jan 2017 16:45:09 +0900
+        Mon, 16 Jan 2017 23:49:43 -0800 (PST)
+Date: Tue, 17 Jan 2017 16:49:35 +0900
 From: Byungchul Park <byungchul.park@lge.com>
 Subject: Re: [PATCH v4 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20170117074509.GI3326@X58A-UD3R>
+Message-ID: <20170117074935.GJ3326@X58A-UD3R>
 References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
  <1481260331-360-8-git-send-email-byungchul.park@lge.com>
  <20170116151001.GD3144@twins.programming.kicks-ass.net>
  <20170117020541.GF3326@X58A-UD3R>
- <20170117071456.GK25813@worktop.programming.kicks-ass.net>
+ <20170117071220.GJ25813@worktop.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170117071456.GK25813@worktop.programming.kicks-ass.net>
+In-Reply-To: <20170117071220.GJ25813@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Tue, Jan 17, 2017 at 08:14:56AM +0100, Peter Zijlstra wrote:
+On Tue, Jan 17, 2017 at 08:12:20AM +0100, Peter Zijlstra wrote:
 > On Tue, Jan 17, 2017 at 11:05:42AM +0900, Byungchul Park wrote:
 > > On Mon, Jan 16, 2017 at 04:10:01PM +0100, Peter Zijlstra wrote:
 > > > On Fri, Dec 09, 2016 at 02:12:03PM +0900, Byungchul Park wrote:
 > 
-> > > > @@ -155,6 +164,9 @@ struct lockdep_map {
-> > > >  	int				cpu;
-> > > >  	unsigned long			ip;
-> > > >  #endif
-> > > > +#ifdef CONFIG_LOCKDEP_CROSSRELEASE
-> > > > +	struct cross_lock		*xlock;
-> > > > +#endif
+> > > > +
+> > > > +	/*
+> > > > +	 * Whenever irq happens, these are updated so that we can
+> > > > +	 * distinguish each irq context uniquely.
+> > > > +	 */
+> > > > +	unsigned int		hardirq_id;
+> > > > +	unsigned int		softirq_id;
 > > > 
-> > > The use of this escapes me; why does the lockdep_map need a pointer to
-> > > this?
+> > > An alternative approach would be to 'unwind' or discard all historical
+> > > events from a nested context once we exit it.
 > > 
-> > Lockdep interfaces e.g. lock_acquire(), lock_release() and lock_commit()
-> > use lockdep_map as an arg, but crossrelease need to extract cross_lock
-> > instances from that.
+> > That's one of what I considered. However, it would make code complex to
+> > detect if pend_lock ring buffer was wrapped.
 > 
-> > > Why not do something like:
+> I'm not sure I see the need for detecting that...
+> 
 > > > 
-> > > struct lockdep_map_cross {
-> > > 	struct lockdep_map	map;
-> > > 	struct held_lock	hlock;
-> > > }
+> > > After all, all we care about is the history of the release context, once
+> > > the context is gone, we don't care.
+> > 
+> > We must care it and decide if the next plock in the ring buffer might be
+> > valid one or not.
 > 
-> Using a structure like that, you can pass lockdep_map_cross around just
-> fine, since the lockdep_map is the first member, so the pointers are
-> interchangeable. At worst we might need to munge a few typecasts.
-> 
-> But then the cross release code can simply cast to the bigger type and
-> have access to the extra data it knows to be there.
+> So I was thinking this was an overwriting ring buffer; something like
+> so:
 
-Right. I will apply it.
+OK. I am making code just overwrite ring buffer when overflowing it,
+instead of warning the situation.
+
+Thank you very much.
+
+> 
+> struct pend_lock plocks[64];
+> unsigned int plocks_idx;
+> 
+> static void plocks_add(..)
+> {
+> 	unsigned int idx = (plocks_idx++) % 64;
+> 
+> 	plocks[idx] = ...;
+> }
+> 
+> static void plocks_close_context(int ctx)
+> {
+> 	for (i = 0; i < 64; i++) {
+> 		int idx = (plocks_idx - 1) % 64;
+> 		if (plocks[idx].ctx != ctx)
+> 			break;
+> 
+> 		plocks_idx--;
+> 	}
+> }
+> 
+> Similarly for the release, it need only look at 64 entries and terminate
+> early if the generation number is too old.
+> 
+> static void plocks_release(unsigned int gen)
+> {
+> 	for (i = 0; i < 64; i++) {
+> 		int idx = (plocks_idx - 1 - i) % 64;
+> 		if ((int)(plocks[idx].gen_id - gen) < 0)
+> 			break;
+> 
+> 		/* do release muck */
+> 	}
+> }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
