@@ -1,71 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C8D06B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:15:49 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id f4so147977239qte.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:15:49 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w5si7400630qte.45.2017.01.17.11.15.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 11:15:47 -0800 (PST)
-Date: Tue, 17 Jan 2017 21:15:45 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v6 kernel 3/5] virtio-balloon: speed up inflate/deflate
- process
-Message-ID: <20170117211131-mutt-send-email-mst@kernel.org>
-References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
- <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C33B36B0069
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 14:16:58 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id t6so114947288pgt.6
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 11:16:58 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r82si25821300pfl.199.2017.01.17.11.16.57
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jan 2017 11:16:57 -0800 (PST)
+Date: Tue, 17 Jan 2017 19:16:56 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v3] arm64: mm: Fix NOMAP page initialization
+Message-ID: <20170117191656.GS27328@arm.com>
+References: <CAKv+Gu_SmTNguC=tSCwYOL2kx-DogLvSYRZc56eGP=JhdrUOsA@mail.gmail.com>
+ <c74d6ec6-16ba-dccc-3b0d-a8bedcb46dc5@linaro.org>
+ <cbbf14fd-a1cc-2463-ba67-acd6d61e9db1@linaro.org>
+ <CAKv+Gu8-+0LUTN0+8OGWRhd22Ls5cMQqTJcjKQK_0N=Uc-0jog@mail.gmail.com>
+ <20170109115320.GI4930@rric.localdomain>
+ <20170112160535.GF13843@arm.com>
+ <20170112185825.GE5020@rric.localdomain>
+ <20170113091903.GA22538@arm.com>
+ <20170113131500.GS4930@rric.localdomain>
+ <20170117100015.GG5020@rric.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <20170117100015.GG5020@rric.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, david@redhat.com, aarcange@redhat.com, dgilbert@redhat.com, quintela@redhat.com
+To: Robert Richter <robert.richter@cavium.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Hanjun Guo <hanjun.guo@linaro.org>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, David Daney <david.daney@cavium.com>, Mark Rutland <mark.rutland@arm.com>, James Morse <james.morse@arm.com>, Yisheng Xie <xieyisheng1@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Dec 21, 2016 at 02:52:26PM +0800, Liang Li wrote:
->  
-> -	/* We should always be able to add one buffer to an empty queue. */
-> -	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-> -	virtqueue_kick(vq);
-> +static void do_set_resp_bitmap(struct virtio_balloon *vb,
-> +		unsigned long base_pfn, int pages)
->  
-> -	/* When host has read buffer, this completes via balloon_ack */
-> -	wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> +{
-> +	__le64 *range = vb->resp_data + vb->resp_pos;
->  
-> +	if (pages > (1 << VIRTIO_BALLOON_NR_PFN_BITS)) {
-> +		/* when the length field can't contain pages, set it to 0 to
+On Tue, Jan 17, 2017 at 11:00:15AM +0100, Robert Richter wrote:
+> On 13.01.17 14:15:00, Robert Richter wrote:
+> > On 13.01.17 09:19:04, Will Deacon wrote:
+> > > On Thu, Jan 12, 2017 at 07:58:25PM +0100, Robert Richter wrote:
+> > > > On 12.01.17 16:05:36, Will Deacon wrote:
+> > > > > On Mon, Jan 09, 2017 at 12:53:20PM +0100, Robert Richter wrote:
+> > > > 
+> > > > > > Kernel compile times (3 runs each):
+> > > > > > 
+> > > > > > pfn_valid_within():
+> > > > > > 
+> > > > > > real    6m4.088s
+> > > > > > user    372m57.607s
+> > > > > > sys     16m55.158s
+> > > > > > 
+> > > > > > real    6m1.532s
+> > > > > > user    372m48.453s
+> > > > > > sys     16m50.370s
+> > > > > > 
+> > > > > > real    6m4.061s
+> > > > > > user    373m18.753s
+> > > > > > sys     16m57.027s
+> > > > > 
+> > > > > Did you reboot the machine between each build here, or only when changing
+> > > > > kernel? If the latter, do you see variations in kernel build time by simply
+> > > > > rebooting the same Image?
+> > > > 
+> > > > I built it in a loop on the shell, so no reboots between builds. Note
+> > > > that I was building the kernel in /dev/shm to not access harddisks. I
+> > > > think build times should be comparable then since there is no fs
+> > > > caching.
+> > > 
+> > > I guess I'm really asking what the standard deviation is if you *do* reboot
+> > > between builds, using the same kernel. It's hard to tell whether the numbers
+> > > are due to the patches, or just because of noise incurred by the way things
+> > > happen to initialise.
+> > 
+> > Ok, I am going to test this.
+> 
+> See below the data for a test with reboots between every 3 builds (9
+> builds per kernel). Though some deviation can be seen between reboots
+> there is a trend.
 
-/*
- * Multi-line
- * comments
- * should look like this.
- */
+I can't really see the trend given that, for system time, your
+pfn_valid_within results have a variance of ~9 and the early_pfn_valid
+results have a variance of ~92. Given that the variance seems to come
+about due to the reboots, I think we need more numbers to establish whether
+the data sets end up largely overlapping or if they really are disjoint.
 
-Also, pls start sentences with an upper-case letter.
-
-> +		 * indicate the actual length is in the next __le64;
-> +		 */
-
-This is part of the interface so should be documented as such.
-
-> +		*range = cpu_to_le64((base_pfn <<
-> +				VIRTIO_BALLOON_NR_PFN_BITS) | 0);
-> +		*(range + 1) = cpu_to_le64(pages);
-> +		vb->resp_pos += 2;
-
-Pls use structs for this kind of stuff.
-
-> +	} else {
-> +		*range = (base_pfn << VIRTIO_BALLOON_NR_PFN_BITS) | pages;
-> +		vb->resp_pos++;
-> +	}
-> +}
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
