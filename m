@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7805F6B026D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:11:38 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id gt1so2730296wjc.0
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:11:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u73si433223wrc.271.2017.01.18.06.11.36
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 553216B026E
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:13:02 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id d185so17892221pgc.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:13:02 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id l59si359224plb.85.2017.01.18.06.13.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 06:11:37 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm/mempolicy.c: do not put mempolicy before using its nodemask
-Date: Wed, 18 Jan 2017 15:11:24 +0100
-Message-Id: <20170118141124.8345-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 06:13:01 -0800 (PST)
+Date: Wed, 18 Jan 2017 15:12:55 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+Message-ID: <20170118141255.GE6515@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-16-git-send-email-byungchul.park@lge.com>
+ <20170118064230.GF15084@tardis.cn.ibm.com>
+ <20170118105346.GL3326@X58A-UD3R>
+ <20170118110317.GC6515@twins.programming.kicks-ass.net>
+ <20170118115428.GM3326@X58A-UD3R>
+ <20170118120757.GD6515@twins.programming.kicks-ass.net>
+ <008101d27184$7d3cbd00$77b63700$@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <008101d27184$7d3cbd00$77b63700$@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: "byungchul.park" <byungchul.park@lge.com>
+Cc: 'Boqun Feng' <boqun.feng@gmail.com>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-Since commit be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to
-alloc_pages_vma") alloc_pages_vma() can potentially free a mempolicy by
-mpol_cond_put() before accessing the embedded nodemask by
-__alloc_pages_nodemask(). The commit log says it's so "we can use a single
-exit path within the function" but that's clearly wrong. We can still do that
-when doing mpol_cond_put() after the allocation attempt.
+On Wed, Jan 18, 2017 at 09:14:59PM +0900, byungchul.park wrote:
 
-Make sure the mempolicy is not freed prematurely, otherwise
-__alloc_pages_nodemask() can end up using a bogus nodemask, which could lead
-e.g. to premature OOM.
+> +Example 3:
+> +
+> +   CONTEXT X		   CONTEXT Y
+> +   ---------		   ---------
+> +			   mutex_lock A
+> +   mutex_lock A
+> +   mutex_unlock A
+> +			   wait_for_complete B /* DEADLOCK */
 
-Fixes: be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to alloc_pages_vma")
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: stable@vger.kernel.org
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/mempolicy.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Each line (across both columns) is a distinct point in time after the
+line before.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 2e346645eb80..1e7873e40c9a 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2017,8 +2017,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 
- 	nmask = policy_nodemask(gfp, pol);
- 	zl = policy_zonelist(gfp, pol, node);
--	mpol_cond_put(pol);
- 	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
-+	mpol_cond_put(pol);
- out:
- 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
- 		goto retry_cpuset;
--- 
-2.11.0
+Therefore, this states that "mutex_unlock A" happens before
+"wait_for_completion B", which is clearly impossible.
+
+You don't have to remove everything after mutex_lock A, but the unlock
+must not happen before context Y does the unlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
