@@ -1,104 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7201B6B025E
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:11:29 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id z134so7280239lff.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:11:29 -0800 (PST)
-Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::180])
-        by mx.google.com with ESMTPS id j65si349968lfe.2.2017.01.18.07.11.27
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 28CC96B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:15:34 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id an2so3022035wjc.3
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:15:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g65si20335073wmd.148.2017.01.18.07.15.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 07:11:27 -0800 (PST)
-Subject: Re: [PATCH net-next] mlx4: support __GFP_MEMALLOC for rx
-References: <1484712850.13165.86.camel@edumazet-glaptop3.roam.corp.google.com>
- <2696ea05-bb39-787b-2029-33b729fd88e0@yandex-team.ru>
- <1484749428.13165.100.camel@edumazet-glaptop3.roam.corp.google.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <ed9a6b2a-428e-ac78-bba8-742f5e7c1eed@yandex-team.ru>
-Date: Wed, 18 Jan 2017 18:11:27 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 07:15:32 -0800 (PST)
+Date: Wed, 18 Jan 2017 16:15:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170118151530.GR7015@dhcp22.suse.cz>
+References: <20170118134453.11725-1-mhocko@kernel.org>
+ <20170118134453.11725-2-mhocko@kernel.org>
+ <20170118144655.3lra7xgdcl2awgjd@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <1484749428.13165.100.camel@edumazet-glaptop3.roam.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170118144655.3lra7xgdcl2awgjd@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: David Miller <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>
 
-On 18.01.2017 17:23, Eric Dumazet wrote:
-> On Wed, 2017-01-18 at 12:31 +0300, Konstantin Khlebnikov wrote:
->> On 18.01.2017 07:14, Eric Dumazet wrote:
->>> From: Eric Dumazet <edumazet@google.com>
->>>
->>> Commit 04aeb56a1732 ("net/mlx4_en: allocate non 0-order pages for RX
->>> ring with __GFP_NOMEMALLOC") added code that appears to be not needed at
->>> that time, since mlx4 never used __GFP_MEMALLOC allocations anyway.
->>>
->>> As using memory reserves is a must in some situations (swap over NFS or
->>> iSCSI), this patch adds this flag.
->>
->> AFAIK __GFP_MEMALLOC is used for TX, not for RX: for allocations which
->> are required by memory reclaimer to free some pages.
->>
->> Allocation RX buffers with __GFP_MEMALLOC is a straight way to
->> depleting all reserves by flood from network.
->
-> You are mistaken.
->
-> How do you think a TCP flow can make progress sending data if no ACK
-> packet can go back in RX ?
+On Wed 18-01-17 14:46:55, Mel Gorman wrote:
+> On Wed, Jan 18, 2017 at 02:44:52PM +0100, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > 599d0c954f91 ("mm, vmscan: move LRU lists to node") has moved
+> > NR_ISOLATED* counters from zones to nodes. This is not the best fit
+> > especially for systems with high/lowmem because a heavy memory pressure
+> > on the highmem zone might block lowmem requests from making progress. Or
+> > we might allow to reclaim lowmem zone even though there are too many
+> > pages already isolated from the eligible zones just because highmem
+> > pages will easily bias too_many_isolated to say no.
+> > 
+> > Fix these potential issues by moving isolated stats back to zones and
+> > teach too_many_isolated to consider only eligible zones. Per zone
+> > isolation counters are a bit tricky with the node reclaim because
+> > we have to track each page separatelly.
+> > 
+> 
+> I'm quite unhappy with this. Each move back increases the cache footprint
+> because of the counters
 
-Well. Ok. I mistaken.
+Why would per zone counters cause an increased cache footprint?
 
->
-> Take a look at sk_filter_trim_cap(), where the RX packets received on a
-> socket which does not have SOCK_MEMALLOC is dropped.
->
->         /*
->          * If the skb was allocated from pfmemalloc reserves, only
->          * allow SOCK_MEMALLOC sockets to use it as this socket is
->          * helping free memory
->          */
->         if (skb_pfmemalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC))
->                 return -ENOMEM;
+> but it's not clear at all this patch actually helps anything.
 
-I suppose this happens in BH context right after receiving packet?
+Yes, I cannot prove any real issue so far. The main motivation was the
+patch 2 which needs per-zone accounting to use it in the retry logic
+(should_reclaim_retry). I've spotted too_many_isoalated issues on the
+way.
 
-Potentially any ACK could free memory in TCP send queue,
-so using reserves here makes sense.
+> Heavy memory pressure on highmem should be spread across the whole node as
+> we no longer are applying the fair zone allocation policy. The processes
+> with highmem requirements will be reclaiming from all zones and when it
+> finishes, it's possible that a lowmem-specific request will be clear to make
+> progress. It's all the same LRU so if there are too many pages isolated,
+> it makes sense to wait regardless of the allocation request.
 
->
-> Also take a look at __dev_alloc_pages()
->
-> static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
->                                              unsigned int order)
-> {
->         /* This piece of code contains several assumptions.
->          * 1.  This is for device Rx, therefor a cold page is preferred.
->          * 2.  The expectation is the user wants a compound page.
->          * 3.  If requesting a order 0 page it will not be compound
->          *     due to the check to see if order has a value in prep_new_page
->          * 4.  __GFP_MEMALLOC is ignored if __GFP_NOMEMALLOC is set due to
->          *     code in gfp_to_alloc_flags that should be enforcing this.
->          */
->         gfp_mask |= __GFP_COLD | __GFP_COMP | __GFP_MEMALLOC;
->
->         return alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-> }
->
->
-> So __GFP_MEMALLOC in RX is absolutely supported.
->
-> But drivers have to opt-in, either using __dev_alloc_pages() or
-> dev_alloc_pages, or explicitely ORing __GFP_MEMALLOC when using
-> alloc_page[s]()
->
->
->
+This is true but I am not sure how it is realated to the patch. If we
+have a heavy highmem memory pressure then we will throttle based on
+pages isolated from the respective zones. So if the there is a lowmem
+pressure at the same time then we throttle it only when we need to.
 
+Also consider that lowmem throttling in too_many_isolated has only small
+chance to ever work with the node counters because highmem >> lowmem in
+many/most configurations.
 
+> More importantly, this patch may make things worse and delay reclaim. If
+> this patch allowed a lowmem request to make progress that would have
+> previously stalled, it's going to spend time skipping pages in the LRU
+> instead of letting kswapd and the highmem pressured processes make progress.
+
+I am not sure I understand this part. Say that we have highmem pressure
+which would isolated too many pages from the LRU. lowmem request would
+stall previously regardless of where those pages came from. With this
+patch it would stall only when we isolated too many pages from the
+eligible zones. So let's assume that lowmem is not under pressure, why
+should we stall? And why would it delay reclaim? Whoever want to make
+progress on that zone has to iterate and potentially skip many pages.
 -- 
-Konstantin
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
