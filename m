@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A413D6B026D
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:23:51 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y143so18506662pfb.6
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:23:51 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id l17si386318pgj.44.2017.01.18.06.23.50
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 76A1B6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:47:00 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t18so3434235wmt.7
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:47:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w70si567463wrc.109.2017.01.18.06.46.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 06:23:50 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id t6so1534739pgt.1
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:23:50 -0800 (PST)
-Message-ID: <1484749428.13165.100.camel@edumazet-glaptop3.roam.corp.google.com>
-Subject: Re: [PATCH net-next] mlx4: support __GFP_MEMALLOC for rx
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Wed, 18 Jan 2017 06:23:48 -0800
-In-Reply-To: <2696ea05-bb39-787b-2029-33b729fd88e0@yandex-team.ru>
-References: 
-	<1484712850.13165.86.camel@edumazet-glaptop3.roam.corp.google.com>
-	 <2696ea05-bb39-787b-2029-33b729fd88e0@yandex-team.ru>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 06:46:59 -0800 (PST)
+Date: Wed, 18 Jan 2017 14:46:55 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170118144655.3lra7xgdcl2awgjd@suse.de>
+References: <20170118134453.11725-1-mhocko@kernel.org>
+ <20170118134453.11725-2-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170118134453.11725-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: David Miller <davem@davemloft.net>, netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, 2017-01-18 at 12:31 +0300, Konstantin Khlebnikov wrote:
-> On 18.01.2017 07:14, Eric Dumazet wrote:
-> > From: Eric Dumazet <edumazet@google.com>
-> >
-> > Commit 04aeb56a1732 ("net/mlx4_en: allocate non 0-order pages for RX
-> > ring with __GFP_NOMEMALLOC") added code that appears to be not needed at
-> > that time, since mlx4 never used __GFP_MEMALLOC allocations anyway.
-> >
-> > As using memory reserves is a must in some situations (swap over NFS or
-> > iSCSI), this patch adds this flag.
+On Wed, Jan 18, 2017 at 02:44:52PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> AFAIK __GFP_MEMALLOC is used for TX, not for RX: for allocations which
-> are required by memory reclaimer to free some pages.
+> 599d0c954f91 ("mm, vmscan: move LRU lists to node") has moved
+> NR_ISOLATED* counters from zones to nodes. This is not the best fit
+> especially for systems with high/lowmem because a heavy memory pressure
+> on the highmem zone might block lowmem requests from making progress. Or
+> we might allow to reclaim lowmem zone even though there are too many
+> pages already isolated from the eligible zones just because highmem
+> pages will easily bias too_many_isolated to say no.
 > 
-> Allocation RX buffers with __GFP_MEMALLOC is a straight way to
-> depleting all reserves by flood from network.
+> Fix these potential issues by moving isolated stats back to zones and
+> teach too_many_isolated to consider only eligible zones. Per zone
+> isolation counters are a bit tricky with the node reclaim because
+> we have to track each page separatelly.
+> 
 
-You are mistaken.
+I'm quite unhappy with this. Each move back increases the cache footprint
+because of the counters but it's not clear at all this patch actually
+helps anything.
 
-How do you think a TCP flow can make progress sending data if no ACK
-packet can go back in RX ?
+Heavy memory pressure on highmem should be spread across the whole node as
+we no longer are applying the fair zone allocation policy. The processes
+with highmem requirements will be reclaiming from all zones and when it
+finishes, it's possible that a lowmem-specific request will be clear to make
+progress. It's all the same LRU so if there are too many pages isolated,
+it makes sense to wait regardless of the allocation request.
 
-Take a look at sk_filter_trim_cap(), where the RX packets received on a
-socket which does not have SOCK_MEMALLOC is dropped.
+More importantly, this patch may make things worse and delay reclaim. If
+this patch allowed a lowmem request to make progress that would have
+previously stalled, it's going to spend time skipping pages in the LRU
+instead of letting kswapd and the highmem pressured processes make progress.
 
-        /*
-         * If the skb was allocated from pfmemalloc reserves, only
-         * allow SOCK_MEMALLOC sockets to use it as this socket is
-         * helping free memory
-         */
-        if (skb_pfmemalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC))
-                return -ENOMEM;
-
-Also take a look at __dev_alloc_pages()
-
-static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
-                                             unsigned int order)
-{
-        /* This piece of code contains several assumptions.
-         * 1.  This is for device Rx, therefor a cold page is preferred.
-         * 2.  The expectation is the user wants a compound page.
-         * 3.  If requesting a order 0 page it will not be compound
-         *     due to the check to see if order has a value in prep_new_page
-         * 4.  __GFP_MEMALLOC is ignored if __GFP_NOMEMALLOC is set due to
-         *     code in gfp_to_alloc_flags that should be enforcing this.
-         */
-        gfp_mask |= __GFP_COLD | __GFP_COMP | __GFP_MEMALLOC;
-
-        return alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-}
-
-
-So __GFP_MEMALLOC in RX is absolutely supported.
-
-But drivers have to opt-in, either using __dev_alloc_pages() or
-dev_alloc_pages, or explicitely ORing __GFP_MEMALLOC when using
-alloc_page[s]()
-
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
