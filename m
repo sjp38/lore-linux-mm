@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B37F76B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 00:25:37 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 204so4755402pfx.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 21:25:37 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B788B6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 00:30:40 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z67so4834305pgb.0
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 21:30:40 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id q21si27185894pgg.333.2017.01.17.21.25.36
+        by mx.google.com with ESMTPS id 33si1872404plq.10.2017.01.17.21.30.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 21:25:36 -0800 (PST)
-Date: Tue, 17 Jan 2017 21:25:33 -0800
+        Tue, 17 Jan 2017 21:30:39 -0800 (PST)
+Date: Tue, 17 Jan 2017 21:30:38 -0800
 From: willy@bombadil.infradead.org
-Subject: Re: [LSF/MM TOPIC] Future direction of DAX
-Message-ID: <20170118052533.GA18349@bombadil.infradead.org>
-References: <20170114002008.GA25379@linux.intel.com>
+Subject: Re: [PATCH] mm: fix <linux/pagemap.h> stray kernel-doc notation
+Message-ID: <20170118053038.GC18349@bombadil.infradead.org>
+References: <b037e9a3-516c-ec02-6c8e-fa5479747ba6@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170114002008.GA25379@linux.intel.com>
+In-Reply-To: <b037e9a3-516c-ec02-6c8e-fa5479747ba6@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Jan 13, 2017 at 05:20:08PM -0700, Ross Zwisler wrote:
-> We still have a lot of work to do, though, and I'd like to propose a discussion
-> around what features people would like to see enabled in the coming year as
-> well as what what use cases their customers have that we might not be aware of.
+On Tue, Jan 17, 2017 at 06:10:51PM -0800, Randy Dunlap wrote:
+> From: Randy Dunlap <rdunlap@infradead.org>
+> 
+> Delete stray (second) function description in find_lock_page()
+> kernel-doc notation.
+> 
+> Fixes: 2457aec63745e ("mm: non-atomically mark page accessed during page cache allocation where possible")
+> 
+> Note: scripts/kernel-doc just ignores the second function description.
+> 
+> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
 
-+1 to the discussion
+Reported-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-> - Jan suggested [2] that we could use the radix tree as a cache to service DAX
->   faults without needing to call into the filesystem.  Are there any issues
->   with this approach, and should we move forward with it as an optimization?
-
-Ahem.  I believe I proposed this at last year's LSFMM.  And I sent
-patches to start that work.  And Dan blocked it.  So I'm not terribly
-amused to see somebody else given credit for the idea.
-
-It's not just an optimisation.  It's also essential for supporting
-filesystems which don't have block devices.  I'm aware of at least two
-customer demands for this in different domains.
-
-1. Embedded uses with NOR flash
-2. Cloud/virt uses with multiple VMs on a single piece of hardware
+> Cc: Mel Gorman <mgorman@suse.de>
+> ---
+>  include/linux/pagemap.h |    1 -
+>  1 file changed, 1 deletion(-)
+> 
+> --- lnx-410-rc4.orig/include/linux/pagemap.h
+> +++ lnx-410-rc4/include/linux/pagemap.h
+> @@ -266,7 +266,6 @@ static inline struct page *find_get_page
+>  
+>  /**
+>   * find_lock_page - locate, pin and lock a pagecache page
+> - * pagecache_get_page - find and get a page reference
+>   * @mapping: the address_space to search
+>   * @offset: the page index
+>   *
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
