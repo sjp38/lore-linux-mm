@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 145C06B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:51:01 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c206so3486687wme.3
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:51:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n26si2643606wmi.51.2017.01.18.06.50.59
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC626B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:11:00 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id s10so18404271itb.7
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:11:00 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 135si1814085ioc.221.2017.01.18.07.10.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 06:50:59 -0800 (PST)
-Date: Wed, 18 Jan 2017 14:50:56 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 2/2] mm, vmscan: do not loop on too_many_isolated for
- ever
-Message-ID: <20170118145056.3y72yy3dew46ypor@suse.de>
-References: <20170118134453.11725-1-mhocko@kernel.org>
- <20170118134453.11725-3-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 07:10:59 -0800 (PST)
+Date: Wed, 18 Jan 2017 16:10:53 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 05/15] lockdep: Make check_prev_add can use a separate
+ stack_trace
+Message-ID: <20170118151053.GF6500@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-6-git-send-email-byungchul.park@lge.com>
+ <20170112161643.GB3144@twins.programming.kicks-ass.net>
+ <20170113101143.GE3326@X58A-UD3R>
+ <20170117155431.GE5680@worktop>
+ <20170118020432.GK3326@X58A-UD3R>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170118134453.11725-3-mhocko@kernel.org>
+In-Reply-To: <20170118020432.GK3326@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Wed, Jan 18, 2017 at 02:44:53PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed, Jan 18, 2017 at 11:04:32AM +0900, Byungchul Park wrote:
+> On Tue, Jan 17, 2017 at 04:54:31PM +0100, Peter Zijlstra wrote:
+> > On Fri, Jan 13, 2017 at 07:11:43PM +0900, Byungchul Park wrote:
+> > > What do you think about the following patches doing it?
+> > 
+> > I was more thinking about something like so...
+> > 
+> > Also, I think I want to muck with struct stack_trace; the members:
+> > max_nr_entries and skip are input arguments to save_stack_trace() and
+> > bloat the structure for no reason.
 > 
-> Tetsuo Handa has reported [1] that direct reclaimers might get stuck in
-> too_many_isolated loop basically for ever because the last few pages on
-> the LRU lists are isolated by the kswapd which is stuck on fs locks when
-> doing the pageout. This in turn means that there is nobody to actually
-> trigger the oom killer and the system is basically unusable.
-> 
-> too_many_isolated has been introduced by 35cd78156c49 ("vmscan: throttle
-> direct reclaim when too many pages are isolated already") to prevent
-> from pre-mature oom killer invocations because back then no reclaim
-> progress could indeed trigger the OOM killer too early. But since the
-> oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
-> the allocation/reclaim retry loop considers all the reclaimable pages
-> including those which are isolated - see 9f6c399ddc36 ("mm, vmscan:
-> consider isolated pages in zone_reclaimable_pages") so we can loosen
-> the direct reclaim throttling and instead rely on should_reclaim_retry
-> logic which is the proper layer to control how to throttle and retry
-> reclaim attempts.
-> 
-> Move the too_many_isolated check outside shrink_inactive_list because
-> in fact active list might theoretically see too many isolated pages as
-> well.
-> 
+> With your approach, save_trace() must be called whenever check_prevs_add()
+> is called, which might be unnecessary.
 
-No major objections in general. It's a bit odd you have a while loop for
-something that will only loop once.
+True.. but since we hold the graph_lock this is a slow path anyway, so I
+didn't care much.
 
-As for the TODO, one approach would be to use a waitqueue when too many
-pages are isolated. Wake them one at a time when isolated pages drops
-below the threshold.
+Then again, I forgot to clean up in a bunch of paths.
 
--- 
-Mel Gorman
-SUSE Labs
+> Frankly speaking, I think what I proposed resolved it neatly. Don't you
+> think so?
+
+My initial reaction was to your patches being radically different to
+what I had proposed. But after fixing mine I don't particularly like
+either one of them.
+
+Also, I think yours has a hole in, you check nr_stack_trace_entries
+against an older copy to check we did save_stack(), this is not accurate
+as check_prev_add() can drop graph_lock in the verbose case and then
+someone else could have done save_stack().
+
+
+Let me see if I can find something simpler..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
