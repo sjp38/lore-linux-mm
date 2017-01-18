@@ -1,74 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CFCB6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 21:36:33 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id t56so6835qte.3
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:36:33 -0800 (PST)
-Received: from sender163-mail.zoho.com (sender163-mail.zoho.com. [74.201.84.163])
-        by mx.google.com with ESMTPS id s16si18004728qtc.290.2017.01.17.18.36.32
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A14F66B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 23:04:34 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id o138so5092234ito.2
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 20:04:34 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id u188si532573itd.92.2017.01.17.20.04.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 18:36:32 -0800 (PST)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] slab: add a check for the first kmem_cache not to be destroyed
-From: kwon <kwon@toanyone.net>
-In-Reply-To: <alpine.DEB.2.10.1701171452580.142998@chino.kir.corp.google.com>
-Date: Wed, 18 Jan 2017 11:36:15 +0900
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <380AA0F8-58C6-4AC7-AE06-D3A326E5B396@toanyone.net>
-References: <20170116070459.43540-1-kwon@toanyone.net> <20170117013300.GA25940@js1304-P5Q-DELUXE> <764E463A-F743-4BE6-8BFC-07D50FF57DDA@toanyone.net> <alpine.DEB.2.10.1701171452580.142998@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Jan 2017 20:04:33 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [RFC] HWPOISON: soft offlining for non-lru movable page
+Date: Wed, 18 Jan 2017 12:00:54 +0800
+Message-ID: <1484712054-7997-1-git-send-email-xieyisheng1@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
 
+This patch is to extends soft offlining framework to support
+non-lru page, which already support migration after
+commit bda807d44454 ("mm: migrate: support non-lru movable page
+migration")
 
-> On Jan 18, 2017, at 7:54 AM, David Rientjes <rientjes@google.com> =
-wrote:
->=20
-> On Tue, 17 Jan 2017, kwon wrote:
->=20
->>>> diff --git a/mm/slab_common.c b/mm/slab_common.c
->>>> index 1dfc209..2d30ace 100644
->>>> --- a/mm/slab_common.c
->>>> +++ b/mm/slab_common.c
->>>> @@ -744,7 +744,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
->>>> 	bool need_rcu_barrier =3D false;
->>>> 	int err;
->>>>=20
->>>> -	if (unlikely(!s))
->>>> +	if (unlikely(!s) || s->refcount =3D=3D -1)
->>>> 		return;
->>>=20
->>> Hello, Kyunghwan.
->>>=20
->>> Few lines below, s->refcount is checked.
->>>=20
->>> if (s->refcount)
->>>       goto unlock;
->>>=20
->>> Am I missing something?
->>>=20
->>> Thanks.
->>=20
->> Hello, Joonsoo.
->>=20
->> In case it is called the number of int size times. refcount would =
-finally reach
->> to 0 since decreased every time the function called.
->>=20
->=20
-> The only thing using create_boot_cache() should be the slab =
-implementation=20
-> itself, so I don't think we need to protect ourselves from doing =
-something=20
-> like kmem_cache_destroy(kmem_cache) or=20
-> kmem_cache_destroy(kmem_cache_node) even a single time.
+When memory corrected errors occur on a non-lru movable page,
+we can choose to stop using it by migrating data onto another
+page and disable the original (maybe half-broken) one.
 
-Agreed. I was aware of that though, I thought it would make its logic =
-firm not
-giving performance disadvantages. Sorry for distraction.=
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ mm/memory-failure.c | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index f283c7e..10043a4 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1527,7 +1527,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
+ {
+ 	int ret = __get_any_page(page, pfn, flags);
+ 
+-	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
++	if (ret == 1 && !PageHuge(page) &&
++	    !PageLRU(page) && !__PageMovable(page)) {
+ 		/*
+ 		 * Try to free it.
+ 		 */
+@@ -1549,6 +1550,54 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
+ 	return ret;
+ }
+ 
++static int soft_offline_movable_page(struct page *page, int flags)
++{
++	int ret;
++	unsigned long pfn = page_to_pfn(page);
++	LIST_HEAD(pagelist);
++
++	/*
++	 * This double-check of PageHWPoison is to avoid the race with
++	 * memory_failure(). See also comment in __soft_offline_page().
++	 */
++	lock_page(page);
++	if (PageHWPoison(page)) {
++		unlock_page(page);
++		put_hwpoison_page(page);
++		pr_info("soft offline: %#lx movable page already poisoned\n",
++			pfn);
++		return -EBUSY;
++	}
++	unlock_page(page);
++
++	ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
++	/*
++	 * get_any_page() and isolate_movable_page() takes a refcount each,
++	 * so need to drop one here.
++	 */
++	put_hwpoison_page(page);
++	if (!ret) {
++		pr_info("soft offline: %#lx movable page failed to isolate\n",
++			pfn);
++		return -EBUSY;
++	}
++
++	list_add(&page->lru, &pagelist);
++	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
++			    MIGRATE_SYNC, MR_MEMORY_FAILURE);
++	if (ret) {
++		if (!list_empty(&pagelist))
++			putback_movable_pages(&pagelist);
++
++		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
++			pfn, ret, page->flags);
++		if (ret > 0)
++			ret = -EIO;
++	}
++
++	return ret;
++}
++
+ static int soft_offline_huge_page(struct page *page, int flags)
+ {
+ 	int ret;
+@@ -1705,8 +1754,10 @@ static int soft_offline_in_use_page(struct page *page, int flags)
+ 
+ 	if (PageHuge(page))
+ 		ret = soft_offline_huge_page(page, flags);
+-	else
++	else if (PageLRU(page))
+ 		ret = __soft_offline_page(page, flags);
++	else
++		ret = soft_offline_movable_page(page, flags);
+ 
+ 	return ret;
+ }
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
