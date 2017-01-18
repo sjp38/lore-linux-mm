@@ -1,81 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53F716B0268
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:10:10 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id jz4so1569691wjb.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:10:10 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B13F6B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:13:47 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id an2so1585046wjc.3
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:13:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g7si28504465wrg.183.2017.01.18.02.10.08
+        by mx.google.com with ESMTPS id j2si28574447wrc.129.2017.01.18.02.13.46
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 02:10:09 -0800 (PST)
-Date: Wed, 18 Jan 2017 11:10:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/4] mm, page_alloc: warn_alloc print nodemask
-Message-ID: <20170118101006.GO7015@dhcp22.suse.cz>
-References: <20170117091543.25850-1-mhocko@kernel.org>
- <20170117091543.25850-3-mhocko@kernel.org>
- <alpine.DEB.2.10.1701171459570.142998@chino.kir.corp.google.com>
+        Wed, 18 Jan 2017 02:13:46 -0800 (PST)
+Date: Wed, 18 Jan 2017 11:13:43 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf-pc] [ATTEND] many topics
+Message-ID: <20170118101343.GC24789@quack2.suse.cz>
+References: <20170118054945.GD18349@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1701171459570.142998@chino.kir.corp.google.com>
+In-Reply-To: <20170118054945.GD18349@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 17-01-17 15:01:35, David Rientjes wrote:
-> On Tue, 17 Jan 2017, Michal Hocko wrote:
-> 
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 57dc3c3b53c1..3e35eb04a28a 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1912,8 +1912,8 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
-> >  extern unsigned long arch_reserved_kernel_pages(void);
-> >  #endif
-> >  
-> > -extern __printf(2, 3)
-> > -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...);
-> > +extern __printf(3, 4)
-> > +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...);
-> >  
-> >  extern void setup_per_cpu_pageset(void);
-> >  
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 8f4f306d804c..7f9c0ee18ae0 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3031,12 +3031,13 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
-> >  	show_mem(filter);
-> >  }
-> >  
-> > -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
-> > +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
-> >  {
-> >  	struct va_format vaf;
-> >  	va_list args;
-> >  	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
-> >  				      DEFAULT_RATELIMIT_BURST);
-> > +	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
-> 
-> Small nit: wouldn't it be helpful to know if ac->nodemask is actually NULL 
-> rather than setting it to cpuset_current_mems_allowed here?  We know the 
-> effective nodemask from cpuset_print_current_mems_allowed(), but we don't 
-> know if there's a bug in the page allocator which is failing to set 
-> ac->nodemask appropriately if we blindly set it here when cpusets are not 
-> enabled.
+On Tue 17-01-17 21:49:45, Matthew Wilcox wrote:
+> 1. Exploiting multiorder radix tree entries.  I believe we would do well
+> to attempt to allocate compound pages, insert them into the page cache,
+> and expect filesystems to be able to handle filling compound pages with
+> ->readpage.  It will be more efficient because alloc_pages() can return
+> large entries out of the buddy list rather than breaking them down,
+> and it'll help reduce fragmentation.
 
-You are right that games with the nodemask are dangerous and can
-potentially lead to unexpected behavior. I wanted to make this code as
-simple as possible though and printing mems_allowed for NULL nodemask
-looked like the way. Feel free to post a patch to handle null nodemask
-in the output if you think it is an improvement.
+Kirill has patches to do this and I don't like the complexity it adds to
+pagecache handling code and each filesystem that would like to support
+this. I don't have objections to the general idea but the complexity of the
+current implementation just looks too big to me...
 
+> 2. Supporting filesystem block sizes > page size.  Once we do the above
+> for efficiency, I think it then becomes trivial to support, eg 16k block
+> size filesystems on x86 machines with 4k pages.
+
+Heh, you wish... :) There's a big difference between opportunistically
+allocating a huge page and reliably have to provide high order page. Memory
+fragmentation issues will be difficult to deal with...
+ 
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
