@@ -1,160 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EB5EB6B0266
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 01:16:23 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id z128so5724860pfb.4
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 22:16:23 -0800 (PST)
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id x3si26808748pfi.274.2017.01.17.22.16.22
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 621256B025E
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 01:25:44 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id 73so2372167otj.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 22:25:44 -0800 (PST)
+Received: from mail-oi0-x22e.google.com (mail-oi0-x22e.google.com. [2607:f8b0:4003:c06::22e])
+        by mx.google.com with ESMTPS id f13si10978906otd.254.2017.01.17.22.25.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 22:16:23 -0800 (PST)
-From: Miles Chen <miles.chen@mediatek.com>
-Subject: [PATCH] mm/memblock.c: remove unnecessary log and clean up
-Date: Wed, 18 Jan 2017 14:16:05 +0800
-Message-ID: <1484720165-25403-1-git-send-email-miles.chen@mediatek.com>
+        Tue, 17 Jan 2017 22:25:43 -0800 (PST)
+Received: by mail-oi0-x22e.google.com with SMTP id u143so1978441oif.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 22:25:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170118060740.GE18349@bombadil.infradead.org>
+References: <20170114002008.GA25379@linux.intel.com> <20170118052533.GA18349@bombadil.infradead.org>
+ <CAPcyv4jNz=1QdPPtM2A=3avGtVvZG=2d9JC-JD_F6u+-CYQN4g@mail.gmail.com> <20170118060740.GE18349@bombadil.infradead.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 17 Jan 2017 22:25:42 -0800
+Message-ID: <CAPcyv4gvMzPbqpotKTRYhuiRgKRUz-Xrz81MFjpBmh3i=8euFQ@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Future direction of DAX
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, Miles Chen <miles.chen@mediatek.com>
+To: willy@bombadil.infradead.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, lsf-pc@lists.linux-foundation.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-There is no variable named flags in memblock_add() and memblock_reserve()
-so remove it from the log messages.
-This patch also cleans up the type casting for phys_addr_t by using
-%pa to print them.
+On Tue, Jan 17, 2017 at 10:07 PM,  <willy@bombadil.infradead.org> wrote:
+> On Tue, Jan 17, 2017 at 10:01:30PM -0800, Dan Williams wrote:
+>> >> - Jan suggested [2] that we could use the radix tree as a cache to service DAX
+>> >>   faults without needing to call into the filesystem.  Are there any issues
+>> >>   with this approach, and should we move forward with it as an optimization?
+>> >
+>> > Ahem.  I believe I proposed this at last year's LSFMM.  And I sent
+>> > patches to start that work.  And Dan blocked it.  So I'm not terribly
+>> > amused to see somebody else given credit for the idea.
+>>
+>> I "blocked" moving the phys to virt translation out of the driver
+>> since that mapping lifetime is device specific.
+>
+> The problem is that DAX currently assumes that there *is* a block driver,
+> and it might be a char device or no device at all (the two examples I
+> gave earlier).
+>
+>> However, I think caching the file offset to physical sector/address
+>> result is a great idea.
+>
+> OK, great.  The lifetime problem I think you care about (hotplug) can be
+> handled by removing all the cached entries for every file on every file
+> on that block device ... I know there were prototype patches for that;
+> did they ever get merged?
 
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/memblock.c | 54 +++++++++++++++++++++++++-----------------------------
- 1 file changed, 25 insertions(+), 29 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc3..8683f02 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -611,10 +611,10 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
- 
- int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
- {
--	memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
--		     (unsigned long long)base,
--		     (unsigned long long)base + size - 1,
--		     0UL, (void *)_RET_IP_);
-+	phys_addr_t end = base + size - 1;
-+
-+	memblock_dbg("memblock_add: [%pa-%pa] %pF\n",
-+		     &base, &end, (void *)_RET_IP_);
- 
- 	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
- }
-@@ -718,10 +718,10 @@ int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
- 
- int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- {
--	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pF\n",
--		     (unsigned long long)base,
--		     (unsigned long long)base + size - 1,
--		     (void *)_RET_IP_);
-+	phys_addr_t end = base + size - 1;
-+
-+	memblock_dbg("   memblock_free: [%pa-%pa] %pF\n",
-+		     &base, &end, (void *)_RET_IP_);
- 
- 	kmemleak_free_part_phys(base, size);
- 	return memblock_remove_range(&memblock.reserved, base, size);
-@@ -729,10 +729,10 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- 
- int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- {
--	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
--		     (unsigned long long)base,
--		     (unsigned long long)base + size - 1,
--		     0UL, (void *)_RET_IP_);
-+	phys_addr_t end = base + size - 1;
-+
-+	memblock_dbg("memblock_reserve: [%pa-%pa] %pF\n",
-+		     &base, &end, (void *)_RET_IP_);
- 
- 	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
- }
-@@ -1202,8 +1202,8 @@ phys_addr_t __init memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys
- 	alloc = __memblock_alloc_base(size, align, max_addr);
- 
- 	if (alloc == 0)
--		panic("ERROR: Failed to allocate 0x%llx bytes below 0x%llx.\n",
--		      (unsigned long long) size, (unsigned long long) max_addr);
-+		panic("ERROR: Failed to allocate %pa bytes below %pa.\n",
-+		      &size, &max_addr);
- 
- 	return alloc;
- }
-@@ -1673,7 +1673,7 @@ phys_addr_t __init_memblock memblock_get_current_limit(void)
- 
- static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
- {
--	unsigned long long base, size;
-+	phys_addr_t base, end, size;
- 	unsigned long flags;
- 	int idx;
- 	struct memblock_region *rgn;
-@@ -1685,23 +1685,24 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
- 
- 		base = rgn->base;
- 		size = rgn->size;
-+		end = base + size - 1;
- 		flags = rgn->flags;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
- 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
- 				 memblock_get_region_node(rgn));
- #endif
--		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s flags: %#lx\n",
--			name, idx, base, base + size - 1, size, nid_buf, flags);
-+		pr_info(" %s[%#x]\t[%pa-%pa], %pa bytes%s flags: %#lx\n",
-+			name, idx, &base, &end, &size, nid_buf, flags);
- 	}
- }
- 
- void __init_memblock __memblock_dump_all(void)
- {
- 	pr_info("MEMBLOCK configuration:\n");
--	pr_info(" memory size = %#llx reserved size = %#llx\n",
--		(unsigned long long)memblock.memory.total_size,
--		(unsigned long long)memblock.reserved.total_size);
-+	pr_info(" memory size = %pa reserved size = %pa\n",
-+		&memblock.memory.total_size,
-+		&memblock.reserved.total_size);
- 
- 	memblock_dump(&memblock.memory, "memory");
- 	memblock_dump(&memblock.reserved, "reserved");
-@@ -1727,19 +1728,14 @@ static int memblock_debug_show(struct seq_file *m, void *private)
- 	struct memblock_type *type = m->private;
- 	struct memblock_region *reg;
- 	int i;
-+	phys_addr_t end;
- 
- 	for (i = 0; i < type->cnt; i++) {
- 		reg = &type->regions[i];
--		seq_printf(m, "%4d: ", i);
--		if (sizeof(phys_addr_t) == 4)
--			seq_printf(m, "0x%08lx..0x%08lx\n",
--				   (unsigned long)reg->base,
--				   (unsigned long)(reg->base + reg->size - 1));
--		else
--			seq_printf(m, "0x%016llx..0x%016llx\n",
--				   (unsigned long long)reg->base,
--				   (unsigned long long)(reg->base + reg->size - 1));
-+		end = reg->base + reg->size - 1;
- 
-+		seq_printf(m, "%4d: ", i);
-+		seq_printf(m, "%pa..%pa\n", &reg->base, &end);
- 	}
- 	return 0;
- }
--- 
-1.9.1
+No, they didn't.. The last review comment was from Al. He wanted the
+mechanism converted from explicit calls at del_gendisk() time into a
+notifier chain since it's not just filesystems that may want to
+register for a block-device end-of-life event.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
