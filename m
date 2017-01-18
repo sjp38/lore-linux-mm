@@ -1,121 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C226B027F
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 08:45:12 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v77so3108045wmv.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:45:12 -0800 (PST)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id n69si2434637wmd.101.2017.01.18.05.45.11
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7805F6B026D
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:11:38 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id gt1so2730296wjc.0
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:11:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u73si433223wrc.271.2017.01.18.06.11.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 05:45:11 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id d140so4212206wmd.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:45:11 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 2/2] mm, vmscan: do not loop on too_many_isolated for ever
-Date: Wed, 18 Jan 2017 14:44:53 +0100
-Message-Id: <20170118134453.11725-3-mhocko@kernel.org>
-In-Reply-To: <20170118134453.11725-1-mhocko@kernel.org>
-References: <20170118134453.11725-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 06:11:37 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm/mempolicy.c: do not put mempolicy before using its nodemask
+Date: Wed, 18 Jan 2017 15:11:24 +0100
+Message-Id: <20170118141124.8345-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-From: Michal Hocko <mhocko@suse.com>
+Since commit be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to
+alloc_pages_vma") alloc_pages_vma() can potentially free a mempolicy by
+mpol_cond_put() before accessing the embedded nodemask by
+__alloc_pages_nodemask(). The commit log says it's so "we can use a single
+exit path within the function" but that's clearly wrong. We can still do that
+when doing mpol_cond_put() after the allocation attempt.
 
-Tetsuo Handa has reported [1] that direct reclaimers might get stuck in
-too_many_isolated loop basically for ever because the last few pages on
-the LRU lists are isolated by the kswapd which is stuck on fs locks when
-doing the pageout. This in turn means that there is nobody to actually
-trigger the oom killer and the system is basically unusable.
+Make sure the mempolicy is not freed prematurely, otherwise
+__alloc_pages_nodemask() can end up using a bogus nodemask, which could lead
+e.g. to premature OOM.
 
-too_many_isolated has been introduced by 35cd78156c49 ("vmscan: throttle
-direct reclaim when too many pages are isolated already") to prevent
-from pre-mature oom killer invocations because back then no reclaim
-progress could indeed trigger the OOM killer too early. But since the
-oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
-the allocation/reclaim retry loop considers all the reclaimable pages
-including those which are isolated - see 9f6c399ddc36 ("mm, vmscan:
-consider isolated pages in zone_reclaimable_pages") so we can loosen
-the direct reclaim throttling and instead rely on should_reclaim_retry
-logic which is the proper layer to control how to throttle and retry
-reclaim attempts.
-
-Move the too_many_isolated check outside shrink_inactive_list because
-in fact active list might theoretically see too many isolated pages as
-well.
-
-[1] http://lkml.kernel.org/r/201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Fixes: be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to alloc_pages_vma")
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: stable@vger.kernel.org
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/vmscan.c | 37 +++++++++++++++++++++++++++----------
- 1 file changed, 27 insertions(+), 10 deletions(-)
+ mm/mempolicy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4b1ed1b1f1db..9f6be3b10ff0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -204,10 +204,12 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
- 	unsigned long nr;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 2e346645eb80..1e7873e40c9a 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2017,8 +2017,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
  
- 	nr = zone_page_state_snapshot(zone, NR_ZONE_INACTIVE_FILE) +
--		zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_FILE);
-+		zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_FILE) +
-+		zone_page_state_snapshot(zone, NR_ZONE_ISOLATED_FILE);
- 	if (get_nr_swap_pages() > 0)
- 		nr += zone_page_state_snapshot(zone, NR_ZONE_INACTIVE_ANON) +
--			zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_ANON);
-+			zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_ANON) +
-+			zone_page_state_snapshot(zone, NR_ZONE_ISOLATED_ANON);
- 
- 	return nr;
- }
-@@ -1728,14 +1730,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 
--	while (unlikely(too_many_isolated(pgdat, lru, sc))) {
--		congestion_wait(BLK_RW_ASYNC, HZ/10);
--
--		/* We are about to die and free our memory. Return now. */
--		if (fatal_signal_pending(current))
--			return SWAP_CLUSTER_MAX;
--	}
--
- 	lru_add_drain();
- 
- 	if (!sc->may_unmap)
-@@ -2083,6 +2077,29 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 				 struct lruvec *lruvec, struct scan_control *sc)
- {
-+	int stalled = false;
-+
-+	/* We are about to die and free our memory. Return now. */
-+	if (fatal_signal_pending(current))
-+		return SWAP_CLUSTER_MAX;
-+
-+	/*
-+	 * throttle direct reclaimers but do not loop for ever. We rely
-+	 * on should_reclaim_retry to not allow pre-mature OOM when
-+	 * there are too many pages under reclaim.
-+	 */
-+	while (too_many_isolated(lruvec_pgdat(lruvec), lru, sc)) {
-+		if (stalled)
-+			return 0;
-+
-+		/*
-+		 * TODO we should wait on a different event here - do the wake up
-+		 * after we decrement NR_ZONE_ISOLATED_*
-+		 */
-+		congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		stalled = true;
-+	}
-+
- 	if (is_active_lru(lru)) {
- 		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
- 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 	nmask = policy_nodemask(gfp, pol);
+ 	zl = policy_zonelist(gfp, pol, node);
+-	mpol_cond_put(pol);
+ 	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
++	mpol_cond_put(pol);
+ out:
+ 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+ 		goto retry_cpuset;
 -- 
 2.11.0
 
