@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B13F6B0253
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:13:47 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id an2so1585046wjc.3
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:13:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j2si28574447wrc.129.2017.01.18.02.13.46
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 02:13:46 -0800 (PST)
-Date: Wed, 18 Jan 2017 11:13:43 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [ATTEND] many topics
-Message-ID: <20170118101343.GC24789@quack2.suse.cz>
-References: <20170118054945.GD18349@bombadil.infradead.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A393C6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:53:57 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 204so12638380pfx.1
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:53:57 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id c23si28045285pli.184.2017.01.18.02.53.55
+        for <linux-mm@kvack.org>;
+        Wed, 18 Jan 2017 02:53:56 -0800 (PST)
+Date: Wed, 18 Jan 2017 19:53:47 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+Message-ID: <20170118105346.GL3326@X58A-UD3R>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-16-git-send-email-byungchul.park@lge.com>
+ <20170118064230.GF15084@tardis.cn.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170118054945.GD18349@bombadil.infradead.org>
+In-Reply-To: <20170118064230.GF15084@tardis.cn.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Boqun Feng <boqun.feng@gmail.com>
+Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Tue 17-01-17 21:49:45, Matthew Wilcox wrote:
-> 1. Exploiting multiorder radix tree entries.  I believe we would do well
-> to attempt to allocate compound pages, insert them into the page cache,
-> and expect filesystems to be able to handle filling compound pages with
-> ->readpage.  It will be more efficient because alloc_pages() can return
-> large entries out of the buddy list rather than breaking them down,
-> and it'll help reduce fragmentation.
+On Wed, Jan 18, 2017 at 02:42:30PM +0800, Boqun Feng wrote:
+> On Fri, Dec 09, 2016 at 02:12:11PM +0900, Byungchul Park wrote:
+> [...]
+> > +Example 1:
+> > +
+> > +   CONTEXT X		   CONTEXT Y
+> > +   ---------		   ---------
+> > +   mutext_lock A
+> > +			   lock_page B
+> > +   lock_page B
+> > +			   mutext_lock A /* DEADLOCK */
+> 
+> s/mutext_lock/mutex_lock
 
-Kirill has patches to do this and I don't like the complexity it adds to
-pagecache handling code and each filesystem that would like to support
-this. I don't have objections to the general idea but the complexity of the
-current implementation just looks too big to me...
+Thank you.
 
-> 2. Supporting filesystem block sizes > page size.  Once we do the above
-> for efficiency, I think it then becomes trivial to support, eg 16k block
-> size filesystems on x86 machines with 4k pages.
+> > +Example 3:
+> > +
+> > +   CONTEXT X		   CONTEXT Y
+> > +   ---------		   ---------
+> > +			   mutex_lock A
+> > +   mutex_lock A
+> > +   mutex_unlock A
+> > +			   wait_for_complete B /* DEADLOCK */
+> 
+> I think this part better be:
+> 
+>    CONTEXT X		   CONTEXT Y
+>    ---------		   ---------
+>    			   mutex_lock A
+>    mutex_lock A
+>    			   wait_for_complete B /* DEADLOCK */
+>    mutex_unlock A
+> 
+> , right? Because Y triggers DEADLOCK before X could run mutex_unlock().
 
-Heh, you wish... :) There's a big difference between opportunistically
-allocating a huge page and reliably have to provide high order page. Memory
-fragmentation issues will be difficult to deal with...
- 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+There's no different between two examples.
+
+No matter which one is chosen, mutex_lock A in CONTEXT X cannot be passed.
+
+> 
+> Regards,
+> Boqun
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
