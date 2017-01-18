@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3206B0033
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5DE6B025E
 	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:24:47 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 204so15100350pfx.1
+Received: by mail-pg0-f72.google.com with SMTP id z67so14850886pgb.0
         for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:24:47 -0800 (PST)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
         by mx.google.com with ESMTPS id 63si108206pfd.50.2017.01.18.04.24.46
@@ -10,9 +10,9 @@ Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Jan 2017 04:24:46 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RESEND 2/4] mm: drop zap_details::check_swap_entries
-Date: Wed, 18 Jan 2017 15:24:27 +0300
-Message-Id: <20170118122429.43661-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RESEND 3/4] mm: drop unused argument of zap_page_range()
+Date: Wed, 18 Jan 2017 15:24:28 +0300
+Message-Id: <20170118122429.43661-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170118122429.43661-1-kirill.shutemov@linux.intel.com>
 References: <20170118122429.43661-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,65 +20,127 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-detail == NULL would give the same functionality as
-.check_swap_entries==true.
+There's no users of zap_page_range() who wants non-NULL 'details'.
+Let's drop it.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/mm.h | 1 -
- mm/memory.c        | 4 ++--
- mm/oom_kill.c      | 3 +--
- 3 files changed, 3 insertions(+), 5 deletions(-)
+ arch/s390/mm/gmap.c               | 2 +-
+ arch/x86/mm/mpx.c                 | 2 +-
+ drivers/android/binder.c          | 2 +-
+ drivers/staging/android/ion/ion.c | 3 +--
+ include/linux/mm.h                | 2 +-
+ mm/madvise.c                      | 2 +-
+ mm/memory.c                       | 5 ++---
+ 7 files changed, 8 insertions(+), 10 deletions(-)
 
+diff --git a/arch/s390/mm/gmap.c b/arch/s390/mm/gmap.c
+index ec1f0dedb948..59ac93714fa4 100644
+--- a/arch/s390/mm/gmap.c
++++ b/arch/s390/mm/gmap.c
+@@ -687,7 +687,7 @@ void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
+ 		/* Find vma in the parent mm */
+ 		vma = find_vma(gmap->mm, vmaddr);
+ 		size = min(to - gaddr, PMD_SIZE - (gaddr & ~PMD_MASK));
+-		zap_page_range(vma, vmaddr, size, NULL);
++		zap_page_range(vma, vmaddr, size);
+ 	}
+ 	up_read(&gmap->mm->mmap_sem);
+ }
+diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+index af59f808742f..aad4ac386f98 100644
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -796,7 +796,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
+ 			return -EINVAL;
+ 
+ 		len = min(vma->vm_end, end) - addr;
+-		zap_page_range(vma, addr, len, NULL);
++		zap_page_range(vma, addr, len);
+ 		trace_mpx_unmap_zap(addr, addr+len);
+ 
+ 		vma = vma->vm_next;
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index 3c71b982bf2a..d97f6725cf8c 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -629,7 +629,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
+ 		page = &proc->pages[(page_addr - proc->buffer) / PAGE_SIZE];
+ 		if (vma)
+ 			zap_page_range(vma, (uintptr_t)page_addr +
+-				proc->user_buffer_offset, PAGE_SIZE, NULL);
++				proc->user_buffer_offset, PAGE_SIZE);
+ err_vm_insert_page_failed:
+ 		unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
+ err_map_kernel_failed:
+diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+index b653451843c8..0fb0e28ace70 100644
+--- a/drivers/staging/android/ion/ion.c
++++ b/drivers/staging/android/ion/ion.c
+@@ -865,8 +865,7 @@ static void ion_buffer_sync_for_device(struct ion_buffer *buffer,
+ 	list_for_each_entry(vma_list, &buffer->vmas, list) {
+ 		struct vm_area_struct *vma = vma_list->vma;
+ 
+-		zap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start,
+-			       NULL);
++		zap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start);
+ 	}
+ 	mutex_unlock(&buffer->lock);
+ }
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 88beebe1e695..ce5e9a9bf642 100644
+index ce5e9a9bf642..6cb35e52044d 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1148,7 +1148,6 @@ struct zap_details {
- 	struct address_space *check_mapping;	/* Check page->mapping if set */
- 	pgoff_t	first_index;			/* Lowest page->index to unmap */
- 	pgoff_t last_index;			/* Highest page->index to unmap */
--	bool check_swap_entries;		/* Check also swap entries */
- };
+@@ -1158,7 +1158,7 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
+ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned long size);
+ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+-		unsigned long size, struct zap_details *);
++		unsigned long size);
+ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long start, unsigned long end);
  
- struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 0e3828eae9f8..aa4c502caecb 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -476,7 +476,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
+ 	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+ 		return -EINVAL;
+ 
+-	zap_page_range(vma, start, end - start, NULL);
++	zap_page_range(vma, start, end - start);
+ 	return 0;
+ }
+ 
 diff --git a/mm/memory.c b/mm/memory.c
-index 1d8ef8ec1b48..5dbd0ce95815 100644
+index 5dbd0ce95815..d7b96487cbb1 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -1173,8 +1173,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 			}
- 			continue;
- 		}
--		/* only check swap_entries if explicitly asked for in details */
--		if (unlikely(details && !details->check_swap_entries))
-+		/* If details->check_mapping, we leave swap entries. */
-+		if (unlikely(details))
- 			continue;
- 
- 		entry = pte_to_swp_entry(ptent);
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f101db68e760..96a53ab0c9eb 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -465,7 +465,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+@@ -1370,12 +1370,11 @@ void unmap_vmas(struct mmu_gather *tlb,
+  * @vma: vm_area_struct holding the applicable pages
+  * @start: starting address of pages to zap
+  * @size: number of bytes to zap
+- * @details: details of shared cache invalidation
+  *
+  * Caller must protect the VMA list
+  */
+ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
+-		unsigned long size, struct zap_details *details)
++		unsigned long size)
  {
+ 	struct mm_struct *mm = vma->vm_mm;
  	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
--	struct zap_details details = {.check_swap_entries = true};
- 	bool ret = true;
- 
- 	/*
-@@ -531,7 +530,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 		 */
- 		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
- 			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
--					 &details);
-+					 NULL);
- 	}
- 	tlb_finish_mmu(&tlb, 0, -1);
- 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+@@ -1386,7 +1385,7 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
+ 	update_hiwater_rss(mm);
+ 	mmu_notifier_invalidate_range_start(mm, start, end);
+ 	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
+-		unmap_single_vma(&tlb, vma, start, end, details);
++		unmap_single_vma(&tlb, vma, start, end, NULL);
+ 	mmu_notifier_invalidate_range_end(mm, start, end);
+ 	tlb_finish_mmu(&tlb, start, end);
+ }
 -- 
 2.11.0
 
