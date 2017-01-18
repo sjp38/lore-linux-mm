@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 052A56B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:12:46 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so6946249pfb.7
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 23:12:45 -0800 (PST)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTP id m6si5425752pgn.163.2017.01.17.23.12.43
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E6D6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:22:19 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so7225973pgc.2
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 23:22:19 -0800 (PST)
+Received: from out0-151.mail.aliyun.com (out0-151.mail.aliyun.com. [140.205.0.151])
+        by mx.google.com with ESMTP id 31si27556520pli.135.2017.01.17.23.22.18
         for <linux-mm@kvack.org>;
-        Tue, 17 Jan 2017 23:12:45 -0800 (PST)
+        Tue, 17 Jan 2017 23:22:18 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170117221610.22505-1-vbabka@suse.cz> <20170117221610.22505-5-vbabka@suse.cz>
-In-Reply-To: <20170117221610.22505-5-vbabka@suse.cz>
-Subject: Re: [RFC 4/4] mm, page_alloc: fix premature OOM when racing with cpuset mems update
-Date: Wed, 18 Jan 2017 15:12:27 +0800
-Message-ID: <036e01d2715a$3a227de0$ae6779a0$@alibaba-inc.com>
+References: <20170117221610.22505-1-vbabka@suse.cz> <20170117221610.22505-4-vbabka@suse.cz>
+In-Reply-To: <20170117221610.22505-4-vbabka@suse.cz>
+Subject: Re: [RFC 3/4] mm, page_alloc: move cpuset seqcount checking to slowpath
+Date: Wed, 18 Jan 2017 15:22:13 +0800
+Message-ID: <036f01d2715b$97827e80$c6877b80$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -25,28 +25,16 @@ List-ID: <linux-mm.kvack.org>
 To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Ganapatrao Kulkarni' <gpkulkarni@gmail.com>
 Cc: 'Michal Hocko' <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
 On Wednesday, January 18, 2017 6:16 AM Vlastimil Babka wrote: 
 > 
-> @@ -3802,13 +3811,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  	 * Also recalculate the starting point for the zonelist iterator or
->  	 * we could end up iterating over non-eligible zones endlessly.
->  	 */
-Is the newly added comment still needed?
+> This is a preparation for the following patch to make review simpler. While
+> the primary motivation is a bug fix, this could also save some cycles in the
+> fast path.
+> 
+This also gets kswapd involved. 
+Dunno how frequent cpuset is changed in real life.
 
-> -	if (unlikely(ac.nodemask != nodemask)) {
-> -no_zone:
-> +	if (unlikely(ac.nodemask != nodemask))
->  		ac.nodemask = nodemask;
-> -		ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
-> -						ac.high_zoneidx, ac.nodemask);
-> -		/* If we have NULL preferred zone, slowpath wll handle that */
-> -	}
-> 
->  	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
-> 
-> --
-> 2.11.0
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
