@@ -1,40 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94E6D6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:22:19 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id d185so7225973pgc.2
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 23:22:19 -0800 (PST)
-Received: from out0-151.mail.aliyun.com (out0-151.mail.aliyun.com. [140.205.0.151])
-        by mx.google.com with ESMTP id 31si27556520pli.135.2017.01.17.23.22.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B89036B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:48:49 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so7887255pfa.3
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 23:48:49 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id p11si27555387pgc.326.2017.01.17.23.48.48
         for <linux-mm@kvack.org>;
-        Tue, 17 Jan 2017 23:22:18 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170117221610.22505-1-vbabka@suse.cz> <20170117221610.22505-4-vbabka@suse.cz>
-In-Reply-To: <20170117221610.22505-4-vbabka@suse.cz>
-Subject: Re: [RFC 3/4] mm, page_alloc: move cpuset seqcount checking to slowpath
-Date: Wed, 18 Jan 2017 15:22:13 +0800
-Message-ID: <036f01d2715b$97827e80$c6877b80$@alibaba-inc.com>
+        Tue, 17 Jan 2017 23:48:48 -0800 (PST)
+Date: Wed, 18 Jan 2017 16:54:48 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCHSET v2] slab: make memcg slab destruction scalable
+Message-ID: <20170118075448.GA1255@js1304-P5Q-DELUXE>
+References: <20170114184834.8658-1-tj@kernel.org>
+ <20170117001256.GB25218@js1304-P5Q-DELUXE>
+ <20170117164913.GB28948@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170117164913.GB28948@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Ganapatrao Kulkarni' <gpkulkarni@gmail.com>
-Cc: 'Michal Hocko' <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: vdavydov.dev@gmail.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On Wednesday, January 18, 2017 6:16 AM Vlastimil Babka wrote: 
+On Tue, Jan 17, 2017 at 08:49:13AM -0800, Tejun Heo wrote:
+> Hello,
 > 
-> This is a preparation for the following patch to make review simpler. While
-> the primary motivation is a bug fix, this could also save some cycles in the
-> fast path.
+> On Tue, Jan 17, 2017 at 09:12:57AM +0900, Joonsoo Kim wrote:
+> > Could you confirm that your series solves the problem that is reported
+> > by Doug? It would be great if the result is mentioned to the patch
+> > description.
+> > 
+> > https://bugzilla.kernel.org/show_bug.cgi?id=172991
 > 
-This also gets kswapd involved. 
-Dunno how frequent cpuset is changed in real life.
+> So, that's an issue in the creation path which is already resolved by
+> switching to an ordered workqueue (it'd probably be better to use
+> per-cpu wq w/ @max_active == 1 tho).  This patchset is about relesae
+> path.  slab_mutex contention would definitely go down with this but
+> I don't think there's more connection to it than that.
 
-Hillf
+That problem is caused by slow release path and then contention on the
+slab_mutex. With an ordered workqueue, kworker would not be created a
+lot but it can be possible that a lot of work items to create a new
+cache for memcg is pending for a long time due to slow release path.
+
+Your patchset replaces optimization for release path so it's better to
+check that the work isn't pending for a long time in above workload.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
