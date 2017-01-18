@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 76A1B6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:47:00 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t18so3434235wmt.7
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:47:00 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 145C06B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 09:51:01 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c206so3486687wme.3
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:51:01 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w70si567463wrc.109.2017.01.18.06.46.58
+        by mx.google.com with ESMTPS id n26si2643606wmi.51.2017.01.18.06.50.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 06:46:59 -0800 (PST)
-Date: Wed, 18 Jan 2017 14:46:55 +0000
+        Wed, 18 Jan 2017 06:50:59 -0800 (PST)
+Date: Wed, 18 Jan 2017 14:50:56 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170118144655.3lra7xgdcl2awgjd@suse.de>
+Subject: Re: [RFC PATCH 2/2] mm, vmscan: do not loop on too_many_isolated for
+ ever
+Message-ID: <20170118145056.3y72yy3dew46ypor@suse.de>
 References: <20170118134453.11725-1-mhocko@kernel.org>
- <20170118134453.11725-2-mhocko@kernel.org>
+ <20170118134453.11725-3-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170118134453.11725-2-mhocko@kernel.org>
+In-Reply-To: <20170118134453.11725-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jan 18, 2017 at 02:44:52PM +0100, Michal Hocko wrote:
+On Wed, Jan 18, 2017 at 02:44:53PM +0100, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> 599d0c954f91 ("mm, vmscan: move LRU lists to node") has moved
-> NR_ISOLATED* counters from zones to nodes. This is not the best fit
-> especially for systems with high/lowmem because a heavy memory pressure
-> on the highmem zone might block lowmem requests from making progress. Or
-> we might allow to reclaim lowmem zone even though there are too many
-> pages already isolated from the eligible zones just because highmem
-> pages will easily bias too_many_isolated to say no.
+> Tetsuo Handa has reported [1] that direct reclaimers might get stuck in
+> too_many_isolated loop basically for ever because the last few pages on
+> the LRU lists are isolated by the kswapd which is stuck on fs locks when
+> doing the pageout. This in turn means that there is nobody to actually
+> trigger the oom killer and the system is basically unusable.
 > 
-> Fix these potential issues by moving isolated stats back to zones and
-> teach too_many_isolated to consider only eligible zones. Per zone
-> isolation counters are a bit tricky with the node reclaim because
-> we have to track each page separatelly.
+> too_many_isolated has been introduced by 35cd78156c49 ("vmscan: throttle
+> direct reclaim when too many pages are isolated already") to prevent
+> from pre-mature oom killer invocations because back then no reclaim
+> progress could indeed trigger the OOM killer too early. But since the
+> oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
+> the allocation/reclaim retry loop considers all the reclaimable pages
+> including those which are isolated - see 9f6c399ddc36 ("mm, vmscan:
+> consider isolated pages in zone_reclaimable_pages") so we can loosen
+> the direct reclaim throttling and instead rely on should_reclaim_retry
+> logic which is the proper layer to control how to throttle and retry
+> reclaim attempts.
+> 
+> Move the too_many_isolated check outside shrink_inactive_list because
+> in fact active list might theoretically see too many isolated pages as
+> well.
 > 
 
-I'm quite unhappy with this. Each move back increases the cache footprint
-because of the counters but it's not clear at all this patch actually
-helps anything.
+No major objections in general. It's a bit odd you have a while loop for
+something that will only loop once.
 
-Heavy memory pressure on highmem should be spread across the whole node as
-we no longer are applying the fair zone allocation policy. The processes
-with highmem requirements will be reclaiming from all zones and when it
-finishes, it's possible that a lowmem-specific request will be clear to make
-progress. It's all the same LRU so if there are too many pages isolated,
-it makes sense to wait regardless of the allocation request.
-
-More importantly, this patch may make things worse and delay reclaim. If
-this patch allowed a lowmem request to make progress that would have
-previously stalled, it's going to spend time skipping pages in the LRU
-instead of letting kswapd and the highmem pressured processes make progress.
+As for the TODO, one approach would be to use a waitqueue when too many
+pages are isolated. Wake them one at a time when isolated pages drops
+below the threshold.
 
 -- 
 Mel Gorman
