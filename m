@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 02A196B0260
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:30:01 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id w107so5211154ota.6
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:30:00 -0800 (PST)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20105.outbound.protection.outlook.com. [40.107.2.105])
-        by mx.google.com with ESMTPS id n206si789502oia.25.2017.01.18.03.29.59
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E3F6E6B0260
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:36:47 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so13327681pgc.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:36:47 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0127.outbound.protection.outlook.com. [104.47.0.127])
+        by mx.google.com with ESMTPS id v4si7733792pgo.267.2017.01.18.03.36.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 03:30:00 -0800 (PST)
-Subject: Re: [PATCHv2 2/5] x86/mm: introduce mmap_{,legacy}_base
+        Wed, 18 Jan 2017 03:36:46 -0800 (PST)
+Subject: Re: [PATCHv2 3/5] x86/mm: fix native mmap() in compat bins and
+ vice-versa
 References: <20170116123310.22697-1-dsafonov@virtuozzo.com>
- <20170116123310.22697-3-dsafonov@virtuozzo.com>
- <CALCETrUHLpsrB0M3rkrxw8R=6Dto5gFz+enP=W3C6WPDTa36GA@mail.gmail.com>
+ <20170116123310.22697-4-dsafonov@virtuozzo.com>
+ <CALCETrXd97biCE4K3V6=kDw8GxjyuDX1a1gr3ir-Pg0=6f-Hng@mail.gmail.com>
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <69eecbfb-9d39-9c72-7ec3-68fdbea45245@virtuozzo.com>
-Date: Wed, 18 Jan 2017 14:26:37 +0300
+Message-ID: <72d16541-17c3-acb6-1d0d-2d6cf0565f35@virtuozzo.com>
+Date: Wed, 18 Jan 2017 14:33:26 +0300
 MIME-Version: 1.0
-In-Reply-To: <CALCETrUHLpsrB0M3rkrxw8R=6Dto5gFz+enP=W3C6WPDTa36GA@mail.gmail.com>
+In-Reply-To: <CALCETrXd97biCE4K3V6=kDw8GxjyuDX1a1gr3ir-Pg0=6f-Hng@mail.gmail.com>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,34 +26,47 @@ List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@amacapital.net>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/17/2017 11:27 PM, Andy Lutomirski wrote:
+On 01/17/2017 11:29 PM, Andy Lutomirski wrote:
 > On Mon, Jan 16, 2017 at 4:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->> In the following patch they will be used to compute:
->> - mmap_base in compat sys_mmap() in native 64-bit binary
->> and vice-versa
->> - mmap_base for native sys_mmap() in compat x32/ia32-bit binary.
+>> Fix 32-bit compat_sys_mmap() mapping VMA over 4Gb in 64-bit binaries
+>> and 64-bit sys_mmap() mapping VMA only under 4Gb in 32-bit binaries.
+>> Changed arch_get_unmapped_area{,_topdown}() to recompute mmap_base
+>> for those cases and use according high/low limits for vm_unmapped_area()
+>> The recomputing of mmap_base may make compat sys_mmap() in 64-bit
+>> binaries a little slower than native, which uses already known from exec
+>> time mmap_base - but, as it returned buggy address, that case seemed
+>> unused previously, so no performance degradation for already used ABI.
 >
-> I may be wrong here, but I suspect that you're repeating something
-> that I consider to be a mistake that's all over the x86 code.
-> Specifically, you're distinguishing "native" from "compat" instead of
-> "32-bit" from "64-bit".  If you did the latter, then you wouldn't need
-> the "native" case to work differently on 32-bit kernels vs 64-bit
-> kernels, I think.  Would making this change make your code simpler?
+> This looks plausibly correct but rather weird -- why does this code
+> need to distinguish between all four cases (pure 32-bit, pure 64-bit,
+> 64-bit mmap layout doing 32-bit call, 32-bit layout doing 64-bit
+> call)?
+
+Only by need to know is mm->mmap_base computed initialy for 32-bit
+or for 64-bit.
+
 >
-> The x86 signal code is the worst offender IMO.
+>> Can be optimized in future by introducing mmap_compat_{,legacy}_base
+>> in mm_struct.
+>
+> Hmm.  Would it make sense to do it this way from the beginning?
 
-Yes, I also don't like to differ them especially by TIF_ADDR32 flag.
-I did distinguishing for the reason that I needed to know for which
-task 64/32-bit was computed mm->mmap_base.
-Otherwise I could introduce mm->mmap_compat_base and don't differ
-tasks by TIF_ADDR32 flag - only by in_compat_syscall(), but that
-would change mm_struct generic code (adding a field to mm).
-So, I thought it may have more opposition to add a field to mm
-in generic code and fixed it here, in x86.
+That would, but mm_struct is in generic code, if adding those new bases
+is fine, than I'll do that in v3.
 
+It will look somehow like:
+: if (in_compat_syscall())
+: 	return current->mm->mmap_compat_base;
+: else
+: 	return current->mm->mmap_base;
+
+>
+> If adding an in_32bit_syscall() helper would help, then by all means
+> please do so.
 >
 > --Andy
 >
+
 
 -- 
               Dmitry
