@@ -1,62 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C58FC6B0253
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:15:29 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id jz4so3978890wjb.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:15:29 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C746B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:42:52 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id ez4so4092888wjd.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:42:52 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b11si1186049wra.299.2017.01.18.10.15.28
+        by mx.google.com with ESMTPS id 17si3365930wms.53.2017.01.18.10.42.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 10:15:28 -0800 (PST)
-Date: Wed, 18 Jan 2017 19:15:21 +0100
+        Wed, 18 Jan 2017 10:42:51 -0800 (PST)
+Date: Wed, 18 Jan 2017 19:42:46 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Update][PATCH v5 7/9] mm/swap: Add cache for swap slots
- allocation
-Message-ID: <20170118181520.GB17135@dhcp22.suse.cz>
-References: <cover.1484082593.git.tim.c.chen@linux.intel.com>
- <35de301a4eaa8daa2977de6e987f2c154385eb66.1484082593.git.tim.c.chen@linux.intel.com>
- <87tw8ymm2z.fsf_-_@yhuang-dev.intel.com>
- <20170117214234.GA14383@linux.intel.com>
- <20170118124555.GQ7015@dhcp22.suse.cz>
- <20170118180327.GA24225@linux.intel.com>
+Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
+Message-ID: <20170118184246.GC17135@dhcp22.suse.cz>
+References: <20161220134904.21023-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170118180327.GA24225@linux.intel.com>
+In-Reply-To: <20161220134904.21023-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Jonathan Corbet <corbet@lwn.net>, Tim C Chen <tim.c.chen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 18-01-17 10:03:27, Tim Chen wrote:
-> On Wed, Jan 18, 2017 at 01:45:55PM +0100, Michal Hocko wrote:
-> > On Tue 17-01-17 13:42:35, Tim Chen wrote:
-> > [...]
-> > > Logic wise, We do allow pre-emption as per cpu ptr cache->slots is
-> > > protected by the mutex cache->alloc_lock.  We switch the
-> > > inappropriately used this_cpu_ptr to raw_cpu_ptr for per cpu ptr
-> > > access of cache->slots.
-> > 
-> > OK, that looks better. I would still appreciate something like the
-> > following folded in
-> > diff --git a/include/linux/swap_slots.h b/include/linux/swap_slots.h
-> > index fb907346c5c6..0afe748453a7 100644
-> > --- a/include/linux/swap_slots.h
-> > +++ b/include/linux/swap_slots.h
-> > @@ -11,6 +11,7 @@
-> >  
-> >  struct swap_slots_cache {
-> >  	bool		lock_initialized;
-> > +	/* protects slots, nr, cur */
-> >  	struct mutex	alloc_lock;
-> >  	swp_entry_t	*slots;
-> >  	int		nr;
-> > 
+On Tue 20-12-16 14:49:01, Michal Hocko wrote:
+> Hi,
+> This has been posted [1] initially to later be reduced to a single patch
+> [2].  Johannes then suggested [3] to split up the second patch and make
+> the access to memory reserves by __GF_NOFAIL requests which do not
+> invoke the oom killer a separate change. This is patch 3 now.
 > 
-> I've included here a patch for the comments.
+> Tetsuo has noticed [4] that recent changes have changed GFP_NOFAIL
+> semantic for costly order requests. I believe that the primary reason
+> why this happened is that our GFP_NOFAIL checks are too scattered
+> and it is really easy to forget about adding one. That's why I am
+> proposing patch 1 which consolidates all the nofail handling at a single
+> place. This should help to make this code better maintainable.
+> 
+> Patch 2 on top is a further attempt to make GFP_NOFAIL semantic less
+> surprising. As things stand currently GFP_NOFAIL overrides the oom killer
+> prevention code which is both subtle and not really needed. The patch 2
+> has more details about issues this might cause. We have also seen
+> a report where __GFP_NOFAIL|GFP_NOFS requests cause the oom killer which
+> is premature.
+> 
+> Patch 3 is an attempt to reduce chances of GFP_NOFAIL requests being
+> preempted by other memory consumers by giving them access to memory
+> reserves.
+> 
+> [1] http://lkml.kernel.org/r/20161123064925.9716-1-mhocko@kernel.org
+> [2] http://lkml.kernel.org/r/20161214150706.27412-1-mhocko@kernel.org
+> [3] http://lkml.kernel.org/r/20161216173151.GA23182@cmpxchg.org
+> [4] http://lkml.kernel.org/r/1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
 
-Thanks!
+Friendly ping on this.
 -- 
 Michal Hocko
 SUSE Labs
