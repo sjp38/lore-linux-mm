@@ -1,197 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E696B0038
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:37:36 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id p192so1660597wme.1
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 00:37:36 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B13D96B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:19:57 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id jz4so1339192wjb.5
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 01:19:57 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w72si14639149wrc.19.2017.01.18.00.37.34
+        by mx.google.com with ESMTPS id o64si1665309wmi.143.2017.01.18.01.19.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 00:37:35 -0800 (PST)
-Date: Wed, 18 Jan 2017 09:37:31 +0100
+        Wed, 18 Jan 2017 01:19:56 -0800 (PST)
+Date: Wed, 18 Jan 2017 10:19:55 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-swap-add-cluster-lock-v5.patch added to -mm tree
-Message-ID: <20170118083731.GF7015@dhcp22.suse.cz>
-References: <587eaca3.MRSwND8OEi+lF+VH%akpm@linux-foundation.org>
+Subject: Re: [RFC 0/4] fix premature OOM due to cpuset races
+Message-ID: <20170118091955.GG7015@dhcp22.suse.cz>
+References: <20170117221610.22505-1-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <587eaca3.MRSwND8OEi+lF+VH%akpm@linux-foundation.org>
+In-Reply-To: <20170117221610.22505-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: ying.huang@intel.com, aarcange@redhat.com, aaron.lu@intel.com, ak@linux.intel.com, borntraeger@de.ibm.com, corbet@lwn.net, dave.hansen@intel.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, hughd@google.com, kirill.shutemov@linux.intel.com, minchan@kernel.org, riel@redhat.com, shli@kernel.org, tim.c.chen@linux.intel.com, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Ganapatrao Kulkarni <gpkulkarni@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 17-01-17 15:45:39, Andrew Morton wrote:
-[...]
-> From: "Huang\, Ying" <ying.huang@intel.com>
-> Subject: mm-swap-add-cluster-lock-v5
+On Tue 17-01-17 23:16:06, Vlastimil Babka wrote:
+> This is my attempt to fix the recent report based on LTP cpuset stress test [1].
+> Patches are based on 4.9 as that was the initial reported version, but later
+> it was reported that this problem exists since 4.7. We will probably want to
+> go to stable with this, as triggering OOMs is not nice. That's why the patches
+> try to be not too intrusive.
+> 
+> Longer-term we might try to think how to fix the cpuset mess in a better and
+> less error prone way. I was for example very surprised to learn, that cpuset
+> updates change not only task->mems_allowed, but also nodemask of mempolicies.
+> Until now I expected the parameter to alloc_pages_nodemask() to be stable.
+> I wonder why do we then treat cpusets specially in get_page_from_freelist()
+> and distinguish HARDWALL etc, when there's unconditional intersection between
+> mempolicy and cpuset. I would expect the nodemask adjustment for saving
+> overhead in g_p_f(), but that clearly doesn't happen in the current form.
+> So we have both crazy complexity and overhead, AFAICS.
 
-I assume you are going to fold this into the original patch. Do you
-think it would make sense to have it in a separate patch along with
-the reasoning provided via email?
+Absolutely agreed! This is a mess which should be fixed and nodemask
+should be stable for each allocation attempt. Trying to catch up with
+concurrent changes is just insane and makes the code more complicated.
 
-> Link: http://lkml.kernel.org/r/878tqeuuic.fsf_-_@yhuang-dev.intel.com
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: Huang Ying <ying.huang@intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Jonathan Corbet <corbet@lwn.net> escreveu:
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
+> [1] https://lkml.kernel.org/r/CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com
 > 
->  include/linux/swap.h |   19 ++++++++++---------
->  mm/swapfile.c        |   32 ++++++++++++++++----------------
->  2 files changed, 26 insertions(+), 25 deletions(-)
+> Vlastimil Babka (4):
+>   mm, page_alloc: fix check for NULL preferred_zone
+>   mm, page_alloc: fix fast-path race with cpuset update or removal
+>   mm, page_alloc: move cpuset seqcount checking to slowpath
+>   mm, page_alloc: fix premature OOM when racing with cpuset mems update
 > 
-> diff -puN include/linux/swap.h~mm-swap-add-cluster-lock-v5 include/linux/swap.h
-> --- a/include/linux/swap.h~mm-swap-add-cluster-lock-v5
-> +++ a/include/linux/swap.h
-> @@ -176,16 +176,17 @@ enum {
->   * protected by swap_info_struct.lock.
->   */
->  struct swap_cluster_info {
-> -	unsigned long data;
-> +	spinlock_t lock;	/*
-> +				 * Protect swap_cluster_info fields
-> +				 * and swap_info_struct->swap_map
-> +				 * elements correspond to the swap
-> +				 * cluster
-> +				 */
-> +	unsigned int data:24;
-> +	unsigned int flags:8;
->  };
-> -#define CLUSTER_COUNT_SHIFT		8
-> -#define CLUSTER_FLAG_MASK		((1UL << CLUSTER_COUNT_SHIFT) - 1)
-> -#define CLUSTER_COUNT_MASK		(~CLUSTER_FLAG_MASK)
-> -#define CLUSTER_FLAG_FREE		1 /* This cluster is free */
-> -#define CLUSTER_FLAG_NEXT_NULL		2 /* This cluster has no next cluster */
-> -/* cluster lock, protect cluster_info contents and sis->swap_map */
-> -#define CLUSTER_FLAG_LOCK_BIT		2
-> -#define CLUSTER_FLAG_LOCK		(1 << CLUSTER_FLAG_LOCK_BIT)
-> +#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
-> +#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
->  
->  /*
->   * We assign a cluster to each CPU, so each CPU can allocate swap entry from
-> diff -puN mm/swapfile.c~mm-swap-add-cluster-lock-v5 mm/swapfile.c
-> --- a/mm/swapfile.c~mm-swap-add-cluster-lock-v5
-> +++ a/mm/swapfile.c
-> @@ -200,66 +200,66 @@ static void discard_swap_cluster(struct
->  #define LATENCY_LIMIT		256
->  
->  static inline void cluster_set_flag(struct swap_cluster_info *info,
-> -				    unsigned int flag)
-> +	unsigned int flag)
->  {
-> -	info->data = (info->data & (CLUSTER_COUNT_MASK | CLUSTER_FLAG_LOCK)) |
-> -		(flag & ~CLUSTER_FLAG_LOCK);
-> +	info->flags = flag;
->  }
->  
->  static inline unsigned int cluster_count(struct swap_cluster_info *info)
->  {
-> -	return info->data >> CLUSTER_COUNT_SHIFT;
-> +	return info->data;
->  }
->  
->  static inline void cluster_set_count(struct swap_cluster_info *info,
->  				     unsigned int c)
->  {
-> -	info->data = (c << CLUSTER_COUNT_SHIFT) | (info->data & CLUSTER_FLAG_MASK);
-> +	info->data = c;
->  }
->  
->  static inline void cluster_set_count_flag(struct swap_cluster_info *info,
->  					 unsigned int c, unsigned int f)
->  {
-> -	info->data = (info->data & CLUSTER_FLAG_LOCK) |
-> -		(c << CLUSTER_COUNT_SHIFT) | (f & ~CLUSTER_FLAG_LOCK);
-> +	info->flags = f;
-> +	info->data = c;
->  }
->  
->  static inline unsigned int cluster_next(struct swap_cluster_info *info)
->  {
-> -	return cluster_count(info);
-> +	return info->data;
->  }
->  
->  static inline void cluster_set_next(struct swap_cluster_info *info,
->  				    unsigned int n)
->  {
-> -	cluster_set_count(info, n);
-> +	info->data = n;
->  }
->  
->  static inline void cluster_set_next_flag(struct swap_cluster_info *info,
->  					 unsigned int n, unsigned int f)
->  {
-> -	cluster_set_count_flag(info, n, f);
-> +	info->flags = f;
-> +	info->data = n;
->  }
->  
->  static inline bool cluster_is_free(struct swap_cluster_info *info)
->  {
-> -	return info->data & CLUSTER_FLAG_FREE;
-> +	return info->flags & CLUSTER_FLAG_FREE;
->  }
->  
->  static inline bool cluster_is_null(struct swap_cluster_info *info)
->  {
-> -	return info->data & CLUSTER_FLAG_NEXT_NULL;
-> +	return info->flags & CLUSTER_FLAG_NEXT_NULL;
->  }
->  
->  static inline void cluster_set_null(struct swap_cluster_info *info)
->  {
-> -	cluster_set_next_flag(info, 0, CLUSTER_FLAG_NEXT_NULL);
-> +	info->flags = CLUSTER_FLAG_NEXT_NULL;
-> +	info->data = 0;
->  }
->  
-> -/* Protect swap_cluster_info fields and si->swap_map */
->  static inline void __lock_cluster(struct swap_cluster_info *ci)
->  {
-> -	bit_spin_lock(CLUSTER_FLAG_LOCK_BIT, &ci->data);
-> +	spin_lock(&ci->lock);
->  }
->  
->  static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
-> @@ -278,7 +278,7 @@ static inline struct swap_cluster_info *
->  static inline void unlock_cluster(struct swap_cluster_info *ci)
->  {
->  	if (ci)
-> -		bit_spin_unlock(CLUSTER_FLAG_LOCK_BIT, &ci->data);
-> +		spin_unlock(&ci->lock);
->  }
->  
->  static inline struct swap_cluster_info *lock_cluster_or_swap_info(
-> _
+>  mm/page_alloc.c | 58 ++++++++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 37 insertions(+), 21 deletions(-)
 > 
-> Patches currently in -mm which might be from ying.huang@intel.com are
-> 
-> mm-swap-fix-kernel-message-in-swap_info_get.patch
-> mm-swap-add-cluster-lock.patch
-> mm-swap-add-cluster-lock-v5.patch
-> mm-swap-split-swap-cache-into-64mb-trunks.patch
-> mm-swap-add-cache-for-swap-slots-allocation-fix.patch
-> mm-swap-skip-readahead-only-when-swap-slot-cache-is-enabled.patch
+> -- 
+> 2.11.0
 
 -- 
 Michal Hocko
