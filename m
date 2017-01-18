@@ -1,129 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ED16B6B026C
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:54:29 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 194so144110858pgd.7
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:29 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id e23si19274021pga.134.2017.01.17.15.54.29
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A356B6B0033
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 19:03:11 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f5so111122777pgi.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 16:03:11 -0800 (PST)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0130.outbound.protection.outlook.com. [104.47.32.130])
+        by mx.google.com with ESMTPS id j62si7141822pfg.51.2017.01.17.16.03.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 15:54:29 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id t6so5033586pgt.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 15:54:29 -0800 (PST)
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 10/10] slab: use memcg_kmem_cache_wq for slab destruction operations
-Date: Tue, 17 Jan 2017 15:54:11 -0800
-Message-Id: <20170117235411.9408-11-tj@kernel.org>
-In-Reply-To: <20170117235411.9408-1-tj@kernel.org>
-References: <20170117235411.9408-1-tj@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 17 Jan 2017 16:03:10 -0800 (PST)
+From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Future direction of DAX
+Date: Wed, 18 Jan 2017 00:03:08 +0000
+Message-ID: <1484701124.2029.9.camel@hpe.com>
+References: <20170114002008.GA25379@linux.intel.com>
+	 <20170117155910.GU2517@quack2.suse.cz>
+In-Reply-To: <20170117155910.GU2517@quack2.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <75D4FFDF1F75974CBD1510C98C246452@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vdavydov.dev@gmail.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
-Cc: jsvana@fb.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, kernel-team@fb.com, Tejun Heo <tj@kernel.org>
+To: "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "jack@suse.cz" <jack@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-If there's contention on slab_mutex, queueing the per-cache
-destruction work item on the system_wq can unnecessarily create and
-tie up a lot of kworkers.
-
-Rename memcg_kmem_cache_create_wq to memcg_kmem_cache_wq and make it
-global and use that workqueue for the destruction work items too.
-While at it, convert the workqueue from an unbound workqueue to a
-per-cpu one with concurrency limited to 1.  It's generally preferable
-to use per-cpu workqueues and concurrency limit of 1 is safe enough.
-
-This is suggested by Joonsoo Kim.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Reported-by: Jay Vana <jsvana@fb.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/memcontrol.h |  1 +
- mm/memcontrol.c            | 16 ++++++++--------
- mm/slab_common.c           |  2 +-
- 3 files changed, 10 insertions(+), 9 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4de925c..67f3303 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -810,6 +810,7 @@ void memcg_kmem_uncharge(struct page *page, int order);
- 
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- extern struct static_key_false memcg_kmem_enabled_key;
-+extern struct workqueue_struct *memcg_kmem_cache_wq;
- 
- extern int memcg_nr_cache_ids;
- void memcg_get_cache_ids(void);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a2b20f7f..8757403 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -317,6 +317,8 @@ void memcg_put_cache_ids(void)
- DEFINE_STATIC_KEY_FALSE(memcg_kmem_enabled_key);
- EXPORT_SYMBOL(memcg_kmem_enabled_key);
- 
-+struct workqueue_struct *memcg_kmem_cache_wq;
-+
- #endif /* !CONFIG_SLOB */
- 
- /**
-@@ -2145,8 +2147,6 @@ struct memcg_kmem_cache_create_work {
- 	struct work_struct work;
- };
- 
--static struct workqueue_struct *memcg_kmem_cache_create_wq;
--
- static void memcg_kmem_cache_create_func(struct work_struct *w)
- {
- 	struct memcg_kmem_cache_create_work *cw =
-@@ -2178,7 +2178,7 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
- 	cw->cachep = cachep;
- 	INIT_WORK(&cw->work, memcg_kmem_cache_create_func);
- 
--	queue_work(memcg_kmem_cache_create_wq, &cw->work);
-+	queue_work(memcg_kmem_cache_wq, &cw->work);
- }
- 
- static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
-@@ -5780,12 +5780,12 @@ static int __init mem_cgroup_init(void)
- #ifndef CONFIG_SLOB
- 	/*
- 	 * Kmem cache creation is mostly done with the slab_mutex held,
--	 * so use a special workqueue to avoid stalling all worker
--	 * threads in case lots of cgroups are created simultaneously.
-+	 * so use a workqueue with limited concurrency to avoid stalling
-+	 * all worker threads in case lots of cgroups are created and
-+	 * destroyed simultaneously.
- 	 */
--	memcg_kmem_cache_create_wq =
--		alloc_ordered_workqueue("memcg_kmem_cache_create", 0);
--	BUG_ON(!memcg_kmem_cache_create_wq);
-+	memcg_kmem_cache_wq = alloc_workqueue("memcg_kmem_cache", 0, 1);
-+	BUG_ON(!memcg_kmem_cache_wq);
- #endif
- 
- 	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 32610d1..5e6a98c 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -656,7 +656,7 @@ static void kmemcg_deactivate_rcufn(struct rcu_head *head)
- 	 * initialized eariler.
- 	 */
- 	INIT_WORK(&s->memcg_params.deact_work, kmemcg_deactivate_workfn);
--	schedule_work(&s->memcg_params.deact_work);
-+	queue_work(memcg_kmem_cache_wq, &s->memcg_params.deact_work);
- }
- 
- /**
--- 
-2.9.3
+T24gVHVlLCAyMDE3LTAxLTE3IGF0IDE2OjU5ICswMTAwLCBKYW4gS2FyYSB3cm90ZToNCj4gT24g
+RnJpIDEzLTAxLTE3IDE3OjIwOjA4LCBSb3NzIFp3aXNsZXIgd3JvdGU6DQogOg0KPiA+IC0gSWYg
+SSByZWNhbGwgY29ycmVjdGx5LCBhdCBvbmUgcG9pbnQgRGF2ZSBDaGlubmVyIHN1Z2dlc3RlZCB0
+aGF0DQo+ID4gd2UgY2hhbmdlIC0gSWYgSSByZWNhbGwgY29ycmVjdGx5LCBhdCBvbmUgcG9pbnQg
+RGF2ZSBDaGlubmVyDQo+ID4gc3VnZ2VzdGVkIHRoYXQgd2UgY2hhbmdlIMKgIERBWCBzbyB0aGF0
+IEkvTyB3b3VsZCB1c2UgY2FjaGVkIHN0b3Jlcw0KPiA+IGluc3RlYWQgb2YgdGhlIG5vbi10ZW1w
+b3JhbCBzdG9yZXMgwqAgdGhhdCBpdCBjdXJyZW50bHkgdXNlcy7CoMKgV2UNCj4gPiB3b3VsZCB0
+aGVuIHRyYWNrIHBhZ2VzIHRoYXQgd2VyZSB3cml0dGVuIHRvIGJ5IERBWCBpbiB0aGUgcmFkaXgN
+Cj4gPiB0cmVlIHNvIHRoYXQgdGhleSB3b3VsZCBiZSBmbHVzaGVkIGxhdGVyIGR1cmluZyDCoA0K
+PiA+IGZzeW5jL21zeW5jLsKgwqBEb2VzIHRoaXMgc291bmQgbGlrZSBhIHdpbj/CoMKgQWxzbywg
+YXNzdW1pbmcgdGhhdCB3ZQ0KPiA+IGNhbiBmaW5kIGEgc29sdXRpb24gZm9yIHBsYXRmb3JtcyB3
+aGVyZSB0aGUgcHJvY2Vzc29yIGNhY2hlIGlzIHBhcnQNCj4gPiBvZiB0aGUgQURSIHNhZmUgem9u
+ZSAoYWJvdmUgdG9waWMpIHRoaXMgd291bGQgYmUgYSBjbGVhcg0KPiA+IGltcHJvdmVtZW50LCBt
+b3ZpbmcgdXMgZnJvbSB1c2luZyBub24tdGVtcG9yYWwgc3RvcmVzIHRvIGZhc3Rlcg0KPiA+IGNh
+Y2hlZCBzdG9yZXMgd2l0aCBubyBkb3duc2lkZS4NCj4gDQo+IEkgZ3Vlc3MgdGhpcyBuZWVkcyBt
+ZWFzdXJlbWVudHMuIEJ1dCBpdCBpcyB3b3J0aCBhIHRyeS4NCg0KQnJhaW4gQm95bHN0b24gZGlk
+IHNvbWUgbWVhc3VyZW1lbnQgYmVmb3JlLg0KaHR0cDovL29zcy5zZ2kuY29tL2FyY2hpdmVzL3hm
+cy8yMDE2LTA4L21zZzAwMjM5Lmh0bWwNCg0KSSB1cGRhdGVkIGhpcyB0ZXN0IHByb2dyYW0gdG8g
+c2tpcCBwbWVtX3BlcnNpc3QoKSBmb3IgdGhlIGNhY2hlZCBjb3B5DQpjYXNlLg0KDQrCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBkc3QgPSBkc3RiYXNlOw0K
+KyAjaWYgMA0KwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+Lyogc2VlIG5vdGUgYWJvdmUgKi8NCsKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoGlmIChtb2RlID09ICdjJykNCsKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBwbWVtX3BlcnNpc3QoZHN0LCBk
+c3Rzeik7DQorICNlbmRpZg0KwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqB9DQoNCkhl
+cmUgYXJlIHNhbXBsZSBydW5zOg0KDQokIG51bWFjdGwgLU4wIHRpbWUgLXAgLi9tZW1jcHlwZXJm
+IGMgL21udC9wbWVtMC9maWxlIDEwMDAwMDANCklORk86IGRzdCAweDdmMWQwMDAwMDAwMCBzcmMg
+MHg2MDEyMDAgZHN0c3ogMjc1NjUwOTY5NiBjcHlzeiAxNjM4NA0KcmVhbCAzLjI4DQp1c2VyIDMu
+MjcNCnN5cyAwLjAwDQoNCiQgbnVtYWN0bCAtTjAgdGltZSAtcCAuL21lbWNweXBlcmYgbiAvbW50
+L3BtZW0wL2ZpbGUgMTAwMDAwMA0KSU5GTzogZHN0IDB4N2Y2MDgwMDAwMDAwIHNyYyAweDYwMTIw
+MCBkc3RzeiAyNzU2NTA5Njk2IGNweXN6IDE2Mzg0DQpyZWFsIDEuMDENCnVzZXIgMS4wMQ0Kc3lz
+IDAuMDANCg0KJCBudW1hY3RsIC1OMSB0aW1lIC1wIC4vbWVtY3B5cGVyZiBjIC9tbnQvcG1lbTAv
+ZmlsZSAxMDAwMDAwDQpJTkZPOiBkc3QgMHg3ZmU5MDAwMDAwMDAgc3JjIDB4NjAxMjAwIGRzdHN6
+IDI3NTY1MDk2OTYgY3B5c3ogMTYzODQNCnJlYWwgNC4wNg0KdXNlciA0LjA2DQpzeXMgMC4wMA0K
+DQokIG51bWFjdGwgLU4xIHRpbWUgLXAgLi9tZW1jcHlwZXJmIG4gL21udC9wbWVtMC9maWxlIDEw
+MDAwMDANCklORk86IGRzdCAweDdmNzY0MDAwMDAwMCBzcmMgMHg2MDEyMDAgZHN0c3ogMjc1NjUw
+OTY5NiBjcHlzeiAxNjM4NA0KcmVhbCAxLjI3DQp1c2VyIDEuMjcNCnN5cyAwLjAwDQoNCkluIHRo
+aXMgc2ltcGxlIHRlc3QsIHVzaW5nIG5vbi10ZW1wb3JhbCBjb3B5IGlzIHN0aWxsIGZhc3RlciB0
+aGFuIHVzaW5nDQpjYWNoZWQgY29weS4NCg0KVGhhbmtzLA0KLVRvc2hpDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
