@@ -1,72 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4FB6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 08:30:32 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id x128so6129829lfa.0
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:30:32 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id p128si184818lfp.32.2017.01.18.05.30.28
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E066B0261
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 08:32:45 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id yr2so2494209wjc.4
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:32:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b79si20011056wma.103.2017.01.18.05.32.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 05:30:31 -0800 (PST)
-Message-ID: <587F6D2A.1060602@huawei.com>
-Date: Wed, 18 Jan 2017 21:27:06 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Wed, 18 Jan 2017 05:32:44 -0800 (PST)
+Date: Wed, 18 Jan 2017 14:32:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170118133243.GB7021@dhcp22.suse.cz>
+References: <20170118054945.GD18349@bombadil.infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: respect pre-allocated storage mapping for memmap
-References: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com> <20170117102532.GH19699@dhcp22.suse.cz> <587E22F2.7060809@huawei.com> <CAPcyv4j75n6LzrW=j+ehtGBksj_F32RAE4uLQna3wp4y-MOSKw@mail.gmail.com>
-In-Reply-To: <CAPcyv4j75n6LzrW=j+ehtGBksj_F32RAE4uLQna3wp4y-MOSKw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170118054945.GD18349@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 2017/1/18 1:15, Dan Williams wrote:
-> On Tue, Jan 17, 2017 at 5:58 AM, zhong jiang <zhongjiang@huawei.com> wrote:
->> On 2017/1/17 18:25, Michal Hocko wrote:
->>> On Mon 16-01-17 21:38:05, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> At present, we skip the reservation storage by the driver for
->>>> the zone_dvice. but the free pages set aside for the memmap is
->>>> ignored. And since the free pages is only used as the memmap,
->>>> so we can also skip the corresponding pages.
->>> I have really hard time to understand what this patch does and why it
->>> matters.  Could you please rephrase the changelog to state, the problem,
->>> how it affects users and what is the fix please?
->>>
->>   Hi, Michal
->>
->>   The patch maybe incorrect if free pages for memmap mapping is accouted for zone_device.
->>   I am just a little confusing about the implement.  it maybe simple and  stupid.
-> The patch is incorrect, the struct page initialization starts
-> immediately after altmap->reserve.
->
->>   first pfn for dev_mappage come from vmem_altmap_offset, and free pages reserved for
->>   memmap mapping need to be accounted. I do not know the meaning.
->>
->>   Another issue is in sparse_remove_one_section.  A section belongs to  zone_device is not
->>   always need to consider the  map_offset. is it right ?  From pfn_first to end , that section
->>   should no need to consider the map_offet.
-> No that's not right. devm_memremap_pages() will specify the full
-> physical address range that was initially hotplugged. At removal time
-> the first page of the memmap starts at pfn_to_page(phys_start_pfn +
-> map_offset).
->
-> However, I always need to remind myself of these rules every time I
-> read the code, so the documentation needs improvement.
->
-> .
->
-Addtional, if we just offline some of sectiones of dev_mappage. That will have question.
-Therefore,  we must offline the whole dev_mappages page that belongs to zone_device.
+On Tue 17-01-17 21:49:45, Matthew Wilcox wrote:
+[...]
+> 8. Nailing down exactly what GFP_TEMPORARY means
 
-is it right?  please
+It's a hint that the page allocator should group those pages together
+for better fragmentation avoidance. Have a look at e12ba74d8ff3 ("Group
+short-lived and reclaimable kernel allocations"). Basically it is
+something like __GFP_MOVABLE for kernel allocations which cannot go to
+the movable zones.
 
-Thanks
-zhongjiang
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
