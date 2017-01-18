@@ -1,74 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCAF6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 16:51:17 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id d185so32370363pgc.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:51:17 -0800 (PST)
-Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
-        by mx.google.com with ESMTPS id n123si1410575pga.28.2017.01.18.13.51.15
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B23326B0038
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 17:29:25 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id z128so34236259pfb.4
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 14:29:25 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 1si1464681plx.277.2017.01.18.14.29.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 13:51:15 -0800 (PST)
-Received: by mail-pg0-x231.google.com with SMTP id 194so7664838pgd.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:51:15 -0800 (PST)
-Date: Wed, 18 Jan 2017 13:51:14 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm, page_alloc: warn_alloc nodemask is NULL when cpusets
- are disabled
-Message-ID: <alpine.DEB.2.10.1701181347320.142399@chino.kir.corp.google.com>
+        Wed, 18 Jan 2017 14:29:24 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0IMSlQN035230
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 17:29:24 -0500
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 282f61v94m-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 17:29:24 -0500
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 18 Jan 2017 15:29:23 -0700
+Date: Wed, 18 Jan 2017 14:17:37 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20170118110731.GA15949@linux.vnet.ibm.com>
+ <20170118111201.GB29472@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170118111201.GB29472@bombadil.infradead.org>
+Message-Id: <20170118221737.GP5238@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: willy@infradead.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-The patch "mm, page_alloc: warn_alloc print nodemask" implicitly sets the 
-allocation nodemask to cpuset_current_mems_allowed when there is no 
-effective mempolicy.  cpuset_current_mems_allowed is only effective when 
-cpusets are enabled, which is also printed by warn_alloc(), so setting 
-the nodemask to cpuset_current_mems_allowed is redundant and prevents 
-debugging issues where ac->nodemask is not set properly in the page 
-allocator.
+On Wed, Jan 18, 2017 at 03:12:01AM -0800, willy@infradead.org wrote:
+> On Wed, Jan 18, 2017 at 03:07:32AM -0800, Paul E. McKenney wrote:
+> > A group of Linux kernel hackers reported chasing a bug that resulted
+> > from their assumption that SLAB_DESTROY_BY_RCU provided an existence
+> > guarantee, that is, that no block from such a slab would be reallocated
+> > during an RCU read-side critical section.  Of course, that is not the
+> > case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
+> > slab of blocks.
+> > 
+> > However, there is a phrase for this, namely "type safety".  This commit
+> > therefore renames SLAB_DESTROY_BY_RCU to SLAB_TYPESAFE_BY_RCU in order
+> > to avoid future instances of this sort of confusion.
+> 
+> This is probably the ultimate in bikeshedding, but RCU is not the
+> thing which is providing the typesafety.  Slab is providing the
+> typesafety in order to help RCU.  So would a better name not be
+> 'SLAB_TYPESAFETY_FOR_RCU', or more succinctly 'SLAB_RCU_TYPESAFE'?
 
-This provides better debugging output since 
-cpuset_print_current_mems_allowed() is already provided.
+Actually, slab is using RCU to provide type safety to those slab users
+who request it.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3037,7 +3037,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	va_list args;
- 	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
- 				      DEFAULT_RATELIMIT_BURST);
--	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
- 
- 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
- 	    debug_guardpage_minorder() > 0)
-@@ -3051,11 +3050,16 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	pr_cont("%pV", &vaf);
- 	va_end(args);
- 
--	pr_cont(", mode:%#x(%pGg), nodemask=%*pbl\n", gfp_mask, &gfp_mask, nodemask_pr_args(nm));
-+	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
-+	if (nodemask)
-+		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
-+	else
-+		pr_cont("(null)\n");
-+
- 	cpuset_print_current_mems_allowed();
- 
- 	dump_stack();
--	warn_alloc_show_mem(gfp_mask, nm);
-+	warn_alloc_show_mem(gfp_mask, nodemask);
- }
- 
- static inline struct page *
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
