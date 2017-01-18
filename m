@@ -1,140 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7436B0253
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 20:55:16 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so148099160pgd.7
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 17:55:16 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id e23si19569028pga.134.2017.01.17.17.55.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Jan 2017 17:55:15 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [virtio-dev] Re: [PATCH v6 kernel 2/5] virtio-balloon: define
- new feature bit and head struct
-Date: Wed, 18 Jan 2017 01:55:12 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C3554D3@shsmsx102.ccr.corp.intel.com>
-References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
- <1482303148-22059-3-git-send-email-liang.z.li@intel.com>
- <20170112185719-mutt-send-email-mst@kernel.org>
- <F2CBF3009FA73547804AE4C663CAB28E3C351AE8@shsmsx102.ccr.corp.intel.com>
- <20170117210845-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170117210845-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 4DE146B0260
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 21:04:43 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 194so148396898pgd.7
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 18:04:43 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u85si26715974pgb.137.2017.01.17.18.04.41
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jan 2017 18:04:42 -0800 (PST)
+Date: Wed, 18 Jan 2017 11:04:32 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4 05/15] lockdep: Make check_prev_add can use a separate
+ stack_trace
+Message-ID: <20170118020432.GK3326@X58A-UD3R>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-6-git-send-email-byungchul.park@lge.com>
+ <20170112161643.GB3144@twins.programming.kicks-ass.net>
+ <20170113101143.GE3326@X58A-UD3R>
+ <20170117155431.GE5680@worktop>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170117155431.GE5680@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "david@redhat.com" <david@redhat.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-> Sent: Wednesday, January 18, 2017 3:11 AM
-> To: Li, Liang Z
-> Cc: kvm@vger.kernel.org; virtio-dev@lists.oasis-open.org; qemu-
-> devel@nongnu.org; linux-mm@kvack.org; linux-kernel@vger.kernel.org;
-> virtualization@lists.linux-foundation.org; amit.shah@redhat.com; Hansen,
-> Dave; cornelia.huck@de.ibm.com; pbonzini@redhat.com;
-> david@redhat.com; aarcange@redhat.com; dgilbert@redhat.com;
-> quintela@redhat.com
-> Subject: Re: [virtio-dev] Re: [PATCH v6 kernel 2/5] virtio-balloon: defin=
-e new
-> feature bit and head struct
->=20
-> On Fri, Jan 13, 2017 at 09:24:22AM +0000, Li, Liang Z wrote:
-> > > On Wed, Dec 21, 2016 at 02:52:25PM +0800, Liang Li wrote:
-> > > > Add a new feature which supports sending the page information with
-> > > > range array. The current implementation uses PFNs array, which is
-> > > > not very efficient. Using ranges can improve the performance of
-> > > > inflating/deflating significantly.
-> > > >
-> > > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > > > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > > > Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
-> > > > Cc: Amit Shah <amit.shah@redhat.com>
-> > > > Cc: Dave Hansen <dave.hansen@intel.com>
-> > > > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > > > Cc: David Hildenbrand <david@redhat.com>
-> > > > ---
-> > > >  include/uapi/linux/virtio_balloon.h | 12 ++++++++++++
-> > > >  1 file changed, 12 insertions(+)
-> > > >
-> > > > diff --git a/include/uapi/linux/virtio_balloon.h
-> > > > b/include/uapi/linux/virtio_balloon.h
-> > > > index 343d7dd..2f850bf 100644
-> > > > --- a/include/uapi/linux/virtio_balloon.h
-> > > > +++ b/include/uapi/linux/virtio_balloon.h
-> > > > @@ -34,10 +34,14 @@
-> > > >  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before
-> > > reclaiming pages */
-> > > >  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue
-> > > */
-> > > >  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate
-> balloon
-> > > on OOM */
-> > > > +#define VIRTIO_BALLOON_F_PAGE_RANGE	3 /* Send page info
-> > > with ranges */
-> > > >
-> > > >  /* Size of a PFN in the balloon interface. */  #define
-> > > > VIRTIO_BALLOON_PFN_SHIFT 12
-> > > >
-> > > > +/* Bits width for the length of the pfn range */
-> > >
-> > > What does this mean? Couldn't figure it out.
-> > >
-> > > > +#define VIRTIO_BALLOON_NR_PFN_BITS 12
-> > > > +
-> > > >  struct virtio_balloon_config {
-> > > >  	/* Number of pages host wants Guest to give up. */
-> > > >  	__u32 num_pages;
-> > > > @@ -82,4 +86,12 @@ struct virtio_balloon_stat {
-> > > >  	__virtio64 val;
-> > > >  } __attribute__((packed));
-> > > >
-> > > > +/* Response header structure */
-> > > > +struct virtio_balloon_resp_hdr {
-> > > > +	__le64 cmd : 8; /* Distinguish different requests type */
-> > > > +	__le64 flag: 8; /* Mark status for a specific request type */
-> > > > +	__le64 id : 16; /* Distinguish requests of a specific type */
-> > > > +	__le64 data_len: 32; /* Length of the following data, in bytes
-> > > > +*/
-> > >
-> > > This use of __le64 makes no sense.  Just use u8/le16/le32 pls.
-> > >
-> >
-> > Got it, will change in the next version.
-> >
-> > And could help take a look at other parts? as well as the QEMU part.
-> >
-> > Thanks!
-> > Liang
->=20
-> Yes but first I would like to understand how come no fields in this new
-> structure come up if I search for them in the following patch. I don't se=
-e why
+On Tue, Jan 17, 2017 at 04:54:31PM +0100, Peter Zijlstra wrote:
+> On Fri, Jan 13, 2017 at 07:11:43PM +0900, Byungchul Park wrote:
+> > What do you think about the following patches doing it?
+> 
+> I was more thinking about something like so...
+> 
+> Also, I think I want to muck with struct stack_trace; the members:
+> max_nr_entries and skip are input arguments to save_stack_trace() and
+> bloat the structure for no reason.
 
-It's not true, all of the field will be referenced in the following patches=
- except=20
-the 'reserved' filed.
+With your approach, save_trace() must be called whenever check_prevs_add()
+is called, which might be unnecessary.
 
-> should I waste time on reviewing the implementation if the interface isn'=
-t
-> reasonable. You don't have to waste it too - just send RFC patches with t=
-he
-> header until we can agree on it.
+Frankly speaking, I think what I proposed resolved it neatly. Don't you
+think so?
 
-OK. I will post the header part separately.
-
-Thanks!
-Liang
->=20
-> --
-> MST
->=20
-> ---------------------------------------------------------------------
-> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
-> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
+> 
+> ---
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index 7c38f8f3d97b..f2df300a96ee 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -430,6 +430,21 @@ static int save_trace(struct stack_trace *trace)
+>  	return 1;
+>  }
+>  
+> +static bool return_trace(struct stack_trace *trace)
+> +{
+> +	/*
+> +	 * If @trace is the last trace generated by save_trace(), then we can
+> +	 * return the entries by simply subtracting @nr_stack_trace_entries
+> +	 * again.
+> +	 */
+> +	if (trace->entries != stack_trace + nr_stack_trace_entries - trace->nr_entres)
+> +		return false;
+> +
+> +	nr_stack_trace_entries -= trace->nr_entries;
+> +	trace->entries = NULL;
+> +	return true;
+> +}
+> +
+>  unsigned int nr_hardirq_chains;
+>  unsigned int nr_softirq_chains;
+>  unsigned int nr_process_chains;
+> @@ -1797,20 +1812,12 @@ static inline void inc_chains(void)
+>   */
+>  static int
+>  check_prev_add(struct task_struct *curr, struct held_lock *prev,
+> -	       struct held_lock *next, int distance, int *stack_saved)
+> +	       struct held_lock *next, int distance, struct stack_trace *trace)
+>  {
+>  	struct lock_list *entry;
+>  	int ret;
+>  	struct lock_list this;
+>  	struct lock_list *uninitialized_var(target_entry);
+> -	/*
+> -	 * Static variable, serialized by the graph_lock().
+> -	 *
+> -	 * We use this static variable to save the stack trace in case
+> -	 * we call into this function multiple times due to encountering
+> -	 * trylocks in the held lock stack.
+> -	 */
+> -	static struct stack_trace trace;
+>  
+>  	/*
+>  	 * Prove that the new <prev> -> <next> dependency would not
+> @@ -1858,11 +1865,7 @@ static inline void inc_chains(void)
+>  		}
+>  	}
+>  
+> -	if (!*stack_saved) {
+> -		if (!save_trace(&trace))
+> -			return 0;
+> -		*stack_saved = 1;
+> -	}
+> +	trace->skip = 1; /* mark used */
+>  
+>  	/*
+>  	 * Ok, all validations passed, add the new lock
+> @@ -1870,14 +1873,14 @@ static inline void inc_chains(void)
+>  	 */
+>  	ret = add_lock_to_list(hlock_class(next),
+>  			       &hlock_class(prev)->locks_after,
+> -			       next->acquire_ip, distance, &trace);
+> +			       next->acquire_ip, distance, trace);
+>  
+>  	if (!ret)
+>  		return 0;
+>  
+>  	ret = add_lock_to_list(hlock_class(prev),
+>  			       &hlock_class(next)->locks_before,
+> -			       next->acquire_ip, distance, &trace);
+> +			       next->acquire_ip, distance, trace);
+>  	if (!ret)
+>  		return 0;
+>  
+> @@ -1885,8 +1888,6 @@ static inline void inc_chains(void)
+>  	 * Debugging printouts:
+>  	 */
+>  	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
+> -		/* We drop graph lock, so another thread can overwrite trace. */
+> -		*stack_saved = 0;
+>  		graph_unlock();
+>  		printk("\n new dependency: ");
+>  		print_lock_name(hlock_class(prev));
+> @@ -1908,10 +1909,15 @@ static inline void inc_chains(void)
+>  static int
+>  check_prevs_add(struct task_struct *curr, struct held_lock *next)
+>  {
+> +	struct stack_trace trace = { .nr_entries = 0, .skip = 0, };
+>  	int depth = curr->lockdep_depth;
+> -	int stack_saved = 0;
+>  	struct held_lock *hlock;
+>  
+> +	if (!save_trace(&trace))
+> +		goto out_bug;
+> +
+> +	trace.skip = 0; /* abuse to mark usage */
+> +
+>  	/*
+>  	 * Debugging checks.
+>  	 *
+> @@ -1936,7 +1942,7 @@ static inline void inc_chains(void)
+>  		 */
+>  		if (hlock->read != 2 && hlock->check) {
+>  			if (!check_prev_add(curr, hlock, next,
+> -						distance, &stack_saved))
+> +					    distance, &trace))
+>  				return 0;
+>  			/*
+>  			 * Stop after the first non-trylock entry,
+> @@ -1962,6 +1968,9 @@ static inline void inc_chains(void)
+>  	}
+>  	return 1;
+>  out_bug:
+> +	if (trace.nr_entries && !trace.skip)
+> +		return_trace(&trace);
+> +
+>  	if (!debug_locks_off_graph_unlock())
+>  		return 0;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
