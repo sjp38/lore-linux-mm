@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD466B0260
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:10:07 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id 104so4515734otd.0
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:10:07 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id q9si1916480oif.317.2017.01.18.02.10.05
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F716B0268
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:10:10 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id jz4so1569691wjb.5
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 02:10:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g7si28504465wrg.183.2017.01.18.02.10.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 02:10:06 -0800 (PST)
-Message-ID: <587F3EEF.1030100@huawei.com>
-Date: Wed, 18 Jan 2017 18:09:51 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Wed, 18 Jan 2017 02:10:09 -0800 (PST)
+Date: Wed, 18 Jan 2017 11:10:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/4] mm, page_alloc: warn_alloc print nodemask
+Message-ID: <20170118101006.GO7015@dhcp22.suse.cz>
+References: <20170117091543.25850-1-mhocko@kernel.org>
+ <20170117091543.25850-3-mhocko@kernel.org>
+ <alpine.DEB.2.10.1701171459570.142998@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: respect pre-allocated storage mapping for memmap
-References: <1484573885-54353-1-git-send-email-zhongjiang@huawei.com> <20170117102532.GH19699@dhcp22.suse.cz> <587E22F2.7060809@huawei.com> <CAPcyv4j75n6LzrW=j+ehtGBksj_F32RAE4uLQna3wp4y-MOSKw@mail.gmail.com>
-In-Reply-To: <CAPcyv4j75n6LzrW=j+ehtGBksj_F32RAE4uLQna3wp4y-MOSKw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1701171459570.142998@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 2017/1/18 1:15, Dan Williams wrote:
-> On Tue, Jan 17, 2017 at 5:58 AM, zhong jiang <zhongjiang@huawei.com> wrote:
->> On 2017/1/17 18:25, Michal Hocko wrote:
->>> On Mon 16-01-17 21:38:05, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> At present, we skip the reservation storage by the driver for
->>>> the zone_dvice. but the free pages set aside for the memmap is
->>>> ignored. And since the free pages is only used as the memmap,
->>>> so we can also skip the corresponding pages.
->>> I have really hard time to understand what this patch does and why it
->>> matters.  Could you please rephrase the changelog to state, the problem,
->>> how it affects users and what is the fix please?
->>>
->>   Hi, Michal
->>
->>   The patch maybe incorrect if free pages for memmap mapping is accouted for zone_device.
->>   I am just a little confusing about the implement.  it maybe simple and  stupid.
-> The patch is incorrect, the struct page initialization starts
-> immediately after altmap->reserve.
->
->>   first pfn for dev_mappage come from vmem_altmap_offset, and free pages reserved for
->>   memmap mapping need to be accounted. I do not know the meaning.
->>
->>   Another issue is in sparse_remove_one_section.  A section belongs to  zone_device is not
->>   always need to consider the  map_offset. is it right ?  From pfn_first to end , that section
->>   should no need to consider the map_offet.
-> No that's not right. devm_memremap_pages() will specify the full
-> physical address range that was initially hotplugged. At removal time
-> the first page of the memmap starts at pfn_to_page(phys_start_pfn +
-> map_offset).
->
-> However, I always need to remind myself of these rules every time I
-> read the code, so the documentation needs improvement.
- The rules ensure that (reserve + free) need to less than one section size.
- if it is so, or we add WARNON to explicitly the limits.
+On Tue 17-01-17 15:01:35, David Rientjes wrote:
+> On Tue, 17 Jan 2017, Michal Hocko wrote:
+> 
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 57dc3c3b53c1..3e35eb04a28a 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1912,8 +1912,8 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
+> >  extern unsigned long arch_reserved_kernel_pages(void);
+> >  #endif
+> >  
+> > -extern __printf(2, 3)
+> > -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...);
+> > +extern __printf(3, 4)
+> > +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...);
+> >  
+> >  extern void setup_per_cpu_pageset(void);
+> >  
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 8f4f306d804c..7f9c0ee18ae0 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3031,12 +3031,13 @@ static void warn_alloc_show_mem(gfp_t gfp_mask)
+> >  	show_mem(filter);
+> >  }
+> >  
+> > -void warn_alloc(gfp_t gfp_mask, const char *fmt, ...)
+> > +void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+> >  {
+> >  	struct va_format vaf;
+> >  	va_list args;
+> >  	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
+> >  				      DEFAULT_RATELIMIT_BURST);
+> > +	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
+> 
+> Small nit: wouldn't it be helpful to know if ac->nodemask is actually NULL 
+> rather than setting it to cpuset_current_mems_allowed here?  We know the 
+> effective nodemask from cpuset_print_current_mems_allowed(), but we don't 
+> know if there's a bug in the page allocator which is failing to set 
+> ac->nodemask appropriately if we blindly set it here when cpusets are not 
+> enabled.
 
+You are right that games with the nodemask are dangerous and can
+potentially lead to unexpected behavior. I wanted to make this code as
+simple as possible though and printing mems_allowed for NULL nodemask
+looked like the way. Feel free to post a patch to handle null nodemask
+in the output if you think it is an improvement.
 
- Thanks
- zhongjiang
-> .
->
- 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
