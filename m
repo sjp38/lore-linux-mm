@@ -1,54 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7071D6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 16:34:58 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id d134so33038207pfd.0
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:34:58 -0800 (PST)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id f35si1354443plh.192.2017.01.18.13.34.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FCAF6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 16:51:17 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so32370363pgc.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:51:17 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id n123si1410575pga.28.2017.01.18.13.51.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 13:34:57 -0800 (PST)
-Received: by mail-pg0-x22c.google.com with SMTP id 194so7568882pgd.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:34:57 -0800 (PST)
-Date: Wed, 18 Jan 2017 13:34:55 -0800 (PST)
+        Wed, 18 Jan 2017 13:51:15 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id 194so7664838pgd.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:51:15 -0800 (PST)
+Date: Wed, 18 Jan 2017 13:51:14 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/mempolicy.c: do not put mempolicy before using its
- nodemask
-In-Reply-To: <20170118141124.8345-1-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1701181331030.133727@chino.kir.corp.google.com>
-References: <20170118141124.8345-1-vbabka@suse.cz>
+Subject: [patch -mm] mm, page_alloc: warn_alloc nodemask is NULL when cpusets
+ are disabled
+Message-ID: <alpine.DEB.2.10.1701181347320.142399@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 18 Jan 2017, Vlastimil Babka wrote:
+The patch "mm, page_alloc: warn_alloc print nodemask" implicitly sets the 
+allocation nodemask to cpuset_current_mems_allowed when there is no 
+effective mempolicy.  cpuset_current_mems_allowed is only effective when 
+cpusets are enabled, which is also printed by warn_alloc(), so setting 
+the nodemask to cpuset_current_mems_allowed is redundant and prevents 
+debugging issues where ac->nodemask is not set properly in the page 
+allocator.
 
-> Since commit be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to
-> alloc_pages_vma") alloc_pages_vma() can potentially free a mempolicy by
-> mpol_cond_put() before accessing the embedded nodemask by
-> __alloc_pages_nodemask(). The commit log says it's so "we can use a single
-> exit path within the function" but that's clearly wrong. We can still do that
-> when doing mpol_cond_put() after the allocation attempt.
-> 
-> Make sure the mempolicy is not freed prematurely, otherwise
-> __alloc_pages_nodemask() can end up using a bogus nodemask, which could lead
-> e.g. to premature OOM.
-> 
-> Fixes: be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to alloc_pages_vma")
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: stable@vger.kernel.org
-> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
+This provides better debugging output since 
+cpuset_print_current_mems_allowed() is already provided.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-I think this deserves Cc: stable@vger.kernel.org [4.0+]
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3037,7 +3037,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 	va_list args;
+ 	static DEFINE_RATELIMIT_STATE(nopage_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 				      DEFAULT_RATELIMIT_BURST);
+-	nodemask_t *nm = (nodemask) ? nodemask : &cpuset_current_mems_allowed;
+ 
+ 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs) ||
+ 	    debug_guardpage_minorder() > 0)
+@@ -3051,11 +3050,16 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 	pr_cont("%pV", &vaf);
+ 	va_end(args);
+ 
+-	pr_cont(", mode:%#x(%pGg), nodemask=%*pbl\n", gfp_mask, &gfp_mask, nodemask_pr_args(nm));
++	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
++	if (nodemask)
++		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
++	else
++		pr_cont("(null)\n");
++
+ 	cpuset_print_current_mems_allowed();
+ 
+ 	dump_stack();
+-	warn_alloc_show_mem(gfp_mask, nm);
++	warn_alloc_show_mem(gfp_mask, nodemask);
+ }
+ 
+ static inline struct page *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
