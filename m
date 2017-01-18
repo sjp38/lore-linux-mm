@@ -1,104 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 353976B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:15:03 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 201so14664629pfw.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:15:03 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e10si53794pfk.251.2017.01.18.04.15.01
-        for <linux-mm@kvack.org>;
-        Wed, 18 Jan 2017 04:15:02 -0800 (PST)
-From: "byungchul.park" <byungchul.park@lge.com>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com> <1481260331-360-16-git-send-email-byungchul.park@lge.com> <20170118064230.GF15084@tardis.cn.ibm.com> <20170118105346.GL3326@X58A-UD3R> <20170118110317.GC6515@twins.programming.kicks-ass.net> <20170118115428.GM3326@X58A-UD3R> <20170118120757.GD6515@twins.programming.kicks-ass.net>
-In-Reply-To: <20170118120757.GD6515@twins.programming.kicks-ass.net>
-Subject: RE: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
-Date: Wed, 18 Jan 2017 21:14:59 +0900
-Message-ID: <008101d27184$7d3cbd00$77b63700$@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: ko
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3206B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:24:47 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 204so15100350pfx.1
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:24:47 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 63si108206pfd.50.2017.01.18.04.24.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 04:24:46 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RESEND 2/4] mm: drop zap_details::check_swap_entries
+Date: Wed, 18 Jan 2017 15:24:27 +0300
+Message-Id: <20170118122429.43661-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170118122429.43661-1-kirill.shutemov@linux.intel.com>
+References: <20170118122429.43661-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Peter Zijlstra' <peterz@infradead.org>
-Cc: 'Boqun Feng' <boqun.feng@gmail.com>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-> -----Original Message-----
-> From: Peter Zijlstra [mailto:peterz@infradead.org]
-> Sent: Wednesday, January 18, 2017 9:08 PM
-> To: Byungchul Park
-> Cc: Boqun Feng; mingo@kernel.org; tglx@linutronix.de; walken@google.com;
-> kirill@shutemov.name; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> iamjoonsoo.kim@lge.com; akpm@linux-foundation.org; npiggin@gmail.com
-> Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
-> 
-> On Wed, Jan 18, 2017 at 08:54:28PM +0900, Byungchul Park wrote:
-> > On Wed, Jan 18, 2017 at 12:03:17PM +0100, Peter Zijlstra wrote:
-> > > On Wed, Jan 18, 2017 at 07:53:47PM +0900, Byungchul Park wrote:
-> > > > On Wed, Jan 18, 2017 at 02:42:30PM +0800, Boqun Feng wrote:
-> > > > > On Fri, Dec 09, 2016 at 02:12:11PM +0900, Byungchul Park wrote:
-> > > > > [...]
-> > > > > > +Example 1:
-> > > > > > +
-> > > > > > +   CONTEXT X		   CONTEXT Y
-> > > > > > +   ---------		   ---------
-> > > > > > +   mutext_lock A
-> > > > > > +			   lock_page B
-> > > > > > +   lock_page B
-> > > > > > +			   mutext_lock A /* DEADLOCK */
-> > > > >
-> > > > > s/mutext_lock/mutex_lock
-> > > >
-> > > > Thank you.
-> > > >
-> > > > > > +Example 3:
-> > > > > > +
-> > > > > > +   CONTEXT X		   CONTEXT Y
-> > > > > > +   ---------		   ---------
-> > > > > > +			   mutex_lock A
-> > > > > > +   mutex_lock A
-> > > > > > +   mutex_unlock A
-> > > > > > +			   wait_for_complete B /* DEADLOCK */
-> > > > >
-> > > > > I think this part better be:
-> > > > >
-> > > > >    CONTEXT X		   CONTEXT Y
-> > > > >    ---------		   ---------
-> > > > >    			   mutex_lock A
-> > > > >    mutex_lock A
-> > > > >    			   wait_for_complete B /* DEADLOCK */
-> > > > >    mutex_unlock A
-> > > > >
-> > > > > , right? Because Y triggers DEADLOCK before X could run
-> mutex_unlock().
-> > > >
-> > > > There's no different between two examples.
-> > >
-> > > There is..
-> > >
-> > > > No matter which one is chosen, mutex_lock A in CONTEXT X cannot be
-> passed.
-> > >
-> > > But your version shows it does mutex_unlock() before CONTEXT Y does
-> > > wait_for_completion().
-> > >
-> > > The thing about these diagrams is that both columns are assumed to
-> have
-> > > the same timeline.
-> >
-> > X cannot acquire mutex A because Y already acquired it.
-> >
-> > In order words, all statements below mutex_lock A in X cannot run.
-> 
-> But your timeline shows it does, which is the error that Boqun pointed
-> out.
+detail == NULL would give the same functionality as
+.check_swap_entries==true.
 
-I am sorry for not understanding what you are talking about.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/mm.h | 1 -
+ mm/memory.c        | 4 ++--
+ mm/oom_kill.c      | 3 +--
+ 3 files changed, 3 insertions(+), 5 deletions(-)
 
-Do you mean that I should remove all statements below mutex_lock A in X?
-
-Or should I move mutex_unlock as Boqun said? What will change?
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 88beebe1e695..ce5e9a9bf642 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1148,7 +1148,6 @@ struct zap_details {
+ 	struct address_space *check_mapping;	/* Check page->mapping if set */
+ 	pgoff_t	first_index;			/* Lowest page->index to unmap */
+ 	pgoff_t last_index;			/* Highest page->index to unmap */
+-	bool check_swap_entries;		/* Check also swap entries */
+ };
+ 
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+diff --git a/mm/memory.c b/mm/memory.c
+index 1d8ef8ec1b48..5dbd0ce95815 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1173,8 +1173,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 			}
+ 			continue;
+ 		}
+-		/* only check swap_entries if explicitly asked for in details */
+-		if (unlikely(details && !details->check_swap_entries))
++		/* If details->check_mapping, we leave swap entries. */
++		if (unlikely(details))
+ 			continue;
+ 
+ 		entry = pte_to_swp_entry(ptent);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index f101db68e760..96a53ab0c9eb 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -465,7 +465,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+-	struct zap_details details = {.check_swap_entries = true};
+ 	bool ret = true;
+ 
+ 	/*
+@@ -531,7 +530,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 		 */
+ 		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+ 			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+-					 &details);
++					 NULL);
+ 	}
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
