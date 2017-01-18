@@ -1,74 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CAA4A6B0253
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:26:24 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 204so13053858pge.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:26:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id x128si28142598pfd.87.2017.01.18.03.26.23
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 02A196B0260
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:30:01 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id w107so5211154ota.6
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:30:00 -0800 (PST)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20105.outbound.protection.outlook.com. [40.107.2.105])
+        by mx.google.com with ESMTPS id n206si789502oia.25.2017.01.18.03.29.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 03:26:23 -0800 (PST)
-Date: Wed, 18 Jan 2017 03:26:07 -0800
-From: willy@bombadil.infradead.org
-Subject: Re: [Lsf-pc] [ATTEND] many topics
-Message-ID: <20170118112605.GC29472@bombadil.infradead.org>
-References: <20170118054945.GD18349@bombadil.infradead.org>
- <20170118101343.GC24789@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 03:30:00 -0800 (PST)
+Subject: Re: [PATCHv2 2/5] x86/mm: introduce mmap_{,legacy}_base
+References: <20170116123310.22697-1-dsafonov@virtuozzo.com>
+ <20170116123310.22697-3-dsafonov@virtuozzo.com>
+ <CALCETrUHLpsrB0M3rkrxw8R=6Dto5gFz+enP=W3C6WPDTa36GA@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <69eecbfb-9d39-9c72-7ec3-68fdbea45245@virtuozzo.com>
+Date: Wed, 18 Jan 2017 14:26:37 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170118101343.GC24789@quack2.suse.cz>
+In-Reply-To: <CALCETrUHLpsrB0M3rkrxw8R=6Dto5gFz+enP=W3C6WPDTa36GA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Jan 18, 2017 at 11:13:43AM +0100, Jan Kara wrote:
-> On Tue 17-01-17 21:49:45, Matthew Wilcox wrote:
-> > 1. Exploiting multiorder radix tree entries.  I believe we would do well
-> > to attempt to allocate compound pages, insert them into the page cache,
-> > and expect filesystems to be able to handle filling compound pages with
-> > ->readpage.  It will be more efficient because alloc_pages() can return
-> > large entries out of the buddy list rather than breaking them down,
-> > and it'll help reduce fragmentation.
-> 
-> Kirill has patches to do this and I don't like the complexity it adds to
-> pagecache handling code and each filesystem that would like to support
-> this. I don't have objections to the general idea but the complexity of the
-> current implementation just looks too big to me...
+On 01/17/2017 11:27 PM, Andy Lutomirski wrote:
+> On Mon, Jan 16, 2017 at 4:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>> In the following patch they will be used to compute:
+>> - mmap_base in compat sys_mmap() in native 64-bit binary
+>> and vice-versa
+>> - mmap_base for native sys_mmap() in compat x32/ia32-bit binary.
+>
+> I may be wrong here, but I suspect that you're repeating something
+> that I consider to be a mistake that's all over the x86 code.
+> Specifically, you're distinguishing "native" from "compat" instead of
+> "32-bit" from "64-bit".  If you did the latter, then you wouldn't need
+> the "native" case to work differently on 32-bit kernels vs 64-bit
+> kernels, I think.  Would making this change make your code simpler?
+>
+> The x86 signal code is the worst offender IMO.
 
-Interesting.  Dave Chinner opined to me today that it was about 20 lines
-of code in XFS, so somebody is missing something.
+Yes, I also don't like to differ them especially by TIF_ADDR32 flag.
+I did distinguishing for the reason that I needed to know for which
+task 64/32-bit was computed mm->mmap_base.
+Otherwise I could introduce mm->mmap_compat_base and don't differ
+tasks by TIF_ADDR32 flag - only by in_compat_syscall(), but that
+would change mm_struct generic code (adding a field to mm).
+So, I thought it may have more opposition to add a field to mm
+in generic code and fixed it here, in x86.
 
-> > 2. Supporting filesystem block sizes > page size.  Once we do the above
-> > for efficiency, I think it then becomes trivial to support, eg 16k block
-> > size filesystems on x86 machines with 4k pages.
-> 
-> Heh, you wish... :) There's a big difference between opportunistically
-> allocating a huge page and reliably have to provide high order page. Memory
-> fragmentation issues will be difficult to deal with...
+>
+> --Andy
+>
 
-If you're mixing a lot of order-0 allocations with a few order-4
-allocations, then yes memory fragmentation may become a problem.  But if
-you're doing a lot of order-4 allocations, then it should be possible
-to free an order-4 allocation from the inactive list of one of the files
-on the 64k filesystem.
-
-Somewhat related, and this question was asked during my talk today so
-I should have mentioned it in the email, should order-9 pages on the
-inactive list be treated differently from order-0 entries?  I suspect
-the answer is yes, because there's probably little point in freeing
-order-9 page off the LRU list in order to satisfy a order-9 allocation;
-we should just find an order-9 page and free it.  Likewise, freeing an
-order-9 page in order to satisfy an order-0 allocation is going to lead
-to fragmentation and should probably be avoided.
-
-I suspect order-0 and order-9 entries can be profitably mixed on the
-active list, but it might be better to have separate LRU lists for normal
-and huge pages.  Does it make sense to have one LRU list per order?
-Maybe not go quite that far, but organising the inactive list by size
-seems to have some merit.
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
