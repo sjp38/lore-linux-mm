@@ -1,70 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A356B6B0033
-	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 19:03:11 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f5so111122777pgi.1
-        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 16:03:11 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0130.outbound.protection.outlook.com. [104.47.32.130])
-        by mx.google.com with ESMTPS id j62si7141822pfg.51.2017.01.17.16.03.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C2966B0253
+	for <linux-mm@kvack.org>; Tue, 17 Jan 2017 19:14:53 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 204so310693658pfx.1
+        for <linux-mm@kvack.org>; Tue, 17 Jan 2017 16:14:53 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id u1si22937926plj.178.2017.01.17.16.14.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Jan 2017 16:03:10 -0800 (PST)
-From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Future direction of DAX
-Date: Wed, 18 Jan 2017 00:03:08 +0000
-Message-ID: <1484701124.2029.9.camel@hpe.com>
-References: <20170114002008.GA25379@linux.intel.com>
-	 <20170117155910.GU2517@quack2.suse.cz>
-In-Reply-To: <20170117155910.GU2517@quack2.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <75D4FFDF1F75974CBD1510C98C246452@NAMPRD84.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jan 2017 16:14:52 -0800 (PST)
+Subject: Re: [PATCH v4 4/4] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1483999591.git.khalid.aziz@oracle.com>
+ <cover.1483999591.git.khalid.aziz@oracle.com>
+ <0c08eb00e5a9735d7d0bcbeaadeacaa761011aab.1483999591.git.khalid.aziz@oracle.com>
+ <20170116.233924.374841184595409216.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <decf9145-5414-33fc-cf15-e4dc4f7ceae5@oracle.com>
+Date: Tue, 17 Jan 2017 17:14:34 -0700
 MIME-Version: 1.0
+In-Reply-To: <20170116.233924.374841184595409216.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "jack@suse.cz" <jack@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: David Miller <davem@davemloft.net>
+Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-T24gVHVlLCAyMDE3LTAxLTE3IGF0IDE2OjU5ICswMTAwLCBKYW4gS2FyYSB3cm90ZToNCj4gT24g
-RnJpIDEzLTAxLTE3IDE3OjIwOjA4LCBSb3NzIFp3aXNsZXIgd3JvdGU6DQogOg0KPiA+IC0gSWYg
-SSByZWNhbGwgY29ycmVjdGx5LCBhdCBvbmUgcG9pbnQgRGF2ZSBDaGlubmVyIHN1Z2dlc3RlZCB0
-aGF0DQo+ID4gd2UgY2hhbmdlIC0gSWYgSSByZWNhbGwgY29ycmVjdGx5LCBhdCBvbmUgcG9pbnQg
-RGF2ZSBDaGlubmVyDQo+ID4gc3VnZ2VzdGVkIHRoYXQgd2UgY2hhbmdlIMKgIERBWCBzbyB0aGF0
-IEkvTyB3b3VsZCB1c2UgY2FjaGVkIHN0b3Jlcw0KPiA+IGluc3RlYWQgb2YgdGhlIG5vbi10ZW1w
-b3JhbCBzdG9yZXMgwqAgdGhhdCBpdCBjdXJyZW50bHkgdXNlcy7CoMKgV2UNCj4gPiB3b3VsZCB0
-aGVuIHRyYWNrIHBhZ2VzIHRoYXQgd2VyZSB3cml0dGVuIHRvIGJ5IERBWCBpbiB0aGUgcmFkaXgN
-Cj4gPiB0cmVlIHNvIHRoYXQgdGhleSB3b3VsZCBiZSBmbHVzaGVkIGxhdGVyIGR1cmluZyDCoA0K
-PiA+IGZzeW5jL21zeW5jLsKgwqBEb2VzIHRoaXMgc291bmQgbGlrZSBhIHdpbj/CoMKgQWxzbywg
-YXNzdW1pbmcgdGhhdCB3ZQ0KPiA+IGNhbiBmaW5kIGEgc29sdXRpb24gZm9yIHBsYXRmb3JtcyB3
-aGVyZSB0aGUgcHJvY2Vzc29yIGNhY2hlIGlzIHBhcnQNCj4gPiBvZiB0aGUgQURSIHNhZmUgem9u
-ZSAoYWJvdmUgdG9waWMpIHRoaXMgd291bGQgYmUgYSBjbGVhcg0KPiA+IGltcHJvdmVtZW50LCBt
-b3ZpbmcgdXMgZnJvbSB1c2luZyBub24tdGVtcG9yYWwgc3RvcmVzIHRvIGZhc3Rlcg0KPiA+IGNh
-Y2hlZCBzdG9yZXMgd2l0aCBubyBkb3duc2lkZS4NCj4gDQo+IEkgZ3Vlc3MgdGhpcyBuZWVkcyBt
-ZWFzdXJlbWVudHMuIEJ1dCBpdCBpcyB3b3J0aCBhIHRyeS4NCg0KQnJhaW4gQm95bHN0b24gZGlk
-IHNvbWUgbWVhc3VyZW1lbnQgYmVmb3JlLg0KaHR0cDovL29zcy5zZ2kuY29tL2FyY2hpdmVzL3hm
-cy8yMDE2LTA4L21zZzAwMjM5Lmh0bWwNCg0KSSB1cGRhdGVkIGhpcyB0ZXN0IHByb2dyYW0gdG8g
-c2tpcCBwbWVtX3BlcnNpc3QoKSBmb3IgdGhlIGNhY2hlZCBjb3B5DQpjYXNlLg0KDQrCoMKgwqDC
-oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBkc3QgPSBkc3RiYXNlOw0K
-KyAjaWYgMA0KwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
-Lyogc2VlIG5vdGUgYWJvdmUgKi8NCsKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
-oMKgwqDCoMKgwqDCoGlmIChtb2RlID09ICdjJykNCsKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
-wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqBwbWVtX3BlcnNpc3QoZHN0LCBk
-c3Rzeik7DQorICNlbmRpZg0KwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqB9DQoNCkhl
-cmUgYXJlIHNhbXBsZSBydW5zOg0KDQokIG51bWFjdGwgLU4wIHRpbWUgLXAgLi9tZW1jcHlwZXJm
-IGMgL21udC9wbWVtMC9maWxlIDEwMDAwMDANCklORk86IGRzdCAweDdmMWQwMDAwMDAwMCBzcmMg
-MHg2MDEyMDAgZHN0c3ogMjc1NjUwOTY5NiBjcHlzeiAxNjM4NA0KcmVhbCAzLjI4DQp1c2VyIDMu
-MjcNCnN5cyAwLjAwDQoNCiQgbnVtYWN0bCAtTjAgdGltZSAtcCAuL21lbWNweXBlcmYgbiAvbW50
-L3BtZW0wL2ZpbGUgMTAwMDAwMA0KSU5GTzogZHN0IDB4N2Y2MDgwMDAwMDAwIHNyYyAweDYwMTIw
-MCBkc3RzeiAyNzU2NTA5Njk2IGNweXN6IDE2Mzg0DQpyZWFsIDEuMDENCnVzZXIgMS4wMQ0Kc3lz
-IDAuMDANCg0KJCBudW1hY3RsIC1OMSB0aW1lIC1wIC4vbWVtY3B5cGVyZiBjIC9tbnQvcG1lbTAv
-ZmlsZSAxMDAwMDAwDQpJTkZPOiBkc3QgMHg3ZmU5MDAwMDAwMDAgc3JjIDB4NjAxMjAwIGRzdHN6
-IDI3NTY1MDk2OTYgY3B5c3ogMTYzODQNCnJlYWwgNC4wNg0KdXNlciA0LjA2DQpzeXMgMC4wMA0K
-DQokIG51bWFjdGwgLU4xIHRpbWUgLXAgLi9tZW1jcHlwZXJmIG4gL21udC9wbWVtMC9maWxlIDEw
-MDAwMDANCklORk86IGRzdCAweDdmNzY0MDAwMDAwMCBzcmMgMHg2MDEyMDAgZHN0c3ogMjc1NjUw
-OTY5NiBjcHlzeiAxNjM4NA0KcmVhbCAxLjI3DQp1c2VyIDEuMjcNCnN5cyAwLjAwDQoNCkluIHRo
-aXMgc2ltcGxlIHRlc3QsIHVzaW5nIG5vbi10ZW1wb3JhbCBjb3B5IGlzIHN0aWxsIGZhc3RlciB0
-aGFuIHVzaW5nDQpjYWNoZWQgY29weS4NCg0KVGhhbmtzLA0KLVRvc2hpDQoNCg==
+On 01/16/2017 09:39 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Wed, 11 Jan 2017 09:12:54 -0700
+>
+>> diff --git a/arch/sparc/kernel/mdesc.c b/arch/sparc/kernel/mdesc.c
+>> index 8a6982d..68b03bf 100644
+>> --- a/arch/sparc/kernel/mdesc.c
+>> +++ b/arch/sparc/kernel/mdesc.c
+>> @@ -20,6 +20,7 @@
+>>  #include <asm/uaccess.h>
+>>  #include <asm/oplib.h>
+>>  #include <asm/smp.h>
+>> +#include <asm/adi.h>
+>>
+>>  /* Unlike the OBP device tree, the machine description is a full-on
+>>   * DAG.  An arbitrary number of ARCs are possible from one
+>> @@ -1104,5 +1105,8 @@ void __init sun4v_mdesc_init(void)
+>>
+>>  	cur_mdesc = hp;
+>>
+>> +#ifdef CONFIG_SPARC64
+>
+> mdesc.c is only built on sparc64, this ifdef is superfluous.
+
+Good point. I will fix it.
+
+>
+>> +/* Update the state of MCDPER register in current task's mm context before
+>> + * dup so the dup'd task will inherit flags in this register correctly.
+>> + * Current task may have updated flags since it started running.
+>> + */
+>> +int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+>> +{
+>> +	if (adi_capable() && src->mm) {
+>> +		register unsigned long tmp_mcdper;
+>> +
+>> +		__asm__ __volatile__(
+>> +			".word 0x83438000\n\t"	/* rd %mcdper, %g1 */
+>> +			"mov %%g1, %0\n\t"
+>> +			: "=r" (tmp_mcdper)
+>> +			:
+>> +			: "g1");
+>> +		src->mm->context.mcdper = tmp_mcdper;
+>
+> I don't like the idea of duplicating 'mm' state using the task struct
+> copy.  Why do not the MM handling interfaces handle this properly?
+>
+> Maybe it means you've abstracted the ADI register handling in the
+> wrong place.  Maybe it's a thread property which is "pushed" from
+> the MM context.
+
+I see what you are saying. This code updates mm->context.mcdper for the 
+source thread with the current state of MCDPER since MCDPER can be 
+changed by a userspace process any time. When userspace changes MCDPER, 
+it is not saved into mm->context.mcdper until a context switch happens. 
+This means during the timeslice for a thread, its mm->context.mcdper may 
+not reflect the current value of MCDPER. Updating it ensures dup_mm() 
+will copy the real current value of MCDPER into the newly forked thread. 
+arch_dup_mmap() looks like a more appropriate place to do this. Do you 
+agree?
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
