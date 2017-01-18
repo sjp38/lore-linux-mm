@@ -1,63 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E516B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:01:07 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id yr2so1800711wjc.4
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:01:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s17si12440234wra.167.2017.01.18.03.01.05
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3280A6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:03:23 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 101so12494052iom.7
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:03:23 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 65si1323119itg.4.2017.01.18.03.03.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 03:01:05 -0800 (PST)
-Date: Wed, 18 Jan 2017 12:00:57 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Un-addressable device memory and
- block/fs implications
-Message-ID: <20170118110057.GA31377@quack2.suse.cz>
-References: <20161213181511.GB2305@redhat.com>
- <87lgvgwoos.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 03:03:22 -0800 (PST)
+Date: Wed, 18 Jan 2017 12:03:17 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+Message-ID: <20170118110317.GC6515@twins.programming.kicks-ass.net>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-16-git-send-email-byungchul.park@lge.com>
+ <20170118064230.GF15084@tardis.cn.ibm.com>
+ <20170118105346.GL3326@X58A-UD3R>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87lgvgwoos.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20170118105346.GL3326@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Boqun Feng <boqun.feng@gmail.com>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Fri 16-12-16 08:44:11, Aneesh Kumar K.V wrote:
-> Jerome Glisse <jglisse@redhat.com> writes:
+On Wed, Jan 18, 2017 at 07:53:47PM +0900, Byungchul Park wrote:
+> On Wed, Jan 18, 2017 at 02:42:30PM +0800, Boqun Feng wrote:
+> > On Fri, Dec 09, 2016 at 02:12:11PM +0900, Byungchul Park wrote:
+> > [...]
+> > > +Example 1:
+> > > +
+> > > +   CONTEXT X		   CONTEXT Y
+> > > +   ---------		   ---------
+> > > +   mutext_lock A
+> > > +			   lock_page B
+> > > +   lock_page B
+> > > +			   mutext_lock A /* DEADLOCK */
+> > 
+> > s/mutext_lock/mutex_lock
 > 
-> > I would like to discuss un-addressable device memory in the context of
-> > filesystem and block device. Specificaly how to handle write-back, read,
-> > ... when a filesystem page is migrated to device memory that CPU can not
-> > access.
-> >
-> > I intend to post a patchset leveraging the same idea as the existing
-> > block bounce helper (block/bounce.c) to handle this. I believe this is
-> > worth discussing during summit see how people feels about such plan and
-> > if they have better ideas.
-> >
-> >
-> > I also like to join discussions on:
-> >   - Peer-to-Peer DMAs between PCIe devices
-> >   - CDM coherent device memory
-> >   - PMEM
-> >   - overall mm discussions
+> Thank you.
 > 
-> I would like to attend this discussion. I can talk about coherent device
-> memory and how having HMM handle that will make it easy to have one
-> interface for device driver. For Coherent device case we definitely need
-> page cache migration support.
+> > > +Example 3:
+> > > +
+> > > +   CONTEXT X		   CONTEXT Y
+> > > +   ---------		   ---------
+> > > +			   mutex_lock A
+> > > +   mutex_lock A
+> > > +   mutex_unlock A
+> > > +			   wait_for_complete B /* DEADLOCK */
+> > 
+> > I think this part better be:
+> > 
+> >    CONTEXT X		   CONTEXT Y
+> >    ---------		   ---------
+> >    			   mutex_lock A
+> >    mutex_lock A
+> >    			   wait_for_complete B /* DEADLOCK */
+> >    mutex_unlock A
+> > 
+> > , right? Because Y triggers DEADLOCK before X could run mutex_unlock().
+> 
+> There's no different between two examples.
 
-Aneesh, did you intend this as your request to attend? You posted it as a
-reply to another email so it is not really clear. Note that each attend
-request should be a separate email so that it does not get lost...
+There is..
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> No matter which one is chosen, mutex_lock A in CONTEXT X cannot be passed.
+
+But your version shows it does mutex_unlock() before CONTEXT Y does
+wait_for_completion().
+
+The thing about these diagrams is that both columns are assumed to have
+the same timeline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
