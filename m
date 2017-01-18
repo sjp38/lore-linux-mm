@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 912406B0038
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 16:18:50 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id c7so4763220wjb.7
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:18:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y1si1715892wrc.161.2017.01.18.13.18.49
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7071D6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 16:34:58 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d134so33038207pfd.0
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:34:58 -0800 (PST)
+Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
+        by mx.google.com with ESMTPS id f35si1354443plh.192.2017.01.18.13.34.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 13:18:49 -0800 (PST)
-Date: Wed, 18 Jan 2017 22:18:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-swap-add-cluster-lock-v5.patch added to -mm tree
-Message-ID: <20170118211842.GE17135@dhcp22.suse.cz>
-References: <587eaca3.MRSwND8OEi+lF+VH%akpm@linux-foundation.org>
- <20170118083731.GF7015@dhcp22.suse.cz>
- <20170118122354.9b06459e2588e53b537ca78c@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 13:34:57 -0800 (PST)
+Received: by mail-pg0-x22c.google.com with SMTP id 194so7568882pgd.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:34:57 -0800 (PST)
+Date: Wed, 18 Jan 2017 13:34:55 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/mempolicy.c: do not put mempolicy before using its
+ nodemask
+In-Reply-To: <20170118141124.8345-1-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.10.1701181331030.133727@chino.kir.corp.google.com>
+References: <20170118141124.8345-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170118122354.9b06459e2588e53b537ca78c@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ying.huang@intel.com, aarcange@redhat.com, aaron.lu@intel.com, ak@linux.intel.com, borntraeger@de.ibm.com, corbet@lwn.net, dave.hansen@intel.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, hughd@google.com, kirill.shutemov@linux.intel.com, minchan@kernel.org, riel@redhat.com, shli@kernel.org, tim.c.chen@linux.intel.com, vdavydov.dev@gmail.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed 18-01-17 12:23:54, Andrew Morton wrote:
-> On Wed, 18 Jan 2017 09:37:31 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Wed, 18 Jan 2017, Vlastimil Babka wrote:
+
+> Since commit be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to
+> alloc_pages_vma") alloc_pages_vma() can potentially free a mempolicy by
+> mpol_cond_put() before accessing the embedded nodemask by
+> __alloc_pages_nodemask(). The commit log says it's so "we can use a single
+> exit path within the function" but that's clearly wrong. We can still do that
+> when doing mpol_cond_put() after the allocation attempt.
 > 
-> > On Tue 17-01-17 15:45:39, Andrew Morton wrote:
-> > [...]
-> > > From: "Huang\, Ying" <ying.huang@intel.com>
-> > > Subject: mm-swap-add-cluster-lock-v5
-> > 
-> > I assume you are going to fold this into the original patch. Do you
-> > think it would make sense to have it in a separate patch along with
-> > the reasoning provided via email?
+> Make sure the mempolicy is not freed prematurely, otherwise
+> __alloc_pages_nodemask() can end up using a bogus nodemask, which could lead
+> e.g. to premature OOM.
 > 
-> It should be OK - the v5 changelog (which I shall use for the folded
-> patch, as usual) has
-> 
-> : Compared with a previous implementation using bit_spin_lock, the
-> : sequential swap out throughput improved about 3.2%.  Test was done on a
-> : Xeon E5 v3 system.  The swap device used is a RAM simulated PMEM
-> : (persistent memory) device.  To test the sequential swapping out, the test
-> : case created 32 processes, which sequentially allocate and write to the
-> : anonymous pages until the RAM and part of the swap device is used.
+> Fixes: be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to alloc_pages_vma")
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: stable@vger.kernel.org
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
 
-But there are more reasons than the throughput improvements. I would
-consider the full lockdep support and fairness more important. The
-drawback is the memory footprint which should be mentioned as well.
+Acked-by: David Rientjes <rientjes@google.com>
 
-That being said, I will not insist, I just thought that this would be a
-nice incremental change and easier to understand later rather than
-searching the archives...
-
-So take all this as my 2c...
-
--- 
-Michal Hocko
-SUSE Labs
+I think this deserves Cc: stable@vger.kernel.org [4.0+]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
