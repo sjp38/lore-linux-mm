@@ -1,83 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2106B0266
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:25:40 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f5so14790516pgi.1
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:25:40 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 96si119523plz.28.2017.01.18.04.25.39
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9556B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:29:26 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r126so2741431wmr.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:29:26 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c14si125840wrb.263.2017.01.18.04.29.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jan 2017 04:25:40 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RESEND 1/4] mm: drop zap_details::ignore_dirty
-Date: Wed, 18 Jan 2017 15:24:26 +0300
-Message-Id: <20170118122429.43661-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 04:29:25 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] mm patches review bandwidth
+References: <20170105153737.GV21618@dhcp22.suse.cz>
+ <b1a870cc-608f-7613-c29f-9eb2a3518f8f@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1153b414-9992-0a6f-9a64-af4614363efd@suse.cz>
+Date: Wed, 18 Jan 2017 13:29:22 +0100
+MIME-Version: 1.0
+In-Reply-To: <b1a870cc-608f-7613-c29f-9eb2a3518f8f@oracle.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-The only user of ignore_dirty is oom-reaper. But it doesn't really use
-it.
+On 01/06/2017 02:43 AM, Mike Kravetz wrote:
+> On 01/05/2017 07:37 AM, Michal Hocko wrote:
+>> Another problem, somehow related, is that there are areas which have
+>> evolved into a really bad shape because nobody has really payed
+>> attention to them from the architectural POV when they were merged. To
+>> name one the memory hotplug doesn't seem very healthy, full of kludges,
+>> random hacks and fixes for fixes working for a particualr usecase
+>> without any longterm vision. We have allowed to (ab)use concepts like
+>> ZONE_MOVABLE which are finding new users because that seems to be the
+>> simplest way forward. Now we are left with fixing the code which has
+>> some fundamental issues because it is used out there. Are we going to do
+>> anything about those? E.g. generate a list of them, discuss how to make
+>> that code healthy again and do not allow new features until we sort that
+>> out?
+>
+> hugetlb reservation processing seems to be one of those areas.  I certainly
+> have been guilty of stretching the limits of the current code to meet the
+> demands of new functionality.  It has been my desire to do some rewrite or
+> rearchitecture in this area.
 
-ignore_dirty only has effect on file pages mapped with dirty pte.
-But oom-repear skips shared VMAs, so there's no way we can dirty file
-pte in them.
+Since this is now a list, let me add cpuset's mems_allowed handling there... See 
+[1] for some details.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/mm.h | 1 -
- mm/memory.c        | 6 ------
- mm/oom_kill.c      | 3 +--
- 3 files changed, 1 insertion(+), 9 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b84615b0f64c..88beebe1e695 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1148,7 +1148,6 @@ struct zap_details {
- 	struct address_space *check_mapping;	/* Check page->mapping if set */
- 	pgoff_t	first_index;			/* Lowest page->index to unmap */
- 	pgoff_t last_index;			/* Highest page->index to unmap */
--	bool ignore_dirty;			/* Ignore dirty pages */
- 	bool check_swap_entries;		/* Check also swap entries */
- };
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 6bf2b471e30c..1d8ef8ec1b48 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1155,12 +1155,6 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 
- 			if (!PageAnon(page)) {
- 				if (pte_dirty(ptent)) {
--					/*
--					 * oom_reaper cannot tear down dirty
--					 * pages
--					 */
--					if (unlikely(details && details->ignore_dirty))
--						continue;
- 					force_flush = 1;
- 					set_page_dirty(page);
- 				}
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index ec9f11d4f094..f101db68e760 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -465,8 +465,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
--	struct zap_details details = {.check_swap_entries = true,
--				      .ignore_dirty = true};
-+	struct zap_details details = {.check_swap_entries = true};
- 	bool ret = true;
- 
- 	/*
--- 
-2.11.0
+[1] https://lkml.kernel.org/r/20170117221610.22505-1-vbabka@suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
