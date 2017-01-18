@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7DD6B026E
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C73C66B026F
 	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 08:17:57 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f144so16589748pfa.3
+Received: by mail-pf0-f197.google.com with SMTP id d134so16775419pfd.0
         for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:17:57 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id l24si207503pgn.200.2017.01.18.05.17.54
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id h9si234194pli.37.2017.01.18.05.17.55
         for <linux-mm@kvack.org>;
         Wed, 18 Jan 2017 05:17:56 -0800 (PST)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 05/13] lockdep: Pass a callback arg to check_prev_add() to handle stack_trace
-Date: Wed, 18 Jan 2017 22:17:31 +0900
-Message-Id: <1484745459-2055-6-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v5 10/13] lockdep: Apply crossrelease to PG_locked locks
+Date: Wed, 18 Jan 2017 22:17:36 +0900
+Message-Id: <1484745459-2055-11-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
 References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,121 +19,254 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-Currently, a separate stack_trace instance cannot be used in
-check_prev_add(). The simplest way to achieve it is to pass a
-stack_trace instance to check_prev_add() as an argument after
-saving it. However, unnecessary saving can happen if so implemented.
+lock_page() and its family can cause deadlock. Nevertheless, it could
+not use the lock correctness validator until now, becasue unlock_page()
+might be called in a different context from the acquisition context,
+which, we believed, violates lockdep's assumption. But it's not true.
 
-The proper solution is to pass a callback function additionally along
-with a stack_trace so that a caller can decide the way to save, for
-example, doing nothing, calling save_trace() or doing something else.
-
-Actually, crossrelease don't need to save stack_trace of current but
-only need to copy stack_traces from temporary buffers to the global
-stack_trace[].
+Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
+detector to page locks. Applied it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- kernel/locking/lockdep.c | 38 ++++++++++++++++++--------------------
- 1 file changed, 18 insertions(+), 20 deletions(-)
+ include/linux/mm_types.h |   8 ++++
+ include/linux/pagemap.h  | 100 ++++++++++++++++++++++++++++++++++++++++++++---
+ lib/Kconfig.debug        |   8 ++++
+ mm/filemap.c             |   4 +-
+ mm/page_alloc.c          |   3 ++
+ 5 files changed, 115 insertions(+), 8 deletions(-)
 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e63ff97..75dc14a 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -1805,20 +1805,13 @@ static inline void inc_chains(void)
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 4a8aced..06adfa2 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -16,6 +16,10 @@
+ #include <asm/page.h>
+ #include <asm/mmu.h>
+ 
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#include <linux/lockdep.h>
++#endif
++
+ #ifndef AT_VECTOR_SIZE_ARCH
+ #define AT_VECTOR_SIZE_ARCH 0
+ #endif
+@@ -221,6 +225,10 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
++
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++	struct lockdep_map_cross map;
++#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index a8ee59a..a3ecec1 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -14,6 +14,9 @@
+ #include <linux/bitops.h>
+ #include <linux/hardirq.h> /* for in_interrupt() */
+ #include <linux/hugetlb_inline.h>
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#include <linux/lockdep.h>
++#endif
+ 
+ /*
+  * Bits in mapping->flags.
+@@ -432,26 +435,90 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+ 	return pgoff;
+ }
+ 
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#define lock_page_init(p)						\
++do {									\
++	static struct lock_class_key __key;				\
++	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
++			"(PG_locked)" #p, &__key, 0);			\
++} while (0)
++
++static inline void lock_page_acquire(struct page *page, int try)
++{
++	page = compound_head(page);
++	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
++			       try, NULL, _RET_IP_);
++}
++
++static inline void lock_page_release(struct page *page)
++{
++	page = compound_head(page);
++	/*
++	 * lock_commit_crosslock() is necessary for crosslocks.
++	 */
++	lock_commit_crosslock((struct lockdep_map *)&page->map);
++	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
++}
++#else
++static inline void lock_page_init(struct page *page) {}
++static inline void lock_page_free(struct page *page) {}
++static inline void lock_page_acquire(struct page *page, int try) {}
++static inline void lock_page_release(struct page *page) {}
++#endif
++
+ extern void __lock_page(struct page *page);
+ extern int __lock_page_killable(struct page *page);
+ extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 				unsigned int flags);
+-extern void unlock_page(struct page *page);
++extern void do_raw_unlock_page(struct page *page);
+ 
+-static inline int trylock_page(struct page *page)
++static inline void unlock_page(struct page *page)
++{
++	lock_page_release(page);
++	do_raw_unlock_page(page);
++}
++
++static inline int do_raw_trylock_page(struct page *page)
+ {
+ 	page = compound_head(page);
+ 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+ }
+ 
++static inline int trylock_page(struct page *page)
++{
++	if (do_raw_trylock_page(page)) {
++		lock_page_acquire(page, 1);
++		return 1;
++	}
++	return 0;
++}
++
+ /*
+  * lock_page may only be called if we have the page's inode pinned.
   */
- static int
- check_prev_add(struct task_struct *curr, struct held_lock *prev,
--	       struct held_lock *next, int distance, int *stack_saved)
-+	       struct held_lock *next, int distance, struct stack_trace *trace,
-+	       int (*save)(struct stack_trace *trace))
+ static inline void lock_page(struct page *page)
  {
- 	struct lock_list *entry;
- 	int ret;
- 	struct lock_list this;
- 	struct lock_list *uninitialized_var(target_entry);
--	/*
--	 * Static variable, serialized by the graph_lock().
--	 *
--	 * We use this static variable to save the stack trace in case
--	 * we call into this function multiple times due to encountering
--	 * trylocks in the held lock stack.
--	 */
--	static struct stack_trace trace;
+ 	might_sleep();
+-	if (!trylock_page(page))
++
++	if (!do_raw_trylock_page(page))
+ 		__lock_page(page);
++	/*
++	 * acquire() must be after actual lock operation for crosslocks.
++	 * This way a crosslock and other locks can be serialized like:
++	 *
++	 *	CONTEXT 1		CONTEXT 2
++	 *	---------		---------
++	 *	lock A (cross)
++	 *	acquire A
++	 *	  atomic_inc_return()
++	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ serialize
++	 *				acquire B
++	 *				  atomic_read_acquire()
++	 *				lock B
++	 *
++	 * so that 'A -> B' can be seen globally.
++	 */
++	lock_page_acquire(page, 0);
+ }
  
- 	/*
- 	 * Prove that the new <prev> -> <next> dependency would not
-@@ -1866,11 +1859,8 @@ static inline void inc_chains(void)
+ /*
+@@ -461,9 +528,20 @@ static inline void lock_page(struct page *page)
+  */
+ static inline int lock_page_killable(struct page *page)
+ {
++	int ret;
++
+ 	might_sleep();
+-	if (!trylock_page(page))
+-		return __lock_page_killable(page);
++
++	if (!do_raw_trylock_page(page)) {
++		ret = __lock_page_killable(page);
++		if (ret)
++			return ret;
++	}
++	/*
++	 * acquire() must be after actual lock operation for crosslocks.
++	 * This way a crosslock and other locks can be serialized.
++	 */
++	lock_page_acquire(page, 0);
+ 	return 0;
+ }
+ 
+@@ -478,7 +556,17 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 				     unsigned int flags)
+ {
+ 	might_sleep();
+-	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
++
++	if (do_raw_trylock_page(page) || __lock_page_or_retry(page, mm, flags)) {
++		/*
++		 * acquire() must be after actual lock operation for crosslocks.
++		 * This way a crosslock and other locks can be serialized.
++		 */
++		lock_page_acquire(page, 0);
++		return 1;
++	}
++
++	return 0;
+ }
+ 
+ /*
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index ad172b5..69364d0 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1063,6 +1063,14 @@ config LOCKDEP_COMPLETE
+ 	 A deadlock caused by wait_for_completion() and complete() can be
+ 	 detected by lockdep using crossrelease feature.
+ 
++config LOCKDEP_PAGELOCK
++	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
++	select LOCKDEP_CROSSRELEASE
++	default n
++	help
++	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
++	 PG_locked lock can work with runtime deadlock detector, lockdep.
++
+ config PROVE_LOCKING
+ 	bool "Lock debugging: prove locking correctness"
+ 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 50b52fe..d439cc7 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -858,7 +858,7 @@ void add_page_wait_queue(struct page *page, wait_queue_t *waiter)
+  * The mb is necessary to enforce ordering between the clear_bit and the read
+  * of the waitqueue (to avoid SMP races with a parallel wait_on_page_locked()).
+  */
+-void unlock_page(struct page *page)
++void do_raw_unlock_page(struct page *page)
+ {
+ 	page = compound_head(page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+@@ -866,7 +866,7 @@ void unlock_page(struct page *page)
+ 	smp_mb__after_atomic();
+ 	wake_up_page(page, PG_locked);
+ }
+-EXPORT_SYMBOL(unlock_page);
++EXPORT_SYMBOL(do_raw_unlock_page);
+ 
+ /**
+  * end_page_writeback - end writeback against a page
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6de9440..36d5f9e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5063,6 +5063,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		} else {
+ 			__init_single_pfn(pfn, zone, nid);
  		}
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++		lock_page_init(pfn_to_page(pfn));
++#endif
  	}
+ }
  
--	if (!*stack_saved) {
--		if (!save_trace(&trace))
--			return 0;
--		*stack_saved = 1;
--	}
-+	if (save && !save(trace))
-+		return 0;
- 
- 	/*
- 	 * Ok, all validations passed, add the new lock
-@@ -1878,14 +1868,14 @@ static inline void inc_chains(void)
- 	 */
- 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
- 			       &hlock_class(prev)->locks_after,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 
- 	if (!ret)
- 		return 0;
- 
- 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
- 			       &hlock_class(next)->locks_before,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 	if (!ret)
- 		return 0;
- 
-@@ -1893,8 +1883,6 @@ static inline void inc_chains(void)
- 	 * Debugging printouts:
- 	 */
- 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
--		/* We drop graph lock, so another thread can overwrite trace. */
--		*stack_saved = 0;
- 		graph_unlock();
- 		printk("\n new dependency: ");
- 		print_lock_name(hlock_class(prev));
-@@ -1917,8 +1905,10 @@ static inline void inc_chains(void)
- check_prevs_add(struct task_struct *curr, struct held_lock *next)
- {
- 	int depth = curr->lockdep_depth;
--	int stack_saved = 0;
- 	struct held_lock *hlock;
-+	struct stack_trace trace;
-+	unsigned long start_nr = nr_stack_trace_entries;
-+	int (*save)(struct stack_trace *trace) = save_trace;
- 
- 	/*
- 	 * Debugging checks.
-@@ -1944,8 +1934,16 @@ static inline void inc_chains(void)
- 		 */
- 		if (hlock->read != 2 && hlock->check) {
- 			if (!check_prev_add(curr, hlock, next,
--						distance, &stack_saved))
-+						distance, &trace, save))
- 				return 0;
-+
-+			/*
-+			 * Stop saving stack_trace if save_trace() was
-+			 * called at least once:
-+			 */
-+			if (save && start_nr != nr_stack_trace_entries)
-+				save = NULL;
-+
- 			/*
- 			 * Stop after the first non-trylock entry,
- 			 * as non-trylock entries have added their
 -- 
 1.9.1
 
