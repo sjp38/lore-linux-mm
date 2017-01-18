@@ -1,60 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A657F6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:43:16 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id a194so14573856oib.5
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:43:16 -0800 (PST)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20095.outbound.protection.outlook.com. [40.107.2.95])
-        by mx.google.com with ESMTPS id o204si2990178oif.190.2017.01.18.03.43.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 03:43:15 -0800 (PST)
-Subject: Re: [PATCHv2 4/5] x86/mm: for MAP_32BIT check in_compat_syscall()
- instead TIF_ADDR32
-References: <20170116123310.22697-1-dsafonov@virtuozzo.com>
- <20170116123310.22697-5-dsafonov@virtuozzo.com>
- <CALCETrWXCr_nYMb41JSgVSAmMYkkkkDfWtLfQhh7S5Enz8YJCA@mail.gmail.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <09f45e26-951a-ac10-0749-1bce8639cfbd@virtuozzo.com>
-Date: Wed, 18 Jan 2017 14:39:54 +0300
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F3256B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 06:54:39 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c73so13863155pfb.7
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 03:54:39 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 16si29997pfw.94.2017.01.18.03.54.37
+        for <linux-mm@kvack.org>;
+        Wed, 18 Jan 2017 03:54:38 -0800 (PST)
+Date: Wed, 18 Jan 2017 20:54:28 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+Message-ID: <20170118115428.GM3326@X58A-UD3R>
+References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
+ <1481260331-360-16-git-send-email-byungchul.park@lge.com>
+ <20170118064230.GF15084@tardis.cn.ibm.com>
+ <20170118105346.GL3326@X58A-UD3R>
+ <20170118110317.GC6515@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWXCr_nYMb41JSgVSAmMYkkkkDfWtLfQhh7S5Enz8YJCA@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170118110317.GC6515@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Boqun Feng <boqun.feng@gmail.com>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On 01/17/2017 11:30 PM, Andy Lutomirski wrote:
-> On Mon, Jan 16, 2017 at 4:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->> At this momet, logic in arch_get_unmapped_area{,_topdown} for mmaps with
->> MAP_32BIT flag checks TIF_ADDR32 which means:
->> o if 32-bit ELF changes mode to 64-bit on x86_64 and then tries to
->>   mmap() with MAP_32BIT it'll result in addr over 4Gb (as default is
->>   top-down allocation)
->> o if 64-bit ELF changes mode to 32-bit and tries mmap() with MAP_32BIT,
->>   it'll allocate only memory in 1GB space: [0x40000000, 0x80000000).
->>
->> Fix it by handeling MAP_32BIT in 64-bit syscalls only.
->> As a little bonus it'll make thread flag a little less used.
->
-> Seems like an improvement.  Also, jeez, the mmap code is complicated.
+On Wed, Jan 18, 2017 at 12:03:17PM +0100, Peter Zijlstra wrote:
+> On Wed, Jan 18, 2017 at 07:53:47PM +0900, Byungchul Park wrote:
+> > On Wed, Jan 18, 2017 at 02:42:30PM +0800, Boqun Feng wrote:
+> > > On Fri, Dec 09, 2016 at 02:12:11PM +0900, Byungchul Park wrote:
+> > > [...]
+> > > > +Example 1:
+> > > > +
+> > > > +   CONTEXT X		   CONTEXT Y
+> > > > +   ---------		   ---------
+> > > > +   mutext_lock A
+> > > > +			   lock_page B
+> > > > +   lock_page B
+> > > > +			   mutext_lock A /* DEADLOCK */
+> > > 
+> > > s/mutext_lock/mutex_lock
+> > 
+> > Thank you.
+> > 
+> > > > +Example 3:
+> > > > +
+> > > > +   CONTEXT X		   CONTEXT Y
+> > > > +   ---------		   ---------
+> > > > +			   mutex_lock A
+> > > > +   mutex_lock A
+> > > > +   mutex_unlock A
+> > > > +			   wait_for_complete B /* DEADLOCK */
+> > > 
+> > > I think this part better be:
+> > > 
+> > >    CONTEXT X		   CONTEXT Y
+> > >    ---------		   ---------
+> > >    			   mutex_lock A
+> > >    mutex_lock A
+> > >    			   wait_for_complete B /* DEADLOCK */
+> > >    mutex_unlock A
+> > > 
+> > > , right? Because Y triggers DEADLOCK before X could run mutex_unlock().
+> > 
+> > There's no different between two examples.
+> 
+> There is..
+> 
+> > No matter which one is chosen, mutex_lock A in CONTEXT X cannot be passed.
+> 
+> But your version shows it does mutex_unlock() before CONTEXT Y does
+> wait_for_completion().
+> 
+> The thing about these diagrams is that both columns are assumed to have
+> the same timeline.
 
-Yes, but it's intentionally 4 of 5 by the reason, that it'll broke
-the second case:
+X cannot acquire mutex A because Y already acquired it.
 
- >> o if 64-bit ELF changes mode to 32-bit and tries mmap() with MAP_32BIT,
- >>   it'll allocate only memory in 1GB space: [0x40000000, 0x80000000).
-
-if the first 3 patches has not applied earlier.
-(because it'll allocate not in 1Gb space, but in 64-bit whole space,
-above 4Gb).
-So, this should go only after fixing compat mmap in 64-bit binaries,
-which is done in prev 3 patches.
-
--- 
-              Dmitry
+In order words, all statements below mutex_lock A in X cannot run.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
