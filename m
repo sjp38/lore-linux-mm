@@ -1,59 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A2C746B0253
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 13:42:52 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id ez4so4092888wjd.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 10:42:52 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B007D6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 14:03:30 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r144so4870267wme.0
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 11:03:30 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 17si3365930wms.53.2017.01.18.10.42.50
+        by mx.google.com with ESMTPS id i5si3395615wmf.115.2017.01.18.11.03.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 10:42:51 -0800 (PST)
-Date: Wed, 18 Jan 2017 19:42:46 +0100
+        Wed, 18 Jan 2017 11:03:29 -0800 (PST)
+Date: Wed, 18 Jan 2017 20:03:24 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/3 -v3] GFP_NOFAIL cleanups
-Message-ID: <20170118184246.GC17135@dhcp22.suse.cz>
-References: <20161220134904.21023-1-mhocko@kernel.org>
+Subject: Re: [PATCH] mm/mempolicy.c: do not put mempolicy before using its
+ nodemask
+Message-ID: <20170118190324.GD17135@dhcp22.suse.cz>
+References: <20170118141124.8345-1-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161220134904.21023-1-mhocko@kernel.org>
+In-Reply-To: <20170118141124.8345-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue 20-12-16 14:49:01, Michal Hocko wrote:
-> Hi,
-> This has been posted [1] initially to later be reduced to a single patch
-> [2].  Johannes then suggested [3] to split up the second patch and make
-> the access to memory reserves by __GF_NOFAIL requests which do not
-> invoke the oom killer a separate change. This is patch 3 now.
+On Wed 18-01-17 15:11:24, Vlastimil Babka wrote:
+> Since commit be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to
+> alloc_pages_vma") alloc_pages_vma() can potentially free a mempolicy by
+> mpol_cond_put() before accessing the embedded nodemask by
+> __alloc_pages_nodemask(). The commit log says it's so "we can use a single
+> exit path within the function" but that's clearly wrong. We can still do that
+> when doing mpol_cond_put() after the allocation attempt.
 > 
-> Tetsuo has noticed [4] that recent changes have changed GFP_NOFAIL
-> semantic for costly order requests. I believe that the primary reason
-> why this happened is that our GFP_NOFAIL checks are too scattered
-> and it is really easy to forget about adding one. That's why I am
-> proposing patch 1 which consolidates all the nofail handling at a single
-> place. This should help to make this code better maintainable.
+> Make sure the mempolicy is not freed prematurely, otherwise
+> __alloc_pages_nodemask() can end up using a bogus nodemask, which could lead
+> e.g. to premature OOM.
 > 
-> Patch 2 on top is a further attempt to make GFP_NOFAIL semantic less
-> surprising. As things stand currently GFP_NOFAIL overrides the oom killer
-> prevention code which is both subtle and not really needed. The patch 2
-> has more details about issues this might cause. We have also seen
-> a report where __GFP_NOFAIL|GFP_NOFS requests cause the oom killer which
-> is premature.
-> 
-> Patch 3 is an attempt to reduce chances of GFP_NOFAIL requests being
-> preempted by other memory consumers by giving them access to memory
-> reserves.
-> 
-> [1] http://lkml.kernel.org/r/20161123064925.9716-1-mhocko@kernel.org
-> [2] http://lkml.kernel.org/r/20161214150706.27412-1-mhocko@kernel.org
-> [3] http://lkml.kernel.org/r/20161216173151.GA23182@cmpxchg.org
-> [4] http://lkml.kernel.org/r/1479387004-5998-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> Fixes: be97a41b291e ("mm/mempolicy.c: merge alloc_hugepage_vma to alloc_pages_vma")
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: stable@vger.kernel.org
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
 
-Friendly ping on this.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/mempolicy.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 2e346645eb80..1e7873e40c9a 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2017,8 +2017,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+>  
+>  	nmask = policy_nodemask(gfp, pol);
+>  	zl = policy_zonelist(gfp, pol, node);
+> -	mpol_cond_put(pol);
+>  	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
+> +	mpol_cond_put(pol);
+>  out:
+>  	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+>  		goto retry_cpuset;
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
 Michal Hocko
 SUSE Labs
