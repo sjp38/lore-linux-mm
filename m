@@ -1,48 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CFF756B0253
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:26:38 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id d140so1874529wmd.4
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 01:26:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6si28452397wrp.137.2017.01.18.01.26.37
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AD6F16B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:31:21 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id x1so3460876lff.6
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 01:31:21 -0800 (PST)
+Received: from forwardcorp1h.cmail.yandex.net (forwardcorp1h.cmail.yandex.net. [87.250.230.216])
+        by mx.google.com with ESMTPS id j14si17391693lfg.194.2017.01.18.01.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Jan 2017 01:26:37 -0800 (PST)
-Subject: Re: [RFC 3/4] mm, page_alloc: move cpuset seqcount checking to
- slowpath
-References: <20170117221610.22505-1-vbabka@suse.cz>
- <20170117221610.22505-4-vbabka@suse.cz>
- <036f01d2715b$97827e80$c6877b80$@alibaba-inc.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <372726f9-3bc9-217f-3bf5-c40d3e52a6b6@suse.cz>
-Date: Wed, 18 Jan 2017 10:26:34 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 01:31:20 -0800 (PST)
+Subject: Re: [PATCH net-next] mlx4: support __GFP_MEMALLOC for rx
+References: <1484712850.13165.86.camel@edumazet-glaptop3.roam.corp.google.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <2696ea05-bb39-787b-2029-33b729fd88e0@yandex-team.ru>
+Date: Wed, 18 Jan 2017 12:31:18 +0300
 MIME-Version: 1.0
-In-Reply-To: <036f01d2715b$97827e80$c6877b80$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <1484712850.13165.86.camel@edumazet-glaptop3.roam.corp.google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Mel Gorman' <mgorman@techsingularity.net>, 'Ganapatrao Kulkarni' <gpkulkarni@gmail.com>
-Cc: 'Michal Hocko' <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Dumazet <eric.dumazet@gmail.com>, David Miller <davem@davemloft.net>
+Cc: netdev <netdev@vger.kernel.org>, Tariq Toukan <tariqt@mellanox.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/18/2017 08:22 AM, Hillf Danton wrote:
-> On Wednesday, January 18, 2017 6:16 AM Vlastimil Babka wrote:
->>
->> This is a preparation for the following patch to make review simpler. While
->> the primary motivation is a bug fix, this could also save some cycles in the
->> fast path.
->>
-> This also gets kswapd involved.
-> Dunno how frequent cpuset is changed in real life.
+On 18.01.2017 07:14, Eric Dumazet wrote:
+> From: Eric Dumazet <edumazet@google.com>
+>
+> Commit 04aeb56a1732 ("net/mlx4_en: allocate non 0-order pages for RX
+> ring with __GFP_NOMEMALLOC") added code that appears to be not needed at
+> that time, since mlx4 never used __GFP_MEMALLOC allocations anyway.
+>
+> As using memory reserves is a must in some situations (swap over NFS or
+> iSCSI), this patch adds this flag.
 
-I don't think the extra kswapd wakeups due to retry_cpuset would be noticeable. 
-Such frequent cpuset changes would likely have their own associated overhead 
-larger than the wakeups.
+AFAIK __GFP_MEMALLOC is used for TX, not for RX: for allocations which are required by memory reclaimer to free some pages.
+
+Allocation RX buffers with __GFP_MEMALLOC is a straight way to depleting all reserves by flood from network.
 
 >
-> Hillf
+> Note that this driver does not reuse pages (yet) so we do not have to
+> add anything else.
 >
+> Signed-off-by: Eric Dumazet <edumazet@google.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: Tariq Toukan <tariqt@mellanox.com>
+> ---
+>  drivers/net/ethernet/mellanox/mlx4/en_rx.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+>
+> diff --git a/drivers/net/ethernet/mellanox/mlx4/en_rx.c b/drivers/net/ethernet/mellanox/mlx4/en_rx.c
+> index eac527e25ec902c2a586e9952272b9e8e599e2c8..e362f99334d03c0df4d88320977670015870dd9c 100644
+> --- a/drivers/net/ethernet/mellanox/mlx4/en_rx.c
+> +++ b/drivers/net/ethernet/mellanox/mlx4/en_rx.c
+> @@ -706,7 +706,8 @@ static bool mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
+>  	do {
+>  		if (mlx4_en_prepare_rx_desc(priv, ring,
+>  					    ring->prod & ring->size_mask,
+> -					    GFP_ATOMIC | __GFP_COLD))
+> +					    GFP_ATOMIC | __GFP_COLD |
+> +					    __GFP_MEMALLOC))
+>  			break;
+>  		ring->prod++;
+>  	} while (--missing);
+>
+>
+
+
+-- 
+Konstantin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
