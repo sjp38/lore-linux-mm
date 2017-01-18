@@ -1,120 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A09806B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 07:49:48 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 194so15194036pgd.7
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 04:49:48 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id b65si150137pfb.138.2017.01.18.04.49.46
-        for <linux-mm@kvack.org>;
-        Wed, 18 Jan 2017 04:49:47 -0800 (PST)
-From: "byungchul.park" <byungchul.park@lge.com>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com> <1481260331-360-16-git-send-email-byungchul.park@lge.com> <20170118064230.GF15084@tardis.cn.ibm.com> <20170118105346.GL3326@X58A-UD3R> <20170118110317.GC6515@twins.programming.kicks-ass.net> <20170118115428.GM3326@X58A-UD3R> <20170118120757.GD6515@twins.programming.kicks-ass.net> 
-In-Reply-To: 
-Subject: RE: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
-Date: Wed, 18 Jan 2017 21:49:44 +0900
-Message-ID: <008201d27189$5811de70$08359b50$@lge.com>
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4996B0253
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 08:17:17 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id ez4so2433730wjd.2
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 05:17:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p198si20033729wmb.10.2017.01.18.05.17.15
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Jan 2017 05:17:15 -0800 (PST)
+Date: Wed, 18 Jan 2017 14:17:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+Message-ID: <20170118131711.GA7021@dhcp22.suse.cz>
+References: <bug-192571-27@https.bugzilla.kernel.org/>
+ <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+ <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+ <20170118013948.GA580@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: ko
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170118013948.GA580@jagdpanzerIV.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Peter Zijlstra' <peterz@infradead.org>
-Cc: 'Boqun Feng' <boqun.feng@gmail.com>, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: sss123next@list.ru, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-> -----Original Message-----
-> From: byungchul.park [mailto:byungchul.park@lge.com]
-> Sent: Wednesday, January 18, 2017 9:15 PM
-> To: 'Peter Zijlstra'
-> Cc: 'Boqun Feng'; 'mingo@kernel.org'; 'tglx@linutronix.de';
-> 'walken@google.com'; 'kirill@shutemov.name'; 'linux-
-> kernel@vger.kernel.org'; 'linux-mm@kvack.org'; 'iamjoonsoo.kim@lge.com';
-> 'akpm@linux-foundation.org'; 'npiggin@gmail.com'
-> Subject: RE: [PATCH v4 15/15] lockdep: Crossrelease feature documentation
+On Wed 18-01-17 10:39:48, Sergey Senozhatsky wrote:
+> Cc Dan
 > 
-> > -----Original Message-----
-> > From: Peter Zijlstra [mailto:peterz@infradead.org]
-> > Sent: Wednesday, January 18, 2017 9:08 PM
-> > To: Byungchul Park
-> > Cc: Boqun Feng; mingo@kernel.org; tglx@linutronix.de; walken@google.com;
-> > kirill@shutemov.name; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> > iamjoonsoo.kim@lge.com; akpm@linux-foundation.org; npiggin@gmail.com
-> > Subject: Re: [PATCH v4 15/15] lockdep: Crossrelease feature
-> documentation
-> >
-> > On Wed, Jan 18, 2017 at 08:54:28PM +0900, Byungchul Park wrote:
-> > > On Wed, Jan 18, 2017 at 12:03:17PM +0100, Peter Zijlstra wrote:
-> > > > On Wed, Jan 18, 2017 at 07:53:47PM +0900, Byungchul Park wrote:
-> > > > > On Wed, Jan 18, 2017 at 02:42:30PM +0800, Boqun Feng wrote:
-> > > > > > On Fri, Dec 09, 2016 at 02:12:11PM +0900, Byungchul Park wrote:
-> > > > > > [...]
-> > > > > > > +Example 1:
-> > > > > > > +
-> > > > > > > +   CONTEXT X		   CONTEXT Y
-> > > > > > > +   ---------		   ---------
-> > > > > > > +   mutext_lock A
-> > > > > > > +			   lock_page B
-> > > > > > > +   lock_page B
-> > > > > > > +			   mutext_lock A /* DEADLOCK */
-> > > > > >
-> > > > > > s/mutext_lock/mutex_lock
-> > > > >
-> > > > > Thank you.
-> > > > >
-> > > > > > > +Example 3:
-> > > > > > > +
-> > > > > > > +   CONTEXT X		   CONTEXT Y
-> > > > > > > +   ---------		   ---------
-> > > > > > > +			   mutex_lock A
-> > > > > > > +   mutex_lock A
-> > > > > > > +   mutex_unlock A
-> > > > > > > +			   wait_for_complete B /* DEADLOCK */
-> > > > > >
-> > > > > > I think this part better be:
-> > > > > >
-> > > > > >    CONTEXT X		   CONTEXT Y
-> > > > > >    ---------		   ---------
-> > > > > >    			   mutex_lock A
-> > > > > >    mutex_lock A
-> > > > > >    			   wait_for_complete B /* DEADLOCK */
-> > > > > >    mutex_unlock A
-> > > > > >
-> > > > > > , right? Because Y triggers DEADLOCK before X could run
-> > mutex_unlock().
-> > > > >
-> > > > > There's no different between two examples.
-> > > >
-> > > > There is..
-> > > >
-> > > > > No matter which one is chosen, mutex_lock A in CONTEXT X cannot be
-> > passed.
-> > > >
-> > > > But your version shows it does mutex_unlock() before CONTEXT Y does
-> > > > wait_for_completion().
-> > > >
-> > > > The thing about these diagrams is that both columns are assumed to
-> > have
-> > > > the same timeline.
-> > >
-> > > X cannot acquire mutex A because Y already acquired it.
-> > >
-> > > In order words, all statements below mutex_lock A in X cannot run.
-> >
-> > But your timeline shows it does, which is the error that Boqun pointed
-> > out.
+> On (01/17/17 12:22), Andrew Morton wrote:
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=192571
+> > > 
+> > > --- Comment #1 from Gluzskiy Alexandr <sss123next@list.ru> ---
+> > > [199961.576604] ------------[ cut here ]------------
+> > > [199961.577830] kernel BUG at mm/zswap.c:1108!
 > 
-> I am sorry for not understanding what you are talking about.
+> zswap didn't manage to decompress the page:
 > 
-> Do you mean that I should remove all statements below mutex_lock A in X?
-> 
-> Or should I move mutex_unlock as Boqun said? What will change?
+> static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+> 				struct page *page)
+> {
+> ...
+> 	dst = kmap_atomic(page);
+> 	tfm = *get_cpu_ptr(entry->pool->tfm);
+> 	ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
+> 	put_cpu_ptr(entry->pool->tfm);
+> 	kunmap_atomic(dst);
+> 	zpool_unmap_handle(entry->pool->zpool, entry->handle);
+> 	BUG_ON(ret);
+> 	^^^^^^^^^^^
 
-Anyway, I will change it as he said even though I don't understand what is
-different between them. :/ But I am just curious. It would be appreciated
-if you answer my question.
-
+Ugh, why do we even do that? This is not the way how to handle error
+situations. AFAIU propagating the error out wouldn't be a big deal
+because we would just fallback to regular swap, right?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
