@@ -1,124 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 663EE6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 21:48:10 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 80so41054991pfy.2
-        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 18:48:10 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id j186si2050740pfb.193.2017.01.18.18.48.08
-        for <linux-mm@kvack.org>;
-        Wed, 18 Jan 2017 18:48:09 -0800 (PST)
-Date: Thu, 19 Jan 2017 11:47:55 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v4 05/15] lockdep: Make check_prev_add can use a separate
- stack_trace
-Message-ID: <20170119024755.GO3326@X58A-UD3R>
-References: <1481260331-360-1-git-send-email-byungchul.park@lge.com>
- <1481260331-360-6-git-send-email-byungchul.park@lge.com>
- <20170112161643.GB3144@twins.programming.kicks-ass.net>
- <20170113101143.GE3326@X58A-UD3R>
- <20170117155431.GE5680@worktop>
- <20170118020432.GK3326@X58A-UD3R>
- <20170118151053.GF6500@twins.programming.kicks-ass.net>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D66AB6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Jan 2017 21:57:41 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id k86so13163852lfi.4
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 18:57:41 -0800 (PST)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id l137si1392203lfe.285.2017.01.18.18.57.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Jan 2017 18:57:40 -0800 (PST)
+Received: by mail-lf0-x244.google.com with SMTP id x1so3857206lff.0
+        for <linux-mm@kvack.org>; Wed, 18 Jan 2017 18:57:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170118151053.GF6500@twins.programming.kicks-ass.net>
+In-Reply-To: <1484719121.25232.1.camel@list.ru>
+References: <bug-192571-27@https.bugzilla.kernel.org/> <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+ <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+ <20170118013948.GA580@jagdpanzerIV.localdomain> <1484719121.25232.1.camel@list.ru>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 18 Jan 2017 21:56:59 -0500
+Message-ID: <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Alexandr <sss123next@list.ru>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jan 18, 2017 at 04:10:53PM +0100, Peter Zijlstra wrote:
-> On Wed, Jan 18, 2017 at 11:04:32AM +0900, Byungchul Park wrote:
-> > On Tue, Jan 17, 2017 at 04:54:31PM +0100, Peter Zijlstra wrote:
-> > > On Fri, Jan 13, 2017 at 07:11:43PM +0900, Byungchul Park wrote:
-> > > > What do you think about the following patches doing it?
-> > > 
-> > > I was more thinking about something like so...
-> > > 
-> > > Also, I think I want to muck with struct stack_trace; the members:
-> > > max_nr_entries and skip are input arguments to save_stack_trace() and
-> > > bloat the structure for no reason.
-> > 
-> > With your approach, save_trace() must be called whenever check_prevs_add()
-> > is called, which might be unnecessary.
-> 
-> True.. but since we hold the graph_lock this is a slow path anyway, so I
-> didn't care much.
+On Wed, Jan 18, 2017 at 12:58 AM, Alexandr <sss123next@list.ru> wrote:
+> no, nothing interesting in dmesg. but i suspect what it may be because
+> of usage zram and zswap together.
+> i have following configuration:
+> 1. boot option to kernel "ro radeon.audio=0 dma_debug=off reboot=warm
+> gbpages rootfstype=ext4
+> rootflags=relatime,user_xattr,journal_async_commit,delalloc,nobarrier
+> zswap.enabled=1"
+> 2. zram activation in userspace:
+> "
+> cat /etc/local.d/zram.start
+> #!/bin/sh
+>
+> modprobe zram
+> echo 10G > /sys/block/zram0/disksize
+> mkswap /dev/zram0
+> swapon --priority 200 /dev/zram0
 
-If we don't need to care it, the problem becomes easy to solve. But IMHO,
-it'd be better to care it as original lockdep code did, because
-save_trace() might have bigger overhead than we expect and
-check_prevs_add() can be called frequently, so it'd be better to avoid it
-when possible.
+Why would you do this?  There's no benefit of using zswap together with zram.
 
-> Then again, I forgot to clean up in a bunch of paths.
-> 
-> > Frankly speaking, I think what I proposed resolved it neatly. Don't you
-> > think so?
-> 
-> My initial reaction was to your patches being radically different to
-> what I had proposed. But after fixing mine I don't particularly like
-> either one of them.
-> 
-> Also, I think yours has a hole in, you check nr_stack_trace_entries
-> against an older copy to check we did save_stack(), this is not accurate
-> as check_prev_add() can drop graph_lock in the verbose case and then
-> someone else could have done save_stack().
 
-Right. My mistake..
+> "
+>
+> 3. also i have normal swap block device as fall back if all memory used
+> "
+> swapon
+> NAME             TYPE      SIZE USED PRIO
+> /dev/mapper/swap partition  16G   0B    0
+> /dev/zram0       partition  10G   1G  200
+> "
+>
+> so, maybe problem related to zswap on zram ? just a guess...
 
-Then.. The following patch on top of my patch 2/2 can solve it. Right?
+it think it's unlikely, but it's hard to tell exactly why the page
+couldn't be uncompressed; my guess would be more likely a bug in the
+zpool backend.  Were you using the default (zbud)?
 
----
-
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 49b9386..0f5bded 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -1892,7 +1892,7 @@ static inline void inc_chains(void)
- 		if (entry->class == hlock_class(next)) {
- 			if (distance == 1)
- 				entry->distance = 1;
--			return 2;
-+			return 1;
- 		}
- 	}
- 
-@@ -1927,9 +1927,10 @@ static inline void inc_chains(void)
- 		print_lock_name(hlock_class(next));
- 		printk(KERN_CONT "\n");
- 		dump_stack();
--		return graph_lock();
-+		if (!graph_lock())
-+			return 0;
- 	}
--	return 1;
-+	return 2;
- }
- 
- /*
-@@ -1975,15 +1976,16 @@ static inline void inc_chains(void)
- 			 * added:
- 			 */
- 			if (hlock->read != 2 && hlock->check) {
--				if (!check_prev_add(curr, hlock, next,
--							distance, &trace, save))
-+				int ret = check_prev_add(curr, hlock, next,
-+							distance, &trace, save);
-+				if (!ret)
- 					return 0;
- 
- 				/*
- 				 * Stop saving stack_trace if save_trace() was
- 				 * called at least once:
- 				 */
--				if (save && start_nr != nr_stack_trace_entries)
-+				if (save && ret == 2)
- 					save = NULL;
- 
- 				/*
+> -----BEGIN PGP SIGNATURE-----
+>
+> iQIzBAEBCgAdFiEEl/sA7WQg6czXWI/dsEApXVthX7wFAlh/BBIACgkQsEApXVth
+> X7w9lw/+O55XK/YZHszD/DMKRuZaaAQz7to/JrkJOCOJaYsV/PpUBh6liqYH8LCV
+> 6vYaavzKt3ICW1qRa6Wjj7QC2YZKZTe8i8ERGTamDOnSu/gMlJz3EQ/uOEsNxde5
+> eoJr9n+JtUqf0PUUaMc61FcRbePcb3csQDD7KAwMSO7Q7+uP/osFUApjFVBOv0yd
+> KggONcuyIlE0CIhmMk31Id+C7XoKeJogHa2qTIolGzi+yLCmiL+q+CujfXfrbOAz
+> N6mDr7v6RTwzzOyXULZahceVxVtpUSgj84HG9wxTF7dwN6kwbW/YtdMu7UruqRyb
+> SYHauUQSuEcbyb5m7tAPWfy4WsWaTacscdBCrOVqYJcn0nb945RMDz0RPIFZmLQS
+> da6/zh67UF9KuSgprVakvgQ/ITJOfd96USlwZ+E8icJzT36IPWkSmFe6pNEa+KMn
+> FiUf0JPN6ivO2q2wuwkIEKIeLiqDNX7QwcMxowMHKxezZobrzdyd4LoLx143mAa/
+> Ls0nABaN9bk+jzl3Ffl2Vx7YowuercwGaRzBuPEdxVQflA1gVPi7o/zwJ75CPAre
+> ntQk8nWAqpxB30s0/++xYPbYaJFqWtXM2e4AQKQjiZSAdq34yl+q+di/1iGS/u4Q
+> gfvGaprAtViK6AqURT8dXrWTv8KzAT2prIs3wdpmrc3V92p1cAo=
+> =5ZmQ
+> -----END PGP SIGNATURE-----
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
