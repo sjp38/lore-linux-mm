@@ -1,45 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D77FC6B0276
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 03:44:04 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 80so49083042pfy.2
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 00:44:04 -0800 (PST)
-Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
-        by mx.google.com with ESMTP id b2si2895120pll.243.2017.01.19.00.44.03
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jan 2017 00:44:04 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1484814154-1557-1-git-send-email-rppt@linux.vnet.ibm.com> <1484814154-1557-2-git-send-email-rppt@linux.vnet.ibm.com>
-In-Reply-To: <1484814154-1557-2-git-send-email-rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/3] userfaultfd: non-cooperative: rename *EVENT_MADVDONTNEED to *EVENT_REMOVE
-Date: Thu, 19 Jan 2017 16:43:55 +0800
-Message-ID: <03ad01d27230$2b57d9a0$82078ce0$@alibaba-inc.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C9026B0278
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 03:45:20 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id t18so7868115wmt.7
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 00:45:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 34si3599078wrh.278.2017.01.19.00.45.19
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Jan 2017 00:45:19 -0800 (PST)
+Date: Thu, 19 Jan 2017 09:45:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
+Message-ID: <20170119084510.GF30786@dhcp22.suse.cz>
+References: <20170116084717.GA13641@dhcp22.suse.cz>
+ <0ca8a212-c651-7915-af25-23925e1c1cc3@nvidia.com>
+ <20170116194052.GA9382@dhcp22.suse.cz>
+ <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
+ <20170116214822.GB9382@dhcp22.suse.cz>
+ <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
+ <20170117075100.GB19699@dhcp22.suse.cz>
+ <bfd34f15-857f-b721-e27a-a6a1faad1aec@nvidia.com>
+ <20170118082146.GC7015@dhcp22.suse.cz>
+ <37232cc6-af8b-52e2-3265-9ef0c0d26e5f@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <37232cc6-af8b-52e2-3265-9ef0c0d26e5f@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Rapoport' <rppt@linux.vnet.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Andrea Arcangeli' <aarcange@redhat.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@virtuozzo.com>, linux-mm@kvack.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-
-On Thursday, January 19, 2017 4:23 PM Mike Rapoport wrote: 
+On Thu 19-01-17 00:37:08, John Hubbard wrote:
 > 
-> The UFFD_EVENT_MADVDONTNEED purpose is to notify uffd monitor about removal
-> of certain range from address space tracked by userfaultfd.
-> Hence, UFFD_EVENT_REMOVE seems to better reflect the operation semantics.
-> Respectively, 'madv_dn' field of uffd_msg is renamed to 'remove' and the
-> madvise_userfault_dontneed callback is renamed to userfaultfd_remove.
 > 
-Looks that "no function change" is missing.
+> On 01/18/2017 12:21 AM, Michal Hocko wrote:
+> > On Tue 17-01-17 21:59:13, John Hubbard wrote:
+[...]
+> > >  * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL should not be passed in.
+> > >  * Passing in __GFP_REPEAT is supported, but note that it is ignored for small
+> > >  * (<=64KB) allocations, during the kmalloc attempt.
+> > 
+> > > __GFP_REPEAT is fully
+> > >  * honored for  all allocation sizes during the second part: the vmalloc attempt.
+> > 
+> > this is not true to be really precise because vmalloc doesn't respect
+> > the given gfp mask all the way down (look at the pte initialization).
+> > 
+> 
+> I'm having some difficulty in locating that pte initialization part, am I on
+> the wrong code path? Here's what I checked, before making the claim about
+> __GFP_REPEAT being honored:
+> 
+> kvmalloc_node
+>   __vmalloc_node_flags
+>     __vmalloc_node
+>       __vmalloc_node_range
+>         __vmalloc_area_node
+	    map_vm_area
+	      vmap_page_range
+	        vmap_page_range_noflush
+		  vmap_pud_range
+		    pud_alloc
+		      __pud_alloc
+		        pud_alloc_one
 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+pud will be allocated but the same pattern repeats on the pmd and pte
+levels. This is btw. one of the reasons why vmalloc with gfp flags is
+tricky!
 
+moreover
+>             alloc_pages_node
+
+this is order-0 request so...
+
+>               __alloc_pages_node
+>                 __alloc_pages
+>                   __alloc_pages_nodemask
+>                     __alloc_pages_slowpath
+> 
+> 
+> ...and __alloc_pages_slowpath does the __GFP_REPEAT handling:
+> 
+>     /*
+>      * Do not retry costly high order allocations unless they are
+>      * __GFP_REPEAT
+>      */
+>     if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+>         goto nopage;
+
+... this doesn't apply
+
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
