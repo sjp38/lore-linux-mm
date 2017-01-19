@@ -1,143 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92A196B02A6
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 09:18:14 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id h7so8860988wjy.6
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 06:18:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l45si4625789wrc.12.2017.01.19.06.18.12
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25D536B02A8
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 09:51:22 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 201so59578479pfw.5
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 06:51:22 -0800 (PST)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id m11si3751641pla.161.2017.01.19.06.51.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jan 2017 06:18:12 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] wmark based pro-active compaction
-References: <20161230131412.GI13301@dhcp22.suse.cz>
- <20161230140651.nud2ozpmvmziqyx4@suse.de>
- <cde489a7-4c08-f5ba-e6e8-07d8537bc7d8@suse.cz>
- <20170113070331.GA7874@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <bfbc31ec-7400-6174-62c3-94d82667320d@suse.cz>
-Date: Thu, 19 Jan 2017 15:18:08 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jan 2017 06:51:20 -0800 (PST)
+Received: by mail-pg0-x244.google.com with SMTP id 194so4376897pgd.0
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 06:51:20 -0800 (PST)
+Date: Thu, 19 Jan 2017 23:51:14 +0900
+From: Jinbum Park <jinb.park7@gmail.com>
+Subject: [PATCH] mm: add arch-independent testcases for RODATA
+Message-ID: <20170119145114.GA19772@pjb1027-Latitude-E5410>
 MIME-Version: 1.0
-In-Reply-To: <20170113070331.GA7874@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: tglx@linutronix.de
+Cc: mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
 
-On 01/13/2017 08:03 AM, Joonsoo Kim wrote:
->>>> So what is the problem? The demand for high order pages is growing and
->>>> that seems to be the general trend. The problem is that while they can
->>>> bring performance benefit they can get be really expensive to allocate
->>>> especially when we enter the direct compaction. So we really want to
->>>> prevent from expensive path and defer as much as possible to the
->>>> background. A huge step forward was kcompactd introduced by Vlastimil.
->>>> We are still not there yet though, because it might be already quite
->>>> late when we wakeup_kcompactd(). The memory might be already fragmented
->>>> when we hit there.
->>
->> Right.
-> 
-> Before we talk about pro-active compaction, I'd like to know the
-> usecase that really needs pro-active compaction. For THP, IMHO, it's
-> better not to do pro-active compaction, because high-order page made
-> by pro-active compaction could be broken before it is used. And,
+This patch adds arch-independent testcases for RODATA.
+Both x86 and x86_64 already have testcases for RODATA,
+But they are arch-specific because using inline assembly directly.
 
-I agree that THP should be given lower priority, but wouldn't rule it
-out completely.
+and cacheflush.h is not suitable location for rodata-test related things.
+Since they were in cacheflush.h,
+If someone change the state of CONFIG_DEBUG_RODATA_TEST,
+It cause overhead of kernel build.
 
-> THP page can be setup lately by THP daemon. Benefit of pro-active
-> compaction would not compensate overhead of it in this case.
+To solve above issue,
+write arch-independent testcases and move it to shared location. (main.c)
 
-khugepaged can only help in the longer term, but we can still help
-shorter-lived processes
+Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
+---
+ arch/x86/Kconfig.debug            |  8 -----
+ arch/x86/include/asm/cacheflush.h | 10 ------
+ arch/x86/kernel/Makefile          |  1 -
+ arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
+ arch/x86/mm/init_32.c             |  4 ---
+ arch/x86/mm/init_64.c             |  5 ---
+ init/main.c                       | 10 +++++-
+ mm/Kconfig.debug                  |  6 ++++
+ mm/Makefile                       |  1 +
+ mm/rodata_test.c                  | 63 ++++++++++++++++++++++++++++++++
+ 10 files changed, 79 insertions(+), 104 deletions(-)
+ delete mode 100644 arch/x86/kernel/test_rodata.c
+ create mode 100644 mm/rodata_test.c
 
-> I guess
-> that almost cases that have a fallback would hit this category.
-
-Yes, ideally we can derive this info from the GFP flags and prioritize
-accordingly.
-
-> For the order lower than costly order, system would have such a
-> freepage usually. So, my question is pro-active compaction is really
-> needed even if it's cost is really high? Reason I ask this question is
-> that I tested some patches to do pro-active compaction and found that
-> cost looks too much high. I heard that someone want this feature but
-> I'm not sure they will use it with this high cost. Anyway, I will post
-> some patches for pro-active compaction, soon.
-
-David Rientjes mentioned their workloads benefit from background
-compaction in the discussion about THP's "defrag" setting.
-
-[...]
-
->> Parameters
->> - wake up period for kcompactd
->> - target per-order goals for kcompactd
->> - lowest efficiency where it's still considered worth to compact?
->>
->> An important question: how to evaluate this? Metrics should be feasible
->> (improved success rate, % of compaction that was handled by kcompactd
->> and not direct compaction...), but what are the good testcases?
-> 
-> Usecase should be defined first? Anyway, I hope that new testcase would
-> be finished in short time. stress-highalloc test takes too much time
-> to test various ideas.
-
-Yeah, that too. But mainly it's too artificial.
-
->>
->> Ideally I would also revisit the topic of compaction mechanism (migrate
->> and free scanners) itself. It's been shown that they usually meet in the
-> 
-> +1
-> 
->> 1/3 or 1/2 of zone, which means the rest of the zone is only
->> defragmented by "plugging free holes" by migrated pages, although it
->> might actually contain pageblocks more suitable for migrating from, than
->> the first part of the zone. It's also expensive for the free scanner to
->> actually find free pages, according to the stats.
-> 
-> Scalable approach would be [3] since it finds freepage by O(1) unlike
-> others that are O(N).
-
-There's however the issue that we need to skip (or potentially isolate
-on a private list) freepages that lie in the area we are migrating from,
-which is potentially O(N) where N is NR_FREE. This gets worse with
-multiple compactors so we might have to e.g. reuse the pageblock skip
-bits to indicate to others to go away, and rely on too_many_isolated()
-or something similar to limit the number of concurrent compactors.
-
->>
->> Some approaches were proposed in recent years, but never got far as it's
->> always some kind of a trade-off (this partially goes back to the problem
->> of evaluation, often limited to stress-highalloc from mmtests):
->>
->> - "pivot" based approach where scanners' starting point changes and
->> isn't always zone boundaries [1]
->> - both scanners scan whole zone moving in the same direction, just
->> making sure they don't operate on the same pageblock at the same time [2]
->> - replacing free scanner by directly taking free pages from freelist
->>
->> However, the problem with this subtopic is that it might be too much
->> specialized for the full MM room.
-> 
-> Right. :)
-> 
-> Thanks.
-> 
->>
->> [1] https://lkml.org/lkml/2015/1/19/158
->> [2] https://lkml.org/lkml/2015/6/24/706
->> [3] https://lkml.org/lkml/2015/12/3/63
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 67eec55..5df54a8 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
+ 	  issues with the mapping of the EFI runtime regions into that
+ 	  table.
+ 
+-config DEBUG_RODATA_TEST
+-	bool "Testcase for the marking rodata read-only"
+-	default y
+-	---help---
+-	  This option enables a testcase for the setting rodata read-only
+-	  as well as for the change_page_attr() infrastructure.
+-	  If in doubt, say "N"
+-
+ config DEBUG_WX
+ 	bool "Warn on W+X mappings at boot"
+ 	select X86_PTDUMP_CORE
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 872877d..e7e1942e 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -90,18 +90,8 @@
+ 
+ #define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
+ 
+-extern const int rodata_test_data;
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+ 
+-#ifdef CONFIG_DEBUG_RODATA_TEST
+-int rodata_test(void);
+-#else
+-static inline int rodata_test(void)
+-{
+-	return 0;
+-}
+-#endif
+-
+ #endif /* _ASM_X86_CACHEFLUSH_H */
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 581386c..f6caf82 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -100,7 +100,6 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
+ obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
+ 
+ obj-$(CONFIG_AMD_NB)		+= amd_nb.o
+-obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o
+ obj-$(CONFIG_DEBUG_NX_TEST)	+= test_nx.o
+ obj-$(CONFIG_DEBUG_NMI_SELFTEST) += nmi_selftest.o
+ 
+diff --git a/arch/x86/kernel/test_rodata.c b/arch/x86/kernel/test_rodata.c
+deleted file mode 100644
+index 222e84e..0000000
+--- a/arch/x86/kernel/test_rodata.c
++++ /dev/null
+@@ -1,75 +0,0 @@
+-/*
+- * test_rodata.c: functional test for mark_rodata_ro function
+- *
+- * (C) Copyright 2008 Intel Corporation
+- * Author: Arjan van de Ven <arjan@linux.intel.com>
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; version 2
+- * of the License.
+- */
+-#include <asm/cacheflush.h>
+-#include <asm/sections.h>
+-#include <asm/asm.h>
+-
+-int rodata_test(void)
+-{
+-	unsigned long result;
+-	unsigned long start, end;
+-
+-	/* test 1: read the value */
+-	/* If this test fails, some previous testrun has clobbered the state */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: test 1 fails (start data)\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 2: write to the variable; this should fault */
+-	/*
+-	 * If this test fails, we managed to overwrite the data
+-	 *
+-	 * This is written in assembly to be able to catch the
+-	 * exception that is supposed to happen in the correct
+-	 * case
+-	 */
+-
+-	result = 1;
+-	asm volatile(
+-		"0:	mov %[zero],(%[rodata_test])\n"
+-		"	mov %[zero], %[rslt]\n"
+-		"1:\n"
+-		".section .fixup,\"ax\"\n"
+-		"2:	jmp 1b\n"
+-		".previous\n"
+-		_ASM_EXTABLE(0b,2b)
+-		: [rslt] "=r" (result)
+-		: [rodata_test] "r" (&rodata_test_data), [zero] "r" (0UL)
+-	);
+-
+-
+-	if (!result) {
+-		printk(KERN_ERR "rodata_test: test data was not read only\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 3: check the value hasn't changed */
+-	/* If this test fails, we managed to overwrite the data */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
+-		return -ENODEV;
+-	}
+-	/* test 4: check if the rodata section is 4Kb aligned */
+-	start = (unsigned long)__start_rodata;
+-	end = (unsigned long)__end_rodata;
+-	if (start & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-	if (end & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata end is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-
+-	return 0;
+-}
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 928d657..2b4b53e 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -864,9 +864,6 @@ static noinline int do_test_wp_bit(void)
+ 	return flag;
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly __read_mostly;
+ 
+ void set_kernel_text_rw(void)
+@@ -939,7 +936,6 @@ void mark_rodata_ro(void)
+ 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+ 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+ 		size >> 10);
+-	rodata_test();
+ 
+ #ifdef CONFIG_CPA_DEBUG
+ 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 97346f9..15173d3 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1000,9 +1000,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly;
+ 
+ void set_kernel_text_rw(void)
+@@ -1071,8 +1068,6 @@ void mark_rodata_ro(void)
+ 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
+ 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
+ 
+-	rodata_test();
+-
+ #ifdef CONFIG_CPA_DEBUG
+ 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
+ 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
+diff --git a/init/main.c b/init/main.c
+index e47373d..15b42bf 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -932,11 +932,19 @@ static int __init set_debug_rodata(char *str)
+ __setup("rodata=", set_debug_rodata);
+ #endif
+ 
++#ifdef CONFIG_DEBUG_RODATA_TEST
++void rodata_test(void);
++#else
++static inline void rodata_test(void) {}
++#endif
++
+ #ifdef CONFIG_DEBUG_RODATA
+ static void mark_readonly(void)
+ {
+-	if (rodata_enabled)
++	if (rodata_enabled) {
+ 		mark_rodata_ro();
++		rodata_test();
++	}
+ 	else
+ 		pr_info("Kernel memory protection disabled.\n");
+ }
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index afcc550..e4f22ce 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -90,3 +90,9 @@ config DEBUG_PAGE_REF
+ 	  careful when enabling this feature because it adds about 30 KB to the
+ 	  kernel code.  However the runtime performance overhead is virtually
+ 	  nil until the tracepoints are actually enabled.
++
++config DEBUG_RODATA_TEST
++	bool "Testcase for the marking rodata read-only"
++	depends on DEBUG_RODATA
++	---help---
++	  This option enables a testcase for the setting rodata read-only.
+\ No newline at end of file
+diff --git a/mm/Makefile b/mm/Makefile
+index 433eaf9..d6199d4 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -83,6 +83,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
++obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
+ obj-$(CONFIG_PAGE_OWNER) += page_owner.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+new file mode 100644
+index 0000000..d5b0504
+--- /dev/null
++++ b/mm/rodata_test.c
+@@ -0,0 +1,63 @@
++/*
++ * rodata_test.c: functional test for mark_rodata_ro function
++ *
++ * (C) Copyright 2017 Jinbum Park <jinb.park7@gmail.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++#include <asm/uaccess.h>
++#include <asm/sections.h>
++
++const int rodata_test_data = 0xC3;
++EXPORT_SYMBOL_GPL(rodata_test_data);
++
++void rodata_test(void)
++{
++	unsigned long start, end, rodata_addr;
++	int zero = 0;
++
++	/* prepare test */
++	rodata_addr = ((unsigned long)&rodata_test_data);
++
++	/* test 1: read the value */
++	/* If this test fails, some previous testrun has clobbered the state */
++	if (!rodata_test_data) {
++		pr_err("rodata_test: test 1 fails (start data)\n");
++		return;
++	}
++
++	/* test 2: write to the variable; this should fault */
++	/*
++	 * This must be written in assembly to be able to catch the
++	 * exception that is supposed to happen in the correct case.
++	 *
++	 * So that put_user macro is used to write arch-independent assembly.
++	 */
++	if (!put_user(zero, (int *)rodata_addr)) {
++		pr_err("rodata_test: test data was not read only\n");
++		return;
++	}
++
++	/* test 3: check the value hasn't changed */
++	if (rodata_test_data == zero) {
++		pr_err("rodata_test: test data was changed\n");
++		return;
++	}
++
++	/* test 4: check if the rodata section is PAGE_SIZE aligned */
++	start = (unsigned long)__start_rodata;
++	end = (unsigned long)__end_rodata;
++	if (start & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: start of .rodata is not page size aligned\n");
++		return;
++	}
++	if (end & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: end of .rodata is not page size aligned\n");
++		return;
++	}
++
++	pr_info("rodata_test: all tests were successful\n");
++}
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
