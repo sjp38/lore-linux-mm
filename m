@@ -1,105 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 65EAB6B0288
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:52:17 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id d134so51215763pfd.0
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:52:17 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id j62si3048526pgc.184.2017.01.19.01.52.15
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jan 2017 01:52:16 -0800 (PST)
-Date: Thu, 19 Jan 2017 18:52:07 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 01/13] lockdep: Refactor lookup_chain_cache()
-Message-ID: <20170119095207.GP3326@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-2-git-send-email-byungchul.park@lge.com>
- <20170119091627.GG15084@tardis.cn.ibm.com>
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 20CA26B028A
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:56:22 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id c7so7351582wjb.7
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:56:22 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c1si3781157wra.308.2017.01.19.01.56.20
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Jan 2017 01:56:20 -0800 (PST)
+Date: Thu, 19 Jan 2017 10:56:12 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
+Message-ID: <20170119095610.GL30786@dhcp22.suse.cz>
+References: <20170116194052.GA9382@dhcp22.suse.cz>
+ <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
+ <20170116214822.GB9382@dhcp22.suse.cz>
+ <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
+ <20170117075100.GB19699@dhcp22.suse.cz>
+ <bfd34f15-857f-b721-e27a-a6a1faad1aec@nvidia.com>
+ <20170118082146.GC7015@dhcp22.suse.cz>
+ <37232cc6-af8b-52e2-3265-9ef0c0d26e5f@nvidia.com>
+ <20170119084510.GF30786@dhcp22.suse.cz>
+ <f1b2ce94-8448-f744-e9d0-c65f6f68fe18@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170119091627.GG15084@tardis.cn.ibm.com>
+In-Reply-To: <f1b2ce94-8448-f744-e9d0-c65f6f68fe18@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boqun Feng <boqun.feng@gmail.com>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Thu, Jan 19, 2017 at 05:16:27PM +0800, Boqun Feng wrote:
-> On Wed, Jan 18, 2017 at 10:17:27PM +0900, Byungchul Park wrote:
-> > Currently, lookup_chain_cache() provides both 'lookup' and 'add'
-> > functionalities in a function. However, each is useful. So this
-> > patch makes lookup_chain_cache() only do 'lookup' functionality and
-> > makes add_chain_cahce() only do 'add' functionality. And it's more
-> > readable than before.
-> > 
-> > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
-> > ---
-> >  kernel/locking/lockdep.c | 129 +++++++++++++++++++++++++++++------------------
-> >  1 file changed, 81 insertions(+), 48 deletions(-)
-> > 
-> > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> > index 4d7ffc0..f37156f 100644
-> > --- a/kernel/locking/lockdep.c
-> > +++ b/kernel/locking/lockdep.c
-> > @@ -2109,15 +2109,9 @@ static int check_no_collision(struct task_struct *curr,
-> >  	return 1;
-> >  }
-> >  
-> > -/*
-> > - * Look up a dependency chain. If the key is not present yet then
-> > - * add it and return 1 - in this case the new dependency chain is
-> > - * validated. If the key is already hashed, return 0.
-> > - * (On return with 1 graph_lock is held.)
-> > - */
+On Thu 19-01-17 01:09:35, John Hubbard wrote:
+[...]
+> So that leaves us with maybe this for documentation?
 > 
-> I think you'd better put some comments here for the behavior of
-> add_chain_cache(), something like:
-> 
-> /*
->  * Add a dependency chain into chain hashtable.
->  * 
->  * Must be called with graph_lock held.
->  * Return 0 if fail to add the chain, and graph_lock is released.
->  * Return 1 with graph_lock held if succeed.
->  */
+>  * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL should not be passed in.
+>  * Passing in __GFP_REPEAT is supported, and will cause the following behavior:
+>  * for larger (>64KB) allocations, the first part (kmalloc) will do some
+>  * retrying, before falling back to vmalloc.
 
-Yes. I will apply what you recommand.
+I am worried this is just too vague. It doesn't really help user to
+decide whether "do some retrying" is what he really want's or needs.
 
-Thank you very much. :)
+So I would rather see the following.
+"
+ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
+ * is supported only for large (>32kB) allocations and it should be used when using
+ * kmalloc is preferable because vmalloc fallback has visible performance drawbacks.
+"
 
-Thanks,
-Byungchul
+I would also add
+"
+Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
+"
 
-> 
-> Regards,
-> Boqun
-> 
-> > -static inline int lookup_chain_cache(struct task_struct *curr,
-> > -				     struct held_lock *hlock,
-> > -				     u64 chain_key)
-> > +static inline int add_chain_cache(struct task_struct *curr,
-> > +				  struct held_lock *hlock,
-> > +				  u64 chain_key)
-> >  {
-> >  	struct lock_class *class = hlock_class(hlock);
-> >  	struct hlist_head *hash_head = chainhashentry(chain_key);
-> > @@ -2125,49 +2119,18 @@ static inline int lookup_chain_cache(struct task_struct *curr,
-> >  	int i, j;
-> >  
-> >  	/*
-> > +	 * Allocate a new chain entry from the static array, and add
-> > +	 * it to the hash:
-> > +	 */
-> > +
-> > +	/*
-> >  	 * We might need to take the graph lock, ensure we've got IRQs
-> >  	 * disabled to make this an IRQ-safe lock.. for recursion reasons
-> >  	 * lockdep won't complain about its own locking errors.
-> >  	 */
-> >  	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
-> >  		return 0;
-> [...]
-
+Does it sound any better?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
