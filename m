@@ -1,99 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDD86B0286
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:51:00 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 75so50212897pgf.3
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:51:00 -0800 (PST)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTP id 6si3049921pfr.161.2017.01.19.01.50.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65EAB6B0288
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:52:17 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d134so51215763pfd.0
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:52:17 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id j62si3048526pgc.184.2017.01.19.01.52.15
         for <linux-mm@kvack.org>;
-        Thu, 19 Jan 2017 01:50:59 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170116180408.12184-1-aarcange@redhat.com> <20170116180408.12184-2-aarcange@redhat.com>
-In-Reply-To: <20170116180408.12184-2-aarcange@redhat.com>
-Subject: Re: [PATCH 1/1] userfaultfd: shmem: avoid a lockup resulting from corrupted page->flags
-Date: Thu, 19 Jan 2017 17:50:42 +0800
-Message-ID: <03b301d27239$80216420$80642c60$@alibaba-inc.com>
+        Thu, 19 Jan 2017 01:52:16 -0800 (PST)
+Date: Thu, 19 Jan 2017 18:52:07 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v5 01/13] lockdep: Refactor lookup_chain_cache()
+Message-ID: <20170119095207.GP3326@X58A-UD3R>
+References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
+ <1484745459-2055-2-git-send-email-byungchul.park@lge.com>
+ <20170119091627.GG15084@tardis.cn.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170119091627.GG15084@tardis.cn.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrea Arcangeli' <aarcange@redhat.com>, linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Michael Rapoport' <RAPOPORT@il.ibm.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@parallels.com>
+To: Boqun Feng <boqun.feng@gmail.com>
+Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
+On Thu, Jan 19, 2017 at 05:16:27PM +0800, Boqun Feng wrote:
+> On Wed, Jan 18, 2017 at 10:17:27PM +0900, Byungchul Park wrote:
+> > Currently, lookup_chain_cache() provides both 'lookup' and 'add'
+> > functionalities in a function. However, each is useful. So this
+> > patch makes lookup_chain_cache() only do 'lookup' functionality and
+> > makes add_chain_cahce() only do 'add' functionality. And it's more
+> > readable than before.
+> > 
+> > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> > ---
+> >  kernel/locking/lockdep.c | 129 +++++++++++++++++++++++++++++------------------
+> >  1 file changed, 81 insertions(+), 48 deletions(-)
+> > 
+> > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> > index 4d7ffc0..f37156f 100644
+> > --- a/kernel/locking/lockdep.c
+> > +++ b/kernel/locking/lockdep.c
+> > @@ -2109,15 +2109,9 @@ static int check_no_collision(struct task_struct *curr,
+> >  	return 1;
+> >  }
+> >  
+> > -/*
+> > - * Look up a dependency chain. If the key is not present yet then
+> > - * add it and return 1 - in this case the new dependency chain is
+> > - * validated. If the key is already hashed, return 0.
+> > - * (On return with 1 graph_lock is held.)
+> > - */
+> 
+> I think you'd better put some comments here for the behavior of
+> add_chain_cache(), something like:
+> 
+> /*
+>  * Add a dependency chain into chain hashtable.
+>  * 
+>  * Must be called with graph_lock held.
+>  * Return 0 if fail to add the chain, and graph_lock is released.
+>  * Return 1 with graph_lock held if succeed.
+>  */
 
-On Tuesday, January 17, 2017 2:04 AM Andrea Arcangeli wrote: 
-> 
-> Use the non atomic version of __SetPageUptodate while the page is
-> still private and not visible to lookup operations. Using the non
-> atomic version after the page is already visible to lookups is unsafe
-> as there would be concurrent lock_page operation modifying the
-> page->flags while it runs.
-> 
-> This solves a lockup in find_lock_entry with the userfaultfd_shmem
-> selftest.
-> 
-> userfaultfd_shm D14296   691      1 0x00000004
-> Call Trace:
->  ? __schedule+0x311/0xb60
->  schedule+0x3d/0x90
->  schedule_timeout+0x228/0x420
->  ? mark_held_locks+0x71/0x90
->  ? ktime_get+0x134/0x170
->  ? kvm_clock_read+0x25/0x30
->  ? kvm_clock_get_cycles+0x9/0x10
->  ? ktime_get+0xd6/0x170
->  ? __delayacct_blkio_start+0x1f/0x30
->  io_schedule_timeout+0xa4/0x110
->  ? trace_hardirqs_on+0xd/0x10
->  __lock_page+0x12d/0x170
->  ? add_to_page_cache_lru+0xe0/0xe0
->  find_lock_entry+0xa4/0x190
->  shmem_getpage_gfp+0xb9/0xc30
->  ? alloc_set_pte+0x56e/0x610
->  ? radix_tree_next_chunk+0xf6/0x2d0
->  shmem_fault+0x70/0x1c0
->  ? filemap_map_pages+0x3bd/0x530
->  __do_fault+0x21/0x150
->  handle_mm_fault+0xec9/0x1490
->  __do_page_fault+0x20d/0x520
->  trace_do_page_fault+0x61/0x270
->  do_async_page_fault+0x19/0x80
->  async_page_fault+0x25/0x30
-> 
-> Reported-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Yes. I will apply what you recommand.
 
->  mm/shmem.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+Thank you very much. :)
+
+Thanks,
+Byungchul
+
 > 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index b1ecd07..873b847 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -2247,6 +2247,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
->  	__SetPageLocked(page);
->  	__SetPageSwapBacked(page);
-> +	__SetPageUptodate(page);
+> Regards,
+> Boqun
 > 
->  	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
->  	if (ret)
-> @@ -2271,8 +2272,6 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	if (!pte_none(*dst_pte))
->  		goto out_release_uncharge_unlock;
-> 
-> -	__SetPageUptodate(page);
-> -
->  	lru_cache_add_anon(page);
-> 
->  	spin_lock(&info->lock);
+> > -static inline int lookup_chain_cache(struct task_struct *curr,
+> > -				     struct held_lock *hlock,
+> > -				     u64 chain_key)
+> > +static inline int add_chain_cache(struct task_struct *curr,
+> > +				  struct held_lock *hlock,
+> > +				  u64 chain_key)
+> >  {
+> >  	struct lock_class *class = hlock_class(hlock);
+> >  	struct hlist_head *hash_head = chainhashentry(chain_key);
+> > @@ -2125,49 +2119,18 @@ static inline int lookup_chain_cache(struct task_struct *curr,
+> >  	int i, j;
+> >  
+> >  	/*
+> > +	 * Allocate a new chain entry from the static array, and add
+> > +	 * it to the hash:
+> > +	 */
+> > +
+> > +	/*
+> >  	 * We might need to take the graph lock, ensure we've got IRQs
+> >  	 * disabled to make this an IRQ-safe lock.. for recursion reasons
+> >  	 * lockdep won't complain about its own locking errors.
+> >  	 */
+> >  	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+> >  		return 0;
+> [...]
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
