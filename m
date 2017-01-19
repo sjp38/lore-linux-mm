@@ -1,63 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 193056B0298
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 06:51:21 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id yr2so7878051wjc.4
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 03:51:21 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p10si6185995wmb.167.2017.01.19.03.51.19
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 588D86B0299
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 06:52:46 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id v73so45789875ywg.2
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 03:52:46 -0800 (PST)
+Received: from bombadil.infradead.org ([65.50.211.133])
+        by mx.google.com with ESMTPS id l7si2448422qtf.254.2017.01.19.03.52.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jan 2017 03:51:19 -0800 (PST)
-Date: Thu, 19 Jan 2017 12:51:14 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC PATCH 1/5] mm/vmstat: retrieve suitable free pageblock
- information just once
-Message-ID: <20170119115113.GQ30786@dhcp22.suse.cz>
-References: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1484291673-2239-2-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jan 2017 03:52:45 -0800 (PST)
+Date: Thu, 19 Jan 2017 03:52:43 -0800
+From: willy@bombadil.infradead.org
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170119115243.GB22816@bombadil.infradead.org>
+References: <20170118054945.GD18349@bombadil.infradead.org>
+ <20170118133243.GB7021@dhcp22.suse.cz>
+ <20170119110513.GA22816@bombadil.infradead.org>
+ <20170119113317.GO30786@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1484291673-2239-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20170119113317.GO30786@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: willy@infradead.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 13-01-17 16:14:29, Joonsoo Kim wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thu, Jan 19, 2017 at 12:33:17PM +0100, Michal Hocko wrote:
+> On Thu 19-01-17 03:05:13, willy@infradead.org wrote:
+> > Let me rephrase the topic ... Under what conditions should somebody use
+> > the GFP_TEMPORARY gfp_t?
 > 
-> It's inefficient to retrieve buddy information for fragmentation index
-> calculation on every order. By using some stack memory, we could retrieve
-> it once and reuse it to compute all the required values. MAX_ORDER is
-> usually small enough so there is no big risk about stack overflow.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/vmstat.c | 25 ++++++++++++-------------
->  1 file changed, 12 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 7c28df3..e1ca5eb 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -821,7 +821,7 @@ unsigned long node_page_state(struct pglist_data *pgdat,
->  struct contig_page_info {
->  	unsigned long free_pages;
->  	unsigned long free_blocks_total;
-> -	unsigned long free_blocks_suitable;
-> +	unsigned long free_blocks_order[MAX_ORDER];
->  };
+> Most users of slab (kmalloc) do not really have to care. Slab will add
+> __GFP_RECLAIMABLE to all reclaimable caches automagically AFAIR. The
+> remaining would have to implement some kind of shrinker to allow the
+> reclaim.
 
-I haven't looked at the rest of the patch becaust this has already
-raised a red flag.  This will increase the size of the structure quite a
-bit and from a quick look at least compaction_suitable->fragmentation_index
-will call with this allocated on the stack and this can be pretty deep
-on the call chain already.
--- 
-Michal Hocko
-SUSE Labs
+I seem to be not making myself clear.  Picture me writing a device driver.
+When should I use GFP_TEMPORARY?
+
+> > Example usages that I have questions about:
+> > 
+> > 1. Is it permissible to call kmalloc(GFP_TEMPORARY), or is it only
+> > for alloc_pages?
+> 
+> kmalloc will use it internally as mentioned above.  I am not even sure
+> whether direct using of kmalloc(GFP_TEMPORARY) is ok.  I would have to
+> check the code but I guess it would be just wrong unless you know your
+> cache is reclaimable.
+
+You're not using words that have any meaning to a device driver writer.
+Here's my code:
+
+int foo_ioctl(..)
+{
+	struct foo *foo = kmalloc(sizeof(*foo), GFP_TEMPORARY);
+}
+
+Does this work?  If not, should it?  Or should slab be checking for
+this and calling WARN()?
+
+> > I ask because if the slab allocator is unaware of
+> > GFP_TEMPORARY, then a non-GFP_TEMPORARY allocation may be placed in a
+> > page allocated with GFP_TEMPORARY and we've just made it meaningless.
+> > 
+> > 2. Is it permissible to sleep while holding a GFP_TEMPORARY allocation?
+> > eg, take a mutex, or wait_for_completion()?
+> 
+> Yes, GFP_TEMPORARY has ___GFP_DIRECT_RECLAIM set so this is by
+> definition sleepable allocation request.
+
+Again, we're talking past each other.  Can foo_ioctl() sleep before
+releasing its GFP_TEMPORARY allocation, or will that make the memory
+allocator unhappy?
+
+> > 3. Can I make one GFP_TEMPORARY allocation, and then another one?
+> 
+> Not sure I understand. WHy would be a problem?
+
+As you say above, GFP_TEMPORARY may sleep, so this is a variation on the "can I sleep while holding a GFP_TEMPORARY allocation" question.
+
+> > 4. Should I disable preemption while holding a GFP_TEMPORARY allocation,
+> > or are we OK with a task being preempted?
+> 
+> no, it can sleep.
+> 
+> > 5. What about something even longer duration like allocating a kiocb?
+> > That might take an arbitrary length of time to be freed, but eventually
+> > the command will be timed out (eg 30 seconds for something that ends up
+> > going through SCSI).
+> 
+> I do not understand. The reclaimability of the object is in hands of the
+> respective shrinker...
+
+There is no shrinker here.  This is about the object being "temporary",
+for some value of temporary.  I want to nail down what the MM is willing
+to tolerate in terms of length of time an object is allocated for.
+
+> > 6. Or shorter duration like doing a GFP_TEMPORARY allocation, then taking
+> > a spinlock, which *probably* isn't contended, but you never know.
+> > 
+> > 7. I can see it includes __GFP_WAIT so it's not suitable for using from
+> > interrupt context, but interrupt context might be the place which can
+> > benefit from it the most.  Or does GFP_ATOMIC's __GFP_HIGH also allow for
+> > allocation from the movable zone?  Should we have a GFP_TEMPORARY_ATOMIC?
+> 
+> This is where __GFP_RECLAIMABLE should be used as this is the core of
+> the functionality.
+
+This response also doesn't make sense to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
