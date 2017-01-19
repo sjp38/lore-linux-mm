@@ -1,106 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 811A76B0283
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:44:11 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id d140so8181640wmd.4
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:44:11 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d75si5839948wmd.67.2017.01.19.01.44.09
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Jan 2017 01:44:09 -0800 (PST)
-Date: Thu, 19 Jan 2017 10:44:05 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
-Message-ID: <20170119094405.GK30786@dhcp22.suse.cz>
-References: <20170106141107.23953-1-mhocko@kernel.org>
- <20170106141107.23953-9-mhocko@kernel.org>
- <20170117025607.frrcdbduthhutrzj@thunk.org>
- <20170117082425.GD19699@dhcp22.suse.cz>
- <20170117151817.GR19699@dhcp22.suse.cz>
- <20170117155916.dcizr65bwa6behe7@thunk.org>
- <20170117161618.GT19699@dhcp22.suse.cz>
- <20170117172925.GA2486@quack2.suse.cz>
- <20170119083956.GE30786@dhcp22.suse.cz>
- <20170119092236.GC2565@quack2.suse.cz>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AFDD86B0286
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 04:51:00 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 75so50212897pgf.3
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 01:51:00 -0800 (PST)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTP id 6si3049921pfr.161.2017.01.19.01.50.58
+        for <linux-mm@kvack.org>;
+        Thu, 19 Jan 2017 01:50:59 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170116180408.12184-1-aarcange@redhat.com> <20170116180408.12184-2-aarcange@redhat.com>
+In-Reply-To: <20170116180408.12184-2-aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] userfaultfd: shmem: avoid a lockup resulting from corrupted page->flags
+Date: Thu, 19 Jan 2017 17:50:42 +0800
+Message-ID: <03b301d27239$80216420$80642c60$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170119092236.GC2565@quack2.suse.cz>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Theodore Ts'o <tytso@mit.edu>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: 'Andrea Arcangeli' <aarcange@redhat.com>, linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Michael Rapoport' <RAPOPORT@il.ibm.com>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@parallels.com>
 
-On Thu 19-01-17 10:22:36, Jan Kara wrote:
-> On Thu 19-01-17 09:39:56, Michal Hocko wrote:
-> > On Tue 17-01-17 18:29:25, Jan Kara wrote:
-> > > On Tue 17-01-17 17:16:19, Michal Hocko wrote:
-> > > > > > But before going to play with that I am really wondering whether we need
-> > > > > > all this with no journal at all. AFAIU what Jack told me it is the
-> > > > > > journal lock(s) which is the biggest problem from the reclaim recursion
-> > > > > > point of view. What would cause a deadlock in no journal mode?
-> > > > > 
-> > > > > We still have the original problem for why we need GFP_NOFS even in
-> > > > > ext2.  If we are in a writeback path, and we need to allocate memory,
-> > > > > we don't want to recurse back into the file system's writeback path.
-> > > > 
-> > > > But we do not enter the writeback path from the direct reclaim. Or do
-> > > > you mean something other than pageout()'s mapping->a_ops->writepage?
-> > > > There is only try_to_release_page where we get back to the filesystems
-> > > > but I do not see any NOFS protection in ext4_releasepage.
-> > > 
-> > > Maybe to expand a bit: These days, direct reclaim can call ->releasepage()
-> > > callback, ->evict_inode() callback (and only for inodes with i_nlink > 0),
-> > > shrinkers. That's it. So the recursion possibilities are rather more limited
-> > > than they used to be several years ago and we likely do not need as much
-> > > GFP_NOFS protection as we used to.
-> > 
-> > Thanks for making my remark more clear Jack! I would just want to add
-> > that I was playing with the patch below (it is basically
-> > GFP_NOFS->GFP_KERNEL for all allocations which trigger warning from the
-> > debugging patch which means they are called from within transaction) and
-> > it didn't hit the lockdep when running xfstests both with or without the
-> > enabled journal.
-> > 
-> > So am I still missing something or the nojournal mode is safe and the
-> > current series is OK wrt. ext*?
+
+On Tuesday, January 17, 2017 2:04 AM Andrea Arcangeli wrote: 
 > 
-> I'm convinced the current series is OK, only real life will tell us whether
-> we missed something or not ;)
-
-I would like to extend the changelog of "jbd2: mark the transaction
-context with the scope GFP_NOFS context".
-
-"
-Please note that setups without journal do not suffer from potential
-recursion problems and so they do not need the scope protection because
-neither ->releasepage nor ->evict_inode (which are the only fs entry
-points from the direct reclaim) can reenter a locked context which is
-doing the allocation currently.
-"
- 
-> > The following patch in its current form is WIP and needs a proper review
-> > before I post it.
+> Use the non atomic version of __SetPageUptodate while the page is
+> still private and not visible to lookup operations. Using the non
+> atomic version after the page is already visible to lookups is unsafe
+> as there would be concurrent lock_page operation modifying the
+> page->flags while it runs.
 > 
-> So jbd2 changes look confusing (although technically correct) to me - we
-> *always* should run in NOFS context in those place so having GFP_KERNEL
-> there looks like it is unnecessarily hiding what is going on. So in those
-> places I'd prefer to keep GFP_NOFS or somehow else make it very clear these
-> allocations are expected to be GFP_NOFS (and assert that). Otherwise the
-> changes look good to me.
+> This solves a lockup in find_lock_entry with the userfaultfd_shmem
+> selftest.
+> 
+> userfaultfd_shm D14296   691      1 0x00000004
+> Call Trace:
+>  ? __schedule+0x311/0xb60
+>  schedule+0x3d/0x90
+>  schedule_timeout+0x228/0x420
+>  ? mark_held_locks+0x71/0x90
+>  ? ktime_get+0x134/0x170
+>  ? kvm_clock_read+0x25/0x30
+>  ? kvm_clock_get_cycles+0x9/0x10
+>  ? ktime_get+0xd6/0x170
+>  ? __delayacct_blkio_start+0x1f/0x30
+>  io_schedule_timeout+0xa4/0x110
+>  ? trace_hardirqs_on+0xd/0x10
+>  __lock_page+0x12d/0x170
+>  ? add_to_page_cache_lru+0xe0/0xe0
+>  find_lock_entry+0xa4/0x190
+>  shmem_getpage_gfp+0xb9/0xc30
+>  ? alloc_set_pte+0x56e/0x610
+>  ? radix_tree_next_chunk+0xf6/0x2d0
+>  shmem_fault+0x70/0x1c0
+>  ? filemap_map_pages+0x3bd/0x530
+>  __do_fault+0x21/0x150
+>  handle_mm_fault+0xec9/0x1490
+>  __do_page_fault+0x20d/0x520
+>  trace_do_page_fault+0x61/0x270
+>  do_async_page_fault+0x19/0x80
+>  async_page_fault+0x25/0x30
+> 
+> Reported-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-I would really like to get rid most of NOFS direct usage and only
-dictate it via the scope API otherwise I suspect we will just grow more
-users and end up in the same situation as we are now currently over time.
-In principle only the context which changes the reclaim reentrancy policy
-should care about NOFS and everybody else should just pretend nothing
-like that exists. There might be few exceptions of course, I am not yet
-sure whether jbd2 is that case. But I am not proposing this change yet
-(thanks for checking anyway)...
--- 
-Michal Hocko
-SUSE Labs
+>  mm/shmem.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index b1ecd07..873b847 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2247,6 +2247,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
+>  	__SetPageLocked(page);
+>  	__SetPageSwapBacked(page);
+> +	__SetPageUptodate(page);
+> 
+>  	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
+>  	if (ret)
+> @@ -2271,8 +2272,6 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	if (!pte_none(*dst_pte))
+>  		goto out_release_uncharge_unlock;
+> 
+> -	__SetPageUptodate(page);
+> -
+>  	lru_cache_add_anon(page);
+> 
+>  	spin_lock(&info->lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
