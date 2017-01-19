@@ -1,134 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A836B6B02AC
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 10:37:33 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id x1so21129229lff.6
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 07:37:33 -0800 (PST)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id f198si2585913lfe.192.2017.01.19.07.37.31
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7762B6B02AE
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 10:39:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 80so61036515pfy.2
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 07:39:28 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id z31si3888881plb.1.2017.01.19.07.39.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jan 2017 07:37:32 -0800 (PST)
-Received: by mail-lf0-x243.google.com with SMTP id h65so5810722lfi.3
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 07:37:31 -0800 (PST)
+        Thu, 19 Jan 2017 07:39:27 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id f144so3563406pfa.2
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 07:39:27 -0800 (PST)
+Date: Fri, 20 Jan 2017 00:39:20 +0900
+From: Jinbum Park <jinb.park7@gmail.com>
+Subject: [PATCH v2] mm: add arch-independent testcases for RODATA
+Message-ID: <20170119153920.GA20363@pjb1027-Latitude-E5410>
 MIME-Version: 1.0
-In-Reply-To: <20170119051503.GB2046@jagdpanzerIV.localdomain>
-References: <20170119030004.GA2046@jagdpanzerIV.localdomain>
- <20170119042029.31476-1-ddstreet@ieee.org> <20170119051503.GB2046@jagdpanzerIV.localdomain>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 19 Jan 2017 10:36:51 -0500
-Message-ID: <CALZtONA9k6UOYzCr=SxXz8Dfu+nzdx0N8GTc92fmmpSVhxezvA@mail.gmail.com>
-Subject: Re: [PATCH] zswap: change BUG to WARN in zswap_writeback_entry
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Alexandr <sss123next@list.ru>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: tglx@linutronix.de
+Cc: mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
 
-On Thu, Jan 19, 2017 at 12:15 AM, Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com> wrote:
-> On (01/18/17 23:20), Dan Streetman wrote:
->> Change the BUG calls to WARN, and return error.
->>
->> There's no need to call BUG from this function, as it can safely return
->> the error.  The only caller of this function is the zpool that zswap is
->> using, when zswap is trying to reduce the zpool size.  While the error
->> does indicate a bug, as none of the WARN conditions should ever happen,
->> the zpool implementation can recover by trying to evict another page
->> or zswap will recover by sending the new page to the swap disk.
->>
->> This was reported in kernel bug 192571:
->> https://bugzilla.kernel.org/show_bug.cgi?id=192571
+This patch adds arch-independent testcases for RODATA.
+Both x86 and x86_64 already have testcases for RODATA,
+But they are arch-specific because using inline assembly directly.
 
-Andrew, please ignore this patch (for now at least)...it won't address this bug.
+and cacheflush.h is not suitable location for rodata-test related things.
+Since they were in cacheflush.h,
+If someone change the state of CONFIG_DEBUG_RODATA_TEST,
+It cause overhead of kernel build.
 
->>
->> Reported-by: Gluzskiy Alexandr <sss123next@list.ru>
->> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->> ---
->>  mm/zswap.c | 14 +++++++++++---
->>  1 file changed, 11 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/zswap.c b/mm/zswap.c
->> index 067a0d6..60c4e6f 100644
->> --- a/mm/zswap.c
->> +++ b/mm/zswap.c
->> @@ -787,7 +787,10 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
->>               return 0;
->>       }
->>       spin_unlock(&tree->lock);
->> -     BUG_ON(offset != entry->offset);
->> +     if (WARN_ON(offset != entry->offset)) {
->> +             ret = -EINVAL;
->> +             goto fail;
->> +     }
->>
->>       /* try to allocate swap cache page */
->>       switch (zswap_get_swap_cache_page(swpentry, &page)) {
->> @@ -813,8 +816,13 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
->>               put_cpu_ptr(entry->pool->tfm);
->>               kunmap_atomic(dst);
->>               zpool_unmap_handle(entry->pool->zpool, entry->handle);
->> -             BUG_ON(ret);
->> -             BUG_ON(dlen != PAGE_SIZE);
->> +             if (WARN(ret, "error decompressing page: %d\n", ret))
->> +                     goto fail;
->> +             if (WARN(dlen != PAGE_SIZE,
->> +                      "decompressed page only %x bytes\n", dlen)) {
->> +                     ret = -EINVAL;
->> +                     goto fail;
->> +             }
->>
->>               /* page is up to date */
->>               SetPageUptodate(page);
->
->
-> + zswap_frontswap_load() I suppose.
+To solve above issue,
+write arch-independent testcases and move it to shared location. (main.c)
 
-So my initial comment before that it was safe to switch to WARN was
-right for zswap_writeback_entry(), but not right for
-zswap_frontswap_load() - it was late and I didn't read the trace
-correctly :(
+Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
+---
+v2: Restore original credit of mm/rodata_test.c
 
-At the BUG point in zswap_frontswap_load(), we have found the page in
-the rb tree (via zswap_entry_find_get) so we know that we did accept
-the page for storage, so we're the only place who has a copy of it
-(assuming frontswap_writethrough isn't enabled).  If we can't
-decompress it, then we only have 2 choices - BUG or return error.  If
-we return error, frontswap will try any other frontswap backends it
-has registered (none, I assume, or if so they should not have this
-swap offset's entry, since we found a match).  After frontswap can't
-recover the page from any of its backends, it will return error, and
-swap_readpage() will then assume the page is actually stored on the
-swap disk, and read it back.  However, the page wasn't written to the
-swap disk (since we stored it in zswap), and whatever is read back
-from the disk is not what was originally in the page - leading to
-memory corruption.  So it's better to BUG at this point.
+ arch/x86/Kconfig.debug            |  8 -----
+ arch/x86/include/asm/cacheflush.h | 10 ------
+ arch/x86/kernel/Makefile          |  1 -
+ arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
+ arch/x86/mm/init_32.c             |  4 ---
+ arch/x86/mm/init_64.c             |  5 ---
+ init/main.c                       | 10 +++++-
+ mm/Kconfig.debug                  |  6 ++++
+ mm/Makefile                       |  1 +
+ mm/rodata_test.c                  | 64 +++++++++++++++++++++++++++++++++
+ 10 files changed, 80 insertions(+), 104 deletions(-)
+ delete mode 100644 arch/x86/kernel/test_rodata.c
+ create mode 100644 mm/rodata_test.c
 
-As to why it can't decompress the page, we should at least add info
-about the error value.  Maybe the zpool storage encountered a bug and
-provided the wrong compressed data to us...
-
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index 067a0d62f318..e2743687a202 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -1023,13 +1023,13 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
->         put_cpu_ptr(entry->pool->tfm);
->         kunmap_atomic(dst);
->         zpool_unmap_handle(entry->pool->zpool, entry->handle);
-> -       BUG_ON(ret);
-> +       WARN(ret, "error decompressing page: %d\n", ret);
->
->         spin_lock(&tree->lock);
->         zswap_entry_put(tree, entry);
->         spin_unlock(&tree->lock);
->
-> -       return 0;
-> +       return ret;
->  }
->
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 67eec55..5df54a8 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
+ 	  issues with the mapping of the EFI runtime regions into that
+ 	  table.
+ 
+-config DEBUG_RODATA_TEST
+-	bool "Testcase for the marking rodata read-only"
+-	default y
+-	---help---
+-	  This option enables a testcase for the setting rodata read-only
+-	  as well as for the change_page_attr() infrastructure.
+-	  If in doubt, say "N"
+-
+ config DEBUG_WX
+ 	bool "Warn on W+X mappings at boot"
+ 	select X86_PTDUMP_CORE
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 872877d..e7e1942e 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -90,18 +90,8 @@
+ 
+ #define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
+ 
+-extern const int rodata_test_data;
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+ 
+-#ifdef CONFIG_DEBUG_RODATA_TEST
+-int rodata_test(void);
+-#else
+-static inline int rodata_test(void)
+-{
+-	return 0;
+-}
+-#endif
+-
+ #endif /* _ASM_X86_CACHEFLUSH_H */
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 581386c..f6caf82 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -100,7 +100,6 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
+ obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
+ 
+ obj-$(CONFIG_AMD_NB)		+= amd_nb.o
+-obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o
+ obj-$(CONFIG_DEBUG_NX_TEST)	+= test_nx.o
+ obj-$(CONFIG_DEBUG_NMI_SELFTEST) += nmi_selftest.o
+ 
+diff --git a/arch/x86/kernel/test_rodata.c b/arch/x86/kernel/test_rodata.c
+deleted file mode 100644
+index 222e84e..0000000
+--- a/arch/x86/kernel/test_rodata.c
++++ /dev/null
+@@ -1,75 +0,0 @@
+-/*
+- * test_rodata.c: functional test for mark_rodata_ro function
+- *
+- * (C) Copyright 2008 Intel Corporation
+- * Author: Arjan van de Ven <arjan@linux.intel.com>
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; version 2
+- * of the License.
+- */
+-#include <asm/cacheflush.h>
+-#include <asm/sections.h>
+-#include <asm/asm.h>
+-
+-int rodata_test(void)
+-{
+-	unsigned long result;
+-	unsigned long start, end;
+-
+-	/* test 1: read the value */
+-	/* If this test fails, some previous testrun has clobbered the state */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: test 1 fails (start data)\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 2: write to the variable; this should fault */
+-	/*
+-	 * If this test fails, we managed to overwrite the data
+-	 *
+-	 * This is written in assembly to be able to catch the
+-	 * exception that is supposed to happen in the correct
+-	 * case
+-	 */
+-
+-	result = 1;
+-	asm volatile(
+-		"0:	mov %[zero],(%[rodata_test])\n"
+-		"	mov %[zero], %[rslt]\n"
+-		"1:\n"
+-		".section .fixup,\"ax\"\n"
+-		"2:	jmp 1b\n"
+-		".previous\n"
+-		_ASM_EXTABLE(0b,2b)
+-		: [rslt] "=r" (result)
+-		: [rodata_test] "r" (&rodata_test_data), [zero] "r" (0UL)
+-	);
+-
+-
+-	if (!result) {
+-		printk(KERN_ERR "rodata_test: test data was not read only\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 3: check the value hasn't changed */
+-	/* If this test fails, we managed to overwrite the data */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
+-		return -ENODEV;
+-	}
+-	/* test 4: check if the rodata section is 4Kb aligned */
+-	start = (unsigned long)__start_rodata;
+-	end = (unsigned long)__end_rodata;
+-	if (start & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-	if (end & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata end is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-
+-	return 0;
+-}
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 928d657..2b4b53e 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -864,9 +864,6 @@ static noinline int do_test_wp_bit(void)
+ 	return flag;
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly __read_mostly;
+ 
+ void set_kernel_text_rw(void)
+@@ -939,7 +936,6 @@ void mark_rodata_ro(void)
+ 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+ 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+ 		size >> 10);
+-	rodata_test();
+ 
+ #ifdef CONFIG_CPA_DEBUG
+ 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 97346f9..15173d3 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1000,9 +1000,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly;
+ 
+ void set_kernel_text_rw(void)
+@@ -1071,8 +1068,6 @@ void mark_rodata_ro(void)
+ 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
+ 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
+ 
+-	rodata_test();
+-
+ #ifdef CONFIG_CPA_DEBUG
+ 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
+ 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
+diff --git a/init/main.c b/init/main.c
+index e47373d..15b42bf 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -932,11 +932,19 @@ static int __init set_debug_rodata(char *str)
+ __setup("rodata=", set_debug_rodata);
+ #endif
+ 
++#ifdef CONFIG_DEBUG_RODATA_TEST
++void rodata_test(void);
++#else
++static inline void rodata_test(void) {}
++#endif
++
+ #ifdef CONFIG_DEBUG_RODATA
+ static void mark_readonly(void)
+ {
+-	if (rodata_enabled)
++	if (rodata_enabled) {
+ 		mark_rodata_ro();
++		rodata_test();
++	}
+ 	else
+ 		pr_info("Kernel memory protection disabled.\n");
+ }
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index afcc550..e4f22ce 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -90,3 +90,9 @@ config DEBUG_PAGE_REF
+ 	  careful when enabling this feature because it adds about 30 KB to the
+ 	  kernel code.  However the runtime performance overhead is virtually
+ 	  nil until the tracepoints are actually enabled.
++
++config DEBUG_RODATA_TEST
++	bool "Testcase for the marking rodata read-only"
++	depends on DEBUG_RODATA
++	---help---
++	  This option enables a testcase for the setting rodata read-only.
+\ No newline at end of file
+diff --git a/mm/Makefile b/mm/Makefile
+index 433eaf9..d6199d4 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -83,6 +83,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
++obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
+ obj-$(CONFIG_PAGE_OWNER) += page_owner.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+new file mode 100644
+index 0000000..fb953c0
+--- /dev/null
++++ b/mm/rodata_test.c
+@@ -0,0 +1,64 @@
++/*
++ * rodata_test.c: functional test for mark_rodata_ro function
++ *
++ * (C) Copyright 2008 Intel Corporation
++ * Author: Arjan van de Ven <arjan@linux.intel.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++#include <asm/uaccess.h>
++#include <asm/sections.h>
++
++const int rodata_test_data = 0xC3;
++EXPORT_SYMBOL_GPL(rodata_test_data);
++
++void rodata_test(void)
++{
++	unsigned long start, end, rodata_addr;
++	int zero = 0;
++
++	/* prepare test */
++	rodata_addr = ((unsigned long)&rodata_test_data);
++
++	/* test 1: read the value */
++	/* If this test fails, some previous testrun has clobbered the state */
++	if (!rodata_test_data) {
++		pr_err("rodata_test: test 1 fails (start data)\n");
++		return;
++	}
++
++	/* test 2: write to the variable; this should fault */
++	/*
++	 * This must be written in assembly to be able to catch the
++	 * exception that is supposed to happen in the correct case.
++	 *
++	 * So that put_user macro is used to write arch-independent assembly.
++	 */
++	if (!put_user(zero, (int *)rodata_addr)) {
++		pr_err("rodata_test: test data was not read only\n");
++		return;
++	}
++
++	/* test 3: check the value hasn't changed */
++	if (rodata_test_data == zero) {
++		pr_err("rodata_test: test data was changed\n");
++		return;
++	}
++
++	/* test 4: check if the rodata section is PAGE_SIZE aligned */
++	start = (unsigned long)__start_rodata;
++	end = (unsigned long)__end_rodata;
++	if (start & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: start of .rodata is not page size aligned\n");
++		return;
++	}
++	if (end & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: end of .rodata is not page size aligned\n");
++		return;
++	}
++
++	pr_info("rodata_test: all tests were successful\n");
++}
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
