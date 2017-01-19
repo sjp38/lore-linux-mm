@@ -1,112 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A42E6B02B4
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 99CB16B02B5
 	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 12:08:01 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r126so424249wmr.2
+Received: by mail-wj0-f199.google.com with SMTP id kq3so10046632wjc.1
         for <linux-mm@kvack.org>; Thu, 19 Jan 2017 09:08:01 -0800 (PST)
 Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id i190si7205807wmd.75.2017.01.19.09.07.59
+        by mx.google.com with ESMTPS id c19si5105712wrc.287.2017.01.19.09.07.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jan 2017 09:07:59 -0800 (PST)
+        Thu, 19 Jan 2017 09:08:00 -0800 (PST)
 From: Lucas Stach <l.stach@pengutronix.de>
-Subject: [PATCH 1/3] mm: alloc_contig_range: allow to specify GFP mask
-Date: Thu, 19 Jan 2017 18:07:05 +0100
-Message-Id: <20170119170707.31741-1-l.stach@pengutronix.de>
+Subject: [PATCH 3/3] mm: wire up GFP flag passing in dma_alloc_from_contiguous
+Date: Thu, 19 Jan 2017 18:07:07 +0100
+Message-Id: <20170119170707.31741-3-l.stach@pengutronix.de>
+In-Reply-To: <20170119170707.31741-1-l.stach@pengutronix.de>
+References: <20170119170707.31741-1-l.stach@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Alexander Graf <agraf@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-xtensa@linux-xtensa.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-Currently alloc_contig_range assumes that the compaction should
-be done with the default GFP_KERNEL flags. This is probably
-right for all current uses of this interface, but may change as
-CMA is used in more use-cases (including being the default DMA
-memory allocator on some platforms).
-
-Change the function prototype, to allow for passing through the
-GFP mask set by upper layers. No functional change in this patch,
-just making the assumptions a bit more obvious.
+The callers of the DMA alloc functions already provide the proper
+context GFP flags. Make sure to pass them through to the CMA
+allocator, to make the CMA compaction context aware.
 
 Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
 ---
- include/linux/gfp.h | 2 +-
- mm/cma.c            | 3 ++-
- mm/hugetlb.c        | 3 ++-
- mm/page_alloc.c     | 5 +++--
- 4 files changed, 8 insertions(+), 5 deletions(-)
+ arch/arm/mm/dma-mapping.c      | 16 +++++++++-------
+ arch/arm64/mm/dma-mapping.c    |  4 ++--
+ arch/mips/mm/dma-default.c     |  4 ++--
+ arch/x86/kernel/pci-dma.c      |  3 ++-
+ arch/xtensa/kernel/pci-dma.c   |  3 ++-
+ drivers/base/dma-contiguous.c  |  5 +++--
+ drivers/iommu/amd_iommu.c      |  2 +-
+ drivers/iommu/intel-iommu.c    |  2 +-
+ include/linux/dma-contiguous.h |  4 ++--
+ 9 files changed, 24 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 4175dca4ac39..1efa221e0e1d 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -549,7 +549,7 @@ static inline bool pm_suspended_storage(void)
- #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
- /* The below functions must be run on a range from a single zone. */
- extern int alloc_contig_range(unsigned long start, unsigned long end,
--			      unsigned migratetype);
-+			      unsigned migratetype, gfp_t gfp_mask);
- extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
- #endif
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index ab7710002ba6..4d6ec7d821c8 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -349,7 +349,7 @@ static void __dma_free_buffer(struct page *page, size_t size)
+ static void *__alloc_from_contiguous(struct device *dev, size_t size,
+ 				     pgprot_t prot, struct page **ret_page,
+ 				     const void *caller, bool want_vaddr,
+-				     int coherent_flag);
++				     int coherent_flag, gfp_t gfp);
  
-diff --git a/mm/cma.c b/mm/cma.c
-index c960459eda7e..fbd67d866f67 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -407,7 +407,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- 
- 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
- 		mutex_lock(&cma_mutex);
--		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
-+		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
-+					 GFP_KERNEL);
- 		mutex_unlock(&cma_mutex);
- 		if (ret == 0) {
- 			page = pfn_to_page(pfn);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3edb759c5c7d..6ed8b160fc0d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1051,7 +1051,8 @@ static int __alloc_gigantic_page(unsigned long start_pfn,
- 				unsigned long nr_pages)
+ static void *__alloc_remap_buffer(struct device *dev, size_t size, gfp_t gfp,
+ 				 pgprot_t prot, struct page **ret_page,
+@@ -420,7 +420,8 @@ static int __init atomic_pool_init(void)
+ 	 */
+ 	if (dev_get_cma_area(NULL))
+ 		ptr = __alloc_from_contiguous(NULL, atomic_pool_size, prot,
+-				      &page, atomic_pool_init, true, NORMAL);
++				      &page, atomic_pool_init, true, NORMAL,
++				      GFP_KERNEL);
+ 	else
+ 		ptr = __alloc_remap_buffer(NULL, atomic_pool_size, gfp, prot,
+ 					   &page, atomic_pool_init, true);
+@@ -594,14 +595,14 @@ static int __free_from_pool(void *start, size_t size)
+ static void *__alloc_from_contiguous(struct device *dev, size_t size,
+ 				     pgprot_t prot, struct page **ret_page,
+ 				     const void *caller, bool want_vaddr,
+-				     int coherent_flag)
++				     int coherent_flag, gfp_t gfp)
  {
- 	unsigned long end_pfn = start_pfn + nr_pages;
--	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-+	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
-+				  GFP_KERNEL);
+ 	unsigned long order = get_order(size);
+ 	size_t count = size >> PAGE_SHIFT;
+ 	struct page *page;
+ 	void *ptr = NULL;
+ 
+-	page = dma_alloc_from_contiguous(dev, count, order);
++	page = dma_alloc_from_contiguous(dev, count, order, gfp);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -655,7 +656,7 @@ static inline pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot)
+ #define __get_dma_pgprot(attrs, prot)				__pgprot(0)
+ #define __alloc_remap_buffer(dev, size, gfp, prot, ret, c, wv)	NULL
+ #define __alloc_from_pool(size, ret_page)			NULL
+-#define __alloc_from_contiguous(dev, size, prot, ret, c, wv, coherent_flag)	NULL
++#define __alloc_from_contiguous(dev, size, prot, ret, c, wv, coherent_flag, gfp)	NULL
+ #define __free_from_pool(cpu_addr, size)			do { } while (0)
+ #define __free_from_contiguous(dev, page, cpu_addr, size, wv)	do { } while (0)
+ #define __dma_free_remap(cpu_addr, size)			do { } while (0)
+@@ -697,7 +698,8 @@ static void *cma_allocator_alloc(struct arm_dma_alloc_args *args,
+ {
+ 	return __alloc_from_contiguous(args->dev, args->size, args->prot,
+ 				       ret_page, args->caller,
+-				       args->want_vaddr, args->coherent_flag);
++				       args->want_vaddr, args->coherent_flag,
++				       args->gfp);
  }
  
- static bool pfn_range_valid_gigantic(struct zone *z,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index eced9fee582b..6d392d8dee36 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7230,6 +7230,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
-  *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
-  *			in range must have the same migratetype and it must
-  *			be either of the two.
-+ * @gfp_mask:	GFP mask to use during compaction
-  *
-  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-  * aligned, however it's the caller's responsibility to guarantee that
-@@ -7243,7 +7244,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
-  * need to be freed with free_contig_range().
-  */
- int alloc_contig_range(unsigned long start, unsigned long end,
--		       unsigned migratetype)
-+		       unsigned migratetype, gfp_t gfp_mask)
- {
- 	unsigned long outer_start, outer_end;
- 	unsigned int order;
-@@ -7255,7 +7256,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		.zone = page_zone(pfn_to_page(start)),
- 		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
--		.gfp_mask = GFP_KERNEL,
-+		.gfp_mask = gfp_mask,
- 	};
- 	INIT_LIST_HEAD(&cc.migratepages);
+ static void cma_allocator_free(struct arm_dma_free_args *args)
+@@ -1293,7 +1295,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 		unsigned long order = get_order(size);
+ 		struct page *page;
  
+-		page = dma_alloc_from_contiguous(dev, count, order);
++		page = dma_alloc_from_contiguous(dev, count, order, gfp);
+ 		if (!page)
+ 			goto error;
+ 
+diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
+index e04082700bb1..b998f56e6a53 100644
+--- a/arch/arm64/mm/dma-mapping.c
++++ b/arch/arm64/mm/dma-mapping.c
+@@ -107,7 +107,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
+ 		void *addr;
+ 
+ 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+-							get_order(size));
++						 get_order(size), flags);
+ 		if (!page)
+ 			return NULL;
+ 
+@@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+ 
+ 	if (dev_get_cma_area(NULL))
+ 		page = dma_alloc_from_contiguous(NULL, nr_pages,
+-							pool_size_order);
++						 pool_size_order, GFP_KERNEL);
+ 	else
+ 		page = alloc_pages(GFP_DMA, pool_size_order);
+ 
+diff --git a/arch/mips/mm/dma-default.c b/arch/mips/mm/dma-default.c
+index a39c36af97ad..1895a692efd4 100644
+--- a/arch/mips/mm/dma-default.c
++++ b/arch/mips/mm/dma-default.c
+@@ -148,8 +148,8 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
+ 	gfp = massage_gfp_flags(dev, gfp);
+ 
+ 	if (IS_ENABLED(CONFIG_DMA_CMA) && gfpflags_allow_blocking(gfp))
+-		page = dma_alloc_from_contiguous(dev,
+-					count, get_order(size));
++		page = dma_alloc_from_contiguous(dev, count, get_order(size),
++						 gfp);
+ 	if (!page)
+ 		page = alloc_pages(gfp, get_order(size));
+ 
+diff --git a/arch/x86/kernel/pci-dma.c b/arch/x86/kernel/pci-dma.c
+index d30c37750765..d5c223c9cf11 100644
+--- a/arch/x86/kernel/pci-dma.c
++++ b/arch/x86/kernel/pci-dma.c
+@@ -91,7 +91,8 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+ 	page = NULL;
+ 	/* CMA can be used only in the context which permits sleeping */
+ 	if (gfpflags_allow_blocking(flag)) {
+-		page = dma_alloc_from_contiguous(dev, count, get_order(size));
++		page = dma_alloc_from_contiguous(dev, count, get_order(size),
++						 flag);
+ 		if (page && page_to_phys(page) + size > dma_mask) {
+ 			dma_release_from_contiguous(dev, page, count);
+ 			page = NULL;
+diff --git a/arch/xtensa/kernel/pci-dma.c b/arch/xtensa/kernel/pci-dma.c
+index 70e362e6038e..34c1f9fa6acc 100644
+--- a/arch/xtensa/kernel/pci-dma.c
++++ b/arch/xtensa/kernel/pci-dma.c
+@@ -158,7 +158,8 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
+ 		flag |= GFP_DMA;
+ 
+ 	if (gfpflags_allow_blocking(flag))
+-		page = dma_alloc_from_contiguous(dev, count, get_order(size));
++		page = dma_alloc_from_contiguous(dev, count, get_order(size),
++						 flag);
+ 
+ 	if (!page)
+ 		page = alloc_pages(flag, get_order(size));
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index d1a9cbabc627..b55804cac4c4 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -181,6 +181,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+  * @dev:   Pointer to device for which the allocation is performed.
+  * @count: Requested number of pages.
+  * @align: Requested alignment of pages (in PAGE_SIZE order).
++ * @gfp_mask: GFP flags to use for this allocation.
+  *
+  * This function allocates memory buffer for specified device. It uses
+  * device specific contiguous memory area if available or the default
+@@ -188,12 +189,12 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+  * function.
+  */
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int align)
++				       unsigned int align, gfp_t gfp_mask)
+ {
+ 	if (align > CONFIG_CMA_ALIGNMENT)
+ 		align = CONFIG_CMA_ALIGNMENT;
+ 
+-	return cma_alloc(dev_get_cma_area(dev), count, align, GFP_KERNEL);
++	return cma_alloc(dev_get_cma_area(dev), count, align, gfp_mask);
+ }
+ 
+ /**
+diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
+index 3ef0f42984f2..bd2e335cdf39 100644
+--- a/drivers/iommu/amd_iommu.c
++++ b/drivers/iommu/amd_iommu.c
+@@ -2668,7 +2668,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
+ 			return NULL;
+ 
+ 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+-						 get_order(size));
++						 get_order(size), flag);
+ 		if (!page)
+ 			return NULL;
+ 	}
+diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
+index 8a185250ae5a..3f804eb4299a 100644
+--- a/drivers/iommu/intel-iommu.c
++++ b/drivers/iommu/intel-iommu.c
+@@ -3827,7 +3827,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
+ 	if (gfpflags_allow_blocking(flags)) {
+ 		unsigned int count = size >> PAGE_SHIFT;
+ 
+-		page = dma_alloc_from_contiguous(dev, count, order);
++		page = dma_alloc_from_contiguous(dev, count, order, flags);
+ 		if (page && iommu_no_mapping(dev) &&
+ 		    page_to_phys(page) + size > dev->coherent_dma_mask) {
+ 			dma_release_from_contiguous(dev, page, count);
+diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
+index fec734df1524..b67bf6ac907d 100644
+--- a/include/linux/dma-contiguous.h
++++ b/include/linux/dma-contiguous.h
+@@ -112,7 +112,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ }
+ 
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int order);
++				       unsigned int order, gfp_t gfp_mask);
+ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+ 				 int count);
+ 
+@@ -145,7 +145,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ 
+ static inline
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int order)
++				       unsigned int order, gfp_t gfp_mask)
+ {
+ 	return NULL;
+ }
 -- 
 2.11.0
 
