@@ -1,111 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AC0B76B02B2
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 10:58:07 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 204so61830138pfx.1
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 07:58:07 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q5si3885796pgj.243.2017.01.19.07.58.06
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jan 2017 07:58:06 -0800 (PST)
-Date: Thu, 19 Jan 2017 15:57:01 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] mm: add arch-independent testcases for RODATA
-Message-ID: <20170119155701.GA24654@leverpostej>
-References: <20170119145114.GA19772@pjb1027-Latitude-E5410>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170119145114.GA19772@pjb1027-Latitude-E5410>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A42E6B02B4
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 12:08:01 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r126so424249wmr.2
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 09:08:01 -0800 (PST)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id i190si7205807wmd.75.2017.01.19.09.07.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Jan 2017 09:07:59 -0800 (PST)
+From: Lucas Stach <l.stach@pengutronix.de>
+Subject: [PATCH 1/3] mm: alloc_contig_range: allow to specify GFP mask
+Date: Thu, 19 Jan 2017 18:07:05 +0100
+Message-Id: <20170119170707.31741-1-l.stach@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jinbum Park <jinb.park7@gmail.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Alexander Graf <agraf@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-xtensa@linux-xtensa.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-On Thu, Jan 19, 2017 at 11:51:14PM +0900, Jinbum Park wrote:
-> This patch adds arch-independent testcases for RODATA.
-> Both x86 and x86_64 already have testcases for RODATA,
-> But they are arch-specific because using inline assembly directly.
-> 
-> and cacheflush.h is not suitable location for rodata-test related things.
-> Since they were in cacheflush.h,
-> If someone change the state of CONFIG_DEBUG_RODATA_TEST,
-> It cause overhead of kernel build.
-> 
-> To solve above issue,
-> write arch-independent testcases and move it to shared location. (main.c)
+Currently alloc_contig_range assumes that the compaction should
+be done with the default GFP_KERNEL flags. This is probably
+right for all current uses of this interface, but may change as
+CMA is used in more use-cases (including being the default DMA
+memory allocator on some platforms).
 
-This is clearly a rework and move of the existing x86 test, and not the
-addition of a completely new test (see Arjan's comment about his credit
-being removed...).
+Change the function prototype, to allow for passing through the
+GFP mask set by upper layers. No functional change in this patch,
+just making the assumptions a bit more obvious.
 
-I would recommend that you turn this into a series that makes the x86
-code generic, then moves it out into a common location where it can be
-used by others. e.g.
+Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+---
+ include/linux/gfp.h | 2 +-
+ mm/cma.c            | 3 ++-
+ mm/hugetlb.c        | 3 ++-
+ mm/page_alloc.c     | 5 +++--
+ 4 files changed, 8 insertions(+), 5 deletions(-)
 
-1) make the test use put_user()
-2) move the rodata_test() call and the prototype to a common location
-3) move the test out to mm/ (with no changes to the file itself)
-
-Otherwise, comments below.
-
-> diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-> new file mode 100644
-> index 0000000..d5b0504
-> --- /dev/null
-> +++ b/mm/rodata_test.c
-> @@ -0,0 +1,63 @@
-> +/*
-> + * rodata_test.c: functional test for mark_rodata_ro function
-> + *
-> + * (C) Copyright 2017 Jinbum Park <jinb.park7@gmail.com>
-> + *
-> + * This program is free software; you can redistribute it and/or
-> + * modify it under the terms of the GNU General Public License
-> + * as published by the Free Software Foundation; version 2
-> + * of the License.
-> + */
-> +#include <asm/uaccess.h>
-> +#include <asm/sections.h>
-> +
-> +const int rodata_test_data = 0xC3;
-> +EXPORT_SYMBOL_GPL(rodata_test_data);
-> +
-> +void rodata_test(void)
-> +{
-> +	unsigned long start, end, rodata_addr;
-> +	int zero = 0;
-> +
-> +	/* prepare test */
-> +	rodata_addr = ((unsigned long)&rodata_test_data);
-> +
-> +	/* test 1: read the value */
-> +	/* If this test fails, some previous testrun has clobbered the state */
-> +	if (!rodata_test_data) {
-> +		pr_err("rodata_test: test 1 fails (start data)\n");
-> +		return;
-> +	}
-> +
-> +	/* test 2: write to the variable; this should fault */
-> +	/*
-> +	 * This must be written in assembly to be able to catch the
-> +	 * exception that is supposed to happen in the correct case.
-> +	 *
-> +	 * So that put_user macro is used to write arch-independent assembly.
-> +	 */
-> +	if (!put_user(zero, (int *)rodata_addr)) {
-> +		pr_err("rodata_test: test data was not read only\n");
-> +		return;
-> +	}
-
-As I mentioned in the original posting, you need to change to KERNEL_DS
-for the put_user.
-
-Russell's suggestion to use probe_kernel_write() is strictly better;
-please do that instead.
-
-Thanks,
-Mark.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 4175dca4ac39..1efa221e0e1d 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -549,7 +549,7 @@ static inline bool pm_suspended_storage(void)
+ #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+ /* The below functions must be run on a range from a single zone. */
+ extern int alloc_contig_range(unsigned long start, unsigned long end,
+-			      unsigned migratetype);
++			      unsigned migratetype, gfp_t gfp_mask);
+ extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+ #endif
+ 
+diff --git a/mm/cma.c b/mm/cma.c
+index c960459eda7e..fbd67d866f67 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -407,7 +407,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
+ 
+ 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+ 		mutex_lock(&cma_mutex);
+-		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
++		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
++					 GFP_KERNEL);
+ 		mutex_unlock(&cma_mutex);
+ 		if (ret == 0) {
+ 			page = pfn_to_page(pfn);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 3edb759c5c7d..6ed8b160fc0d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1051,7 +1051,8 @@ static int __alloc_gigantic_page(unsigned long start_pfn,
+ 				unsigned long nr_pages)
+ {
+ 	unsigned long end_pfn = start_pfn + nr_pages;
+-	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
++				  GFP_KERNEL);
+ }
+ 
+ static bool pfn_range_valid_gigantic(struct zone *z,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index eced9fee582b..6d392d8dee36 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7230,6 +7230,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+  *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
+  *			in range must have the same migratetype and it must
+  *			be either of the two.
++ * @gfp_mask:	GFP mask to use during compaction
+  *
+  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
+  * aligned, however it's the caller's responsibility to guarantee that
+@@ -7243,7 +7244,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+  * need to be freed with free_contig_range().
+  */
+ int alloc_contig_range(unsigned long start, unsigned long end,
+-		       unsigned migratetype)
++		       unsigned migratetype, gfp_t gfp_mask)
+ {
+ 	unsigned long outer_start, outer_end;
+ 	unsigned int order;
+@@ -7255,7 +7256,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 		.zone = page_zone(pfn_to_page(start)),
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
+-		.gfp_mask = GFP_KERNEL,
++		.gfp_mask = gfp_mask,
+ 	};
+ 	INIT_LIST_HEAD(&cc.migratepages);
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
