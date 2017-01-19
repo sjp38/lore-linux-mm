@@ -1,87 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD1E6B02C4
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 16:28:38 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z67so71787651pgb.0
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 13:28:38 -0800 (PST)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id m1si4635469plb.313.2017.01.19.13.28.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ACDE6B02C5
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 17:10:44 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 201so74241817pfw.5
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 14:10:44 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id j16si3463811pli.308.2017.01.19.14.10.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jan 2017 13:28:37 -0800 (PST)
-Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
-References: <20170116194052.GA9382@dhcp22.suse.cz>
- <1979f5e1-a335-65d8-8f9a-0aef17898ca1@nvidia.com>
- <20170116214822.GB9382@dhcp22.suse.cz>
- <be93f879-6bc7-a09e-26f3-09c82c669d74@nvidia.com>
- <20170117075100.GB19699@dhcp22.suse.cz>
- <bfd34f15-857f-b721-e27a-a6a1faad1aec@nvidia.com>
- <20170118082146.GC7015@dhcp22.suse.cz>
- <37232cc6-af8b-52e2-3265-9ef0c0d26e5f@nvidia.com>
- <20170119084510.GF30786@dhcp22.suse.cz>
- <f1b2ce94-8448-f744-e9d0-c65f6f68fe18@nvidia.com>
- <20170119095610.GL30786@dhcp22.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <dee51149-0442-7b4f-469c-acbcd0e15aca@nvidia.com>
-Date: Thu, 19 Jan 2017 13:28:32 -0800
+        Thu, 19 Jan 2017 14:10:43 -0800 (PST)
+Subject: [PATCH v3 00/12] mm: sub-section memory hotplug support
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 19 Jan 2017 14:06:36 -0800
+Message-ID: <148486359570.19694.18265063120757801811.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170119095610.GL30786@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Logan Gunthorpe <logang@deltatee.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On 01/19/2017 01:56 AM, Michal Hocko wrote:
-> On Thu 19-01-17 01:09:35, John Hubbard wrote:
-> [...]
->> So that leaves us with maybe this for documentation?
->>
->>  * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL should not be passed in.
->>  * Passing in __GFP_REPEAT is supported, and will cause the following behavior:
->>  * for larger (>64KB) allocations, the first part (kmalloc) will do some
->>  * retrying, before falling back to vmalloc.
->
-> I am worried this is just too vague. It doesn't really help user to
-> decide whether "do some retrying" is what he really want's or needs.
->
-> So I would rather see the following.
-> "
->  * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
->  * is supported only for large (>32kB) allocations and it should be used when using
->  * kmalloc is preferable because vmalloc fallback has visible performance drawbacks.
-> "
->
-> I would also add
-> "
-> Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
-> "
->
-> Does it sound any better?
+Changes since v2 [1]:
 
-Yes, that is good. I like that it helps guide the user. Here's some proposed optional grammar 
-tweaks, but even without these, the above is understandable, so either way, I'm happy now:
+1/ Fixed a bug inserting multi-order entries into pgmap_radix. The
+   insert index needs to be 'order' aligned.
 
-  * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
-  * is supported only for large (>32kB) allocations, and it should be used only if
-  * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
-  *
-  * Please consult with mm people before using any gfp flags other than GFP_KERNEL.
+2/ Fixed a __meminit section mismatch warning for section_activate()
 
-thanks
-john h
+3/ Forward ported to v4.10-rc4
 
-> --
-> Michal Hocko
-> SUSE Labs
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+[1]: https://lwn.net/Articles/708627/
+
+---
+
+The initial motivation for this change is persistent memory platforms
+that, unfortunately, align the pmem range on a boundary less than a full
+section (64M vs 128M), and may change the alignment from one boot to the
+next. A secondary motivation is the arrival of prospective ZONE_DEVICE
+users that want devm_memremap_pages() to map PCI-E device memory ranges
+to enable peer-to-peer DMA. There is a range of possible physical
+address alignments of PCI-E BARs that are less than 128M.
+
+Currently the libnvdimm core injects padding when 'pfn' (struct page
+mapping configuration) instances are created. However, not all users of
+devm_memremap_pages() have the opportunity to inject such padding. Users
+of the memmap=ss!nn kernel command line option can trigger the following
+failure with unaligned parameters like "memmap=0xfc000000!8G":
+
+ WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300
+ devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
+ [..]
+ Call Trace:
+  [<ffffffff814c0393>] dump_stack+0x86/0xc3
+  [<ffffffff810b173b>] __warn+0xcb/0xf0
+  [<ffffffff810b17bf>] warn_slowpath_fmt+0x5f/0x80
+  [<ffffffff811eb105>] devm_memremap_pages+0x3b5/0x4c0
+  [<ffffffffa006f308>] __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
+  [<ffffffffa00e231a>] pmem_attach_disk+0x19a/0x440 [nd_pmem]
+
+Without this change a user could inadvertently lose access to nvdimm
+namespaces after a configuration change. The act of adding, removing, or
+rearranging DIMMs in the platform could lead to the BIOS changing the
+base alignment of the namespace in an incompatible fashion.  With this
+support we can accommodate a BIOS changing the namespace to any
+alignment provided it is >= SECTION_ACTIVE_SIZE.
+
+In other words, we are protecting against misalignment injected by the
+BIOS after the libnvdimm sub-system already recorded that the namespace
+does not need alignment padding. In that case the user would need to
+figure out how to undo the configuration change to regain access to
+their nvdimm capacity.
+
+---
+
+The patches have received a build success notification from the
+0day-kbuild robot across 142 configs and pass the latest libnvdimm/ndctl
+unit test suite. They merge cleanly on top of current -next (test merge
+with next-20170118).
+
+---
+
+Dan Williams (12):
+      mm: fix type width of section to/from pfn conversion macros
+      mm, devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups
+      mm: introduce struct mem_section_usage to track partial population of a section
+      mm: introduce common definitions for the size and mask of a section
+      mm: cleanup sparse_init_one_section() return value
+      mm: track active portions of a section at boot
+      mm: fix register_new_memory() zone type detection
+      mm: convert kmalloc_section_memmap() to populate_section_memmap()
+      mm: prepare for hot-{add,remove} of sub-section ranges
+      mm: support section-unaligned ZONE_DEVICE memory ranges
+      mm: enable section-unaligned devm_memremap_pages()
+      libnvdimm, pfn, dax: stop padding pmem namespaces to section alignment
+
+
+ arch/x86/mm/init_64.c          |   15 +
+ drivers/base/memory.c          |   26 +-
+ drivers/nvdimm/pfn_devs.c      |   42 +---
+ include/linux/memory.h         |    4 
+ include/linux/memory_hotplug.h |    6 -
+ include/linux/mm.h             |    3 
+ include/linux/mmzone.h         |   30 ++-
+ kernel/memremap.c              |   74 ++++---
+ mm/Kconfig                     |    1 
+ mm/memory_hotplug.c            |   95 ++++----
+ mm/page_alloc.c                |    6 -
+ mm/sparse-vmemmap.c            |   24 +-
+ mm/sparse.c                    |  454 +++++++++++++++++++++++++++++-----------
+ 13 files changed, 511 insertions(+), 269 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
