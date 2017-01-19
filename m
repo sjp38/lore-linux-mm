@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E1A5E6B02DC
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 17:11:47 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 204so74441336pfx.1
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 14:11:47 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id t30si4747584pfl.149.2017.01.19.14.11.46
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F6F6B02DF
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 17:11:53 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id f5so72949412pgi.1
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 14:11:53 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 91si4730119ply.312.2017.01.19.14.11.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jan 2017 14:11:47 -0800 (PST)
-Subject: [PATCH v3 11/12] mm: enable section-unaligned devm_memremap_pages()
+        Thu, 19 Jan 2017 14:11:52 -0800 (PST)
+Subject: [PATCH v3 12/12] libnvdimm, pfn,
+ dax: stop padding pmem namespaces to section alignment
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 19 Jan 2017 14:07:40 -0800
-Message-ID: <148486366055.19694.17199008017867229383.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Thu, 19 Jan 2017 14:07:46 -0800
+Message-ID: <148486366619.19694.12717075723603032515.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <148486359570.19694.18265063120757801811.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <148486359570.19694.18265063120757801811.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,101 +22,111 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Logan Gunthorpe <logang@deltatee.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, linux-nvdimm@lists.01.org
 
-Teach devm_memremap_pages() about the new sub-section capabilities of
-arch_{add,remove}_memory().
+Now that the mm core supports section-unaligned hotplug of ZONE_DEVICE
+memory, we no longer need to add padding at pfn/dax device creation
+time. The kernel will still honor padding established by older kernels.
 
-Cc: Michal Hocko <mhocko@suse.com>
 Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: Stephen Bates <stephen.bates@microsemi.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- kernel/memremap.c |   22 +++++++---------------
- 1 file changed, 7 insertions(+), 15 deletions(-)
+ drivers/nvdimm/pfn_devs.c |   42 +++++++-----------------------------------
+ 1 file changed, 7 insertions(+), 35 deletions(-)
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index e58d7828ff9a..e6476a8e8b6a 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -256,7 +256,6 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+index a2ac9e641aa9..5d17710f7402 100644
+--- a/drivers/nvdimm/pfn_devs.c
++++ b/drivers/nvdimm/pfn_devs.c
+@@ -538,7 +538,7 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+ 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
+ 		altmap = NULL;
+ 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
+-		nd_pfn->npfns = (resource_size(res) - offset) / PAGE_SIZE;
++		nd_pfn->npfns = PHYS_PFN((resource_size(res) - offset));
+ 		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
+ 			dev_info(&nd_pfn->dev,
+ 					"number of pfns truncated from %lld to %ld\n",
+@@ -557,7 +557,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
  {
- 	struct page_map *page_map = data;
- 	struct resource *res = &page_map->res;
--	resource_size_t align_start, align_size;
- 	struct dev_pagemap *pgmap = &page_map->pgmap;
- 
- 	if (percpu_ref_tryget_live(pgmap->ref)) {
-@@ -265,12 +264,10 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+ 	u32 dax_label_reserve = is_nd_dax(&nd_pfn->dev) ? SZ_128K : 0;
+ 	struct nd_namespace_common *ndns = nd_pfn->ndns;
+-	u32 start_pad = 0, end_trunc = 0;
+ 	resource_size_t start, size;
+ 	struct nd_namespace_io *nsio;
+ 	struct nd_region *nd_region;
+@@ -590,42 +589,16 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 		return -ENXIO;
  	}
  
- 	/* pages are dead and unused, undo the arch mapping */
--	align_start = res->start & PA_SECTION_MASK;
--	align_size = ALIGN(resource_size(res), PA_SECTION_SIZE);
- 	mem_hotplug_begin();
--	arch_remove_memory(align_start, align_size);
-+	arch_remove_memory(res->start, resource_size(res));
- 	mem_hotplug_done();
--	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-+	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
- 	pgmap_radix_release(res);
- 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
- 			"%s: failed to free all reserved pages\n", __func__);
-@@ -305,17 +302,13 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap)
- {
--	resource_size_t align_start, align_size, align_end;
- 	unsigned long pfn, pgoff, order;
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	struct dev_pagemap *pgmap;
- 	struct page_map *page_map;
- 	int error, nid, is_ram;
+-	memset(pfn_sb, 0, sizeof(*pfn_sb));
+-
+-	/*
+-	 * Check if pmem collides with 'System RAM' when section aligned and
+-	 * trim it accordingly
+-	 */
+-	nsio = to_nd_namespace_io(&ndns->dev);
+-	start = PHYS_SECTION_ALIGN_DOWN(nsio->res.start);
+-	size = resource_size(&nsio->res);
+-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+-				IORES_DESC_NONE) == REGION_MIXED) {
+-		start = nsio->res.start;
+-		start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
+-	}
+-
+-	start = nsio->res.start;
+-	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
+-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
+-				IORES_DESC_NONE) == REGION_MIXED) {
+-		size = resource_size(&nsio->res);
+-		end_trunc = start + size - PHYS_SECTION_ALIGN_DOWN(start + size);
+-	}
+-
+-	if (start_pad + end_trunc)
+-		dev_info(&nd_pfn->dev, "%s section collision, truncate %d bytes\n",
+-				dev_name(&ndns->dev), start_pad + end_trunc);
+-
+ 	/*
+ 	 * Note, we use 64 here for the standard size of struct page,
+ 	 * debugging options may cause it to be larger in which case the
+ 	 * implementation will limit the pfns advertised through
+ 	 * ->direct_access() to those that are included in the memmap.
+ 	 */
+-	start += start_pad;
++	nsio = to_nd_namespace_io(&ndns->dev);
++	start = nsio->res.start;
+ 	size = resource_size(&nsio->res);
+-	npfns = (size - start_pad - end_trunc - SZ_8K) / SZ_4K;
++	npfns = PHYS_PFN(size - SZ_8K);
+ 	if (nd_pfn->mode == PFN_MODE_PMEM) {
+ 		unsigned long memmap_size;
  
--	align_start = res->start & PA_SECTION_MASK;
--	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
--		- align_start;
--	is_ram = region_intersects(align_start, align_size,
-+	is_ram = region_intersects(res->start, resource_size(res),
- 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+@@ -642,13 +615,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 	else
+ 		return -ENXIO;
  
- 	if (is_ram == REGION_MIXED) {
-@@ -348,7 +341,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+-	if (offset + start_pad + end_trunc >= size) {
++	if (offset >= size) {
+ 		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
+ 				dev_name(&ndns->dev));
+ 		return -ENXIO;
+ 	}
  
- 	mutex_lock(&pgmap_lock);
- 	error = 0;
--	align_end = align_start + align_size - 1;
- 
- 	foreach_order_pgoff(res, order, pgoff) {
- 		struct dev_pagemap *dup;
-@@ -377,13 +369,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	if (nid < 0)
- 		nid = numa_mem_id();
- 
--	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
--			align_size);
-+	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(res->start), 0,
-+			resource_size(res));
- 	if (error)
- 		goto err_pfn_remap;
- 
- 	mem_hotplug_begin();
--	error = arch_add_memory(nid, align_start, align_size, true);
-+	error = arch_add_memory(nid, res->start, resource_size(res), true);
- 	mem_hotplug_done();
- 	if (error)
- 		goto err_add_memory;
-@@ -404,7 +396,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	return __va(res->start);
- 
-  err_add_memory:
--	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-+	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
-  err_pfn_remap:
-  err_radix:
- 	pgmap_radix_release(res);
+-	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
++	memset(pfn_sb, 0, sizeof(*pfn_sb));
++	npfns = PHYS_PFN(size - offset);
+ 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
+ 	pfn_sb->dataoff = cpu_to_le64(offset);
+ 	pfn_sb->npfns = cpu_to_le64(npfns);
+@@ -657,8 +631,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
+ 	pfn_sb->version_major = cpu_to_le16(1);
+ 	pfn_sb->version_minor = cpu_to_le16(2);
+-	pfn_sb->start_pad = cpu_to_le32(start_pad);
+-	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
+ 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
+ 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
+ 	pfn_sb->checksum = cpu_to_le64(checksum);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
