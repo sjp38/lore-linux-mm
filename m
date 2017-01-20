@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C17E6B0038
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8C26B0033
 	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:38:56 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id yr2so14040264wjc.4
+Received: by mail-wm0-f69.google.com with SMTP id c206so4675385wme.3
         for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:38:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c2si7428083wrc.313.2017.01.20.02.38.54
+        by mx.google.com with ESMTPS id i22si7475486wrc.81.2017.01.20.02.38.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 20 Jan 2017 02:38:55 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 1/4] mm, page_alloc: fix check for NULL preferred_zone
-Date: Fri, 20 Jan 2017 11:38:40 +0100
-Message-Id: <20170120103843.24587-2-vbabka@suse.cz>
+Subject: [PATCH v2 2/4] mm, page_alloc: fix fast-path race with cpuset update or removal
+Date: Fri, 20 Jan 2017 11:38:41 +0100
+Message-Id: <20170120103843.24587-3-vbabka@suse.cz>
 In-Reply-To: <20170120103843.24587-1-vbabka@suse.cz>
 References: <20170120103843.24587-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,56 +20,56 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-Since commit c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in
-a zonelist twice") we have a wrong check for NULL preferred_zone, which can
-theoretically happen due to concurrent cpuset modification. We check the
-zoneref pointer which is never NULL and we should check the zone pointer.
-Also document this in first_zones_zonelist() comment per Michal Hocko.
+Ganapatrao Kulkarni reported that the LTP test cpuset01 in stress mode triggers
+OOM killer in few seconds, despite lots of free memory. The test attempts to
+repeatedly fault in memory in one process in a cpuset, while changing allowed
+nodes of the cpuset between 0 and 1 in another process.
 
-Fixes: c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in a zonelist twice")
+One possible cause is that in the fast path we find the preferred zoneref
+according to current mems_allowed, so that it points to the middle of the
+zonelist, skipping e.g. zones of node 1 completely. If the mems_allowed is
+updated to contain only node 1, we never reach it in the zonelist, and trigger
+OOM before checking the cpuset_mems_cookie.
+
+This patch fixes the particular case by redoing the preferred zoneref search
+if we switch back to the original nodemask. The condition is also slightly
+changed so that when the last non-root cpuset is removed, we don't miss it.
+
+Note that this is not a full fix, and more patches will follow.
+
+Reported-by: Ganapatrao Kulkarni <gpkulkarni@gmail.com>
+Fixes: 682a3385e773 ("mm, page_alloc: inline the fast path of the zonelist iterator")
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: <stable@vger.kernel.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mmzone.h | 6 +++++-
- mm/page_alloc.c        | 2 +-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ mm/page_alloc.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 36d9896fbc1e..f4aac87adcc3 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -972,12 +972,16 @@ static __always_inline struct zoneref *next_zones_zonelist(struct zoneref *z,
-  * @zonelist - The zonelist to search for a suitable zone
-  * @highest_zoneidx - The zone index of the highest zone to return
-  * @nodes - An optional nodemask to filter the zonelist with
-- * @zone - The first suitable zone found is returned via this parameter
-+ * @return - Zoneref pointer for the first suitable zone found (see below)
-  *
-  * This function returns the first zone at or below a given zone index that is
-  * within the allowed nodemask. The zoneref returned is a cursor that can be
-  * used to iterate the zonelist with next_zones_zonelist by advancing it by
-  * one before calling.
-+ *
-+ * When no eligible zone is found, zoneref->zone is NULL (zoneref itself is
-+ * never NULL). This may happen either genuinely, or due to concurrent nodemask
-+ * update due to cpuset modification.
-  */
- static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
- 					enum zone_type highest_zoneidx,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d604d2596b7b..0d771f3fb835 100644
+index 0d771f3fb835..3ca0c15deca4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3784,7 +3784,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+@@ -3804,9 +3804,17 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	/*
+ 	 * Restore the original nodemask if it was potentially replaced with
+ 	 * &cpuset_current_mems_allowed to optimize the fast-path attempt.
++	 * Also recalculate the starting point for the zonelist iterator or
++	 * we could end up iterating over non-eligible zones endlessly.
  	 */
- 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
- 					ac.high_zoneidx, ac.nodemask);
--	if (!ac.preferred_zoneref) {
-+	if (!ac.preferred_zoneref->zone) {
- 		page = NULL;
- 		goto no_zone;
- 	}
+-	if (cpusets_enabled())
++	if (unlikely(ac.nodemask != nodemask)) {
+ 		ac.nodemask = nodemask;
++		ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
++						ac.high_zoneidx, ac.nodemask);
++		if (!ac.preferred_zoneref->zone)
++			goto no_zone;
++	}
++
+ 	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
+ 
+ no_zone:
 -- 
 2.11.0
 
