@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 504976B0033
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C17E6B0038
 	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:38:56 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id kq3so14097246wjc.1
+Received: by mail-wj0-f199.google.com with SMTP id yr2so14040264wjc.4
         for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:38:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t202si2940529wmd.108.2017.01.20.02.38.54
+        by mx.google.com with ESMTPS id c2si7428083wrc.313.2017.01.20.02.38.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 20 Jan 2017 02:38:55 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 0/4] fix premature OOM regression in 4.7+ due to cpuset races
-Date: Fri, 20 Jan 2017 11:38:39 +0100
-Message-Id: <20170120103843.24587-1-vbabka@suse.cz>
+Subject: [PATCH v2 1/4] mm, page_alloc: fix check for NULL preferred_zone
+Date: Fri, 20 Jan 2017 11:38:40 +0100
+Message-Id: <20170120103843.24587-2-vbabka@suse.cz>
+In-Reply-To: <20170120103843.24587-1-vbabka@suse.cz>
+References: <20170120103843.24587-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-Changes since v1:
-- add/remove comments per Michal Hocko and Hillf Danton
-- move no_zone: label in patch 3 so we don't miss part of ac initialization
+Since commit c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in
+a zonelist twice") we have a wrong check for NULL preferred_zone, which can
+theoretically happen due to concurrent cpuset modification. We check the
+zoneref pointer which is never NULL and we should check the zone pointer.
+Also document this in first_zones_zonelist() comment per Michal Hocko.
 
-This is v2 of my attempt to fix the recent report based on LTP cpuset stress
-test [1]. The intention is to go to stable 4.9 LTSS with this, as triggering
-repeated OOMs is not nice. That's why the patches try to be not too intrusive.
+Fixes: c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in a zonelist twice")
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: <stable@vger.kernel.org>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ include/linux/mmzone.h | 6 +++++-
+ mm/page_alloc.c        | 2 +-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-Unfortunately why investigating I found that modifying the testcase to use
-per-VMA policies instead of per-task policies will bring the OOM's back, but
-that seems to be much older and harder to fix problem. I have posted a RFC [2]
-but I believe that fixing the recent regressions has a higher priority.
-
-Longer-term we might try to think how to fix the cpuset mess in a better and
-less error prone way. I was for example very surprised to learn, that cpuset
-updates change not only task->mems_allowed, but also nodemask of mempolicies.
-Until now I expected the parameter to alloc_pages_nodemask() to be stable.
-I wonder why do we then treat cpusets specially in get_page_from_freelist()
-and distinguish HARDWALL etc, when there's unconditional intersection between
-mempolicy and cpuset. I would expect the nodemask adjustment for saving
-overhead in g_p_f(), but that clearly doesn't happen in the current form.
-So we have both crazy complexity and overhead, AFAICS.
-
-[1] https://lkml.kernel.org/r/CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com
-[2] https://lkml.kernel.org/r/7c459f26-13a6-a817-e508-b65b903a8378@suse.cz
-
-Vlastimil Babka (4):
-  mm, page_alloc: fix check for NULL preferred_zone
-  mm, page_alloc: fix fast-path race with cpuset update or removal
-  mm, page_alloc: move cpuset seqcount checking to slowpath
-  mm, page_alloc: fix premature OOM when racing with cpuset mems update
-
- include/linux/mmzone.h |  6 ++++-
- mm/page_alloc.c        | 68 ++++++++++++++++++++++++++++++++++----------------
- 2 files changed, 52 insertions(+), 22 deletions(-)
-
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 36d9896fbc1e..f4aac87adcc3 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -972,12 +972,16 @@ static __always_inline struct zoneref *next_zones_zonelist(struct zoneref *z,
+  * @zonelist - The zonelist to search for a suitable zone
+  * @highest_zoneidx - The zone index of the highest zone to return
+  * @nodes - An optional nodemask to filter the zonelist with
+- * @zone - The first suitable zone found is returned via this parameter
++ * @return - Zoneref pointer for the first suitable zone found (see below)
+  *
+  * This function returns the first zone at or below a given zone index that is
+  * within the allowed nodemask. The zoneref returned is a cursor that can be
+  * used to iterate the zonelist with next_zones_zonelist by advancing it by
+  * one before calling.
++ *
++ * When no eligible zone is found, zoneref->zone is NULL (zoneref itself is
++ * never NULL). This may happen either genuinely, or due to concurrent nodemask
++ * update due to cpuset modification.
+  */
+ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ 					enum zone_type highest_zoneidx,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d604d2596b7b..0d771f3fb835 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3784,7 +3784,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
+ 					ac.high_zoneidx, ac.nodemask);
+-	if (!ac.preferred_zoneref) {
++	if (!ac.preferred_zoneref->zone) {
+ 		page = NULL;
+ 		goto no_zone;
+ 	}
 -- 
 2.11.0
 
