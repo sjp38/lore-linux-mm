@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E7776B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:00:09 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id f144so91071635pfa.3
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:00:09 -0800 (PST)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id q10si6378147pge.19.2017.01.20.02.00.08
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EBC86B0033
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:02:50 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c73so91339602pfb.7
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:02:50 -0800 (PST)
+Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
+        by mx.google.com with ESMTPS id q12si6370498plk.245.2017.01.20.02.02.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jan 2017 02:00:08 -0800 (PST)
-Received: by mail-pf0-x22d.google.com with SMTP id y143so21537974pfb.0
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:00:08 -0800 (PST)
-Date: Fri, 20 Jan 2017 02:00:06 -0800 (PST)
+        Fri, 20 Jan 2017 02:02:49 -0800 (PST)
+Received: by mail-pg0-x22d.google.com with SMTP id 194so22587678pgd.2
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:02:49 -0800 (PST)
+Date: Fri, 20 Jan 2017 02:02:47 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm, oom: header nodemask is NULL when cpusets are disabled
- fix
-In-Reply-To: <001801d272eb$ece5f460$c6b1dd20$@alibaba-inc.com>
-Message-ID: <alpine.DEB.2.10.1701200158300.88321@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701181347320.142399@chino.kir.corp.google.com> <279f10c2-3eaa-c641-094f-3070db67d84f@suse.cz> <alpine.DEB.2.10.1701191454470.2381@chino.kir.corp.google.com> <001801d272eb$ece5f460$c6b1dd20$@alibaba-inc.com>
+Subject: Re: [patch] mm, oom: header nodemask is NULL when cpusets are
+ disabled
+In-Reply-To: <e32b48f0-e345-2a44-9f95-0403eeb6a4fd@suse.cz>
+Message-ID: <alpine.DEB.2.10.1701200202001.88633@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1701181347320.142399@chino.kir.corp.google.com> <279f10c2-3eaa-c641-094f-3070db67d84f@suse.cz> <alpine.DEB.2.10.1701191454470.2381@chino.kir.corp.google.com> <e32b48f0-e345-2a44-9f95-0403eeb6a4fd@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-Newline per Hillf
+On Fri, 20 Jan 2017, Vlastimil Babka wrote:
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> Could we simplify both patches with something like this?
+> Although the sizeof("null") is not the nicest thing, because it relies on knowledge
+> that pointer() in lib/vsprintf.c uses this string. Maybe Rasmus has some better idea?
+> 
+> Thanks,
+> Vlastimil
+> 
+> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+> index f746e44d4046..4add88ef63f0 100644
+> --- a/include/linux/nodemask.h
+> +++ b/include/linux/nodemask.h
+> @@ -103,7 +103,7 @@ extern nodemask_t _unused_nodemask_arg_;
+>   *
+>   * Can be used to provide arguments for '%*pb[l]' when printing a nodemask.
+>   */
+> -#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp)->bits
+> +#define nodemask_pr_args(maskp)		((maskp) ? MAX_NUMNODES : (int) sizeof("null")), ((maskp) ? (maskp)->bits : NULL)
+>  
+>  /*
+>   * The inline keyword gives the compiler room to decide to inline, or
+> 
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1767e50844ac..51c091849dcb 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -408,7 +408,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 	if (oc->nodemask)
- 		pr_cont("%*pbl", nodemask_pr_args(oc->nodemask));
- 	else
--		pr_cont("(null)\n");
-+		pr_cont("(null)");
- 	pr_cont(",  order=%d, oom_score_adj=%hd\n",
- 		oc->order, current->signal->oom_score_adj);
- 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
+That's creative.  I'm not sure if it's worth it considering 
+nodemask_pr_args() is usually used in a context where we know we have a 
+nodemask :)  These would be the only two exceptions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
