@@ -1,91 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 61FF26B02E4
-	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 18:33:26 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 80so76225675pfy.2
-        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 15:33:26 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2BB6B02E5
+	for <linux-mm@kvack.org>; Thu, 19 Jan 2017 19:05:54 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 80so77096023pfy.2
+        for <linux-mm@kvack.org>; Thu, 19 Jan 2017 16:05:54 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 31si4939486plf.32.2017.01.19.15.33.25
+        by mx.google.com with ESMTPS id d21si4947924pgi.331.2017.01.19.16.05.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jan 2017 15:33:25 -0800 (PST)
-Date: Thu, 19 Jan 2017 15:33:24 -0800
+        Thu, 19 Jan 2017 16:05:53 -0800 (PST)
+Date: Thu, 19 Jan 2017 16:05:52 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/1] mm/ksm: improve deduplication of zero pages with
- colouring
-Message-Id: <20170119153324.69cd6ba29704b02040412ec6@linux-foundation.org>
-In-Reply-To: <1484850953-23941-1-git-send-email-imbrenda@linux.vnet.ibm.com>
-References: <1484850953-23941-1-git-send-email-imbrenda@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 06/12] mm: track active portions of a section at boot
+Message-Id: <20170119160552.7bdc2e41f19bd52987a752bc@linux-foundation.org>
+In-Reply-To: <148486363375.19694.14661926204436340901.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <148486359570.19694.18265063120757801811.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<148486363375.19694.14661926204436340901.stgit@dwillia2-desk3.amr.corp.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, borntraeger@de.ibm.com, hughd@google.com, aarcange@redhat.com, chrisw@sous-sol.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>, linux-nvdimm@ml01.01.org, Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org, Stephen Bates <stephen.bates@microsemi.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 19 Jan 2017 19:35:53 +0100 Claudio Imbrenda <imbrenda@linux.vnet.ibm.com> wrote:
+On Thu, 19 Jan 2017 14:07:13 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
 
-> Some architectures have a set of zero pages (coloured zero pages)
-> instead of only one zero page, in order to improve the cache
-> performance. In those cases, the kernel samepage merger (KSM) would
-> merge all the allocated pages that happen to be filled with zeroes to
-> the same deduplicated page, thus losing all the advantages of coloured
-> zero pages.
+> Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
+> section active bitmask, each bit representing 2MB (SECTION_SIZE (128M) /
+> map_active bitmask length (64)).
 > 
-> This behaviour is noticeable when a process accesses large arrays of
-> allocated pages containing zeroes. A test I conducted on s390 shows
-> that there is a speed penalty when KSM merges such pages, compared to
-> not merging them or using actual zero pages from the start without
-> breaking the COW.
-> 
-> This patch fixes this behaviour. When coloured zero pages are present,
-> the checksum of a zero page is calculated during initialisation, and
-> compared with the checksum of the current canditate during merging. In
-> case of a match, the normal merging routine is used to merge the page
-> with the correct coloured zero page, which ensures the candidate page
-> is checked to be equal to the target zero page.
-> 
-> A sysfs entry is also added to toggle this behaviour, since it can
-> potentially introduce performance regressions, especially on
-> architectures without coloured zero pages. The default value is
-> disabled, for backwards compatibility.
-> 
-> With this patch, the performance with KSM is the same as with non
-> COW-broken actual zero pages, which is also the same as without KSM.
-> 
-> ...
->
-> @@ -2233,6 +2267,28 @@ static ssize_t merge_across_nodes_store(struct kobject *kobj,
->  KSM_ATTR(merge_across_nodes);
->  #endif
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1083,6 +1083,8 @@ struct mem_section_usage {
+>  	unsigned long pageblock_flags[0];
+>  };
 >  
-> +static ssize_t use_zero_pages_show(struct kobject *kobj,
-> +				struct kobj_attribute *attr, char *buf)
-> +{
-> +	return sprintf(buf, "%u\n", ksm_use_zero_pages);
-> +}
-> +static ssize_t use_zero_pages_store(struct kobject *kobj,
-> +				   struct kobj_attribute *attr,
-> +				   const char *buf, size_t count)
-> +{
-> +	int err;
-> +	bool value;
+> +void section_active_init(unsigned long pfn, unsigned long nr_pages);
 > +
-> +	err = kstrtobool(buf, &value);
-> +	if (err)
-> +		return -EINVAL;
-> +
-> +	ksm_use_zero_pages = value;
-> +
-> +	return count;
-> +}
-> +KSM_ATTR(use_zero_pages);
+>  struct page;
+>  struct page_ext;
+>  struct mem_section {
+> @@ -1224,6 +1226,7 @@ void sparse_init(void);
+>  #else
+>  #define sparse_init()	do {} while (0)
+>  #define sparse_index_init(_sec, _nid)  do {} while (0)
+> +#define section_active_init(_pfn, _nr_pages) do {} while (0)
 
-Please send along an update for Documentation/vm/ksm.txt?  Be sure that
-it fully explains "since it can potentially introduce performance
-regressions", so our users are able to understand whether or not they
-should use this.
+Using a #define for this is crappy.  A static inline does typechecking
+and can suppress unused-var warnings in callers.
+
+>  #endif /* CONFIG_SPARSEMEM */
+>  
+>  /*
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 68ccf5bcdbb2..9a3ab6c245a8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6352,10 +6352,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+>  
+>  	/* Print out the early node map */
+>  	pr_info("Early memory node ranges\n");
+> -	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
+> +	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+>  		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
+>  			(u64)start_pfn << PAGE_SHIFT,
+>  			((u64)end_pfn << PAGE_SHIFT) - 1);
+> +		section_active_init(start_pfn, end_pfn - start_pfn);
+
+section_active_init() can be __init, methinks.  We don't want to carry
+the extra .text after boot.
+
+--- a/include/linux/mmzone.h~mm-track-active-portions-of-a-section-at-boot-fix
++++ a/include/linux/mmzone.h
+@@ -1083,7 +1083,7 @@ struct mem_section_usage {
+ 	unsigned long pageblock_flags[0];
+ };
+ 
+-void section_active_init(unsigned long pfn, unsigned long nr_pages);
++void __init section_active_init(unsigned long pfn, unsigned long nr_pages);
+ 
+ struct page;
+ struct page_ext;
+@@ -1226,6 +1226,10 @@ void sparse_init(void);
+ #else
+ #define sparse_init()	do {} while (0)
+ #define sparse_index_init(_sec, _nid)  do {} while (0)
++static inline void section_active_init(unsigned long pfn,
++				       unsigned long nr_pages)
++{
++}
+ #define section_active_init(_pfn, _nr_pages) do {} while (0)
+ #endif /* CONFIG_SPARSEMEM */
+ 
+--- a/mm/sparse.c~mm-track-active-portions-of-a-section-at-boot-fix
++++ a/mm/sparse.c
+@@ -168,13 +168,13 @@ void __meminit mminit_validate_memmodel_
+ 	}
+ }
+ 
+-static int section_active_index(phys_addr_t phys)
++static int __init section_active_index(phys_addr_t phys)
+ {
+ 	return (phys & ~(PA_SECTION_MASK)) / SECTION_ACTIVE_SIZE;
+ }
+ 
+-static unsigned long section_active_mask(unsigned long pfn,
+-		unsigned long nr_pages)
++static unsigned long __init section_active_mask(unsigned long pfn,
++						unsigned long nr_pages)
+ {
+ 	int idx_start, idx_size;
+ 	phys_addr_t start, size;
+@@ -195,7 +195,7 @@ static unsigned long section_active_mask
+ 	return ((1UL << idx_size) - 1) << idx_start;
+ }
+ 
+-void section_active_init(unsigned long pfn, unsigned long nr_pages)
++void __init section_active_init(unsigned long pfn, unsigned long nr_pages)
+ {
+ 	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+ 	int i, start_sec = pfn_to_section_nr(pfn);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
