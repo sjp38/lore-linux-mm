@@ -1,40 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1356C6B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 06:18:51 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id z128so93018190pfb.4
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 03:18:51 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a71si6532601pfg.294.2017.01.20.03.18.49
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jan 2017 03:18:50 -0800 (PST)
-Date: Fri, 20 Jan 2017 11:17:47 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] mm: add arch-independent testcases for RODATA
-Message-ID: <20170120111747.GB18576@leverpostej>
-References: <20170119145114.GA19772@pjb1027-Latitude-E5410>
- <20170119155701.GA24654@leverpostej>
- <CAErMHp-L-B_9pWVRpqRSpH8LL4VEmHHrFDUbkvNZbXC=uWCzng@mail.gmail.com>
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D486B0033
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 06:48:17 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id o65so105946600yba.3
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 03:48:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 12si4703987qkw.311.2017.01.20.03.48.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jan 2017 03:48:16 -0800 (PST)
+Date: Fri, 20 Jan 2017 11:48:09 +0000
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v6 kernel 3/5] virtio-balloon: speed up inflate/deflate
+ process
+Message-ID: <20170120114809.GH2658@work-vm>
+References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
+ <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAErMHp-L-B_9pWVRpqRSpH8LL4VEmHHrFDUbkvNZbXC=uWCzng@mail.gmail.com>
+In-Reply-To: <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: park jinbum <jinb.park7@gmail.com>
-Cc: hpa@zytor.com, x86@kernel.org, akpm@linuxfoundation.org, keescook@chromium.org, linux-mm@kvack.org, arjan@linux.intel.com, mingo@redhat.com, tglx@linutronix.de, linux@armlinux.org.uk, kernel-janitors@vger.kernel.org, kernel-hardening@lists.openwall.com, labbott@redhat.com, linux-kernel@vger.kernel.org
+To: Liang Li <liang.z.li@intel.com>
+Cc: kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, mst@redhat.com, david@redhat.com, aarcange@redhat.com, quintela@redhat.com
 
-On Fri, Jan 20, 2017 at 03:49:46PM +0900, park jinbum wrote:
-> Where is the best place for common test file in general??
-> 
->  kernel/rodata_test.c
->  include/rodata_test.h => Is it fine??
+* Liang Li (liang.z.li@intel.com) wrote:
 
-I had assumed you would use mm/rodata_test.c, as you do in this patch
-(i.e. a *new* common file). That seems fine to me.
+<snip>
 
-Thanks,
-Mark.
+> +static void free_extended_page_bitmap(struct virtio_balloon *vb)
+> +{
+> +	int i, bmap_count = vb->nr_page_bmap;
+> +
+> +	for (i = 1; i < bmap_count; i++) {
+> +		kfree(vb->page_bitmap[i]);
+> +		vb->page_bitmap[i] = NULL;
+> +		vb->nr_page_bmap--;
+> +	}
+> +}
+> +
+> +static void kfree_page_bitmap(struct virtio_balloon *vb)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < vb->nr_page_bmap; i++)
+> +		kfree(vb->page_bitmap[i]);
+> +}
+
+It might be worth commenting that pair of functions to make it clear
+why they are so different; I guess the kfree_page_bitmap
+is used just before you free the structure above it so you
+don't need to keep the count/pointers updated?
+
+Dave
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
