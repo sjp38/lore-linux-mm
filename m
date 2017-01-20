@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D486B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 06:48:17 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id o65so105946600yba.3
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 03:48:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 12si4703987qkw.311.2017.01.20.03.48.15
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52AD06B0033
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:03 -0500 (EST)
+Received: by mail-yw0-f198.google.com with SMTP id z143so99952830ywz.7
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 04:35:03 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d63si1966908ywc.365.2017.01.20.04.35.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jan 2017 03:48:16 -0800 (PST)
-Date: Fri, 20 Jan 2017 11:48:09 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v6 kernel 3/5] virtio-balloon: speed up inflate/deflate
- process
-Message-ID: <20170120114809.GH2658@work-vm>
-References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
- <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
+        Fri, 20 Jan 2017 04:35:02 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0KCYYZP127498
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:02 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28302h9634-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:01 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 20 Jan 2017 12:35:00 -0000
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [PATCH 0/3] memblock: physical memory list cleanups
+Date: Fri, 20 Jan 2017 13:34:53 +0100
+Message-Id: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, amit.shah@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, pbonzini@redhat.com, mst@redhat.com, david@redhat.com, aarcange@redhat.com, quintela@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Liang Li (liang.z.li@intel.com) wrote:
+Just a couple of trivial memblock patches, which could also be merged
+into one patch; whatever is preferred.
 
-<snip>
+Since commit 70210ed950b5 ("mm/memblock: add physical memory list")
+the memblock structure knows about a physical memory list.
 
-> +static void free_extended_page_bitmap(struct virtio_balloon *vb)
-> +{
-> +	int i, bmap_count = vb->nr_page_bmap;
-> +
-> +	for (i = 1; i < bmap_count; i++) {
-> +		kfree(vb->page_bitmap[i]);
-> +		vb->page_bitmap[i] = NULL;
-> +		vb->nr_page_bmap--;
-> +	}
-> +}
-> +
-> +static void kfree_page_bitmap(struct virtio_balloon *vb)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < vb->nr_page_bmap; i++)
-> +		kfree(vb->page_bitmap[i]);
-> +}
+The memblock code should also print a sane name instead of "unknown"
+if it calls memblock_type_name() to get a name for the physmem
+memblock type.
+In addition the physmem list should also be dumped, if present, and
+memblock_dump_all is called to improve debugability.
 
-It might be worth commenting that pair of functions to make it clear
-why they are so different; I guess the kfree_page_bitmap
-is used just before you free the structure above it so you
-don't need to keep the count/pointers updated?
+The last patch embeds the memblock type name into the memblock type
+structure in order to hopefully make the code a bit more easier and to
+get rid of a bit of code duplication.
 
-Dave
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+Thanks,
+Heiko
+
+Heiko Carstens (3):
+  memblock: let memblock_type_name know about physmem type
+  memblock: also dump physmem list within __memblock_dump_all
+  memblock: embed memblock type name within struct memblock_type
+
+ arch/s390/kernel/crash_dump.c |  1 +
+ include/linux/memblock.h      |  1 +
+ mm/memblock.c                 | 32 +++++++++++++-------------------
+ 3 files changed, 15 insertions(+), 19 deletions(-)
+
+-- 
+2.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
