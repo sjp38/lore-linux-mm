@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EBC86B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:02:50 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c73so91339602pfb.7
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:02:50 -0800 (PST)
-Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
-        by mx.google.com with ESMTPS id q12si6370498plk.245.2017.01.20.02.02.49
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 504976B0033
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 05:38:56 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id kq3so14097246wjc.1
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:38:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t202si2940529wmd.108.2017.01.20.02.38.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jan 2017 02:02:49 -0800 (PST)
-Received: by mail-pg0-x22d.google.com with SMTP id 194so22587678pgd.2
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 02:02:49 -0800 (PST)
-Date: Fri, 20 Jan 2017 02:02:47 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, oom: header nodemask is NULL when cpusets are
- disabled
-In-Reply-To: <e32b48f0-e345-2a44-9f95-0403eeb6a4fd@suse.cz>
-Message-ID: <alpine.DEB.2.10.1701200202001.88633@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1701181347320.142399@chino.kir.corp.google.com> <279f10c2-3eaa-c641-094f-3070db67d84f@suse.cz> <alpine.DEB.2.10.1701191454470.2381@chino.kir.corp.google.com> <e32b48f0-e345-2a44-9f95-0403eeb6a4fd@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Jan 2017 02:38:55 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 0/4] fix premature OOM regression in 4.7+ due to cpuset races
+Date: Fri, 20 Jan 2017 11:38:39 +0100
+Message-Id: <20170120103843.24587-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, 20 Jan 2017, Vlastimil Babka wrote:
+Changes since v1:
+- add/remove comments per Michal Hocko and Hillf Danton
+- move no_zone: label in patch 3 so we don't miss part of ac initialization
 
-> Could we simplify both patches with something like this?
-> Although the sizeof("null") is not the nicest thing, because it relies on knowledge
-> that pointer() in lib/vsprintf.c uses this string. Maybe Rasmus has some better idea?
-> 
-> Thanks,
-> Vlastimil
-> 
-> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-> index f746e44d4046..4add88ef63f0 100644
-> --- a/include/linux/nodemask.h
-> +++ b/include/linux/nodemask.h
-> @@ -103,7 +103,7 @@ extern nodemask_t _unused_nodemask_arg_;
->   *
->   * Can be used to provide arguments for '%*pb[l]' when printing a nodemask.
->   */
-> -#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp)->bits
-> +#define nodemask_pr_args(maskp)		((maskp) ? MAX_NUMNODES : (int) sizeof("null")), ((maskp) ? (maskp)->bits : NULL)
->  
->  /*
->   * The inline keyword gives the compiler room to decide to inline, or
-> 
+This is v2 of my attempt to fix the recent report based on LTP cpuset stress
+test [1]. The intention is to go to stable 4.9 LTSS with this, as triggering
+repeated OOMs is not nice. That's why the patches try to be not too intrusive.
 
-That's creative.  I'm not sure if it's worth it considering 
-nodemask_pr_args() is usually used in a context where we know we have a 
-nodemask :)  These would be the only two exceptions.
+Unfortunately why investigating I found that modifying the testcase to use
+per-VMA policies instead of per-task policies will bring the OOM's back, but
+that seems to be much older and harder to fix problem. I have posted a RFC [2]
+but I believe that fixing the recent regressions has a higher priority.
+
+Longer-term we might try to think how to fix the cpuset mess in a better and
+less error prone way. I was for example very surprised to learn, that cpuset
+updates change not only task->mems_allowed, but also nodemask of mempolicies.
+Until now I expected the parameter to alloc_pages_nodemask() to be stable.
+I wonder why do we then treat cpusets specially in get_page_from_freelist()
+and distinguish HARDWALL etc, when there's unconditional intersection between
+mempolicy and cpuset. I would expect the nodemask adjustment for saving
+overhead in g_p_f(), but that clearly doesn't happen in the current form.
+So we have both crazy complexity and overhead, AFAICS.
+
+[1] https://lkml.kernel.org/r/CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com
+[2] https://lkml.kernel.org/r/7c459f26-13a6-a817-e508-b65b903a8378@suse.cz
+
+Vlastimil Babka (4):
+  mm, page_alloc: fix check for NULL preferred_zone
+  mm, page_alloc: fix fast-path race with cpuset update or removal
+  mm, page_alloc: move cpuset seqcount checking to slowpath
+  mm, page_alloc: fix premature OOM when racing with cpuset mems update
+
+ include/linux/mmzone.h |  6 ++++-
+ mm/page_alloc.c        | 68 ++++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 52 insertions(+), 22 deletions(-)
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
