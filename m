@@ -1,177 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E075E6B0253
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:09 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 14so93431223pgg.4
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 04:35:09 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b1si6741845pgn.86.2017.01.20.04.35.08
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8DD6B0260
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:46 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id c7so14572622wjb.7
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 04:35:46 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t3si3312458wmd.79.2017.01.20.04.35.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jan 2017 04:35:08 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0KCYRRJ078126
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:08 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 282y7bmp57-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:08 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Fri, 20 Jan 2017 12:35:04 -0000
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 3/3] memblock: embed memblock type name within struct memblock_type
-Date: Fri, 20 Jan 2017 13:34:56 +0100
-In-Reply-To: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
-References: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
-Message-Id: <20170120123456.46508-4-heiko.carstens@de.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Jan 2017 04:35:45 -0800 (PST)
+Subject: Re: [PATCH 1/3] mm: alloc_contig_range: allow to specify GFP mask
+References: <20170119170707.31741-1-l.stach@pengutronix.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <81849c0d-b7aa-faf2-484c-66b0ea0a7e95@suse.cz>
+Date: Fri, 20 Jan 2017 13:35:40 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170119170707.31741-1-l.stach@pengutronix.de>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lucas Stach <l.stach@pengutronix.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alexander Graf <agraf@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>, Michal Hocko <mhocko@suse.com>, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linux-xtensa@linux-xtensa.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-Provide the name of each memblock type with struct memblock_type. This
-allows to get rid of the function memblock_type_name() and duplicating
-the type names in __memblock_dump_all().
+On 01/19/2017 06:07 PM, Lucas Stach wrote:
+> Currently alloc_contig_range assumes that the compaction should
+> be done with the default GFP_KERNEL flags. This is probably
+> right for all current uses of this interface, but may change as
+> CMA is used in more use-cases (including being the default DMA
+> memory allocator on some platforms).
+> 
+> Change the function prototype, to allow for passing through the
+> GFP mask set by upper layers. No functional change in this patch,
+> just making the assumptions a bit more obvious.
+> 
+> Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
 
-The only memblock_type usage out of mm/memblock.c seems to be
-arch/s390/kernel/crash_dump.c. While at it, give it a name.
+[...]
 
-Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
----
- arch/s390/kernel/crash_dump.c |  1 +
- include/linux/memblock.h      |  1 +
- mm/memblock.c                 | 35 +++++++++++------------------------
- 3 files changed, 13 insertions(+), 24 deletions(-)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index eced9fee582b..6d392d8dee36 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7230,6 +7230,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+>   *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
+>   *			in range must have the same migratetype and it must
+>   *			be either of the two.
+> + * @gfp_mask:	GFP mask to use during compaction
+>   *
+>   * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
+>   * aligned, however it's the caller's responsibility to guarantee that
+> @@ -7243,7 +7244,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+>   * need to be freed with free_contig_range().
+>   */
+>  int alloc_contig_range(unsigned long start, unsigned long end,
+> -		       unsigned migratetype)
+> +		       unsigned migratetype, gfp_t gfp_mask)
+>  {
+>  	unsigned long outer_start, outer_end;
+>  	unsigned int order;
+> @@ -7255,7 +7256,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  		.zone = page_zone(pfn_to_page(start)),
+>  		.mode = MIGRATE_SYNC,
+>  		.ignore_skip_hint = true,
+> -		.gfp_mask = GFP_KERNEL,
+> +		.gfp_mask = gfp_mask,
 
-diff --git a/arch/s390/kernel/crash_dump.c b/arch/s390/kernel/crash_dump.c
-index f9293bfefb7f..9c9440dc253a 100644
---- a/arch/s390/kernel/crash_dump.c
-+++ b/arch/s390/kernel/crash_dump.c
-@@ -31,6 +31,7 @@ static struct memblock_type oldmem_type = {
- 	.max = 1,
- 	.total_size = 0,
- 	.regions = &oldmem_region,
-+	.name = "oldmem",
- };
- 
- struct save_area {
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5b759c9acf97..8dee5ec80adf 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -42,6 +42,7 @@ struct memblock_type {
- 	unsigned long max;	/* size of the allocated array */
- 	phys_addr_t total_size;	/* size of all regions */
- 	struct memblock_region *regions;
-+	char *name;
- };
- 
- struct memblock {
-diff --git a/mm/memblock.c b/mm/memblock.c
-index fbaaf713827c..82d21e598e8c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -35,15 +35,18 @@ struct memblock memblock __initdata_memblock = {
- 	.memory.regions		= memblock_memory_init_regions,
- 	.memory.cnt		= 1,	/* empty dummy entry */
- 	.memory.max		= INIT_MEMBLOCK_REGIONS,
-+	.memory.name		= "memory",
- 
- 	.reserved.regions	= memblock_reserved_init_regions,
- 	.reserved.cnt		= 1,	/* empty dummy entry */
- 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
-+	.reserved.name		= "reserved",
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
- 	.physmem.regions	= memblock_physmem_init_regions,
- 	.physmem.cnt		= 1,	/* empty dummy entry */
- 	.physmem.max		= INIT_PHYSMEM_REGIONS,
-+	.physmem.name		= "physmem",
- #endif
- 
- 	.bottom_up		= false,
-@@ -64,22 +67,6 @@ ulong __init_memblock choose_memblock_flags(void)
- 	return system_has_some_mirror ? MEMBLOCK_MIRROR : MEMBLOCK_NONE;
- }
- 
--/* inline so we don't get a warning when pr_debug is compiled out */
--static __init_memblock const char *
--memblock_type_name(struct memblock_type *type)
--{
--	if (type == &memblock.memory)
--		return "memory";
--	else if (type == &memblock.reserved)
--		return "reserved";
--#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
--	else if (type == &memblock.physmem)
--		return "physmem";
--#endif
--	else
--		return "unknown";
--}
--
- /* adjust *@size so that (@base + *@size) doesn't overflow, return new size */
- static inline phys_addr_t memblock_cap_size(phys_addr_t base, phys_addr_t *size)
- {
-@@ -406,12 +393,12 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
- 	}
- 	if (!addr) {
- 		pr_err("memblock: Failed to double %s array from %ld to %ld entries !\n",
--		       memblock_type_name(type), type->max, type->max * 2);
-+		       type->name, type->max, type->max * 2);
- 		return -1;
- 	}
- 
- 	memblock_dbg("memblock: %s is doubled to %ld at [%#010llx-%#010llx]",
--			memblock_type_name(type), type->max * 2, (u64)addr,
-+			type->name, type->max * 2, (u64)addr,
- 			(u64)addr + new_size - 1);
- 
- 	/*
-@@ -1675,14 +1662,14 @@ phys_addr_t __init_memblock memblock_get_current_limit(void)
- 	return memblock.current_limit;
- }
- 
--static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
-+static void __init_memblock memblock_dump(struct memblock_type *type)
- {
- 	unsigned long long base, size;
- 	unsigned long flags;
- 	int idx;
- 	struct memblock_region *rgn;
- 
--	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
-+	pr_info(" %s.cnt  = 0x%lx\n", type->name, type->cnt);
- 
- 	for_each_memblock_type(type, rgn) {
- 		char nid_buf[32] = "";
-@@ -1696,7 +1683,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
- 				 memblock_get_region_node(rgn));
- #endif
- 		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s flags: %#lx\n",
--			name, idx, base, base + size - 1, size, nid_buf, flags);
-+			type->name, idx, base, base + size - 1, size, nid_buf, flags);
- 	}
- }
- 
-@@ -1707,10 +1694,10 @@ void __init_memblock __memblock_dump_all(void)
- 		(unsigned long long)memblock.memory.total_size,
- 		(unsigned long long)memblock.reserved.total_size);
- 
--	memblock_dump(&memblock.memory, "memory");
--	memblock_dump(&memblock.reserved, "reserved");
-+	memblock_dump(&memblock.memory);
-+	memblock_dump(&memblock.reserved);
- #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
--	memblock_dump(&memblock.physmem, "physmem");
-+	memblock_dump(&memblock.physmem);
- #endif
- }
- 
--- 
-2.8.4
+I think you should apply memalloc_noio_flags() here (and Michal should
+then convert it to the new name in his scoped gfp_nofs series). Note
+that then it's technically a functional change, but it's needed.
+Otherwise looks good.
+
+>  	};
+>  	INIT_LIST_HEAD(&cc.migratepages);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
