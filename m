@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 52AD06B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:03 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id z143so99952830ywz.7
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 04:35:03 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d63si1966908ywc.365.2017.01.20.04.35.02
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7BD6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:04 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f5so93595437pgi.1
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 04:35:04 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l187si2069918pfc.285.2017.01.20.04.35.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jan 2017 04:35:02 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0KCYYZP127498
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:02 -0500
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28302h9634-1
+        Fri, 20 Jan 2017 04:35:03 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0KCYMMF077348
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:03 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 283j0a1qjr-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:01 -0500
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:35:02 -0500
 Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
 	Fri, 20 Jan 2017 12:35:00 -0000
 From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [PATCH 0/3] memblock: physical memory list cleanups
-Date: Fri, 20 Jan 2017 13:34:53 +0100
-Message-Id: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
+Subject: [PATCH 1/3] memblock: let memblock_type_name know about physmem type
+Date: Fri, 20 Jan 2017 13:34:54 +0100
+In-Reply-To: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
+References: <20170120123456.46508-1-heiko.carstens@de.ibm.com>
+Message-Id: <20170120123456.46508-2-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Just a couple of trivial memblock patches, which could also be merged
-into one patch; whatever is preferred.
-
 Since commit 70210ed950b5 ("mm/memblock: add physical memory list")
 the memblock structure knows about a physical memory list.
 
-The memblock code should also print a sane name instead of "unknown"
-if it calls memblock_type_name() to get a name for the physmem
-memblock type.
-In addition the physmem list should also be dumped, if present, and
-memblock_dump_all is called to improve debugability.
+memblock_type_name() should return "physmem" instead of "unknown" if
+the name of the physmem memblock_type is being asked for.
 
-The last patch embeds the memblock type name into the memblock type
-structure in order to hopefully make the code a bit more easier and to
-get rid of a bit of code duplication.
+Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+---
+ mm/memblock.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Thanks,
-Heiko
-
-Heiko Carstens (3):
-  memblock: let memblock_type_name know about physmem type
-  memblock: also dump physmem list within __memblock_dump_all
-  memblock: embed memblock type name within struct memblock_type
-
- arch/s390/kernel/crash_dump.c |  1 +
- include/linux/memblock.h      |  1 +
- mm/memblock.c                 | 32 +++++++++++++-------------------
- 3 files changed, 15 insertions(+), 19 deletions(-)
-
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 7608bc305936..acbfa1dffff2 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -72,6 +72,10 @@ memblock_type_name(struct memblock_type *type)
+ 		return "memory";
+ 	else if (type == &memblock.reserved)
+ 		return "reserved";
++#ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
++	else if (type == &memblock.physmem)
++		return "physmem";
++#endif
+ 	else
+ 		return "unknown";
+ }
 -- 
 2.8.4
 
