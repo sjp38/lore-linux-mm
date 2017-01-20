@@ -1,126 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA3E6B0033
-	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 10:03:00 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so15525527wjc.4
-        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:03:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x107si8233946wrb.294.2017.01.20.07.02.58
+	by kanga.kvack.org (Postfix) with ESMTP id A5F8E6B0033
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 10:26:08 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id yr2so15646409wjc.4
+        for <linux-mm@kvack.org>; Fri, 20 Jan 2017 07:26:08 -0800 (PST)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id g200si3804466wmd.121.2017.01.20.07.26.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Jan 2017 07:02:58 -0800 (PST)
-Subject: Re: [PATCH 4/4] mm, page_alloc: Only use per-cpu allocator for
- irq-safe requests
+        Fri, 20 Jan 2017 07:26:07 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id B002E9921E
+	for <linux-mm@kvack.org>; Fri, 20 Jan 2017 15:26:06 +0000 (UTC)
+Date: Fri, 20 Jan 2017 15:26:06 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
+ context
+Message-ID: <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
 References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-5-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <675145cb-e026-7ceb-ce96-446d3dd61fe0@suse.cz>
-Date: Fri, 20 Jan 2017 16:02:56 +0100
+ <20170117092954.15413-4-mgorman@techsingularity.net>
+ <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170117092954.15413-5-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Petr Mladek <pmladek@suse.cz>
 
-On 01/17/2017 10:29 AM, Mel Gorman wrote:
+On Fri, Jan 20, 2017 at 03:26:05PM +0100, Vlastimil Babka wrote:
+> > @@ -2392,8 +2404,24 @@ void drain_all_pages(struct zone *zone)
+> >  		else
+> >  			cpumask_clear_cpu(cpu, &cpus_with_pcps);
+> >  	}
+> > -	on_each_cpu_mask(&cpus_with_pcps, (smp_call_func_t) drain_local_pages,
+> > -								zone, 1);
+> > +
+> > +	if (works) {
+> > +		for_each_cpu(cpu, &cpus_with_pcps) {
+> > +			struct work_struct *work = per_cpu_ptr(works, cpu);
+> > +			INIT_WORK(work, drain_local_pages_wq);
+> > +			schedule_work_on(cpu, work);
+> 
+> This translates to queue_work_on(), which has the comment of "We queue
+> the work to a specific CPU, the caller must ensure it can't go away.",
+> so is this safe? lru_add_drain_all() uses get_online_cpus() around this.
+> 
 
-[...]
+get_online_cpus() would be required.
 
-> @@ -1244,10 +1243,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->  		return;
->  
->  	migratetype = get_pfnblock_migratetype(page, pfn);
-> -	local_irq_save(flags);
-> -	__count_vm_events(PGFREE, 1 << order);
-> +	count_vm_events(PGFREE, 1 << order);
+> schedule_work_on() also uses the generic system_wq, while lru drain has
+> its own workqueue with WQ_MEM_RECLAIM so it seems that would be useful
+> here as well?
+> 
 
-Maybe this could be avoided by moving the counting into free_one_page()?
-Diff suggestion at the end of e-mail.
+I would be reluctant to introduce a dedicated queue unless there was a
+definite case where an OOM occurred because pages were pinned on per-cpu
+lists and couldn't be drained because the buddy allocator was depleted.
+As it was, I thought the fallback case was excessively paranoid.
 
->  	free_one_page(page_zone(page), page, pfn, order, migratetype);
-> -	local_irq_restore(flags);
->  }
->  
->  static void __init __free_pages_boot_core(struct page *page, unsigned int order)
-> @@ -2219,8 +2216,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  			int migratetype, bool cold)
->  {
->  	int i, alloced = 0;
-> +	unsigned long flags;
->  
-> -	spin_lock(&zone->lock);
-> +	spin_lock_irqsave(&zone->lock, flags);
->  	for (i = 0; i < count; ++i) {
->  		struct page *page = __rmqueue(zone, order, migratetype);
->  		if (unlikely(page == NULL))
-> @@ -2256,7 +2254,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
->  	 * pages added to the pcp list.
->  	 */
->  	__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
-> -	spin_unlock(&zone->lock);
-> +	spin_unlock_irqrestore(&zone->lock, flags);
->  	return alloced;
->  }
->  
-> @@ -2472,16 +2470,20 @@ void free_hot_cold_page(struct page *page, bool cold)
->  {
->  	struct zone *zone = page_zone(page);
->  	struct per_cpu_pages *pcp;
-> -	unsigned long flags;
->  	unsigned long pfn = page_to_pfn(page);
->  	int migratetype;
->  
->  	if (!free_pcp_prepare(page))
->  		return;
->  
-> +	if (in_interrupt()) {
-> +		__free_pages_ok(page, 0);
-> +		return;
-> +	}
+> > +		}
+> > +		for_each_cpu(cpu, &cpus_with_pcps)
+> > +			flush_work(per_cpu_ptr(works, cpu));
+> > +	} else {
+> > +		for_each_cpu(cpu, &cpus_with_pcps) {
+> > +			struct work_struct work;
+> > +
+> > +			INIT_WORK(&work, drain_local_pages_wq);
+> > +			schedule_work_on(cpu, &work);
+> > +			flush_work(&work);
+> 
+> Totally out of scope, but I wonder if schedule_on_each_cpu() could use
+> the same fallback that's here?
+> 
 
-I think this should go *before* free_pcp_prepare() otherwise
-free_pages_prepare() gets done twice in interrupt.
+I'm not aware of a case where it really has been a problem. I only considered
+it here as the likely caller is in a context that is failing allocations.
 
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 15b11fc0cd75..8c6f8a790272 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1149,6 +1149,7 @@ static void free_one_page(struct zone *zone,
- {
- 	unsigned long nr_scanned, flags;
- 	spin_lock_irqsave(&zone->lock, flags);
-+	__count_vm_events(PGFREE, 1 << order);
- 	nr_scanned = node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED);
- 	if (nr_scanned)
- 		__mod_node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED, -nr_scanned);
-@@ -1243,7 +1244,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 		return;
- 
- 	migratetype = get_pfnblock_migratetype(page, pfn);
--	count_vm_events(PGFREE, 1 << order);
- 	free_one_page(page_zone(page), page, pfn, order, migratetype);
- }
- 
-@@ -2484,7 +2484,6 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	migratetype = get_pfnblock_migratetype(page, pfn);
- 	set_pcppage_migratetype(page, migratetype);
- 	preempt_disable();
--	__count_vm_event(PGFREE);
- 
- 	/*
- 	 * We only track unmovable, reclaimable and movable on pcp lists.
-@@ -2501,6 +2500,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 		migratetype = MIGRATE_MOVABLE;
- 	}
- 
-+	__count_vm_event(PGFREE);
- 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
- 	if (!cold)
- 		list_add(&page->lru, &pcp->lists[migratetype]);
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
