@@ -1,70 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC186B0253
-	for <linux-mm@kvack.org>; Sat, 21 Jan 2017 07:22:34 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so134476238pfb.7
-        for <linux-mm@kvack.org>; Sat, 21 Jan 2017 04:22:34 -0800 (PST)
-Received: from out0-156.mail.aliyun.com (out0-156.mail.aliyun.com. [140.205.0.156])
-        by mx.google.com with ESMTP id c78si9742424pfb.0.2017.01.21.04.22.33
-        for <linux-mm@kvack.org>;
-        Sat, 21 Jan 2017 04:22:33 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170120103843.24587-1-vbabka@suse.cz>
-In-Reply-To: <20170120103843.24587-1-vbabka@suse.cz>
-Subject: Re: [PATCH v2 0/4] fix premature OOM regression in 4.7+ due to cpuset races
-Date: Sat, 21 Jan 2017 20:22:24 +0800
-Message-ID: <003c01d273e1$0676cad0$13646070$@alibaba-inc.com>
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 34C146B0253
+	for <linux-mm@kvack.org>; Sat, 21 Jan 2017 08:17:45 -0500 (EST)
+Received: by mail-yw0-f197.google.com with SMTP id u8so86295407ywu.0
+        for <linux-mm@kvack.org>; Sat, 21 Jan 2017 05:17:45 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id a2si2818491ybi.152.2017.01.21.05.17.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 21 Jan 2017 05:17:44 -0800 (PST)
+Date: Sat, 21 Jan 2017 08:16:44 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+References: <20170118054945.GD18349@bombadil.infradead.org>
+ <20170118133243.GB7021@dhcp22.suse.cz>
+ <20170119110513.GA22816@bombadil.infradead.org>
+ <20170119113317.GO30786@dhcp22.suse.cz>
+ <20170119115243.GB22816@bombadil.infradead.org>
+ <20170119121135.GR30786@dhcp22.suse.cz>
+ <878tq5ff0i.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <878tq5ff0i.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Mel Gorman' <mgorman@techsingularity.net>, 'Michal Hocko' <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: NeilBrown <neilb@suse.com>
+Cc: Michal Hocko <mhocko@kernel.org>, willy@bombadil.infradead.org, willy@infradead.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Friday, January 20, 2017 6:39 PM Vlastimil Babka wrote: 
-> 
-> Changes since v1:
-> - add/remove comments per Michal Hocko and Hillf Danton
-> - move no_zone: label in patch 3 so we don't miss part of ac initialization
-> 
-> This is v2 of my attempt to fix the recent report based on LTP cpuset stress
-> test [1]. The intention is to go to stable 4.9 LTSS with this, as triggering
-> repeated OOMs is not nice. That's why the patches try to be not too intrusive.
-> 
-> Unfortunately why investigating I found that modifying the testcase to use
-> per-VMA policies instead of per-task policies will bring the OOM's back, but
-> that seems to be much older and harder to fix problem. I have posted a RFC [2]
-> but I believe that fixing the recent regressions has a higher priority.
-> 
-> Longer-term we might try to think how to fix the cpuset mess in a better and
-> less error prone way. I was for example very surprised to learn, that cpuset
-> updates change not only task->mems_allowed, but also nodemask of mempolicies.
-> Until now I expected the parameter to alloc_pages_nodemask() to be stable.
-> I wonder why do we then treat cpusets specially in get_page_from_freelist()
-> and distinguish HARDWALL etc, when there's unconditional intersection between
-> mempolicy and cpuset. I would expect the nodemask adjustment for saving
-> overhead in g_p_f(), but that clearly doesn't happen in the current form.
-> So we have both crazy complexity and overhead, AFAICS.
-> 
-> [1] https://lkml.kernel.org/r/CAFpQJXUq-JuEP=QPidy4p_=FN0rkH5Z-kfB4qBvsf6jMS87Edg@mail.gmail.com
-> [2] https://lkml.kernel.org/r/7c459f26-13a6-a817-e508-b65b903a8378@suse.cz
-> 
-> Vlastimil Babka (4):
->   mm, page_alloc: fix check for NULL preferred_zone
->   mm, page_alloc: fix fast-path race with cpuset update or removal
->   mm, page_alloc: move cpuset seqcount checking to slowpath
->   mm, page_alloc: fix premature OOM when racing with cpuset mems update
-> 
->  include/linux/mmzone.h |  6 ++++-
->  mm/page_alloc.c        | 68 ++++++++++++++++++++++++++++++++++----------------
->  2 files changed, 52 insertions(+), 22 deletions(-)
-> 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+On Sat, Jan 21, 2017 at 11:11:41AM +1100, NeilBrown wrote:
+> What are the benefits of GFP_TEMPORARY?  Presumably it doesn't guarantee
+> success any more than GFP_KERNEL does, but maybe it is slightly less
+> likely to fail, and somewhat less likely to block for a long time??  But
+> without some sort of promise, I wonder why anyone would use the
+> flag.  Is there a promise?  Or is it just "you can be nice to the MM
+> layer by setting this flag sometimes". ???
 
+My understanding is that the idea is to allow short-term use cases not
+to be mixed with long-term use cases --- in the Java world, to declare
+that a particular object will never be promoted from the "nursury"
+arena to the "tenured" arena, so that we don't end up with a situation
+where a page is used 90% for temporary objects, and 10% for a tenured
+object, such that later on we have a page which is 90% unused.
+
+Many of the existing users may in fact be for things like a temporary
+bounce buffer for I/O, where declaring this to the mm system could
+lead to less fragmented pages, but which would violate your proposed
+contract:
+
+>   GFP_TEMPORARY should be used when the memory allocated will either be
+>   freed, or will be placed in a reclaimable cache, before the process
+>   which allocated it enters an TASK_INTERRUPTIBLE sleep or returns to
+>   user-space.  It allows access to memory which is usually reserved for
+>   XXX and so can be expected to succeed more quickly during times of
+>   high memory pressure.
+
+I think what you are suggested is something very different, where you
+are thinking that for *very* short-term usage perhaps we could have a
+pool of memory, perhaps the same as the GFP_ATOMIC memory, or at least
+similar in mechanism, where such usage could be handy.
+
+Is there enough use cases where this would be useful?  In the local
+disk backed file system world, I doubt it.  But maybe in the (for
+example) NFS world, such a use would in fact be common enough that it
+would be useful.
+
+I'd suggest doing this though as a new category, perhaps
+GFP_REALLY_SHORT_TERM, or GFP_MAYFLY for short.  :-)
+
+		       	  	     	 	 - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
