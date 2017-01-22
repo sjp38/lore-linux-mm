@@ -1,131 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3081B6B0260
-	for <linux-mm@kvack.org>; Sat, 21 Jan 2017 23:45:13 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t18so12745081wmt.7
-        for <linux-mm@kvack.org>; Sat, 21 Jan 2017 20:45:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i74si9277966wmh.85.2017.01.21.20.45.11
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A94C26B0266
+	for <linux-mm@kvack.org>; Sat, 21 Jan 2017 23:45:53 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 14so154525083pgg.4
+        for <linux-mm@kvack.org>; Sat, 21 Jan 2017 20:45:53 -0800 (PST)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id f12si11583656pgn.136.2017.01.21.20.45.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 21 Jan 2017 20:45:11 -0800 (PST)
-From: NeilBrown <neilb@suse.com>
-Date: Sun, 22 Jan 2017 15:45:01 +1100
-Subject: Re: [ATTEND] many topics
-In-Reply-To: <20170121131644.zupuk44p5jyzu5c5@thunk.org>
-References: <20170118054945.GD18349@bombadil.infradead.org> <20170118133243.GB7021@dhcp22.suse.cz> <20170119110513.GA22816@bombadil.infradead.org> <20170119113317.GO30786@dhcp22.suse.cz> <20170119115243.GB22816@bombadil.infradead.org> <20170119121135.GR30786@dhcp22.suse.cz> <878tq5ff0i.fsf@notabene.neil.brown.name> <20170121131644.zupuk44p5jyzu5c5@thunk.org>
-Message-ID: <87ziijem9e.fsf@notabene.neil.brown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 21 Jan 2017 20:45:52 -0800 (PST)
+Received: by mail-pf0-x242.google.com with SMTP id f144so7906054pfa.2
+        for <linux-mm@kvack.org>; Sat, 21 Jan 2017 20:45:52 -0800 (PST)
+Date: Sun, 22 Jan 2017 13:45:18 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+Message-ID: <20170122044518.GB7057@tigerII.localdomain>
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+ <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
+ <20170121084338.GA405@jagdpanzerIV.localdomain>
+ <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Michal Hocko <mhocko@kernel.org>, willy@bombadil.infradead.org, willy@infradead.org, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: zhouxianrong <zhouxianrong@huawei.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, minchan@kernel.org, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
---=-=-=
-Content-Type: text/plain
+On (01/22/17 10:58), zhouxianrong wrote:
+> 1. memset is just set a int value but i want to set a long value.
 
-On Sun, Jan 22 2017, Theodore Ts'o wrote:
+ah... ok. because you union it with the handle.
 
-> On Sat, Jan 21, 2017 at 11:11:41AM +1100, NeilBrown wrote:
->> What are the benefits of GFP_TEMPORARY?  Presumably it doesn't guarantee
->> success any more than GFP_KERNEL does, but maybe it is slightly less
->> likely to fail, and somewhat less likely to block for a long time??  But
->> without some sort of promise, I wonder why anyone would use the
->> flag.  Is there a promise?  Or is it just "you can be nice to the MM
->> layer by setting this flag sometimes". ???
->
-> My understanding is that the idea is to allow short-term use cases not
-> to be mixed with long-term use cases --- in the Java world, to declare
-> that a particular object will never be promoted from the "nursury"
-> arena to the "tenured" arena, so that we don't end up with a situation
-> where a page is used 90% for temporary objects, and 10% for a tenured
-> object, such that later on we have a page which is 90% unused.
->
-> Many of the existing users may in fact be for things like a temporary
-> bounce buffer for I/O, where declaring this to the mm system could
-> lead to less fragmented pages, but which would violate your proposed
-> contract:
->
->>   GFP_TEMPORARY should be used when the memory allocated will either be
->>   freed, or will be placed in a reclaimable cache, before the process
->>   which allocated it enters an TASK_INTERRUPTIBLE sleep or returns to
->>   user-space.  It allows access to memory which is usually reserved for
->>   XXX and so can be expected to succeed more quickly during times of
->>   high memory pressure.
->
-> I think what you are suggested is something very different, where you
-> are thinking that for *very* short-term usage perhaps we could have a
-> pool of memory, perhaps the same as the GFP_ATOMIC memory, or at least
-> similar in mechanism, where such usage could be handy.
->
-> Is there enough use cases where this would be useful?  In the local
-> disk backed file system world, I doubt it.  But maybe in the (for
-> example) NFS world, such a use would in fact be common enough that it
-> would be useful.
->
-> I'd suggest doing this though as a new category, perhaps
-> GFP_REALLY_SHORT_TERM, or GFP_MAYFLY for short.  :-)
+> 2. using clear_page rather than memset MAYBE due to in arm64 arch
+>    it is a 64-bytes operations.
 
-I'm not suggesting this particular contract is necessarily a good thing
-to have.  I just suggested it as a possible definition of
-"GFP_TEMPORARY".
-If you are correct, then I was clearly wrong - which nicely serves to
-demonstrate that a clear definition is needed.
+clear_page() basically does memset(), which is quite well optimized.
+except for arm64, yes.
 
-You have used terms like "nursery" and "tenured" which don't really help
-without definitions of those terms.
-How about
 
-   GFP_TEMPORARY should be used when the memory allocated will either be
-   freed, or will be placed in a reclaimable cache, after some sequence
-   of events which is time-limited. i.e. there must be no indefinite
-   wait on the path from allocation to freeing-or-caching.
-   The memory will typically be allocated from a region dedicated to
-   GFP_TEMPORARY allocations, thus ensuring that this region does not
-   become fragmented.  Consequently, the delay imposed on GFP_TEMPORARY
-   allocations is likely to be less than for non-TEMPORARY allocations
-   when memory pressure is high.
+> 6.6.4. Data Cache Zero
+> 
+> The ARMv8-A architecture introduces a Data Cache Zero by Virtual Address (DC ZVA) instruction. This enables a block of 64
+> bytes in memory, aligned to 64 bytes in size, to be set to zero. If the DC ZVA instruction misses in the cache, it clears main
+> memory, without causing an L1 or L2 cache allocation.
+> 
+> but i only consider the arm64 arch, other archs need to be reviewed.
 
-??
-I think that for this definition to work, we would need to make it "a
-movable cache", meaning that any item can be either freed or
-re-allocated (presumably to a "tenured" location).  I don't think we
-currently have that concept for slabs do we?  That implies that this
-flag would only apply to whole-page allocations  (which was part of the
-original question).  We could presumably add movability to
-slab-shrinkers if these seemed like a good idea.
+thaks for the reply.
 
-I think that it would also make sense to require that the path from
-allocation to freeing (or caching) of GFP_TEMPORARY allocation must not
-wait for a non-TEMPORARY allocation, as that becomes an indefinite wait.
-
-Is that any closer to your understanding?
-
-Thanks,
-NeilBrown
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAliEOM0ACgkQOeye3VZi
-gbnpDg//cuAffcwF9p4hcd548szQ+S58qosTnRkTQGjm5jAPsnbdynrh1XDEKCW7
-BAtUVY/nOYNe2kjWKmjACzG7kqi85vYGslYxVV4BdfVL5LVV9KJTb2V4jyHquNcc
-IlyN/TxWen+NGI4KpHeLytaNOocKncce6Adzrl9N50eTS/7ywGOioPNzgYy+lUkw
-vheWjZS0BPCXcGtn2E9eUUK1w4UQ5sbjtEPH3sUzByZW0YNBAOiL90zo5f9rEWsQ
-a1xfg6y+zskqJMs4RMLYROHiZwtRfNJYKP3zg4yNAO5a8q+vvXCPTbv8Dmvhd3t9
-cd+yPO7YWzbiv09h1f/HMd5sKUn0WDiJXrM3+jZ5yLbcpKVo5E6gMhAaBiwFYTxc
-xIZ5SkZOd7iKv5uR0vdpTNF05mVjzoysR7HWv/p3iWefVN/JfQUebHcBebXVrmp5
-7kOY0twq8eLvzvc/JjXDyvmdZs00yUU53lDiD2uX7KwnC3mekAyes7WNLoi9NbT/
-F3xQEG79fhwt9uM+gpipFAgZLOPBsbhQYrsp5vgDSxjO9dmPhz6+B52F+Z6ZX75S
-4Y2HYpvEZWq1aQtPlqSSnusxEstS9oACsctmg4ItKka1uNaFySz8RqC1WxCfT9xH
-m+2KnsjRt0Ph8TqqM+7KBBwv1JxBQ3pjA21hZyIkIeTOjoe+GwE=
-=hSCh
------END PGP SIGNATURE-----
---=-=-=--
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
