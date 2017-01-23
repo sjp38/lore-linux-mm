@@ -1,67 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8E86B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 02:41:00 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 80so191542223pfy.2
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 23:41:00 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id h7si14813943pgn.325.2017.01.22.23.40.59
-        for <linux-mm@kvack.org>;
-        Sun, 22 Jan 2017 23:40:59 -0800 (PST)
-Date: Mon, 23 Jan 2017 16:40:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
-Message-ID: <20170123074054.GA12782@bbox>
-References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
- <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
- <20170121084338.GA405@jagdpanzerIV.localdomain>
- <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
- <20170123025826.GA24581@js1304-P5Q-DELUXE>
- <20170123040347.GA2327@jagdpanzerIV.localdomain>
- <20170123062716.GF24581@js1304-P5Q-DELUXE>
- <20170123071339.GD2327@jagdpanzerIV.localdomain>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 351496B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 05:09:47 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id g49so101262676qta.0
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 02:09:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y53si10436817qta.198.2017.01.23.02.09.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Jan 2017 02:09:46 -0800 (PST)
+Date: Mon, 23 Jan 2017 11:09:41 +0100
+From: Kevin Wolf <kwolf@redhat.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
+Message-ID: <20170123100941.GA5745@noname.redhat.com>
+References: <20170110160224.GC6179@noname.redhat.com>
+ <87k2a2ig2c.fsf@notabene.neil.brown.name>
+ <20170113110959.GA4981@noname.redhat.com>
+ <20170113142154.iycjjhjujqt5u2ab@thunk.org>
+ <20170113160022.GC4981@noname.redhat.com>
+ <87mveufvbu.fsf@notabene.neil.brown.name>
+ <1484568855.2719.3.camel@poochiereds.net>
+ <87o9yyemud.fsf@notabene.neil.brown.name>
+ <1485127917.5321.1.camel@poochiereds.net>
+ <20170123002158.xe7r7us2buc37ybq@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <20170123071339.GD2327@jagdpanzerIV.localdomain>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170123002158.xe7r7us2buc37ybq@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, zhouxianrong <zhouxianrong@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Jeff Layton <jlayton@poochiereds.net>, NeilBrown <neilb@suse.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
 
-On Mon, Jan 23, 2017 at 04:13:39PM +0900, Sergey Senozhatsky wrote:
-> On (01/23/17 15:27), Joonsoo Kim wrote:
-> > Hello,
+Am 23.01.2017 um 01:21 hat Theodore Ts'o geschrieben:
+> On Sun, Jan 22, 2017 at 06:31:57PM -0500, Jeff Layton wrote:
 > > 
-> > Think about following case in 64 bits kernel.
+> > Ahh, sorry if I wasn't clear.
 > > 
-> > If value pattern in the page is like as following, we cannot detect
-> > the same page with 'unsigned int' element.
+> > I know Kevin posed this topic in the context of QEMU/KVM, and I figure
+> > that running virt guests (themselves doing all sorts of workloads) is a
+> > pretty common setup these days. That was what I meant by "use case"
+> > here. Obviously there are many other workloads that could benefit from
+> > (or be harmed by) changes in this area.
 > > 
-> > AAAAAAAABBBBBBBBAAAAAAAABBBBBBBB...
-> > 
-> > 4 bytes is 0xAAAAAAAA and next 4 bytes is 0xBBBBBBBB and so on.
+> > Still, I think that looking at QEMU/KVM as a "application" and
+> > considering what we can do to help optimize that case could be helpful
+> > here (and might also be helpful for other workloads).
 > 
-> yep, that's exactly the case that I though would be broken
-> with a 4-bytes pattern matching. so my conlusion was that
-> for 4 byte pattern we would have working detection anyway,
-> for 8 bytes patterns we might have some extra matching.
-> not sure if it matters that much though.
+> Well, except for QEMU/KVM, Kevin has already confirmed that using
+> Direct I/O is a completely viable solution.  (And I'll add it solves a
+> bunch of other problems, including page cache efficiency....)
 
-It would be better for deduplication as pattern coverage is bigger
-and we cannot guess all of patterns now so it would be never ending
-story(i.e., someone claims 16bytes pattern matching would be better).
-So, I want to make that path fast rather than increasing dedup ratio
-if memset is really fast rather than open-looping. So in future,
-if we can prove bigger pattern can increase dedup ratio a lot, then,
-we could consider to extend it at the cost of make that path slow.
+Yes, "don't ever use non-O_DIRECT in production" is probably workable as
+a solution to the "state after failed fsync()" problem, as long as it is
+consistently implemented throughout the stack. That is, if we use a
+network protocol in QEMU (NFS, gluster, etc.), the server needs to use
+O_DIRECT, too, if we don't want to get the same problem one level down
+the stack. I'm not sure if that's possible with all of them, but if it
+is, it's mostly just a matter of configuring them correctly.
 
-In summary, zhouxianrong, please test pattern as Joonsoo asked.
-So if there are not much benefit with 'long', let's go to the
-'int' with memset. And Please resend patch if anyone dosn't oppose
-strongly by the time.
+However, if we look at the greater problem of hanging requests that came
+up in the more recent emails of this thread, it is only moved rather
+than solved. Chances are that already write() would hang now instead of
+only fsync(), but we still have a hard time dealing with this.
 
-Thanks.
+Kevin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
