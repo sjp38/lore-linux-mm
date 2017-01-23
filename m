@@ -1,102 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E4BF36B025E
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:47:38 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z67so217401286pgb.0
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:47:38 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id z6si17084559pgb.66.2017.01.23.15.47.38
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 567126B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:56:40 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f144so219933450pfa.3
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:56:40 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p86si17131728pfk.75.2017.01.23.15.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 15:47:38 -0800 (PST)
-Subject: [PATCH 3/3] dax: Support for transparent PUD pages for device DAX
-From: Dave Jiang <dave.jiang@intel.com>
-Date: Mon, 23 Jan 2017 16:47:36 -0700
-Message-ID: <148521525631.31533.2193884571494676804.stgit@djiang5-desk3.ch.intel.com>
-In-Reply-To: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
-References: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        Mon, 23 Jan 2017 15:56:39 -0800 (PST)
+Date: Mon, 23 Jan 2017 15:56:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: ensure alloc_flags in slow path are initialized
+Message-Id: <20170123155638.db6036219cb6ab2582be104e@linux-foundation.org>
+In-Reply-To: <20170123121649.3180300-1-arnd@arndb.de>
+References: <20170123121649.3180300-1-arnd@arndb.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Adding transparent huge PUD pages support for device DAX by adding a
-pud_fault handler.
+On Mon, 23 Jan 2017 13:16:12 +0100 Arnd Bergmann <arnd@arndb.de> wrote:
 
-Signed-off-by: Dave Jiang <dave.jiang@intel.com>
----
- drivers/dax/dax.c |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+> The __alloc_pages_slowpath() has gotten rather complex and gcc
+> is no longer able to follow the gotos and prove that the
+> alloc_flags variable is initialized at the time it is used:
+> 
+> mm/page_alloc.c: In function '__alloc_pages_slowpath':
+> mm/page_alloc.c:3565:15: error: 'alloc_flags' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> 
+> To be honest, I can't figure that out either, maybe it is or
+> maybe not, but moving the existing initialization up a little
+> higher looks safe and makes it obvious to both me and gcc that
+> the initialization comes before the first use.
+> 
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3591,6 +3591,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  				(__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)))
+>  		gfp_mask &= ~__GFP_ATOMIC;
+>  
+> +	/*
+> +	 * The fast path uses conservative alloc_flags to succeed only until
+> +	 * kswapd needs to be woken up, and to avoid the cost of setting up
+> +	 * alloc_flags precisely. So we do that now.
+> +	 */
+> +	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> +
+>  retry_cpuset:
+>  	compaction_retries = 0;
+>  	no_progress_loops = 0;
+> @@ -3607,14 +3614,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (!ac->preferred_zoneref->zone)
+>  		goto nopage;
+>  
+> -
+> -	/*
+> -	 * The fast path uses conservative alloc_flags to succeed only until
+> -	 * kswapd needs to be woken up, and to avoid the cost of setting up
+> -	 * alloc_flags precisely. So we do that now.
+> -	 */
+> -	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> -
+>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>  		wake_all_kswapds(order, ac);
 
-diff --git a/drivers/dax/dax.c b/drivers/dax/dax.c
-index 922ec46..b90bb30 100644
---- a/drivers/dax/dax.c
-+++ b/drivers/dax/dax.c
-@@ -493,6 +493,51 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
- 			vmf->flags & FAULT_FLAG_WRITE);
- }
+hm.  But we later do
+
+	if (gfp_pfmemalloc_allowed(gfp_mask))
+		alloc_flags = ALLOC_NO_WATERMARKS;
+
+	...
+	if (read_mems_allowed_retry(cpuset_mems_cookie))
+		goto retry_cpuset;
+
+so with your patch there's a path where we can rerun everything with
+alloc_flags == ALLOC_NO_WATERMARKS.  That's changed behaviour.
+
+When I saw the test robot warning I did this, which I think preserves
+behaviour?
+
+--- a/mm/page_alloc.c~mm-consolidate-gfp_nofail-checks-in-the-allocator-slowpath-fix
++++ a/mm/page_alloc.c
+@@ -3577,6 +3577,14 @@ retry_cpuset:
+ 	no_progress_loops = 0;
+ 	compact_priority = DEF_COMPACT_PRIORITY;
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
++
++	/*
++	 * The fast path uses conservative alloc_flags to succeed only until
++	 * kswapd needs to be woken up, and to avoid the cost of setting up
++	 * alloc_flags precisely. So we do that now.
++	 */
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
++
+ 	/*
+ 	 * We need to recalculate the starting point for the zonelist iterator
+ 	 * because we might have used different nodemask in the fast path, or
+@@ -3588,14 +3596,6 @@ retry_cpuset:
+ 	if (!ac->preferred_zoneref->zone)
+ 		goto nopage;
  
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
-+{
-+	unsigned long pud_addr = vmf->address & PUD_MASK;
-+	struct device *dev = &dax_dev->dev;
-+	struct dax_region *dax_region;
-+	phys_addr_t phys;
-+	pgoff_t pgoff;
-+	pfn_t pfn;
-+
-+	if (check_vma(dax_dev, vmf->vma, __func__))
-+		return VM_FAULT_SIGBUS;
-+
-+	dax_region = dax_dev->region;
-+	if (dax_region->align > PUD_SIZE) {
-+		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
-+		return VM_FAULT_SIGBUS;
-+	}
-+
-+	/* dax pud mappings require pfn_t_devmap() */
-+	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
-+		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
-+		return VM_FAULT_SIGBUS;
-+	}
-+
-+	pgoff = linear_page_index(vmf->vma, pud_addr);
-+	phys = pgoff_to_phys(dax_dev, pgoff, PUD_SIZE);
-+	if (phys == -1) {
-+		dev_dbg(dev, "%s: phys_to_pgoff(%#lx) failed\n", __func__,
-+				pgoff);
-+		return VM_FAULT_SIGBUS;
-+	}
-+
-+	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
-+
-+	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, pfn,
-+			vmf->flags & FAULT_FLAG_WRITE);
-+}
-+#else
-+static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
-+{
-+	return VM_FAULT_FALLBACK;
-+}
-+#endif /* !CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
-+
- static int dax_dev_fault(struct vm_fault *vmf)
- {
- 	int rc;
-@@ -512,6 +557,9 @@ static int dax_dev_fault(struct vm_fault *vmf)
- 	case FAULT_FLAG_SIZE_PMD:
- 		rc = __dax_dev_pmd_fault(dax_dev, vmf);
- 		break;
-+	case FAULT_FLAG_SIZE_PUD:
-+		rc = __dax_dev_pud_fault(dax_dev, vmf);
-+		break;
- 	default:
- 		return VM_FAULT_FALLBACK;
- 	}
+-
+-	/*
+-	 * The fast path uses conservative alloc_flags to succeed only until
+-	 * kswapd needs to be woken up, and to avoid the cost of setting up
+-	 * alloc_flags precisely. So we do that now.
+-	 */
+-	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+-
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
