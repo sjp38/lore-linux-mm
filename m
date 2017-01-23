@@ -1,81 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 685BC6B0253
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:15:55 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so216752448pgd.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:15:55 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id b7si17046252pli.5.2017.01.23.15.15.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 15:15:54 -0800 (PST)
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0NNA7ZN004881
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:15:54 -0800
-Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 285pcrs348-2
-	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:15:54 -0800
-Received: from facebook.com (2401:db00:21:603d:face:0:19:0)	by
- mx-out.facebook.com (10.102.107.97) with ESMTP	id
- e2b04df2e1c111e688020002c99331b0-d85f1a50 for <linux-mm@kvack.org>;	Mon, 23
- Jan 2017 15:15:52 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: [PATCH] mm: write protect MADV_FREE pages
-Date: Mon, 23 Jan 2017 15:15:52 -0800
-Message-ID: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8306B0253
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:26:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z67so216855743pgb.0
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:26:03 -0800 (PST)
+Received: from icp-osb-irony-out5.external.iinet.net.au (icp-osb-irony-out5.external.iinet.net.au. [203.59.1.221])
+        by mx.google.com with ESMTP id 31si17062051plk.154.2017.01.23.15.26.01
+        for <linux-mm@kvack.org>;
+        Mon, 23 Jan 2017 15:26:02 -0800 (PST)
+Subject: Re: [Ksummit-discuss] security-related TODO items?
+References: <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com>
+ <CAGXu5j+nVMPk3TTxLr3_6Y=5vNM0=aD+13JM_Q5POts9M7kzuw@mail.gmail.com>
+ <CALCETrVKDAzcS62wTjDOGuRUNec_a-=8iEa7QQ62V83Ce2nk=A@mail.gmail.com>
+ <31033.1485168526@warthog.procyon.org.uk>
+ <5024.1485203788@warthog.procyon.org.uk>
+From: Greg Ungerer <gregungerer@westnet.com.au>
+Message-ID: <811e58f6-0475-e9cd-f136-9a4504073df1@westnet.com.au>
+Date: Tue, 24 Jan 2017 09:26:03 +1000
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <5024.1485203788@warthog.procyon.org.uk>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Kernel-team@fb.com, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>, stable@kernel.org
+To: David Howells <dhowells@redhat.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Josh Armour <jarmour@google.com>, "ksummit-discuss@lists.linuxfoundation.org" <ksummit-discuss@lists.linuxfoundation.org>, Greg KH <gregkh@linuxfoundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-The page reclaim has an assumption writting to a page with clean pte
-should trigger a page fault, because there is a window between pte zero
-and tlb flush where a new write could come. If the new write doesn't
-trigger page fault, page reclaim will not notice it and think the page
-is clean and reclaim it. The MADV_FREE pages don't comply with the rule
-and the pte is just cleaned without writeprotect, so there will be no
-pagefault for new write. This will cause data corruption.
+On 24/01/17 06:36, David Howells wrote:
+> Andy Lutomirski <luto@amacapital.net> wrote:
+[snip]
+>>>  (6) NOMMU could be particularly tricky.  For ELF-FDPIC at least, the stack
+>>>      size is set in the binary.  OTOH, you wouldn't have to relocate the
+>>>      pre-loader - you'd just mmap it MAP_PRIVATE and execute in place.
+>>
+>> For nommu, forget about it.
+> 
+> Why?  If you do that, you have to have bimodal binfmts.  Note that the
+> ELF-FDPIC binfmt, at least, can be used for both MMU and NOMMU environments.
+> This may also be true of FLAT.
 
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: stable@kernel.org
-Signed-off-by: Shaohua Li <shli@fb.com>
----
- mm/huge_memory.c | 1 +
- mm/madvise.c     | 1 +
- 2 files changed, 2 insertions(+)
+It is true for FLAT as well, they can run on both MMU an noMMU.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9a6bd6c..9cc5de5 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1381,6 +1381,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			tlb->fullmm);
- 		orig_pmd = pmd_mkold(orig_pmd);
- 		orig_pmd = pmd_mkclean(orig_pmd);
-+		orig_pmd = pmd_wrprotect(orig_pmd);
- 
- 		set_pmd_at(mm, addr, pmd, orig_pmd);
- 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 0e3828e..bfb6800 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -373,6 +373,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 
- 			ptent = pte_mkold(ptent);
- 			ptent = pte_mkclean(ptent);
-+			ptent = pte_wrprotect(ptent);
- 			set_pte_at(mm, addr, pte, ptent);
- 			if (PageActive(page))
- 				deactivate_page(page);
--- 
-2.9.3
+Regards
+Greg
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
