@@ -1,58 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A756B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 13:17:00 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id kq3so28143828wjc.1
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 10:17:00 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E00C86B0069
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 13:17:01 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id c7so28122614wjb.7
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 10:17:01 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f143si15138203wme.164.2017.01.23.10.16.58
+        by mx.google.com with ESMTPS id x107si19661103wrb.294.2017.01.23.10.17.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 10:16:58 -0800 (PST)
+        Mon, 23 Jan 2017 10:17:00 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 0/5] mm: vmscan: fix kswapd writeback regression
-Date: Mon, 23 Jan 2017 13:16:36 -0500
-Message-Id: <20170123181641.23938-1-hannes@cmpxchg.org>
+Subject: [PATCH 1/5] mm: vmscan: scan dirty pages even in laptop mode
+Date: Mon, 23 Jan 2017 13:16:37 -0500
+Message-Id: <20170123181641.23938-2-hannes@cmpxchg.org>
+In-Reply-To: <20170123181641.23938-1-hannes@cmpxchg.org>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-We noticed a regression on multiple hadoop workloads when moving from
-3.10 to 4.0 and 4.6, which involves kswapd getting tangled up in page
-writeout, causing direct reclaim herds that also don't make progress.
+We have an elaborate dirty/writeback throttling mechanism inside the
+reclaim scanner, but for that to work the pages have to go through
+shrink_page_list() and get counted for what they are. Otherwise, we
+mess up the LRU order and don't match reclaim speed to writeback.
 
-I tracked it down to the thrash avoidance efforts after 3.10 that make
-the kernel better at keeping use-once cache and use-many cache sorted
-on the inactive and active list, with more aggressive protection of
-the active list as long as there is inactive cache. Unfortunately, our
-workload's use-once cache is mostly from streaming writes. Waiting for
-writes to avoid potential reloads in the future is not a good tradeoff.
+Especially during deactivation, there is never a reason to skip dirty
+pages; nothing is even trying to write them out from there. Don't mess
+up the LRU order for nothing, shuffle these pages along.
 
-These patches do the following:
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/mmzone.h |  2 --
+ mm/vmscan.c            | 14 ++------------
+ 2 files changed, 2 insertions(+), 14 deletions(-)
 
-1. Wake the flushers when kswapd sees a lump of dirty pages. It's
-   possible to be below the dirty background limit and still have
-   cache velocity push them through the LRU. So start a-flushin'.
-
-2. Let kswapd only write pages that have been rotated twice. This
-   makes sure we really tried to get all the clean pages on the
-   inactive list before resorting to horrible LRU-order writeback.
-
-3. Move rotating dirty pages off the inactive list. Instead of
-   churning or waiting on page writeback, we'll go after clean active
-   cache. This might lead to thrashing, but in this state memory
-   demand outstrips IO speed anyway, and reads are faster than writes.
-
-More details in the individual changelogs.
-
- include/linux/mm_inline.h        |  7 ++++
- include/linux/mmzone.h           |  2 --
- include/linux/writeback.h        |  2 +-
- include/trace/events/writeback.h |  2 +-
- mm/swap.c                        |  9 ++---
- mm/vmscan.c                      | 68 +++++++++++++++-----------------------
- 6 files changed, 41 insertions(+), 49 deletions(-)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index df992831fde7..338a786a993f 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -236,8 +236,6 @@ struct lruvec {
+ #define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
+ #define LRU_ALL	     ((1 << NR_LRU_LISTS) - 1)
+ 
+-/* Isolate clean file */
+-#define ISOLATE_CLEAN		((__force isolate_mode_t)0x1)
+ /* Isolate unmapped file */
+ #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
+ /* Isolate for asynchronous migration */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7bb23ff229b6..0d05f7f3b532 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -87,6 +87,7 @@ struct scan_control {
+ 	/* The highest zone to isolate pages for reclaim from */
+ 	enum zone_type reclaim_idx;
+ 
++	/* Writepage batching in laptop mode; RECLAIM_WRITE */
+ 	unsigned int may_writepage:1;
+ 
+ 	/* Can mapped pages be reclaimed? */
+@@ -1373,13 +1374,10 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ 	 * wants to isolate pages it will be able to operate on without
+ 	 * blocking - clean pages for the most part.
+ 	 *
+-	 * ISOLATE_CLEAN means that only clean pages should be isolated. This
+-	 * is used by reclaim when it is cannot write to backing storage
+-	 *
+ 	 * ISOLATE_ASYNC_MIGRATE is used to indicate that it only wants to pages
+ 	 * that it is possible to migrate without blocking
+ 	 */
+-	if (mode & (ISOLATE_CLEAN|ISOLATE_ASYNC_MIGRATE)) {
++	if (mode & ISOLATE_ASYNC_MIGRATE) {
+ 		/* All the caller can do on PageWriteback is block */
+ 		if (PageWriteback(page))
+ 			return ret;
+@@ -1387,10 +1385,6 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ 		if (PageDirty(page)) {
+ 			struct address_space *mapping;
+ 
+-			/* ISOLATE_CLEAN means only clean pages */
+-			if (mode & ISOLATE_CLEAN)
+-				return ret;
+-
+ 			/*
+ 			 * Only pages without mappings or that have a
+ 			 * ->migratepage callback are possible to migrate
+@@ -1731,8 +1725,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 
+ 	if (!sc->may_unmap)
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+-	if (!sc->may_writepage)
+-		isolate_mode |= ISOLATE_CLEAN;
+ 
+ 	spin_lock_irq(&pgdat->lru_lock);
+ 
+@@ -1929,8 +1921,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 
+ 	if (!sc->may_unmap)
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+-	if (!sc->may_writepage)
+-		isolate_mode |= ISOLATE_CLEAN;
+ 
+ 	spin_lock_irq(&pgdat->lru_lock);
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
