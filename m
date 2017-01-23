@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C62FD6B0038
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:04:31 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id c7so29319273wjb.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:04:31 -0800 (PST)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id q80si15905900wmg.80.2017.01.23.15.04.30
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 854066B0038
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:10:02 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id f4so127841158qte.1
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:10:02 -0800 (PST)
+Received: from us-smtp-delivery-194.mimecast.com (us-smtp-delivery-194.mimecast.com. [216.205.24.194])
+        by mx.google.com with ESMTPS id e124si9385879qkf.17.2017.01.23.15.10.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 15:04:30 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 485121C12C7
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 23:04:30 +0000 (GMT)
-Date: Mon, 23 Jan 2017 23:04:29 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
- context
-Message-ID: <20170123230429.os7ssxab4mazrkrb@techsingularity.net>
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-4-mgorman@techsingularity.net>
- <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
- <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
- <20170123170329.GA7820@htj.duckdns.org>
- <20170123200412.mkesardc4mckk6df@techsingularity.net>
- <20170123205501.GA25944@htj.duckdns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 23 Jan 2017 15:10:01 -0800 (PST)
+From: Trond Myklebust <trondmy@primarydata.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
+Date: Mon, 23 Jan 2017 23:09:57 +0000
+Message-ID: <1485212994.3722.1.camel@primarydata.com>
+References: <20170110160224.GC6179@noname.redhat.com>
+	 <87k2a2ig2c.fsf@notabene.neil.brown.name>
+	 <20170113110959.GA4981@noname.redhat.com>
+	 <20170113142154.iycjjhjujqt5u2ab@thunk.org>
+	 <20170113160022.GC4981@noname.redhat.com>
+	 <87mveufvbu.fsf@notabene.neil.brown.name>
+	 <1484568855.2719.3.camel@poochiereds.net>
+	 <87o9yyemud.fsf@notabene.neil.brown.name>
+	 <1485127917.5321.1.camel@poochiereds.net>
+	 <20170123002158.xe7r7us2buc37ybq@thunk.org>
+	 <20170123100941.GA5745@noname.redhat.com>
+	 <1485210957.2786.19.camel@poochiereds.net>
+In-Reply-To: <1485210957.2786.19.camel@poochiereds.net>
+Content-Language: en-US
+Content-ID: <14FFED673CB5B7419C9979CD196924A4@namprd11.prod.outlook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170123205501.GA25944@htj.duckdns.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Petr Mladek <pmladek@suse.cz>
+To: "kwolf@redhat.com" <kwolf@redhat.com>, "jlayton@poochiereds.net" <jlayton@poochiereds.net>, "tytso@mit.edu" <tytso@mit.edu>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "hch@infradead.org" <hch@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "neilb@suse.com" <neilb@suse.com>, "rwheeler@redhat.com" <rwheeler@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Mon, Jan 23, 2017 at 03:55:01PM -0500, Tejun Heo wrote:
-> Hello, Mel.
-> 
-> On Mon, Jan 23, 2017 at 08:04:12PM +0000, Mel Gorman wrote:
-> > What is the actual mechanism that does that? It's not something that
-> > schedule_on_each_cpu does and one would expect that the core workqueue
-> > implementation would get this sort of detail correct. Or is this a proposal
-> > on how it should be done?
-> 
-> If you use schedule_on_each_cpu(), it's all fine as the thing pins
-> cpus and waits for all the work items synchronously.  If you wanna do
-> it asynchronously, right now, you'll have to manually synchronize work
-> items against the offline callback manually.
-> 
-
-Is the current implementation and what it does wrong in some way? I ask
-because synchronising against the offline callback sounds like it would
-be a bit of a maintenance mess for relatively little gain.
-
--- 
-Mel Gorman
-SUSE Labs
+T24gTW9uLCAyMDE3LTAxLTIzIGF0IDE3OjM1IC0wNTAwLCBKZWZmIExheXRvbiB3cm90ZToNCj4g
+T24gTW9uLCAyMDE3LTAxLTIzIGF0IDExOjA5ICswMTAwLCBLZXZpbiBXb2xmIHdyb3RlOg0KPiA+
+IA0KPiA+IEhvd2V2ZXIsIGlmIHdlIGxvb2sgYXQgdGhlIGdyZWF0ZXIgcHJvYmxlbSBvZiBoYW5n
+aW5nIHJlcXVlc3RzIHRoYXQNCj4gPiBjYW1lDQo+ID4gdXAgaW4gdGhlIG1vcmUgcmVjZW50IGVt
+YWlscyBvZiB0aGlzIHRocmVhZCwgaXQgaXMgb25seSBtb3ZlZA0KPiA+IHJhdGhlcg0KPiA+IHRo
+YW4gc29sdmVkLiBDaGFuY2VzIGFyZSB0aGF0IGFscmVhZHkgd3JpdGUoKSB3b3VsZCBoYW5nIG5v
+dw0KPiA+IGluc3RlYWQgb2YNCj4gPiBvbmx5IGZzeW5jKCksIGJ1dCB3ZSBzdGlsbCBoYXZlIGEg
+aGFyZCB0aW1lIGRlYWxpbmcgd2l0aCB0aGlzLg0KPiA+IA0KPiANCj4gV2VsbCwgaXQgX2lzXyBi
+ZXR0ZXIgd2l0aCBPX0RJUkVDVCBhcyB5b3UgY2FuIHVzdWFsbHkgYXQgbGVhc3QgYnJlYWsNCj4g
+b3V0DQo+IG9mIHRoZSBJL08gd2l0aCBTSUdLSUxMLg0KPiANCj4gV2hlbiBJIGxhc3QgbG9va2Vk
+IGF0IHRoaXMsIHRoZSBwcm9ibGVtIHdpdGggYnVmZmVyZWQgSS9PIHdhcyB0aGF0DQo+IHlvdQ0K
+PiBvZnRlbiBlbmQgdXAgd2FpdGluZyBvbiBwYWdlIGJpdHMgdG8gY2xlYXIgKHVzdWFsbHkgUEdf
+d3JpdGViYWNrIG9yDQo+IFBHX2RpcnR5KSwgaW4gbm9uLWtpbGxhYmxlIHNsZWVwcyBmb3IgdGhl
+IG1vc3QgcGFydC4NCj4gDQo+IE1heWJlIHRoZSBmaXggaGVyZSBpcyBhcyBzaW1wbGUgYXMgY2hh
+bmdpbmcgdGhhdD8NCg0KQXQgdGhlIHJpc2sgb2Yga2lja2luZyBvZmYgYW5vdGhlciBPX1BPTklF
+UyBkaXNjdXNzaW9uOiBBZGQgYW4NCm9wZW4oT19USU1FT1VUKSBmbGFnIHRoYXQgd291bGQgbGV0
+IHRoZSBrZXJuZWwga25vdyB0aGF0IHRoZQ0KYXBwbGljYXRpb24gaXMgcHJlcGFyZWQgdG8gaGFu
+ZGxlIHRpbWVvdXRzIGZyb20gb3BlcmF0aW9ucyBzdWNoIGFzDQpyZWFkKCksIHdyaXRlKCkgYW5k
+IGZzeW5jKCksIHRoZW4gYWRkIGFuIGlvY3RsKCkgb3Igc3lzY2FsbCB0byBhbGxvdw0Kc2FpZCBh
+cHBsaWNhdGlvbiB0byBzZXQgdGhlIHRpbWVvdXQgdmFsdWUuDQoNCg0KLS0gDQpUcm9uZCBNeWts
+ZWJ1c3QNCkxpbnV4IE5GUyBjbGllbnQgbWFpbnRhaW5lciwgUHJpbWFyeURhdGENCnRyb25kLm15
+a2xlYnVzdEBwcmltYXJ5ZGF0YS5jb20NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
