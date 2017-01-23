@@ -1,92 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63F136B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:36:33 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id x49so122266408qtc.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:36:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o16si11587795qto.270.2017.01.23.12.36.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB3C6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:55:05 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 204so215710997pfx.1
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:55:05 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id c10si10203830pfj.210.2017.01.23.12.55.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 12:36:32 -0800 (PST)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com>
-References: <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com> <CAGXu5j+nVMPk3TTxLr3_6Y=5vNM0=aD+13JM_Q5POts9M7kzuw@mail.gmail.com> <CALCETrVKDAzcS62wTjDOGuRUNec_a-=8iEa7QQ62V83Ce2nk=A@mail.gmail.com> <31033.1485168526@warthog.procyon.org.uk>
-Subject: Re: [Ksummit-discuss] security-related TODO items?
+        Mon, 23 Jan 2017 12:55:04 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id t6so14587061pgt.1
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:55:04 -0800 (PST)
+Date: Mon, 23 Jan 2017 15:55:01 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
+ context
+Message-ID: <20170123205501.GA25944@htj.duckdns.org>
+References: <20170117092954.15413-1-mgorman@techsingularity.net>
+ <20170117092954.15413-4-mgorman@techsingularity.net>
+ <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
+ <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
+ <20170123170329.GA7820@htj.duckdns.org>
+ <20170123200412.mkesardc4mckk6df@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <5023.1485203788.1@warthog.procyon.org.uk>
-Content-Transfer-Encoding: quoted-printable
-Date: Mon, 23 Jan 2017 20:36:28 +0000
-Message-ID: <5024.1485203788@warthog.procyon.org.uk>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170123200412.mkesardc4mckk6df@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: dhowells@redhat.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kees Cook <keescook@chromium.org>, Josh Armour <jarmour@google.com>, Greg KH <gregkh@linuxfoundation.org>, "ksummit-discuss@lists.linuxfoundation.org" <ksummit-discuss@lists.linuxfoundation.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Petr Mladek <pmladek@suse.cz>
 
-Andy Lutomirski <luto@amacapital.net> wrote:
+Hello, Mel.
 
-> >  (1) You'd need at least one pre-loader binary image built into the ke=
-rnel
-> >      that you can map into userspace (you can't upcall to userspace to=
- go get
-> >      it for your core binfmt).  This could appear as, say, /proc/prelo=
-ader,
-> >      for the kernel to open and mmap.
-> =
+On Mon, Jan 23, 2017 at 08:04:12PM +0000, Mel Gorman wrote:
+> What is the actual mechanism that does that? It's not something that
+> schedule_on_each_cpu does and one would expect that the core workqueue
+> implementation would get this sort of detail correct. Or is this a proposal
+> on how it should be done?
 
-> No need for it to be visible at all.  I'm imagining the kernel making
-> a fresh mm_struct, directly mapping some text, running that text, and
-> then using the result as the mm_struct after execve.
+If you use schedule_on_each_cpu(), it's all fine as the thing pins
+cpus and waits for all the work items synchronously.  If you wanna do
+it asynchronously, right now, you'll have to manually synchronize work
+items against the offline callback manually.
 
-What would you see in /proc/pid/maps?
+On this area, the current workqueue behavior is pretty bad.
+Historically, we didn't distinguish affinity-for-optimization
+affinity-for-correctness, so we couldn't really enforce strong
+behaviors on it.  We started distinguishing them some releases ago, so
+I should revisit it soon.
 
-> >  (2) Where would the kernel put the executable image?  It would have t=
-o
-> >      parse the binary to find out where not to put it - otherwise the =
-code
-> >      might have to relocate itself.
-> =
+Thanks.
 
-> In vmlinux.
-
-You misunderstood the question.  I meant at what address would you map it =
-into
-userspace?  You would have to avoid anywhere the executable needs to place
-something - though as long as you can manage to start the loader, you can
-ditch the pre-loader, so that might not be a problem.
-
-> >  (6) NOMMU could be particularly tricky.  For ELF-FDPIC at least, the =
-stack
-> >      size is set in the binary.  OTOH, you wouldn't have to relocate t=
-he
-> >      pre-loader - you'd just mmap it MAP_PRIVATE and execute in place.
-> =
-
-> For nommu, forget about it.
-
-Why?  If you do that, you have to have bimodal binfmts.  Note that the
-ELF-FDPIC binfmt, at least, can be used for both MMU and NOMMU environment=
-s.
-This may also be true of FLAT.
-
-> >  (7) When the kernel finds it's dealing with a script, it goes back th=
-rough
-> >      the security calculation procedure again to deal with the interpr=
-eter.
-> =
-
-> The security calculation isn't what I'm worried about.  I'm worried
-> about the parser.
-
-But you may have to redo the security calculation *after* doing the parsin=
-g.
-
-> Anyway, I didn't say this would be easy :)
-
-True... :-)
-
-David
+--
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
