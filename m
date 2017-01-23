@@ -1,80 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60D596B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 00:21:27 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 201so189255519pfw.5
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 21:21:27 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 692806B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 00:22:47 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id t6so186287985pgt.6
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 21:22:47 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id a3si13011490pld.64.2017.01.22.21.21.25
+        by mx.google.com with ESMTP id b2si14523202pll.243.2017.01.22.21.22.45
         for <linux-mm@kvack.org>;
-        Sun, 22 Jan 2017 21:21:26 -0800 (PST)
-Date: Mon, 23 Jan 2017 14:27:46 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 3/5] mm: introduce exponential moving average to
- unusable free index
-Message-ID: <20170123052746.GD24581@js1304-P5Q-DELUXE>
-References: <1484291673-2239-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1484291673-2239-4-git-send-email-iamjoonsoo.kim@lge.com>
- <fbd7ad3f-3ed3-983a-b3d1-b2e72f79cd6a@suse.cz>
+        Sun, 22 Jan 2017 21:22:46 -0800 (PST)
+Date: Mon, 23 Jan 2017 14:22:44 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
+Message-ID: <20170123052244.GC11763@bbox>
+References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
+ <1464736881-24886-12-git-send-email-minchan@kernel.org>
+ <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
+ <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com>
+ <20170119024421.GA9367@bbox>
+ <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
+ <20170119062158.GB9367@bbox>
+ <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <fbd7ad3f-3ed3-983a-b3d1-b2e72f79cd6a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Chulmin Kim <cmlaika.kim@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, Jan 19, 2017 at 01:52:38PM +0100, Vlastimil Babka wrote:
-> On 01/13/2017 08:14 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > We have a statistic about memory fragmentation but it would be fluctuated
-> > a lot within very short term so it's hard to accurately measure
-> > system's fragmentation state while workload is actively running. Without
-> > stable statistic, it's not possible to determine if the system is
-> > fragmented or not.
-> > 
-> > Meanwhile, recently, there were a lot of reports about fragmentation
-> > problem and we tried some changes. However, since there is no way
-> > to measure fragmentation ratio stably, we cannot make sure how these
-> > changes help the fragmentation.
-> > 
-> > There are some methods to measure fragmentation but I think that they
-> > have some problems.
-> > 
-> > 1. buddyinfo: it fluctuated a lot within very short term
-> > 2. tracepoint: it shows how steal happens between buddylists of different
-> > migratetype. It means fragmentation indirectly but would not be accurate.
-> > 3. pageowner: it shows the number of mixed pageblocks but it is not
-> > suitable for production system since it requires some additional memory.
-> > 
-> > Therefore, this patch try to calculate exponential moving average to
-> > unusable free index. Since it is a moving average, it is quite stable
-> > even if fragmentation state of memory fluctuate a lot.
+Hi Chulmin,
+
+On Thu, Jan 19, 2017 at 03:16:11AM -0500, Chulmin Kim wrote:
+> On 01/19/2017 01:21 AM, Minchan Kim wrote:
+> >On Wed, Jan 18, 2017 at 10:39:15PM -0500, Chulmin Kim wrote:
+> >>On 01/18/2017 09:44 PM, Minchan Kim wrote:
+> >>>Hello Chulmin,
+> >>>
+> >>>On Wed, Jan 18, 2017 at 07:13:21PM -0500, Chulmin Kim wrote:
+> >>>>Hello. Minchan, and all zsmalloc guys.
+> >>>>
+> >>>>I have a quick question.
+> >>>>Is zsmalloc considering memory barrier things correctly?
+> >>>>
+> >>>>AFAIK, in ARM64,
+> >>>>zsmalloc relies on dmb operation in bit_spin_unlock only.
+> >>>>(It seems that dmb operations in spinlock functions are being prepared,
+> >>>>but let is be aside as it is not merged yet.)
+> >>>>
+> >>>>If I am correct,
+> >>>>migrating a page in a zspage filled with free objs
+> >>>>may cause the corruption cause bit_spin_unlock will not be executed at all.
+> >>>>
+> >>>>I am not sure this is enough memory barrier for zsmalloc operations.
+> >>>>
+> >>>>Can you enlighten me?
+> >>>
+> >>>Do you mean bit_spin_unlock is broken or zsmalloc locking scheme broken?
+> >>>Could you please describe what you are concerning in detail?
+> >>>It would be very helpful if you say it with a example!
+> >>
+> >>Sorry for ambiguous expressions. :)
+> >>
+> >>Recently,
+> >>I found multiple zsmalloc corruption cases which have garbage idx values in
+> >>in zspage->freeobj. (not ffffffff (-1) value.)
+> >>
+> >>Honestly, I have no clue yet.
+> >>
+> >>I suspect the case when zspage migrate a zs sub page filled with free
+> >>objects (so that never calls unpin_tag() which has memory barrier).
+> >>
+> >>
+> >>Assume the page (zs subpage) being migrated has no allocated zs object.
+> >>
+> >>S : zs subpage
+> >>D : free page
+> >>
+> >>
+> >>CPU A : zs_page_migrate()		CPU B : zs_malloc()
+> >>---------------------			-----------------------------
+> >>
+> >>
+> >>migrate_write_lock()
+> >>spin_lock()
+> >>
+> >>memcpy(D, S, PAGE_SIZE)   -> (1)
+> >>replace_sub_page()
+> >>
+> >>putback_zspage()
+> >>spin_unlock()
+> >>migrate_write_unlock()
+> >>					
+> >>					spin_lock()
+> >>					obj_malloc()
+> >>					--> (2-a) allocate obj in D
+> >>					--> (2-b) set freeobj using
+> >>     						the first 8 bytes of
+> >> 						the allocated obj
+> >>					record_obj()
+> >>					spin_unlock
+> >>
+> >>
+> >>
+> >>I think the locking has no problem, but memory ordering.
+> >>I doubt whether (2-b) in CPU B really loads the data stored by (1).
+> >>
+> >>If it doesn't, set_freeobj in (2-b) will corrupt zspage->freeobj.
+> >>After then, we will see corrupted object sooner or later.
+> >
+> >Thanks for the example.
+> >When I cannot understand what you are pointing out.
+> >
+> >In above example, two CPU use same spin_lock of a class so store op
+> >by memcpy in the critical section should be visible by CPU B.
+> >
+> >Am I missing your point?
 > 
-> I suspect that the fluctuation of the underlying unusable free index
-> isn't so much because the number of high-order free blocks would
-> fluctuate, but because of allocation vs reclaim changing the total
-> number of free blocks, which is used in the equation. Reclaim uses LRU
-> which I expect to have low correlation with pfn, so the freed pages tend
-> towards order-0. And the allocation side tries not to split large pages
-> so it also consumes mostly order-0.
-
-I introduced this metric because I observed fluctuation of unusable
-free index. :)
-
 > 
-> So I would expect just plain free_blocks_order from contig_page_info to
-> be a good metric without need for averaging, at least for costly orders
-> and when we have enough free memory - if we are below e.g. the high
-> (order-0) watermark, then we should let kswapd do its job first anyway
-> before considering proactive compaction.
+> No, you are right.
+> I just pointed it prematurely after only checking that arm64's spinlock
+> seems not issue "dmb" operation explicitly.
+> I am the one missed the basics.
+> 
+> Anyway, I will let you know the situation when it gets more clear.
 
-Maybe, plain free_blocks_order would be stable for the order 7 or more
-but it's better to have the metric that works well for all orders.
+Yeb, Thanks.
 
-Thanks.
+Perhaps, did you tried flush page before the writing?
+I think arm64 have no d-cache alising problem but worth to try it.
+Who knows :)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 46da1c4..a3a5520 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -612,6 +612,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 	unsigned long element;
+ 
+ 	page = bvec->bv_page;
++	flush_dcache_page(page);
++
+ 	if (is_partial_io(bvec)) {
+ 		/*
+ 		 * This is a partial IO. We need to read the full page
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
