@@ -1,88 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C859D6B0253
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:28:00 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id m98so164594248iod.2
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:28:00 -0800 (PST)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id c129si10083530ita.83.2017.01.23.15.28.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2E36B025E
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:28:16 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d134so219920484pfd.0
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:28:16 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b27si4583007pgn.86.2017.01.23.15.28.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 15:28:00 -0800 (PST)
-Date: Mon, 23 Jan 2017 15:27:58 -0800
-From: Till Smejkal <till.smejkal@hpe.com>
-Subject: Re: Benchmarks for the Linux kernel MM architecture
-Message-ID: <20170123232758.lfxhffirokxpx62g@arch-dev>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01f601d26bb8$380bfd30$a823f790$@alibaba-inc.com>
+        Mon, 23 Jan 2017 15:28:15 -0800 (PST)
+Date: Mon, 23 Jan 2017 15:28:14 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: write protect MADV_FREE pages
+Message-Id: <20170123152814.2a55c4110df3bd0d67de5fc3@linux-foundation.org>
+In-Reply-To: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
+References: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'David Nellans' <dnellans@nvidia.com>, linux-mm@kvack.org
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, Kernel-team@fb.com, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>, stable@kernel.org
 
-On Wed, 11 Jan 2017, Hillf Danton wrote:
-> 
-> On Tuesday, January 10, 2017 11:36 PM David Nellans wrote: 
-> > 
-> > On 01/06/2017 04:29 PM, Till Smejkal wrote:
-> > > Dear Linux MM community
-> > >
-> > > My name is Till Smejkal and I am a PhD Student at Hewlett Packard Enterprise. For a
-> > > couple of weeks I have been working on a patchset for the Linux kernel which
-> > > introduces a new functionality that allows address spaces to be first class citizens
-> > > in the OS. The implementation is based on a concept presented in this [1] paper.
-> > >
-> > > The basic idea of the patchset is that an AS not necessarily needs to be coupled with
-> > > a process but can be created and destroyed independently. A process still has its own
-> > > AS which is created with the process and which also gets destroyed with the process,
-> > > but in addition there can be other AS in the OS which are not bound to the lifetime
-> > > of any process. These additional AS have to be created and destroyed actively by the
-> > > user and can be attached to a process as additional AS. Attaching such an AS to a
-> > > process allows the process to have different views on the memory between which the
-> > > process can switch arbitrarily during its executing.
-> > >
-> > > This feature can be used in various different ways. For example to compartmentalize a
-> > > process for security reasons or to improve the performance of data-centric
-> > > applications.
-> > >
-> > > However, before I intend to submit the patchset to LKML, I first like to perform
-> > > some benchmarks to identify possible performance drawbacks introduced by my changes
-> > > to the original memory management architecture. Hence, I would like to ask if anyone
-> > > of you could point me to some benchmarks which I can run to test my patchset and
-> > > compare it against the original implementation.
-> > >
-> > > If there are any questions, please feel free to ask me. I am happy to answer any
-> > > question related to the patchset and its idea/intention.
-> > >
-> > > Regards
-> > > Till
-> > >
-> > > P.S.: Please keep me in the CC since I am not subscribed to this mailing list.
-> > >
-> > > [1] http://impact.crhc.illinois.edu/shared/Papers/ASPLOS16-SpaceJMP.pdf
-> > 
-> > https://github.com/gormanm/mmtests
-> > 
-> And please take a look at linux-4.9/tools/testing/selftests/vm. 
-> 
-> The last resort seems to ask Mel on linux-mm for 
-> howtos he knows.
-> 	Mel Gorman <mgorman@techsingularity.net>
-> 
-> Good luck
-> Hillf
+On Mon, 23 Jan 2017 15:15:52 -0800 Shaohua Li <shli@fb.com> wrote:
 
-Hi David and Hillf,
+> The page reclaim has an assumption writting to a page with clean pte
+> should trigger a page fault, because there is a window between pte zero
+> and tlb flush where a new write could come. If the new write doesn't
+> trigger page fault, page reclaim will not notice it and think the page
+> is clean and reclaim it. The MADV_FREE pages don't comply with the rule
+> and the pte is just cleaned without writeprotect, so there will be no
+> pagefault for new write. This will cause data corruption.
 
-Thank you very much for your feedback. Both of your suggestions were very helpful. I
-could find some bugs in my implementation and also identified two minor performance
-problems that I could fix easily.
+I'd like to see here a complete description of the bug's effects: waht
+sort of workload will trigger it, what the end-user visible effects
+are, etc.
 
-Thanks,
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1381,6 +1381,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  			tlb->fullmm);
+>  		orig_pmd = pmd_mkold(orig_pmd);
+>  		orig_pmd = pmd_mkclean(orig_pmd);
+> +		orig_pmd = pmd_wrprotect(orig_pmd);
 
-Till
+Is this the right way round?  There's still a window where we won't get
+that write fault on the cleaned pte.  Should the pmd_wrprotect() happen
+before the pmd_mkclean()?
+
+
+>  		set_pmd_at(mm, addr, pmd, orig_pmd);
+>  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 0e3828e..bfb6800 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -373,6 +373,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  
+>  			ptent = pte_mkold(ptent);
+>  			ptent = pte_mkclean(ptent);
+> +			ptent = pte_wrprotect(ptent);
+>  			set_pte_at(mm, addr, pte, ptent);
+>  			if (PageActive(page))
+>  				deactivate_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
