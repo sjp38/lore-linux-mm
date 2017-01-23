@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 327A76B0038
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 16:36:25 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 14so213530266pgg.4
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 13:36:25 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id y96si16802245plh.249.2017.01.23.13.36.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 19BCD6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 16:49:00 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 14so213817742pgg.4
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 13:49:00 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 63si16807879pgi.211.2017.01.23.13.48.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 13:36:24 -0800 (PST)
-Date: Mon, 23 Jan 2017 14:36:14 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH] mm, fs: reduce fault, page_mkwrite, and pfn_mkwrite to
- take only vmf
-Message-ID: <20170123213614.GA27007@linux.intel.com>
-References: <148495502151.58418.7078842737664999534.stgit@djiang5-desk3.ch.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <148495502151.58418.7078842737664999534.stgit@djiang5-desk3.ch.intel.com>
+        Mon, 23 Jan 2017 13:48:59 -0800 (PST)
+Date: Mon, 23 Jan 2017 13:48:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 159/293] mm/page_alloc.c:3546:15: warning:
+ 'alloc_flags' may be used uninitialized in this function
+Message-Id: <20170123134858.b9c9728c87e3f030575d5406@linux-foundation.org>
+In-Reply-To: <201701211215.dD0CaO6m%fengguang.wu@intel.com>
+References: <201701211215.dD0CaO6m%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, tytso@mit.edu, darrick.wong@oracle.com, mawilcox@microsoft.com, dave.hansen@intel.com, hch@lst.de, linux-mm@kvack.org, jack@suse.com, linux-fsdevel@vger.kernel.org, ross.zwisler@linux.intel.com, dan.j.williams@intel.com, linux-nvdimm@lists.01.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Jan 20, 2017 at 04:33:08PM -0700, Dave Jiang wrote:
-> ->fault(), ->page_mkwrite(), and ->pfn_mkwrite() calls do not need to take
-> a vma and vmf parameter when the vma already resides in vmf. Remove the vma
-> parameter to simplify things.
+On Sat, 21 Jan 2017 12:01:26 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   fa78008f505569e7988ed3eb737ca7d43d87eac3
+> commit: 6f387b30fdba17b62b7c13d67d3caebbcc3bef0c [159/293] mm: consolidate GFP_NOFAIL checks in the allocator slowpath
+> config: i386-allmodconfig (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         git checkout 6f387b30fdba17b62b7c13d67d3caebbcc3bef0c
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
 > 
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
-> ---
+> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
+> http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
 > 
-> This patch has received a build success notification from the 0day-kbuild
-> robot across 124 configs. 
+> All warnings (new ones prefixed by >>):
 > 
-> ---
-<>
-> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-> index 10820f6..b6661fd 100644
-> --- a/arch/x86/entry/vdso/vma.c
-> +++ b/arch/x86/entry/vdso/vma.c
-> @@ -38,7 +38,7 @@ void __init init_vdso_image(const struct vdso_image *image)
->  struct linux_binprm;
->  
->  static int vdso_fault(const struct vm_special_mapping *sm,
-> -		      struct vm_area_struct *vma, struct vm_fault *vmf)
-> +		struct vm_area_struct *vma, struct vm_fault *vmf)
+>    mm/page_alloc.c: In function '__alloc_pages_slowpath':
+> >> mm/page_alloc.c:3546:15: warning: 'alloc_flags' may be used uninitialized in this function [-Wmaybe-uninitialized]
+>      unsigned int alloc_flags;
+>                   ^~~~~~~~~~~
 
-Unneeded spacing change.
+Yup.  I guess we initialize alloc_flags before the `goto nopage'.
 
-Other than that, this looks good to me.  I agree with Jan's observation that
-it creates a lot of thrash, but I personally like the change because it
-eliminates the question of what to do when the 'vma' you're passed in doesn't
-match 'vmf->vma'.  Having one source of truth seems good, and it reduces the
-amount of args we are passing around.
-
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+--- a/mm/page_alloc.c~mm-consolidate-gfp_nofail-checks-in-the-allocator-slowpath-fix
++++ a/mm/page_alloc.c
+@@ -3577,6 +3577,14 @@ retry_cpuset:
+ 	no_progress_loops = 0;
+ 	compact_priority = DEF_COMPACT_PRIORITY;
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
++
++	/*
++	 * The fast path uses conservative alloc_flags to succeed only until
++	 * kswapd needs to be woken up, and to avoid the cost of setting up
++	 * alloc_flags precisely. So we do that now.
++	 */
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
++
+ 	/*
+ 	 * We need to recalculate the starting point for the zonelist iterator
+ 	 * because we might have used different nodemask in the fast path, or
+@@ -3588,14 +3596,6 @@ retry_cpuset:
+ 	if (!ac->preferred_zoneref->zone)
+ 		goto nopage;
+ 
+-
+-	/*
+-	 * The fast path uses conservative alloc_flags to succeed only until
+-	 * kswapd needs to be woken up, and to avoid the cost of setting up
+-	 * alloc_flags precisely. So we do that now.
+-	 */
+-	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+-
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
