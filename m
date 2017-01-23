@@ -1,58 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6E86B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 00:40:39 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so186921353pgd.7
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 21:40:39 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id z43si14569294plh.221.2017.01.22.21.40.37
-        for <linux-mm@kvack.org>;
-        Sun, 22 Jan 2017 21:40:38 -0800 (PST)
-Date: Mon, 23 Jan 2017 14:40:34 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Message-ID: <20170123054034.GA12327@bbox>
-References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
- <1464736881-24886-12-git-send-email-minchan@kernel.org>
- <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
- <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com>
- <20170119024421.GA9367@bbox>
- <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
- <20170119062158.GB9367@bbox>
- <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
- <20170123052244.GC11763@bbox>
- <20170123053056.GB2327@jagdpanzerIV.localdomain>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F33BA6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 01:05:52 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id k15so95191181qtg.5
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 22:05:52 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id t5si10092979qki.166.2017.01.22.22.05.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 22 Jan 2017 22:05:51 -0800 (PST)
+Date: Sun, 22 Jan 2017 22:05:44 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170123060544.GA12833@bombadil.infradead.org>
+References: <20170118054945.GD18349@bombadil.infradead.org>
+ <20170118133243.GB7021@dhcp22.suse.cz>
+ <20170119110513.GA22816@bombadil.infradead.org>
+ <20170119113317.GO30786@dhcp22.suse.cz>
+ <20170119115243.GB22816@bombadil.infradead.org>
+ <20170119121135.GR30786@dhcp22.suse.cz>
+ <878tq5ff0i.fsf@notabene.neil.brown.name>
+ <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+ <87ziijem9e.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-In-Reply-To: <20170123053056.GB2327@jagdpanzerIV.localdomain>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <87ziijem9e.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: NeilBrown <neilb@suse.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
-> On (01/23/17 14:22), Minchan Kim wrote:
-> [..]
-> > > Anyway, I will let you know the situation when it gets more clear.
-> > 
-> > Yeb, Thanks.
-> > 
-> > Perhaps, did you tried flush page before the writing?
-> > I think arm64 have no d-cache alising problem but worth to try it.
-> > Who knows :)
+On Sun, Jan 22, 2017 at 03:45:01PM +1100, NeilBrown wrote:
+> On Sun, Jan 22 2017, Theodore Ts'o wrote:
+> > On Sat, Jan 21, 2017 at 11:11:41AM +1100, NeilBrown wrote:
+> >> What are the benefits of GFP_TEMPORARY?  Presumably it doesn't guarantee
+> >> success any more than GFP_KERNEL does, but maybe it is slightly less
+> >> likely to fail, and somewhat less likely to block for a long time??  But
+> >> without some sort of promise, I wonder why anyone would use the
+> >> flag.  Is there a promise?  Or is it just "you can be nice to the MM
+> >> layer by setting this flag sometimes". ???
+> >
+> > My understanding is that the idea is to allow short-term use cases not
+> > to be mixed with long-term use cases --- in the Java world, to declare
+> > that a particular object will never be promoted from the "nursury"
+> > arena to the "tenured" arena, so that we don't end up with a situation
+> > where a page is used 90% for temporary objects, and 10% for a tenured
+> > object, such that later on we have a page which is 90% unused.
+> >
+> > Many of the existing users may in fact be for things like a temporary
+> > bounce buffer for I/O, where declaring this to the mm system could
+> > lead to less fragmented pages, but which would violate your proposed
+> > contract:
+
+I don't have a clear picture in my mind of when Java promotes objects
+from nursery to tenure ... which is not too different from my lack of
+understanding of what the MM layer considers "temporary" :-)  Is it
+acceptable usage to allocate a SCSI command (guaranteed to be freed
+within 30 seconds) from the temporary area?  Or should it only be used
+for allocations where the thread of control is not going to sleep between
+allocation and freeing?
+
+> You have used terms like "nursery" and "tenured" which don't really help
+> without definitions of those terms.
+> How about
 > 
-> I thought that flush_dcache_page() is only for cases when we write
-> to page (store that makes pages dirty), isn't it?
+>    GFP_TEMPORARY should be used when the memory allocated will either be
+>    freed, or will be placed in a reclaimable cache, after some sequence
+>    of events which is time-limited. i.e. there must be no indefinite
+>    wait on the path from allocation to freeing-or-caching.
+>    The memory will typically be allocated from a region dedicated to
+>    GFP_TEMPORARY allocations, thus ensuring that this region does not
+>    become fragmented.  Consequently, the delay imposed on GFP_TEMPORARY
+>    allocations is likely to be less than for non-TEMPORARY allocations
+>    when memory pressure is high.
 
-I think we need both because to see recent stores done by the user.
-I'm not sure it should be done by block device driver rather than
-page cache. Anyway, brd added it so worth to try it, I thought. :)
+I think you're overcomplicating your proposed contract by allowing for
+the "adding to a reclaimable cache" case.  If that will happen, the
+code should be using GFP_RECLAIMABLE, not GFP_TEMPORARY as a matter of
+good documentation.  And to allow the definitions to differ in future.
+Maybe they will always be the same bit pattern, but the code should
+distinguish the two cases (obviously there is no problem with allocating
+memory with GFP_RECLAIMABLE, then deciding you didn't need it after all
+and freeing it).
 
-Thanks.
+> ??
+> I think that for this definition to work, we would need to make it "a
+> movable cache", meaning that any item can be either freed or
+> re-allocated (presumably to a "tenured" location).  I don't think we
+> currently have that concept for slabs do we?  That implies that this
+> flag would only apply to whole-page allocations  (which was part of the
+> original question).  We could presumably add movability to
+> slab-shrinkers if these seemed like a good idea.
 
-http://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/commit/?id=c2572f2b4ffc27ba79211aceee3bef53a59bb5cd
+Funnily, Christoph Lameter and I are working on just such a proposal.
+He put it up as a topic discussion at the LCA Kernel Miniconf, and I've
+done a proof of concept implementation for radix tree nodes.  It needs
+changes to the radix tree API to make it work, so it's not published yet,
+but it's a useful proof of concept for things which can probably work
+and be more effective, like the dentry & inode caches.
 
+> I think that it would also make sense to require that the path from
+> allocation to freeing (or caching) of GFP_TEMPORARY allocation must not
+> wait for a non-TEMPORARY allocation, as that becomes an indefinite wait.
+
+... can it even wait for *another* TEMPORARY allocation?  I really think
+this discussion needs to take place in a room with more people present
+so we can get misunderstandings hammered out and general acceptance of
+the consensus.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
