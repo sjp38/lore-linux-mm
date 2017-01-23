@@ -1,63 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F86B6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:04:15 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id c7so28618713wjb.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:04:15 -0800 (PST)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id x5si15445551wmg.133.2017.01.23.12.04.13
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4626B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 15:11:03 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id j94so97332696uad.0
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:11:03 -0800 (PST)
+Received: from mail-ua0-x229.google.com (mail-ua0-x229.google.com. [2607:f8b0:400c:c08::229])
+        by mx.google.com with ESMTPS id k23si4506515uaa.75.2017.01.23.12.11.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Jan 2017 12:04:14 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 9CB0698B9A
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 20:04:13 +0000 (UTC)
-Date: Mon, 23 Jan 2017 20:04:12 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
- context
-Message-ID: <20170123200412.mkesardc4mckk6df@techsingularity.net>
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-4-mgorman@techsingularity.net>
- <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
- <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
- <20170123170329.GA7820@htj.duckdns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Jan 2017 12:11:02 -0800 (PST)
+Received: by mail-ua0-x229.google.com with SMTP id 35so118606802uak.1
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:11:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170123170329.GA7820@htj.duckdns.org>
+In-Reply-To: <31033.1485168526@warthog.procyon.org.uk>
+References: <CAGXu5j+nVMPk3TTxLr3_6Y=5vNM0=aD+13JM_Q5POts9M7kzuw@mail.gmail.com>
+ <CALCETrVKDAzcS62wTjDOGuRUNec_a-=8iEa7QQ62V83Ce2nk=A@mail.gmail.com> <31033.1485168526@warthog.procyon.org.uk>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 23 Jan 2017 12:10:41 -0800
+Message-ID: <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com>
+Subject: Re: [Ksummit-discuss] security-related TODO items?
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Petr Mladek <pmladek@suse.cz>
+To: David Howells <dhowells@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Kees Cook <keescook@chromium.org>, Josh Armour <jarmour@google.com>, Greg KH <gregkh@linuxfoundation.org>, "ksummit-discuss@lists.linuxfoundation.org" <ksummit-discuss@lists.linuxfoundation.org>
 
-On Mon, Jan 23, 2017 at 12:03:29PM -0500, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, Jan 20, 2017 at 03:26:06PM +0000, Mel Gorman wrote:
-> > > This translates to queue_work_on(), which has the comment of "We queue
-> > > the work to a specific CPU, the caller must ensure it can't go away.",
-> > > so is this safe? lru_add_drain_all() uses get_online_cpus() around this.
-> > > 
-> > 
-> > get_online_cpus() would be required.
-> 
-> This part of workqueue usage has always been a bit clunky and I should
-> imrpove it but you don't necessarily have to pin the cpus from
-> queueing to execution.  You can queue without checking whether the CPU
-> is online and instead synchronize the actual work item execution
-> against cpu offline callback so that if the work item gets executed
-> after offline callback is finished, it becomes a noop.
-> 
+On Mon, Jan 23, 2017 at 2:48 AM, David Howells <dhowells@redhat.com> wrote:
+> Andy Lutomirski <luto@amacapital.net> wrote:
+>
+>> This is not easy at all, but: how about rewriting execve() so that the
+>> actual binary format parsers run in user mode?
+>
+> Sounds very chicken-and-egg-ish.  Issues you'd have:
+>
+>  (1) You'd need at least one pre-loader binary image built into the kernel
+>      that you can map into userspace (you can't upcall to userspace to go get
+>      it for your core binfmt).  This could appear as, say, /proc/preloader,
+>      for the kernel to open and mmap.
 
-What is the actual mechanism that does that? It's not something that
-schedule_on_each_cpu does and one would expect that the core workqueue
-implementation would get this sort of detail correct. Or is this a proposal
-on how it should be done?
+No need for it to be visible at all.  I'm imagining the kernel making
+a fresh mm_struct, directly mapping some text, running that text, and
+then using the result as the mm_struct after execve.
 
--- 
-Mel Gorman
-SUSE Labs
+>
+>  (2) Where would the kernel put the executable image?  It would have to parse
+>      the binary to find out where not to put it - otherwise the code might
+>      have to relocate itself.
+
+In vmlinux.
+
+>
+>  (3) How do you deal with address randomisation?
+
+Non-issue, I think.
+
+>
+>  (4) You may have to start without a stack as the kernel wouldn't necessarily
+>      know where to put it or how big it should be (see 6).  Or you might have
+>      to relocate it, including all the pointers it contains.
+
+The relocation part is indeed a bit nasty.
+
+>
+>  (5) Where should the kernel put arguments, environment and other parameters?
+>      Currently, this presumes a stack, but see (4).
+
+Hmm.
+
+>
+>  (6) NOMMU could be particularly tricky.  For ELF-FDPIC at least, the stack
+>      size is set in the binary.  OTOH, you wouldn't have to relocate the
+>      pre-loader - you'd just mmap it MAP_PRIVATE and execute in place.
+
+For nommu, forget about it.
+
+>
+>  (7) When the kernel finds it's dealing with a script, it goes back through
+>      the security calculation procedure again to deal with the interpreter.
+
+The security calculation isn't what I'm worried about.  I'm worried
+about the parser.
+
+Anyway, I didn't say this would be easy :)
+
+>
+>> A minor one for x86: give binaries a way to opt out of the x86_64
+>> vsyscall page.  I already did the hard part (in a branch), so all
+>> that's really left is figuring out the ABI.
+>
+> munmap() it in the loader?
+
+Hmm, *that's* an interesting thought.  You can't remove the VMA (it's
+not a VMA) but maybe munmap() could be made to work anyway.  Hey mm
+folks, just how weird would it be to let arch code special-case
+unmapping of the gate pseudo-vma?
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
