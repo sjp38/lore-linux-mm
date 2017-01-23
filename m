@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA426B0253
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:03:34 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 80so206954868pfy.2
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 09:03:34 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id l4si16203215plk.234.2017.01.23.09.03.33
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D4FDC6B0253
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 12:09:36 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id j82so220450349ybg.0
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 09:09:36 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id g203si4310692ybg.325.2017.01.23.09.09.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 09:03:33 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id t6so14173411pgt.1
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 09:03:33 -0800 (PST)
-Date: Mon, 23 Jan 2017 12:03:29 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
- context
-Message-ID: <20170123170329.GA7820@htj.duckdns.org>
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-4-mgorman@techsingularity.net>
- <06c39883-eff5-1412-a148-b063aa7bcc5f@suse.cz>
- <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
+        Mon, 23 Jan 2017 09:09:35 -0800 (PST)
+Date: Mon, 23 Jan 2017 12:09:24 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170123170924.ubx2honzxe7g34on@thunk.org>
+References: <20170118054945.GD18349@bombadil.infradead.org>
+ <20170118133243.GB7021@dhcp22.suse.cz>
+ <20170119110513.GA22816@bombadil.infradead.org>
+ <20170119113317.GO30786@dhcp22.suse.cz>
+ <20170119115243.GB22816@bombadil.infradead.org>
+ <20170119121135.GR30786@dhcp22.suse.cz>
+ <878tq5ff0i.fsf@notabene.neil.brown.name>
+ <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+ <87ziijem9e.fsf@notabene.neil.brown.name>
+ <20170123060544.GA12833@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170120152606.w3hb53m2w6thzsqq@techsingularity.net>
+In-Reply-To: <20170123060544.GA12833@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Petr Mladek <pmladek@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: NeilBrown <neilb@suse.com>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
-
-On Fri, Jan 20, 2017 at 03:26:06PM +0000, Mel Gorman wrote:
-> > This translates to queue_work_on(), which has the comment of "We queue
-> > the work to a specific CPU, the caller must ensure it can't go away.",
-> > so is this safe? lru_add_drain_all() uses get_online_cpus() around this.
-> > 
+On Sun, Jan 22, 2017 at 10:05:44PM -0800, Matthew Wilcox wrote:
 > 
-> get_online_cpus() would be required.
+> I don't have a clear picture in my mind of when Java promotes objects
+> from nursery to tenure
 
-This part of workqueue usage has always been a bit clunky and I should
-imrpove it but you don't necessarily have to pin the cpus from
-queueing to execution.  You can queue without checking whether the CPU
-is online and instead synchronize the actual work item execution
-against cpu offline callback so that if the work item gets executed
-after offline callback is finished, it becomes a noop.
+It's typically on the order of minutes.   :-)
 
-Thanks.
+> ... which is not too different from my lack of
+> understanding of what the MM layer considers "temporary" :-)  Is it
+> acceptable usage to allocate a SCSI command (guaranteed to be freed
+> within 30 seconds) from the temporary area?  Or should it only be used
+> for allocations where the thread of control is not going to sleep between
+> allocation and freeing?
 
--- 
-tejun
+What the mm folks have said is that it's to prevent fragmentation.  If
+that's the optimization, whether or not you the process is allocating
+the memory sleeps for a few hundred milliseconds, or even seconds, is
+really in the noise compared with the average lifetime of an inode in
+the inode cache, or a page in the page cache....
+
+Why do you think it matters whether or not we sleep?  I've not heard
+any explanation for the assumption for why this might be important.
+
+    		    		       	   - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
