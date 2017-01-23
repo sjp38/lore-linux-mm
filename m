@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 968656B0033
-	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 19:22:12 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id l19so182680753ywc.5
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 16:22:12 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id 126si2816593ybq.282.2017.01.22.16.22.11
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D7F6B0033
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 19:47:04 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f5so180652426pgi.1
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 16:47:04 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a33si13935861pld.29.2017.01.22.16.47.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Jan 2017 16:22:11 -0800 (PST)
-Date: Sun, 22 Jan 2017 19:21:58 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170123002158.xe7r7us2buc37ybq@thunk.org>
-References: <20170110160224.GC6179@noname.redhat.com>
- <87k2a2ig2c.fsf@notabene.neil.brown.name>
- <20170113110959.GA4981@noname.redhat.com>
- <20170113142154.iycjjhjujqt5u2ab@thunk.org>
- <20170113160022.GC4981@noname.redhat.com>
- <87mveufvbu.fsf@notabene.neil.brown.name>
- <1484568855.2719.3.camel@poochiereds.net>
- <87o9yyemud.fsf@notabene.neil.brown.name>
- <1485127917.5321.1.camel@poochiereds.net>
+        Sun, 22 Jan 2017 16:47:03 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0N0hXud092813
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 19:47:03 -0500
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2843tyrhc4-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 19:47:02 -0500
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sun, 22 Jan 2017 17:47:02 -0700
+Date: Sun, 22 Jan 2017 16:46:57 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20170118110731.GA15949@linux.vnet.ibm.com>
+ <20170118111201.GB29472@bombadil.infradead.org>
+ <20170118221737.GP5238@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1701181758030.27439@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1485127917.5321.1.camel@poochiereds.net>
+In-Reply-To: <alpine.DEB.2.20.1701181758030.27439@east.gentwo.org>
+Message-Id: <20170123004657.GT5238@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@poochiereds.net>
-Cc: NeilBrown <neilb@suse.com>, Kevin Wolf <kwolf@redhat.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: willy@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-On Sun, Jan 22, 2017 at 06:31:57PM -0500, Jeff Layton wrote:
+On Wed, Jan 18, 2017 at 06:00:24PM -0600, Christoph Lameter wrote:
+> On Wed, 18 Jan 2017, Paul E. McKenney wrote:
 > 
-> Ahh, sorry if I wasn't clear.
+> > Actually, slab is using RCU to provide type safety to those slab users
+> > who request it.
 > 
-> I know Kevin posed this topic in the context of QEMU/KVM, and I figure
-> that running virt guests (themselves doing all sorts of workloads) is a
-> pretty common setup these days. That was what I meant by "use case"
-> here. Obviously there are many other workloads that could benefit from
-> (or be harmed by) changes in this area.
+> Typesafety is a side effect. The main idea here is that the object can
+> still be accessed in RCU sections after another processor frees the
+> object. We guarantee that the object is not freed but it may be reused
+> for another object within the RCU period.
 > 
-> Still, I think that looking at QEMU/KVM as a "application" and
-> considering what we can do to help optimize that case could be helpful
-> here (and might also be helpful for other workloads).
+> Can we have a name that expresses all of that properly?
 
-Well, except for QEMU/KVM, Kevin has already confirmed that using
-Direct I/O is a completely viable solution.  (And I'll add it solves a
-bunch of other problems, including page cache efficiency....)
+But of course!!!  "Type safety".  http://wiki.c2.com/?TypeSafe
 
-					- Ted
-
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
