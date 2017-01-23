@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 351496B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 05:09:47 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id g49so101262676qta.0
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 02:09:47 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y53si10436817qta.198.2017.01.23.02.09.45
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6937E6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 06:18:03 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c206so17581633wme.3
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 03:18:03 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id k188si13922918wma.76.2017.01.23.03.18.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 02:09:46 -0800 (PST)
-Date: Mon, 23 Jan 2017 11:09:41 +0100
-From: Kevin Wolf <kwolf@redhat.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170123100941.GA5745@noname.redhat.com>
-References: <20170110160224.GC6179@noname.redhat.com>
- <87k2a2ig2c.fsf@notabene.neil.brown.name>
- <20170113110959.GA4981@noname.redhat.com>
- <20170113142154.iycjjhjujqt5u2ab@thunk.org>
- <20170113160022.GC4981@noname.redhat.com>
- <87mveufvbu.fsf@notabene.neil.brown.name>
- <1484568855.2719.3.camel@poochiereds.net>
- <87o9yyemud.fsf@notabene.neil.brown.name>
- <1485127917.5321.1.camel@poochiereds.net>
- <20170123002158.xe7r7us2buc37ybq@thunk.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Jan 2017 03:18:02 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 6147CF4023
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 11:18:01 +0000 (UTC)
+Date: Mon, 23 Jan 2017 11:17:59 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 4/4] mm, page_alloc: Only use per-cpu allocator for
+ irq-safe requests
+Message-ID: <20170123111759.fjpox4d22rsknb4a@techsingularity.net>
+References: <20170117092954.15413-1-mgorman@techsingularity.net>
+ <20170117092954.15413-5-mgorman@techsingularity.net>
+ <675145cb-e026-7ceb-ce96-446d3dd61fe0@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170123002158.xe7r7us2buc37ybq@thunk.org>
+In-Reply-To: <675145cb-e026-7ceb-ce96-446d3dd61fe0@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Jeff Layton <jlayton@poochiereds.net>, NeilBrown <neilb@suse.com>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, Ric Wheeler <rwheeler@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Am 23.01.2017 um 01:21 hat Theodore Ts'o geschrieben:
-> On Sun, Jan 22, 2017 at 06:31:57PM -0500, Jeff Layton wrote:
-> > 
-> > Ahh, sorry if I wasn't clear.
-> > 
-> > I know Kevin posed this topic in the context of QEMU/KVM, and I figure
-> > that running virt guests (themselves doing all sorts of workloads) is a
-> > pretty common setup these days. That was what I meant by "use case"
-> > here. Obviously there are many other workloads that could benefit from
-> > (or be harmed by) changes in this area.
-> > 
-> > Still, I think that looking at QEMU/KVM as a "application" and
-> > considering what we can do to help optimize that case could be helpful
-> > here (and might also be helpful for other workloads).
+On Fri, Jan 20, 2017 at 04:02:56PM +0100, Vlastimil Babka wrote:
+> On 01/17/2017 10:29 AM, Mel Gorman wrote:
 > 
-> Well, except for QEMU/KVM, Kevin has already confirmed that using
-> Direct I/O is a completely viable solution.  (And I'll add it solves a
-> bunch of other problems, including page cache efficiency....)
+> [...]
+> 
+> > @@ -1244,10 +1243,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+> >  		return;
+> >  
+> >  	migratetype = get_pfnblock_migratetype(page, pfn);
+> > -	local_irq_save(flags);
+> > -	__count_vm_events(PGFREE, 1 << order);
+> > +	count_vm_events(PGFREE, 1 << order);
+> 
+> Maybe this could be avoided by moving the counting into free_one_page()?
+> Diff suggestion at the end of e-mail.
+> 
 
-Yes, "don't ever use non-O_DIRECT in production" is probably workable as
-a solution to the "state after failed fsync()" problem, as long as it is
-consistently implemented throughout the stack. That is, if we use a
-network protocol in QEMU (NFS, gluster, etc.), the server needs to use
-O_DIRECT, too, if we don't want to get the same problem one level down
-the stack. I'm not sure if that's possible with all of them, but if it
-is, it's mostly just a matter of configuring them correctly.
+Yes, that would work.
 
-However, if we look at the greater problem of hanging requests that came
-up in the more recent emails of this thread, it is only moved rather
-than solved. Chances are that already write() would hang now instead of
-only fsync(), but we still have a hard time dealing with this.
+> > @@ -2472,16 +2470,20 @@ void free_hot_cold_page(struct page *page, bool cold)
+> >  {
+> >  	struct zone *zone = page_zone(page);
+> >  	struct per_cpu_pages *pcp;
+> > -	unsigned long flags;
+> >  	unsigned long pfn = page_to_pfn(page);
+> >  	int migratetype;
+> >  
+> >  	if (!free_pcp_prepare(page))
+> >  		return;
+> >  
+> > +	if (in_interrupt()) {
+> > +		__free_pages_ok(page, 0);
+> > +		return;
+> > +	}
+> 
+> I think this should go *before* free_pcp_prepare() otherwise
+> free_pages_prepare() gets done twice in interrupt.
+> 
 
-Kevin
+You're right, thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
