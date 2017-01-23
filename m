@@ -1,142 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78E5B6B0261
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 13:17:12 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id c7so28123534wjb.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 10:17:12 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s26si15205836wma.12.2017.01.23.10.17.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 87BFF6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 14:34:41 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t18so20237372wmt.7
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 11:34:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c21si19896041wrc.301.2017.01.23.11.34.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 10:17:11 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 5/5] mm: vmscan: move dirty pages out of the way until they're flushed
-Date: Mon, 23 Jan 2017 13:16:41 -0500
-Message-Id: <20170123181641.23938-6-hannes@cmpxchg.org>
-In-Reply-To: <20170123181641.23938-1-hannes@cmpxchg.org>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Jan 2017 11:34:40 -0800 (PST)
+From: NeilBrown <neilb@suse.com>
+Date: Tue, 24 Jan 2017 06:34:29 +1100
+Subject: Re: [ATTEND] many topics
+In-Reply-To: <20170123170924.ubx2honzxe7g34on@thunk.org>
+References: <20170118054945.GD18349@bombadil.infradead.org> <20170118133243.GB7021@dhcp22.suse.cz> <20170119110513.GA22816@bombadil.infradead.org> <20170119113317.GO30786@dhcp22.suse.cz> <20170119115243.GB22816@bombadil.infradead.org> <20170119121135.GR30786@dhcp22.suse.cz> <878tq5ff0i.fsf@notabene.neil.brown.name> <20170121131644.zupuk44p5jyzu5c5@thunk.org> <87ziijem9e.fsf@notabene.neil.brown.name> <20170123060544.GA12833@bombadil.infradead.org> <20170123170924.ubx2honzxe7g34on@thunk.org>
+Message-ID: <87mvehd0ze.fsf@notabene.neil.brown.name>
+MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="=-=-=";
+	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-We noticed a performance regression when moving hadoop workloads from
-3.10 kernels to 4.0 and 4.6. This is accompanied by increased pageout
-activity initiated by kswapd as well as frequent bursts of allocation
-stalls and direct reclaim scans. Even lowering the dirty ratios to the
-equivalent of less than 1% of memory would not eliminate the issue,
-suggesting that dirty pages concentrate where the scanner is looking.
+--=-=-=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-This can be traced back to recent efforts of thrash avoidance. Where
-3.10 would not detect refaulting pages and continuously supply clean
-cache to the inactive list, a thrashing workload on 4.0+ will detect
-and activate refaulting pages right away, distilling used-once pages
-on the inactive list much more effectively. This is by design, and it
-makes sense for clean cache. But for the most part our workload's
-cache faults are refaults and its use-once cache is from streaming
-writes. We end up with most of the inactive list dirty, and we don't
-go after the active cache as long as we have use-once pages around.
+On Tue, Jan 24 2017, Theodore Ts'o wrote:
 
-But waiting for writes to avoid reclaiming clean cache that *might*
-refault is a bad trade-off. Even if the refaults happen, reads are
-faster than writes. Before getting bogged down on writeback, reclaim
-should first look at *all* cache in the system, even active cache.
+> On Sun, Jan 22, 2017 at 10:05:44PM -0800, Matthew Wilcox wrote:
+>>=20
+>> I don't have a clear picture in my mind of when Java promotes objects
+>> from nursery to tenure
+>
+> It's typically on the order of minutes.   :-)
+>
+>> ... which is not too different from my lack of
+>> understanding of what the MM layer considers "temporary" :-)  Is it
+>> acceptable usage to allocate a SCSI command (guaranteed to be freed
+>> within 30 seconds) from the temporary area?  Or should it only be used
+>> for allocations where the thread of control is not going to sleep between
+>> allocation and freeing?
+>
+> What the mm folks have said is that it's to prevent fragmentation.  If
+> that's the optimization, whether or not you the process is allocating
+> the memory sleeps for a few hundred milliseconds, or even seconds, is
+> really in the noise compared with the average lifetime of an inode in
+> the inode cache, or a page in the page cache....
+>
+> Why do you think it matters whether or not we sleep?  I've not heard
+> any explanation for the assumption for why this might be important.
 
-To accomplish this, activate pages that have been dirty or under
-writeback for two inactive LRU cycles. We know at this point that
-there are not enough clean inactive pages left to satisfy memory
-demand in the system. The pages are marked for immediate reclaim,
-meaning they'll get moved back to the inactive LRU tail as soon as
-they're written back and become reclaimable. But in the meantime, by
-reducing the inactive list to only immediately reclaimable pages, we
-allow the scanner to deactivate and refill the inactive list with
-clean cache from the active list tail to guarantee forward progress.
+Because "TEMPORARY" implies a limit to the amount of time, and sleeping
+is the thing that causes a process to take a large amount of time.  It
+seems like an obvious connection to me.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/mm_inline.h | 7 +++++++
- mm/swap.c                 | 9 +++++----
- mm/vmscan.c               | 6 +++---
- 3 files changed, 15 insertions(+), 7 deletions(-)
+Imagine I want to allocate a large contiguous region in the
+ZONE_MOVEABLE region.  I find a mostly free region, so I just need to
+move those last few pages.  If there is a limit on how long a process
+can sleep while holding an allocation from ZONE_MOVEABLE, then I know
+how long, at most, I need to wait before those pages become either free
+or movable.  If those processes can wait indefinitely, then I might have
+to wait indefinitely to get this large region.
 
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index 41d376e7116d..e030a68ead7e 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -50,6 +50,13 @@ static __always_inline void add_page_to_lru_list(struct page *page,
- 	list_add(&page->lru, &lruvec->lists[lru]);
- }
- 
-+static __always_inline void add_page_to_lru_list_tail(struct page *page,
-+				struct lruvec *lruvec, enum lru_list lru)
-+{
-+	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
-+	list_add_tail(&page->lru, &lruvec->lists[lru]);
-+}
-+
- static __always_inline void del_page_from_lru_list(struct page *page,
- 				struct lruvec *lruvec, enum lru_list lru)
- {
-diff --git a/mm/swap.c b/mm/swap.c
-index aabf2e90fe32..c4910f14f957 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -209,9 +209,10 @@ static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec,
- {
- 	int *pgmoved = arg;
- 
--	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
--		enum lru_list lru = page_lru_base_type(page);
--		list_move_tail(&page->lru, &lruvec->lists[lru]);
-+	if (PageLRU(page) && !PageUnevictable(page)) {
-+		del_page_from_lru_list(page, lruvec, page_lru(page));
-+		ClearPageActive(page);
-+		add_page_to_lru_list_tail(page, lruvec, page_lru(page));
- 		(*pgmoved)++;
- 	}
- }
-@@ -235,7 +236,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
-  */
- void rotate_reclaimable_page(struct page *page)
- {
--	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
-+	if (!PageLocked(page) && !PageDirty(page) &&
- 	    !PageUnevictable(page) && PageLRU(page)) {
- 		struct pagevec *pvec;
- 		unsigned long flags;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index df0fe0cc438e..947ab6f4db10 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1063,7 +1063,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			    PageReclaim(page) &&
- 			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
- 				nr_immediate++;
--				goto keep_locked;
-+				goto activate_locked;
- 
- 			/* Case 2 above */
- 			} else if (sane_reclaim(sc) ||
-@@ -1081,7 +1081,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				 */
- 				SetPageReclaim(page);
- 				nr_writeback++;
--				goto keep_locked;
-+				goto activate_locked;
- 
- 			/* Case 3 above */
- 			} else {
-@@ -1174,7 +1174,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				inc_node_page_state(page, NR_VMSCAN_IMMEDIATE);
- 				SetPageReclaim(page);
- 
--				goto keep_locked;
-+				goto activate_locked;
- 			}
- 
- 			if (references == PAGEREF_RECLAIM_CLEAN)
--- 
-2.11.0
+"temporary" doesn't mean anything without a well defined time limit.
+
+But maybe I completely misunderstand.
+
+NeilBrown
+
+--=-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAliGWsUACgkQOeye3VZi
+gbn9ZA/+MTyGNbc3PBlEghUaTikfII4EMfa5w7AGULQLSZKvKplTPrTJwc+QmSY8
+sNZI4WPGwL3Gw68xDWXb8pN8X1Zcg2+dvuAFCJyolgsQjL/1FrxN8eSgcvBMNXBC
+m28YDeY+xOIofLW5q2IK9XS2nAwCcezoLKe79gzXchVonKx+/H6+emB0icRTmq64
+TUAyKk26q+YdWe1Y9AoCPZqKLXt/EH0/s8S1PRZV3oxoZdzcsjvOpxMgOzJbAi3v
+9CHTCsOCvqnBfiVhIVG9iagHUZoeQcDa9C2nQ5jE9tNhxsPvhVl4kWW9+cFIWKw4
+AbxeeDkuuascspNyi/C1vnYmIl01H1sLRBsVrbhP1CifqolDZqQTBM8C/isb7Hde
+vaGjckiokW/Uq1yN1gf5ViZqUMHxI8/C+aN38+Yvi0p4/6CYCzl7yghGSPydYINE
+CC4+OavCnMKQIldl39vltntxTkyJyhDZUSq7iWoQLuCtLei3zdRRWAhwLe/kGvoh
+zNjFg8Z8Tw2/lCNDIh41b/J33uI3l0KhqJM1jxDpXI/eXp/JWy0ADm6merggoHda
+K4ro7c4yd35HNxixvSRPZe4BhyDchCRTDEiiAr4aHmrWkH7Bkcf/YbVQuAqcfYEt
+7jdFPRQ2E/J4Ne2r6mFSq8BagpQHvfzttvAqKdbD+uix8ZDhfBc=
+=tCJC
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
