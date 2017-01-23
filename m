@@ -1,66 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DA806B0033
-	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 23:03:36 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 201so187634109pfw.5
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 20:03:36 -0800 (PST)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id l8si14340644pln.291.2017.01.22.20.03.35
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 329EC6B0033
+	for <linux-mm@kvack.org>; Sun, 22 Jan 2017 23:44:10 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id m98so142018555iod.2
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 20:44:10 -0800 (PST)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id e9si7826162ita.102.2017.01.22.20.44.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Jan 2017 20:03:35 -0800 (PST)
-Received: by mail-pf0-x243.google.com with SMTP id 19so9109466pfo.3
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 20:03:35 -0800 (PST)
-Date: Mon, 23 Jan 2017 13:03:47 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
-Message-ID: <20170123040347.GA2327@jagdpanzerIV.localdomain>
-References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
- <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
- <20170121084338.GA405@jagdpanzerIV.localdomain>
- <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
- <20170123025826.GA24581@js1304-P5Q-DELUXE>
+        Sun, 22 Jan 2017 20:44:09 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC] HWPOISON: soft offlining for non-lru movable page
+Date: Mon, 23 Jan 2017 04:26:40 +0000
+Message-ID: <20170123042639.GA5610@hori1.linux.bs1.fc.nec.co.jp>
+References: <1484712054-7997-1-git-send-email-xieyisheng1@huawei.com>
+ <20170118094530.GA29579@hori1.linux.bs1.fc.nec.co.jp>
+ <ccf71cb7-3a12-0bf4-ad79-b235f6df94c6@huawei.com>
+In-Reply-To: <ccf71cb7-3a12-0bf4-ad79-b235f6df94c6@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <D5096D1F93D3E7479A2F9FB37AA32B77@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170123025826.GA24581@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: zhouxianrong <zhouxianrong@huawei.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, minchan@kernel.org, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>
 
-On (01/23/17 11:58), Joonsoo Kim wrote:
-> Hello,
-> 
-> On Sun, Jan 22, 2017 at 10:58:38AM +0800, zhouxianrong wrote:
-> > 1. memset is just set a int value but i want to set a long value.
-> 
-> Sorry for late review.
-> 
-> Do we really need to set a long value? I cannot believe that
-> long value is repeated in the page. Value repeatition is
-> usually done by value 0 or 1 and it's enough to use int. And, I heard
-> that value 0 or 1 is repeated in Android. Could you check the distribution
-> of the value in the same page?
+On Fri, Jan 20, 2017 at 05:52:13PM +0800, Yisheng Xie wrote:
+> Hi Naoya,
+>=20
+> On 2017/1/18 17:45, Naoya Horiguchi wrote:
+> > On Wed, Jan 18, 2017 at 12:00:54PM +0800, Yisheng Xie wrote:
+> >> This patch is to extends soft offlining framework to support
+> >> non-lru page, which already support migration after
+> >> commit bda807d44454 ("mm: migrate: support non-lru movable page
+> >> migration")
+> >>
+> >> When memory corrected errors occur on a non-lru movable page,
+> >> we can choose to stop using it by migrating data onto another
+> >> page and disable the original (maybe half-broken) one.
+> >>
+> >> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> >=20
+> > It looks OK in my quick glance. I'll do some testing more tomorrow.
+> >=20
+> Thanks for reviewing.
+> I have do some basic test like offline movable page and unpoison it.
+> Do you have some test suit or test suggestion? So I can do some more
+> test of it for double check? Very thanks for that.
 
-Hello Joonsoo,
+I've tried soft offline on zram pages with your v2 patch, and it works fine=
+.
+I have no specific suggestion about other testcases.
 
-thanks for taking a look and for bringing this question up.
-so I kinda wanted to propose union of `ulong handle' with `uint element'
-and switching to memset(), but I couldn't figure out if that change would
-break detection of some patterns.
-
- /* Allocated for each disk page */
- struct zram_table_entry {
--       unsigned long handle;
-+       union {
-+               unsigned long handle;
-+               unsigned int element;
-+       };
-        unsigned long value;
- };
-
-	-ss
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
