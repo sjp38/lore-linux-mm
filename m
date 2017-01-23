@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 497D96B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 01:35:36 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id a29so95580835qtb.6
-        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 22:35:36 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n23si10129522qtc.296.2017.01.22.22.35.35
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7CE6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 01:41:57 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id u143so179000810oif.1
+        for <linux-mm@kvack.org>; Sun, 22 Jan 2017 22:41:57 -0800 (PST)
+Received: from dggrg02-dlp.huawei.com ([45.249.212.188])
+        by mx.google.com with ESMTPS id q189si5615075oif.324.2017.01.22.22.41.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Jan 2017 22:35:35 -0800 (PST)
-Date: Sun, 22 Jan 2017 22:35:28 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [ATTEND] many topics
-Message-ID: <20170123063528.GC12833@bombadil.infradead.org>
-References: <20170118133243.GB7021@dhcp22.suse.cz>
- <20170119110513.GA22816@bombadil.infradead.org>
- <20170119113317.GO30786@dhcp22.suse.cz>
- <20170119115243.GB22816@bombadil.infradead.org>
- <20170119121135.GR30786@dhcp22.suse.cz>
- <878tq5ff0i.fsf@notabene.neil.brown.name>
- <20170121131644.zupuk44p5jyzu5c5@thunk.org>
- <87ziijem9e.fsf@notabene.neil.brown.name>
- <20170123060544.GA12833@bombadil.infradead.org>
- <877f5me19s.fsf@notabene.neil.brown.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 22 Jan 2017 22:41:56 -0800 (PST)
+From: zhouxianrong <zhouxianrong@huawei.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbTogZXh0ZW5kIHplcm8gcGFnZXMgdG8gc2FtZSBl?=
+ =?gb2312?Q?lement_pages_for_zram?=
+Date: Mon, 23 Jan 2017 06:32:55 +0000
+Message-ID: <AE94847B1D9E864B8593BD8051012AF36E0D8AC9@DGGEMA505-MBS.china.huawei.com>
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+ <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
+ <20170121084338.GA405@jagdpanzerIV.localdomain>
+ <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
+ <20170123062621.GB12833@bombadil.infradead.org>
+In-Reply-To: <20170123062621.GB12833@bombadil.infradead.org>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <877f5me19s.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "sergey.senozhatsky@gmail.com" <sergey.senozhatsky@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>, "ngupta@vflare.org" <ngupta@vflare.org>, Mi Sophia Wang <Mi.Sophia.Wang@huawei.com>, Zhouxiyu <zhouxiyu@huawei.com>, "Duwei (Device
+ OS)" <weidu.du@huawei.com>, "Zhangshiming (Simon, Device OS)" <zhangshiming5@huawei.com>, Won Ho Park <won.ho.park@huawei.com>
 
-On Mon, Jan 23, 2017 at 05:30:39PM +1100, NeilBrown wrote:
-> On Mon, Jan 23 2017, Matthew Wilcox wrote:
-> > ... can it even wait for *another* TEMPORARY allocation?  I really think
-> > this discussion needs to take place in a room with more people present
-> > so we can get misunderstandings hammered out and general acceptance of
-> > the consensus.
-> 
-> I suspect you are right, but throwing around some thoughts in advance,
-> to spark new ideas, can't hurt?  I hate going to meetings where the
-> agenda has a topic, but no background discussion.  It means that I have
-> to do all my thinking on my feet (not that I'll be at this meeting).
-
-I have no desire to shut down discussion on the list!  I just wished to
-point out that I don't think we're going to reach consensus on this issue,
-and so it'll be worth having on the agenda.
-
-Also, I am sad that I won't see you in Boston, and that you weren't able
-to be in Hobart either.  Maybe Sydney next year?
+WWVzLCBtZW1zZXQncyBwcm90b3R5cGUgaXMgaW50IGJ1dA0KdGhlIGltcGxlbWVudCBvZiBhcmNo
+IGlzIHVuc2lnbmVkIGNoYXI7IGZvciBleGFtcGxlLCBpbiBhcm02NA0KDQoJLndlYWsgbWVtc2V0
+DQpFTlRSWShfX21lbXNldCkNCkVOVFJZKG1lbXNldCkNCgltb3YJZHN0LCBkc3RpbgkvKiBQcmVz
+ZXJ2ZSByZXR1cm4gdmFsdWUuICAqLw0KCWFuZAlBX2x3LCB2YWwsICMyNTUNCglvcnIJQV9sdywg
+QV9sdywgQV9sdywgbHNsICM4DQoJb3JyCUFfbHcsIEFfbHcsIEFfbHcsIGxzbCAjMTYNCglvcnIJ
+QV9sLCBBX2wsIEFfbCwgbHNsICMzMg0KDQotLS0tLdPKvP7Urbz+LS0tLS0NCreivP7IyzogTWF0
+dGhldyBXaWxjb3ggW21haWx0bzp3aWxseUBpbmZyYWRlYWQub3JnXSANCreiy83KsbzkOiAyMDE3
+xOox1MIyM8jVIDE0OjI2DQrK1bz+yMs6IHpob3V4aWFucm9uZw0Ks63LzTogU2VyZ2V5IFNlbm96
+aGF0c2t5OyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7
+IGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc7IHNlcmdleS5zZW5vemhhdHNreUBnbWFpbC5jb207
+IG1pbmNoYW5Aa2VybmVsLm9yZzsgbmd1cHRhQHZmbGFyZS5vcmc7IE1pIFNvcGhpYSBXYW5nOyBa
+aG91eGl5dTsgRHV3ZWkgKERldmljZSBPUyk7IFpoYW5nc2hpbWluZyAoU2ltb24sIERldmljZSBP
+Uyk7IFdvbiBIbyBQYXJrDQrW98ziOiBSZTogW1BBVENIXSBtbTogZXh0ZW5kIHplcm8gcGFnZXMg
+dG8gc2FtZSBlbGVtZW50IHBhZ2VzIGZvciB6cmFtDQoNCk9uIFN1biwgSmFuIDIyLCAyMDE3IGF0
+IDEwOjU4OjM4QU0gKzA4MDAsIHpob3V4aWFucm9uZyB3cm90ZToNCj4gMS4gbWVtc2V0IGlzIGp1
+c3Qgc2V0IGEgaW50IHZhbHVlIGJ1dCBpIHdhbnQgdG8gc2V0IGEgbG9uZyB2YWx1ZS4NCg0KbWVt
+c2V0IGRvZXNuJ3Qgc2V0IGFuIGludCB2YWx1ZS4NCg0KREVTQ1JJUFRJT04NCiAgICAgICBUaGUg
+IG1lbXNldCgpICBmdW5jdGlvbiAgZmlsbHMgIHRoZSAgZmlyc3QgIG4gIGJ5dGVzIG9mIHRoZSBt
+ZW1vcnkgYXJlYQ0KICAgICAgIHBvaW50ZWQgdG8gYnkgcyB3aXRoIHRoZSBjb25zdGFudCBieXRl
+IGMuDQoNCkl0IHNldHMgYSBieXRlIHZhbHVlLiAgSyZSIGp1c3QgaGFwcGVuZWQgdG8gY2hvb3Nl
+ICdpbnQnIGFzIHRoZSB0eXBlIHRvIHN0b3JlIHRoYXQgInVuc2lnbmVkIGNoYXIiIGluLiAgUHJv
+YmFibHkgZm9yIHZlcnkgZ29vZCByZWFzb25zIHdoaWNoIG1ha2UgYWJzb2x1dGVseSBubyBzZW5z
+ZSB0b2RheS4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
