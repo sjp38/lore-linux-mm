@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CEBC66B026E
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 15:58:22 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id x75so110290088vke.5
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:58:22 -0800 (PST)
-Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
-        by mx.google.com with ESMTPS id h143si2845795vkd.216.2017.01.24.12.58.21
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AC9B6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 16:17:51 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id f67so226318814ybc.4
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:17:51 -0800 (PST)
+Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
+        by mx.google.com with ESMTPS id a3si5495895ybg.315.2017.01.24.13.17.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 12:58:21 -0800 (PST)
-Received: by mail-vk0-x236.google.com with SMTP id k127so120691061vke.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:58:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <c1822e5b-9352-c1ab-ee98-e492ef6e156a@I-love.SAKURA.ne.jp>
-References: <CAGXu5j+nVMPk3TTxLr3_6Y=5vNM0=aD+13JM_Q5POts9M7kzuw@mail.gmail.com>
- <CALCETrVKDAzcS62wTjDOGuRUNec_a-=8iEa7QQ62V83Ce2nk=A@mail.gmail.com>
- <31033.1485168526@warthog.procyon.org.uk> <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com>
- <c1822e5b-9352-c1ab-ee98-e492ef6e156a@I-love.SAKURA.ne.jp>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 24 Jan 2017 12:58:00 -0800
-Message-ID: <CALCETrWj8_D_YL4PKZGbxx4HSZHyoctdvfriUVhE=x+NpQYLtw@mail.gmail.com>
-Subject: Re: [Ksummit-discuss] security-related TODO items?
-Content-Type: text/plain; charset=UTF-8
+        Tue, 24 Jan 2017 13:17:50 -0800 (PST)
+Received: by mail-yw0-x243.google.com with SMTP id q71so17048074ywg.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:17:50 -0800 (PST)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] MAINTAINERS: add Dan Streetman to zswap maintainers
+Date: Tue, 24 Jan 2017 16:17:24 -0500
+Message-Id: <20170124211724.18746-1-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Howells <dhowells@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kees Cook <keescook@chromium.org>, Josh Armour <jarmour@google.com>, Greg KH <gregkh@linuxfoundation.org>, "ksummit-discuss@lists.linuxfoundation.org" <ksummit-discuss@lists.linuxfoundation.org>
+To: Seth Jennings <sjenning@redhat.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjennings@redhat.com>
 
-On Tue, Jan 24, 2017 at 2:32 AM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
-> Hello.
->
-> Can I read archive of the discussion of this topic from the beginning?
-> I felt that this topic might be an opportunity of proposing my execute handler
-> approach.
+Add myself as zswap maintainer.
 
-It should be in the linux-mm archives.
+Cc: Seth Jennings <sjennings@redhat.com>
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+Seth, I'd meant to send this last year, I assume you're still ok
+adding me.  Did you want to stay on as maintainer also?
 
->
-> In TOMOYO LSM (out of tree version), administrator can specify a program
-> called execute handler which should be executed on behalf of a program
-> requested by execve(). The specified program performs validation (e.g. whether
-> argv[]/envp[] are appropriate) and setup (e.g. redirect file handles) before
-> executing the program requested by execve().
->
-> Conceptually execute handler is something like
->
->   #!/bin/sh
->   test ... || exit 1
->   test ... || exit 1
->   test ... || exit 1
->   exec ...
->
-> which would in practice be implemented using C like
-> https://osdn.net/projects/tomoyo/scm/svn/blobs/head/tags/ccs-tools/1.8.5p1/usr_lib_ccs/audit-exec-param.c .
-> It is not difficult to implement the kernel side as well.
->
+ MAINTAINERS | 1 +
+ 1 file changed, 1 insertion(+)
 
-The difference is that that last exec means that the kernel is still
-exposed to any bugs in its ELF parser.  Moving that to user mode would
-reduce the attack surface.
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 741f35f..e5575d5 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -13736,6 +13736,7 @@ F:	Documentation/vm/zsmalloc.txt
+ 
+ ZSWAP COMPRESSED SWAP CACHING
+ M:	Seth Jennings <sjenning@redhat.com>
++M:	Dan Streetman <ddstreet@ieee.org>
+ L:	linux-mm@kvack.org
+ S:	Maintained
+ F:	mm/zswap.c
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
