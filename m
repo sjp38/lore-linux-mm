@@ -1,85 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AF356B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 19:02:12 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id a88so100122615uaa.1
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 16:02:12 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id t11si4664740vkc.175.2017.01.23.16.02.11
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E93356B0069
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 19:03:08 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id h65so67014902lfi.1
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 16:03:08 -0800 (PST)
+Received: from smtp22.mail.ru (smtp22.mail.ru. [94.100.181.177])
+        by mx.google.com with ESMTPS id a142si3297281lfa.52.2017.01.23.16.03.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 16:02:11 -0800 (PST)
-Date: Mon, 23 Jan 2017 16:01:54 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH] mm: write protect MADV_FREE pages
-Message-ID: <20170124000153.GA10693@shli-mbp.local>
-References: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
- <20170123152814.2a55c4110df3bd0d67de5fc3@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170123152814.2a55c4110df3bd0d67de5fc3@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Jan 2017 16:03:07 -0800 (PST)
+Message-ID: <1485216185.5952.2.camel@list.ru>
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+From: Alexandr <sss123next@list.ru>
+Date: Tue, 24 Jan 2017 03:03:05 +0300
+In-Reply-To: <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
+References: <bug-192571-27@https.bugzilla.kernel.org/>
+	 <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+	 <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+	 <20170118013948.GA580@jagdpanzerIV.localdomain>
+	 <1484719121.25232.1.camel@list.ru>
+	 <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Kernel-team@fb.com, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>, stable@kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-On Mon, Jan 23, 2017 at 03:28:14PM -0800, Andrew Morton wrote:
-> On Mon, 23 Jan 2017 15:15:52 -0800 Shaohua Li <shli@fb.com> wrote:
-> 
-> > The page reclaim has an assumption writting to a page with clean pte
-> > should trigger a page fault, because there is a window between pte zero
-> > and tlb flush where a new write could come. If the new write doesn't
-> > trigger page fault, page reclaim will not notice it and think the page
-> > is clean and reclaim it. The MADV_FREE pages don't comply with the rule
-> > and the pte is just cleaned without writeprotect, so there will be no
-> > pagefault for new write. This will cause data corruption.
-> 
-> I'd like to see here a complete description of the bug's effects: waht
-> sort of workload will trigger it, what the end-user visible effects
-> are, etc.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
 
-I don't have a real workload to trigger this, it's from code study, sorry. I
-thought a workload like this triggering the bug:
 
-madvise(MADV_FREE) /* memory range */
-write to the memory range
-read from the memory range
+> Why would you do this?A A There's no benefit of using zswap together
+> with zram.
 
-With memory pressure, the data read by the application could be all 0 instead
-of those written
- 
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1381,6 +1381,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  			tlb->fullmm);
-> >  		orig_pmd = pmd_mkold(orig_pmd);
-> >  		orig_pmd = pmd_mkclean(orig_pmd);
-> > +		orig_pmd = pmd_wrprotect(orig_pmd);
-> 
-> Is this the right way round?  There's still a window where we won't get
-> that write fault on the cleaned pte.  Should the pmd_wrprotect() happen
-> before the pmd_mkclean()?
+i just wanted to test zram and zswap, i still not dig to deep in it,
+but what i wanted is to use zram swap (with zswap disabled), and if it
+exceeded use real swap on block device with zswap enabled.
+-----BEGIN PGP SIGNATURE-----
 
-This doesn't matter. We haven't set the pmd value to page table yet
-
-Thanks,
-Shaohua 
-> >  		set_pmd_at(mm, addr, pmd, orig_pmd);
-> >  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 0e3828e..bfb6800 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -373,6 +373,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
-> >  
-> >  			ptent = pte_mkold(ptent);
-> >  			ptent = pte_mkclean(ptent);
-> > +			ptent = pte_wrprotect(ptent);
-> >  			set_pte_at(mm, addr, pte, ptent);
-> >  			if (PageActive(page))
-> >  				deactivate_page(page);
-> 
+iQIzBAEBCgAdFiEEl/sA7WQg6czXWI/dsEApXVthX7wFAliGmbkACgkQsEApXVth
+X7zyDQ/9HMnJ5JzAAkrWJKlvpA+H6CRw0YBO77zQ44lr9R5jqmVAhU3XS6+dfYpA
+ZL9lwG8zEqSDUCakko4vRVaeOiy3qzCNQcect2J1I9aGrHFIkC0I/ifPpbXRa4s5
++D45mSUzGxnMMz1XZrOkvuNsbzdWuTmQqTUqnJVovRD/V62u8Y50gDL3zkz/9x7L
+mLjl/5WGjBAOQtwYpq1uE7FAJFHjV2cX8yI5JrFzMK1oghjFfqPFiYbD0yqSR2MB
+QFdDQlqhMZ7Dwnk0P/WzIpJXdoT2NXH1iWRsvvKYeMwRP7hIzEnkpxfTlYtBK5xu
+7zw/IEa0prLaEtYEh1j6h8Tzn6wKNeIT3t0g2yBT3QC8BW/v7AODlj95C+jIR06f
+tikDCx+DUDuP96SW6RIjVLODCt/4yCzgVdxoAD5AbAyY+pU+JEmDkz8L60Gk2mC9
+OG9IExiCCY/G3069A6UZROSFrrZGgrP75JGhTP91cS/XGH/HODFmqHQVVp45cED9
+wn820IGjB2AAI6MmmRCvgqzUs99PTv8Xqr/x2Ea/ce+lFiU+L5x+xY7Q1q3KhQpQ
+pLqLShi9iQUAzIYAtXZNPlbgwDtbYqz5sIAa6cmiv92bcRgJdPf4SiWLBUzIVi0M
+KkNXiyo3XkDXoC8P1WjzLoexoJtOJooUbPcKimCI8Ef6+s5PmC0=
+=Pyde
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
