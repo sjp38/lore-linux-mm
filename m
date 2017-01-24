@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 647096B026F
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 15:17:32 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id z134so78189805lff.5
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:17:32 -0800 (PST)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id y30si13227940lfj.327.2017.01.24.12.17.30
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBC66B026E
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 15:58:22 -0500 (EST)
+Received: by mail-vk0-f71.google.com with SMTP id x75so110290088vke.5
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:58:22 -0800 (PST)
+Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
+        by mx.google.com with ESMTPS id h143si2845795vkd.216.2017.01.24.12.58.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 12:17:30 -0800 (PST)
-Received: by mail-lf0-x241.google.com with SMTP id x1so18689291lff.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:17:30 -0800 (PST)
+        Tue, 24 Jan 2017 12:58:21 -0800 (PST)
+Received: by mail-vk0-x236.google.com with SMTP id k127so120691061vke.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:58:21 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1485216185.5952.2.camel@list.ru>
-References: <bug-192571-27@https.bugzilla.kernel.org/> <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
- <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
- <20170118013948.GA580@jagdpanzerIV.localdomain> <1484719121.25232.1.camel@list.ru>
- <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com> <1485216185.5952.2.camel@list.ru>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 24 Jan 2017 15:16:49 -0500
-Message-ID: <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com>
-Subject: Re: [Bug 192571] zswap + zram enabled BUG
+In-Reply-To: <c1822e5b-9352-c1ab-ee98-e492ef6e156a@I-love.SAKURA.ne.jp>
+References: <CAGXu5j+nVMPk3TTxLr3_6Y=5vNM0=aD+13JM_Q5POts9M7kzuw@mail.gmail.com>
+ <CALCETrVKDAzcS62wTjDOGuRUNec_a-=8iEa7QQ62V83Ce2nk=A@mail.gmail.com>
+ <31033.1485168526@warthog.procyon.org.uk> <CALCETrV5b4Z3MF51pQOPtp-BgMM4TYPLrXPHL+EfsWfm+CczkA@mail.gmail.com>
+ <c1822e5b-9352-c1ab-ee98-e492ef6e156a@I-love.SAKURA.ne.jp>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 24 Jan 2017 12:58:00 -0800
+Message-ID: <CALCETrWj8_D_YL4PKZGbxx4HSZHyoctdvfriUVhE=x+NpQYLtw@mail.gmail.com>
+Subject: Re: [Ksummit-discuss] security-related TODO items?
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandr <sss123next@list.ru>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Howells <dhowells@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kees Cook <keescook@chromium.org>, Josh Armour <jarmour@google.com>, Greg KH <gregkh@linuxfoundation.org>, "ksummit-discuss@lists.linuxfoundation.org" <ksummit-discuss@lists.linuxfoundation.org>
 
-On Mon, Jan 23, 2017 at 7:03 PM, Alexandr <sss123next@list.ru> wrote:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA512
+On Tue, Jan 24, 2017 at 2:32 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Hello.
 >
->
->> Why would you do this?  There's no benefit of using zswap together
->> with zram.
->
-> i just wanted to test zram and zswap, i still not dig to deep in it,
-> but what i wanted is to use zram swap (with zswap disabled), and if it
-> exceeded use real swap on block device with zswap enabled.
+> Can I read archive of the discussion of this topic from the beginning?
+> I felt that this topic might be an opportunity of proposing my execute handler
+> approach.
 
-I don't believe that's possible, you can't enable zswap for only
-specific swap devices; and anyway, if you fill up zram, you won't
-really have any memory left for zswap to use will you?
+It should be in the linux-mm archives.
 
-However, it shouldn't encounter any BUG(), like you saw.  If it's
-reproducable for you, can you give details on how to reproduce it?
+>
+> In TOMOYO LSM (out of tree version), administrator can specify a program
+> called execute handler which should be executed on behalf of a program
+> requested by execve(). The specified program performs validation (e.g. whether
+> argv[]/envp[] are appropriate) and setup (e.g. redirect file handles) before
+> executing the program requested by execve().
+>
+> Conceptually execute handler is something like
+>
+>   #!/bin/sh
+>   test ... || exit 1
+>   test ... || exit 1
+>   test ... || exit 1
+>   exec ...
+>
+> which would in practice be implemented using C like
+> https://osdn.net/projects/tomoyo/scm/svn/blobs/head/tags/ccs-tools/1.8.5p1/usr_lib_ccs/audit-exec-param.c .
+> It is not difficult to implement the kernel side as well.
+>
+
+The difference is that that last exec means that the kernel is still
+exposed to any bugs in its ELF parser.  Moving that to user mode would
+reduce the attack surface.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
