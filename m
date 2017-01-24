@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E36B6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:15:54 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id c85so26717201wmi.6
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:15:54 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E94736B0260
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:16:12 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c85so26720675wmi.6
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:16:12 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x70si18344150wmd.7.2017.01.24.05.15.52
+        by mx.google.com with ESMTPS id w81si18319273wmg.39.2017.01.24.05.16.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 05:15:53 -0800 (PST)
-Date: Tue, 24 Jan 2017 14:15:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: do not export ioremap_page_range symbol for
- external module
-Message-ID: <20170124131548.GJ6867@dhcp22.suse.cz>
-References: <1485173220-29010-1-git-send-email-zhongjiang@huawei.com>
- <20170124102319.GD6867@dhcp22.suse.cz>
- <58874FE8.1070100@huawei.com>
+        Tue, 24 Jan 2017 05:16:11 -0800 (PST)
+Subject: Re: [PATCH 4/4] mm, page_alloc: Only use per-cpu allocator for
+ irq-safe requests
+References: <20170123153906.3122-1-mgorman@techsingularity.net>
+ <20170123153906.3122-5-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <66455e10-f014-ba8f-3449-4c16aa0c402c@suse.cz>
+Date: Tue, 24 Jan 2017 14:16:10 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58874FE8.1070100@huawei.com>
+In-Reply-To: <20170123153906.3122-5-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, jhubbard@nvidia.com, linux-mm@kvack.org, minchan@kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Tue 24-01-17 21:00:24, zhong jiang wrote:
-> On 2017/1/24 18:23, Michal Hocko wrote:
-> > On Mon 23-01-17 20:07:00, zhongjiang wrote:
-> >> From: zhong jiang <zhongjiang@huawei.com>
-> >>
-> >> Recently, I've found cases in which ioremap_page_range was used
-> >> incorrectly, in external modules, leading to crashes. This can be
-> >> partly attributed to the fact that ioremap_page_range is lower-level,
-> >> with fewer protections, as compared to the other functions that an
-> >> external module would typically call. Those include:
-> >>
-> >>      ioremap_cache
-> >>      ioremap_nocache
-> >>      ioremap_prot
-> >>      ioremap_uc
-> >>      ioremap_wc
-> >>      ioremap_wt
-> >>
-> >> ...each of which wraps __ioremap_caller, which in turn provides a
-> >> safer way to achieve the mapping.
-> >>
-> >> Therefore, stop EXPORT-ing ioremap_page_range.
-> >>
-> >> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> >> Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
-> >> Suggested-by: John Hubbard <jhubbard@nvidia.com>
-> > git grep says that there are few direct users of this API in the tree.
-> > Have you checked all of them? The export has been added by 81e88fdc432a
-> > ("ACPI, APEI, Generic Hardware Error Source POLL/IRQ/NMI notification
-> > type support").
->   I have checked more than one times.  and John also have looked through the whole own kernel.
+On 01/23/2017 04:39 PM, Mel Gorman wrote:
+> Many workloads that allocate pages are not handling an interrupt at a
+> time. As allocation requests may be from IRQ context, it's necessary to
+> disable/enable IRQs for every page allocation. This cost is the bulk
+> of the free path but also a significant percentage of the allocation
+> path.
+> 
+> This patch alters the locking and checks such that only irq-safe allocation
+> requests use the per-cpu allocator. All others acquire the irq-safe
+> zone->lock and allocate from the buddy allocator. It relies on disabling
+> preemption to safely access the per-cpu structures. It could be slightly
+> modified to avoid soft IRQs using it but it's not clear it's worthwhile.
+> 
+> This modification may slow allocations from IRQ context slightly but the main
+> gain from the per-cpu allocator is that it scales better for allocations
+> from multiple contexts. There is an implicit assumption that intensive
+> allocations from IRQ contexts on multiple CPUs from a single NUMA node are
+> rare and that the fast majority of scaling issues are encountered in !IRQ
+> contexts such as page faulting. It's worth noting that this patch is not
+> required for a bulk page allocator but it significantly reduces the overhead.
+> 
+[...]
 
-OK, it seems you are right. Both PCI_TEGRA and ACPI_APEI_GHES are either
-disabled or compiled in. The same applies for drivers/pci/pci.c.
-This wasn't the case at the time when the export was introduced as
-ACPI_APEI_GHES used to be tristate until 86cd47334b00 ("ACPI, APEI,
-GHES, Prevent GHES to be built as module").
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
 
-You can add
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
