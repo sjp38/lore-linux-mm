@@ -1,123 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E31C6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 20:24:49 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id x84so204828063oix.7
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 17:24:49 -0800 (PST)
-Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
-        by mx.google.com with ESMTPS id p15si6733758otd.84.2017.01.23.17.24.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 17:24:47 -0800 (PST)
-Received: by mail-oi0-x22b.google.com with SMTP id m124so90980816oif.1
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 17:24:47 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2390A6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Jan 2017 21:32:16 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id d185so219933009pgc.2
+        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 18:32:16 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id v128si17470271pgv.72.2017.01.23.18.32.14
+        for <linux-mm@kvack.org>;
+        Mon, 23 Jan 2017 18:32:15 -0800 (PST)
+Date: Tue, 24 Jan 2017 11:32:12 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: write protect MADV_FREE pages
+Message-ID: <20170124023212.GA24523@bbox>
+References: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20170123143827.9408317a0809de2d17fce8df@linux-foundation.org>
-References: <20170123165156.854464-1-arnd@arndb.de> <20170123143827.9408317a0809de2d17fce8df@linux-foundation.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 23 Jan 2017 17:24:46 -0800
-Message-ID: <CAPcyv4gyWe6a5b2-WhzG_HXufMbfNEQV8JPOjq43uRznCrJO+A@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix maybe-uninitialized warning in section_deactivate()
-Content-Type: multipart/mixed; boundary=001a114098d455bcf80546ccfb5c
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Fabian Frederick <fabf@skynet.be>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>, stable@kernel.org
 
---001a114098d455bcf80546ccfb5c
-Content-Type: text/plain; charset=UTF-8
+Hi Shaohua,
 
-On Mon, Jan 23, 2017 at 2:38 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 23 Jan 2017 17:51:17 +0100 Arnd Bergmann <arnd@arndb.de> wrote:
->
->> gcc cannot track the combined state of the 'mask' variable across the
->> barrier in pgdat_resize_unlock() at compile time, so it warns that we
->> can run into undefined behavior:
->>
->> mm/sparse.c: In function 'section_deactivate':
->> mm/sparse.c:802:7: error: 'early_section' may be used uninitialized in this function [-Werror=maybe-uninitialized]
->>
->> We know that this can't happen because the spin_unlock() doesn't
->> affect the mask variable, so this is a false-postive warning, but
->> rearranging the code to bail out earlier here makes it obvious
->> to the compiler as well.
->>
->> ...
->>
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -807,23 +807,24 @@ static void section_deactivate(struct pglist_data *pgdat, unsigned long pfn,
->>       unsigned long mask = section_active_mask(pfn, nr_pages), flags;
->>
->>       pgdat_resize_lock(pgdat, &flags);
->> -     if (!ms->usage) {
->> -             mask = 0;
->> -     } else if ((ms->usage->map_active & mask) != mask) {
->> -             WARN(1, "section already deactivated active: %#lx mask: %#lx\n",
->> -                             ms->usage->map_active, mask);
->> -             mask = 0;
->> -     } else {
->> -             early_section = is_early_section(ms);
->> -             ms->usage->map_active ^= mask;
->> -             if (ms->usage->map_active == 0) {
->> -                     usage = ms->usage;
->> -                     ms->usage = NULL;
->> -                     memmap = sparse_decode_mem_map(ms->section_mem_map,
->> -                                     section_nr);
->> -                     ms->section_mem_map = 0;
->> -             }
->> +     if (!ms->usage ||
->> +         WARN((ms->usage->map_active & mask) != mask,
->> +              "section already deactivated active: %#lx mask: %#lx\n",
->> +                     ms->usage->map_active, mask)) {
->> +             pgdat_resize_unlock(pgdat, &flags);
->> +             return;
->>       }
->> +
->> +     early_section = is_early_section(ms);
->> +     ms->usage->map_active ^= mask;
->> +     if (ms->usage->map_active == 0) {
->> +             usage = ms->usage;
->> +             ms->usage = NULL;
->> +             memmap = sparse_decode_mem_map(ms->section_mem_map,
->> +                             section_nr);
->> +             ms->section_mem_map = 0;
->> +     }
->> +
->
-> hm, OK, that looks equivalent.
->
-> I wonder if we still need the later
->
->         if (!mask)
->                 return;
->
-> I wonder if this code is appropriately handling the `mask == -1' case.
-> section_active_mask() can do that.
->
-> What does that -1 in section_active_mask() mean anyway?  Was it really
-> intended to represent the all-ones pattern or is it an error?
+On Mon, Jan 23, 2017 at 03:15:52PM -0800, Shaohua Li wrote:
+> The page reclaim has an assumption writting to a page with clean pte
+> should trigger a page fault, because there is a window between pte zero
+> and tlb flush where a new write could come. If the new write doesn't
+> trigger page fault, page reclaim will not notice it and think the page
+> is clean and reclaim it. The MADV_FREE pages don't comply with the rule
+> and the pte is just cleaned without writeprotect, so there will be no
+> pagefault for new write. This will cause data corruption.
 
-It's supposed to represent a full section's worth of bits, patch below
-to add comments and switch over to ULONG_MAX to make it clearer. I
-also fixed a bug with the case where the start pfn is section aligned,
-but nr_pages is less than a section.
+It's hard to understand.
+Could you show me exact scenario seqence you have in mind?
 
-> If the
-> latter, was it appropriate for section_active_mask() to return an
-> unsigned type?
->
-> How come section_active_mask() is __init but its caller
-> section_deactivate() is not?
+Thanks.
 
-section_deactivate() is called from the memory hot-remove path which
-has traditionally not been tagged __meminit, so  section_active_mask()
-can't be __init either.  I missed this earlier when I reviewed your
-fix, and it seems you got it clarified now with the fix from Arnd.
+> 
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@surriel.com>
+> Cc: stable@kernel.org
+> Signed-off-by: Shaohua Li <shli@fb.com>
+> ---
+>  mm/huge_memory.c | 1 +
+>  mm/madvise.c     | 1 +
+>  2 files changed, 2 insertions(+)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 9a6bd6c..9cc5de5 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1381,6 +1381,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  			tlb->fullmm);
+>  		orig_pmd = pmd_mkold(orig_pmd);
+>  		orig_pmd = pmd_mkclean(orig_pmd);
+> +		orig_pmd = pmd_wrprotect(orig_pmd);
+>  
+>  		set_pmd_at(mm, addr, pmd, orig_pmd);
+>  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 0e3828e..bfb6800 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -373,6 +373,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  
+>  			ptent = pte_mkold(ptent);
+>  			ptent = pte_mkclean(ptent);
+> +			ptent = pte_wrprotect(ptent);
+>  			set_pte_at(mm, addr, pte, ptent);
+>  			if (PageActive(page))
+>  				deactivate_page(page);
+> -- 
+> 2.9.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Fix up patch attached, and possibly whitespace damaged version below:
-
-
---->8---
---001a114098d455bcf80546ccfb5c--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
