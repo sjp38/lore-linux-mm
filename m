@@ -1,52 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDBB6B02A3
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:26:55 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id w107so136562765ota.6
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 10:26:55 -0800 (PST)
-Received: from mail-ot0-x22d.google.com (mail-ot0-x22d.google.com. [2607:f8b0:4003:c0f::22d])
-        by mx.google.com with ESMTPS id 108si7837824otu.26.2017.01.24.10.26.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 10:26:54 -0800 (PST)
-Received: by mail-ot0-x22d.google.com with SMTP id 73so133937088otj.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 10:26:54 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6008F6B0294
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:43:10 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id d9so143292522itc.4
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 10:43:10 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 192si17507041ioe.138.2017.01.24.10.43.03
+        for <linux-mm@kvack.org>;
+        Tue, 24 Jan 2017 10:43:03 -0800 (PST)
+Date: Tue, 24 Jan 2017 18:41:59 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v3] mm: add arch-independent testcases for RODATA
+Message-ID: <20170124184159.GH7572@leverpostej>
+References: <20170124160434.GA23547@pjb1027-Latitude-E5410>
 MIME-Version: 1.0
-In-Reply-To: <20170124111248.GC20153@quack2.suse.cz>
-References: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
- <20170124111248.GC20153@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 24 Jan 2017 10:26:54 -0800
-Message-ID: <CAPcyv4gW7cho=eE4BQZQ69J7ehREurP6CPbQX3z6eW7BUVT3Bw@mail.gmail.com>
-Subject: Re: [PATCH 0/3] 1G transparent hugepage support for device dax
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170124160434.GA23547@pjb1027-Latitude-E5410>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dave Jiang <dave.jiang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jinbum Park <jinb.park7@gmail.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
 
-On Tue, Jan 24, 2017 at 3:12 AM, Jan Kara <jack@suse.cz> wrote:
-> On Mon 23-01-17 16:47:18, Dave Jiang wrote:
->> The following series implements support for 1G trasparent hugepage on
->> x86 for device dax. The bulk of the code was written by Mathew Wilcox
->> a while back supporting transparent 1G hugepage for fs DAX. I have
->> forward ported the relevant bits to 4.10-rc. The current submission has
->> only the necessary code to support device DAX.
->
-> Well, you should really explain why do we want this functionality... Is
-> anybody going to use it? Why would he want to and what will he gain by
-> doing so? Because so far I haven't heard of a convincing usecase.
->
+On Wed, Jan 25, 2017 at 01:04:34AM +0900, Jinbum Park wrote:
+> This patch makes arch-independent testcases for RODATA.
+> Both x86 and x86_64 already have testcases for RODATA,
+> But they are arch-specific because using inline assembly directly.
+> 
+> and cacheflush.h is not suitable location for rodata-test related things.
+> Since they were in cacheflush.h,
+> If someone change the state of CONFIG_DEBUG_RODATA_TEST,
+> It cause overhead of kernel build.
+> 
+> To solve above issue,
+> Move x86's testcases to shared location able to be called by other archs.
+> and move declaration of rodata_test_data to separate header file.
+> 
+> Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
+> ---
+> v3: Use probe_kernel_write() instead of put_user()
+> 	Move declaration of rodata_test_data to separate header (rodata_test.h)
+> 	Fix a kbuild-test-robot-error related to DEBUG_NX_TEST
+> 
+> v2: Restore original credit of mm/rodata_test.c
+> 
+>  arch/x86/Kconfig.debug            | 10 +-----
+>  arch/x86/include/asm/cacheflush.h | 10 ------
+>  arch/x86/kernel/Makefile          |  1 -
+>  arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
+>  arch/x86/mm/init_32.c             |  4 +--
+>  arch/x86/mm/init_64.c             |  4 +--
+>  include/linux/rodata_test.h       | 24 +++++++++++++
+>  mm/Kconfig.debug                  |  7 ++++
+>  mm/Makefile                       |  1 +
+>  mm/rodata_test.c                  | 63 ++++++++++++++++++++++++++++++++
+>  10 files changed, 98 insertions(+), 101 deletions(-)
+>  delete mode 100644 arch/x86/kernel/test_rodata.c
+>  create mode 100644 include/linux/rodata_test.h
+>  create mode 100644 mm/rodata_test.c
 
-So the motivation and intended user of this functionality mirrors the
-motivation and users of 1GB page support in hugetlbfs. Given expected
-capacities of persistent memory devices an in-memory database may want
-to reduce tlb pressure beyond what they can already achieve with 2MB
-mappings of a device-dax file. We have customer feedback to that
-effect as Willy mentioned in his previous version of these patches
-[1].
+> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+> index 928d657..874b57c 100644
+> --- a/arch/x86/mm/init_32.c
+> +++ b/arch/x86/mm/init_32.c
+> @@ -51,6 +51,7 @@
+>  #include <asm/cacheflush.h>
+>  #include <asm/page_types.h>
+>  #include <asm/init.h>
+> +#include <linux/rodata_test.h>
 
-[1]: https://lkml.org/lkml/2016/1/31/52
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 5fff913..663d475 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -54,6 +54,7 @@
+>  #include <asm/init.h>
+>  #include <asm/uv/uv.h>
+>  #include <asm/setup.h>
+> +#include <linux/rodata_test.h>
+
+Rather than fixing up the include here, could we move the rodata_test()
+call out into mark_readonly()? e.g.
+
+diff --git a/init/main.c b/init/main.c
+index b0c9d6f..d72a8d0 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -82,6 +82,7 @@
+ #include <linux/proc_ns.h>
+ #include <linux/io.h>
+ #include <linux/cache.h>
++#include <linux/rodata_test.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -937,10 +938,12 @@ static int __init set_debug_rodata(char *str)
+ #ifdef CONFIG_DEBUG_RODATA
+ static void mark_readonly(void)
+ {
+-       if (rodata_enabled)
++       if (rodata_enabled) {
+                mark_rodata_ro();
+-       else
++               rodata_test();
++       } else {
+                pr_info("Kernel memory protection disabled.\n");
++       }
+ }
+ #else
+ static inline void mark_readonly(void)
+
+... that would remove a few lines of code, and we wouldn't have to add
+more in other architectures.
+
+I've given this a go with that applied on arm64. It reported success,
+and with mark_rodata_ro() hacked out it detected that .rodata was
+writeable.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
