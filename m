@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7356B029D
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:30:14 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 204so244926423pfx.1
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:30:14 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id t6si19793036pfi.59.2017.01.24.08.30.12
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AFB666B029F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:30:21 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 75so243258184pgf.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:30:21 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id y186si19807886pfy.31.2017.01.24.08.30.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:30:12 -0800 (PST)
+        Tue, 24 Jan 2017 08:30:19 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 05/12] mm, rmap: check all VMAs that PTE-mapped THP can be part of
-Date: Tue, 24 Jan 2017 19:28:17 +0300
-Message-Id: <20170124162824.91275-6-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 07/12] mm: convert try_to_unmap_one() to page_check_walk()
+Date: Tue, 24 Jan 2017 19:28:19 +0300
+Message-Id: <20170124162824.91275-8-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,94 +20,369 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Current rmap code can miss a VMA that maps PTE-mapped THP if the first
-suppage of the THP was unmapped from the VMA.
+For consistency, it worth converting all page_check_address() to
+page_check_walk(), so we could drop the former.
 
-We need to walk rmap for the whole range of offsets that THP covers, not
-only the first one.
-
-vma_address() also need to be corrected to check the range instead of
-the first subpage.
+It also makes freeze_page() as we walk though rmap only once.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/internal.h |  9 ++++++---
- mm/rmap.c     | 16 ++++++++++------
- 2 files changed, 16 insertions(+), 9 deletions(-)
+ mm/huge_memory.c |  16 +---
+ mm/rmap.c        | 260 ++++++++++++++++++++++++++++---------------------------
+ 2 files changed, 137 insertions(+), 139 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 03763f5c42c5..1f90c65df7fb 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -333,12 +333,15 @@ __vma_address(struct page *page, struct vm_area_struct *vma)
- static inline unsigned long
- vma_address(struct page *page, struct vm_area_struct *vma)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 16820e001d79..ca7855f857fa 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1839,24 +1839,16 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ static void freeze_page(struct page *page)
  {
--	unsigned long address = __vma_address(page, vma);
-+	unsigned long start, end;
-+
-+	start = __vma_address(page, vma);
-+	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
+ 	enum ttu_flags ttu_flags = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS |
+-		TTU_RMAP_LOCKED;
+-	int i, ret;
++		TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD;
++	int ret;
  
- 	/* page should be within @vma mapping range */
--	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-+	VM_BUG_ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
  
--	return address;
-+	return max(start, vma->vm_start);
+ 	if (PageAnon(page))
+ 		ttu_flags |= TTU_MIGRATION;
+ 
+-	/* We only need TTU_SPLIT_HUGE_PMD once */
+-	ret = try_to_unmap(page, ttu_flags | TTU_SPLIT_HUGE_PMD);
+-	for (i = 1; !ret && i < HPAGE_PMD_NR; i++) {
+-		/* Cut short if the page is unmapped */
+-		if (page_count(page) == 1)
+-			return;
+-
+-		ret = try_to_unmap(page + i, ttu_flags);
+-	}
+-	VM_BUG_ON_PAGE(ret, page + i - 1);
++	ret = try_to_unmap(page, ttu_flags);
++	VM_BUG_ON_PAGE(ret, page);
  }
  
- #else /* !CONFIG_MMU */
+ static void unfreeze_page(struct page *page)
 diff --git a/mm/rmap.c b/mm/rmap.c
-index d7a0f5121c65..3bbf83b32553 100644
+index 41874a6f6cf5..c9a096ffb242 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -1757,7 +1757,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 		bool locked)
+@@ -607,8 +607,7 @@ void try_to_unmap_flush_dirty(void)
+ 		try_to_unmap_flush();
+ }
+ 
+-static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
+-		struct page *page, bool writable)
++static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
  {
- 	struct anon_vma *anon_vma;
--	pgoff_t pgoff;
-+	pgoff_t pgoff_start, pgoff_end;
- 	struct anon_vma_chain *avc;
- 	int ret = SWAP_AGAIN;
+ 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
  
-@@ -1771,8 +1771,10 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
- 	if (!anon_vma)
- 		return ret;
- 
--	pgoff = page_to_pgoff(page);
--	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
-+	pgoff_start = page_to_pgoff(page);
-+	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
-+	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
-+			pgoff_start, pgoff_end) {
- 		struct vm_area_struct *vma = avc->vma;
- 		unsigned long address = vma_address(page, vma);
- 
-@@ -1810,7 +1812,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 		bool locked)
+@@ -643,8 +642,7 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
+ 	return should_defer;
+ }
+ #else
+-static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
+-		struct page *page, bool writable)
++static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
  {
- 	struct address_space *mapping = page_mapping(page);
--	pgoff_t pgoff;
-+	pgoff_t pgoff_start, pgoff_end;
- 	struct vm_area_struct *vma;
+ }
+ 
+@@ -1457,155 +1455,163 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		     unsigned long address, void *arg)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	pte_t *pte;
++	struct page_check_walk pcw = {
++		.page = page,
++		.vma = vma,
++		.address = address,
++	};
+ 	pte_t pteval;
+-	spinlock_t *ptl;
++	struct page *subpage;
  	int ret = SWAP_AGAIN;
+ 	struct rmap_private *rp = arg;
+ 	enum ttu_flags flags = rp->flags;
  
-@@ -1825,10 +1827,12 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
- 	if (!mapping)
- 		return ret;
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+ 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+-		goto out;
++		return SWAP_AGAIN;
  
--	pgoff = page_to_pgoff(page);
-+	pgoff_start = page_to_pgoff(page);
-+	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
- 	if (!locked)
- 		i_mmap_lock_read(mapping);
--	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap,
-+			pgoff_start, pgoff_end) {
- 		unsigned long address = vma_address(page, vma);
+ 	if (flags & TTU_SPLIT_HUGE_PMD) {
+ 		split_huge_pmd_address(vma, address,
+ 				flags & TTU_MIGRATION, page);
+-		/* check if we have anything to do after split */
+-		if (page_mapcount(page) == 0)
+-			goto out;
+ 	}
  
- 		cond_resched();
+-	pte = page_check_address(page, mm, address, &ptl,
+-				 PageTransCompound(page));
+-	if (!pte)
+-		goto out;
++	while (page_check_walk(&pcw)) {
++		subpage = page - page_to_pfn(page) + pte_pfn(*pcw.pte);
++		address = pcw.address;
+ 
+-	/*
+-	 * If the page is mlock()d, we cannot swap it out.
+-	 * If it's recently referenced (perhaps page_referenced
+-	 * skipped over this mm) then we should reactivate it.
+-	 */
+-	if (!(flags & TTU_IGNORE_MLOCK)) {
+-		if (vma->vm_flags & VM_LOCKED) {
+-			/* PTE-mapped THP are never mlocked */
+-			if (!PageTransCompound(page)) {
+-				/*
+-				 * Holding pte lock, we do *not* need
+-				 * mmap_sem here
+-				 */
+-				mlock_vma_page(page);
++		/* Unexpected PMD-mapped THP? */
++		VM_BUG_ON_PAGE(!pcw.pte, page);
++
++		/*
++		 * If the page is mlock()d, we cannot swap it out.
++		 * If it's recently referenced (perhaps page_referenced
++		 * skipped over this mm) then we should reactivate it.
++		 */
++		if (!(flags & TTU_IGNORE_MLOCK)) {
++			if (vma->vm_flags & VM_LOCKED) {
++				/* PTE-mapped THP are never mlocked */
++				if (!PageTransCompound(page)) {
++					/*
++					 * Holding pte lock, we do *not* need
++					 * mmap_sem here
++					 */
++					mlock_vma_page(page);
++				}
++				ret = SWAP_MLOCK;
++				page_check_walk_done(&pcw);
++				break;
+ 			}
+-			ret = SWAP_MLOCK;
+-			goto out_unmap;
++			if (flags & TTU_MUNLOCK)
++				continue;
+ 		}
+-		if (flags & TTU_MUNLOCK)
+-			goto out_unmap;
+-	}
+-	if (!(flags & TTU_IGNORE_ACCESS)) {
+-		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+-			ret = SWAP_FAIL;
+-			goto out_unmap;
++
++		if (!(flags & TTU_IGNORE_ACCESS)) {
++			if (ptep_clear_flush_young_notify(vma, address,
++						pcw.pte)) {
++				ret = SWAP_FAIL;
++				page_check_walk_done(&pcw);
++				break;
++			}
+ 		}
+-  	}
+ 
+-	/* Nuke the page table entry. */
+-	flush_cache_page(vma, address, page_to_pfn(page));
+-	if (should_defer_flush(mm, flags)) {
+-		/*
+-		 * We clear the PTE but do not flush so potentially a remote
+-		 * CPU could still be writing to the page. If the entry was
+-		 * previously clean then the architecture must guarantee that
+-		 * a clear->dirty transition on a cached TLB entry is written
+-		 * through and traps if the PTE is unmapped.
+-		 */
+-		pteval = ptep_get_and_clear(mm, address, pte);
++		/* Nuke the page table entry. */
++		flush_cache_page(vma, address, pte_to_pfn(pcw.pte));
++		if (should_defer_flush(mm, flags)) {
++			/*
++			 * We clear the PTE but do not flush so potentially
++			 * a remote CPU could still be writing to the page.
++			 * If the entry was previously clean then the
++			 * architecture must guarantee that a clear->dirty
++			 * transition on a cached TLB entry is written through
++			 * and traps if the PTE is unmapped.
++			 */
++			pteval = ptep_get_and_clear(mm, address, pcw.pte);
++
++			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
++		} else {
++			pteval = ptep_clear_flush(vma, address, pcw.pte);
++		}
+ 
+-		set_tlb_ubc_flush_pending(mm, page, pte_dirty(pteval));
+-	} else {
+-		pteval = ptep_clear_flush(vma, address, pte);
+-	}
++		/* Move the dirty bit to the page. Now the pte is gone. */
++		if (pte_dirty(pteval))
++			set_page_dirty(page);
+ 
+-	/* Move the dirty bit to the physical page now the pte is gone. */
+-	if (pte_dirty(pteval))
+-		set_page_dirty(page);
++		/* Update high watermark before we lower rss */
++		update_hiwater_rss(mm);
+ 
+-	/* Update high watermark before we lower rss */
+-	update_hiwater_rss(mm);
++		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
++			if (PageHuge(page)) {
++				int nr = 1 << compound_order(page);
++				hugetlb_count_sub(nr, mm);
++			} else {
++				dec_mm_counter(mm, mm_counter(page));
++			}
+ 
+-	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
+-		if (PageHuge(page)) {
+-			hugetlb_count_sub(1 << compound_order(page), mm);
+-		} else {
++			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
++			set_pte_at(mm, address, pcw.pte, pteval);
++		} else if (pte_unused(pteval)) {
++			/*
++			 * The guest indicated that the page content is of no
++			 * interest anymore. Simply discard the pte, vmscan
++			 * will take care of the rest.
++			 */
+ 			dec_mm_counter(mm, mm_counter(page));
+-		}
+-		set_pte_at(mm, address, pte,
+-			   swp_entry_to_pte(make_hwpoison_entry(page)));
+-	} else if (pte_unused(pteval)) {
+-		/*
+-		 * The guest indicated that the page content is of no
+-		 * interest anymore. Simply discard the pte, vmscan
+-		 * will take care of the rest.
+-		 */
+-		dec_mm_counter(mm, mm_counter(page));
+-	} else if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION)) {
+-		swp_entry_t entry;
+-		pte_t swp_pte;
+-		/*
+-		 * Store the pfn of the page in a special migration
+-		 * pte. do_swap_page() will wait until the migration
+-		 * pte is removed and then restart fault handling.
+-		 */
+-		entry = make_migration_entry(page, pte_write(pteval));
+-		swp_pte = swp_entry_to_pte(entry);
+-		if (pte_soft_dirty(pteval))
+-			swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-		set_pte_at(mm, address, pte, swp_pte);
+-	} else if (PageAnon(page)) {
+-		swp_entry_t entry = { .val = page_private(page) };
+-		pte_t swp_pte;
+-		/*
+-		 * Store the swap location in the pte.
+-		 * See handle_pte_fault() ...
+-		 */
+-		VM_BUG_ON_PAGE(!PageSwapCache(page), page);
++		} else if (IS_ENABLED(CONFIG_MIGRATION) &&
++				(flags & TTU_MIGRATION)) {
++			swp_entry_t entry;
++			pte_t swp_pte;
++			/*
++			 * Store the pfn of the page in a special migration
++			 * pte. do_swap_page() will wait until the migration
++			 * pte is removed and then restart fault handling.
++			 */
++			entry = make_migration_entry(subpage,
++					pte_write(pteval));
++			swp_pte = swp_entry_to_pte(entry);
++			if (pte_soft_dirty(pteval))
++				swp_pte = pte_swp_mksoft_dirty(swp_pte);
++			set_pte_at(mm, address, pcw.pte, swp_pte);
++		} else if (PageAnon(page)) {
++			swp_entry_t entry = { .val = page_private(subpage) };
++			pte_t swp_pte;
++			/*
++			 * Store the swap location in the pte.
++			 * See handle_pte_fault() ...
++			 */
++			VM_BUG_ON_PAGE(!PageSwapCache(page), page);
++
++			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
++				/* It's a freeable page by MADV_FREE */
++				dec_mm_counter(mm, MM_ANONPAGES);
++				rp->lazyfreed++;
++				goto discard;
++			}
+ 
+-		if (!PageDirty(page) && (flags & TTU_LZFREE)) {
+-			/* It's a freeable page by MADV_FREE */
++			if (swap_duplicate(entry) < 0) {
++				set_pte_at(mm, address, pcw.pte, pteval);
++				ret = SWAP_FAIL;
++				page_check_walk_done(&pcw);
++				break;
++			}
++			if (list_empty(&mm->mmlist)) {
++				spin_lock(&mmlist_lock);
++				if (list_empty(&mm->mmlist))
++					list_add(&mm->mmlist, &init_mm.mmlist);
++				spin_unlock(&mmlist_lock);
++			}
+ 			dec_mm_counter(mm, MM_ANONPAGES);
+-			rp->lazyfreed++;
+-			goto discard;
+-		}
+-
+-		if (swap_duplicate(entry) < 0) {
+-			set_pte_at(mm, address, pte, pteval);
+-			ret = SWAP_FAIL;
+-			goto out_unmap;
+-		}
+-		if (list_empty(&mm->mmlist)) {
+-			spin_lock(&mmlist_lock);
+-			if (list_empty(&mm->mmlist))
+-				list_add(&mm->mmlist, &init_mm.mmlist);
+-			spin_unlock(&mmlist_lock);
+-		}
+-		dec_mm_counter(mm, MM_ANONPAGES);
+-		inc_mm_counter(mm, MM_SWAPENTS);
+-		swp_pte = swp_entry_to_pte(entry);
+-		if (pte_soft_dirty(pteval))
+-			swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-		set_pte_at(mm, address, pte, swp_pte);
+-	} else
+-		dec_mm_counter(mm, mm_counter_file(page));
+-
++			inc_mm_counter(mm, MM_SWAPENTS);
++			swp_pte = swp_entry_to_pte(entry);
++			if (pte_soft_dirty(pteval))
++				swp_pte = pte_swp_mksoft_dirty(swp_pte);
++			set_pte_at(mm, address, pcw.pte, swp_pte);
++		} else
++			dec_mm_counter(mm, mm_counter_file(page));
+ discard:
+-	page_remove_rmap(page, PageHuge(page));
+-	put_page(page);
+-
+-out_unmap:
+-	pte_unmap_unlock(pte, ptl);
+-	if (ret != SWAP_FAIL && ret != SWAP_MLOCK && !(flags & TTU_MUNLOCK))
++		page_remove_rmap(subpage, PageHuge(page));
++		put_page(page);
+ 		mmu_notifier_invalidate_page(mm, address);
+-out:
++	}
+ 	return ret;
+ }
+ 
+@@ -1630,7 +1636,7 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
+ 
+ static int page_mapcount_is_zero(struct page *page)
+ {
+-	return !page_mapcount(page);
++	return !total_mapcount(page);
+ }
+ 
+ /**
 -- 
 2.11.0
 
