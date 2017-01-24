@@ -1,147 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AC2F6B026A
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:07:05 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id e137so15965362itc.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:07:05 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id 68si11057919itb.3.2017.01.24.00.07.03
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5801D6B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:48:22 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d134so232885835pfd.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:48:22 -0800 (PST)
+Received: from mail-pg0-x235.google.com (mail-pg0-x235.google.com. [2607:f8b0:400e:c05::235])
+        by mx.google.com with ESMTPS id f88si18395314pfk.36.2017.01.24.00.48.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 00:07:04 -0800 (PST)
-Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
-References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
- <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
- <20170121084338.GA405@jagdpanzerIV.localdomain>
- <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
- <20170123025826.GA24581@js1304-P5Q-DELUXE>
- <20170123040347.GA2327@jagdpanzerIV.localdomain>
- <20170123062716.GF24581@js1304-P5Q-DELUXE>
- <20170123071339.GD2327@jagdpanzerIV.localdomain>
- <20170123074054.GA12782@bbox>
-From: zhouxianrong <zhouxianrong@huawei.com>
-Message-ID: <1ac33960-b523-1c58-b2de-8f6ddb3a5219@huawei.com>
-Date: Tue, 24 Jan 2017 15:58:02 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170123074054.GA12782@bbox>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jan 2017 00:48:21 -0800 (PST)
+Received: by mail-pg0-x235.google.com with SMTP id 14so53292702pgg.1
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:48:21 -0800 (PST)
+From: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Subject: [PATCH v30 01/11] memblock: add memblock_cap_memory_range()
+Date: Tue, 24 Jan 2017 17:49:07 +0900
+Message-Id: <20170124084907.3838-1-takahiro.akashi@linaro.org>
+In-Reply-To: <20170124084638.3770-1-takahiro.akashi@linaro.org>
+References: <20170124084638.3770-1-takahiro.akashi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
+To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
+Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
 
-@@ -161,15 +161,55 @@ static bool page_zero_filled(void *ptr)
-  {
-  	unsigned int pos;
-  	unsigned long *page;
-+	static unsigned long total;
-+	static unsigned long zero;
-+	static unsigned long pattern_char;
-+	static unsigned long pattern_short;
-+	static unsigned long pattern_int;
-+	static unsigned long pattern_long;
-+	unsigned char *p_char;
-+	unsigned short *p_short;
-+	unsigned int *p_int;
-+	bool retval = false;
+Add memblock_cap_memory_range() which will remove all the memblock regions
+except the memory range specified in the arguments. In addition, rework is
+done on memblock_mem_limit_remove_map() to re-implement it using
+memblock_cap_memory_range().
+
+This function, like memblock_mem_limit_remove_map(), will not remove
+memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
+later as "device memory."
+See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
+address the mem limit issue").
+
+This function is used, in a succeeding patch in the series of arm64 kdump
+suuport, to limit the range of usable memory, or System RAM, on crash dump
+kernel.
+(Please note that "mem=" parameter is of little use for this purpose.)
+
+Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Reviewed-by: Will Deacon <will.deacon@arm.com>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Acked-by: Dennis Chen <dennis.chen@arm.com>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ include/linux/memblock.h |  1 +
+ mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 30 insertions(+), 15 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 5b759c9acf97..fbfcacc50c29 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -333,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+ phys_addr_t memblock_start_of_DRAM(void);
+ phys_addr_t memblock_end_of_DRAM(void);
+ void memblock_enforce_memory_limit(phys_addr_t memory_limit);
++void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+ void memblock_mem_limit_remove_map(phys_addr_t limit);
+ bool memblock_is_memory(phys_addr_t addr);
+ int memblock_is_map_memory(phys_addr_t addr);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 7608bc305936..fea1688fef60 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+ 			      (phys_addr_t)ULLONG_MAX);
+ }
+ 
++void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
++{
++	int start_rgn, end_rgn;
++	int i, ret;
 +
-+	++total;
-
-  	page = (unsigned long *)ptr;
-
--	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
--		if (page[pos])
--			return false;
-+	for (pos = 0; pos < PAGE_SIZE / sizeof(unsigned long) - 1; ++pos) {
-+	       if (page[pos] != page[pos + 1])
-+	                return false;
-  	}
-
--	return true;
-+	p_char = (unsigned char *)ptr;
-+	p_short = (unsigned short *)ptr;
-+	p_int = (unsigned int *)ptr;
++	if (!size)
++		return;
 +
-+	if (page[0] == 0) {
-+		++zero;
-+		retval = true;
-+	} else if (p_char[0] == p_char[1] &&
-+		       p_char[1] == p_char[2] &&
-+		       p_char[2] == p_char[3] &&
-+		       p_char[3] == p_char[4] &&
-+		       p_char[4] == p_char[5] &&
-+		       p_char[5] == p_char[6] &&
-+		       p_char[6] == p_char[7])
-+		++pattern_char;
-+	else if (p_short[0] == p_short[1] &&
-+		       p_short[1] == p_short[2] &&
-+		       p_short[2] == p_short[3])
-+		++pattern_short;
-+	else if (p_int[0] == p_int[1] &&
-+		       p_int[1] == p_int[2])
-+		++pattern_int;
-+	else {
-+		++pattern_long;
-+	}
++	ret = memblock_isolate_range(&memblock.memory, base, size,
++						&start_rgn, &end_rgn);
++	if (ret)
++		return;
 +
-+	pr_err("%lld %lld %lld %lld %lld %lld\n", zero, pattern_char, pattern_short, pattern_int, pattern_long, total);
++	/* remove all the MAP regions */
++	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
++		if (!memblock_is_nomap(&memblock.memory.regions[i]))
++			memblock_remove_region(&memblock.memory, i);
 +
-+	return retval;
-  }
-
-the result as listed below:
-
-zero    pattern_char   pattern_short   pattern_int   pattern_long   total      (unit)
-162989  14454          3534            23516         2769           3294399    (page)
-
-statistics for the result:
-
-          pattern zero  pattern char  pattern short  pattern int  pattern long
-AVERAGE  0.745696298   0.085937175   0.015957701    0.131874915  0.020533911
-STDEV    0.035623777   0.016892402   0.004454534    0.021657123  0.019420072
-MAX      0.973813421   0.222222222   0.021409518    0.211812245  0.176512625
-MIN      0.645431905   0.004634398   0              0            0
-
-
-On 2017/1/23 15:40, Minchan Kim wrote:
-> On Mon, Jan 23, 2017 at 04:13:39PM +0900, Sergey Senozhatsky wrote:
->> On (01/23/17 15:27), Joonsoo Kim wrote:
->>> Hello,
->>>
->>> Think about following case in 64 bits kernel.
->>>
->>> If value pattern in the page is like as following, we cannot detect
->>> the same page with 'unsigned int' element.
->>>
->>> AAAAAAAABBBBBBBBAAAAAAAABBBBBBBB...
->>>
->>> 4 bytes is 0xAAAAAAAA and next 4 bytes is 0xBBBBBBBB and so on.
->>
->> yep, that's exactly the case that I though would be broken
->> with a 4-bytes pattern matching. so my conlusion was that
->> for 4 byte pattern we would have working detection anyway,
->> for 8 bytes patterns we might have some extra matching.
->> not sure if it matters that much though.
->
-> It would be better for deduplication as pattern coverage is bigger
-> and we cannot guess all of patterns now so it would be never ending
-> story(i.e., someone claims 16bytes pattern matching would be better).
-> So, I want to make that path fast rather than increasing dedup ratio
-> if memset is really fast rather than open-looping. So in future,
-> if we can prove bigger pattern can increase dedup ratio a lot, then,
-> we could consider to extend it at the cost of make that path slow.
->
-> In summary, zhouxianrong, please test pattern as Joonsoo asked.
-> So if there are not much benefit with 'long', let's go to the
-> 'int' with memset. And Please resend patch if anyone dosn't oppose
-> strongly by the time.
->
-> Thanks.
->
->
-> .
->
++	for (i = start_rgn - 1; i >= 0; i--)
++		if (!memblock_is_nomap(&memblock.memory.regions[i]))
++			memblock_remove_region(&memblock.memory, i);
++
++	/* truncate the reserved regions */
++	memblock_remove_range(&memblock.reserved, 0, base);
++	memblock_remove_range(&memblock.reserved,
++			base + size, (phys_addr_t)ULLONG_MAX);
++}
++
+ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+ {
+-	struct memblock_type *type = &memblock.memory;
+ 	phys_addr_t max_addr;
+-	int i, ret, start_rgn, end_rgn;
+ 
+ 	if (!limit)
+ 		return;
+@@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+ 	if (max_addr == (phys_addr_t)ULLONG_MAX)
+ 		return;
+ 
+-	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
+-				&start_rgn, &end_rgn);
+-	if (ret)
+-		return;
+-
+-	/* remove all the MAP regions above the limit */
+-	for (i = end_rgn - 1; i >= start_rgn; i--) {
+-		if (!memblock_is_nomap(&type->regions[i]))
+-			memblock_remove_region(type, i);
+-	}
+-	/* truncate the reserved regions */
+-	memblock_remove_range(&memblock.reserved, max_addr,
+-			      (phys_addr_t)ULLONG_MAX);
++	memblock_cap_memory_range(0, max_addr);
+ }
+ 
+ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
