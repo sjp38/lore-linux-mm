@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA416B0296
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:29:04 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 204so243233889pge.5
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:29:04 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e185si14933177pgc.284.2017.01.24.08.29.03
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5136B0297
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:29:14 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id e4so117073318pfg.4
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:29:14 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id j62si19788100pfg.51.2017.01.24.08.29.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:29:03 -0800 (PST)
+        Tue, 24 Jan 2017 08:29:13 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 10/12] mm: convert page_mapped_in_vma() to page_check_walk()
-Date: Tue, 24 Jan 2017 19:28:22 +0300
-Message-Id: <20170124162824.91275-11-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 11/12] mm: drop page_check_address{,_transhuge}
+Date: Tue, 24 Jan 2017 19:28:23 +0300
+Message-Id: <20170124162824.91275-12-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,210 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For consistency, it worth converting all page_check_address() to
-page_check_walk(), so we could drop the former.
+All users are gone. Let's drop them.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/page_check.c | 30 ++++++++++++++++++++++++++++++
- mm/rmap.c       | 26 --------------------------
- 2 files changed, 30 insertions(+), 26 deletions(-)
+ include/linux/rmap.h |  36 --------------
+ mm/rmap.c            | 138 ---------------------------------------------------
+ 2 files changed, 174 deletions(-)
 
-diff --git a/mm/page_check.c b/mm/page_check.c
-index d4b3536a6bf2..5a544ca382a7 100644
---- a/mm/page_check.c
-+++ b/mm/page_check.c
-@@ -146,3 +146,33 @@ next_pte:	do {
- 		}
- 	}
- }
-+
-+/**
-+ * page_mapped_in_vma - check whether a page is really mapped in a VMA
-+ * @page: the page to test
-+ * @vma: the VMA to test
-+ *
-+ * Returns 1 if the page is mapped into the page tables of the VMA, 0
-+ * if the page is not mapped into the page tables of this VMA.  Only
-+ * valid for normal file or anonymous VMAs.
-+ */
-+int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
-+{
-+	struct page_check_walk pcw = {
-+		.page = page,
-+		.vma = vma,
-+		.flags = PAGE_CHECK_WALK_SYNC,
-+	};
-+	unsigned long start, end;
-+
-+	start = __vma_address(page, vma);
-+	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
-+
-+	if (unlikely(end < vma->vm_start || start >= vma->vm_end))
-+		return 0;
-+	pcw.address = max(start, vma->vm_start);
-+	if (!page_check_walk(&pcw))
-+		return 0;
-+	page_check_walk_done(&pcw);
-+	return 1;
-+}
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 474279810742..74113df9418d 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -196,42 +196,6 @@ int page_referenced(struct page *, int is_locked,
+ 
+ int try_to_unmap(struct page *, enum ttu_flags flags);
+ 
+-/*
+- * Used by uprobes to replace a userspace page safely
+- */
+-pte_t *__page_check_address(struct page *, struct mm_struct *,
+-				unsigned long, spinlock_t **, int);
+-
+-static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+-					unsigned long address,
+-					spinlock_t **ptlp, int sync)
+-{
+-	pte_t *ptep;
+-
+-	__cond_lock(*ptlp, ptep = __page_check_address(page, mm, address,
+-						       ptlp, sync));
+-	return ptep;
+-}
+-
+-/*
+- * Used by idle page tracking to check if a page was referenced via page
+- * tables.
+- */
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
+-				  unsigned long address, pmd_t **pmdp,
+-				  pte_t **ptep, spinlock_t **ptlp);
+-#else
+-static inline bool page_check_address_transhuge(struct page *page,
+-				struct mm_struct *mm, unsigned long address,
+-				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
+-{
+-	*ptep = page_check_address(page, mm, address, ptlp, 0);
+-	*pmdp = NULL;
+-	return !!*ptep;
+-}
+-#endif
+-
+ /* Avoid racy checks */
+ #define PAGE_CHECK_WALK_SYNC		(1 << 0)
+ /* Look for migarion entries rather than present ptes */
 diff --git a/mm/rmap.c b/mm/rmap.c
-index c9a096ffb242..cb34fd68a23a 100644
+index cb34fd68a23a..7106eb9b37a8 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -756,32 +756,6 @@ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
- 	return NULL;
+@@ -708,144 +708,6 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
+ 	return pmd;
  }
  
--/**
-- * page_mapped_in_vma - check whether a page is really mapped in a VMA
-- * @page: the page to test
-- * @vma: the VMA to test
+-/*
+- * Check that @page is mapped at @address into @mm.
 - *
-- * Returns 1 if the page is mapped into the page tables of the VMA, 0
-- * if the page is not mapped into the page tables of this VMA.  Only
-- * valid for normal file or anonymous VMAs.
+- * If @sync is false, page_check_address may perform a racy check to avoid
+- * the page table lock when the pte is not present (helpful when reclaiming
+- * highly shared pages).
+- *
+- * On success returns with pte mapped and locked.
 - */
--int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+-pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
+-			  unsigned long address, spinlock_t **ptlp, int sync)
 -{
--	unsigned long address;
+-	pmd_t *pmd;
 -	pte_t *pte;
 -	spinlock_t *ptl;
 -
--	address = __vma_address(page, vma);
--	if (unlikely(address < vma->vm_start || address >= vma->vm_end))
--		return 0;
--	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1);
--	if (!pte)			/* the page is not in this mm */
--		return 0;
--	pte_unmap_unlock(pte, ptl);
+-	if (unlikely(PageHuge(page))) {
+-		/* when pud is not present, pte will be NULL */
+-		pte = huge_pte_offset(mm, address);
+-		if (!pte)
+-			return NULL;
 -
--	return 1;
+-		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
+-		goto check;
+-	}
+-
+-	pmd = mm_find_pmd(mm, address);
+-	if (!pmd)
+-		return NULL;
+-
+-	pte = pte_offset_map(pmd, address);
+-	/* Make a quick check before getting the lock */
+-	if (!sync && !pte_present(*pte)) {
+-		pte_unmap(pte);
+-		return NULL;
+-	}
+-
+-	ptl = pte_lockptr(mm, pmd);
+-check:
+-	spin_lock(ptl);
+-	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
+-		*ptlp = ptl;
+-		return pte;
+-	}
+-	pte_unmap_unlock(pte, ptl);
+-	return NULL;
 -}
 -
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- /*
-  * Check that @page is mapped at @address into @mm. In contrast to
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-/*
+- * Check that @page is mapped at @address into @mm. In contrast to
+- * page_check_address(), this function can handle transparent huge pages.
+- *
+- * On success returns true with pte mapped and locked. For PMD-mapped
+- * transparent huge pages *@ptep is set to NULL.
+- */
+-bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
+-				  unsigned long address, pmd_t **pmdp,
+-				  pte_t **ptep, spinlock_t **ptlp)
+-{
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-
+-	if (unlikely(PageHuge(page))) {
+-		/* when pud is not present, pte will be NULL */
+-		pte = huge_pte_offset(mm, address);
+-		if (!pte)
+-			return false;
+-
+-		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
+-		pmd = NULL;
+-		goto check_pte;
+-	}
+-
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return false;
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		return false;
+-	pmd = pmd_offset(pud, address);
+-
+-	if (pmd_trans_huge(*pmd)) {
+-		ptl = pmd_lock(mm, pmd);
+-		if (!pmd_present(*pmd))
+-			goto unlock_pmd;
+-		if (unlikely(!pmd_trans_huge(*pmd))) {
+-			spin_unlock(ptl);
+-			goto map_pte;
+-		}
+-
+-		if (pmd_page(*pmd) != page)
+-			goto unlock_pmd;
+-
+-		pte = NULL;
+-		goto found;
+-unlock_pmd:
+-		spin_unlock(ptl);
+-		return false;
+-	} else {
+-		pmd_t pmde = *pmd;
+-
+-		barrier();
+-		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+-			return false;
+-	}
+-map_pte:
+-	pte = pte_offset_map(pmd, address);
+-	if (!pte_present(*pte)) {
+-		pte_unmap(pte);
+-		return false;
+-	}
+-
+-	ptl = pte_lockptr(mm, pmd);
+-check_pte:
+-	spin_lock(ptl);
+-
+-	if (!pte_present(*pte)) {
+-		pte_unmap_unlock(pte, ptl);
+-		return false;
+-	}
+-
+-	/* THP can be referenced by any subpage */
+-	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
+-		pte_unmap_unlock(pte, ptl);
+-		return false;
+-	}
+-found:
+-	*ptep = pte;
+-	*pmdp = pmd;
+-	*ptlp = ptl;
+-	return true;
+-}
+-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+ struct page_referenced_arg {
+ 	int mapcount;
+ 	int referenced;
 -- 
 2.11.0
 
