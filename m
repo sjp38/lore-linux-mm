@@ -1,52 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 094F26B0261
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 02:49:21 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id a29so140930317qtb.6
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 23:49:21 -0800 (PST)
-Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
-        by mx.google.com with ESMTPS id b6si517765qke.265.2017.01.23.23.49.20
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC2F6B026A
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:07:05 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id e137so15965362itc.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:07:05 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id 68si11057919itb.3.2017.01.24.00.07.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jan 2017 23:49:20 -0800 (PST)
-Received: by mail-qt0-x243.google.com with SMTP id f4so23189972qte.2
-        for <linux-mm@kvack.org>; Mon, 23 Jan 2017 23:49:20 -0800 (PST)
-From: Jia He <hejianet@gmail.com>
-Subject: [PATCH RFC 3/3] mm, vmscan: correct prepare_kswapd_sleep return value
-Date: Tue, 24 Jan 2017 15:49:04 +0800
-Message-Id: <1485244144-13487-4-git-send-email-hejianet@gmail.com>
-In-Reply-To: <1485244144-13487-1-git-send-email-hejianet@gmail.com>
-References: <1485244144-13487-1-git-send-email-hejianet@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Jan 2017 00:07:04 -0800 (PST)
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+ <1484296195-99771-1-git-send-email-zhouxianrong@huawei.com>
+ <20170121084338.GA405@jagdpanzerIV.localdomain>
+ <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
+ <20170123025826.GA24581@js1304-P5Q-DELUXE>
+ <20170123040347.GA2327@jagdpanzerIV.localdomain>
+ <20170123062716.GF24581@js1304-P5Q-DELUXE>
+ <20170123071339.GD2327@jagdpanzerIV.localdomain>
+ <20170123074054.GA12782@bbox>
+From: zhouxianrong <zhouxianrong@huawei.com>
+Message-ID: <1ac33960-b523-1c58-b2de-8f6ddb3a5219@huawei.com>
+Date: Tue, 24 Jan 2017 15:58:02 +0800
+MIME-Version: 1.0
+In-Reply-To: <20170123074054.GA12782@bbox>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Jia He <hejianet@gmail.com>
+To: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
-When there is no reclaimable pages in the zone, even the zone is
-not balanced, we let kswapd go sleeping. That is prepare_kswapd_sleep
-will return true in this case.
+@@ -161,15 +161,55 @@ static bool page_zero_filled(void *ptr)
+  {
+  	unsigned int pos;
+  	unsigned long *page;
++	static unsigned long total;
++	static unsigned long zero;
++	static unsigned long pattern_char;
++	static unsigned long pattern_short;
++	static unsigned long pattern_int;
++	static unsigned long pattern_long;
++	unsigned char *p_char;
++	unsigned short *p_short;
++	unsigned int *p_int;
++	bool retval = false;
++
++	++total;
 
-Signed-off-by: Jia He <hejianet@gmail.com>
----
- mm/vmscan.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+  	page = (unsigned long *)ptr;
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7396a0a..54445e2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3140,7 +3140,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
- 		if (!managed_zone(zone))
- 			continue;
- 
--		if (!zone_balanced(zone, order, classzone_idx))
-+		if (!zone_balanced(zone, order, classzone_idx)
-+			&& !zone_reclaimable_pages(zone))
- 			return false;
- 	}
- 
--- 
-2.5.5
+-	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
+-		if (page[pos])
+-			return false;
++	for (pos = 0; pos < PAGE_SIZE / sizeof(unsigned long) - 1; ++pos) {
++	       if (page[pos] != page[pos + 1])
++	                return false;
+  	}
+
+-	return true;
++	p_char = (unsigned char *)ptr;
++	p_short = (unsigned short *)ptr;
++	p_int = (unsigned int *)ptr;
++
++	if (page[0] == 0) {
++		++zero;
++		retval = true;
++	} else if (p_char[0] == p_char[1] &&
++		       p_char[1] == p_char[2] &&
++		       p_char[2] == p_char[3] &&
++		       p_char[3] == p_char[4] &&
++		       p_char[4] == p_char[5] &&
++		       p_char[5] == p_char[6] &&
++		       p_char[6] == p_char[7])
++		++pattern_char;
++	else if (p_short[0] == p_short[1] &&
++		       p_short[1] == p_short[2] &&
++		       p_short[2] == p_short[3])
++		++pattern_short;
++	else if (p_int[0] == p_int[1] &&
++		       p_int[1] == p_int[2])
++		++pattern_int;
++	else {
++		++pattern_long;
++	}
++
++	pr_err("%lld %lld %lld %lld %lld %lld\n", zero, pattern_char, pattern_short, pattern_int, pattern_long, total);
++
++	return retval;
+  }
+
+the result as listed below:
+
+zero    pattern_char   pattern_short   pattern_int   pattern_long   total      (unit)
+162989  14454          3534            23516         2769           3294399    (page)
+
+statistics for the result:
+
+          pattern zero  pattern char  pattern short  pattern int  pattern long
+AVERAGE  0.745696298   0.085937175   0.015957701    0.131874915  0.020533911
+STDEV    0.035623777   0.016892402   0.004454534    0.021657123  0.019420072
+MAX      0.973813421   0.222222222   0.021409518    0.211812245  0.176512625
+MIN      0.645431905   0.004634398   0              0            0
+
+
+On 2017/1/23 15:40, Minchan Kim wrote:
+> On Mon, Jan 23, 2017 at 04:13:39PM +0900, Sergey Senozhatsky wrote:
+>> On (01/23/17 15:27), Joonsoo Kim wrote:
+>>> Hello,
+>>>
+>>> Think about following case in 64 bits kernel.
+>>>
+>>> If value pattern in the page is like as following, we cannot detect
+>>> the same page with 'unsigned int' element.
+>>>
+>>> AAAAAAAABBBBBBBBAAAAAAAABBBBBBBB...
+>>>
+>>> 4 bytes is 0xAAAAAAAA and next 4 bytes is 0xBBBBBBBB and so on.
+>>
+>> yep, that's exactly the case that I though would be broken
+>> with a 4-bytes pattern matching. so my conlusion was that
+>> for 4 byte pattern we would have working detection anyway,
+>> for 8 bytes patterns we might have some extra matching.
+>> not sure if it matters that much though.
+>
+> It would be better for deduplication as pattern coverage is bigger
+> and we cannot guess all of patterns now so it would be never ending
+> story(i.e., someone claims 16bytes pattern matching would be better).
+> So, I want to make that path fast rather than increasing dedup ratio
+> if memset is really fast rather than open-looping. So in future,
+> if we can prove bigger pattern can increase dedup ratio a lot, then,
+> we could consider to extend it at the cost of make that path slow.
+>
+> In summary, zhouxianrong, please test pattern as Joonsoo asked.
+> So if there are not much benefit with 'long', let's go to the
+> 'int' with memset. And Please resend patch if anyone dosn't oppose
+> strongly by the time.
+>
+> Thanks.
+>
+>
+> .
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
