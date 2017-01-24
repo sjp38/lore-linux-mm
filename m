@@ -1,49 +1,346 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B25B26B0038
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:36:01 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e4so126490122pfg.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:36:01 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h82si20959988pfj.218.2017.01.24.14.36.00
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD486B026F
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:50:33 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id v77so31520226wmv.5
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:50:33 -0800 (PST)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id r129si19944155wmr.58.2017.01.24.14.50.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 14:36:00 -0800 (PST)
-Date: Tue, 24 Jan 2017 14:35:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/12] uprobes: split THPs before trying replace them
-Message-Id: <20170124143559.57cea7092a2efff940aeeef0@linux-foundation.org>
-In-Reply-To: <20170124222217.GB19920@node.shutemov.name>
+        Tue, 24 Jan 2017 14:50:32 -0800 (PST)
+Received: by mail-wm0-x243.google.com with SMTP id r126so38207368wmr.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:50:32 -0800 (PST)
+Date: Wed, 25 Jan 2017 01:50:30 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 02/12] mm: introduce page_check_walk()
+Message-ID: <20170124225030.GC19920@node.shutemov.name>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
-	<20170124162824.91275-2-kirill.shutemov@linux.intel.com>
-	<20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
-	<20170124222217.GB19920@node.shutemov.name>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20170124162824.91275-3-kirill.shutemov@linux.intel.com>
+ <20170124134122.5560b55ca13c2c2cc09c2a4e@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170124134122.5560b55ca13c2c2cc09c2a4e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 25 Jan 2017 01:22:17 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Tue, Jan 24, 2017 at 01:28:49PM -0800, Andrew Morton wrote:
-> > On Tue, 24 Jan 2017 19:28:13 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Tue, Jan 24, 2017 at 01:41:22PM -0800, Andrew Morton wrote:
+> On Tue, 24 Jan 2017 19:28:14 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > The patch introduce new interface to check if a page is mapped into a vma.
+> > It aims to address shortcomings of page_check_address{,_transhuge}.
 > > 
-> > > For THPs page_check_address() always fails. It's better to split them
-> > > first before trying to replace.
+> > Existing interface is not able to handle PTE-mapped THPs: it only finds
+> > the first PTE. The rest lefted unnoticed.
 > > 
-> > So what does this mean.  uprobes simply fails to work when trying to
-> > place a probe into a THP memory region?
+> > page_check_walk() iterates over all possible mapping of the page in the
+> > vma.
 > 
-> Looks like we can end up with endless retry loop in uprobe_write_opcode().
-> 
-> > How come nobody noticed (and reported) this when using the feature?
-> 
-> I guess it's not often used for anon memory.
+> I really don't like the name page_check_walk().  "check" could mean any
+> damn thing.  Something like page_vma_mapped_walk() has meaning.  We
+> could omit the "_walk" for brevity.
 
-OK,  can we please include discussion of these things in the changelog?
+page_vma_mapped() would sound as predicate.
+I'll rename to page_vma_mapped_walk().
+
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  include/linux/rmap.h |  65 ++++++++++++++++++++++
+> >  mm/Makefile          |   6 ++-
+> >  mm/huge_memory.c     |   9 ++--
+> >  mm/page_check.c      | 148 +++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  4 files changed, 223 insertions(+), 5 deletions(-)
+> >  create mode 100644 mm/page_check.c
+> > 
+> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> > index 15321fb1df6b..474279810742 100644
+> > --- a/include/linux/rmap.h
+> > +++ b/include/linux/rmap.h
+> > @@ -232,6 +232,71 @@ static inline bool page_check_address_transhuge(struct page *page,
+> >  }
+> >  #endif
+> >  
+> > +/* Avoid racy checks */
+> > +#define PAGE_CHECK_WALK_SYNC		(1 << 0)
+> > +/* Look for migarion entries rather than present ptes */
+> > +#define PAGE_CHECK_WALK_MIGRATION	(1 << 1)
+> > +
+> > +struct page_check_walk {
+> > +	struct page *page;
+> > +	struct vm_area_struct *vma;
+> > +	unsigned long address;
+> > +	pmd_t *pmd;
+> > +	pte_t *pte;
+> > +	spinlock_t *ptl;
+> > +	unsigned int flags;
+> > +};
+> 
+> One thing which I don't think was documented is that it is the caller's
+> responsibility to initialize this appropriately before calling
+> page_check_walk().  At least, .pte and .ptl must be NULL, for
+> page_check_walk_done().
+
+Okay, I'll write it down.
+
+> > +static inline void page_check_walk_done(struct page_check_walk *pcw)
+> > +{
+> > +	if (pcw->pte)
+> > +		pte_unmap(pcw->pte);
+> > +	if (pcw->ptl)
+> > +		spin_unlock(pcw->ptl);
+> > +}
+> > +
+> > +bool __page_check_walk(struct page_check_walk *pcw);
+> > +
+> > +/**
+> > + * page_check_walk - check if @pcw->page is mapped in @pcw->vma at @pcw->address
+> > + * @pcw: pointer to struce page_check_walk. page, vma and address must be set.
+> 
+> "struct"
+> 
+> > + *
+> > + * Returns true, if the page is mapped in the vma. @pcw->pmd and @pcw->pte point
+> 
+> "Returns true if"
+> 
+> > + * to relevant page table entries. @pcw->ptl is locked. @pcw->address is
+> > + * adjusted if needed (for PTE-mapped THPs).
+> > + *
+> > + * If @pcw->pmd is set, but @pcw->pte is not, you have found PMD-mapped page
+> 
+> "is set but"
+> 
+> > + * (usually THP). For PTE-mapped THP, you should run page_check_walk() in 
+> > + * a loop to find all PTEs that maps the THP.
+> 
+> "that map"
+> 
+> > + *
+> > + * For HugeTLB pages, @pcw->pte is set to relevant page table entry regardless
+> 
+> "set to the relevant", "regardless of"
+> 
+> > + * which page table level the page mapped at. @pcw->pmd is NULL.
+> 
+> "the page is"
+> 
+> > + *
+> > + * Retruns false, if there's no more page table entries for the page in the vma.
+> 
+> "Returns false if there are"
+
+Thanks for corrections. Applied.
+
+> > + * @pcw->ptl is unlocked and @pcw->pte is unmapped.
+> > + *
+> > + * If you need to stop the walk before page_check_walk() returned false, use
+> > + * page_check_walk_done(). It will do the housekeeping.
+> > + */
+> > +static inline bool page_check_walk(struct page_check_walk *pcw)
+> > +{
+> > +	/* The only possible pmd mapping has been handled on last iteration */
+> > +	if (pcw->pmd && !pcw->pte) {
+> > +		page_check_walk_done(pcw);
+> > +		return false;
+> > +	}
+> > +
+> > +	/* Only for THP, seek to next pte entry makes sense */
+> > +	if (pcw->pte) {
+> > +		if (!PageTransHuge(pcw->page) || PageHuge(pcw->page)) {
+> > +			page_check_walk_done(pcw);
+> > +			return false;
+> > +		}
+> > +	}
+> > +
+> > +	return __page_check_walk(pcw);
+> > +}
+> 
+> Was the decision to inline this a correct one?
+
+Well, my logic was that in most cases we would have exactly one iteration.
+The only case when we need more than one iteration is PTE-mapped THP which
+is rare.
+I hoped to avoid additional function call. Not sure if it worth it.
+
+Should I move it inside the function?
+
+> > --- /dev/null
+> > +++ b/mm/page_check.c
+> > @@ -0,0 +1,148 @@
+> > +#include <linux/mm.h>
+> > +#include <linux/rmap.h>
+> > +#include <linux/hugetlb.h>
+> > +#include <linux/swap.h>
+> > +#include <linux/swapops.h>
+> > +
+> > +#include "internal.h"
+> > +
+> > +static inline bool check_pmd(struct page_check_walk *pcw)
+> > +{
+> > +	pmd_t pmde = *pcw->pmd;
+> > +	barrier();
+> > +	return pmd_present(pmde) && !pmd_trans_huge(pmde);
+> > +}
+> 
+> Can we please have a comment explaining what the barrier() does?
+
+I copied it from page_check_address_transhuge().
+
+I think we can get aways with READ_ONCE() instead.
+I'll add a comment.
+
+> > +static inline bool not_found(struct page_check_walk *pcw)
+> > +{
+> > +	page_check_walk_done(pcw);
+> > +	return false;
+> > +}
+> > +
+> > +static inline bool map_pte(struct page_check_walk *pcw)
+> > +{
+> > +	pcw->pte = pte_offset_map(pcw->pmd, pcw->address);
+> > +	if (!(pcw->flags & PAGE_CHECK_WALK_SYNC)) {
+> > +		if (pcw->flags & PAGE_CHECK_WALK_MIGRATION) {
+> > +			if (!is_swap_pte(*pcw->pte))
+> > +				return false;
+> > +		} else {
+> > +			if (!pte_present(*pcw->pte))
+> > +				return false;
+> > +		}
+> > +	}
+> > +	pcw->ptl = pte_lockptr(pcw->vma->vm_mm, pcw->pmd);
+> > +	spin_lock(pcw->ptl);
+> > +	return true;
+> > +}
+> 
+> The compiler will just ignore all these "inline" statements.
+
+These helpers grew during development. I forgot to drop "inline".
+
+> > +static inline bool check_pte(struct page_check_walk *pcw)
+> > +{
+> > +	if (pcw->flags & PAGE_CHECK_WALK_MIGRATION) {
+> > +		swp_entry_t entry;
+> > +		if (!is_swap_pte(*pcw->pte))
+> > +			return false;
+> > +		entry = pte_to_swp_entry(*pcw->pte);
+> > +		if (!is_migration_entry(entry))
+> > +			return false;
+> > +		if (migration_entry_to_page(entry) - pcw->page >=
+> > +				hpage_nr_pages(pcw->page)) {
+> > +			return false;
+> > +		}
+> > +		if (migration_entry_to_page(entry) < pcw->page)
+> > +			return false;
+> > +	} else {
+> > +		if (!pte_present(*pcw->pte))
+> > +			return false;
+> > +
+> > +		/* THP can be referenced by any subpage */
+> > +		if (pte_page(*pcw->pte) - pcw->page >=
+> > +				hpage_nr_pages(pcw->page)) {
+> > +			return false;
+> > +		}
+> > +		if (pte_page(*pcw->pte) < pcw->page)
+> > +			return false;
+> > +	}
+> > +
+> > +	return true;
+> > +}
+> 
+> Thankfully, because inlining this one does seem inappropriate - it's
+> enormous!
+> 
+> > +bool __page_check_walk(struct page_check_walk *pcw)
+> > +{
+> > +	struct mm_struct *mm = pcw->vma->vm_mm;
+> > +	struct page *page = pcw->page;
+> > +	pgd_t *pgd;
+> > +	pud_t *pud;
+> > +
+> > +	/* For THP, seek to next pte entry */
+> > +	if (pcw->pte)
+> > +		goto next_pte;
+> > +
+> > +	if (unlikely(PageHuge(pcw->page))) {
+> > +		/* when pud is not present, pte will be NULL */
+> > +		pcw->pte = huge_pte_offset(mm, pcw->address);
+> > +		if (!pcw->pte)
+> > +			return false;
+> > +
+> > +		pcw->ptl = huge_pte_lockptr(page_hstate(page), mm, pcw->pte);
+> > +		spin_lock(pcw->ptl);
+> > +		if (!check_pte(pcw))
+> > +			return not_found(pcw);
+> > +		return true;
+> > +	}
+> > +restart:
+> > +	pgd = pgd_offset(mm, pcw->address);
+> > +	if (!pgd_present(*pgd))
+> > +		return false;
+> > +	pud = pud_offset(pgd, pcw->address);
+> > +	if (!pud_present(*pud))
+> > +		return false;
+> > +	pcw->pmd = pmd_offset(pud, pcw->address);
+> > +	if (pmd_trans_huge(*pcw->pmd)) {
+> > +		pcw->ptl = pmd_lock(mm, pcw->pmd);
+> > +		if (!pmd_present(*pcw->pmd))
+> > +			return not_found(pcw);
+> > +		if (likely(pmd_trans_huge(*pcw->pmd))) {
+> > +			if (pcw->flags & PAGE_CHECK_WALK_MIGRATION)
+> > +				return not_found(pcw);
+> > +			if (pmd_page(*pcw->pmd) != page)
+> > +				return not_found(pcw);
+> > +			return true;
+> > +		} else {
+> > +			/* THP pmd was split under us: handle on pte level */
+> > +			spin_unlock(pcw->ptl);
+> > +			pcw->ptl = NULL;
+> > +		}
+> > +	} else {
+> > +		if (!check_pmd(pcw))
+> > +			return false;
+> > +	}
+> > +	if (!map_pte(pcw))
+> > +		goto next_pte;
+> > +	while (1) {
+> > +		if (check_pte(pcw))
+> > +			return true;
+> > +next_pte:	do {
+> > +			pcw->address += PAGE_SIZE;
+> > +			if (pcw->address >= __vma_address(pcw->page, pcw->vma) +
+> > +					hpage_nr_pages(pcw->page) * PAGE_SIZE)
+> > +				return not_found(pcw);
+> > +			/* Did we cross page table boundary? */
+> > +			if (pcw->address % PMD_SIZE == 0) {
+> > +				pte_unmap(pcw->pte);
+> > +				if (pcw->ptl) {
+> > +					spin_unlock(pcw->ptl);
+> > +					pcw->ptl = NULL;
+> > +				}
+> > +				goto restart;
+> > +			} else {
+> > +				pcw->pte++;
+> > +			}
+> > +		} while (pte_none(*pcw->pte));
+> > +
+> > +		if (!pcw->ptl) {
+> > +			pcw->ptl = pte_lockptr(mm, pcw->pmd);
+> > +			spin_lock(pcw->ptl);
+> > +		}
+> > +	}
+> > +}
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
