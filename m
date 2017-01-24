@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC976B0279
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B11E26B027B
 	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 10:05:18 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id t18so28430011wmt.7
+Received: by mail-wm0-f71.google.com with SMTP id d140so28571238wmd.4
         for <linux-mm@kvack.org>; Tue, 24 Jan 2017 07:05:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e191si18613669wmf.158.2017.01.24.07.05.17
+        by mx.google.com with ESMTPS id c17si17265591wrb.34.2017.01.24.07.05.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 24 Jan 2017 07:05:17 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 2/2] mm, page_alloc: don't check cpuset allowed twice in fast-path
-Date: Tue, 24 Jan 2017 16:05:11 +0100
-Message-Id: <20170124150511.5710-2-vbabka@suse.cz>
-In-Reply-To: <20170124150511.5710-1-vbabka@suse.cz>
-References: <20170124150511.5710-1-vbabka@suse.cz>
+Subject: [PATCH 1/2] mm, page_alloc: remove redundant checks from alloc fastpath
+Date: Tue, 24 Jan 2017 16:05:10 +0100
+Message-Id: <20170124150511.5710-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Since commit 682a3385e773 ("mm, page_alloc: inline the fast path of the
-zonelist iterator") we replace a NULL nodemask with cpuset_current_mems_allowed
-in the fast path, so that get_page_from_freelist() filters nodes allowed by the
-cpuset via for_next_zone_zonelist_nodemask(). In that case it's pointless to
-additionaly check __cpuset_zone_allowed() in each iteration, which we can avoid
-by not adding ALLOC_CPUSET to alloc_flags in that scenario.
+The allocation fast path contains two similar checks for zoneref->zone being
+NULL, where zoneref points either to the first zone in the zonelist, or to the
+preferred zone. These can be NULL either due to empty zonelist, or no zone
+being compatible with given nodemask or task's cpuset.
 
-This saves some cycles in the allocator fast path on systems with one or more
-non-root cpuset configured. In the slow path, ALLOC_CPUSET is reset according
-to __alloc_pages_slowpath(). Without configured cpusets, this code is disabled
-by a static key.
+These checks are unnecessary, because the zonelist walks in
+first_zones_zonelist() and get_page_from_freelist() handle a NULL starting
+zoneref->zone or preferred_zoneref->zone safely. It's safe to fallback to
+__alloc_pages_slowpath() where we also have the check early enough.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+This and the following patch is on top of Mel's bulk cpu work.
+
+ mm/page_alloc.c | 18 ------------------
+ 1 file changed, 18 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 05068adf9007..407e5d89ad2e 100644
+index 9288175e57e3..05068adf9007 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3900,9 +3900,10 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+@@ -3912,14 +3912,6 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 	if (should_fail_alloc_page(gfp_mask, order))
+ 		return false;
  
- 	if (cpusets_enabled()) {
- 		*alloc_mask |= __GFP_HARDWALL;
--		*alloc_flags |= ALLOC_CPUSET;
- 		if (!ac->nodemask)
- 			ac->nodemask = &cpuset_current_mems_allowed;
-+		else
-+			*alloc_flags |= ALLOC_CPUSET;
- 	}
+-	/*
+-	 * Check the zones suitable for the gfp_mask contain at least one
+-	 * valid zone. It's possible to have an empty zonelist as a result
+-	 * of __GFP_THISNODE and a memoryless node
+-	 */
+-	if (unlikely(!ac->zonelist->_zonerefs->zone))
+-		return false;
+-
+ 	if (IS_ENABLED(CONFIG_CMA) && ac->migratetype == MIGRATE_MOVABLE)
+ 		*alloc_flags |= ALLOC_CMA;
  
- 	lockdep_trace_alloc(gfp_mask);
+@@ -3959,22 +3951,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 
+ 	finalise_ac(gfp_mask, order, &ac);
+-	if (!ac.preferred_zoneref->zone) {
+-		page = NULL;
+-		/*
+-		 * This might be due to race with cpuset_current_mems_allowed
+-		 * update, so make sure we retry with original nodemask in the
+-		 * slow path.
+-		 */
+-		goto no_zone;
+-	}
+ 
+ 	/* First allocation attempt */
+ 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
+ 	if (likely(page))
+ 		goto out;
+ 
+-no_zone:
+ 	/*
+ 	 * Runtime PM, block IO and its error handling path can deadlock
+ 	 * because I/O on the device might not complete.
 -- 
 2.11.0
 
