@@ -1,123 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17AD26B027A
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 15:03:22 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id x49so165322197qtc.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:03:22 -0800 (PST)
-Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
-        by mx.google.com with ESMTPS id x65si8087939qke.229.2017.01.24.12.03.20
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9384E6B027C
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 15:03:24 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id k15so166395648qtg.5
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:03:24 -0800 (PST)
+Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
+        by mx.google.com with ESMTPS id n73si13864395qke.243.2017.01.24.12.03.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 12:03:21 -0800 (PST)
-Received: by mail-qt0-x241.google.com with SMTP id l7so27822723qtd.3
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:03:20 -0800 (PST)
+        Tue, 24 Jan 2017 12:03:23 -0800 (PST)
+Received: by mail-qt0-x243.google.com with SMTP id l7so27822864qtd.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 12:03:23 -0800 (PST)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH 1/3] zswap: disable changing params if init fails
-Date: Tue, 24 Jan 2017 15:02:57 -0500
-Message-Id: <20170124200259.16191-2-ddstreet@ieee.org>
+Subject: [PATCH 2/3] zswap: allow initialization at boot without pool
+Date: Tue, 24 Jan 2017 15:02:58 -0500
+Message-Id: <20170124200259.16191-3-ddstreet@ieee.org>
 In-Reply-To: <20170124200259.16191-1-ddstreet@ieee.org>
 References: <20170124200259.16191-1-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dan Streetman <dan.streetman@canonical.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, Dan Streetman <dan.streetman@canonical.com>
 
-Add zswap_init_failed bool that prevents changing any of the module
-params, if init_zswap() fails, and set zswap_enabled to false.  Change
-'enabled' param to a callback, and check zswap_init_failed before
-allowing any change to 'enabled', 'zpool', or 'compressor' params.
+Allow zswap to initialize at boot even if it can't create its pool
+due to a failure to create a zpool and/or compressor.  Allow those
+to be created later, from the sysfs module param interface.
 
-Any driver that is built-in to the kernel will not be unloaded if its
-init function returns error, and its module params remain accessible for
-users to change via sysfs.  Since zswap uses param callbacks, which
-assume that zswap has been initialized, changing the zswap params after
-a failed initialization will result in WARNING due to the param callbacks
-expecting a pool to already exist.  This prevents that by immediately
-exiting any of the param callbacks if initialization failed.
-
-This was reported here:
-https://marc.info/?l=linux-mm&m=147004228125528&w=4
-
-And fixes this WARNING:
-[  429.723476] WARNING: CPU: 0 PID: 5140 at mm/zswap.c:503
-__zswap_pool_current+0x56/0x60
-
-Fixes: 90b0fc26d5db ("zswap: change zpool/compressor at runtime")
-Cc: stable@vger.kernel.org
 Signed-off-by: Dan Streetman <dan.streetman@canonical.com>
 ---
- mm/zswap.c | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ mm/zswap.c | 46 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 12 deletions(-)
 
 diff --git a/mm/zswap.c b/mm/zswap.c
-index 067a0d6..cabf09e 100644
+index cabf09e..77cb847 100644
 --- a/mm/zswap.c
 +++ b/mm/zswap.c
-@@ -78,7 +78,13 @@ static u64 zswap_duplicate_entry;
+@@ -185,6 +185,9 @@ static bool zswap_init_started;
+ /* fatal error during init */
+ static bool zswap_init_failed;
  
- /* Enable/disable zswap (disabled by default) */
- static bool zswap_enabled;
--module_param_named(enabled, zswap_enabled, bool, 0644);
-+static int zswap_enabled_param_set(const char *,
-+				   const struct kernel_param *);
-+static struct kernel_param_ops zswap_enabled_param_ops = {
-+	.set =		zswap_enabled_param_set,
-+	.get =		param_get_bool,
-+};
-+module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
- 
- /* Crypto compressor to use */
- #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-@@ -176,6 +182,9 @@ static atomic_t zswap_pools_count = ATOMIC_INIT(0);
- /* used by param callback function */
- static bool zswap_init_started;
- 
-+/* fatal error during init */
-+static bool zswap_init_failed;
++/* init completed, but couldn't create the initial pool */
++static bool zswap_has_pool;
 +
  /*********************************
  * helpers and fwd declarations
  **********************************/
-@@ -624,6 +633,11 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
- 	char *s = strstrip((char *)val);
- 	int ret;
+@@ -424,7 +427,8 @@ static struct zswap_pool *__zswap_pool_current(void)
+ 	struct zswap_pool *pool;
  
-+	if (zswap_init_failed) {
-+		pr_err("can't set param, initialization failed\n");
-+		return -ENODEV;
-+	}
+ 	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
+-	WARN_ON(!pool);
++	WARN_ONCE(!pool && zswap_has_pool,
++		  "%s: no page storage pool!\n", __func__);
+ 
+ 	return pool;
+ }
+@@ -443,7 +447,7 @@ static struct zswap_pool *zswap_pool_current_get(void)
+ 	rcu_read_lock();
+ 
+ 	pool = __zswap_pool_current();
+-	if (!pool || !zswap_pool_get(pool))
++	if (!zswap_pool_get(pool))
+ 		pool = NULL;
+ 
+ 	rcu_read_unlock();
+@@ -459,7 +463,9 @@ static struct zswap_pool *zswap_pool_last_get(void)
+ 
+ 	list_for_each_entry_rcu(pool, &zswap_pools, list)
+ 		last = pool;
+-	if (!WARN_ON(!last) && !zswap_pool_get(last))
++	WARN_ONCE(!last && zswap_has_pool,
++		  "%s: no page storage pool!\n", __func__);
++	if (!zswap_pool_get(last))
+ 		last = NULL;
+ 
+ 	rcu_read_unlock();
+@@ -582,6 +588,9 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
+ 
+ static int __must_check zswap_pool_get(struct zswap_pool *pool)
+ {
++	if (!pool)
++		return 0;
 +
+ 	return kref_get_unless_zero(&pool->kref);
+ }
+ 
+@@ -639,7 +648,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+ 	}
+ 
  	/* no change required */
- 	if (!strcmp(s, *(char **)kp->arg))
+-	if (!strcmp(s, *(char **)kp->arg))
++	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
  		return 0;
-@@ -703,6 +717,17 @@ static int zswap_zpool_param_set(const char *val,
- 	return __zswap_param_set(val, kp, NULL, zswap_compressor);
- }
  
-+static int zswap_enabled_param_set(const char *val,
-+				   const struct kernel_param *kp)
-+{
-+	if (zswap_init_failed) {
-+		pr_err("can't enable, initialization failed\n");
+ 	/* if this is load-time (pre-init) param setting,
+@@ -685,6 +694,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+ 	if (!ret) {
+ 		put_pool = zswap_pool_current();
+ 		list_add_rcu(&pool->list, &zswap_pools);
++		zswap_has_pool = true;
+ 	} else if (pool) {
+ 		/* add the possibly pre-existing pool to the end of the pools
+ 		 * list; if it's new (and empty) then it'll be removed and
+@@ -692,6 +702,15 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+ 		 */
+ 		list_add_tail_rcu(&pool->list, &zswap_pools);
+ 		put_pool = pool;
++	} else if (!zswap_has_pool) {
++		/* if initial pool creation failed, and this pool creation also
++		 * failed, maybe both compressor and zpool params were bad.
++		 * Allow changing this param, so pool creation will succeed
++		 * when the other param is changed. We already verified this
++		 * param is ok in the zpool_has_pool() or crypto_has_comp()
++		 * checks above.
++		 */
++		ret = param_set_charp(s, kp);
+ 	}
+ 
+ 	spin_unlock(&zswap_pools_lock);
+@@ -724,6 +743,10 @@ static int zswap_enabled_param_set(const char *val,
+ 		pr_err("can't enable, initialization failed\n");
+ 		return -ENODEV;
+ 	}
++	if (!zswap_has_pool && zswap_init_started) {
++		pr_err("can't enable, no pool configured\n");
 +		return -ENODEV;
 +	}
-+
-+	return param_set_bool(val, kp);
-+}
-+
- /*********************************
- * writeback code
- **********************************/
-@@ -1201,6 +1226,9 @@ static int __init init_zswap(void)
- dstmem_fail:
- 	zswap_entry_cache_destroy();
- cache_fail:
-+	/* if built-in, we aren't unloaded on failure; don't allow use */
-+	zswap_init_failed = true;
-+	zswap_enabled = false;
- 	return -ENOMEM;
+ 
+ 	return param_set_bool(val, kp);
  }
- /* must be late so crypto has time to come up */
+@@ -1205,22 +1228,21 @@ static int __init init_zswap(void)
+ 		goto hp_fail;
+ 
+ 	pool = __zswap_pool_create_fallback();
+-	if (!pool) {
++	if (pool) {
++		pr_info("loaded using pool %s/%s\n", pool->tfm_name,
++			zpool_get_type(pool->zpool));
++		list_add(&pool->list, &zswap_pools);
++		zswap_has_pool = true;
++	} else {
+ 		pr_err("pool creation failed\n");
+-		goto pool_fail;
++		zswap_enabled = false;
+ 	}
+-	pr_info("loaded using pool %s/%s\n", pool->tfm_name,
+-		zpool_get_type(pool->zpool));
+-
+-	list_add(&pool->list, &zswap_pools);
+ 
+ 	frontswap_register_ops(&zswap_frontswap_ops);
+ 	if (zswap_debugfs_init())
+ 		pr_warn("debugfs initialization failed\n");
+ 	return 0;
+ 
+-pool_fail:
+-	cpuhp_remove_state_nocalls(CPUHP_MM_ZSWP_POOL_PREPARE);
+ hp_fail:
+ 	cpuhp_remove_state(CPUHP_MM_ZSWP_MEM_PREPARE);
+ dstmem_fail:
 -- 
 2.9.3
 
