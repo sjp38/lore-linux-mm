@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 357436B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 07:41:00 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t18so26589584wmt.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 04:41:00 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si18157688wmf.115.2017.01.24.04.40.58
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C818D6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:02:34 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id j82so249129358ybg.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:02:34 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id i136si5085865ywg.131.2017.01.24.05.02.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 04:40:58 -0800 (PST)
-Date: Tue, 24 Jan 2017 13:40:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
- automatically
-Message-ID: <20170124124048.GE6867@dhcp22.suse.cz>
-References: <20161220134904.21023-1-mhocko@kernel.org>
- <20161220134904.21023-3-mhocko@kernel.org>
- <001f01d272f7$e53acbd0$afb06370$@alibaba-inc.com>
+        Tue, 24 Jan 2017 05:02:33 -0800 (PST)
+Message-ID: <58874FE8.1070100@huawei.com>
+Date: Tue, 24 Jan 2017 21:00:24 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <001f01d272f7$e53acbd0$afb06370$@alibaba-inc.com>
+Subject: Re: [PATCH v2] mm: do not export ioremap_page_range symbol for external
+ module
+References: <1485173220-29010-1-git-send-email-zhongjiang@huawei.com> <20170124102319.GD6867@dhcp22.suse.cz>
+In-Reply-To: <20170124102319.GD6867@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'David Rientjes' <rientjes@google.com>, 'Mel Gorman' <mgorman@suse.de>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, jhubbard@nvidia.com, linux-mm@kvack.org, minchan@kernel.org
 
-On Fri 20-01-17 16:33:36, Hillf Danton wrote:
-> 
-> On Tuesday, December 20, 2016 9:49 PM Michal Hocko wrote: 
-> > 
-> > @@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
-> >  	 * make sure exclude 0 mask - all other users should have at least
-> >  	 * ___GFP_DIRECT_RECLAIM to get here.
-> >  	 */
-> > -	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
-> > +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
-> >  		return true;
-> > 
-> As to GFP_NOFS|__GFP_NOFAIL request, can we check gfp mask
-> one bit after another?
-> 
-> 	if (oc->gfp_mask) {
-> 		if (!(oc->gfp_mask & __GFP_FS))
-> 			return false;
-> 
-> 		/* No service for request that can handle fail result itself */
-> 		if (!(oc->gfp_mask & __GFP_NOFAIL))
-> 			return false;
-> 	}
+On 2017/1/24 18:23, Michal Hocko wrote:
+> On Mon 23-01-17 20:07:00, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> Recently, I've found cases in which ioremap_page_range was used
+>> incorrectly, in external modules, leading to crashes. This can be
+>> partly attributed to the fact that ioremap_page_range is lower-level,
+>> with fewer protections, as compared to the other functions that an
+>> external module would typically call. Those include:
+>>
+>>      ioremap_cache
+>>      ioremap_nocache
+>>      ioremap_prot
+>>      ioremap_uc
+>>      ioremap_wc
+>>      ioremap_wt
+>>
+>> ...each of which wraps __ioremap_caller, which in turn provides a
+>> safer way to achieve the mapping.
+>>
+>> Therefore, stop EXPORT-ing ioremap_page_range.
+>>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
+>> Suggested-by: John Hubbard <jhubbard@nvidia.com>
+> git grep says that there are few direct users of this API in the tree.
+> Have you checked all of them? The export has been added by 81e88fdc432a
+> ("ACPI, APEI, Generic Hardware Error Source POLL/IRQ/NMI notification
+> type support").
+  I have checked more than one times.  and John also have looked through the whole own kernel.
 
-I really do not understand this request. This patch is removing the
-__GFP_NOFAIL part... Besides that why should they return false?
--- 
-Michal Hocko
-SUSE Labs
+  Thanks
+  zhongjiang
+> Other than that this looks reasonably to me.
+>
+>> ---
+>>  lib/ioremap.c | 1 -
+>>  1 file changed, 1 deletion(-)
+>>
+>> diff --git a/lib/ioremap.c b/lib/ioremap.c
+>> index 86c8911..a3e14ce 100644
+>> --- a/lib/ioremap.c
+>> +++ b/lib/ioremap.c
+>> @@ -144,4 +144,3 @@ int ioremap_page_range(unsigned long addr,
+>>  
+>>  	return err;
+>>  }
+>> -EXPORT_SYMBOL_GPL(ioremap_page_range);
+>> -- 
+>> 1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
