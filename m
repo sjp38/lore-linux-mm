@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5136B0297
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:29:14 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id e4so117073318pfg.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:29:14 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id j62si19788100pfg.51.2017.01.24.08.29.13
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8960B6B0299
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:29:23 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id y196so140137348ity.1
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:29:23 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id u186si12181553itf.113.2017.01.24.08.29.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:29:13 -0800 (PST)
+        Tue, 24 Jan 2017 08:29:17 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 11/12] mm: drop page_check_address{,_transhuge}
-Date: Tue, 24 Jan 2017 19:28:23 +0300
-Message-Id: <20170124162824.91275-12-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 08/12] mm, ksm: convert write_protect_page() to page_check_walk()
+Date: Tue, 24 Jan 2017 19:28:20 +0300
+Message-Id: <20170124162824.91275-9-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,210 +20,96 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-All users are gone. Let's drop them.
+For consistency, it worth converting all page_check_address() to
+page_check_walk(), so we could drop the former.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/rmap.h |  36 --------------
- mm/rmap.c            | 138 ---------------------------------------------------
- 2 files changed, 174 deletions(-)
+ mm/ksm.c | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 474279810742..74113df9418d 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -196,42 +196,6 @@ int page_referenced(struct page *, int is_locked,
- 
- int try_to_unmap(struct page *, enum ttu_flags flags);
- 
--/*
-- * Used by uprobes to replace a userspace page safely
-- */
--pte_t *__page_check_address(struct page *, struct mm_struct *,
--				unsigned long, spinlock_t **, int);
--
--static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
--					unsigned long address,
--					spinlock_t **ptlp, int sync)
--{
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 9ae6011a41f8..6653ca186cfe 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -850,33 +850,35 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 			      pte_t *orig_pte)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	unsigned long addr;
 -	pte_t *ptep;
--
--	__cond_lock(*ptlp, ptep = __page_check_address(page, mm, address,
--						       ptlp, sync));
--	return ptep;
--}
--
--/*
-- * Used by idle page tracking to check if a page was referenced via page
-- * tables.
-- */
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
--				  unsigned long address, pmd_t **pmdp,
--				  pte_t **ptep, spinlock_t **ptlp);
--#else
--static inline bool page_check_address_transhuge(struct page *page,
--				struct mm_struct *mm, unsigned long address,
--				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
--{
--	*ptep = page_check_address(page, mm, address, ptlp, 0);
--	*pmdp = NULL;
--	return !!*ptep;
--}
--#endif
--
- /* Avoid racy checks */
- #define PAGE_CHECK_WALK_SYNC		(1 << 0)
- /* Look for migarion entries rather than present ptes */
-diff --git a/mm/rmap.c b/mm/rmap.c
-index cb34fd68a23a..7106eb9b37a8 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -708,144 +708,6 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
- 	return pmd;
- }
+-	spinlock_t *ptl;
++	struct page_check_walk pcw = {
++		.page = page,
++		.vma = vma,
++	};
+ 	int swapped;
+ 	int err = -EFAULT;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
  
--/*
-- * Check that @page is mapped at @address into @mm.
-- *
-- * If @sync is false, page_check_address may perform a racy check to avoid
-- * the page table lock when the pte is not present (helpful when reclaiming
-- * highly shared pages).
-- *
-- * On success returns with pte mapped and locked.
-- */
--pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
--			  unsigned long address, spinlock_t **ptlp, int sync)
--{
--	pmd_t *pmd;
--	pte_t *pte;
--	spinlock_t *ptl;
--
--	if (unlikely(PageHuge(page))) {
--		/* when pud is not present, pte will be NULL */
--		pte = huge_pte_offset(mm, address);
--		if (!pte)
--			return NULL;
--
--		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
--		goto check;
--	}
--
--	pmd = mm_find_pmd(mm, address);
--	if (!pmd)
--		return NULL;
--
--	pte = pte_offset_map(pmd, address);
--	/* Make a quick check before getting the lock */
--	if (!sync && !pte_present(*pte)) {
--		pte_unmap(pte);
--		return NULL;
--	}
--
--	ptl = pte_lockptr(mm, pmd);
--check:
--	spin_lock(ptl);
--	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
--		*ptlp = ptl;
--		return pte;
--	}
--	pte_unmap_unlock(pte, ptl);
--	return NULL;
--}
--
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--/*
-- * Check that @page is mapped at @address into @mm. In contrast to
-- * page_check_address(), this function can handle transparent huge pages.
-- *
-- * On success returns true with pte mapped and locked. For PMD-mapped
-- * transparent huge pages *@ptep is set to NULL.
-- */
--bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
--				  unsigned long address, pmd_t **pmdp,
--				  pte_t **ptep, spinlock_t **ptlp)
--{
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	pte_t *pte;
--	spinlock_t *ptl;
--
--	if (unlikely(PageHuge(page))) {
--		/* when pud is not present, pte will be NULL */
--		pte = huge_pte_offset(mm, address);
--		if (!pte)
--			return false;
--
--		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
--		pmd = NULL;
--		goto check_pte;
--	}
--
--	pgd = pgd_offset(mm, address);
--	if (!pgd_present(*pgd))
--		return false;
--	pud = pud_offset(pgd, address);
--	if (!pud_present(*pud))
--		return false;
--	pmd = pmd_offset(pud, address);
--
--	if (pmd_trans_huge(*pmd)) {
--		ptl = pmd_lock(mm, pmd);
--		if (!pmd_present(*pmd))
--			goto unlock_pmd;
--		if (unlikely(!pmd_trans_huge(*pmd))) {
--			spin_unlock(ptl);
--			goto map_pte;
--		}
--
--		if (pmd_page(*pmd) != page)
--			goto unlock_pmd;
--
--		pte = NULL;
--		goto found;
--unlock_pmd:
--		spin_unlock(ptl);
--		return false;
--	} else {
--		pmd_t pmde = *pmd;
--
--		barrier();
--		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
--			return false;
--	}
--map_pte:
--	pte = pte_offset_map(pmd, address);
--	if (!pte_present(*pte)) {
--		pte_unmap(pte);
--		return false;
--	}
--
--	ptl = pte_lockptr(mm, pmd);
--check_pte:
--	spin_lock(ptl);
--
--	if (!pte_present(*pte)) {
--		pte_unmap_unlock(pte, ptl);
--		return false;
--	}
--
--	/* THP can be referenced by any subpage */
--	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
--		pte_unmap_unlock(pte, ptl);
--		return false;
--	}
--found:
--	*ptep = pte;
--	*pmdp = pmd;
--	*ptlp = ptl;
--	return true;
--}
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
--
- struct page_referenced_arg {
- 	int mapcount;
- 	int referenced;
+-	addr = page_address_in_vma(page, vma);
+-	if (addr == -EFAULT)
++	pcw.address = page_address_in_vma(page, vma);
++	if (pcw.address == -EFAULT)
+ 		goto out;
+ 
+ 	BUG_ON(PageTransCompound(page));
+ 
+-	mmun_start = addr;
+-	mmun_end   = addr + PAGE_SIZE;
++	mmun_start = pcw.address;
++	mmun_end   = pcw.address + PAGE_SIZE;
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 
+-	ptep = page_check_address(page, mm, addr, &ptl, 0);
+-	if (!ptep)
++	if (!page_check_walk(&pcw))
+ 		goto out_mn;
++	if (WARN_ONCE(!pcw.pte, "Unexpected PMD mapping?"))
++		goto out_unlock;
+ 
+-	if (pte_write(*ptep) || pte_dirty(*ptep)) {
++	if (pte_write(*pcw.pte) || pte_dirty(*pcw.pte)) {
+ 		pte_t entry;
+ 
+ 		swapped = PageSwapCache(page);
+-		flush_cache_page(vma, addr, page_to_pfn(page));
++		flush_cache_page(vma, pcw.address, page_to_pfn(page));
+ 		/*
+ 		 * Ok this is tricky, when get_user_pages_fast() run it doesn't
+ 		 * take any lock, therefore the check that we are going to make
+@@ -886,25 +888,25 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 		 * this assure us that no O_DIRECT can happen after the check
+ 		 * or in the middle of the check.
+ 		 */
+-		entry = ptep_clear_flush_notify(vma, addr, ptep);
++		entry = ptep_clear_flush_notify(vma, pcw.address, pcw.pte);
+ 		/*
+ 		 * Check that no O_DIRECT or similar I/O is in progress on the
+ 		 * page
+ 		 */
+ 		if (page_mapcount(page) + 1 + swapped != page_count(page)) {
+-			set_pte_at(mm, addr, ptep, entry);
++			set_pte_at(mm, pcw.address, pcw.pte, entry);
+ 			goto out_unlock;
+ 		}
+ 		if (pte_dirty(entry))
+ 			set_page_dirty(page);
+ 		entry = pte_mkclean(pte_wrprotect(entry));
+-		set_pte_at_notify(mm, addr, ptep, entry);
++		set_pte_at_notify(mm, pcw.address, pcw.pte, entry);
+ 	}
+-	*orig_pte = *ptep;
++	*orig_pte = *pcw.pte;
+ 	err = 0;
+ 
+ out_unlock:
+-	pte_unmap_unlock(ptep, ptl);
++	page_check_walk_done(&pcw);
+ out_mn:
+ 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ out:
 -- 
 2.11.0
 
