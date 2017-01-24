@@ -1,100 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA386B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 06:08:40 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id d140so25779154wmd.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:08:40 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B82BC6B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 06:12:53 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c85so25413394wmi.6
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:12:53 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k206si17914873wma.17.2017.01.24.03.08.38
+        by mx.google.com with ESMTPS id t82si17933055wmg.0.2017.01.24.03.12.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 03:08:38 -0800 (PST)
-Subject: Re: [PATCH 3/4] mm, page_alloc: Drain per-cpu pages from workqueue
- context
-References: <20170117092954.15413-1-mgorman@techsingularity.net>
- <20170117092954.15413-4-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f4b504e1-30a2-5c53-bd15-c9b22a56da83@suse.cz>
-Date: Tue, 24 Jan 2017 12:08:35 +0100
+        Tue, 24 Jan 2017 03:12:52 -0800 (PST)
+Date: Tue, 24 Jan 2017 12:12:48 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/3] 1G transparent hugepage support for device dax
+Message-ID: <20170124111248.GC20153@quack2.suse.cz>
+References: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170117092954.15413-4-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Tejun Heo <tj@kernel.org>
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
 
-On 01/17/2017 10:29 AM, Mel Gorman wrote:
-> The per-cpu page allocator can be drained immediately via drain_all_pages()
-> which sends IPIs to every CPU. In the next patch, the per-cpu allocator
-> will only be used for interrupt-safe allocations which prevents draining
-> it from IPI context. This patch uses workqueues to drain the per-cpu
-> lists instead.
+On Mon 23-01-17 16:47:18, Dave Jiang wrote:
+> The following series implements support for 1G trasparent hugepage on
+> x86 for device dax. The bulk of the code was written by Mathew Wilcox
+> a while back supporting transparent 1G hugepage for fs DAX. I have
+> forward ported the relevant bits to 4.10-rc. The current submission has
+> only the necessary code to support device DAX.
+
+Well, you should really explain why do we want this functionality... Is
+anybody going to use it? Why would he want to and what will he gain by
+doing so? Because so far I haven't heard of a convincing usecase.
+
+								Honza
 > 
-> This is slower but no slowdown during intensive reclaim was measured and
-> the paths that use drain_all_pages() are not that sensitive to performance.
-> This is particularly true as the path would only be triggered when reclaim
-> is failing. It also makes a some sense to avoid storming a machine with IPIs
-> when it's under memory pressure. Arguably, it should be further adjusted
-> so that only one caller at a time is draining pages but it's beyond the
-> scope of the current patch.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 > ---
->  mm/page_alloc.c | 42 +++++++++++++++++++++++++++++++++++-------
->  1 file changed, 35 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d15527a20dce..9c3a0fcf8c13 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2341,19 +2341,21 @@ void drain_local_pages(struct zone *zone)
->  		drain_pages(cpu);
->  }
->  
-> +static void drain_local_pages_wq(struct work_struct *work)
-> +{
-> +	drain_local_pages(NULL);
-> +}
-> +
->  /*
->   * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
->   *
->   * When zone parameter is non-NULL, spill just the single zone's pages.
->   *
-> - * Note that this code is protected against sending an IPI to an offline
-> - * CPU but does not guarantee sending an IPI to newly hotplugged CPUs:
-> - * on_each_cpu_mask() blocks hotplug and won't talk to offlined CPUs but
-> - * nothing keeps CPUs from showing up after we populated the cpumask and
-> - * before the call to on_each_cpu_mask().
-> + * Note that this can be extremely slow as the draining happens in a workqueue.
->   */
->  void drain_all_pages(struct zone *zone)
->  {
-> +	struct work_struct __percpu *works;
->  	int cpu;
->  
->  	/*
-> @@ -2362,6 +2364,16 @@ void drain_all_pages(struct zone *zone)
->  	 */
->  	static cpumask_t cpus_with_pcps;
->  
-> +	/* Workqueues cannot recurse */
-> +	if (current->flags & PF_WQ_WORKER)
-> +		return;
-> +
-> +	/*
-> +	 * As this can be called from reclaim context, do not reenter reclaim.
-> +	 * An allocation failure can be handled, it's simply slower
-> +	 */
-> +	works = alloc_percpu_gfp(struct work_struct, GFP_ATOMIC);
-
-BTW I wonder, even with GFP_ATOMIC, is this a good idea to do for a
-temporary allocation like this one? pcpu_alloc() seems rather involved
-to me and I've glanced at the other usages and they seem much more
-long-lived. Maybe it would be really better to have single static
-"works" and serialize the callers as you suggest in the changelog?
+> Dave Jiang (1):
+>       dax: Support for transparent PUD pages for device DAX
+> 
+> Matthew Wilcox (2):
+>       mm,fs,dax: Change ->pmd_fault to ->huge_fault
+>       mm,x86: Add support for PUD-sized transparent hugepages
+> 
+> 
+>  arch/Kconfig                          |    3 
+>  arch/x86/Kconfig                      |    1 
+>  arch/x86/include/asm/paravirt.h       |   11 +
+>  arch/x86/include/asm/paravirt_types.h |    2 
+>  arch/x86/include/asm/pgtable-2level.h |   17 ++
+>  arch/x86/include/asm/pgtable-3level.h |   24 +++
+>  arch/x86/include/asm/pgtable.h        |  145 +++++++++++++++++++
+>  arch/x86/include/asm/pgtable_64.h     |   15 ++
+>  arch/x86/kernel/paravirt.c            |    1 
+>  arch/x86/mm/pgtable.c                 |   31 ++++
+>  drivers/dax/dax.c                     |   82 ++++++++---
+>  fs/dax.c                              |   43 ++++--
+>  fs/ext2/file.c                        |    2 
+>  fs/ext4/file.c                        |    6 -
+>  fs/xfs/xfs_file.c                     |   10 +
+>  fs/xfs/xfs_trace.h                    |    2 
+>  include/asm-generic/pgtable.h         |   75 +++++++++-
+>  include/asm-generic/tlb.h             |   14 ++
+>  include/linux/dax.h                   |    6 -
+>  include/linux/huge_mm.h               |   83 ++++++++++-
+>  include/linux/mm.h                    |   40 +++++
+>  include/linux/mmu_notifier.h          |   14 ++
+>  include/linux/pfn_t.h                 |    8 +
+>  mm/gup.c                              |    7 +
+>  mm/huge_memory.c                      |  249 +++++++++++++++++++++++++++++++++
+>  mm/memory.c                           |  102 ++++++++++++--
+>  mm/pagewalk.c                         |   20 +++
+>  mm/pgtable-generic.c                  |   14 ++
+>  28 files changed, 952 insertions(+), 75 deletions(-)
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
