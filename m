@@ -1,68 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 01EE16B026E
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:02 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z67so238489404pgb.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:53:02 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 595C26B0270
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:10 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d134so240635195pfd.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:53:10 -0800 (PST)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t21si19258104pfa.173.2017.01.24.05.53.01
+        by mx.google.com with ESMTPS id n86si19241773pfi.208.2017.01.24.05.53.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 05:53:02 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0ODhlJ5069229
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:01 -0500
+        Tue, 24 Jan 2017 05:53:09 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0ODiJeb093941
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:08 -0500
 Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2867gm237q-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2864vb1naw-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:00 -0500
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:53:08 -0500
 Received: from localhost
 	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 24 Jan 2017 13:52:58 -0000
+	Tue, 24 Jan 2017 13:53:05 -0000
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [RFC PATCH 1/5] mm: call vm_munmap in munmap syscall instead of using open coded version
-Date: Tue, 24 Jan 2017 15:51:59 +0200
+Subject: [RFC PATCH 3/5] userfaultfd: non-cooperative: add event for exit() notification
+Date: Tue, 24 Jan 2017 15:52:01 +0200
 In-Reply-To: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1485265923-20256-2-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1485265923-20256-4-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-The commit dc0ef0df7b6a (mm: make mmap_sem for write waits killable for mm
-syscalls) replaced call to vm_munmap in munmap syscall with open coded
-version to allow different waits on mmap_sem in munmap syscall and
-vm_munmap. Now both functions use down_write_killable, so we can restore
-the call to vm_munmap from the munmap system call.
+Allow userfaultfd monitor track termination of the processes that have
+memory backed by the uffd.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- mm/mmap.c | 9 +--------
- 1 file changed, 1 insertion(+), 8 deletions(-)
+ fs/userfaultfd.c                 | 24 ++++++++++++++++++++++++
+ include/linux/userfaultfd_k.h    |  7 +++++++
+ include/uapi/linux/userfaultfd.h |  5 ++++-
+ kernel/exit.c                    |  2 ++
+ 4 files changed, 37 insertions(+), 1 deletion(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index b729084..f040ea0 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2680,15 +2680,8 @@ int vm_munmap(unsigned long start, size_t len)
- 
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
--	int ret;
--	struct mm_struct *mm = current->mm;
--
- 	profile_munmap(addr);
--	if (down_write_killable(&mm->mmap_sem))
--		return -EINTR;
--	ret = do_munmap(mm, addr, len);
--	up_write(&mm->mmap_sem);
--	return ret;
-+	return vm_munmap(addr, len);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 651d6d8..839ffd5 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -774,6 +774,30 @@ void userfaultfd_unmap_complete(struct mm_struct *mm, struct list_head *uf)
+ 	}
  }
  
++void userfaultfd_exit(struct mm_struct *mm)
++{
++	struct vm_area_struct *vma = mm->mmap;
++
++	while (vma) {
++		struct userfaultfd_ctx *ctx = vma->vm_userfaultfd_ctx.ctx;
++
++		if (ctx && (ctx->features & UFFD_FEATURE_EVENT_EXIT)) {
++			struct userfaultfd_wait_queue ewq;
++
++			userfaultfd_ctx_get(ctx);
++
++			msg_init(&ewq.msg);
++			ewq.msg.event = UFFD_EVENT_EXIT;
++
++			userfaultfd_event_wait_completion(ctx, &ewq);
++
++			ctx->features &= ~UFFD_FEATURE_EVENT_EXIT;
++		}
++
++		vma = vma->vm_next;
++	}
++}
++
+ static int userfaultfd_release(struct inode *inode, struct file *file)
+ {
+ 	struct userfaultfd_ctx *ctx = file->private_data;
+diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+index a40be5d..0468548 100644
+--- a/include/linux/userfaultfd_k.h
++++ b/include/linux/userfaultfd_k.h
+@@ -72,6 +72,8 @@ extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+ extern void userfaultfd_unmap_complete(struct mm_struct *mm,
+ 				       struct list_head *uf);
  
++extern void userfaultfd_exit(struct mm_struct *mm);
++
+ #else /* CONFIG_USERFAULTFD */
+ 
+ /* mm helpers */
+@@ -136,6 +138,11 @@ static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
+ 					      struct list_head *uf)
+ {
+ }
++
++static inline void userfaultfd_exit(struct mm_struct *mm)
++{
++}
++
+ #endif /* CONFIG_USERFAULTFD */
+ 
+ #endif /* _LINUX_USERFAULTFD_K_H */
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 3b05953..c055947 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -18,7 +18,8 @@
+  * means the userland is reading).
+  */
+ #define UFFD_API ((__u64)0xAA)
+-#define UFFD_API_FEATURES (UFFD_FEATURE_EVENT_FORK |		\
++#define UFFD_API_FEATURES (UFFD_FEATURE_EVENT_EXIT |		\
++			   UFFD_FEATURE_EVENT_FORK |		\
+ 			   UFFD_FEATURE_EVENT_REMAP |		\
+ 			   UFFD_FEATURE_EVENT_REMOVE |	\
+ 			   UFFD_FEATURE_EVENT_UNMAP |		\
+@@ -112,6 +113,7 @@ struct uffd_msg {
+ #define UFFD_EVENT_REMAP	0x14
+ #define UFFD_EVENT_REMOVE	0x15
+ #define UFFD_EVENT_UNMAP	0x16
++#define UFFD_EVENT_EXIT		0x17
+ 
+ /* flags for UFFD_EVENT_PAGEFAULT */
+ #define UFFD_PAGEFAULT_FLAG_WRITE	(1<<0)	/* If this was a write fault */
+@@ -161,6 +163,7 @@ struct uffdio_api {
+ #define UFFD_FEATURE_MISSING_HUGETLBFS		(1<<4)
+ #define UFFD_FEATURE_MISSING_SHMEM		(1<<5)
+ #define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
++#define UFFD_FEATURE_EVENT_EXIT			(1<<7)
+ 	__u64 features;
+ 
+ 	__u64 ioctls;
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 16c6077..c11bf9d 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -55,6 +55,7 @@
+ #include <linux/kcov.h>
+ #include <linux/random.h>
+ #include <linux/rcuwait.h>
++#include <linux/userfaultfd_k.h>
+ 
+ #include <linux/uaccess.h>
+ #include <asm/unistd.h>
+@@ -547,6 +548,7 @@ static void exit_mm(void)
+ 	enter_lazy_tlb(mm, current);
+ 	task_unlock(current);
+ 	mm_update_next_owner(mm);
++	userfaultfd_exit(mm);
+ 	mmput(mm);
+ 	if (test_thread_flag(TIF_MEMDIE))
+ 		exit_oom_victim();
 -- 
 1.9.1
 
