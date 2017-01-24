@@ -1,49 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B53F16B028C
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:28:46 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id m98so183610261iod.2
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:28:46 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r18si3745141itb.103.2017.01.24.08.28.45
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E6ACE6B028D
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:28:48 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so244050924pfa.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:28:48 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 35si19742836pgx.238.2017.01.24.08.28.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:28:45 -0800 (PST)
+        Tue, 24 Jan 2017 08:28:43 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 01/12] uprobes: split THPs before trying replace them
-Date: Tue, 24 Jan 2017 19:28:13 +0300
-Message-Id: <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 12/12] mm: convert remove_migration_pte() to page_check_walk()
+Date: Tue, 24 Jan 2017 19:28:24 +0300
+Message-Id: <20170124162824.91275-13-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For THPs page_check_address() always fails. It's better to split them
-first before trying to replace.
+remove_migration_pte() also can easily be converted to page_check_walk().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
 ---
- kernel/events/uprobes.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/migrate.c | 103 ++++++++++++++++++++++++-----------------------------------
+ 1 file changed, 41 insertions(+), 62 deletions(-)
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index d416f3baf392..1e65c79e52a6 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -300,8 +300,8 @@ int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr,
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 87f4d0f81819..11c9373242e7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -193,82 +193,61 @@ void putback_movable_pages(struct list_head *l)
+ /*
+  * Restore a potential migration pte to a working pte entry
+  */
+-static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
++static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+ 				 unsigned long addr, void *old)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
++	struct page_check_walk pcw = {
++		.page = old,
++		.vma = vma,
++		.address = addr,
++		.flags = PAGE_CHECK_WALK_SYNC | PAGE_CHECK_WALK_MIGRATION,
++	};
++	struct page *new;
++	pte_t pte;
+ 	swp_entry_t entry;
+- 	pmd_t *pmd;
+-	pte_t *ptep, pte;
+- 	spinlock_t *ptl;
  
- retry:
- 	/* Read the page with vaddr into memory */
--	ret = get_user_pages_remote(NULL, mm, vaddr, 1, FOLL_FORCE, &old_page,
--			&vma, NULL);
-+	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
-+			FOLL_FORCE | FOLL_SPLIT, &old_page, &vma, NULL);
- 	if (ret <= 0)
- 		return ret;
+-	if (unlikely(PageHuge(new))) {
+-		ptep = huge_pte_offset(mm, addr);
+-		if (!ptep)
+-			goto out;
+-		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
+-	} else {
+-		pmd = mm_find_pmd(mm, addr);
+-		if (!pmd)
+-			goto out;
++	VM_BUG_ON_PAGE(PageTail(page), page);
++	while (page_check_walk(&pcw)) {
++		new = page - pcw.page->index +
++			linear_page_index(vma, pcw.address);
+ 
+-		ptep = pte_offset_map(pmd, addr);
++		get_page(new);
++		pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
++		if (pte_swp_soft_dirty(*pcw.pte))
++			pte = pte_mksoft_dirty(pte);
+ 
+-		/*
+-		 * Peek to check is_swap_pte() before taking ptlock?  No, we
+-		 * can race mremap's move_ptes(), which skips anon_vma lock.
+-		 */
+-
+-		ptl = pte_lockptr(mm, pmd);
+-	}
+-
+- 	spin_lock(ptl);
+-	pte = *ptep;
+-	if (!is_swap_pte(pte))
+-		goto unlock;
+-
+-	entry = pte_to_swp_entry(pte);
+-
+-	if (!is_migration_entry(entry) ||
+-	    migration_entry_to_page(entry) != old)
+-		goto unlock;
+-
+-	get_page(new);
+-	pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
+-	if (pte_swp_soft_dirty(*ptep))
+-		pte = pte_mksoft_dirty(pte);
+-
+-	/* Recheck VMA as permissions can change since migration started  */
+-	if (is_write_migration_entry(entry))
+-		pte = maybe_mkwrite(pte, vma);
++		/* Recheck VMA as permissions can change since migration started  */
++		entry = pte_to_swp_entry(*pcw.pte);
++		if (is_write_migration_entry(entry))
++			pte = maybe_mkwrite(pte, vma);
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+-	if (PageHuge(new)) {
+-		pte = pte_mkhuge(pte);
+-		pte = arch_make_huge_pte(pte, vma, new, 0);
+-	}
++		if (PageHuge(new)) {
++			pte = pte_mkhuge(pte);
++			pte = arch_make_huge_pte(pte, vma, new, 0);
++		}
+ #endif
+-	flush_dcache_page(new);
+-	set_pte_at(mm, addr, ptep, pte);
++		flush_dcache_page(new);
++		set_pte_at(mm, pcw.address, pcw.pte, pte);
+ 
+-	if (PageHuge(new)) {
+-		if (PageAnon(new))
+-			hugepage_add_anon_rmap(new, vma, addr);
++		if (PageHuge(new)) {
++			if (PageAnon(new))
++				hugepage_add_anon_rmap(new, vma, pcw.address);
++			else
++				page_dup_rmap(new, true);
++		} else if (PageAnon(new))
++			page_add_anon_rmap(new, vma, pcw.address, false);
+ 		else
+-			page_dup_rmap(new, true);
+-	} else if (PageAnon(new))
+-		page_add_anon_rmap(new, vma, addr, false);
+-	else
+-		page_add_file_rmap(new, false);
++			page_add_file_rmap(new, false);
+ 
+-	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+-		mlock_vma_page(new);
++		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
++			mlock_vma_page(new);
++
++		/* No need to invalidate - it was non-present before */
++		update_mmu_cache(vma, pcw.address, pcw.pte);
++	}
+ 
+-	/* No need to invalidate - it was non-present before */
+-	update_mmu_cache(vma, addr, ptep);
+-unlock:
+-	pte_unmap_unlock(ptep, ptl);
+-out:
+ 	return SWAP_AGAIN;
+ }
  
 -- 
 2.11.0
