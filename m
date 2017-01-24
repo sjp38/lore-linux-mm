@@ -1,30 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AC9B6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 16:17:51 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id f67so226318814ybc.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:17:51 -0800 (PST)
-Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
-        by mx.google.com with ESMTPS id a3si5495895ybg.315.2017.01.24.13.17.50
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7346B0261
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 16:22:27 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id q3so169231929qtf.4
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:22:27 -0800 (PST)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id c43si14017976qte.145.2017.01.24.13.22.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 13:17:50 -0800 (PST)
-Received: by mail-yw0-x243.google.com with SMTP id q71so17048074ywg.3
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:17:50 -0800 (PST)
+        Tue, 24 Jan 2017 13:22:26 -0800 (PST)
+Received: by mail-qt0-x242.google.com with SMTP id a29so28258354qtb.1
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:22:26 -0800 (PST)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] MAINTAINERS: add Dan Streetman to zswap maintainers
-Date: Tue, 24 Jan 2017 16:17:24 -0500
-Message-Id: <20170124211724.18746-1-ddstreet@ieee.org>
+Subject: [PATCHv2] MAINTAINERS: add Dan Streetman to zswap maintainers
+Date: Tue, 24 Jan 2017 16:22:00 -0500
+Message-Id: <20170124212200.19052-1-ddstreet@ieee.org>
+In-Reply-To: <20170124211724.18746-1-ddstreet@ieee.org>
+References: <20170124211724.18746-1-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@redhat.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjennings@redhat.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
 Add myself as zswap maintainer.
 
-Cc: Seth Jennings <sjennings@redhat.com>
+Cc: Seth Jennings <sjenning@redhat.com>
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 ---
+You'd think I could get this simple patch right.  oops!
+
+Since v1: fixed Seth's email in Cc: line
+
 Seth, I'd meant to send this last year, I assume you're still ok
 adding me.  Did you want to stay on as maintainer also?
 
