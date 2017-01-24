@@ -1,109 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 261396B02A6
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:52:05 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id ez4so30302427wjd.2
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:52:05 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D8F6B02A7
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:54:16 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r144so29540377wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:54:16 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a16si23443807wra.331.2017.01.24.08.52.03
+        by mx.google.com with ESMTPS id z3si18946477wmg.131.2017.01.24.08.54.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 08:52:03 -0800 (PST)
-Date: Tue, 24 Jan 2017 17:52:00 +0100
+        Tue, 24 Jan 2017 08:54:15 -0800 (PST)
+Date: Tue, 24 Jan 2017 17:54:12 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 1/3] mm/hugetlb: split alloc_fresh_huge_page_node
- into fast and slow path
-Message-ID: <20170124165200.GB30832@dhcp22.suse.cz>
+Subject: Re: [PATCH RFC 2/3] mm, vmscan: limit kswapd loop if no progress is
+ made
+Message-ID: <20170124165412.GC30832@dhcp22.suse.cz>
 References: <1485244144-13487-1-git-send-email-hejianet@gmail.com>
- <1485244144-13487-2-git-send-email-hejianet@gmail.com>
+ <1485244144-13487-3-git-send-email-hejianet@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1485244144-13487-2-git-send-email-hejianet@gmail.com>
+In-Reply-To: <1485244144-13487-3-git-send-email-hejianet@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jia He <hejianet@gmail.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Tue 24-01-17 15:49:02, Jia He wrote:
-> This patch split alloc_fresh_huge_page_node into 2 parts:
-> - fast path without __GFP_REPEAT flag
-> - slow path with __GFP_REPEAT flag
+On Tue 24-01-17 15:49:03, Jia He wrote:
+> Currently there is no hard limitation for kswapd retry times if no progress
+> is made. 
+
+Yes, because the main objective of the kswapd is to balance all memory
+zones. So having a hard limit on retries doesn't make any sense.
+
+> Then kswapd will take 100% for a long time.
+
+Where it is spending time?
+
+> In my test, I tried to allocate 4000 hugepages by:
+> echo 4000 > /proc/sys/vm/nr_hugepages
 > 
-> Thus, if there is a server with uneven numa memory layout:
+> Then,kswapd will take 100% cpu for a long time.
+> 
+> The numa layout is:
 > available: 7 nodes (0-6)
 > node 0 cpus: 0 1 2 3 4 5 6 7
-> node 0 size: 6603 MB
-> node 0 free: 91 MB
+> node 0 size: 6611 MB
+> node 0 free: 1103 MB
 > node 1 cpus:
 > node 1 size: 12527 MB
-> node 1 free: 157 MB
+> node 1 free: 8477 MB
 > node 2 cpus:
 > node 2 size: 15087 MB
-> node 2 free: 189 MB
+> node 2 free: 11037 MB
 > node 3 cpus:
 > node 3 size: 16111 MB
-> node 3 free: 205 MB
+> node 3 free: 12060 MB
 > node 4 cpus: 8 9 10 11 12 13 14 15
 > node 4 size: 24815 MB
-> node 4 free: 310 MB
+> node 4 free: 20704 MB
 > node 5 cpus:
 > node 5 size: 4095 MB
-> node 5 free: 61 MB
+> node 5 free: 61 MB 
 > node 6 cpus:
 > node 6 size: 22750 MB
-> node 6 free: 283 MB
-> node distances:
-> node   0   1   2   3   4   5   6
->   0:  10  20  40  40  40  40  40
->   1:  20  10  40  40  40  40  40
->   2:  40  40  10  20  40  40  40
->   3:  40  40  20  10  40  40  40
->   4:  40  40  40  40  10  20  40
->   5:  40  40  40  40  20  10  40
->   6:  40  40  40  40  40  40  10
+> node 6 free: 18716 MB
 > 
-> In this case node 5 has less memory and we will alloc the hugepages
-> from these nodes one by one.
-> After this patch, we will not trigger too early direct memory/kswap
-> reclaim for node 5 if there are enough memory in other nodes.
+> The cause is kswapd will loop for long time even if there is no progress in
+> balance_pgdat.
 
-This description is doesn't explain what is the problem, why it matters
-and how the fix actually works. Moreover it does opposite what is
-claims. Which brings me to another question. How has this been tested? 
+How does this solve anything? If the kswapd just backs off then the more
+work has to be done in the direct reclaim context.
 
 > Signed-off-by: Jia He <hejianet@gmail.com>
 > ---
->  mm/hugetlb.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
+>  mm/vmscan.c | 25 ++++++++++++++++++++++---
+>  1 file changed, 22 insertions(+), 3 deletions(-)
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c7025c1..f2415ce 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1364,10 +1364,19 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
->  {
->  	struct page *page;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 532a2a7..7396a0a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -59,6 +59,7 @@
+>  #define CREATE_TRACE_POINTS
+>  #include <trace/events/vmscan.h>
 >  
-> +	/* fast path without __GFP_REPEAT */
->  	page = __alloc_pages_node(nid,
->  		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
->  						__GFP_REPEAT|__GFP_NOWARN,
->  		huge_page_order(h));
-
-this does opposite what the comment says.
-
+> +#define MAX_KSWAPD_RECLAIM_RETRIES 16
+>  struct scan_control {
+>  	/* How many pages shrink_list() should reclaim */
+>  	unsigned long nr_to_reclaim;
+> @@ -3202,7 +3203,8 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
+>   * or lower is eligible for reclaim until at least one usable zone is
+>   * balanced.
+>   */
+> -static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+> +static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx,
+> +						 int *did_some_progress)
+>  {
+>  	int i;
+>  	unsigned long nr_soft_reclaimed;
+> @@ -3322,6 +3324,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  	 * entered the allocator slow path while kswapd was awake, order will
+>  	 * remain at the higher level.
+>  	 */
+> +	*did_some_progress = !!(sc.nr_scanned || sc.nr_reclaimed);
+>  	return sc.order;
+>  }
+>  
+> @@ -3417,6 +3420,8 @@ static int kswapd(void *p)
+>  	unsigned int alloc_order, reclaim_order, classzone_idx;
+>  	pg_data_t *pgdat = (pg_data_t*)p;
+>  	struct task_struct *tsk = current;
+> +	int no_progress_loops = 0;
+> +	int did_some_progress = 0;
+>  
+>  	struct reclaim_state reclaim_state = {
+>  		.reclaimed_slab = 0,
+> @@ -3480,9 +3485,23 @@ static int kswapd(void *p)
+>  		 */
+>  		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
+>  						alloc_order);
+> -		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
+> -		if (reclaim_order < alloc_order)
+> +		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx,
+> +						&did_some_progress);
 > +
-> +	/* slow path with __GFP_REPEAT*/
-> +	if (!page)
-> +		page = __alloc_pages_node(nid,
-> +			htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
-> +					__GFP_NOWARN,
-> +			huge_page_order(h));
+> +		if (reclaim_order < alloc_order) {
+> +			no_progress_loops = 0;
+>  			goto kswapd_try_sleep;
+> +		}
 > +
->  	if (page) {
->  		prep_new_huge_page(h, page, nid);
->  	}
+> +		if (did_some_progress)
+> +			no_progress_loops = 0;
+> +		else
+> +			no_progress_loops++;
+> +
+> +		if (no_progress_loops >= MAX_KSWAPD_RECLAIM_RETRIES) {
+> +			no_progress_loops = 0;
+> +			goto kswapd_try_sleep;
+> +		}
+>  
+>  		alloc_order = reclaim_order = pgdat->kswapd_order;
+>  		classzone_idx = pgdat->kswapd_classzone_idx;
 > -- 
 > 2.5.5
 > 
