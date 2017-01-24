@@ -1,84 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B82BC6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 06:12:53 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so25413394wmi.6
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:12:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t82si17933055wmg.0.2017.01.24.03.12.52
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CF16B6B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 06:27:25 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v77so25896443wmv.5
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:27:25 -0800 (PST)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id a69si17934426wme.110.2017.01.24.03.27.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 03:12:52 -0800 (PST)
-Date: Tue, 24 Jan 2017 12:12:48 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/3] 1G transparent hugepage support for device dax
-Message-ID: <20170124111248.GC20153@quack2.suse.cz>
-References: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
+        Tue, 24 Jan 2017 03:27:24 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 3677E98D60
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:27:24 +0000 (UTC)
+Date: Tue, 24 Jan 2017 11:27:23 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: Split buffered_rmqueue -fix
+Message-ID: <20170124112723.mshmgwq2ihxku2um@techsingularity.net>
+References: <20170123153906.3122-1-mgorman@techsingularity.net>
+ <20170123153906.3122-2-mgorman@techsingularity.net>
+ <8808c88d-3404-a3b5-b395-06936bbaa2ed@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
+In-Reply-To: <8808c88d-3404-a3b5-b395-06936bbaa2ed@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon 23-01-17 16:47:18, Dave Jiang wrote:
-> The following series implements support for 1G trasparent hugepage on
-> x86 for device dax. The bulk of the code was written by Mathew Wilcox
-> a while back supporting transparent 1G hugepage for fs DAX. I have
-> forward ported the relevant bits to 4.10-rc. The current submission has
-> only the necessary code to support device DAX.
+Vlastimil Babka pointed out that a failed per-cpu refill on a kernel with
+CONFIG_DEBUG_VM may blow up on a VM_BUG_ON_PAGE. This patch is a fix
+to the mmotm patch mm-page_alloc-split-buffered_rmqueue.patch
 
-Well, you should really explain why do we want this functionality... Is
-anybody going to use it? Why would he want to and what will he gain by
-doing so? Because so far I haven't heard of a convincing usecase.
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-								Honza
-> 
-> ---
-> 
-> Dave Jiang (1):
->       dax: Support for transparent PUD pages for device DAX
-> 
-> Matthew Wilcox (2):
->       mm,fs,dax: Change ->pmd_fault to ->huge_fault
->       mm,x86: Add support for PUD-sized transparent hugepages
-> 
-> 
->  arch/Kconfig                          |    3 
->  arch/x86/Kconfig                      |    1 
->  arch/x86/include/asm/paravirt.h       |   11 +
->  arch/x86/include/asm/paravirt_types.h |    2 
->  arch/x86/include/asm/pgtable-2level.h |   17 ++
->  arch/x86/include/asm/pgtable-3level.h |   24 +++
->  arch/x86/include/asm/pgtable.h        |  145 +++++++++++++++++++
->  arch/x86/include/asm/pgtable_64.h     |   15 ++
->  arch/x86/kernel/paravirt.c            |    1 
->  arch/x86/mm/pgtable.c                 |   31 ++++
->  drivers/dax/dax.c                     |   82 ++++++++---
->  fs/dax.c                              |   43 ++++--
->  fs/ext2/file.c                        |    2 
->  fs/ext4/file.c                        |    6 -
->  fs/xfs/xfs_file.c                     |   10 +
->  fs/xfs/xfs_trace.h                    |    2 
->  include/asm-generic/pgtable.h         |   75 +++++++++-
->  include/asm-generic/tlb.h             |   14 ++
->  include/linux/dax.h                   |    6 -
->  include/linux/huge_mm.h               |   83 ++++++++++-
->  include/linux/mm.h                    |   40 +++++
->  include/linux/mmu_notifier.h          |   14 ++
->  include/linux/pfn_t.h                 |    8 +
->  mm/gup.c                              |    7 +
->  mm/huge_memory.c                      |  249 +++++++++++++++++++++++++++++++++
->  mm/memory.c                           |  102 ++++++++++++--
->  mm/pagewalk.c                         |   20 +++
->  mm/pgtable-generic.c                  |   14 ++
->  28 files changed, 952 insertions(+), 75 deletions(-)
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c075831c3a1a..5a04636ccc05 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2697,7 +2697,7 @@ struct page *rmqueue(struct zone *preferred_zone,
+ 	local_irq_restore(flags);
+ 
+ out:
+-	VM_BUG_ON_PAGE(bad_range(zone, page), page);
++	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
+ 	return page;
+ 
+ failed:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
