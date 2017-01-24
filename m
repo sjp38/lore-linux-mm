@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CF16B6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 06:27:25 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v77so25896443wmv.5
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:27:25 -0800 (PST)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id a69si17934426wme.110.2017.01.24.03.27.24
+	by kanga.kvack.org (Postfix) with ESMTP id 357436B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 07:41:00 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id t18so26589584wmt.7
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 04:41:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i5si18157688wmf.115.2017.01.24.04.40.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 03:27:24 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 3677E98D60
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:27:24 +0000 (UTC)
-Date: Tue, 24 Jan 2017 11:27:23 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, page_alloc: Split buffered_rmqueue -fix
-Message-ID: <20170124112723.mshmgwq2ihxku2um@techsingularity.net>
-References: <20170123153906.3122-1-mgorman@techsingularity.net>
- <20170123153906.3122-2-mgorman@techsingularity.net>
- <8808c88d-3404-a3b5-b395-06936bbaa2ed@suse.cz>
+        Tue, 24 Jan 2017 04:40:58 -0800 (PST)
+Date: Tue, 24 Jan 2017 13:40:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] mm, oom: do not enfore OOM killer for __GFP_NOFAIL
+ automatically
+Message-ID: <20170124124048.GE6867@dhcp22.suse.cz>
+References: <20161220134904.21023-1-mhocko@kernel.org>
+ <20161220134904.21023-3-mhocko@kernel.org>
+ <001f01d272f7$e53acbd0$afb06370$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8808c88d-3404-a3b5-b395-06936bbaa2ed@suse.cz>
+In-Reply-To: <001f01d272f7$e53acbd0$afb06370$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'David Rientjes' <rientjes@google.com>, 'Mel Gorman' <mgorman@suse.de>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>
 
-Vlastimil Babka pointed out that a failed per-cpu refill on a kernel with
-CONFIG_DEBUG_VM may blow up on a VM_BUG_ON_PAGE. This patch is a fix
-to the mmotm patch mm-page_alloc-split-buffered_rmqueue.patch
+On Fri 20-01-17 16:33:36, Hillf Danton wrote:
+> 
+> On Tuesday, December 20, 2016 9:49 PM Michal Hocko wrote: 
+> > 
+> > @@ -1013,7 +1013,7 @@ bool out_of_memory(struct oom_control *oc)
+> >  	 * make sure exclude 0 mask - all other users should have at least
+> >  	 * ___GFP_DIRECT_RECLAIM to get here.
+> >  	 */
+> > -	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
+> > +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+> >  		return true;
+> > 
+> As to GFP_NOFS|__GFP_NOFAIL request, can we check gfp mask
+> one bit after another?
+> 
+> 	if (oc->gfp_mask) {
+> 		if (!(oc->gfp_mask & __GFP_FS))
+> 			return false;
+> 
+> 		/* No service for request that can handle fail result itself */
+> 		if (!(oc->gfp_mask & __GFP_NOFAIL))
+> 			return false;
+> 	}
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c075831c3a1a..5a04636ccc05 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2697,7 +2697,7 @@ struct page *rmqueue(struct zone *preferred_zone,
- 	local_irq_restore(flags);
- 
- out:
--	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-+	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
- 	return page;
- 
- failed:
+I really do not understand this request. This patch is removing the
+__GFP_NOFAIL part... Besides that why should they return false?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
