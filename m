@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6472C6B0266
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:17:26 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id l7so172193329qtd.2
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:17:26 -0800 (PST)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id m90si14126791qtd.98.2017.01.24.14.17.25
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7856B026B
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:22:20 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id r126so31300799wmr.2
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:22:20 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id p26si24359611wrp.311.2017.01.24.14.22.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 14:17:25 -0800 (PST)
-Received: by mail-qt0-x244.google.com with SMTP id l7so28632982qtd.3
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:17:25 -0800 (PST)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] MAINTAINERS: add Dan Streetman to zbud maintainers
-Date: Tue, 24 Jan 2017 17:17:05 -0500
-Message-Id: <20170124221705.26523-1-ddstreet@ieee.org>
-In-Reply-To: <CAC8qmcALc_wz3cM2N4VaVTDa+o9wFybfeV5r1tjf1N1pvZ0QMg@mail.gmail.com>
-References: <CAC8qmcALc_wz3cM2N4VaVTDa+o9wFybfeV5r1tjf1N1pvZ0QMg@mail.gmail.com>
+        Tue, 24 Jan 2017 14:22:19 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id r144so38049135wme.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:22:19 -0800 (PST)
+Date: Wed, 25 Jan 2017 01:22:17 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 01/12] uprobes: split THPs before trying replace them
+Message-ID: <20170124222217.GB19920@node.shutemov.name>
+References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
+ <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
+ <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@redhat.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-Add myself as zbud maintainer.
+On Tue, Jan 24, 2017 at 01:28:49PM -0800, Andrew Morton wrote:
+> On Tue, 24 Jan 2017 19:28:13 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > For THPs page_check_address() always fails. It's better to split them
+> > first before trying to replace.
+> 
+> So what does this mean.  uprobes simply fails to work when trying to
+> place a probe into a THP memory region?
 
-Cc: Seth Jennings <sjenning@redhat.com>
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
----
- MAINTAINERS | 1 +
- 1 file changed, 1 insertion(+)
+Looks like we can end up with endless retry loop in uprobe_write_opcode().
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index e5575d5..0bd4b33 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -13681,6 +13681,7 @@ F:	drivers/net/hamradio/z8530.h
- 
- ZBUD COMPRESSED PAGE ALLOCATOR
- M:	Seth Jennings <sjenning@redhat.com>
-+M:	Dan Streetman <ddstreet@ieee.org>
- L:	linux-mm@kvack.org
- S:	Maintained
- F:	mm/zbud.c
+> How come nobody noticed (and reported) this when using the feature?
+
+I guess it's not often used for anon memory.
+
 -- 
-2.9.3
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
