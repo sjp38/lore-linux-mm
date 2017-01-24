@@ -1,80 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD7E6B0069
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:23:24 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id r126so25189816wmr.2
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 02:23:24 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EBE96B025E
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:23:30 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r126so25190892wmr.2
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 02:23:30 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k5si17745922wme.41.2017.01.24.02.23.23
+        by mx.google.com with ESMTPS id 196si17737545wmg.65.2017.01.24.02.23.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 02:23:23 -0800 (PST)
-Date: Tue, 24 Jan 2017 11:23:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: do not export ioremap_page_range symbol for
- external module
-Message-ID: <20170124102319.GD6867@dhcp22.suse.cz>
-References: <1485173220-29010-1-git-send-email-zhongjiang@huawei.com>
+        Tue, 24 Jan 2017 02:23:29 -0800 (PST)
+Subject: Re: [PATCH 1/4] mm, page_alloc: Split buffered_rmqueue
+References: <20170123153906.3122-1-mgorman@techsingularity.net>
+ <20170123153906.3122-2-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8808c88d-3404-a3b5-b395-06936bbaa2ed@suse.cz>
+Date: Tue, 24 Jan 2017 11:23:26 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1485173220-29010-1-git-send-email-zhongjiang@huawei.com>
+In-Reply-To: <20170123153906.3122-2-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, jhubbard@nvidia.com, linux-mm@kvack.org, minchan@kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon 23-01-17 20:07:00, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
+On 01/23/2017 04:39 PM, Mel Gorman wrote:
+> buffered_rmqueue removes a page from a given zone and uses the per-cpu
+> list for order-0. This is fine but a hypothetical caller that wanted
+> multiple order-0 pages has to disable/reenable interrupts multiple
+> times. This patch structures buffere_rmqueue such that it's relatively
+> easy to build a bulk order-0 page allocator. There is no functional
+> change.
 > 
-> Recently, I've found cases in which ioremap_page_range was used
-> incorrectly, in external modules, leading to crashes. This can be
-> partly attributed to the fact that ioremap_page_range is lower-level,
-> with fewer protections, as compared to the other functions that an
-> external module would typically call. Those include:
-> 
->      ioremap_cache
->      ioremap_nocache
->      ioremap_prot
->      ioremap_uc
->      ioremap_wc
->      ioremap_wt
-> 
-> ...each of which wraps __ioremap_caller, which in turn provides a
-> safer way to achieve the mapping.
-> 
-> Therefore, stop EXPORT-ing ioremap_page_range.
-> 
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
-> Suggested-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-git grep says that there are few direct users of this API in the tree.
-Have you checked all of them? The export has been added by 81e88fdc432a
-("ACPI, APEI, Generic Hardware Error Source POLL/IRQ/NMI notification
-type support").
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Other than that this looks reasonably to me.
+But I think you need a fix on top
 
-> ---
->  lib/ioremap.c | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/lib/ioremap.c b/lib/ioremap.c
-> index 86c8911..a3e14ce 100644
-> --- a/lib/ioremap.c
-> +++ b/lib/ioremap.c
-> @@ -144,4 +144,3 @@ int ioremap_page_range(unsigned long addr,
+[...]
+
+> -struct page *buffered_rmqueue(struct zone *preferred_zone,
+> +struct page *rmqueue(struct zone *preferred_zone,
+>  			struct zone *zone, unsigned int order,
+>  			gfp_t gfp_flags, unsigned int alloc_flags,
+>  			int migratetype)
+>  {
+>  	unsigned long flags;
+>  	struct page *page;
+> -	bool cold = ((gfp_flags & __GFP_COLD) != 0);
 >  
->  	return err;
->  }
-> -EXPORT_SYMBOL_GPL(ioremap_page_range);
-> -- 
-> 1.8.3.1
+>  	if (likely(order == 0)) {
+> -		struct per_cpu_pages *pcp;
+> -		struct list_head *list;
+> -
+> -		local_irq_save(flags);
+> -		do {
+> -			pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> -			list = &pcp->lists[migratetype];
+> -			if (list_empty(list)) {
+> -				pcp->count += rmqueue_bulk(zone, 0,
+> -						pcp->batch, list,
+> -						migratetype, cold);
+> -				if (unlikely(list_empty(list)))
+> -					goto failed;
+> -			}
+> -
+> -			if (cold)
+> -				page = list_last_entry(list, struct page, lru);
+> -			else
+> -				page = list_first_entry(list, struct page, lru);
+> -
+> -			list_del(&page->lru);
+> -			pcp->count--;
+> +		page = rmqueue_pcplist(preferred_zone, zone, order,
+> +				gfp_flags, migratetype);
+> +		goto out;
 
--- 
-Michal Hocko
-SUSE Labs
+page might be NULL here...
+
+> +	}
+>  
+> -		} while (check_new_pcp(page));
+> -	} else {
+> -		/*
+> -		 * We most definitely don't want callers attempting to
+> -		 * allocate greater than order-1 page units with __GFP_NOFAIL.
+> -		 */
+> -		WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+> -		spin_lock_irqsave(&zone->lock, flags);
+> +	/*
+> +	 * We most definitely don't want callers attempting to
+> +	 * allocate greater than order-1 page units with __GFP_NOFAIL.
+> +	 */
+> +	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+> +	spin_lock_irqsave(&zone->lock, flags);
+>  
+> -		do {
+> -			page = NULL;
+> -			if (alloc_flags & ALLOC_HARDER) {
+> -				page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+> -				if (page)
+> -					trace_mm_page_alloc_zone_locked(page, order, migratetype);
+> -			}
+> -			if (!page)
+> -				page = __rmqueue(zone, order, migratetype);
+> -		} while (page && check_new_pages(page, order));
+> -		spin_unlock(&zone->lock);
+> +	do {
+> +		page = NULL;
+> +		if (alloc_flags & ALLOC_HARDER) {
+> +			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+> +			if (page)
+> +				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+> +		}
+>  		if (!page)
+> -			goto failed;
+> -		__mod_zone_freepage_state(zone, -(1 << order),
+> -					  get_pcppage_migratetype(page));
+> -	}
+> +			page = __rmqueue(zone, order, migratetype);
+> +	} while (page && check_new_pages(page, order));
+> +	spin_unlock(&zone->lock);
+> +	if (!page)
+> +		goto failed;
+> +	__mod_zone_freepage_state(zone, -(1 << order),
+> +				  get_pcppage_migratetype(page));
+>  
+>  	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+>  	zone_statistics(preferred_zone, zone);
+>  	local_irq_restore(flags);
+>  
+> +out:
+>  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
+
+... and then this explodes?
+I guess the easiest fix is change the condition to
+"page && bad_range(...)"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
