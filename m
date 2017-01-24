@@ -1,133 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5801D6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 03:48:22 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id d134so232885835pfd.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:48:22 -0800 (PST)
-Received: from mail-pg0-x235.google.com (mail-pg0-x235.google.com. [2607:f8b0:400e:c05::235])
-        by mx.google.com with ESMTPS id f88si18395314pfk.36.2017.01.24.00.48.21
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78A986B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 04:19:17 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so24209519wmi.6
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 01:19:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d83si17508112wmc.151.2017.01.24.01.19.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 00:48:21 -0800 (PST)
-Received: by mail-pg0-x235.google.com with SMTP id 14so53292702pgg.1
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 00:48:21 -0800 (PST)
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: [PATCH v30 01/11] memblock: add memblock_cap_memory_range()
-Date: Tue, 24 Jan 2017 17:49:07 +0900
-Message-Id: <20170124084907.3838-1-takahiro.akashi@linaro.org>
-In-Reply-To: <20170124084638.3770-1-takahiro.akashi@linaro.org>
-References: <20170124084638.3770-1-takahiro.akashi@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Jan 2017 01:19:15 -0800 (PST)
+Subject: Re: [PATCH] mm: ensure alloc_flags in slow path are initialized
+References: <20170123121649.3180300-1-arnd@arndb.de>
+ <20170123155638.db6036219cb6ab2582be104e@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <dc810ec3-34e7-1b0d-e360-8bd6fb4ae53a@suse.cz>
+Date: Tue, 24 Jan 2017 10:19:11 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170123155638.db6036219cb6ab2582be104e@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
-Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add memblock_cap_memory_range() which will remove all the memblock regions
-except the memory range specified in the arguments. In addition, rework is
-done on memblock_mem_limit_remove_map() to re-implement it using
-memblock_cap_memory_range().
+On 01/24/2017 12:56 AM, Andrew Morton wrote:
+> On Mon, 23 Jan 2017 13:16:12 +0100 Arnd Bergmann <arnd@arndb.de> wrote:
+> 
+>> The __alloc_pages_slowpath() has gotten rather complex and gcc
+>> is no longer able to follow the gotos and prove that the
+>> alloc_flags variable is initialized at the time it is used:
+>>
+>> mm/page_alloc.c: In function '__alloc_pages_slowpath':
+>> mm/page_alloc.c:3565:15: error: 'alloc_flags' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+>>
+>> To be honest, I can't figure that out either, maybe it is or
+>> maybe not, but moving the existing initialization up a little
+>> higher looks safe and makes it obvious to both me and gcc that
+>> the initialization comes before the first use.
+>>
+>> ...
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3591,6 +3591,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  				(__GFP_ATOMIC|__GFP_DIRECT_RECLAIM)))
+>>  		gfp_mask &= ~__GFP_ATOMIC;
+>>  
+>> +	/*
+>> +	 * The fast path uses conservative alloc_flags to succeed only until
+>> +	 * kswapd needs to be woken up, and to avoid the cost of setting up
+>> +	 * alloc_flags precisely. So we do that now.
+>> +	 */
+>> +	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+>> +
+>>  retry_cpuset:
+>>  	compaction_retries = 0;
+>>  	no_progress_loops = 0;
+>> @@ -3607,14 +3614,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	if (!ac->preferred_zoneref->zone)
+>>  		goto nopage;
+>>  
+>> -
+>> -	/*
+>> -	 * The fast path uses conservative alloc_flags to succeed only until
+>> -	 * kswapd needs to be woken up, and to avoid the cost of setting up
+>> -	 * alloc_flags precisely. So we do that now.
+>> -	 */
+>> -	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+>> -
+>>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>>  		wake_all_kswapds(order, ac);
+> 
+> hm.  But we later do
+> 
+> 	if (gfp_pfmemalloc_allowed(gfp_mask))
+> 		alloc_flags = ALLOC_NO_WATERMARKS;
+> 
+> 	...
+> 	if (read_mems_allowed_retry(cpuset_mems_cookie))
+> 		goto retry_cpuset;
+> 
+> so with your patch there's a path where we can rerun everything with
+> alloc_flags == ALLOC_NO_WATERMARKS.  That's changed behaviour.
 
-This function, like memblock_mem_limit_remove_map(), will not remove
-memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-later as "device memory."
-See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-address the mem limit issue").
+Right.
 
-This function is used, in a succeeding patch in the series of arm64 kdump
-suuport, to limit the range of usable memory, or System RAM, on crash dump
-kernel.
-(Please note that "mem=" parameter is of little use for this purpose.)
+> When I saw the test robot warning I did this, which I think preserves
+> behaviour?
 
-Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Reviewed-by: Will Deacon <will.deacon@arm.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Acked-by: Dennis Chen <dennis.chen@arm.com>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
- 2 files changed, 30 insertions(+), 15 deletions(-)
+Yes, that's cleaner. Thanks.
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5b759c9acf97..fbfcacc50c29 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -333,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
- phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-+void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
- void memblock_mem_limit_remove_map(phys_addr_t limit);
- bool memblock_is_memory(phys_addr_t addr);
- int memblock_is_map_memory(phys_addr_t addr);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc305936..fea1688fef60 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
- 			      (phys_addr_t)ULLONG_MAX);
- }
- 
-+void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-+{
-+	int start_rgn, end_rgn;
-+	int i, ret;
-+
-+	if (!size)
-+		return;
-+
-+	ret = memblock_isolate_range(&memblock.memory, base, size,
-+						&start_rgn, &end_rgn);
-+	if (ret)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = start_rgn - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, base);
-+	memblock_remove_range(&memblock.reserved,
-+			base + size, (phys_addr_t)ULLONG_MAX);
-+}
-+
- void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- {
--	struct memblock_type *type = &memblock.memory;
- 	phys_addr_t max_addr;
--	int i, ret, start_rgn, end_rgn;
- 
- 	if (!limit)
- 		return;
-@@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 	if (max_addr == (phys_addr_t)ULLONG_MAX)
- 		return;
- 
--	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
--				&start_rgn, &end_rgn);
--	if (ret)
--		return;
--
--	/* remove all the MAP regions above the limit */
--	for (i = end_rgn - 1; i >= start_rgn; i--) {
--		if (!memblock_is_nomap(&type->regions[i]))
--			memblock_remove_region(type, i);
--	}
--	/* truncate the reserved regions */
--	memblock_remove_range(&memblock.reserved, max_addr,
--			      (phys_addr_t)ULLONG_MAX);
-+	memblock_cap_memory_range(0, max_addr);
- }
- 
- static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
--- 
-2.11.0
+> --- a/mm/page_alloc.c~mm-consolidate-gfp_nofail-checks-in-the-allocator-slowpath-fix
+> +++ a/mm/page_alloc.c
+> @@ -3577,6 +3577,14 @@ retry_cpuset:
+>  	no_progress_loops = 0;
+>  	compact_priority = DEF_COMPACT_PRIORITY;
+>  	cpuset_mems_cookie = read_mems_allowed_begin();
+> +
+> +	/*
+> +	 * The fast path uses conservative alloc_flags to succeed only until
+> +	 * kswapd needs to be woken up, and to avoid the cost of setting up
+> +	 * alloc_flags precisely. So we do that now.
+> +	 */
+> +	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> +
+>  	/*
+>  	 * We need to recalculate the starting point for the zonelist iterator
+>  	 * because we might have used different nodemask in the fast path, or
+> @@ -3588,14 +3596,6 @@ retry_cpuset:
+>  	if (!ac->preferred_zoneref->zone)
+>  		goto nopage;
+>  
+> -
+> -	/*
+> -	 * The fast path uses conservative alloc_flags to succeed only until
+> -	 * kswapd needs to be woken up, and to avoid the cost of setting up
+> -	 * alloc_flags precisely. So we do that now.
+> -	 */
+> -	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> -
+>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>  		wake_all_kswapds(order, ac);
+>  
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
