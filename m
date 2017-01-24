@@ -1,71 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F2BD26B029B
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:29:44 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id c73so244599402pfb.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:29:44 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id u25si19776739pge.31.2017.01.24.08.29.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7356B029D
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:30:14 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so244926423pfx.1
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:30:14 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id t6si19793036pfi.59.2017.01.24.08.30.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:29:43 -0800 (PST)
+        Tue, 24 Jan 2017 08:30:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 00/12] Fix few rmap-related THP bugs
-Date: Tue, 24 Jan 2017 19:28:12 +0300
-Message-Id: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 05/12] mm, rmap: check all VMAs that PTE-mapped THP can be part of
+Date: Tue, 24 Jan 2017 19:28:17 +0300
+Message-Id: <20170124162824.91275-6-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
+References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The patch fixes handing PTE-mapped THPs in page_referenced() and
-page_idle_clear_pte_refs().
+Current rmap code can miss a VMA that maps PTE-mapped THP if the first
+suppage of the THP was unmapped from the VMA.
 
-To achieve that I've intrdocued new helper -- page_check_walk() -- which
-replaces all page_check_address{,_transhuge}() and covers all THP cases.
+We need to walk rmap for the whole range of offsets that THP covers, not
+only the first one.
 
-Patchset overview:
-  - First patch fixes one uprobe bug (unrelated to the rest of the
-    patchset, just spotted it at the same time);
+vma_address() also need to be corrected to check the range instead of
+the first subpage.
 
-  - Patches 2-5 fix handling PTE-mapped THPs in page_referenced(),
-    page_idle_clear_pte_refs() and rmap core;
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/internal.h |  9 ++++++---
+ mm/rmap.c     | 16 ++++++++++------
+ 2 files changed, 16 insertions(+), 9 deletions(-)
 
-  - Patches 6-12 convert all page_check_address{,_transhuge}() users (plus
-    remove_migration_pte()) to page_check_walk() and drop unused helpers.
-
-I think the fixes are not critical enough for stable@ as they don't lead
-to crashes or hangs, only suboptimal behaviour.
-
-Please review and consider applying.
-
-Kirill A. Shutemov (12):
-  uprobes: split THPs before trying replace them
-  mm: introduce page_check_walk()
-  mm: fix handling PTE-mapped THPs in page_referenced()
-  mm: fix handling PTE-mapped THPs in page_idle_clear_pte_refs()
-  mm, rmap: check all VMAs that PTE-mapped THP can be part of
-  mm: convert page_mkclean_one() to page_check_walk()
-  mm: convert try_to_unmap_one() to page_check_walk()
-  mm, ksm: convert write_protect_page() to page_check_walk()
-  mm, uprobes: convert __replace_page() to page_check_walk()
-  mm: convert page_mapped_in_vma() to page_check_walk()
-  mm: drop page_check_address{,_transhuge}
-  mm: convert remove_migration_pte() to page_check_walk()
-
- include/linux/rmap.h    |  85 ++++---
- kernel/events/uprobes.c |  26 ++-
- mm/Makefile             |   6 +-
- mm/huge_memory.c        |  25 +--
- mm/internal.h           |   9 +-
- mm/ksm.c                |  34 +--
- mm/migrate.c            | 103 ++++-----
- mm/page_check.c         | 178 +++++++++++++++
- mm/page_idle.c          |  34 +--
- mm/rmap.c               | 572 +++++++++++++++++++-----------------------------
- 10 files changed, 567 insertions(+), 505 deletions(-)
- create mode 100644 mm/page_check.c
-
+diff --git a/mm/internal.h b/mm/internal.h
+index 03763f5c42c5..1f90c65df7fb 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -333,12 +333,15 @@ __vma_address(struct page *page, struct vm_area_struct *vma)
+ static inline unsigned long
+ vma_address(struct page *page, struct vm_area_struct *vma)
+ {
+-	unsigned long address = __vma_address(page, vma);
++	unsigned long start, end;
++
++	start = __vma_address(page, vma);
++	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
+ 
+ 	/* page should be within @vma mapping range */
+-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
++	VM_BUG_ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
+ 
+-	return address;
++	return max(start, vma->vm_start);
+ }
+ 
+ #else /* !CONFIG_MMU */
+diff --git a/mm/rmap.c b/mm/rmap.c
+index d7a0f5121c65..3bbf83b32553 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1757,7 +1757,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
+ 		bool locked)
+ {
+ 	struct anon_vma *anon_vma;
+-	pgoff_t pgoff;
++	pgoff_t pgoff_start, pgoff_end;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1771,8 +1771,10 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
+ 	if (!anon_vma)
+ 		return ret;
+ 
+-	pgoff = page_to_pgoff(page);
+-	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
++	pgoff_start = page_to_pgoff(page);
++	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
++	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
++			pgoff_start, pgoff_end) {
+ 		struct vm_area_struct *vma = avc->vma;
+ 		unsigned long address = vma_address(page, vma);
+ 
+@@ -1810,7 +1812,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
+ 		bool locked)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+-	pgoff_t pgoff;
++	pgoff_t pgoff_start, pgoff_end;
+ 	struct vm_area_struct *vma;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1825,10 +1827,12 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
+ 	if (!mapping)
+ 		return ret;
+ 
+-	pgoff = page_to_pgoff(page);
++	pgoff_start = page_to_pgoff(page);
++	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
+ 	if (!locked)
+ 		i_mmap_lock_read(mapping);
+-	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
++	vma_interval_tree_foreach(vma, &mapping->i_mmap,
++			pgoff_start, pgoff_end) {
+ 		unsigned long address = vma_address(page, vma);
+ 
+ 		cond_resched();
 -- 
 2.11.0
 
