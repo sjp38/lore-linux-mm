@@ -1,178 +1,313 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 323FD6B0270
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 16:36:12 -0500 (EST)
-Received: by mail-yw0-f199.google.com with SMTP id z143so245128473ywz.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:36:12 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id i186si5532200ywb.122.2017.01.24.13.36.11
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D2EB86B0270
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 16:41:26 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so252520798pfa.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:41:26 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t7si20762971pfi.147.2017.01.24.13.41.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 13:36:11 -0800 (PST)
-Subject: Re: [PATCH 0/3] 1G transparent hugepage support for device dax
-References: <148521477073.31533.17781371321988910714.stgit@djiang5-desk3.ch.intel.com>
- <20170124111248.GC20153@quack2.suse.cz>
- <CAPcyv4gW7cho=eE4BQZQ69J7ehREurP6CPbQX3z6eW7BUVT3Bw@mail.gmail.com>
- <20170124212435.GA23874@char.us.oracle.com>
-From: Nilesh Choudhury <nilesh.choudhury@oracle.com>
-Message-ID: <db42a11a-77ca-2caf-a13a-fb404d0ad2a1@oracle.com>
-Date: Tue, 24 Jan 2017 13:35:55 -0800
-MIME-Version: 1.0
-In-Reply-To: <20170124212435.GA23874@char.us.oracle.com>
-Content-Type: multipart/alternative;
- boundary="------------203F214388D2FC21902D1E8F"
+        Tue, 24 Jan 2017 13:41:24 -0800 (PST)
+Date: Tue, 24 Jan 2017 13:41:22 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 02/12] mm: introduce page_check_walk()
+Message-Id: <20170124134122.5560b55ca13c2c2cc09c2a4e@linux-foundation.org>
+In-Reply-To: <20170124162824.91275-3-kirill.shutemov@linux.intel.com>
+References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
+	<20170124162824.91275-3-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is a multi-part message in MIME format.
---------------203F214388D2FC21902D1E8F
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, 24 Jan 2017 19:28:14 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-Konrad's explanation is precise.
+> The patch introduce new interface to check if a page is mapped into a vma.
+> It aims to address shortcomings of page_check_address{,_transhuge}.
+> 
+> Existing interface is not able to handle PTE-mapped THPs: it only finds
+> the first PTE. The rest lefted unnoticed.
+> 
+> page_check_walk() iterates over all possible mapping of the page in the
+> vma.
 
-There are applications which have a process model; and if you assume 
-10,000 processes attempting to mmap all the 6TB memory available on a 
-server; we are looking at the following:
-
-    processes         ; 10,000
-    memory            :    6TB
-    pte @ 4k page size: 8 bytes / 4K of memory * #processes = 6TB / 4k * 8 * 10000 = 1.5GB * 80000 = 120,000GB
-    pmd @ 2M page size: 120,000 / 512 = ~240GB
-    pud @ 1G page size: 240GB / 512 = ~480MB
-
-As you can see with 2M pages, this system will use up an exorbitant 
-amount of DRAM to hold the page tables; but the 1G pages finally brings 
-it down to a reasonable level.
-Memory sizes will keep increasing; so this number will keep increasing.
-An argument can be made to convert the applications from process model 
-to thread model, but in the real world that may not be always practical.
-Hopefully this helps explain the use case where this is valuable.
-
-- Nilesh
-
-On 1/24/2017 1:24 PM, Konrad Rzeszutek Wilk wrote:
-> On Tue, Jan 24, 2017 at 10:26:54AM -0800, Dan Williams wrote:
->> On Tue, Jan 24, 2017 at 3:12 AM, Jan Kara <jack@suse.cz> wrote:
->>> On Mon 23-01-17 16:47:18, Dave Jiang wrote:
->>>> The following series implements support for 1G trasparent hugepage on
->>>> x86 for device dax. The bulk of the code was written by Mathew Wilcox
->>>> a while back supporting transparent 1G hugepage for fs DAX. I have
->>>> forward ported the relevant bits to 4.10-rc. The current submission has
->>>> only the necessary code to support device DAX.
->>> Well, you should really explain why do we want this functionality... Is
->>> anybody going to use it? Why would he want to and what will he gain by
->>> doing so? Because so far I haven't heard of a convincing usecase.
->>>
->> So the motivation and intended user of this functionality mirrors the
->> motivation and users of 1GB page support in hugetlbfs. Given expected
->> capacities of persistent memory devices an in-memory database may want
->> to reduce tlb pressure beyond what they can already achieve with 2MB
->> mappings of a device-dax file. We have customer feedback to that
->> effect as Willy mentioned in his previous version of these patches
->> [1].
-> CCing Nilesh who may be able to shed some more light on this.
->
->> [1]: https://lkml.org/lkml/2016/1/31/52
->> _______________________________________________
->> Linux-nvdimm mailing list
->> Linux-nvdimm@lists.01.org
->> https://lists.01.org/mailman/listinfo/linux-nvdimm
+I really don't like the name page_check_walk().  "check" could mean any
+damn thing.  Something like page_vma_mapped_walk() has meaning.  We
+could omit the "_walk" for brevity.
 
 
---------------203F214388D2FC21902D1E8F
-Content-Type: text/html; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/linux/rmap.h |  65 ++++++++++++++++++++++
+>  mm/Makefile          |   6 ++-
+>  mm/huge_memory.c     |   9 ++--
+>  mm/page_check.c      | 148 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 223 insertions(+), 5 deletions(-)
+>  create mode 100644 mm/page_check.c
+> 
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 15321fb1df6b..474279810742 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -232,6 +232,71 @@ static inline bool page_check_address_transhuge(struct page *page,
+>  }
+>  #endif
+>  
+> +/* Avoid racy checks */
+> +#define PAGE_CHECK_WALK_SYNC		(1 << 0)
+> +/* Look for migarion entries rather than present ptes */
+> +#define PAGE_CHECK_WALK_MIGRATION	(1 << 1)
+> +
+> +struct page_check_walk {
+> +	struct page *page;
+> +	struct vm_area_struct *vma;
+> +	unsigned long address;
+> +	pmd_t *pmd;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+> +	unsigned int flags;
+> +};
 
-<html>
-  <head>
-    <meta content="text/html; charset=windows-1252"
-      http-equiv="Content-Type">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <p>Konrad's explanation is precise. <br>
-    </p>
-    <p>There are applications which have a process model; and if you
-      assume 10,000 processes attempting to mmap all the 6TB memory
-      available on a server; we are looking at the following:</p>
-    <blockquote>
-      <pre>processes         ; 10,000
-memory            :    6TB
-pte @ 4k page size: 8 bytes / 4K of memory * #processes = 6TB / 4k * 8 * 10000 = 1.5GB * 80000 = 120,000GB
-pmd @ 2M page size: 120,000 / 512 = ~240GB
-pud @ 1G page size: 240GB / 512 = ~480MB</pre>
-    </blockquote>
-    As you can see with 2M pages, this system will use up an exorbitant
-    amount of DRAM to hold the page tables; but the 1G pages finally
-    brings it down to a reasonable level.<br>
-    Memory sizes will keep increasing; so this number will keep
-    increasing.<br>
-    An argument can be made to convert the applications from process
-    model to thread model, but in the real world that may not be always
-    practical.<br>
-    Hopefully this helps explain the use case where this is valuable.<br>
-    <br>
-    - Nilesh<br>
-    <br>
-    <div class="moz-cite-prefix">On 1/24/2017 1:24 PM, Konrad Rzeszutek
-      Wilk wrote:<br>
-    </div>
-    <blockquote cite="mid:20170124212435.GA23874@char.us.oracle.com"
-      type="cite">
-      <pre wrap="">On Tue, Jan 24, 2017 at 10:26:54AM -0800, Dan Williams wrote:
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">On Tue, Jan 24, 2017 at 3:12 AM, Jan Kara <a class="moz-txt-link-rfc2396E" href="mailto:jack@suse.cz">&lt;jack@suse.cz&gt;</a> wrote:
-</pre>
-        <blockquote type="cite">
-          <pre wrap="">On Mon 23-01-17 16:47:18, Dave Jiang wrote:
-</pre>
-          <blockquote type="cite">
-            <pre wrap="">The following series implements support for 1G trasparent hugepage on
-x86 for device dax. The bulk of the code was written by Mathew Wilcox
-a while back supporting transparent 1G hugepage for fs DAX. I have
-forward ported the relevant bits to 4.10-rc. The current submission has
-only the necessary code to support device DAX.
-</pre>
-          </blockquote>
-          <pre wrap="">
-Well, you should really explain why do we want this functionality... Is
-anybody going to use it? Why would he want to and what will he gain by
-doing so? Because so far I haven't heard of a convincing usecase.
+One thing which I don't think was documented is that it is the caller's
+responsibility to initialize this appropriately before calling
+page_check_walk().  At least, .pte and .ptl must be NULL, for
+page_check_walk_done().
 
-</pre>
-        </blockquote>
-        <pre wrap="">
-So the motivation and intended user of this functionality mirrors the
-motivation and users of 1GB page support in hugetlbfs. Given expected
-capacities of persistent memory devices an in-memory database may want
-to reduce tlb pressure beyond what they can already achieve with 2MB
-mappings of a device-dax file. We have customer feedback to that
-effect as Willy mentioned in his previous version of these patches
-[1].
-</pre>
-      </blockquote>
-      <pre wrap="">
-CCing Nilesh who may be able to shed some more light on this.
+> +static inline void page_check_walk_done(struct page_check_walk *pcw)
+> +{
+> +	if (pcw->pte)
+> +		pte_unmap(pcw->pte);
+> +	if (pcw->ptl)
+> +		spin_unlock(pcw->ptl);
+> +}
+> +
+> +bool __page_check_walk(struct page_check_walk *pcw);
+> +
+> +/**
+> + * page_check_walk - check if @pcw->page is mapped in @pcw->vma at @pcw->address
+> + * @pcw: pointer to struce page_check_walk. page, vma and address must be set.
 
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">
-[1]: <a class="moz-txt-link-freetext" href="https://lkml.org/lkml/2016/1/31/52">https://lkml.org/lkml/2016/1/31/52</a>
-_______________________________________________
-Linux-nvdimm mailing list
-<a class="moz-txt-link-abbreviated" href="mailto:Linux-nvdimm@lists.01.org">Linux-nvdimm@lists.01.org</a>
-<a class="moz-txt-link-freetext" href="https://lists.01.org/mailman/listinfo/linux-nvdimm">https://lists.01.org/mailman/listinfo/linux-nvdimm</a>
-</pre>
-      </blockquote>
-    </blockquote>
-    <br>
-  </body>
-</html>
+"struct"
 
---------------203F214388D2FC21902D1E8F--
+> + *
+> + * Returns true, if the page is mapped in the vma. @pcw->pmd and @pcw->pte point
+
+"Returns true if"
+
+> + * to relevant page table entries. @pcw->ptl is locked. @pcw->address is
+> + * adjusted if needed (for PTE-mapped THPs).
+> + *
+> + * If @pcw->pmd is set, but @pcw->pte is not, you have found PMD-mapped page
+
+"is set but"
+
+> + * (usually THP). For PTE-mapped THP, you should run page_check_walk() in 
+> + * a loop to find all PTEs that maps the THP.
+
+"that map"
+
+> + *
+> + * For HugeTLB pages, @pcw->pte is set to relevant page table entry regardless
+
+"set to the relevant", "regardless of"
+
+> + * which page table level the page mapped at. @pcw->pmd is NULL.
+
+"the page is"
+
+> + *
+> + * Retruns false, if there's no more page table entries for the page in the vma.
+
+"Returns false if there are"
+
+> + * @pcw->ptl is unlocked and @pcw->pte is unmapped.
+> + *
+> + * If you need to stop the walk before page_check_walk() returned false, use
+> + * page_check_walk_done(). It will do the housekeeping.
+> + */
+> +static inline bool page_check_walk(struct page_check_walk *pcw)
+> +{
+> +	/* The only possible pmd mapping has been handled on last iteration */
+> +	if (pcw->pmd && !pcw->pte) {
+> +		page_check_walk_done(pcw);
+> +		return false;
+> +	}
+> +
+> +	/* Only for THP, seek to next pte entry makes sense */
+> +	if (pcw->pte) {
+> +		if (!PageTransHuge(pcw->page) || PageHuge(pcw->page)) {
+> +			page_check_walk_done(pcw);
+> +			return false;
+> +		}
+> +	}
+> +
+> +	return __page_check_walk(pcw);
+> +}
+
+Was the decision to inline this a correct one?
+
+> --- /dev/null
+> +++ b/mm/page_check.c
+> @@ -0,0 +1,148 @@
+> +#include <linux/mm.h>
+> +#include <linux/rmap.h>
+> +#include <linux/hugetlb.h>
+> +#include <linux/swap.h>
+> +#include <linux/swapops.h>
+> +
+> +#include "internal.h"
+> +
+> +static inline bool check_pmd(struct page_check_walk *pcw)
+> +{
+> +	pmd_t pmde = *pcw->pmd;
+> +	barrier();
+> +	return pmd_present(pmde) && !pmd_trans_huge(pmde);
+> +}
+
+Can we please have a comment explaining what the barrier() does?
+
+> +static inline bool not_found(struct page_check_walk *pcw)
+> +{
+> +	page_check_walk_done(pcw);
+> +	return false;
+> +}
+> +
+> +static inline bool map_pte(struct page_check_walk *pcw)
+> +{
+> +	pcw->pte = pte_offset_map(pcw->pmd, pcw->address);
+> +	if (!(pcw->flags & PAGE_CHECK_WALK_SYNC)) {
+> +		if (pcw->flags & PAGE_CHECK_WALK_MIGRATION) {
+> +			if (!is_swap_pte(*pcw->pte))
+> +				return false;
+> +		} else {
+> +			if (!pte_present(*pcw->pte))
+> +				return false;
+> +		}
+> +	}
+> +	pcw->ptl = pte_lockptr(pcw->vma->vm_mm, pcw->pmd);
+> +	spin_lock(pcw->ptl);
+> +	return true;
+> +}
+
+The compiler will just ignore all these "inline" statements.
+
+> +static inline bool check_pte(struct page_check_walk *pcw)
+> +{
+> +	if (pcw->flags & PAGE_CHECK_WALK_MIGRATION) {
+> +		swp_entry_t entry;
+> +		if (!is_swap_pte(*pcw->pte))
+> +			return false;
+> +		entry = pte_to_swp_entry(*pcw->pte);
+> +		if (!is_migration_entry(entry))
+> +			return false;
+> +		if (migration_entry_to_page(entry) - pcw->page >=
+> +				hpage_nr_pages(pcw->page)) {
+> +			return false;
+> +		}
+> +		if (migration_entry_to_page(entry) < pcw->page)
+> +			return false;
+> +	} else {
+> +		if (!pte_present(*pcw->pte))
+> +			return false;
+> +
+> +		/* THP can be referenced by any subpage */
+> +		if (pte_page(*pcw->pte) - pcw->page >=
+> +				hpage_nr_pages(pcw->page)) {
+> +			return false;
+> +		}
+> +		if (pte_page(*pcw->pte) < pcw->page)
+> +			return false;
+> +	}
+> +
+> +	return true;
+> +}
+
+Thankfully, because inlining this one does seem inappropriate - it's
+enormous!
+
+> +bool __page_check_walk(struct page_check_walk *pcw)
+> +{
+> +	struct mm_struct *mm = pcw->vma->vm_mm;
+> +	struct page *page = pcw->page;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +
+> +	/* For THP, seek to next pte entry */
+> +	if (pcw->pte)
+> +		goto next_pte;
+> +
+> +	if (unlikely(PageHuge(pcw->page))) {
+> +		/* when pud is not present, pte will be NULL */
+> +		pcw->pte = huge_pte_offset(mm, pcw->address);
+> +		if (!pcw->pte)
+> +			return false;
+> +
+> +		pcw->ptl = huge_pte_lockptr(page_hstate(page), mm, pcw->pte);
+> +		spin_lock(pcw->ptl);
+> +		if (!check_pte(pcw))
+> +			return not_found(pcw);
+> +		return true;
+> +	}
+> +restart:
+> +	pgd = pgd_offset(mm, pcw->address);
+> +	if (!pgd_present(*pgd))
+> +		return false;
+> +	pud = pud_offset(pgd, pcw->address);
+> +	if (!pud_present(*pud))
+> +		return false;
+> +	pcw->pmd = pmd_offset(pud, pcw->address);
+> +	if (pmd_trans_huge(*pcw->pmd)) {
+> +		pcw->ptl = pmd_lock(mm, pcw->pmd);
+> +		if (!pmd_present(*pcw->pmd))
+> +			return not_found(pcw);
+> +		if (likely(pmd_trans_huge(*pcw->pmd))) {
+> +			if (pcw->flags & PAGE_CHECK_WALK_MIGRATION)
+> +				return not_found(pcw);
+> +			if (pmd_page(*pcw->pmd) != page)
+> +				return not_found(pcw);
+> +			return true;
+> +		} else {
+> +			/* THP pmd was split under us: handle on pte level */
+> +			spin_unlock(pcw->ptl);
+> +			pcw->ptl = NULL;
+> +		}
+> +	} else {
+> +		if (!check_pmd(pcw))
+> +			return false;
+> +	}
+> +	if (!map_pte(pcw))
+> +		goto next_pte;
+> +	while (1) {
+> +		if (check_pte(pcw))
+> +			return true;
+> +next_pte:	do {
+> +			pcw->address += PAGE_SIZE;
+> +			if (pcw->address >= __vma_address(pcw->page, pcw->vma) +
+> +					hpage_nr_pages(pcw->page) * PAGE_SIZE)
+> +				return not_found(pcw);
+> +			/* Did we cross page table boundary? */
+> +			if (pcw->address % PMD_SIZE == 0) {
+> +				pte_unmap(pcw->pte);
+> +				if (pcw->ptl) {
+> +					spin_unlock(pcw->ptl);
+> +					pcw->ptl = NULL;
+> +				}
+> +				goto restart;
+> +			} else {
+> +				pcw->pte++;
+> +			}
+> +		} while (pte_none(*pcw->pte));
+> +
+> +		if (!pcw->ptl) {
+> +			pcw->ptl = pte_lockptr(mm, pcw->pmd);
+> +			spin_lock(pcw->ptl);
+> +		}
+> +	}
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
