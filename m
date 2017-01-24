@@ -1,87 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 753E16B0287
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:28:41 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f5so242913902pgi.1
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:28:41 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id i15si19745658pgp.196.2017.01.24.08.28.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C7B136B0289
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:28:43 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id t6so242670191pgt.6
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:28:43 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 35si19742836pgx.238.2017.01.24.08.28.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 08:28:39 -0800 (PST)
+        Tue, 24 Jan 2017 08:28:42 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 04/12] mm: fix handling PTE-mapped THPs in page_idle_clear_pte_refs()
-Date: Tue, 24 Jan 2017 19:28:16 +0300
-Message-Id: <20170124162824.91275-5-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 09/12] mm, uprobes: convert __replace_page() to page_check_walk()
+Date: Tue, 24 Jan 2017 19:28:21 +0300
+Message-Id: <20170124162824.91275-10-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For PTE-mapped THP page_check_address_transhuge() is not adequate: it
-cannot find all relevant PTEs, only the first one.i
-
-Let's switch it to page_check_walk().
-
-I don't think it's subject for stable@: it's not fatal.
+For consistency, it worth converting all page_check_address() to
+page_check_walk(), so we could drop the former.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 ---
- mm/page_idle.c | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ kernel/events/uprobes.c | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
 
-diff --git a/mm/page_idle.c b/mm/page_idle.c
-index ae11aa914e55..573d217457cb 100644
---- a/mm/page_idle.c
-+++ b/mm/page_idle.c
-@@ -54,27 +54,27 @@ static int page_idle_clear_pte_refs_one(struct page *page,
- 					struct vm_area_struct *vma,
- 					unsigned long addr, void *arg)
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 1e65c79e52a6..6dbaa93b22fa 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -153,14 +153,19 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 				struct page *old_page, struct page *new_page)
  {
--	struct mm_struct *mm = vma->vm_mm;
--	pmd_t *pmd;
--	pte_t *pte;
+ 	struct mm_struct *mm = vma->vm_mm;
 -	spinlock_t *ptl;
+-	pte_t *ptep;
 +	struct page_check_walk pcw = {
-+		.page = page,
++		.page = old_page,
 +		.vma = vma,
 +		.address = addr,
 +	};
- 	bool referenced = false;
+ 	int err;
+ 	/* For mmu_notifiers */
+ 	const unsigned long mmun_start = addr;
+ 	const unsigned long mmun_end   = addr + PAGE_SIZE;
+ 	struct mem_cgroup *memcg;
  
--	if (!page_check_address_transhuge(page, mm, addr, &pmd, &pte, &ptl))
--		return SWAP_AGAIN;
--
--	if (pte) {
--		referenced = ptep_clear_young_notify(vma, addr, pte);
--		pte_unmap(pte);
--	} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
--		referenced = pmdp_clear_young_notify(vma, addr, pmd);
--	} else {
--		/* unexpected pmd-mapped page? */
--		WARN_ON_ONCE(1);
-+	while (page_check_walk(&pcw)) {
-+		addr = pcw.address;
-+		if (pcw.pte) {
-+			referenced = ptep_clear_young_notify(vma, addr,
-+					pcw.pte);
-+		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-+			referenced = pmdp_clear_young_notify(vma, addr,
-+					pcw.pmd);
-+		} else {
-+			/* unexpected pmd-mapped page? */
-+			WARN_ON_ONCE(1);
-+		}
++	VM_BUG_ON_PAGE(PageTransHuge(old_page), old_page);
++
+ 	err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL, &memcg,
+ 			false);
+ 	if (err)
+@@ -171,11 +176,11 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 	err = -EAGAIN;
+-	ptep = page_check_address(old_page, mm, addr, &ptl, 0);
+-	if (!ptep) {
++	if (!page_check_walk(&pcw)) {
+ 		mem_cgroup_cancel_charge(new_page, memcg, false);
+ 		goto unlock;
+ 	}
++	VM_BUG_ON_PAGE(addr != pcw.address, old_page);
+ 
+ 	get_page(new_page);
+ 	page_add_new_anon_rmap(new_page, vma, addr, false);
+@@ -187,14 +192,15 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 		inc_mm_counter(mm, MM_ANONPAGES);
  	}
  
--	spin_unlock(ptl);
--
- 	if (referenced) {
- 		clear_page_idle(page);
- 		/*
+-	flush_cache_page(vma, addr, pte_pfn(*ptep));
+-	ptep_clear_flush_notify(vma, addr, ptep);
+-	set_pte_at_notify(mm, addr, ptep, mk_pte(new_page, vma->vm_page_prot));
++	flush_cache_page(vma, addr, pte_pfn(*pcw.pte));
++	ptep_clear_flush_notify(vma, addr, pcw.pte);
++	set_pte_at_notify(mm, addr, pcw.pte,
++			mk_pte(new_page, vma->vm_page_prot));
+ 
+ 	page_remove_rmap(old_page, false);
+ 	if (!page_mapped(old_page))
+ 		try_to_free_swap(old_page);
+-	pte_unmap_unlock(ptep, ptl);
++	page_check_walk_done(&pcw);
+ 
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		munlock_vma_page(old_page);
 -- 
 2.11.0
 
