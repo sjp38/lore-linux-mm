@@ -1,88 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B96C6B0266
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:13:10 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id x128so78802639lfa.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:13:10 -0800 (PST)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id q142si13362624lfe.107.2017.01.24.14.13.08
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6472C6B0266
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:17:26 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id l7so172193329qtd.2
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:17:26 -0800 (PST)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id m90si14126791qtd.98.2017.01.24.14.17.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 14:13:08 -0800 (PST)
-Received: by mail-lf0-x242.google.com with SMTP id h65so18758288lfi.3
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:13:08 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170124132441.5027560693ed6d8c283c1953@linux-foundation.org>
-References: <20170124200259.16191-1-ddstreet@ieee.org> <20170124200259.16191-2-ddstreet@ieee.org>
- <20170124132441.5027560693ed6d8c283c1953@linux-foundation.org>
+        Tue, 24 Jan 2017 14:17:25 -0800 (PST)
+Received: by mail-qt0-x244.google.com with SMTP id l7so28632982qtd.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:17:25 -0800 (PST)
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 24 Jan 2017 17:12:27 -0500
-Message-ID: <CALZtONCSvmc=JU3iq=YGJ+gLMG1WEXWLGObHiCMzGxzxMLLkNQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] zswap: disable changing params if init fails
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] MAINTAINERS: add Dan Streetman to zbud maintainers
+Date: Tue, 24 Jan 2017 17:17:05 -0500
+Message-Id: <20170124221705.26523-1-ddstreet@ieee.org>
+In-Reply-To: <CAC8qmcALc_wz3cM2N4VaVTDa+o9wFybfeV5r1tjf1N1pvZ0QMg@mail.gmail.com>
+References: <CAC8qmcALc_wz3cM2N4VaVTDa+o9wFybfeV5r1tjf1N1pvZ0QMg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, stable@vger.kernel.org, Dan Streetman <dan.streetman@canonical.com>
+To: Seth Jennings <sjenning@redhat.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jan 24, 2017 at 4:24 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 24 Jan 2017 15:02:57 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
->
->> Add zswap_init_failed bool that prevents changing any of the module
->> params, if init_zswap() fails, and set zswap_enabled to false.  Change
->> 'enabled' param to a callback, and check zswap_init_failed before
->> allowing any change to 'enabled', 'zpool', or 'compressor' params.
->>
->> Any driver that is built-in to the kernel will not be unloaded if its
->> init function returns error, and its module params remain accessible for
->> users to change via sysfs.  Since zswap uses param callbacks, which
->> assume that zswap has been initialized, changing the zswap params after
->> a failed initialization will result in WARNING due to the param callbacks
->> expecting a pool to already exist.  This prevents that by immediately
->> exiting any of the param callbacks if initialization failed.
->>
->> This was reported here:
->> https://marc.info/?l=linux-mm&m=147004228125528&w=4
->
-> I added Marcin's reportde-by to the changelog.
+Add myself as zbud maintainer.
 
-Thanks, I missed that.
+Cc: Seth Jennings <sjenning@redhat.com>
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+ MAINTAINERS | 1 +
+ 1 file changed, 1 insertion(+)
 
->
->> And fixes this WARNING:
->> [  429.723476] WARNING: CPU: 0 PID: 5140 at mm/zswap.c:503
->> __zswap_pool_current+0x56/0x60
->>
->> Fixes: 90b0fc26d5db ("zswap: change zpool/compressor at runtime")
->> Cc: stable@vger.kernel.org
->
-> Is this really serious enough to justify a -stable backport?  It's just
-> a bit of extra noise associated with an initialization problem which
-> the user will be fixing anyway.
-
-The warning is just noise, and not serious.  However, when init fails,
-zswap frees all its percpu dstmem pages and its kmem cache.  The kmem
-cache might be serious, if kmem_cache_alloc(NULL, gfp) has problems;
-but the percpu dstmem pages are definitely a problem, as they're used
-as temporary buffer for compressed pages before copying into place in
-the zpool.
-
-If the user does get zswap enabled after an init failure, then zswap
-will likely Oops on the first page it tries to compress (or worse,
-start corrupting memory).
-
-I should have added all that to the changelog to make the issue clear, sorry.
-
->
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+diff --git a/MAINTAINERS b/MAINTAINERS
+index e5575d5..0bd4b33 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -13681,6 +13681,7 @@ F:	drivers/net/hamradio/z8530.h
+ 
+ ZBUD COMPRESSED PAGE ALLOCATOR
+ M:	Seth Jennings <sjenning@redhat.com>
++M:	Dan Streetman <ddstreet@ieee.org>
+ L:	linux-mm@kvack.org
+ S:	Maintained
+ F:	mm/zbud.c
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
