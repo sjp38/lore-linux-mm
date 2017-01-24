@@ -1,124 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6008F6B0294
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 13:43:10 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id d9so143292522itc.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 10:43:10 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 192si17507041ioe.138.2017.01.24.10.43.03
-        for <linux-mm@kvack.org>;
-        Tue, 24 Jan 2017 10:43:03 -0800 (PST)
-Date: Tue, 24 Jan 2017 18:41:59 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v3] mm: add arch-independent testcases for RODATA
-Message-ID: <20170124184159.GH7572@leverpostej>
-References: <20170124160434.GA23547@pjb1027-Latitude-E5410>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C30EC6B0266
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 14:17:27 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 80so247974369pfy.2
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:17:27 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id 2si20314128pfe.63.2017.01.24.11.17.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jan 2017 11:17:26 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 204so17346375pge.2
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 11:17:26 -0800 (PST)
+Date: Tue, 24 Jan 2017 11:17:21 -0800
+From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Subject: Re: [PATCH 0/6 v3] kvmalloc
+Message-ID: <20170124191716.GA23114@ast-mbp.thefacebook.com>
+References: <20170112153717.28943-1-mhocko@kernel.org>
+ <20170124151752.GO6867@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170124160434.GA23547@pjb1027-Latitude-E5410>
+In-Reply-To: <20170124151752.GO6867@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jinbum Park <jinb.park7@gmail.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Alexei Starovoitov <ast@kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Andreas Dilger <adilger@dilger.ca>, Andreas Dilger <andreas.dilger@intel.com>, Anton Vorontsov <anton@enomsg.org>, Ben Skeggs <bskeggs@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Colin Cross <ccross@android.com>, Dan Williams <dan.j.williams@intel.com>, David Sterba <dsterba@suse.com>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Hariprasad S <hariprasad@chelsio.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Ilya Dryomov <idryomov@gmail.com>, Kees Cook <keescook@chromium.org>, Kent Overstreet <kent.overstreet@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Oleg Drokin <oleg.drokin@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Santosh Raspatur <santosh@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Theodore Ts'o <tytso@mit.edu>, Tom Herbert <tom@herbertland.com>, Tony Luck <tony.luck@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Yishai Hadas <yishaih@mellanox.com>, Daniel Borkmann <daniel@iogearbox.net>
 
-On Wed, Jan 25, 2017 at 01:04:34AM +0900, Jinbum Park wrote:
-> This patch makes arch-independent testcases for RODATA.
-> Both x86 and x86_64 already have testcases for RODATA,
-> But they are arch-specific because using inline assembly directly.
+On Tue, Jan 24, 2017 at 04:17:52PM +0100, Michal Hocko wrote:
+> On Thu 12-01-17 16:37:11, Michal Hocko wrote:
+> > Hi,
+> > this has been previously posted as a single patch [1] but later on more
+> > built on top. It turned out that there are users who would like to have
+> > __GFP_REPEAT semantic. This is currently implemented for costly >64B
+> > requests. Doing the same for smaller requests would require to redefine
+> > __GFP_REPEAT semantic in the page allocator which is out of scope of
+> > this series.
+> > 
+> > There are many open coded kmalloc with vmalloc fallback instances in
+> > the tree.  Most of them are not careful enough or simply do not care
+> > about the underlying semantic of the kmalloc/page allocator which means
+> > that a) some vmalloc fallbacks are basically unreachable because the
+> > kmalloc part will keep retrying until it succeeds b) the page allocator
+> > can invoke a really disruptive steps like the OOM killer to move forward
+> > which doesn't sound appropriate when we consider that the vmalloc
+> > fallback is available.
+> > 
+> > As it can be seen implementing kvmalloc requires quite an intimate
+> > knowledge if the page allocator and the memory reclaim internals which
+> > strongly suggests that a helper should be implemented in the memory
+> > subsystem proper.
+> > 
+> > Most callers I could find have been converted to use the helper instead.
+> > This is patch 5. There are some more relying on __GFP_REPEAT in the
+> > networking stack which I have converted as well but considering we do
+> > not have a support for __GFP_REPEAT for requests smaller than 64kB I
+> > have marked it RFC.
 > 
-> and cacheflush.h is not suitable location for rodata-test related things.
-> Since they were in cacheflush.h,
-> If someone change the state of CONFIG_DEBUG_RODATA_TEST,
-> It cause overhead of kernel build.
-> 
-> To solve above issue,
-> Move x86's testcases to shared location able to be called by other archs.
-> and move declaration of rodata_test_data to separate header file.
-> 
-> Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
-> ---
-> v3: Use probe_kernel_write() instead of put_user()
-> 	Move declaration of rodata_test_data to separate header (rodata_test.h)
-> 	Fix a kbuild-test-robot-error related to DEBUG_NX_TEST
-> 
-> v2: Restore original credit of mm/rodata_test.c
-> 
->  arch/x86/Kconfig.debug            | 10 +-----
->  arch/x86/include/asm/cacheflush.h | 10 ------
->  arch/x86/kernel/Makefile          |  1 -
->  arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
->  arch/x86/mm/init_32.c             |  4 +--
->  arch/x86/mm/init_64.c             |  4 +--
->  include/linux/rodata_test.h       | 24 +++++++++++++
->  mm/Kconfig.debug                  |  7 ++++
->  mm/Makefile                       |  1 +
->  mm/rodata_test.c                  | 63 ++++++++++++++++++++++++++++++++
->  10 files changed, 98 insertions(+), 101 deletions(-)
->  delete mode 100644 arch/x86/kernel/test_rodata.c
->  create mode 100644 include/linux/rodata_test.h
->  create mode 100644 mm/rodata_test.c
+> Are there any more comments? I would really appreciate to hear from
+> networking folks before I resubmit the series.
 
-> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-> index 928d657..874b57c 100644
-> --- a/arch/x86/mm/init_32.c
-> +++ b/arch/x86/mm/init_32.c
-> @@ -51,6 +51,7 @@
->  #include <asm/cacheflush.h>
->  #include <asm/page_types.h>
->  #include <asm/init.h>
-> +#include <linux/rodata_test.h>
-
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 5fff913..663d475 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -54,6 +54,7 @@
->  #include <asm/init.h>
->  #include <asm/uv/uv.h>
->  #include <asm/setup.h>
-> +#include <linux/rodata_test.h>
-
-Rather than fixing up the include here, could we move the rodata_test()
-call out into mark_readonly()? e.g.
-
-diff --git a/init/main.c b/init/main.c
-index b0c9d6f..d72a8d0 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -82,6 +82,7 @@
- #include <linux/proc_ns.h>
- #include <linux/io.h>
- #include <linux/cache.h>
-+#include <linux/rodata_test.h>
- 
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -937,10 +938,12 @@ static int __init set_debug_rodata(char *str)
- #ifdef CONFIG_DEBUG_RODATA
- static void mark_readonly(void)
- {
--       if (rodata_enabled)
-+       if (rodata_enabled) {
-                mark_rodata_ro();
--       else
-+               rodata_test();
-+       } else {
-                pr_info("Kernel memory protection disabled.\n");
-+       }
- }
- #else
- static inline void mark_readonly(void)
-
-... that would remove a few lines of code, and we wouldn't have to add
-more in other architectures.
-
-I've given this a go with that applied on arm64. It reported success,
-and with mark_rodata_ro() hacked out it detected that .rodata was
-writeable.
-
-Thanks,
-Mark.
+while this patchset was baking the bpf side switched to use bpf_map_area_alloc()
+which fixes the issue with missing __GFP_NORETRY that we had to fix quickly.
+See commit d407bd25a204 ("bpf: don't trigger OOM killer under pressure with map alloc")
+it covers all kmalloc/vmalloc pairs instead of just one place as in this set.
+So please rebase and switch bpf_map_area_alloc() to use kvmalloc().
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
