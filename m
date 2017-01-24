@@ -1,70 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6E5B6B026A
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:28:08 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id d13so218471694oib.3
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:28:08 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id 8si7456583ota.263.2017.01.24.05.28.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4846B026C
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:52:56 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so239917081pfa.3
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 05:52:56 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p83si19286648pfi.65.2017.01.24.05.52.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 05:28:08 -0800 (PST)
-Message-ID: <58875606.7090504@huawei.com>
-Date: Tue, 24 Jan 2017 21:26:30 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: do not export ioremap_page_range symbol for external
- module
-References: <1485173220-29010-1-git-send-email-zhongjiang@huawei.com> <20170124102319.GD6867@dhcp22.suse.cz> <58874FE8.1070100@huawei.com> <20170124131548.GJ6867@dhcp22.suse.cz>
-In-Reply-To: <20170124131548.GJ6867@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jan 2017 05:52:55 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0ODheXa078790
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:52:54 -0500
+Received: from e06smtp08.uk.ibm.com (e06smtp08.uk.ibm.com [195.75.94.104])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28612wsdha-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 08:52:53 -0500
+Received: from localhost
+	by e06smtp08.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 24 Jan 2017 13:52:52 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [RFC PATCH 0/5] userfaultfd: non-cooperative: better tracking for mapping changes
+Date: Tue, 24 Jan 2017 15:51:58 +0200
+Message-Id: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, jhubbard@nvidia.com, linux-mm@kvack.org, minchan@kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 2017/1/24 21:15, Michal Hocko wrote:
-> On Tue 24-01-17 21:00:24, zhong jiang wrote:
->> On 2017/1/24 18:23, Michal Hocko wrote:
->>> On Mon 23-01-17 20:07:00, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> Recently, I've found cases in which ioremap_page_range was used
->>>> incorrectly, in external modules, leading to crashes. This can be
->>>> partly attributed to the fact that ioremap_page_range is lower-level,
->>>> with fewer protections, as compared to the other functions that an
->>>> external module would typically call. Those include:
->>>>
->>>>      ioremap_cache
->>>>      ioremap_nocache
->>>>      ioremap_prot
->>>>      ioremap_uc
->>>>      ioremap_wc
->>>>      ioremap_wt
->>>>
->>>> ...each of which wraps __ioremap_caller, which in turn provides a
->>>> safer way to achieve the mapping.
->>>>
->>>> Therefore, stop EXPORT-ing ioremap_page_range.
->>>>
->>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>>> Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
->>>> Suggested-by: John Hubbard <jhubbard@nvidia.com>
->>> git grep says that there are few direct users of this API in the tree.
->>> Have you checked all of them? The export has been added by 81e88fdc432a
->>> ("ACPI, APEI, Generic Hardware Error Source POLL/IRQ/NMI notification
->>> type support").
->>   I have checked more than one times.  and John also have looked through the whole own kernel.
-> OK, it seems you are right. Both PCI_TEGRA and ACPI_APEI_GHES are either
-> disabled or compiled in. The same applies for drivers/pci/pci.c.
-> This wasn't the case at the time when the export was introduced as
-> ACPI_APEI_GHES used to be tristate until 86cd47334b00 ("ACPI, APEI,
-> GHES, Prevent GHES to be built as module").
->
-> You can add
-> Acked-by: Michal Hocko <mhocko@suse.com>
- Thanks a lot.
+Hi,
+
+These patches try to address issues I've encountered during integration of
+userfaultfd with CRIU.
+Previously added userfaultfd events for fork(), madvise() and mremap()
+unfortunately do not cover all possible changes to a process virtual memory
+layout required for uffd monitor.
+When one or more VMAs is removed from the process mm, the external uffd
+monitor has no way to detect those changes and will attempt to fill the
+removed regions with userfaultfd_copy.
+Another problematic event is the exit() of the process. Here again, the
+external uffd monitor will try to use userfaultfd_copy, although mm owning
+the memory has already gone.
+
+The first patch in the series is a minor cleanup and it's not strictly
+related to the rest of the series.
+ 
+The patches 2 and 3 below add UFFD_EVENT_UNMAP and UFFD_EVENT_EXIT to allow
+the uffd monitor track changes in the memory layout of a process.
+
+The patches 4 and 5 amend error codes returned by userfaultfd_copy to make
+the uffd monitor able to cope with races that might occur between delivery
+of unmap and exit events and outstanding userfaultfd_copy's.
+
+The patches are agains current -mm tree.
+
+Mike Rapoport (5):
+  mm: call vm_munmap in munmap syscall instead of using open coded version
+  userfaultfd: non-cooperative: add event for memory unmaps
+  userfaultfd: non-cooperative: add event for exit() notification
+  userfaultfd: mcopy_atomic: return -ENOENT when no compatible VMA found
+  userfaultfd_copy: return -ENOSPC in case mm has gone
+
+ arch/tile/mm/elf.c               |  2 +-
+ arch/x86/entry/vdso/vma.c        |  2 +-
+ arch/x86/mm/mpx.c                |  2 +-
+ fs/aio.c                         |  2 +-
+ fs/proc/vmcore.c                 |  4 +-
+ fs/userfaultfd.c                 | 91 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm.h               | 14 ++++---
+ include/linux/userfaultfd_k.h    | 25 +++++++++++
+ include/uapi/linux/userfaultfd.h |  8 +++-
+ ipc/shm.c                        |  6 +--
+ kernel/exit.c                    |  2 +
+ mm/mmap.c                        | 55 ++++++++++++++----------
+ mm/mremap.c                      | 23 ++++++----
+ mm/userfaultfd.c                 | 42 ++++++++++---------
+ mm/util.c                        |  5 ++-
+ 15 files changed, 215 insertions(+), 68 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
