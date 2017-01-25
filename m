@@ -1,36 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CFE36B025E
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:37:11 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 14so256964313pgg.4
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:37:11 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 10si21540269pgg.262.2017.01.24.17.37.09
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 260A96B025E
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:47:24 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f5so257765141pgi.1
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 17:47:24 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p80si21637219pfk.56.2017.01.24.17.47.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 17:37:09 -0800 (PST)
-Date: Wed, 25 Jan 2017 09:44:08 +0800
+        Tue, 24 Jan 2017 17:47:22 -0800 (PST)
+Date: Wed, 25 Jan 2017 09:54:25 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 06/12] mm: convert page_mkclean_one() to page_check_walk()
-Message-ID: <201701250927.LAXlcslF%fengguang.wu@intel.com>
+Subject: Re: [PATCH 12/12] mm: convert remove_migration_pte() to
+ page_check_walk()
+Message-ID: <201701250938.9YB03ecB%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="SUOF0GtieIMvvwua"
+Content-Type: multipart/mixed; boundary="sdtB3X0nJg68CQEu"
 Content-Disposition: inline
-In-Reply-To: <20170124162824.91275-7-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170124162824.91275-13-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: kbuild-all@01.org, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
---SUOF0GtieIMvvwua
+--sdtB3X0nJg68CQEu
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 Hi Kirill,
 
-[auto build test ERROR on mmotm/master]
-[also build test ERROR on v4.10-rc5 next-20170124]
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.10-rc5 next-20170124]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
 url:    https://github.com/0day-ci/linux/commits/Kirill-A-Shutemov/Fix-few-rmap-related-THP-bugs/20170125-081918
@@ -43,44 +44,155 @@ reproduce:
         # save the attached .config to linux build tree
         make.cross ARCH=openrisc 
 
-All errors (new ones prefixed by >>):
+All warnings (new ones prefixed by >>):
 
-   mm/rmap.c: In function 'page_mkclean_one':
-   mm/rmap.c:1048:4: error: implicit declaration of function 'pmd_dirty'
-   mm/rmap.c:1053:4: error: implicit declaration of function 'pmd_wrprotect'
->> mm/rmap.c:1053:10: error: incompatible types when assigning to type 'pmd_t' from type 'int'
-   mm/rmap.c:1054:4: error: implicit declaration of function 'pmd_mkclean'
-   mm/rmap.c:1054:10: error: incompatible types when assigning to type 'pmd_t' from type 'int'
-   mm/rmap.c:1055:4: error: implicit declaration of function 'set_pmd_at'
+   mm/migrate.c: In function 'remove_migration_pte':
+>> mm/migrate.c:199:20: warning: unused variable 'mm'
+   arch/openrisc/include/asm/bitops/atomic.h: Assembler messages:
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:90: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:92: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:90: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:92: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:70: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:72: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:70: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:72: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:70: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:72: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/cmpxchg.h:30: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/cmpxchg.h:34: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:18: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:20: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/bitops/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/bitops/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
+   arch/openrisc/include/asm/atomic.h:37: Error: unknown opcode2 `l.swa'.
+   arch/openrisc/include/asm/atomic.h:35: Error: unknown opcode2 `l.lwa'.
 
-vim +1053 mm/rmap.c
+vim +/mm +199 mm/migrate.c
 
-  1042				set_pte_at(vma->vm_mm, address, pte, entry);
-  1043				ret = 1;
-  1044			} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
-  1045				pmd_t *pmd = pcw.pmd;
-  1046				pmd_t entry;
-  1047	
-> 1048				if (!pmd_dirty(*pmd) && !pmd_write(*pmd))
-  1049					continue;
-  1050	
-  1051				flush_cache_page(vma, address, page_to_pfn(page));
-  1052				entry = pmdp_huge_clear_flush(vma, address, pmd);
-> 1053				entry = pmd_wrprotect(entry);
-  1054				entry = pmd_mkclean(entry);
-  1055				set_pmd_at(vma->vm_mm, address, pmd, entry);
-  1056				ret = 1;
+bda807d44 Minchan Kim        2016-07-26  183  			unlock_page(page);
+bda807d44 Minchan Kim        2016-07-26  184  			put_page(page);
+bda807d44 Minchan Kim        2016-07-26  185  		} else {
+894bc3104 Lee Schermerhorn   2008-10-18  186  			putback_lru_page(page);
+6afcf8ef0 Ming Ling          2016-12-12  187  			dec_node_page_state(page, NR_ISOLATED_ANON +
+6afcf8ef0 Ming Ling          2016-12-12  188  					page_is_file_cache(page));
+b20a35035 Christoph Lameter  2006-03-22  189  		}
+b20a35035 Christoph Lameter  2006-03-22  190  	}
+bda807d44 Minchan Kim        2016-07-26  191  }
+b20a35035 Christoph Lameter  2006-03-22  192  
+0697212a4 Christoph Lameter  2006-06-23  193  /*
+0697212a4 Christoph Lameter  2006-06-23  194   * Restore a potential migration pte to a working pte entry
+0697212a4 Christoph Lameter  2006-06-23  195   */
+51b4efdf7 Kirill A. Shutemov 2017-01-24  196  static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+e9995ef97 Hugh Dickins       2009-12-14  197  				 unsigned long addr, void *old)
+0697212a4 Christoph Lameter  2006-06-23  198  {
+0697212a4 Christoph Lameter  2006-06-23 @199  	struct mm_struct *mm = vma->vm_mm;
+51b4efdf7 Kirill A. Shutemov 2017-01-24  200  	struct page_check_walk pcw = {
+51b4efdf7 Kirill A. Shutemov 2017-01-24  201  		.page = old,
+51b4efdf7 Kirill A. Shutemov 2017-01-24  202  		.vma = vma,
+51b4efdf7 Kirill A. Shutemov 2017-01-24  203  		.address = addr,
+51b4efdf7 Kirill A. Shutemov 2017-01-24  204  		.flags = PAGE_CHECK_WALK_SYNC | PAGE_CHECK_WALK_MIGRATION,
+51b4efdf7 Kirill A. Shutemov 2017-01-24  205  	};
+51b4efdf7 Kirill A. Shutemov 2017-01-24  206  	struct page *new;
+51b4efdf7 Kirill A. Shutemov 2017-01-24  207  	pte_t pte;
+
+:::::: The code at line 199 was first introduced by commit
+:::::: 0697212a411c1dae03c27845f2de2f3adb32c331 [PATCH] Swapless page migration: add R/W migration entries
+
+:::::: TO: Christoph Lameter <clameter@sgi.com>
+:::::: CC: Linus Torvalds <torvalds@g5.osdl.org>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---SUOF0GtieIMvvwua
+--sdtB3X0nJg68CQEu
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICKgBiFgAAy5jb25maWcAjDzLctu4svvzFazMXcwskviVjFO3soBAUMIRQTIAKMnesBSZ
+H4sICAgEiFgAAy5jb25maWcAjDzLctu4svvzFazMXcwskviVjFO3soBAUMIRQTIAKMnesBSZ
 SVSxJZckz0zu199uUBRfDXkWMzHRDaCBfjcA/faf3wL2ctg+LQ/r1fLx8VfwvdyUu+WhfAi+
 rR/L/w3CNEhSG4hQ2neAHK83L/+83z6Xm916vwpu3l1evLt4u1vdvH16ugym5W5TPgZ8u/m2
 /v4Cw6y3m//89h+eJpEcF2kmEi0N//yrblEqbz703AhVjEUitOSFyWQSp3wK8N+CDsaCT8Ys
@@ -218,7 +330,7 @@ xdrNBouI6EAsvbGf3d+UeqVZ+ITgSY53BvMIoSNVwJTB5EO+e2AsMxqRSzHYXoY+HU6aCROJ
 V/SqYnKLFFWiY6fkYSfVu3K+H73+90xFn3o4enD8LKdjz3r8uePlqmB4U8rZ0AoT9xKZ0DUb
 Qlf2TqovTYBTkqystKGzJhFJHjO7gDrHzEVaFnXlFSJFdGYMNNIGL3J0Kf8D3Y9q9O9sAAA=
 
---SUOF0GtieIMvvwua--
+--sdtB3X0nJg68CQEu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
