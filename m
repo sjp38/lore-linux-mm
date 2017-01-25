@@ -1,82 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3206E6B026F
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:07:07 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f5so285899570pgi.1
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:07:07 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id p25si2704723pli.325.2017.01.25.13.07.06
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E27CB6B0272
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:15:37 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r144so40787261wme.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:15:37 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u16si5649139wru.73.2017.01.25.13.15.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 13:07:06 -0800 (PST)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 2/2] fs: Harden against open(..., O_CREAT, 02777) in a setgid directory
-Date: Wed, 25 Jan 2017 13:06:52 -0800
-Message-Id: <826ec4aab64ec304944098d15209f8c1ae65bb29.1485377903.git.luto@kernel.org>
-In-Reply-To: <cover.1485377903.git.luto@kernel.org>
-References: <cover.1485377903.git.luto@kernel.org>
-In-Reply-To: <cover.1485377903.git.luto@kernel.org>
-References: <cover.1485377903.git.luto@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 13:15:36 -0800 (PST)
+Subject: Re: [ATTEND] many topics
+References: <20170119113317.GO30786@dhcp22.suse.cz>
+ <20170119115243.GB22816@bombadil.infradead.org>
+ <20170119121135.GR30786@dhcp22.suse.cz>
+ <878tq5ff0i.fsf@notabene.neil.brown.name>
+ <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+ <87ziijem9e.fsf@notabene.neil.brown.name>
+ <20170123060544.GA12833@bombadil.infradead.org>
+ <20170123170924.ubx2honzxe7g34on@thunk.org>
+ <87mvehd0ze.fsf@notabene.neil.brown.name>
+ <58357cf1-65fc-b637-de8e-6cf9c9d91882@suse.cz>
+ <20170125203617.GB970@bombadil.infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2b4a19de-3878-3d76-a04e-5ab7f920432a@suse.cz>
+Date: Wed, 25 Jan 2017 22:15:33 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170125203617.GB970@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: security@kernel.org
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, yalin wang <yalin.wang2010@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: NeilBrown <neilb@suse.com>, Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Currently, if you open("foo", O_WRONLY | O_CREAT | ..., 02777) in a
-directory that is setgid and owned by a different gid than current's
-fsgid, you end up with an SGID executable that is owned by the
-directory's GID.  This is a Bad Thing (tm).  Exploiting this is
-nontrivial because most ways of creating a new file create an empty
-file and empty executables aren't particularly interesting, but this
-is nevertheless quite dangerous.
+On 01/25/2017 09:36 PM, Matthew Wilcox wrote:
+> On Wed, Jan 25, 2017 at 03:36:15PM +0100, Vlastimil Babka wrote:
+>> On 01/23/2017 08:34 PM, NeilBrown wrote:
+>> > Because "TEMPORARY" implies a limit to the amount of time, and sleeping
+>> > is the thing that causes a process to take a large amount of time.  It
+>> > seems like an obvious connection to me.
+>>
+>> There's no simple connection to time, it depends on the larger picture -
+>> what's the state of the allocator and what other allocations/free's are
+>> happening around this one. Perhaps let me try to explain what the flag does
+>> and what benefits are expected.
+>
+> The explanations of what GFP_TEMPORARY /does/ keep getting better and
+> better.  And thank you for that, it really is interesting.  But what
+> we're asking for is guidelines for the user of this interface; what is
+> the contract between the caller and the MM system?
+>
+> So far, I think we've answered a few questions:
+>
+>  - Using GFP_TEMPORARY in calls to kmalloc() is not currently supported
+>    because slab will happily allocate non-TEMPORARY allocations from the
+>    same page.
 
-Harden against this type of attack by detecting this particular
-corner case (unprivileged program creates SGID executable inode in
-SGID directory owned by a different GID) and clearing the new
-inode's SGID bit.
+Sounds right, AFAIK there's no smarts in slab about this.
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- fs/inode.c | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+>  - GFP_TEMPORARY allocations may be held on to for a considerable length
+>    of time; certainly seconds and maybe minutes.
 
-diff --git a/fs/inode.c b/fs/inode.c
-index f7029c40cfbd..d7e4b80470dd 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -2007,11 +2007,28 @@ void inode_init_owner(struct inode *inode, const struct inode *dir,
- {
- 	inode->i_uid = current_fsuid();
- 	if (dir && dir->i_mode & S_ISGID) {
-+		bool changing_gid = !gid_eq(inode->i_gid, dir->i_gid);
-+
- 		inode->i_gid = dir->i_gid;
--		if (S_ISDIR(mode))
-+		if (S_ISDIR(mode)) {
- 			mode |= S_ISGID;
--	} else
-+		} else if (((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
-+			   && S_ISREG(mode) && changing_gid
-+			   && !capable(CAP_FSETID)) {
-+			/*
-+			 * Whoa there!  An unprivileged program just
-+			 * tried to create a new executable with SGID
-+			 * set in a directory with SGID set that belongs
-+			 * to a different group.  Don't let this program
-+			 * create a SGID executable that ends up owned
-+			 * by the wrong group.
-+			 */
-+			mode &= ~S_ISGID;
-+		}
-+
-+	} else {
- 		inode->i_gid = current_fsgid();
-+	}
- 	inode->i_mode = mode;
- }
- EXPORT_SYMBOL(inode_init_owner);
--- 
-2.9.3
+I'd agree.
+
+>  - The advantage of marking one's allocation as TEMPORARY is twofold:
+>    - This allocation is more likely to succeed due to being allowed to
+>      access more memory.
+
+There's no such provision in the current implementation.
+
+>    - Other higher-order allocations are more likely to succeed due to
+>      the segregation of short and long lived allocations from each other.
+
+Right.
+
+> I'd like to see us add a tmalloc() / tmalloc_atomic() / tfree() API
+> for allocating temporary memory, then hook that up to SLAB as a way to
+> allocate small amounts of memory (... although maybe we shouldn't try
+> too hard to allocate multiple objects from a single page if they're all
+> temporary ...)
+
+Before doing things like that, we should evaluate whether the benefits are 
+really worth it. I only know how the mobility grouping and related heuristics 
+work, but haven't measured or seen some results wrt GFP_TEMPORARY. Also are 
+there some large potential users you have in mind? If there's always some 
+constant small amount of temporary allocations in the system, then the benefits 
+should be rather small as that amount will be effectively non-defragmentable in 
+any given point of time. I would expect the most benefit when there are some 
+less frequent but large bursts of temporary allocations concurrently with 
+long-term unmovable allocations that will result in permanently polluting new 
+pageblocks.
+
+> In any case, we need to ensure that GFP_TEMPORARY is not accepted by
+> slab ... that's not as straightforward as adding __GFP_RECLAIMABLE to
+> GFP_SLAB_BUG_MASK because SLAB_RECLAIMABLE slabs will reasonable add
+> __GFP_RECLAIMABLE before the check.  So a good place to check it is ...
+> kmalloc_slab()?  That hits all three slab allocators.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
