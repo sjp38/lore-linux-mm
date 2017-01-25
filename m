@@ -1,39 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A3C06B025E
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:42:02 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id a29so182818593qtb.6
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:42:02 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h56si15678479qte.96.2017.01.25.06.42.01
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5066A6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 10:05:50 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id v85so247809972oia.4
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 07:05:50 -0800 (PST)
+Received: from smtpbg202.qq.com (smtpbg202.qq.com. [184.105.206.29])
+        by mx.google.com with ESMTPS id u129si9056537oia.40.2017.01.25.07.05.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 06:42:01 -0800 (PST)
-Date: Wed, 25 Jan 2017 06:41:49 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4] mm: add arch-independent testcases for RODATA
-Message-ID: <20170125144149.GA970@bombadil.infradead.org>
-References: <20170125141833.GA27658@pjb1027-Latitude-E5410>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170125141833.GA27658@pjb1027-Latitude-E5410>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 07:05:49 -0800 (PST)
+From: ysxie@foxmail.com
+Subject: [PATCH v4 0/2] HWPOISON: soft offlining for non-lru movable page
+Date: Wed, 25 Jan 2017 23:05:36 +0800
+Message-Id: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jinbum Park <jinb.park7@gmail.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On Wed, Jan 25, 2017 at 11:18:33PM +0900, Jinbum Park wrote:
-> +	/* test 2: write to the variable; this should fault */
-> +	/*
-> +	 * This must be written in assembly to be able to catch the
-> +	 * exception that is supposed to happen in the correct case.
-> +	 *
-> +	 * So that probe_kernel_write is used to write
-> +	 * arch-independent assembly.
-> +	 */
+From: Yisheng Xie <xieyisheng1@huawei.com>
 
-This comment makes no sense.  Better to just delete the comment.
+Hi Andrew,
+Could you please help to abandon the v3 of this patch for it will compile
+error with CONFIG_MIGRATION=n, and it also has error path handling problem.
+
+Hi Michal, Minchan and all,
+Could you please help to review it? 
+
+Any suggestion is more than welcome.
+
+The aim of this patchset is to support soft offlining of movable no-lru pages,
+which already support migration after Minchan's commit bda807d44454 ("mm: migrate:
+support non-lru movable page migration"). That means this patch heavily depend
+on non-lru movable page migration.
+
+So when memory corrected errors occur on a non-lru movable page, we can stop
+to use it by migrating data onto another page and disable the original (maybe
+half-broken) one.
+
+--------
+v4:
+ * make isolate_movable_page always defined to avoid compile error with
+   CONFIG_MIGRATION = n
+ * return -EBUSY when isolate_movable_page return false which means failed
+   to isolate movable page.
+
+v3:
+  * delete some unneed limitation and use !__PageMovable instead of PageLRU
+    after isolate page to avoid isolated count mismatch, as Minchan Kim's suggestion.
+
+v2:
+ * delete function soft_offline_movable_page() and hanle non-lru movable
+   page in __soft_offline_page() as Michal Hocko suggested.
+
+Yisheng Xie (2):
+  mm/migration: make isolate_movable_page always defined
+  HWPOISON: soft offlining for non-lru movable page
+
+ include/linux/migrate.h |  2 ++
+ mm/memory-failure.c     | 26 ++++++++++++++++----------
+ 2 files changed, 18 insertions(+), 10 deletions(-)
+
+-- 
+1.9.1
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
