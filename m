@@ -1,77 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7EA6B0069
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 23:25:17 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so261487960pfb.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:25:17 -0800 (PST)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id i88si22083832pfk.178.2017.01.24.20.25.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 20:25:16 -0800 (PST)
-Received: by mail-pf0-x241.google.com with SMTP id e4so13399693pfg.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:25:16 -0800 (PST)
-Date: Wed, 25 Jan 2017 13:25:30 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Message-ID: <20170125042530.GD2234@jagdpanzerIV.localdomain>
-References: <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
- <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com>
- <20170119024421.GA9367@bbox>
- <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
- <20170119062158.GB9367@bbox>
- <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
- <20170123052244.GC11763@bbox>
- <20170123053056.GB2327@jagdpanzerIV.localdomain>
- <20170123054034.GA12327@bbox>
- <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 425C16B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 23:52:04 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id z67so261567666pgb.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:52:04 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id q4si287386plb.39.2017.01.24.20.52.02
+        for <linux-mm@kvack.org>;
+        Tue, 24 Jan 2017 20:52:03 -0800 (PST)
+Date: Wed, 25 Jan 2017 13:51:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+Message-ID: <20170125045137.GA18289@bbox>
+References: <20170123025826.GA24581@js1304-P5Q-DELUXE>
+ <20170123040347.GA2327@jagdpanzerIV.localdomain>
+ <20170123062716.GF24581@js1304-P5Q-DELUXE>
+ <20170123071339.GD2327@jagdpanzerIV.localdomain>
+ <20170123074054.GA12782@bbox>
+ <1ac33960-b523-1c58-b2de-8f6ddb3a5219@huawei.com>
+ <20170125012905.GA17937@bbox>
+ <20170125013244.GB2234@jagdpanzerIV.localdomain>
+ <20170125024835.GA24387@bombadil.infradead.org>
+ <20170125041857.GC2234@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170125041857.GC2234@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chulmin Kim <cmlaika.kim@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, zhouxianrong <zhouxianrong@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
-On (01/24/17 23:06), Chulmin Kim wrote:
-[..]
-> > > > Yeb, Thanks.
-> > > > 
-> > > > Perhaps, did you tried flush page before the writing?
-> > > > I think arm64 have no d-cache alising problem but worth to try it.
-> > > > Who knows :)
+On Wed, Jan 25, 2017 at 01:18:58PM +0900, Sergey Senozhatsky wrote:
+> On (01/24/17 18:48), Matthew Wilcox wrote:
+> > On Wed, Jan 25, 2017 at 10:32:44AM +0900, Sergey Senozhatsky wrote:
+> > > Hello,
 > > > 
-> > > I thought that flush_dcache_page() is only for cases when we write
-> > > to page (store that makes pages dirty), isn't it?
+> > > On (01/25/17 10:29), Minchan Kim wrote:
+> > > [..]
+> > > > > the result as listed below:
+> > > > > 
+> > > > > zero    pattern_char   pattern_short   pattern_int   pattern_long   total      (unit)
+> > > > > 162989  14454          3534            23516         2769           3294399    (page)
+> > > > > 
+> > > >
+> > > > so, int covers 93%. As considering non-zero dedup hit ratio is low, I think *int* is
+> > > > enough if memset is really fast. So, I'd like to go with 'int' if Sergey doesn't mind.
+> > > 
+> > > yep, 4 byte pattern matching and memset() sounds like a good plan to me
 > > 
-> > I think we need both because to see recent stores done by the user.
-> > I'm not sure it should be done by block device driver rather than
-> > page cache. Anyway, brd added it so worth to try it, I thought. :)
-
-Cc Dan, Seth
-
-(https://marc.info/?l=linux-mm&m=148514896820940)
-
-
-> Thanks for the suggestion!
-> It might be helpful
-> though proving it is not easy as the problem appears rarely.
+> > what?  memset ONLY HANDLES BYTES.
+> > 
+> > I pointed this out earlier, but you don't seem to be listening.  Let me
+> > try it again.
+> > 
+> > MEMSET ONLY HANDLES BYTES.
 > 
-> Have you thought about
-> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
-> (arm64 may have i-cache aliasing problem)
+> dammit... how did that happen...
 > 
-> If it is problematic,
-> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
-> provide the corrupted data
-> and even swap out (compressing) may see the corrupted data sooner or later,
-> i guess.
+> 
+> Matthew, you are absolute right. and, yes, I missed out your previous
+> mail, indeed. sorry. and thanks for "re-pointing" that out.
+> 
+> 
+> Minchan, zhouxianrong, I was completely wrong. we can't
+> do memset(). d'oh, I did not know it truncates 4 bytes to
+> one byte only (doesn't make too much sense to me).
 
-hm, interesting. there is a report of zswap_frontswap_load() failing to
-decompress the page: https://marc.info/?l=linux-mm&m=148468457306971
+Now, I read Matthew's comment and understood. Thanks.
+It means zhouxianrong's patch I sent recently is okay?
 
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
