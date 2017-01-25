@@ -1,101 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E27CB6B0272
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:15:37 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r144so40787261wme.0
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:15:37 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 001126B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:26:15 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id gt1so35527761wjc.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:26:15 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u16si5649139wru.73.2017.01.25.13.15.36
+        by mx.google.com with ESMTPS id v85si350805wmv.132.2017.01.25.13.26.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 13:15:36 -0800 (PST)
-Subject: Re: [ATTEND] many topics
-References: <20170119113317.GO30786@dhcp22.suse.cz>
- <20170119115243.GB22816@bombadil.infradead.org>
- <20170119121135.GR30786@dhcp22.suse.cz>
- <878tq5ff0i.fsf@notabene.neil.brown.name>
- <20170121131644.zupuk44p5jyzu5c5@thunk.org>
- <87ziijem9e.fsf@notabene.neil.brown.name>
- <20170123060544.GA12833@bombadil.infradead.org>
- <20170123170924.ubx2honzxe7g34on@thunk.org>
- <87mvehd0ze.fsf@notabene.neil.brown.name>
- <58357cf1-65fc-b637-de8e-6cf9c9d91882@suse.cz>
- <20170125203617.GB970@bombadil.infradead.org>
+        Wed, 25 Jan 2017 13:26:14 -0800 (PST)
+Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+References: <20170118110731.GA15949@linux.vnet.ibm.com>
+ <20170125202533.GA22138@cmpxchg.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2b4a19de-3878-3d76-a04e-5ab7f920432a@suse.cz>
-Date: Wed, 25 Jan 2017 22:15:33 +0100
+Message-ID: <a4cb93f8-0ca4-57aa-f395-1b22143a32bd@suse.cz>
+Date: Wed, 25 Jan 2017 22:26:08 +0100
 MIME-Version: 1.0
-In-Reply-To: <20170125203617.GB970@bombadil.infradead.org>
+In-Reply-To: <20170125202533.GA22138@cmpxchg.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: NeilBrown <neilb@suse.com>, Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-On 01/25/2017 09:36 PM, Matthew Wilcox wrote:
-> On Wed, Jan 25, 2017 at 03:36:15PM +0100, Vlastimil Babka wrote:
->> On 01/23/2017 08:34 PM, NeilBrown wrote:
->> > Because "TEMPORARY" implies a limit to the amount of time, and sleeping
->> > is the thing that causes a process to take a large amount of time.  It
->> > seems like an obvious connection to me.
+On 01/25/2017 09:25 PM, Johannes Weiner wrote:
+> On Wed, Jan 18, 2017 at 03:07:32AM -0800, Paul E. McKenney wrote:
+>> A group of Linux kernel hackers reported chasing a bug that resulted
+>> from their assumption that SLAB_DESTROY_BY_RCU provided an existence
+>> guarantee, that is, that no block from such a slab would be reallocated
+>> during an RCU read-side critical section.  Of course, that is not the
+>> case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
+>> slab of blocks.
 >>
->> There's no simple connection to time, it depends on the larger picture -
->> what's the state of the allocator and what other allocations/free's are
->> happening around this one. Perhaps let me try to explain what the flag does
->> and what benefits are expected.
+>> However, there is a phrase for this, namely "type safety".  This commit
+>> therefore renames SLAB_DESTROY_BY_RCU to SLAB_TYPESAFE_BY_RCU in order
+>> to avoid future instances of this sort of confusion.
+>>
+>> Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 >
-> The explanations of what GFP_TEMPORARY /does/ keep getting better and
-> better.  And thank you for that, it really is interesting.  But what
-> we're asking for is guidelines for the user of this interface; what is
-> the contract between the caller and the MM system?
+> This has come up in the past, and it always proved hard to agree on a
+> better name for it. But I like SLAB_TYPESAFE_BY_RCU the best out of
+> all proposals, and it's much more poignant than the current name.
+
+Heh, until I've seen this thread I had the same wrong assumption about the flag, 
+so it suprised me. Good thing I didn't have a chance to use it wrongly so far :)
+
+"Type safety" in this context seems quite counter-intuitive for me, as I've only 
+heard it to describe programming languages. But that's fine when the name sounds 
+so exotic that one has to look up what it does. Much safer than when the meaning 
+seems obvious, but in fact it's misleading.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 >
-> So far, I think we've answered a few questions:
->
->  - Using GFP_TEMPORARY in calls to kmalloc() is not currently supported
->    because slab will happily allocate non-TEMPORARY allocations from the
->    same page.
-
-Sounds right, AFAIK there's no smarts in slab about this.
-
->  - GFP_TEMPORARY allocations may be held on to for a considerable length
->    of time; certainly seconds and maybe minutes.
-
-I'd agree.
-
->  - The advantage of marking one's allocation as TEMPORARY is twofold:
->    - This allocation is more likely to succeed due to being allowed to
->      access more memory.
-
-There's no such provision in the current implementation.
-
->    - Other higher-order allocations are more likely to succeed due to
->      the segregation of short and long lived allocations from each other.
-
-Right.
-
-> I'd like to see us add a tmalloc() / tmalloc_atomic() / tfree() API
-> for allocating temporary memory, then hook that up to SLAB as a way to
-> allocate small amounts of memory (... although maybe we shouldn't try
-> too hard to allocate multiple objects from a single page if they're all
-> temporary ...)
-
-Before doing things like that, we should evaluate whether the benefits are 
-really worth it. I only know how the mobility grouping and related heuristics 
-work, but haven't measured or seen some results wrt GFP_TEMPORARY. Also are 
-there some large potential users you have in mind? If there's always some 
-constant small amount of temporary allocations in the system, then the benefits 
-should be rather small as that amount will be effectively non-defragmentable in 
-any given point of time. I would expect the most benefit when there are some 
-less frequent but large bursts of temporary allocations concurrently with 
-long-term unmovable allocations that will result in permanently polluting new 
-pageblocks.
-
-> In any case, we need to ensure that GFP_TEMPORARY is not accepted by
-> slab ... that's not as straightforward as adding __GFP_RECLAIMABLE to
-> GFP_SLAB_BUG_MASK because SLAB_RECLAIMABLE slabs will reasonable add
-> __GFP_RECLAIMABLE before the check.  So a good place to check it is ...
-> kmalloc_slab()?  That hits all three slab allocators.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
 
 --
