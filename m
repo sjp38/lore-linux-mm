@@ -1,67 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 733DD6B0253
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:40:36 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id w144so249655051oiw.0
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:40:36 -0800 (PST)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0100.outbound.protection.outlook.com. [104.47.1.100])
-        by mx.google.com with ESMTPS id e5si9166674oih.15.2017.01.25.08.40.35
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2C76B0253
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:46:02 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id c80so18229263iod.4
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:46:02 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id m82si2274142itm.10.2017.01.25.08.46.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 08:40:35 -0800 (PST)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH v2] kasan: Respect /proc/sys/kernel/traceoff_on_warning
-Date: Wed, 25 Jan 2017 19:41:06 +0300
-Message-ID: <20170125164106.3514-1-aryabinin@virtuozzo.com>
-In-Reply-To: <20170125142524.GQ6515@twins.programming.kicks-ass.net>
-References: <20170125142524.GQ6515@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jan 2017 08:46:01 -0800 (PST)
+Date: Wed, 25 Jan 2017 10:45:52 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+In-Reply-To: <20170123004657.GT5238@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1701251045040.983@east.gentwo.org>
+References: <20170118110731.GA15949@linux.vnet.ibm.com> <20170118111201.GB29472@bombadil.infradead.org> <20170118221737.GP5238@linux.vnet.ibm.com> <alpine.DEB.2.20.1701181758030.27439@east.gentwo.org> <20170123004657.GT5238@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Potapenko <glider@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: willy@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+On Sun, 22 Jan 2017, Paul E. McKenney wrote:
 
-After much waiting I finally reproduced a KASAN issue, only to find my
-trace-buffer empty of useful information because it got spooled out :/
+> On Wed, Jan 18, 2017 at 06:00:24PM -0600, Christoph Lameter wrote:
+> > On Wed, 18 Jan 2017, Paul E. McKenney wrote:
+> >
+> > > Actually, slab is using RCU to provide type safety to those slab users
+> > > who request it.
+> >
+> > Typesafety is a side effect. The main idea here is that the object can
+> > still be accessed in RCU sections after another processor frees the
+> > object. We guarantee that the object is not freed but it may be reused
+> > for another object within the RCU period.
+> >
+> > Can we have a name that expresses all of that properly?
+>
+> But of course!!!  "Type safety".  http://wiki.c2.com/?TypeSafe
 
-Make kasan_report honour the /proc/sys/kernel/traceoff_on_warning
-interface.
+Well that does not convey the idea that RCU is involved here.
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/kasan/report.c | 3 +++
- 1 file changed, 3 insertions(+)
+SLAB_DESTROY_RCU_TYPESAFE
 
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index b82b3e2..f479365 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -13,6 +13,7 @@
-  *
-  */
- 
-+#include <linux/ftrace.h>
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/printk.h>
-@@ -300,6 +301,8 @@ void kasan_report(unsigned long addr, size_t size,
- 	if (likely(!kasan_report_enabled()))
- 		return;
- 
-+	disable_trace_on_warning();
-+
- 	info.access_addr = (void *)addr;
- 	info.access_size = size;
- 	info.is_write = is_write;
--- 
-2.10.2
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
