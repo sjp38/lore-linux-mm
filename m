@@ -1,30 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 392BC6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 04:25:05 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c206so35408736wme.3
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 01:25:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 132si21565738wmp.119.2017.01.25.01.25.03
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 01:25:03 -0800 (PST)
-Subject: Re: [PATCH] mm, page_alloc: Use static global work_struct for
- draining per-cpu pages
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2513B6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 04:33:21 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f5so268044173pgi.1
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 01:33:21 -0800 (PST)
+Received: from out0-141.mail.aliyun.com (out0-141.mail.aliyun.com. [140.205.0.141])
+        by mx.google.com with ESMTP id s5si979363plj.103.2017.01.25.01.33.19
+        for <linux-mm@kvack.org>;
+        Wed, 25 Jan 2017 01:33:20 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 References: <20170125083038.rzb5f43nptmk7aed@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <69ddadc2-906c-7f4f-9a93-70a40b16e018@suse.cz>
-Date: Wed, 25 Jan 2017 10:24:43 +0100
-MIME-Version: 1.0
 In-Reply-To: <20170125083038.rzb5f43nptmk7aed@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
+Subject: Re: [PATCH] mm, page_alloc: Use static global work_struct for draining per-cpu pages
+Date: Wed, 25 Jan 2017 17:33:16 +0800
+Message-ID: <004201d276ee$0f20fd80$2d62f880$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: 'Mel Gorman' <mgorman@techsingularity.net>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Tejun Heo' <tj@kernel.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Linux Kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Jesper Dangaard Brouer' <brouer@redhat.com>
 
-On 01/25/2017 09:30 AM, Mel Gorman wrote:
+
+On Wednesday, January 25, 2017 4:31 PM Mel Gorman wrote: 
+> 
 > As suggested by Vlastimil Babka and Tejun Heo, this patch uses a static
 > work_struct to co-ordinate the draining of per-cpu pages on the workqueue.
 > Only one task can drain at a time but this is better than the previous
@@ -39,8 +42,8 @@ On 01/25/2017 09:30 AM, Mel Gorman wrote:
 > and CMA that care about the drain being complete when the function returns.
 > 
 > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 
 --
