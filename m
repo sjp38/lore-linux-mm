@@ -1,410 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 227C96B0038
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:27:31 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 201so274295727pfw.5
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:27:31 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id u1si1712601plm.148.2017.01.25.06.27.29
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D15A56B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:39:07 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r144so38749143wme.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:39:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v203si22604129wmb.51.2017.01.25.06.39.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 06:27:29 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 3so2101225pgj.1
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:27:29 -0800 (PST)
-Date: Wed, 25 Jan 2017 23:27:25 +0900
-From: Jinbum Park <jinb.park7@gmail.com>
-Subject: [PATCH v4] mm: add arch-independent testcases for RODATA
-Message-ID: <20170125142725.GA27764@pjb1027-Latitude-E5410>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 06:39:06 -0800 (PST)
+Subject: Re: [ATTEND] many topics
+References: <20170118054945.GD18349@bombadil.infradead.org>
+ <20170118133243.GB7021@dhcp22.suse.cz>
+ <20170119110513.GA22816@bombadil.infradead.org>
+ <20170119113317.GO30786@dhcp22.suse.cz>
+ <20170119115243.GB22816@bombadil.infradead.org>
+ <20170119121135.GR30786@dhcp22.suse.cz>
+ <878tq5ff0i.fsf@notabene.neil.brown.name>
+ <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+ <87ziijem9e.fsf@notabene.neil.brown.name>
+ <20170123060544.GA12833@bombadil.infradead.org>
+ <20170123170924.ubx2honzxe7g34on@thunk.org>
+ <87mvehd0ze.fsf@notabene.neil.brown.name>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <58357cf1-65fc-b637-de8e-6cf9c9d91882@suse.cz>
+Date: Wed, 25 Jan 2017 15:36:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <87mvehd0ze.fsf@notabene.neil.brown.name>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de
-Cc: mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
+To: NeilBrown <neilb@suse.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-This patch makes arch-independent testcases for RODATA.
-Both x86 and x86_64 already have testcases for RODATA,
-But they are arch-specific because using inline assembly directly.
+On 01/23/2017 08:34 PM, NeilBrown wrote:
+> On Tue, Jan 24 2017, Theodore Ts'o wrote:
+>
+>> On Sun, Jan 22, 2017 at 10:05:44PM -0800, Matthew Wilcox wrote:
+>>>
+>>> I don't have a clear picture in my mind of when Java promotes objects
+>>> from nursery to tenure
+>>
+>> It's typically on the order of minutes.   :-)
+>>
+>>> ... which is not too different from my lack of
+>>> understanding of what the MM layer considers "temporary" :-)  Is it
+>>> acceptable usage to allocate a SCSI command (guaranteed to be freed
+>>> within 30 seconds) from the temporary area?  Or should it only be used
+>>> for allocations where the thread of control is not going to sleep between
+>>> allocation and freeing?
+>>
+>> What the mm folks have said is that it's to prevent fragmentation.  If
+>> that's the optimization, whether or not you the process is allocating
+>> the memory sleeps for a few hundred milliseconds, or even seconds, is
+>> really in the noise compared with the average lifetime of an inode in
+>> the inode cache, or a page in the page cache....
+>>
+>> Why do you think it matters whether or not we sleep?  I've not heard
+>> any explanation for the assumption for why this might be important.
+>
+> Because "TEMPORARY" implies a limit to the amount of time, and sleeping
+> is the thing that causes a process to take a large amount of time.  It
+> seems like an obvious connection to me.
 
-and cacheflush.h is not suitable location for rodata-test related things.
-Since they were in cacheflush.h,
-If someone change the state of CONFIG_DEBUG_RODATA_TEST,
-It cause overhead of kernel build.
+There's no simple connection to time, it depends on the larger picture - what's 
+the state of the allocator and what other allocations/free's are happening 
+around this one. Perhaps let me try to explain what the flag does and what 
+benefits are expected.
 
-To solve above issue,
-write arch-independent testcases and move it to shared location.
+GFP_TEMPORARY, compared to GFP_KERNEL, adds __GFP_RECLAIMABLE, which tries to 
+place the allocation within MIGRATE_RECLAIMABLE pageblocks - GFP_KERNEL implies 
+MIGRATE_UNMOVABLE pageblocks, and userspace allocations are typically 
+MIGRATE_MOVABLE. The main goal of this "mobility grouping" is to prevent the 
+unmovable pages spreading all over the memory, making it impossible to get 
+larger blocks by defragmentation (compaction). Ideally we would have all these 
+problematic pages fit neatly into the smallest possible number of pageblocks 
+that can accomodate them. But we can't know in advance how many, and we don't 
+know their lifetimes, so there are various heuristics for relabeling pageblocks 
+between the 3 types as we exceed the existing ones.
 
-Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
----
-(Sorry, Previous patch-v4 doesn't have any changes..my mistake. Please see this patch)
-	
-v4: Move the rodata_test() call out into mark_readonly()
+Now GFP_TEMPORARY means we tell the allocator about the relatively shorter 
+lifetime, so it places the allocation within the RECLAIMABLE pageblocks, which 
+are also used for slab caches that have shrinkers. The expected benefit of this 
+is that we potentially prevent growing the number of UNMOVABLE pageblocks 
+(either directly by this allocation, or a subsequent GFP_KERNEL one, that would 
+otherwise fit within the existing pageblocks). While the RECLAIMABLE pages also 
+cannot be defragmented (at least currently, there are some proposals for the 
+slab caches...), we can at least shrink them, so the negative impact on 
+compaction is considered less severe in the longer term.
 
-v3: Use probe_kernel_write() instead of put_user()
-	Move declaration of rodata_test_data to separate header (rodata_test.h)
-	Fix a kbuild-test-robot-error related to DEBUG_NX_TEST
+> Imagine I want to allocate a large contiguous region in the
+> ZONE_MOVEABLE region.  I find a mostly free region, so I just need to
+> move those last few pages.  If there is a limit on how long a process
+> can sleep while holding an allocation from ZONE_MOVEABLE, then I know
+> how long, at most, I need to wait before those pages become either free
+> or movable.  If those processes can wait indefinitely, then I might have
+> to wait indefinitely to get this large region.
 
-v2: Restore original credit of mm/rodata_test.c
+Yeah so this is not relevant, because GFP_TEMPORARY does not make the allocation 
+__GFP_MOVABLE, so it still is not allowed to end up within a ZONE_MOVABLE zone. 
+Unfortunately the issue similar to that you mention does still exist due to 
+uncontrolled pinning of the movable pages, which affects both ZONE_MOVABLE and 
+CMA, but that's another story...
 
- arch/x86/Kconfig.debug            | 10 +-----
- arch/x86/include/asm/cacheflush.h | 10 ------
- arch/x86/kernel/Makefile          |  1 -
- arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
- arch/x86/mm/init_32.c             |  4 ---
- arch/x86/mm/init_64.c             |  5 ---
- include/linux/rodata_test.h       | 24 +++++++++++++
- init/main.c                       |  6 ++--
- mm/Kconfig.debug                  |  7 ++++
- mm/Makefile                       |  1 +
- mm/rodata_test.c                  | 63 ++++++++++++++++++++++++++++++++
- 11 files changed, 100 insertions(+), 106 deletions(-)
- delete mode 100644 arch/x86/kernel/test_rodata.c
- create mode 100644 include/linux/rodata_test.h
- create mode 100644 mm/rodata_test.c
+> "temporary" doesn't mean anything without a well defined time limit.
+>
+> But maybe I completely misunderstand.
 
-diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
-index 67eec55..3fa469c 100644
---- a/arch/x86/Kconfig.debug
-+++ b/arch/x86/Kconfig.debug
-@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
- 	  issues with the mapping of the EFI runtime regions into that
- 	  table.
- 
--config DEBUG_RODATA_TEST
--	bool "Testcase for the marking rodata read-only"
--	default y
--	---help---
--	  This option enables a testcase for the setting rodata read-only
--	  as well as for the change_page_attr() infrastructure.
--	  If in doubt, say "N"
--
- config DEBUG_WX
- 	bool "Warn on W+X mappings at boot"
- 	select X86_PTDUMP_CORE
-@@ -122,7 +114,7 @@ config DEBUG_SET_MODULE_RONX
- 
- config DEBUG_NX_TEST
- 	tristate "Testcase for the NX non-executable stack feature"
--	depends on DEBUG_KERNEL && m
-+	depends on DEBUG_KERNEL && DEBUG_RODATA_TEST && m
- 	---help---
- 	  This option enables a testcase for the CPU NX capability
- 	  and the software setup of this feature.
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index 872877d..e7e1942e 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -90,18 +90,8 @@
- 
- #define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
- 
--extern const int rodata_test_data;
- extern int kernel_set_to_readonly;
- void set_kernel_text_rw(void);
- void set_kernel_text_ro(void);
- 
--#ifdef CONFIG_DEBUG_RODATA_TEST
--int rodata_test(void);
--#else
--static inline int rodata_test(void)
--{
--	return 0;
--}
--#endif
--
- #endif /* _ASM_X86_CACHEFLUSH_H */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 581386c..f6caf82 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -100,7 +100,6 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
- obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
- 
- obj-$(CONFIG_AMD_NB)		+= amd_nb.o
--obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o
- obj-$(CONFIG_DEBUG_NX_TEST)	+= test_nx.o
- obj-$(CONFIG_DEBUG_NMI_SELFTEST) += nmi_selftest.o
- 
-diff --git a/arch/x86/kernel/test_rodata.c b/arch/x86/kernel/test_rodata.c
-deleted file mode 100644
-index 222e84e..0000000
---- a/arch/x86/kernel/test_rodata.c
-+++ /dev/null
-@@ -1,75 +0,0 @@
--/*
-- * test_rodata.c: functional test for mark_rodata_ro function
-- *
-- * (C) Copyright 2008 Intel Corporation
-- * Author: Arjan van de Ven <arjan@linux.intel.com>
-- *
-- * This program is free software; you can redistribute it and/or
-- * modify it under the terms of the GNU General Public License
-- * as published by the Free Software Foundation; version 2
-- * of the License.
-- */
--#include <asm/cacheflush.h>
--#include <asm/sections.h>
--#include <asm/asm.h>
--
--int rodata_test(void)
--{
--	unsigned long result;
--	unsigned long start, end;
--
--	/* test 1: read the value */
--	/* If this test fails, some previous testrun has clobbered the state */
--	if (!rodata_test_data) {
--		printk(KERN_ERR "rodata_test: test 1 fails (start data)\n");
--		return -ENODEV;
--	}
--
--	/* test 2: write to the variable; this should fault */
--	/*
--	 * If this test fails, we managed to overwrite the data
--	 *
--	 * This is written in assembly to be able to catch the
--	 * exception that is supposed to happen in the correct
--	 * case
--	 */
--
--	result = 1;
--	asm volatile(
--		"0:	mov %[zero],(%[rodata_test])\n"
--		"	mov %[zero], %[rslt]\n"
--		"1:\n"
--		".section .fixup,\"ax\"\n"
--		"2:	jmp 1b\n"
--		".previous\n"
--		_ASM_EXTABLE(0b,2b)
--		: [rslt] "=r" (result)
--		: [rodata_test] "r" (&rodata_test_data), [zero] "r" (0UL)
--	);
--
--
--	if (!result) {
--		printk(KERN_ERR "rodata_test: test data was not read only\n");
--		return -ENODEV;
--	}
--
--	/* test 3: check the value hasn't changed */
--	/* If this test fails, we managed to overwrite the data */
--	if (!rodata_test_data) {
--		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
--		return -ENODEV;
--	}
--	/* test 4: check if the rodata section is 4Kb aligned */
--	start = (unsigned long)__start_rodata;
--	end = (unsigned long)__end_rodata;
--	if (start & (PAGE_SIZE - 1)) {
--		printk(KERN_ERR "rodata_test: .rodata is not 4k aligned\n");
--		return -ENODEV;
--	}
--	if (end & (PAGE_SIZE - 1)) {
--		printk(KERN_ERR "rodata_test: .rodata end is not 4k aligned\n");
--		return -ENODEV;
--	}
--
--	return 0;
--}
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 928d657..2b4b53e 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -864,9 +864,6 @@ static noinline int do_test_wp_bit(void)
- 	return flag;
- }
- 
--const int rodata_test_data = 0xC3;
--EXPORT_SYMBOL_GPL(rodata_test_data);
--
- int kernel_set_to_readonly __read_mostly;
- 
- void set_kernel_text_rw(void)
-@@ -939,7 +936,6 @@ void mark_rodata_ro(void)
- 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
- 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
- 		size >> 10);
--	rodata_test();
- 
- #ifdef CONFIG_CPA_DEBUG
- 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 5fff913..a4880d8 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1011,9 +1011,6 @@ void __init mem_init(void)
- 	mem_init_print_info(NULL);
- }
- 
--const int rodata_test_data = 0xC3;
--EXPORT_SYMBOL_GPL(rodata_test_data);
--
- int kernel_set_to_readonly;
- 
- void set_kernel_text_rw(void)
-@@ -1082,8 +1079,6 @@ void mark_rodata_ro(void)
- 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
- 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
- 
--	rodata_test();
--
- #ifdef CONFIG_CPA_DEBUG
- 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
- 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
-diff --git a/include/linux/rodata_test.h b/include/linux/rodata_test.h
-new file mode 100644
-index 0000000..562537f
---- /dev/null
-+++ b/include/linux/rodata_test.h
-@@ -0,0 +1,24 @@
-+/*
-+ * rodata_test.h: functional test for mark_rodata_ro function
-+ *
-+ * (C) Copyright 2008 Intel Corporation
-+ * Author: Arjan van de Ven <arjan@linux.intel.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+#ifndef _RODATA_TEST_H
-+#define _RODATA_TEST_H
-+
-+#ifdef CONFIG_DEBUG_RODATA_TEST
-+extern const int rodata_test_data;
-+void rodata_test(void);
-+#else
-+static inline void rodata_test(void) {}
-+#endif
-+
-+#endif /* _RODATA_TEST_H */
-+
-diff --git a/init/main.c b/init/main.c
-index e47373d..1e417bb 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -82,6 +82,7 @@
- #include <linux/proc_ns.h>
- #include <linux/io.h>
- #include <linux/cache.h>
-+#include <linux/rodata_test.h>
- 
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -935,9 +936,10 @@ static int __init set_debug_rodata(char *str)
- #ifdef CONFIG_DEBUG_RODATA
- static void mark_readonly(void)
- {
--	if (rodata_enabled)
-+	if (rodata_enabled) {
- 		mark_rodata_ro();
--	else
-+		rodata_test();
-+	} else
- 		pr_info("Kernel memory protection disabled.\n");
- }
- #else
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index afcc550..3e5eada 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -90,3 +90,10 @@ config DEBUG_PAGE_REF
- 	  careful when enabling this feature because it adds about 30 KB to the
- 	  kernel code.  However the runtime performance overhead is virtually
- 	  nil until the tracepoints are actually enabled.
-+
-+config DEBUG_RODATA_TEST
-+    bool "Testcase for the marking rodata read-only"
-+    depends on DEBUG_RODATA
-+    ---help---
-+      This option enables a testcase for the setting rodata read-only.
-+
-diff --git a/mm/Makefile b/mm/Makefile
-index 433eaf9..d6199d4 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -83,6 +83,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
- obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
-+obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
- obj-$(CONFIG_PAGE_OWNER) += page_owner.o
- obj-$(CONFIG_CLEANCACHE) += cleancache.o
- obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-new file mode 100644
-index 0000000..afdc17b
---- /dev/null
-+++ b/mm/rodata_test.c
-@@ -0,0 +1,63 @@
-+/*
-+ * rodata_test.c: functional test for mark_rodata_ro function
-+ *
-+ * (C) Copyright 2008 Intel Corporation
-+ * Author: Arjan van de Ven <arjan@linux.intel.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+#include <linux/uaccess.h>
-+#include <asm/sections.h>
-+
-+const int rodata_test_data = 0xC3;
-+EXPORT_SYMBOL_GPL(rodata_test_data);
-+
-+void rodata_test(void)
-+{
-+	unsigned long start, end;
-+	int zero = 0;
-+
-+	/* test 1: read the value */
-+	/* If this test fails, some previous testrun has clobbered the state */
-+	if (!rodata_test_data) {
-+		pr_err("rodata_test: test 1 fails (start data)\n");
-+		return;
-+	}
-+
-+	/* test 2: write to the variable; this should fault */
-+	/*
-+	 * This must be written in assembly to be able to catch the
-+	 * exception that is supposed to happen in the correct case.
-+	 *
-+	 * So that probe_kernel_write is used to write
-+	 * arch-independent assembly.
-+	 */
-+	if (!probe_kernel_write((void *)&rodata_test_data,
-+						(void *)&zero, sizeof(zero))) {
-+		pr_err("rodata_test: test data was not read only\n");
-+		return;
-+	}
-+
-+	/* test 3: check the value hasn't changed */
-+	if (rodata_test_data == zero) {
-+		pr_err("rodata_test: test data was changed\n");
-+		return;
-+	}
-+
-+	/* test 4: check if the rodata section is PAGE_SIZE aligned */
-+	start = (unsigned long)__start_rodata;
-+	end = (unsigned long)__end_rodata;
-+	if (start & (PAGE_SIZE - 1)) {
-+		pr_err("rodata_test: start of .rodata is not page size aligned\n");
-+		return;
-+	}
-+	if (end & (PAGE_SIZE - 1)) {
-+		pr_err("rodata_test: end of .rodata is not page size aligned\n");
-+		return;
-+	}
-+
-+	pr_info("rodata_test: all tests were successful\n");
-+}
--- 
-1.9.1
+HTH,
+Vlastimil
+
+> NeilBrown
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
