@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D90FC6B025E
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:41:00 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id f5so270853371pgi.1
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 03:41:00 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id x17si23167383pfk.215.2017.01.25.03.40.59
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 41AAF6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:48:00 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c85so36564586wmi.6
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 03:48:00 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n189si21214215wmn.97.2017.01.25.03.47.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 03:40:59 -0800 (PST)
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH] mm: vmscan: do not pass reclaimed slab to vmpressure
-Date: Wed, 25 Jan 2017 17:08:38 +0530
-Message-Id: <1485344318-6418-1-git-send-email-vinmenon@codeaurora.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 03:47:58 -0800 (PST)
+Date: Wed, 25 Jan 2017 12:47:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] HWPOISON: soft offlining for non-lru movable page
+Message-ID: <20170125114753.GJ32377@dhcp22.suse.cz>
+References: <1485183010-9276-1-git-send-email-ysxie@foxmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1485183010-9276-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shiraz.hashim@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
+To: ysxie@foxmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
 
-It is noticed that during a global reclaim the memory
-reclaimed via shrinking the slabs can sometimes result
-in reclaimed pages being greater than the scanned pages
-in shrink_node. When this is passed to vmpressure, the
-unsigned arithmetic results in the pressure value to be
-huge, thus resulting in a critical event being sent to
-root cgroup. Fix this by not passing the reclaimed slab
-count to vmpressure, with the assumption that vmpressure
-should show the actual pressure on LRU which is now
-diluted by adding reclaimed slab without a corresponding
-scanned value.
+On Mon 23-01-17 22:50:10, ysxie@foxmail.com wrote:
+> From: Yisheng Xie <xieyisheng1@huawei.com>
+> 
+> This patch is to extends soft offlining framework to support
+> non-lru page, which already support migration after
+> commit bda807d44454 ("mm: migrate: support non-lru movable page
+> migration")
+> 
+> When memory corrected errors occur on a non-lru movable page,
+> we can choose to stop using it by migrating data onto another
+> page and disable the original (maybe half-broken) one.
+> 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+This doesn't compile with CONFIG_MIGRATION=n
+
+mm/memory-failure.c: In function '__soft_offline_page':
+mm/memory-failure.c:1656:3: error: implicit declaration of function 'isolate_movable_page' [-Werror=implicit-function-declaration]
+   ret = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
+   ^
+cc1: some warnings being treated as errors
+
+I guess the following should handle the problem
 ---
- mm/vmscan.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 947ab6f..37c4486 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2594,16 +2594,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				    sc->nr_scanned - nr_scanned,
- 				    node_lru_pages);
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ae8d475a9385..1da7a1f99fc7 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -57,6 +57,11 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		int reason)
+ 	{ return -ENOSYS; }
  
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
--
- 		/* Record the subtree's reclaim efficiency */
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
- 			   sc->nr_scanned - nr_scanned,
- 			   sc->nr_reclaimed - nr_reclaimed);
- 
-+		if (reclaim_state) {
-+			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-+			reclaim_state->reclaimed_slab = 0;
-+		}
++static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
++{
++	return -EBUSY;
++}
 +
- 		if (sc->nr_reclaimed - nr_reclaimed)
- 			reclaimable = true;
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
  
+At least it compiles fine now. I have to look at the patch yet.
 -- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
