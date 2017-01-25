@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EFCE6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:09:46 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so270163622pgd.7
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 03:09:46 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a85si23096587pfk.153.2017.01.25.03.09.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 00B306B0069
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:16:09 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id d140so36758904wmd.4
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 03:16:08 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f66si21951970wmh.81.2017.01.25.03.16.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 03:09:45 -0800 (PST)
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages per zone
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
-	<201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
-	<20170125101517.GG32377@dhcp22.suse.cz>
-	<20170125101957.GA17632@lst.de>
-	<20170125104605.GI32377@dhcp22.suse.cz>
-In-Reply-To: <20170125104605.GI32377@dhcp22.suse.cz>
-Message-Id: <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
-Date: Wed, 25 Jan 2017 20:09:31 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 25 Jan 2017 03:16:07 -0800 (PST)
+Subject: Re: [PATCH 5/6] treewide: use kv[mz]alloc* rather than opencoded
+ variants
+References: <20170112153717.28943-1-mhocko@kernel.org>
+ <20170112153717.28943-6-mhocko@kernel.org>
+ <CAGXu5jKhYP=5YNuntzmG64WL92F59VKhByOh9nqaGP7-LBEnng@mail.gmail.com>
+ <20170112173745.GC31509@dhcp22.suse.cz>
+ <7c109e9e-e28b-3ddb-42b6-902f46bf0572@suse.cz>
+ <20170124150004.GM6867@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a4b4e2f4-f730-4f1d-7f41-36ba0d34f1a6@suse.cz>
+Date: Wed, 25 Jan 2017 12:15:59 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170124150004.GM6867@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, hch@lst.de
-Cc: mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Yishai Hadas <yishaih@mellanox.com>, Dan Williams <dan.j.williams@intel.com>, Oleg Drokin <oleg.drokin@intel.com>, Andreas Dilger <andreas.dilger@intel.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Sterba <dsterba@suse.com>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Network Development <netdev@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Wed 25-01-17 11:19:57, Christoph Hellwig wrote:
-> > On Wed, Jan 25, 2017 at 11:15:17AM +0100, Michal Hocko wrote:
-> > > I think we are missing a check for fatal_signal_pending in
-> > > iomap_file_buffered_write. This means that an oom victim can consume the
-> > > full memory reserves. What do you think about the following? I haven't
-> > > tested this but it mimics generic_perform_write so I guess it should
-> > > work.
-> > 
-> > Hi Michal,
-> > 
-> > this looks reasonable to me.  But we have a few more such loops,
-> > maybe it makes sense to move the check into iomap_apply?
-> 
-> I wasn't sure about the expected semantic of iomap_apply but now that
-> I've actually checked all the callers I believe all of them should be
-> able to handle EINTR just fine. Well iomap_file_dirty, iomap_zero_range,
-> iomap_fiemap and iomap_page_mkwriteseem do not follow the standard
-> pattern to return the number of written pages or an error but it rather
-> propagates the error out. From my limited understanding of those code
-> paths that should just be ok. I was not all that sure about iomap_dio_rw
-> that is just too convoluted for me. If that one is OK as well then
-> the following patch should be indeed better.
+On 01/24/2017 04:00 PM, Michal Hocko wrote:
+>> > Well, I am not opposed to kvmalloc_array but I would argue that this
+>> > conversion cannot introduce new overflow issues. The code would have
+>> > to be broken already because even though kmalloc_array checks for the
+>> > overflow but vmalloc fallback doesn't...
+>>
+>> Yeah I agree, but if some of the places were really wrong, after the
+>> conversion we won't see them anymore.
+>>
+>> > If there is a general interest for this API I can add it.
+>>
+>> I think it would be better, yes.
+>
+> OK, fair enough. I will fold the following into the original patch. I
+> was little bit reluctant to create kvcalloc so I've made the original
+> callers more talkative and added | __GFP_ZERO.
 
-Is "length" in
+Fair enough,
 
-   written = actor(inode, pos, length, data, &iomap);
+> To be honest I do not
+> really like how kcalloc...
 
-call guaranteed to be small enough? If not guaranteed,
-don't we need to check SIGKILL inside "actor" functions?
+how kcalloc what?
+
+[...]
+> diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+> index cdc55d5ee4ad..eca16612b1ae 100644
+> --- a/net/netfilter/x_tables.c
+> +++ b/net/netfilter/x_tables.c
+> @@ -712,10 +712,7 @@ EXPORT_SYMBOL(xt_check_entry_offsets);
+>   */
+>  unsigned int *xt_alloc_entry_offsets(unsigned int size)
+>  {
+> -	if (size < (SIZE_MAX / sizeof(unsigned int)))
+> -		return kvzalloc(size * sizeof(unsigned int), GFP_KERNEL);
+> -
+> -	return NULL;
+> +	return kvmalloc_array(size * sizeof(unsigned int), GFP_KERNEL | __GFP_ZERO);
+
+This one wouldn't compile.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
