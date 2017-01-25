@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DEDFF6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:10:59 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id d140so37994213wmd.4
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 05:10:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d62si22350070wmf.8.2017.01.25.05.10.58
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 590376B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:13:49 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 14so272551091pgg.4
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 05:13:49 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h5si1535154plk.30.2017.01.25.05.13.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 05:10:58 -0800 (PST)
-Date: Wed, 25 Jan 2017 14:10:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-Message-ID: <20170125131054.GR32377@dhcp22.suse.cz>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170124151752.GO6867@dhcp22.suse.cz>
- <1485273626.16328.301.camel@edumazet-glaptop3.roam.corp.google.com>
-MIME-Version: 1.0
+        Wed, 25 Jan 2017 05:13:48 -0800 (PST)
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages per zone
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
+	<201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
+	<20170125101517.GG32377@dhcp22.suse.cz>
+	<201701251933.GBH43798.OMQFFtOJHVFOSL@I-love.SAKURA.ne.jp>
+	<20170125123446.GN32377@dhcp22.suse.cz>
+In-Reply-To: <20170125123446.GN32377@dhcp22.suse.cz>
+Message-Id: <201701252213.GBC87546.FQFVtMLJSFHOOO@I-love.SAKURA.ne.jp>
+Date: Wed, 25 Jan 2017 22:13:34 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1485273626.16328.301.camel@edumazet-glaptop3.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Alexei Starovoitov <ast@kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Andreas Dilger <adilger@dilger.ca>, Andreas Dilger <andreas.dilger@intel.com>, Anton Vorontsov <anton@enomsg.org>, Ben Skeggs <bskeggs@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Colin Cross <ccross@android.com>, Dan Williams <dan.j.williams@intel.com>, David Sterba <dsterba@suse.com>, Eric Dumazet <edumazet@google.com>, Hariprasad S <hariprasad@chelsio.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Ilya Dryomov <idryomov@gmail.com>, Kees Cook <keescook@chromium.org>, Kent Overstreet <kent.overstreet@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Oleg Drokin <oleg.drokin@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Santosh Raspatur <santosh@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Theodore Ts'o <tytso@mit.edu>, Tom Herbert <tom@herbertland.com>, Tony Luck <tony.luck@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Yishai Hadas <yishaih@mellanox.com>
+To: mhocko@kernel.org
+Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-On Tue 24-01-17 08:00:26, Eric Dumazet wrote:
-> On Tue, 2017-01-24 at 16:17 +0100, Michal Hocko wrote:
-> > On Thu 12-01-17 16:37:11, Michal Hocko wrote:
+Michal Hocko wrote:
+> On Wed 25-01-17 19:33:59, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > I think we are missing a check for fatal_signal_pending in
+> > > iomap_file_buffered_write. This means that an oom victim can consume the
+> > > full memory reserves. What do you think about the following? I haven't
+> > > tested this but it mimics generic_perform_write so I guess it should
+> > > work.
+> > 
+> > Looks OK to me. I worried
+> > 
+> > #define AOP_FLAG_UNINTERRUPTIBLE        0x0001 /* will not do a short write */
+> > 
+> > which forbids (!?) aborting the loop. But it seems that this flag is
+> > no longer checked (i.e. set but not used). So, everybody should be ready
+> > for short write, although I don't know whether exofs / hfs / hfsplus are
+> > doing appropriate error handling.
 > 
-> > Are there any more comments? I would really appreciate to hear from
-> > networking folks before I resubmit the series.
-> 
-> I do not see any issues right now.
-> 
-> I am happy to see this thing finally coming, after years of
-> resistance ;)
+> Those were using generic implementation before and that handles this
+> case AFAICS.
 
-OK, so I will repost the series and ask Andrew for inclusion
-after it passes my compile test battery after the rebase.
- 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+What I wanted to say is: "We can remove AOP_FLAG_UNINTERRUPTIBLE completely
+because grep does not find that flag used in condition check, can't we?".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
