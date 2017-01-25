@@ -1,80 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 41F876B0253
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:56:35 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y143so277540676pfb.6
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:56:35 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k186si23938849pgd.113.2017.01.25.08.56.34
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E06B6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 12:04:50 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 75so279260802pgf.3
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:04:50 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id a62si23965127pge.65.2017.01.25.09.04.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 08:56:34 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0PGrhmU072275
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:56:33 -0500
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 286tr66e11-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:56:33 -0500
-Received: from localhost
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 26 Jan 2017 02:56:30 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id F2F163578056
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:56:27 +1100 (EST)
-Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0PGuJXV35651676
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:56:27 +1100
-Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
-	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0PGttmE014284
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:55:55 +1100
-Date: Wed, 25 Jan 2017 08:55:22 -0800
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 01/12] uprobes: split THPs before trying replace them
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
- <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
- <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
- <20170124222217.GB19920@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20170124222217.GB19920@node.shutemov.name>
-Message-Id: <20170125165522.GA11569@linux.vnet.ibm.com>
+        Wed, 25 Jan 2017 09:04:49 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 3so2428004pgj.1
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:04:49 -0800 (PST)
+Message-ID: <1485363887.5145.27.camel@edumazet-glaptop3.roam.corp.google.com>
+Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
+ SLAB_TYPESAFE_BY_RCU
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Wed, 25 Jan 2017 09:04:47 -0800
+In-Reply-To: <alpine.DEB.2.20.1701251045040.983@east.gentwo.org>
+References: <20170118110731.GA15949@linux.vnet.ibm.com>
+	 <20170118111201.GB29472@bombadil.infradead.org>
+	 <20170118221737.GP5238@linux.vnet.ibm.com>
+	 <alpine.DEB.2.20.1701181758030.27439@east.gentwo.org>
+	 <20170123004657.GT5238@linux.vnet.ibm.com>
+	 <alpine.DEB.2.20.1701251045040.983@east.gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, willy@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-> > 
-> > > For THPs page_check_address() always fails. It's better to split them
-> > > first before trying to replace.
-> > 
-> > So what does this mean.  uprobes simply fails to work when trying to
-> > place a probe into a THP memory region?
+On Wed, 2017-01-25 at 10:45 -0600, Christoph Lameter wrote:
+> On Sun, 22 Jan 2017, Paul E. McKenney wrote:
 > 
-> Looks like we can end up with endless retry loop in uprobe_write_opcode().
+> > On Wed, Jan 18, 2017 at 06:00:24PM -0600, Christoph Lameter wrote:
+> > > On Wed, 18 Jan 2017, Paul E. McKenney wrote:
+> > >
+> > > > Actually, slab is using RCU to provide type safety to those slab users
+> > > > who request it.
+> > >
+> > > Typesafety is a side effect. The main idea here is that the object can
+> > > still be accessed in RCU sections after another processor frees the
+> > > object. We guarantee that the object is not freed but it may be reused
+> > > for another object within the RCU period.
+> > >
+> > > Can we have a name that expresses all of that properly?
+> >
+> > But of course!!!  "Type safety".  http://wiki.c2.com/?TypeSafe
 > 
-> > How come nobody noticed (and reported) this when using the feature?
+> Well that does not convey the idea that RCU is involved here.
 > 
-> I guess it's not often used for anon memory.
-> 
+> SLAB_DESTROY_RCU_TYPESAFE
 
-The first time the breakpoint is hit on a page, it replaces the text
-page with anon page.  Now lets assume we insert breakpoints in all the
-pages in a range. Here each page is individually replaced by a non THP
-anonpage. (since we dont have bulk breakpoint insertion support,
-breakpoint insertion happens one at a time). Now the only interesting
-case may be when each of these replaced pages happen to be physically
-contiguous so that THP kicks in to replace all of these pages with one
-THP page. Can happen in practice?
+Not clear why we need to change this very fine name ?
 
-Are there any other cases that I have missed?
+SLAB_DESTROY_BY_RCU was only used by few of us, we know damn well what
+it means.
 
--- 
-Thanks and Regards
-Srikar Dronamraju
+Consider we wont be able to change it in various web pages / archives /
+changelogs.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
