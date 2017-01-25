@@ -1,107 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7FC6B0253
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 12:15:29 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id e4so150200430pfg.4
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:15:29 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id v75si19136254pfj.50.2017.01.25.09.15.28
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D31A36B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 12:44:32 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id l7so188113715qtd.2
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:44:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l198si10256506qke.24.2017.01.25.09.44.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 09:15:28 -0800 (PST)
-Date: Wed, 25 Jan 2017 09:15:19 -0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH] mm: write protect MADV_FREE pages
-Message-ID: <20170125171429.5vbqizijrhav522d@kernel.org>
-References: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
- <20170124023212.GA24523@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170124023212.GA24523@bbox>
+        Wed, 25 Jan 2017 09:44:32 -0800 (PST)
+Message-ID: <1485366269.29861.0.camel@redhat.com>
+Subject: Re: [PATCH 01/12] uprobes: split THPs before trying replace them
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 25 Jan 2017 12:44:29 -0500
+In-Reply-To: <20170125165522.GA11569@linux.vnet.ibm.com>
+References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
+	 <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
+	 <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
+	 <20170124222217.GB19920@node.shutemov.name>
+	 <20170125165522.GA11569@linux.vnet.ibm.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-nf7sxNz0ss/8KVmzHIUD"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue, Jan 24, 2017 at 11:32:12AM +0900, Minchan Kim wrote:
-> Hi Shaohua,
-> 
-> On Mon, Jan 23, 2017 at 03:15:52PM -0800, Shaohua Li wrote:
-> > The page reclaim has an assumption writting to a page with clean pte
-> > should trigger a page fault, because there is a window between pte zero
-> > and tlb flush where a new write could come. If the new write doesn't
-> > trigger page fault, page reclaim will not notice it and think the page
-> > is clean and reclaim it. The MADV_FREE pages don't comply with the rule
-> > and the pte is just cleaned without writeprotect, so there will be no
-> > pagefault for new write. This will cause data corruption.
-> 
-> It's hard to understand.
-> Could you show me exact scenario seqence you have in mind?
-Sorry for the delay, for some reason, I didn't receive the mail.
-in try_to_unmap_one:
-CPU 1:						CPU2:
-1. pteval = ptep_get_and_clear(mm, address, pte);
-2.						write to the address
-3. tlb flush
 
-step 1 will get a clean pteval, step2 dirty it, but the unmap missed the dirty
-bit so discard the page without pageout. step2 doesn't trigger a page fault,
-because the tlb cache still has the pte entry. The defer flush makes the window
-bigger actually. There are comments about this in try_to_unmap_one too.
+--=-nf7sxNz0ss/8KVmzHIUD
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks,
-Shaohua
+On Wed, 2017-01-25 at 08:55 -0800, Srikar Dronamraju wrote:
+> >=20
+> > >=20
+> > >=20
+> > > >=20
+> > > > For THPs page_check_address() always fails. It's better to
+> > > > split them
+> > > > first before trying to replace.
+> > > So what does this mean.=C2=A0=C2=A0uprobes simply fails to work when =
+trying
+> > > to
+> > > place a probe into a THP memory region?
+> > Looks like we can end up with endless retry loop in
+> > uprobe_write_opcode().
+> >=20
+> > >=20
+> > > How come nobody noticed (and reported) this when using the
+> > > feature?
+> > I guess it's not often used for anon memory.
+> >=20
+> The first time the breakpoint is hit on a page, it replaces the text
+> page with anon page.=C2=A0=C2=A0Now lets assume we insert breakpoints in =
+all
+> the
+> pages in a range. Here each page is individually replaced by a non
+> THP
+> anonpage. (since we dont have bulk breakpoint insertion support,
+> breakpoint insertion happens one at a time). Now the only interesting
+> case may be when each of these replaced pages happen to be physically
+> contiguous so that THP kicks in to replace all of these pages with
+> one
+> THP page. Can happen in practice?
+>=20
+> Are there any other cases that I have missed?
 
-> > Cc: Minchan Kim <minchan@kernel.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Rik van Riel <riel@surriel.com>
-> > Cc: stable@kernel.org
-> > Signed-off-by: Shaohua Li <shli@fb.com>
-> > ---
-> >  mm/huge_memory.c | 1 +
-> >  mm/madvise.c     | 1 +
-> >  2 files changed, 2 insertions(+)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 9a6bd6c..9cc5de5 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1381,6 +1381,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  			tlb->fullmm);
-> >  		orig_pmd = pmd_mkold(orig_pmd);
-> >  		orig_pmd = pmd_mkclean(orig_pmd);
-> > +		orig_pmd = pmd_wrprotect(orig_pmd);
-> >  
-> >  		set_pmd_at(mm, addr, pmd, orig_pmd);
-> >  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 0e3828e..bfb6800 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -373,6 +373,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
-> >  
-> >  			ptent = pte_mkold(ptent);
-> >  			ptent = pte_mkclean(ptent);
-> > +			ptent = pte_wrprotect(ptent);
-> >  			set_pte_at(mm, addr, pte, ptent);
-> >  			if (PageActive(page))
-> >  				deactivate_page(page);
-> > -- 
-> > 2.9.3
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+A JIT compiler placing executable code in anonymous
+memory before executing it, and a debugger trying to
+insert a uprobe in one of those areas?
+
+Not common, but I suppose it could be done.
+
+--=20
+All rights reversed
+
+--=-nf7sxNz0ss/8KVmzHIUD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJYiOP9AAoJEM553pKExN6Dh9IH/j1lFxNybTM4bDL0C5IxF5LU
+9R11ofS0yoPTP/JHeTXcUuU/Z2mQrHp0yKnaB7IIhIZZrU5zTpyn3bmazpGrS+yT
+q0h+x0wk7qIS+zT0TH0xyepHcLghCY6PAvsJuQbf1R2ojgnnYCCvYgw1IptAEgyR
+3R1VONEZMHL1gm82xkCvMwEOOkA1k4t9AJIDgP7USiDDugnB31cZTgbYpsb6rDiT
+MTDs003hMteBFDDuYwmgGm6sou45DRv6ARN8+Fepw3fQi8V9iZQlb992sN9DQIDT
+T7CeImAL8fb5YKl9E8U9b7y1vW9B58FdgLka2zKwkrKv0d7srbHTqvsg42F9asQ=
+=wovX
+-----END PGP SIGNATURE-----
+
+--=-nf7sxNz0ss/8KVmzHIUD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
