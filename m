@@ -1,140 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BCB2D6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 22:36:45 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 101so5116882iom.7
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 19:36:45 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id b194si18587955iob.139.2017.01.24.19.36.43
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DF6716B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 23:02:13 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d123so8166811pfd.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:02:13 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id x40si169714plb.112.2017.01.24.20.02.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 19:36:44 -0800 (PST)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [RFC PATCH] mm/hotplug: enable memory hotplug for non-lru movable pages
-Date: Wed, 25 Jan 2017 11:25:14 +0800
-Message-ID: <1485314714-38251-1-git-send-email-xieyisheng1@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Tue, 24 Jan 2017 20:02:12 -0800 (PST)
+Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OKB00HPFHVM2U40@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 25 Jan 2017 13:02:10 +0900 (KST)
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+From: Chulmin Kim <cmlaika.kim@samsung.com>
+Message-id: <2059ec0c-d817-9660-9a16-59fe46f3e3a7@samsung.com>
+Date: Tue, 24 Jan 2017 23:02:30 -0500
+MIME-version: 1.0
+In-reply-to: 
+ <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com>
+Content-type: text/plain; charset=utf-8; format=flowed
+Content-transfer-encoding: 7bit
+References: <bug-192571-27@https.bugzilla.kernel.org/>
+ <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+ <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+ <20170118013948.GA580@jagdpanzerIV.localdomain>
+ <1484719121.25232.1.camel@list.ru>
+ <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
+ <1485216185.5952.2.camel@list.ru>
+ <CGME20170124201830epcas5p4aefd0bcb970be36f405d23c24e8cedbd@epcas5p4.samsung.com>
+ <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, n-horiguchi@ah.jp.nec.com, minchan@kernel.org, liwanp@linux.vnet.ibm.com, qiuxishi@huawei.com, guohanjun@huawei.com
+To: Dan Streetman <ddstreet@ieee.org>, Alexandr <sss123next@list.ru>
+Cc: bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-We had considered all of the non-lru pages as unmovable before
-commit bda807d44454 ("mm: migrate: support non-lru movable page
-migration"). But now some of non-lru pages like zsmalloc,
-virtio-balloon pages also become movable. So we can offline such
-blocks by using non-lru page migration.
+On 01/24/2017 03:16 PM, Dan Streetman wrote:
+> On Mon, Jan 23, 2017 at 7:03 PM, Alexandr <sss123next@list.ru> wrote:
+>> -----BEGIN PGP SIGNED MESSAGE-----
+>> Hash: SHA512
+>>
+>>
+>>> Why would you do this?  There's no benefit of using zswap together
+>>> with zram.
+>>
+>> i just wanted to test zram and zswap, i still not dig to deep in it,
+>> but what i wanted is to use zram swap (with zswap disabled), and if it
+>> exceeded use real swap on block device with zswap enabled.
+>
+> I don't believe that's possible, you can't enable zswap for only
+> specific swap devices; and anyway, if you fill up zram, you won't
+> really have any memory left for zswap to use will you?
+>
+> However, it shouldn't encounter any BUG(), like you saw.  If it's
+> reproducable for you, can you give details on how to reproduce it?
+>
 
-This patch straightforwardly add non-lru migration code, which
-means adding non-lru related code to the functions which scan
-over pfn and collect pages to be migrated and isolate them before
-migration.
+Hello. Mr. Streetman.
 
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
----
- mm/memory_hotplug.c | 32 +++++++++++++++++++++-----------
- mm/page_alloc.c     |  8 ++++++--
- 2 files changed, 27 insertions(+), 13 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e43142c1..fbdbffc 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1510,15 +1510,16 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- /*
-- * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
-- * and hugepages). We scan pfn because it's much easier than scanning over
-- * linked list. This function returns the pfn of the first found movable
-- * page if it's found, otherwise 0.
-+ * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
-+ * non-lru movable pages and hugepages). We scan pfn because it's much
-+ * easier than scanning over linked list. This function returns the pfn
-+ * of the first found movable page if it's found, otherwise 0.
-  */
- static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- {
- 	unsigned long pfn;
- 	struct page *page;
-+	bool movable;
- 	for (pfn = start; pfn < end; pfn++) {
- 		if (pfn_valid(pfn)) {
- 			page = pfn_to_page(pfn);
-@@ -1531,6 +1532,11 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- 					pfn = round_up(pfn + 1,
- 						1 << compound_order(page)) - 1;
- 			}
-+			lock_page(page);
-+			movable = __PageMovable(page);
-+			unlock_page(page);
-+			if (movable)
-+				return pfn;
- 		}
- 	}
- 	return 0;
-@@ -1600,21 +1606,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		if (!get_page_unless_zero(page))
- 			continue;
- 		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
-+		 * We can skip free pages. And we can deal with pages on
-+		 * LRU and non-lru movable pages.
- 		 */
--		ret = isolate_lru_page(page);
-+		if (PageLRU(page))
-+			ret = isolate_lru_page(page);
-+		else
-+			ret = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
- 		if (!ret) { /* Success */
- 			put_page(page);
- 			list_add_tail(&page->lru, &source);
- 			move_pages--;
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+			if (!__PageMovable(page))
-+				inc_node_page_state(page, NR_ISOLATED_ANON +
-+						    page_is_file_cache(page));
- 
- 		} else {
- #ifdef CONFIG_DEBUG_VM
--			pr_alert("removing pfn %lx from LRU failed\n", pfn);
--			dump_page(page, "failed to remove from LRU");
-+			pr_alert("failed to isolate pfn %lx\n", pfn);
-+			dump_page(page, "isolation failed");
- #endif
- 			put_page(page);
- 			/* Because we don't have big zone->lock. we should
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d604d25..52d3067 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7055,8 +7055,9 @@ void *__init alloc_large_system_hash(const char *tablename,
-  * If @count is not zero, it is okay to include less @count unmovable pages
-  *
-  * PageLRU check without isolation or lru_lock could race so that
-- * MIGRATE_MOVABLE block might include unmovable pages. It means you can't
-- * expect this function should be exact.
-+ * MIGRATE_MOVABLE block might include unmovable pages. And __PageMovable
-+ * check without lock_page also may miss some movable non-lru pages at
-+ * race condition. So you can't expect this function should be exact.
-  */
- bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 			 bool skip_hwpoisoned_pages)
-@@ -7112,6 +7113,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		if (skip_hwpoisoned_pages && PageHWPoison(page))
- 			continue;
- 
-+		if (__PageMovable(page))
-+			continue;
-+
- 		if (!PageLRU(page))
- 			found++;
- 		/*
--- 
-1.7.12.4
+Regarding to this problem, I have a question on zswap.
+
+Is there any reason that
+zswap_frontswap_load() does not call flush_dcache_page()?
+
+The zswap load function can dirty the page mapped to user space (might 
+be shareable/writable) which seems exactly the condition mentioned in 
+the definition of flush_dcache_page().
+
+I'm thinking that
+flush_dcache_page() should be called in the end of zswap_frontswap_load().
+Could you review my opinion?
+
+Thanks!
+Chulmin Kim
+
+
+
+
+
+
+
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
