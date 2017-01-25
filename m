@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 357486B0260
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:32:33 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id kq3so35551895wjc.1
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:32:33 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 171916B0260
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 16:44:29 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id yr2so35560122wjc.4
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:44:29 -0800 (PST)
 Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id 33si6494436wrm.266.2017.01.25.13.32.31
+        by mx.google.com with ESMTPS id x89si28420657wrb.281.2017.01.25.13.44.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 13:32:32 -0800 (PST)
-Message-ID: <1485379919.2998.159.camel@decadent.org.uk>
-Subject: Re: [PATCH 2/2] fs: Harden against open(..., O_CREAT, 02777) in a
- setgid directory
+        Wed, 25 Jan 2017 13:44:27 -0800 (PST)
+Message-ID: <1485380634.2998.161.camel@decadent.org.uk>
+Subject: Re: [PATCH 1/2] fs: Check f_cred instead of current's creds in
+ should_remove_suid()
 From: Ben Hutchings <ben@decadent.org.uk>
-Date: Wed, 25 Jan 2017 21:31:59 +0000
-In-Reply-To: <826ec4aab64ec304944098d15209f8c1ae65bb29.1485377903.git.luto@kernel.org>
+Date: Wed, 25 Jan 2017 21:43:54 +0000
+In-Reply-To: <9318903980969a0e378dab2de4d803397adcd3cc.1485377903.git.luto@kernel.org>
 References: <cover.1485377903.git.luto@kernel.org>
-	 <826ec4aab64ec304944098d15209f8c1ae65bb29.1485377903.git.luto@kernel.org>
+	 <9318903980969a0e378dab2de4d803397adcd3cc.1485377903.git.luto@kernel.org>
 Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-JwyhHvofVkiTz0Fz3eNL"
+	protocol="application/pgp-signature"; boundary="=-LW6dLfAszf3Gp4wHrYyw"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>, security@kernel.org
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, yalin wang <yalin.wang2010@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, yalin wang <yalin.wang2010@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, stable@vger.kernel.org
 
 
---=-JwyhHvofVkiTz0Fz3eNL
+--=-LW6dLfAszf3Gp4wHrYyw
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
 On Wed, 2017-01-25 at 13:06 -0800, Andy Lutomirski wrote:
-> Currently, if you open("foo", O_WRONLY | O_CREAT | ..., 02777) in a
-> directory that is setgid and owned by a different gid than current's
-> fsgid, you end up with an SGID executable that is owned by the
-> directory's GID.=C2=A0=C2=A0This is a Bad Thing (tm).=C2=A0=C2=A0Exploiti=
-ng this is
-> nontrivial because most ways of creating a new file create an empty
-> file and empty executables aren't particularly interesting, but this
-> is nevertheless quite dangerous.
->=20
-> Harden against this type of attack by detecting this particular
-> corner case (unprivileged program creates SGID executable inode in
-> SGID directory owned by a different GID) and clearing the new
-> inode's SGID bit.
->=20
-> > Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
-> =C2=A0fs/inode.c | 21 +++++++++++++++++++--
-> =C2=A01 file changed, 19 insertions(+), 2 deletions(-)
->=20
-> diff --git a/fs/inode.c b/fs/inode.c
-> index f7029c40cfbd..d7e4b80470dd 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -2007,11 +2007,28 @@ void inode_init_owner(struct inode *inode, const =
-struct inode *dir,
-> =C2=A0{
-> =C2=A0	inode->i_uid =3D current_fsuid();
-> =C2=A0	if (dir && dir->i_mode & S_ISGID) {
-> +		bool changing_gid =3D !gid_eq(inode->i_gid, dir->i_gid);
+> If an unprivileged program opens a setgid file for write and passes
+> the fd to a privileged program and the privileged program writes to
+> it, we currently fail to clear the setgid bit.=C2=A0=C2=A0Fix it by check=
+ing
+> f_cred instead of current's creds whenever a struct file is
+> involved.
 [...]
 
-inode->i_gid hasn't been initialised yet.  This should compare with
-current_fsgid(), shouldn't it?
+What if, instead, a privileged program passes the fd to an un
+unprivileged program?  It sounds like a bad idea to start with, but at
+least currently the unprivileged program is going to clear the setgid
+bit when it writes.  This change would make that behaviour more
+dangerous.
+
+Perhaps there should be a capability check on both the current
+credentials and file credentials?  (I realise that we've considered
+file credential checks to be sufficient elsewhere, but those cases
+involved virtual files with special semantics, where it's clearer that
+a privileged process should not pass them to an unprivileged process.)
 
 Ben.
 
@@ -73,28 +59,28 @@ It is easier to write an incorrect program than to understand a correct
 one.
 
 
---=-JwyhHvofVkiTz0Fz3eNL
+--=-LW6dLfAszf3Gp4wHrYyw
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
 
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAABCgAdFiEErCspvTSmr92z9o8157/I7JWGEQkFAliJGU8ACgkQ57/I7JWG
-EQmC4RAApNScdegP2BE86vVROI7ZNOJKaxf0SFqYSiXmQFuJZR7X5bxCqswyQwUh
-soNh7TNp0z2bXhxQJaqJqBsBbnVXF3nEgLSoKiw8nEK0TGVjclB3uU9oS9Os5ehb
-i4WmvnEi4Y4BWFi7vbhAikEOf9dexr7ypN9cmaX2mGfr1aIbdAza3kq3sFF5vXqK
-50o3wnNPH9mTw/rRte3sxoCr60TtbQ4KFutxvcA7v7G40lnoVyt3u0NIh9jQ1FHx
-C8LB8e9zIsXu5D8IV+FIxPlckavqxxfCgYZqW+cJnDChRXvawM0fUGh2jEIIBVnn
-YCdR3Pg+8bxH+6mTgcPy/jGf7MNNXuTFwEMLgIctxEnZIeeOHneRwBUb5UiByjn7
-b6NchWMh8ZAiCz/FB9xV1kEU1UwyodOqPQ8c+JSrQEusHv0VrUNjTlVZWG92KO6d
-ZFlrzp0D8u/Sp+qk4RTtD3M0HHNWmCzi3HZ+4ugaTKkN8FDw6hkYfFLQQdFvFI19
-V1BJfoRUrCoq1AuInT4Gl2SiL7wJfU9sagvdXf6UAPQZ0FlyL0lm9cZ0TQoiCo/D
-biOdR88rxksZXZprFY/Zs5D2+Ma7A5fc+vafzt9U6zOodg6polUaWRJYHTFykn0i
-ElgdgSCHMhAUOZXC7lhnzcfmYnvy8oGxelNSWGCYuW93Jgmz/DI=
-=4zSj
+iQIzBAABCgAdFiEErCspvTSmr92z9o8157/I7JWGEQkFAliJHBsACgkQ57/I7JWG
+EQn0NA/+OGkyAVJSb832BMVRKcL5nFM63tP0zcTG4i9lG8XrWcX5M9kpI3TrOKTI
+qjY+WHim3Px0EmveiomsjvJ3N2ND5sXBvUQr3uNHqPA+onWuhq0KfD12MzJowg1P
+zNJJ7kaXqAxRXMXcO58GmS7yBZXOjhUJLneWjIk3kSJzS125z4VuKXPk3d9j06Ah
+YKw1ESow2fC7qIlHGRe8PrddPQSmbxyXG6jrAjqKqOyQZ5loIzNVQbCQcJNCPy3F
+H1ETJdy1rzFswNZ7rASGyZ3y1QtVHPOWUMD4a2mkAGNZy3VC9GWpknV4xh5r+/jA
+uMahE3HuOSjzXQNI75NKn7gd6fdObY+U2tn09Tyrrz+qHWGs77F1fP+zYU9nslX2
+ZH1ZumruCUPEkmqO7YQSTrpCWWuqumM5J3VZwrKGofJxOluJB2mb4dDxJzz3Ipd9
+rxMNx2cwdVAYLub5TYJbkZJONhYJAvZHyauTDh5FuPB/MWQJSblHDxq9Vu+9jxge
+73nkBq3sIOUY6sj8BYt9cwzPvL+OgfwGIIUP/nwL+dAfYvMQbmP0c0le59tFpJ2v
+r67GS/6M8QFusHTbUdGrXMciwB+IGq/xJ/YS6GqwkVamEHsLX1OP7cjdsqkEc6k4
+dq3ND4rDGRtcT18hH46gMKYFp8A/5ol2MbRRHUWOsZIPVrylzWk=
+=q2V+
 -----END PGP SIGNATURE-----
 
---=-JwyhHvofVkiTz0Fz3eNL--
+--=-LW6dLfAszf3Gp4wHrYyw--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
