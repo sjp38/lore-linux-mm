@@ -1,98 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AE866B0033
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 18:15:34 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r126so41208253wmr.2
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 15:15:34 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id g11si24201688wmi.59.2017.01.25.15.15.33
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B26F6B0253
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 18:16:16 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id n21so270248752yba.7
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 15:16:16 -0800 (PST)
+Received: from elasmtp-banded.atl.sa.earthlink.net (elasmtp-banded.atl.sa.earthlink.net. [209.86.89.70])
+        by mx.google.com with ESMTPS id n128si1134078ybn.105.2017.01.25.15.16.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 15:15:33 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id d140so46288093wmd.2
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 15:15:33 -0800 (PST)
-Date: Thu, 26 Jan 2017 01:15:29 +0200
-From: Ahmed Samy <f.fallen45@gmail.com>
-Subject: Re: ioremap_page_range: remapping of physical RAM ranges
-Message-ID: <20170125231529.GA14993@devmasch>
-References: <CADY3hbEy+oReL=DePFz5ZNsnvWpm55Q8=mRTxCGivSL64gAMMA@mail.gmail.com>
- <072b4406-16ef-cdf6-e968-711a60ca9a3f@nvidia.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 15:16:15 -0800 (PST)
+From: "Frank Filz" <ffilzlnx@mindspring.com>
+References: <cover.1485377903.git.luto@kernel.org> <9318903980969a0e378dab2de4d803397adcd3cc.1485377903.git.luto@kernel.org> <1485380634.2998.161.camel@decadent.org.uk> <CALCETrUyWGF7WWVxv5e1tznkdV07YCrOcUeoJE8wUn-qCZMAKw@mail.gmail.com>
+In-Reply-To: <CALCETrUyWGF7WWVxv5e1tznkdV07YCrOcUeoJE8wUn-qCZMAKw@mail.gmail.com>
+Subject: RE: [PATCH 1/2] fs: Check f_cred instead of current's creds in should_remove_suid()
+Date: Wed, 25 Jan 2017 15:15:16 -0800
+Message-ID: <014301d27760$e4d8b9a0$ae8a2ce0$@mindspring.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <072b4406-16ef-cdf6-e968-711a60ca9a3f@nvidia.com>
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: linux-mm@kvack.org, zhongjiang@huawei.com
+To: 'Andy Lutomirski' <luto@amacapital.net>, 'Ben Hutchings' <ben@decadent.org.uk>
+Cc: 'Andy Lutomirski' <luto@kernel.org>, security@kernel.org, 'Konstantin Khlebnikov' <koct9i@gmail.com>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, 'Kees Cook' <keescook@chromium.org>, 'Willy Tarreau' <w@1wt.eu>, linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'yalin wang' <yalin.wang2010@gmail.com>, 'Linux Kernel Mailing List' <linux-kernel@vger.kernel.org>, 'Jan Kara' <jack@suse.cz>, 'Linux FS Devel' <linux-fsdevel@vger.kernel.org>, 'stable' <stable@vger.kernel.org>
 
-On Wed, Jan 25, 2017 at 02:27:27PM -0800, John Hubbard wrote:
+> On Wed, Jan 25, 2017 at 1:43 PM, Ben Hutchings <ben@decadent.org.uk>
+> wrote:
+> > On Wed, 2017-01-25 at 13:06 -0800, Andy Lutomirski wrote:
+> >> If an unprivileged program opens a setgid file for write and passes
+> >> the fd to a privileged program and the privileged program writes to
+> >> it, we currently fail to clear the setgid bit.  Fix it by checking
+> >> f_cred instead of current's creds whenever a struct file is involved.
+> > [...]
+> >
+> > What if, instead, a privileged program passes the fd to an un
+> > unprivileged program?  It sounds like a bad idea to start with, but at
+> > least currently the unprivileged program is going to clear the setgid
+> > bit when it writes.  This change would make that behaviour more
+> > dangerous.
 > 
-> Hi A. Samy,
+> Hmm.  Although, if a privileged program does something like:
 > 
-> I'm sorry this caught you by surprise, let's try get your use case covered.
+> (sudo -u nobody echo blah) >setuid_program
 > 
-> My thinking on this was: the exported ioremap* family of functions was
-> clearly intended to provide just what the name says: mapping of IO (non-RAM)
-> memory. If normal RAM is to be re-mapped, then it should not be done
-> "casually" in a driver, as a (possibly unintended) side effect of a function
-> that implies otherwise. Either it should be done within the core mm code, or
-> perhaps a new, better-named wrapper could be provided, for cases such as
-> yours.
-Hi John,
+> presumably it wanted to make the change.
 
-I agree.  I assume whoever exported it was also doing it for the same
-purpose as mine[?]
+I'm not following all the intricacies here, though I need to...
+
+What about a privileged program that drops privilege for certain operations=
+?
+
+Specifically the Ganesha user space NFS server runs as root, but sets fsuid=
+/fsgid for specific threads performing I/O operations on behalf of NFS clie=
+nts.
+
+I want to make sure setgid bit handling is proper for these cases.
+
+Ganesha does some permission checking, but this is one area I want to defer=
+ to the underlying  filesystem because it's not easy for Ganesha to get it =
+right.
+
+> > Perhaps there should be a capability check on both the current
+> > credentials and file credentials?  (I realise that we've considered
+> > file credential checks to be sufficient elsewhere, but those cases
+> > involved virtual files with special semantics, where it's clearer that
+> > a privileged process should not pass them to an unprivileged process.)
+> >
 > 
-> After a very quick peek at your github code, it seems that your mm_remap()
-> routine already has some code in common with __ioremap_caller(), so I'm
-> thinking that we could basically promote your mm_remap to the in-tree kernel
-> and EXPORT it, and maybe factor out the common parts (or not--it's small,
-> after all). Thoughts? If you like it, I'll put something together here.
-That'd be a good solution, it's actually sometimes useful to remap physical
-ram in general, specifically for memory imaging tools, etc.
-
-How about also exporting walk_system_ram_range()?  It seems to be defined
-conditionally, so I am not sure if that would be a good idea.
-	[ See also mm_cache_ram_ranges() in mm.c in github a?? it's also a hacky
-	  way to get RAM ranges.  ]
-
-How about something like:
-
-	/* vm_flags incase locking is required, in my case, I need it for VMX
-	 * root where there is no interrupts.  */
-	void *remap_ram_range(unsigned long phys, unsigned long size,
-			      unsigned long vm_flags)
-	{
-		struct vm_struct *area;
-		unsigned long psize;
-		unsigned long vaddr;
-
-		psize = (size >> PAGE_SHIFT) + (size & (PAGE_SIZE - 1)) != 0;
-		area = get_vm_area_caller(size, VM_IOREMAP | vm_flags, 
-					  __builtin_return_address(0));
-		if (!area)
-			return NULL;
-
-		area->phys_addr = phys & ~(PAGE_SIZE - 1);
-		vaddr = (unsigned long)area->addr;
-		if (remap_page_range(vaddr, vaddr + size, phys, size))
-			goto err_remap;
-
-		return (void *)vaddr + phys & (PAGE_SIZE - 1);
-err_remap:
-		free_vm_area(area);
-		return NULL;
-	}
-
-Of course you can add protection, etc.
+> I could go either way.
 > 
-> thanks
-> john h
-> 
-Thanks,
-	asamy
+> What I really want to do is to write a third patch that isn't for -stable=
+ that just
+> removes the capable() check entirely.  I'm reasonably confident it won't
+> break things for a silly reason: because it's capable() and not ns_capabl=
+e(),
+> anything it would break would also be broken in an unprivileged container=
+,
+> and I haven't seen any reports of package managers or similar breaking fo=
+r
+> this reason.
+
+Frank
+
+
+---
+This email has been checked for viruses by Avast antivirus software.
+https://www.avast.com/antivirus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
