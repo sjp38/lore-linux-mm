@@ -1,147 +1,381 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1816B0038
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:03:57 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id a194so247016774oib.5
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:03:57 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h20si8991614oib.88.2017.01.25.06.03.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 339F06B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:18:39 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 194so274709661pgd.7
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:18:39 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id 1si23520983pgo.112.2017.01.25.06.18.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 06:03:56 -0800 (PST)
-Subject: Re: [PATCH v6] mm: Add memory allocation watchdog kernel thread.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1478416501-10104-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<201612151924.HJJ69799.VSFLHOQFFMOtOJ@I-love.SAKURA.ne.jp>
-	<201612282042.GDB17129.tOHFOFSQOFLVJM@I-love.SAKURA.ne.jp>
-In-Reply-To: <201612282042.GDB17129.tOHFOFSQOFLVJM@I-love.SAKURA.ne.jp>
-Message-Id: <201701252303.FCI17866.FOJFHMtSQOFVLO@I-love.SAKURA.ne.jp>
-Date: Wed, 25 Jan 2017 23:03:43 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jan 2017 06:18:37 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id 3so2082424pgj.1
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 06:18:37 -0800 (PST)
+Date: Wed, 25 Jan 2017 23:18:33 +0900
+From: Jinbum Park <jinb.park7@gmail.com>
+Subject: [PATCH v4] mm: add arch-independent testcases for RODATA
+Message-ID: <20170125141833.GA27658@pjb1027-Latitude-E5410>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, hannes@cmpxchg.org, vdavydov.dev@gmail.com, mhocko@suse.cz, pmladek@suse.com, sergey.senozhatsky.work@gmail.com, vegard.nossum@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: tglx@linutronix.de
+Cc: mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
 
-Andrew, what do you think about this version? There seems to be no objections.
+This patch makes arch-independent testcases for RODATA.
+Both x86 and x86_64 already have testcases for RODATA,
+But they are arch-specific because using inline assembly directly.
 
-This patch should be helpful for initial research of minutes-lasting stalls (e.g.
-http://lkml.kernel.org/r/20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org )
-and proving whether what Michal does not think are not happening
-(e.g. http://lkml.kernel.org/r/20170125095337.GF32377@dhcp22.suse.cz ).
-I think we can start testing this version at linux-next tree.
+and cacheflush.h is not suitable location for rodata-test related things.
+Since they were in cacheflush.h,
+If someone change the state of CONFIG_DEBUG_RODATA_TEST,
+It cause overhead of kernel build.
 
-Tetsuo Handa wrote:
-> Michal Hocko wrote at http://lkml.kernel.org/r/20161227105715.GE1308@dhcp22.suse.cz :
-> > On Tue 27-12-16 19:39:28, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > I am not saying that the current code works perfectly when we are
-> > > > hitting the direct reclaim close to the OOM but improving that requires
-> > > > much more than slapping a global lock there.
-> > > 
-> > > So, we finally agreed that there are problems when we are hitting the direct
-> > > reclaim close to the OOM. Good.
-> > 
-> > There has never been a disagreement here. The point we seem to be
-> > disagreeing is how much those issues you are seeing matter. I do not
-> > consider them top priority because they are not happening in real life
-> > enough.
-> 
-> There is no evidence to prove "they are not happening in real life enough", for
-> there is no catch-all reporting mechanism. I consider that offering a mean to
-> find and report problems is top priority as a troubleshooting staff.
-> 
-> > > > Just try to remember how you were pushing really hard for oom timeouts
-> > > > one year back because the OOM killer was suboptimal and could lockup. It
-> > > > took some redesign and many changes to fix that. The result is
-> > > > imho a better, more predictable and robust code which wouldn't be the
-> > > > case if we just went your way to have a fix quickly...
-> > > 
-> > > I agree that the result is good for users who can update kernels. But that
-> > > change was too large to backport. Any approach which did not in time for
-> > > customers' deadline of deciding their kernels to use for 10 years is
-> > > useless for them. Lack of catch-all reporting/triggering mechanism is
-> > > unhappy for both customers and troubleshooting staffs at support centers.
-> > 
-> > Then implement whatever you find appropriate on those old kernels and
-> > deal with the follow up reports. This is the fair deal you have cope
-> > with when using and supporting old kernels.
-> 
-> Customers are using distributor's kernels. Due to out-of-tree vendor's prebuilt
-> modules which can be loaded into only prebuilt distributor's kernels, it is
-> impossible for me to make changes to those old kernels. Also, that distributor's
-> policy is that "offer no support even if just rebuilt from source" which prevents
-> customers from testing changes made by me to those old kernels. Thus, implement
-> whatever I find appropriate on those old kernels is not an option. Merging
-> upstream-first, in accordance with that distributor's policy, is the only option.
-> 
-> >  
-> > > Improving the direct reclaim close to the OOM requires a lot of effort.
-> > > We might add new bugs during that effort. So, where is valid reason that
-> > > we can not have asynchronous watchdog like kmallocwd? Please do explain
-> > > at kmallocwd thread. You have never persuaded me about keeping kmallocwd
-> > > out of tree.
-> > 
-> > I am not going to repeat my arguments over again. I haven't nacked that
-> > patch and it seems there is no great interest in it so do not try to
-> > claim that it is me who is blocking this feature. I just do not think it
-> > is worth it.
-> 
-> OK. I was assuming that Acked-by: or Reviewed-by: from you is essential.
-> 
-> So far, nobody has objections about having asynchronous watchdog.
-> Mel, Johannes and Vladimir, what do you think about this version of
-> kmallocwd? If no objections, I think we can start with this version
-> with a fix shown below folded.
-> 
-> ----------------------------------------
-> >From 5adc8d9bfb31dce1954667cabf65842df31d4ed7 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Wed, 28 Dec 2016 09:52:03 +0900
-> Subject: [PATCH] mm: Don't check __GFP_KSWAPD_RECLAIM by memory allocation
->  watchdog.
-> 
-> There are some __GFP_KSWAPD_RECLAIM && !__GFP_DIRECT_RECLAIM callers.
-> Since such callers do not sleep, we should check only __GFP_DIRECT_RECLAIM
-> callers than __GFP_RECLAIM == (__GFP_KSWAPD_RECLAIM|__GFP_DIRECT_RECLAIM)
-> callers.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/page_alloc.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6478f44..58c1238 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3769,10 +3769,10 @@ static void start_memalloc_timer(const gfp_t gfp_mask, const int order)
->  {
->  	struct memalloc_info *m = &current->memalloc;
->  
-> -	/* We don't check for stalls for !__GFP_RECLAIM allocations. */
-> -	if (!(gfp_mask & __GFP_RECLAIM))
-> +	/* We don't check for stalls for !__GFP_DIRECT_RECLAIM allocations. */
-> +	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
->  		return;
-> -	/* We don't check for stalls for nested __GFP_RECLAIM allocations */
-> +	/* Check based on outermost __GFP_DIRECT_RECLAIM allocations. */
->  	if (!m->valid) {
->  		m->sequence++;
->  		m->start = jiffies;
-> @@ -3788,7 +3788,7 @@ static void stop_memalloc_timer(const gfp_t gfp_mask)
->  {
->  	struct memalloc_info *m = &current->memalloc;
->  
-> -	if ((gfp_mask & __GFP_RECLAIM) && !--m->valid)
-> +	if ((gfp_mask & __GFP_DIRECT_RECLAIM) && !--m->valid)
->  		this_cpu_dec(memalloc_in_flight[m->idx]);
->  }
->  #else
-> -- 
-> 1.8.3.1
-> 
+To solve above issue,
+write arch-independent testcases and move it to shared location.
+
+Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
+---
+v4: Move the rodata_test() call out into mark_readonly()
+
+v3: Use probe_kernel_write() instead of put_user()
+	Move declaration of rodata_test_data to separate header (rodata_test.h)
+	Fix a kbuild-test-robot-error related to DEBUG_NX_TEST
+
+v2: Restore original credit of mm/rodata_test.c
+
+ arch/x86/Kconfig.debug            | 10 +-----
+ arch/x86/include/asm/cacheflush.h | 10 ------
+ arch/x86/kernel/Makefile          |  1 -
+ arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
+ arch/x86/mm/init_32.c             |  4 +--
+ arch/x86/mm/init_64.c             |  4 +--
+ include/linux/rodata_test.h       | 24 +++++++++++++
+ mm/Kconfig.debug                  |  7 ++++
+ mm/Makefile                       |  1 +
+ mm/rodata_test.c                  | 63 ++++++++++++++++++++++++++++++++
+ 10 files changed, 98 insertions(+), 101 deletions(-)
+ delete mode 100644 arch/x86/kernel/test_rodata.c
+ create mode 100644 include/linux/rodata_test.h
+ create mode 100644 mm/rodata_test.c
+
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 67eec55..3fa469c 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
+ 	  issues with the mapping of the EFI runtime regions into that
+ 	  table.
+ 
+-config DEBUG_RODATA_TEST
+-	bool "Testcase for the marking rodata read-only"
+-	default y
+-	---help---
+-	  This option enables a testcase for the setting rodata read-only
+-	  as well as for the change_page_attr() infrastructure.
+-	  If in doubt, say "N"
+-
+ config DEBUG_WX
+ 	bool "Warn on W+X mappings at boot"
+ 	select X86_PTDUMP_CORE
+@@ -122,7 +114,7 @@ config DEBUG_SET_MODULE_RONX
+ 
+ config DEBUG_NX_TEST
+ 	tristate "Testcase for the NX non-executable stack feature"
+-	depends on DEBUG_KERNEL && m
++	depends on DEBUG_KERNEL && DEBUG_RODATA_TEST && m
+ 	---help---
+ 	  This option enables a testcase for the CPU NX capability
+ 	  and the software setup of this feature.
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 872877d..e7e1942e 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -90,18 +90,8 @@
+ 
+ #define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
+ 
+-extern const int rodata_test_data;
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+ 
+-#ifdef CONFIG_DEBUG_RODATA_TEST
+-int rodata_test(void);
+-#else
+-static inline int rodata_test(void)
+-{
+-	return 0;
+-}
+-#endif
+-
+ #endif /* _ASM_X86_CACHEFLUSH_H */
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 581386c..f6caf82 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -100,7 +100,6 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
+ obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
+ 
+ obj-$(CONFIG_AMD_NB)		+= amd_nb.o
+-obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o
+ obj-$(CONFIG_DEBUG_NX_TEST)	+= test_nx.o
+ obj-$(CONFIG_DEBUG_NMI_SELFTEST) += nmi_selftest.o
+ 
+diff --git a/arch/x86/kernel/test_rodata.c b/arch/x86/kernel/test_rodata.c
+deleted file mode 100644
+index 222e84e..0000000
+--- a/arch/x86/kernel/test_rodata.c
++++ /dev/null
+@@ -1,75 +0,0 @@
+-/*
+- * test_rodata.c: functional test for mark_rodata_ro function
+- *
+- * (C) Copyright 2008 Intel Corporation
+- * Author: Arjan van de Ven <arjan@linux.intel.com>
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; version 2
+- * of the License.
+- */
+-#include <asm/cacheflush.h>
+-#include <asm/sections.h>
+-#include <asm/asm.h>
+-
+-int rodata_test(void)
+-{
+-	unsigned long result;
+-	unsigned long start, end;
+-
+-	/* test 1: read the value */
+-	/* If this test fails, some previous testrun has clobbered the state */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: test 1 fails (start data)\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 2: write to the variable; this should fault */
+-	/*
+-	 * If this test fails, we managed to overwrite the data
+-	 *
+-	 * This is written in assembly to be able to catch the
+-	 * exception that is supposed to happen in the correct
+-	 * case
+-	 */
+-
+-	result = 1;
+-	asm volatile(
+-		"0:	mov %[zero],(%[rodata_test])\n"
+-		"	mov %[zero], %[rslt]\n"
+-		"1:\n"
+-		".section .fixup,\"ax\"\n"
+-		"2:	jmp 1b\n"
+-		".previous\n"
+-		_ASM_EXTABLE(0b,2b)
+-		: [rslt] "=r" (result)
+-		: [rodata_test] "r" (&rodata_test_data), [zero] "r" (0UL)
+-	);
+-
+-
+-	if (!result) {
+-		printk(KERN_ERR "rodata_test: test data was not read only\n");
+-		return -ENODEV;
+-	}
+-
+-	/* test 3: check the value hasn't changed */
+-	/* If this test fails, we managed to overwrite the data */
+-	if (!rodata_test_data) {
+-		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
+-		return -ENODEV;
+-	}
+-	/* test 4: check if the rodata section is 4Kb aligned */
+-	start = (unsigned long)__start_rodata;
+-	end = (unsigned long)__end_rodata;
+-	if (start & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-	if (end & (PAGE_SIZE - 1)) {
+-		printk(KERN_ERR "rodata_test: .rodata end is not 4k aligned\n");
+-		return -ENODEV;
+-	}
+-
+-	return 0;
+-}
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 928d657..874b57c 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -51,6 +51,7 @@
+ #include <asm/cacheflush.h>
+ #include <asm/page_types.h>
+ #include <asm/init.h>
++#include <linux/rodata_test.h>
+ 
+ #include "mm_internal.h"
+ 
+@@ -864,9 +865,6 @@ static noinline int do_test_wp_bit(void)
+ 	return flag;
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly __read_mostly;
+ 
+ void set_kernel_text_rw(void)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5fff913..663d475 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -54,6 +54,7 @@
+ #include <asm/init.h>
+ #include <asm/uv/uv.h>
+ #include <asm/setup.h>
++#include <linux/rodata_test.h>
+ 
+ #include "mm_internal.h"
+ 
+@@ -1011,9 +1012,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ }
+ 
+-const int rodata_test_data = 0xC3;
+-EXPORT_SYMBOL_GPL(rodata_test_data);
+-
+ int kernel_set_to_readonly;
+ 
+ void set_kernel_text_rw(void)
+diff --git a/include/linux/rodata_test.h b/include/linux/rodata_test.h
+new file mode 100644
+index 0000000..562537f
+--- /dev/null
++++ b/include/linux/rodata_test.h
+@@ -0,0 +1,24 @@
++/*
++ * rodata_test.h: functional test for mark_rodata_ro function
++ *
++ * (C) Copyright 2008 Intel Corporation
++ * Author: Arjan van de Ven <arjan@linux.intel.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++
++#ifndef _RODATA_TEST_H
++#define _RODATA_TEST_H
++
++#ifdef CONFIG_DEBUG_RODATA_TEST
++extern const int rodata_test_data;
++void rodata_test(void);
++#else
++static inline void rodata_test(void) {}
++#endif
++
++#endif /* _RODATA_TEST_H */
++
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index afcc550..3e5eada 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -90,3 +90,10 @@ config DEBUG_PAGE_REF
+ 	  careful when enabling this feature because it adds about 30 KB to the
+ 	  kernel code.  However the runtime performance overhead is virtually
+ 	  nil until the tracepoints are actually enabled.
++
++config DEBUG_RODATA_TEST
++    bool "Testcase for the marking rodata read-only"
++    depends on DEBUG_RODATA
++    ---help---
++      This option enables a testcase for the setting rodata read-only.
++
+diff --git a/mm/Makefile b/mm/Makefile
+index 433eaf9..d6199d4 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -83,6 +83,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
++obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
+ obj-$(CONFIG_PAGE_OWNER) += page_owner.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+new file mode 100644
+index 0000000..afdc17b
+--- /dev/null
++++ b/mm/rodata_test.c
+@@ -0,0 +1,63 @@
++/*
++ * rodata_test.c: functional test for mark_rodata_ro function
++ *
++ * (C) Copyright 2008 Intel Corporation
++ * Author: Arjan van de Ven <arjan@linux.intel.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++#include <linux/uaccess.h>
++#include <asm/sections.h>
++
++const int rodata_test_data = 0xC3;
++EXPORT_SYMBOL_GPL(rodata_test_data);
++
++void rodata_test(void)
++{
++	unsigned long start, end;
++	int zero = 0;
++
++	/* test 1: read the value */
++	/* If this test fails, some previous testrun has clobbered the state */
++	if (!rodata_test_data) {
++		pr_err("rodata_test: test 1 fails (start data)\n");
++		return;
++	}
++
++	/* test 2: write to the variable; this should fault */
++	/*
++	 * This must be written in assembly to be able to catch the
++	 * exception that is supposed to happen in the correct case.
++	 *
++	 * So that probe_kernel_write is used to write
++	 * arch-independent assembly.
++	 */
++	if (!probe_kernel_write((void *)&rodata_test_data,
++						(void *)&zero, sizeof(zero))) {
++		pr_err("rodata_test: test data was not read only\n");
++		return;
++	}
++
++	/* test 3: check the value hasn't changed */
++	if (rodata_test_data == zero) {
++		pr_err("rodata_test: test data was changed\n");
++		return;
++	}
++
++	/* test 4: check if the rodata section is PAGE_SIZE aligned */
++	start = (unsigned long)__start_rodata;
++	end = (unsigned long)__end_rodata;
++	if (start & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: start of .rodata is not page size aligned\n");
++		return;
++	}
++	if (end & (PAGE_SIZE - 1)) {
++		pr_err("rodata_test: end of .rodata is not page size aligned\n");
++		return;
++	}
++
++	pr_info("rodata_test: all tests were successful\n");
++}
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
