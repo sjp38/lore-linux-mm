@@ -1,42 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3570E6B0069
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:13:33 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 204so287870125pge.5
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 14:13:33 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id 15si24675171pgg.226.2017.01.25.14.13.32
-        for <linux-mm@kvack.org>;
-        Wed, 25 Jan 2017 14:13:32 -0800 (PST)
-Date: Wed, 25 Jan 2017 17:13:28 -0500 (EST)
-Message-Id: <20170125.171328.1978684823149751445.davem@davemloft.net>
-Subject: Re: [PATCH v5 4/4] sparc64: Add support for ADI (Application Data
- Integrity)
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <154bc417-6333-f9ac-653b-9ed280f08450@oracle.com>
-References: <cover.1485362562.git.khalid.aziz@oracle.com>
-	<0b6865aabc010ee3a7ea956a70447abbab53ea70.1485362562.git.khalid.aziz@oracle.com>
-	<154bc417-6333-f9ac-653b-9ed280f08450@oracle.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3876D6B0268
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:15:06 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f144so285939582pfa.3
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 14:15:06 -0800 (PST)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id w28si8926135pfk.112.2017.01.25.14.15.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jan 2017 14:15:05 -0800 (PST)
+Received: by mail-pg0-x231.google.com with SMTP id 204so67813740pge.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 14:15:05 -0800 (PST)
+Date: Wed, 25 Jan 2017 14:14:55 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, madvise: fail with ENOMEM when splitting vma will
+ hit max_map_count
+In-Reply-To: <4c884355-0753-3b6e-a5a5-27b2a426c88b@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1701251407290.118946@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1701241431120.42507@chino.kir.corp.google.com> <4c884355-0753-3b6e-a5a5-27b2a426c88b@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rob.gardner@oracle.com
-Cc: khalid.aziz@oracle.com, corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Johannes Weiner <hannes@cmpxchg.org>, mtk.manpages@gmail.com, Jerome Marchand <jmarchan@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Rob Gardner <rob.gardner@oracle.com>
-Date: Wed, 25 Jan 2017 15:00:42 -0700
+On Wed, 25 Jan 2017, Anshuman Khandual wrote:
 
-> Same comment here, and the various other places that employ this same
-> code construct.
+> But in the due course there might be other changes in number of VMAs of
+> the process because of unmap() or merge() which could reduce the total
+> number of VMAs and hence this condition may not exist afterwards. In
+> that case EAGAIN still makes sense.
+> 
 
-Please do not quote an entire huge patch just to comment on a small
-part of it.
+Imagine a singlethreaded process that is operating on its own privately 
+mapped memory.  Attempting to split an existing vma and meeting 
+vm.max_map_count is not something that will be fixed by trying again, i.e. 
+it is not helpful to loop when madvise() returns -1 with errno EAGAIN if 
+vm.max_map_count will always be encountered.  The other cases where ENOMEM 
+is blindly converted to EAGAIN is when slab allocation fails which can 
+encounter external freeing, the meaning of "kernel resource is temporarily 
+unavailable."  There is no such guarantee for vm.max_map_count, so ENOMEM 
+clearly indicates the failure.
 
-Quote only the minimum necessary context in order to provide your feedback.
-
-Thank you.
+After this, it makes sense for userspace to loop for advice such as 
+MADV_DONTNEED because we are actively freeing memory when EAGAIN is 
+returned.  If we are meeting vm.max_map_count, this will infinitely loop.  
+This is the case in tcmalloc and this patch addresses the issue when 
+vm.max_map_count is low.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
