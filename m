@@ -1,105 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DEB16B0069
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 10:05:53 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id w107so157951833ota.6
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 07:05:53 -0800 (PST)
-Received: from smtpbgau2.qq.com (smtpbgau2.qq.com. [54.206.34.216])
-        by mx.google.com with ESMTPS id e48si9042685ote.335.2017.01.25.07.05.51
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 000AA6B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 11:37:22 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id o12so86659359lfg.7
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:37:22 -0800 (PST)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id s2si15016365lfg.31.2017.01.25.08.37.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 07:05:52 -0800 (PST)
-From: ysxie@foxmail.com
-Subject: [PATCH v4 2/2] HWPOISON: soft offlining for non-lru movable page
-Date: Wed, 25 Jan 2017 23:05:38 +0800
-Message-Id: <1485356738-4831-3-git-send-email-ysxie@foxmail.com>
-In-Reply-To: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
-References: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jan 2017 08:37:21 -0800 (PST)
+Received: by mail-lf0-x241.google.com with SMTP id h65so21559908lfi.3
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 08:37:21 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20170125002426.GA2234@jagdpanzerIV.localdomain>
+References: <20170124200259.16191-1-ddstreet@ieee.org> <20170124200259.16191-3-ddstreet@ieee.org>
+ <20170125002426.GA2234@jagdpanzerIV.localdomain>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 25 Jan 2017 11:36:40 -0500
+Message-ID: <CALZtONByh4VOUqNewmK77BNgKBzExBhiFwCJ9UTdhQREZ4f+ig@mail.gmail.com>
+Subject: Re: [PATCH 2/3] zswap: allow initialization at boot without pool
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-From: Yisheng Xie <xieyisheng1@huawei.com>
+On Tue, Jan 24, 2017 at 7:24 PM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+>
+> just a note,
+>
+> On (01/24/17 15:02), Dan Streetman wrote:
+> [..]
+>> @@ -692,6 +702,15 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+>>                */
+>>               list_add_tail_rcu(&pool->list, &zswap_pools);
+>>               put_pool = pool;
+>> +     } else if (!zswap_has_pool) {
+>> +             /* if initial pool creation failed, and this pool creation also
+>> +              * failed, maybe both compressor and zpool params were bad.
+>> +              * Allow changing this param, so pool creation will succeed
+>> +              * when the other param is changed. We already verified this
+>> +              * param is ok in the zpool_has_pool() or crypto_has_comp()
+>> +              * checks above.
+>> +              */
+>> +             ret = param_set_charp(s, kp);
+>>       }
+>>
+>>       spin_unlock(&zswap_pools_lock);
+>
+> looks like there still GFP_KERNEL allocation from atomic section:
+> param_set_charp()->kmalloc_parameter()->kmalloc(GFP_KERNEL), under
+> `zswap_pools_lock'.
 
-This patch is to extends soft offlining framework to support
-non-lru page, which already support migration after
-commit bda807d44454 ("mm: migrate: support non-lru movable page
-migration")
-
-When memory corrected errors occur on a non-lru movable page,
-we can choose to stop using it by migrating data onto another
-page and disable the original (maybe half-broken) one.
-
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Suggested-by: Michal Hocko <mhocko@kernel.org>
-Suggested-by: Minchan Kim <minchan@kernel.org>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-CC: Vlastimil Babka <vbabka@suse.cz>
----
- mm/memory-failure.c | 26 ++++++++++++++++----------
- 1 file changed, 16 insertions(+), 10 deletions(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index f283c7e..56e39f8 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1527,7 +1527,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
- {
- 	int ret = __get_any_page(page, pfn, flags);
- 
--	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
-+	if (ret == 1 && !PageHuge(page) &&
-+	    !PageLRU(page) && !__PageMovable(page)) {
- 		/*
- 		 * Try to free it.
- 		 */
-@@ -1649,7 +1650,10 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * Try to migrate to a new page instead. migrate.c
- 	 * handles a large number of cases for us.
- 	 */
--	ret = isolate_lru_page(page);
-+	if (PageLRU(page))
-+		ret = isolate_lru_page(page);
-+	else if (!isolate_movable_page(page, ISOLATE_UNEVICTABLE))
-+		ret = -EBUSY;
- 	/*
- 	 * Drop page reference which is came from get_any_page()
- 	 * successful isolate_lru_page() already took another one.
-@@ -1657,18 +1661,20 @@ static int __soft_offline_page(struct page *page, int flags)
- 	put_hwpoison_page(page);
- 	if (!ret) {
- 		LIST_HEAD(pagelist);
--		inc_node_page_state(page, NR_ISOLATED_ANON +
--					page_is_file_cache(page));
-+		/*
-+		 * After isolated lru page, the PageLRU will be cleared,
-+		 * so use !__PageMovable instead for LRU page's mapping
-+		 * cannot have PAGE_MAPPING_MOVABLE.
-+		 */
-+		if (!__PageMovable(page))
-+			inc_node_page_state(page, NR_ISOLATED_ANON +
-+						page_is_file_cache(page));
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
- 					MIGRATE_SYNC, MR_MEMORY_FAILURE);
- 		if (ret) {
--			if (!list_empty(&pagelist)) {
--				list_del(&page->lru);
--				dec_node_page_state(page, NR_ISOLATED_ANON +
--						page_is_file_cache(page));
--				putback_lru_page(page);
--			}
-+			if (!list_empty(&pagelist))
-+				putback_movable_pages(&pagelist);
- 
- 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
- 				pfn, ret, page->flags);
--- 
-1.9.1
+thanks, it looks like the other param_set_charp above this new one has
+been in the spinlock ever since i added the param callback.  I'll send
+a patch.
 
 
+>
+>         -ss
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
