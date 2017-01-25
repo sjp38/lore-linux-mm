@@ -1,89 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A42286B0069
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:36:01 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id d185so285901457pgc.2
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 14:36:01 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 82si24738126pge.77.2017.01.25.14.36.00
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 61C3A6B025E
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:36:12 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id jz4so35806393wjb.5
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 14:36:12 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.135])
+        by mx.google.com with ESMTPS id m89si24100285wmh.34.2017.01.25.14.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 14:36:00 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0PMXZC4092265
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:35:59 -0500
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2874nkrgq3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:35:59 -0500
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 25 Jan 2017 15:35:58 -0700
-Date: Wed, 25 Jan 2017 14:35:56 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH RFC] mm: Rename SLAB_DESTROY_BY_RCU to
- SLAB_TYPESAFE_BY_RCU
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20170118110731.GA15949@linux.vnet.ibm.com>
- <20170125202533.GA22138@cmpxchg.org>
- <a4cb93f8-0ca4-57aa-f395-1b22143a32bd@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a4cb93f8-0ca4-57aa-f395-1b22143a32bd@suse.cz>
-Message-Id: <20170125223555.GM3989@linux.vnet.ibm.com>
+        Wed, 25 Jan 2017 14:36:11 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] fixup! mm, fs: reduce fault, page_mkwrite, and pfn_mkwrite to take only vmf
+Date: Wed, 25 Jan 2017 23:35:05 +0100
+Message-Id: <20170125223558.1451224-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, Russell King <linux@armlinux.org.uk>, David Airlie <airlied@linux.ie>, Lucas Stach <l.stach@pengutronix.de>, Christian Gmeiner <christian.gmeiner@gmail.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Sebastian Reichel <sre@kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, etnaviv@lists.freedesktop.org
 
-On Wed, Jan 25, 2017 at 10:26:08PM +0100, Vlastimil Babka wrote:
-> On 01/25/2017 09:25 PM, Johannes Weiner wrote:
-> >On Wed, Jan 18, 2017 at 03:07:32AM -0800, Paul E. McKenney wrote:
-> >>A group of Linux kernel hackers reported chasing a bug that resulted
-> >>from their assumption that SLAB_DESTROY_BY_RCU provided an existence
-> >>guarantee, that is, that no block from such a slab would be reallocated
-> >>during an RCU read-side critical section.  Of course, that is not the
-> >>case.  Instead, SLAB_DESTROY_BY_RCU only prevents freeing of an entire
-> >>slab of blocks.
-> >>
-> >>However, there is a phrase for this, namely "type safety".  This commit
-> >>therefore renames SLAB_DESTROY_BY_RCU to SLAB_TYPESAFE_BY_RCU in order
-> >>to avoid future instances of this sort of confusion.
-> >>
-> >>Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> >
-> >This has come up in the past, and it always proved hard to agree on a
-> >better name for it. But I like SLAB_TYPESAFE_BY_RCU the best out of
-> >all proposals, and it's much more poignant than the current name.
-> 
-> Heh, until I've seen this thread I had the same wrong assumption
-> about the flag, so it suprised me. Good thing I didn't have a chance
-> to use it wrongly so far :)
-> 
-> "Type safety" in this context seems quite counter-intuitive for me,
-> as I've only heard it to describe programming languages. But that's
-> fine when the name sounds so exotic that one has to look up what it
-> does. Much safer than when the meaning seems obvious, but in fact
-> it's misleading.
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> >Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+I ran into a couple of build problems on ARM, these are the changes that
+should be folded into the original patch that changed all the ->fault()
+prototypes
 
-Thank you both!  I have added these, as well as a Not-acked-by
-for Eric.  ;-)
+Fixes: mmtom ("mm, fs: reduce fault, page_mkwrite, and pfn_mkwrite to take only vmf")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ drivers/gpu/drm/armada/armada_gem.c   | 9 +++++----
+ drivers/gpu/drm/etnaviv/etnaviv_drv.h | 2 +-
+ drivers/gpu/drm/omapdrm/omap_drv.h    | 2 +-
+ drivers/hsi/clients/cmt_speech.c      | 4 ++--
+ 4 files changed, 9 insertions(+), 8 deletions(-)
 
-							Thanx, Paul
-
-> >--
-> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >the body to majordomo@kvack.org.  For more info on Linux MM,
-> >see: http://www.linux-mm.org/ .
-> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
-> 
+diff --git a/drivers/gpu/drm/armada/armada_gem.c b/drivers/gpu/drm/armada/armada_gem.c
+index a293c8be232c..e1917adc30a4 100644
+--- a/drivers/gpu/drm/armada/armada_gem.c
++++ b/drivers/gpu/drm/armada/armada_gem.c
+@@ -14,14 +14,15 @@
+ #include <drm/armada_drm.h>
+ #include "armada_ioctlP.h"
+ 
+-static int armada_gem_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
++static int armada_gem_vm_fault(struct vm_fault *vmf)
+ {
+-	struct armada_gem_object *obj = drm_to_armada_gem(vma->vm_private_data);
++	struct drm_gem_object *gobj = vmf->vma->vm_private_data;
++	struct armada_gem_object *obj = drm_to_armada_gem(gobj);
+ 	unsigned long pfn = obj->phys_addr >> PAGE_SHIFT;
+ 	int ret;
+ 
+-	pfn += (vmf->address - vma->vm_start) >> PAGE_SHIFT;
+-	ret = vm_insert_pfn(vma, vmf->address, pfn);
++	pfn += (vmf->address - vmf->vma->vm_start) >> PAGE_SHIFT;
++	ret = vm_insert_pfn(vmf->vma, vmf->address, pfn);
+ 
+ 	switch (ret) {
+ 	case 0:
+diff --git a/drivers/gpu/drm/etnaviv/etnaviv_drv.h b/drivers/gpu/drm/etnaviv/etnaviv_drv.h
+index c255eda40526..e41f38667c1c 100644
+--- a/drivers/gpu/drm/etnaviv/etnaviv_drv.h
++++ b/drivers/gpu/drm/etnaviv/etnaviv_drv.h
+@@ -73,7 +73,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
+ 		struct drm_file *file);
+ 
+ int etnaviv_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+-int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
++int etnaviv_gem_fault(struct vm_fault *vmf);
+ int etnaviv_gem_mmap_offset(struct drm_gem_object *obj, u64 *offset);
+ struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj);
+ void *etnaviv_gem_prime_vmap(struct drm_gem_object *obj);
+diff --git a/drivers/gpu/drm/omapdrm/omap_drv.h b/drivers/gpu/drm/omapdrm/omap_drv.h
+index 7d9dd5400cef..7a8f4bf6effb 100644
+--- a/drivers/gpu/drm/omapdrm/omap_drv.h
++++ b/drivers/gpu/drm/omapdrm/omap_drv.h
+@@ -204,7 +204,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
+ int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+ int omap_gem_mmap_obj(struct drm_gem_object *obj,
+ 		struct vm_area_struct *vma);
+-int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
++int omap_gem_fault(struct vm_fault *vmf);
+ int omap_gem_op_start(struct drm_gem_object *obj, enum omap_gem_op op);
+ int omap_gem_op_finish(struct drm_gem_object *obj, enum omap_gem_op op);
+ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op);
+diff --git a/drivers/hsi/clients/cmt_speech.c b/drivers/hsi/clients/cmt_speech.c
+index 3deef6cc7d7c..7175e6bedf21 100644
+--- a/drivers/hsi/clients/cmt_speech.c
++++ b/drivers/hsi/clients/cmt_speech.c
+@@ -1098,9 +1098,9 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
+ 	kfree(hi);
+ }
+ 
+-static int cs_char_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
++static int cs_char_vma_fault(struct vm_fault *vmf)
+ {
+-	struct cs_char *csdata = vma->vm_private_data;
++	struct cs_char *csdata = vmf->vma->vm_private_data;
+ 	struct page *page;
+ 
+ 	page = virt_to_page(csdata->mmap_base);
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
