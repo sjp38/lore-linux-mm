@@ -1,99 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D31A36B0038
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 12:44:32 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id l7so188113715qtd.2
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:44:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l198si10256506qke.24.2017.01.25.09.44.31
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D25996B0253
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 12:44:55 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r144so39790510wme.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:44:55 -0800 (PST)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id b27si13304889wmi.98.2017.01.25.09.44.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 09:44:32 -0800 (PST)
-Message-ID: <1485366269.29861.0.camel@redhat.com>
+        Wed, 25 Jan 2017 09:44:54 -0800 (PST)
+Received: by mail-wm0-x242.google.com with SMTP id r144so44107558wme.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 09:44:54 -0800 (PST)
+Date: Wed, 25 Jan 2017 20:44:52 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH 01/12] uprobes: split THPs before trying replace them
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 25 Jan 2017 12:44:29 -0500
-In-Reply-To: <20170125165522.GA11569@linux.vnet.ibm.com>
+Message-ID: <20170125174452.GA4157@node>
 References: <20170124162824.91275-1-kirill.shutemov@linux.intel.com>
-	 <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
-	 <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
-	 <20170124222217.GB19920@node.shutemov.name>
-	 <20170125165522.GA11569@linux.vnet.ibm.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-nf7sxNz0ss/8KVmzHIUD"
-Mime-Version: 1.0
+ <20170124162824.91275-2-kirill.shutemov@linux.intel.com>
+ <20170124132849.73135e8c6e9572be00dbbe79@linux-foundation.org>
+ <20170124222217.GB19920@node.shutemov.name>
+ <20170125165522.GA11569@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170125165522.GA11569@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-
---=-nf7sxNz0ss/8KVmzHIUD
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, 2017-01-25 at 08:55 -0800, Srikar Dronamraju wrote:
-> >=20
-> > >=20
-> > >=20
-> > > >=20
-> > > > For THPs page_check_address() always fails. It's better to
-> > > > split them
+On Wed, Jan 25, 2017 at 08:55:22AM -0800, Srikar Dronamraju wrote:
+> > > 
+> > > > For THPs page_check_address() always fails. It's better to split them
 > > > > first before trying to replace.
-> > > So what does this mean.=C2=A0=C2=A0uprobes simply fails to work when =
-trying
-> > > to
+> > > 
+> > > So what does this mean.  uprobes simply fails to work when trying to
 > > > place a probe into a THP memory region?
-> > Looks like we can end up with endless retry loop in
-> > uprobe_write_opcode().
-> >=20
-> > >=20
-> > > How come nobody noticed (and reported) this when using the
-> > > feature?
+> > 
+> > Looks like we can end up with endless retry loop in uprobe_write_opcode().
+> > 
+> > > How come nobody noticed (and reported) this when using the feature?
+> > 
 > > I guess it's not often used for anon memory.
-> >=20
+> > 
+> 
 > The first time the breakpoint is hit on a page, it replaces the text
-> page with anon page.=C2=A0=C2=A0Now lets assume we insert breakpoints in =
-all
-> the
-> pages in a range. Here each page is individually replaced by a non
-> THP
+> page with anon page.  Now lets assume we insert breakpoints in all the
+> pages in a range. Here each page is individually replaced by a non THP
 > anonpage. (since we dont have bulk breakpoint insertion support,
 > breakpoint insertion happens one at a time). Now the only interesting
 > case may be when each of these replaced pages happen to be physically
-> contiguous so that THP kicks in to replace all of these pages with
-> one
+> contiguous so that THP kicks in to replace all of these pages with one
 > THP page. Can happen in practice?
->=20
+
+The problem is with the page you try to replace, not with page that you
+replace it with.
+
 > Are there any other cases that I have missed?
 
-A JIT compiler placing executable code in anonymous
-memory before executing it, and a debugger trying to
-insert a uprobe in one of those areas?
+The binary on tmpfs with huge pages. I wrote test-case that triggers the
+problem.
 
-Not common, but I suppose it could be done.
-
---=20
-All rights reversed
-
---=-nf7sxNz0ss/8KVmzHIUD
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJYiOP9AAoJEM553pKExN6Dh9IH/j1lFxNybTM4bDL0C5IxF5LU
-9R11ofS0yoPTP/JHeTXcUuU/Z2mQrHp0yKnaB7IIhIZZrU5zTpyn3bmazpGrS+yT
-q0h+x0wk7qIS+zT0TH0xyepHcLghCY6PAvsJuQbf1R2ojgnnYCCvYgw1IptAEgyR
-3R1VONEZMHL1gm82xkCvMwEOOkA1k4t9AJIDgP7USiDDugnB31cZTgbYpsb6rDiT
-MTDs003hMteBFDDuYwmgGm6sou45DRv6ARN8+Fepw3fQi8V9iZQlb992sN9DQIDT
-T7CeImAL8fb5YKl9E8U9b7y1vW9B58FdgLka2zKwkrKv0d7srbHTqvsg42F9asQ=
-=wovX
------END PGP SIGNATURE-----
-
---=-nf7sxNz0ss/8KVmzHIUD--
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
