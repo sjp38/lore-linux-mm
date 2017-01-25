@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 21B956B026C
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 36BA66B026E
 	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 13:27:05 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y143so279922850pfb.6
+Received: by mail-pg0-f71.google.com with SMTP id 204so281676359pge.5
         for <linux-mm@kvack.org>; Wed, 25 Jan 2017 10:27:05 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id g21si6581708pgh.125.2017.01.25.10.27.03
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id d20si9188338pfb.20.2017.01.25.10.27.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 10:27:03 -0800 (PST)
+        Wed, 25 Jan 2017 10:27:04 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 07/12] mm: convert try_to_unmap_one() to page_vma_mapped_walk()
-Date: Wed, 25 Jan 2017 21:25:33 +0300
-Message-Id: <20170125182538.86249-8-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 11/12] mm: drop page_check_address{,_transhuge}
+Date: Wed, 25 Jan 2017 21:25:37 +0300
+Message-Id: <20170125182538.86249-12-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170125182538.86249-1-kirill.shutemov@linux.intel.com>
 References: <20170125182538.86249-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,369 +20,210 @@ List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For consistency, it worth converting all page_check_address() to
-page_vma_mapped_walk(), so we could drop the former.
-
-It also makes freeze_page() as we walk though rmap only once.
+All users are gone. Let's drop them.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |  16 +---
- mm/rmap.c        | 260 ++++++++++++++++++++++++++++---------------------------
- 2 files changed, 137 insertions(+), 139 deletions(-)
+ include/linux/rmap.h |  36 --------------
+ mm/rmap.c            | 138 ---------------------------------------------------
+ 2 files changed, 174 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 16820e001d79..ca7855f857fa 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1839,24 +1839,16 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
- static void freeze_page(struct page *page)
- {
- 	enum ttu_flags ttu_flags = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS |
--		TTU_RMAP_LOCKED;
--	int i, ret;
-+		TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD;
-+	int ret;
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index b76343610653..8c89e902df3e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -197,42 +197,6 @@ int page_referenced(struct page *, int is_locked,
  
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ int try_to_unmap(struct page *, enum ttu_flags flags);
  
- 	if (PageAnon(page))
- 		ttu_flags |= TTU_MIGRATION;
- 
--	/* We only need TTU_SPLIT_HUGE_PMD once */
--	ret = try_to_unmap(page, ttu_flags | TTU_SPLIT_HUGE_PMD);
--	for (i = 1; !ret && i < HPAGE_PMD_NR; i++) {
--		/* Cut short if the page is unmapped */
--		if (page_count(page) == 1)
--			return;
+-/*
+- * Used by uprobes to replace a userspace page safely
+- */
+-pte_t *__page_check_address(struct page *, struct mm_struct *,
+-				unsigned long, spinlock_t **, int);
 -
--		ret = try_to_unmap(page + i, ttu_flags);
--	}
--	VM_BUG_ON_PAGE(ret, page + i - 1);
-+	ret = try_to_unmap(page, ttu_flags);
-+	VM_BUG_ON_PAGE(ret, page);
- }
- 
- static void unfreeze_page(struct page *page)
+-static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+-					unsigned long address,
+-					spinlock_t **ptlp, int sync)
+-{
+-	pte_t *ptep;
+-
+-	__cond_lock(*ptlp, ptep = __page_check_address(page, mm, address,
+-						       ptlp, sync));
+-	return ptep;
+-}
+-
+-/*
+- * Used by idle page tracking to check if a page was referenced via page
+- * tables.
+- */
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
+-				  unsigned long address, pmd_t **pmdp,
+-				  pte_t **ptep, spinlock_t **ptlp);
+-#else
+-static inline bool page_check_address_transhuge(struct page *page,
+-				struct mm_struct *mm, unsigned long address,
+-				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
+-{
+-	*ptep = page_check_address(page, mm, address, ptlp, 0);
+-	*pmdp = NULL;
+-	return !!*ptep;
+-}
+-#endif
+-
+ /* Avoid racy checks */
+ #define PVMW_SYNC		(1 << 0)
+ /* Look for migarion entries rather than present PTEs */
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 58597de049fd..95183dbea2eb 100644
+index 5d5e504c41d8..c1d8f52c2c7e 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -607,8 +607,7 @@ void try_to_unmap_flush_dirty(void)
- 		try_to_unmap_flush();
+@@ -708,144 +708,6 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
+ 	return pmd;
  }
  
--static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page, bool writable)
-+static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
- {
- 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
- 
-@@ -643,8 +642,7 @@ static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)
- 	return should_defer;
- }
- #else
--static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
--		struct page *page, bool writable)
-+static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
- {
- }
- 
-@@ -1459,155 +1457,163 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		     unsigned long address, void *arg)
- {
- 	struct mm_struct *mm = vma->vm_mm;
+-/*
+- * Check that @page is mapped at @address into @mm.
+- *
+- * If @sync is false, page_check_address may perform a racy check to avoid
+- * the page table lock when the pte is not present (helpful when reclaiming
+- * highly shared pages).
+- *
+- * On success returns with pte mapped and locked.
+- */
+-pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
+-			  unsigned long address, spinlock_t **ptlp, int sync)
+-{
+-	pmd_t *pmd;
 -	pte_t *pte;
-+	struct page_vma_mapped_walk pvmw = {
-+		.page = page,
-+		.vma = vma,
-+		.address = address,
-+	};
- 	pte_t pteval;
 -	spinlock_t *ptl;
-+	struct page *subpage;
- 	int ret = SWAP_AGAIN;
- 	struct rmap_private *rp = arg;
- 	enum ttu_flags flags = rp->flags;
- 
- 	/* munlock has nothing to gain from examining un-locked vmas */
- 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
--		goto out;
-+		return SWAP_AGAIN;
- 
- 	if (flags & TTU_SPLIT_HUGE_PMD) {
- 		split_huge_pmd_address(vma, address,
- 				flags & TTU_MIGRATION, page);
--		/* check if we have anything to do after split */
--		if (page_mapcount(page) == 0)
--			goto out;
- 	}
- 
--	pte = page_check_address(page, mm, address, &ptl,
--				 PageTransCompound(page));
--	if (!pte)
--		goto out;
-+	while (page_vma_mapped_walk(&pvmw)) {
-+		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
-+		address = pvmw.address;
- 
--	/*
--	 * If the page is mlock()d, we cannot swap it out.
--	 * If it's recently referenced (perhaps page_referenced
--	 * skipped over this mm) then we should reactivate it.
--	 */
--	if (!(flags & TTU_IGNORE_MLOCK)) {
--		if (vma->vm_flags & VM_LOCKED) {
--			/* PTE-mapped THP are never mlocked */
--			if (!PageTransCompound(page)) {
--				/*
--				 * Holding pte lock, we do *not* need
--				 * mmap_sem here
--				 */
--				mlock_vma_page(page);
-+		/* Unexpected PMD-mapped THP? */
-+		VM_BUG_ON_PAGE(!pvmw.pte, page);
-+
-+		/*
-+		 * If the page is mlock()d, we cannot swap it out.
-+		 * If it's recently referenced (perhaps page_referenced
-+		 * skipped over this mm) then we should reactivate it.
-+		 */
-+		if (!(flags & TTU_IGNORE_MLOCK)) {
-+			if (vma->vm_flags & VM_LOCKED) {
-+				/* PTE-mapped THP are never mlocked */
-+				if (!PageTransCompound(page)) {
-+					/*
-+					 * Holding pte lock, we do *not* need
-+					 * mmap_sem here
-+					 */
-+					mlock_vma_page(page);
-+				}
-+				ret = SWAP_MLOCK;
-+				page_vma_mapped_walk_done(&pvmw);
-+				break;
- 			}
--			ret = SWAP_MLOCK;
--			goto out_unmap;
-+			if (flags & TTU_MUNLOCK)
-+				continue;
- 		}
--		if (flags & TTU_MUNLOCK)
--			goto out_unmap;
+-
+-	if (unlikely(PageHuge(page))) {
+-		/* when pud is not present, pte will be NULL */
+-		pte = huge_pte_offset(mm, address);
+-		if (!pte)
+-			return NULL;
+-
+-		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
+-		goto check;
 -	}
--	if (!(flags & TTU_IGNORE_ACCESS)) {
--		if (ptep_clear_flush_young_notify(vma, address, pte)) {
--			ret = SWAP_FAIL;
--			goto out_unmap;
-+
-+		if (!(flags & TTU_IGNORE_ACCESS)) {
-+			if (ptep_clear_flush_young_notify(vma, address,
-+						pvmw.pte)) {
-+				ret = SWAP_FAIL;
-+				page_vma_mapped_walk_done(&pvmw);
-+				break;
-+			}
- 		}
--  	}
- 
--	/* Nuke the page table entry. */
--	flush_cache_page(vma, address, page_to_pfn(page));
--	if (should_defer_flush(mm, flags)) {
--		/*
--		 * We clear the PTE but do not flush so potentially a remote
--		 * CPU could still be writing to the page. If the entry was
--		 * previously clean then the architecture must guarantee that
--		 * a clear->dirty transition on a cached TLB entry is written
--		 * through and traps if the PTE is unmapped.
--		 */
--		pteval = ptep_get_and_clear(mm, address, pte);
-+		/* Nuke the page table entry. */
-+		flush_cache_page(vma, address, pte_pfn(pvmw.pte));
-+		if (should_defer_flush(mm, flags)) {
-+			/*
-+			 * We clear the PTE but do not flush so potentially
-+			 * a remote CPU could still be writing to the page.
-+			 * If the entry was previously clean then the
-+			 * architecture must guarantee that a clear->dirty
-+			 * transition on a cached TLB entry is written through
-+			 * and traps if the PTE is unmapped.
-+			 */
-+			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
-+
-+			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
-+		} else {
-+			pteval = ptep_clear_flush(vma, address, pvmw.pte);
-+		}
- 
--		set_tlb_ubc_flush_pending(mm, page, pte_dirty(pteval));
--	} else {
--		pteval = ptep_clear_flush(vma, address, pte);
+-
+-	pmd = mm_find_pmd(mm, address);
+-	if (!pmd)
+-		return NULL;
+-
+-	pte = pte_offset_map(pmd, address);
+-	/* Make a quick check before getting the lock */
+-	if (!sync && !pte_present(*pte)) {
+-		pte_unmap(pte);
+-		return NULL;
 -	}
-+		/* Move the dirty bit to the page. Now the pte is gone. */
-+		if (pte_dirty(pteval))
-+			set_page_dirty(page);
- 
--	/* Move the dirty bit to the physical page now the pte is gone. */
--	if (pte_dirty(pteval))
--		set_page_dirty(page);
-+		/* Update high watermark before we lower rss */
-+		update_hiwater_rss(mm);
- 
--	/* Update high watermark before we lower rss */
--	update_hiwater_rss(mm);
-+		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-+			if (PageHuge(page)) {
-+				int nr = 1 << compound_order(page);
-+				hugetlb_count_sub(nr, mm);
-+			} else {
-+				dec_mm_counter(mm, mm_counter(page));
-+			}
- 
--	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
--		if (PageHuge(page)) {
--			hugetlb_count_sub(1 << compound_order(page), mm);
--		} else {
-+			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
-+			set_pte_at(mm, address, pvmw.pte, pteval);
-+		} else if (pte_unused(pteval)) {
-+			/*
-+			 * The guest indicated that the page content is of no
-+			 * interest anymore. Simply discard the pte, vmscan
-+			 * will take care of the rest.
-+			 */
- 			dec_mm_counter(mm, mm_counter(page));
--		}
--		set_pte_at(mm, address, pte,
--			   swp_entry_to_pte(make_hwpoison_entry(page)));
--	} else if (pte_unused(pteval)) {
--		/*
--		 * The guest indicated that the page content is of no
--		 * interest anymore. Simply discard the pte, vmscan
--		 * will take care of the rest.
--		 */
--		dec_mm_counter(mm, mm_counter(page));
--	} else if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION)) {
--		swp_entry_t entry;
--		pte_t swp_pte;
--		/*
--		 * Store the pfn of the page in a special migration
--		 * pte. do_swap_page() will wait until the migration
--		 * pte is removed and then restart fault handling.
--		 */
--		entry = make_migration_entry(page, pte_write(pteval));
--		swp_pte = swp_entry_to_pte(entry);
--		if (pte_soft_dirty(pteval))
--			swp_pte = pte_swp_mksoft_dirty(swp_pte);
--		set_pte_at(mm, address, pte, swp_pte);
--	} else if (PageAnon(page)) {
--		swp_entry_t entry = { .val = page_private(page) };
--		pte_t swp_pte;
--		/*
--		 * Store the swap location in the pte.
--		 * See handle_pte_fault() ...
--		 */
--		VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-+		} else if (IS_ENABLED(CONFIG_MIGRATION) &&
-+				(flags & TTU_MIGRATION)) {
-+			swp_entry_t entry;
-+			pte_t swp_pte;
-+			/*
-+			 * Store the pfn of the page in a special migration
-+			 * pte. do_swap_page() will wait until the migration
-+			 * pte is removed and then restart fault handling.
-+			 */
-+			entry = make_migration_entry(subpage,
-+					pte_write(pteval));
-+			swp_pte = swp_entry_to_pte(entry);
-+			if (pte_soft_dirty(pteval))
-+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-+			set_pte_at(mm, address, pvmw.pte, swp_pte);
-+		} else if (PageAnon(page)) {
-+			swp_entry_t entry = { .val = page_private(subpage) };
-+			pte_t swp_pte;
-+			/*
-+			 * Store the swap location in the pte.
-+			 * See handle_pte_fault() ...
-+			 */
-+			VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-+
-+			if (!PageDirty(page) && (flags & TTU_LZFREE)) {
-+				/* It's a freeable page by MADV_FREE */
-+				dec_mm_counter(mm, MM_ANONPAGES);
-+				rp->lazyfreed++;
-+				goto discard;
-+			}
- 
--		if (!PageDirty(page) && (flags & TTU_LZFREE)) {
--			/* It's a freeable page by MADV_FREE */
-+			if (swap_duplicate(entry) < 0) {
-+				set_pte_at(mm, address, pvmw.pte, pteval);
-+				ret = SWAP_FAIL;
-+				page_vma_mapped_walk_done(&pvmw);
-+				break;
-+			}
-+			if (list_empty(&mm->mmlist)) {
-+				spin_lock(&mmlist_lock);
-+				if (list_empty(&mm->mmlist))
-+					list_add(&mm->mmlist, &init_mm.mmlist);
-+				spin_unlock(&mmlist_lock);
-+			}
- 			dec_mm_counter(mm, MM_ANONPAGES);
--			rp->lazyfreed++;
--			goto discard;
--		}
 -
--		if (swap_duplicate(entry) < 0) {
--			set_pte_at(mm, address, pte, pteval);
--			ret = SWAP_FAIL;
--			goto out_unmap;
--		}
--		if (list_empty(&mm->mmlist)) {
--			spin_lock(&mmlist_lock);
--			if (list_empty(&mm->mmlist))
--				list_add(&mm->mmlist, &init_mm.mmlist);
--			spin_unlock(&mmlist_lock);
--		}
--		dec_mm_counter(mm, MM_ANONPAGES);
--		inc_mm_counter(mm, MM_SWAPENTS);
--		swp_pte = swp_entry_to_pte(entry);
--		if (pte_soft_dirty(pteval))
--			swp_pte = pte_swp_mksoft_dirty(swp_pte);
--		set_pte_at(mm, address, pte, swp_pte);
--	} else
--		dec_mm_counter(mm, mm_counter_file(page));
--
-+			inc_mm_counter(mm, MM_SWAPENTS);
-+			swp_pte = swp_entry_to_pte(entry);
-+			if (pte_soft_dirty(pteval))
-+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-+			set_pte_at(mm, address, pvmw.pte, swp_pte);
-+		} else
-+			dec_mm_counter(mm, mm_counter_file(page));
- discard:
--	page_remove_rmap(page, PageHuge(page));
--	put_page(page);
--
--out_unmap:
+-	ptl = pte_lockptr(mm, pmd);
+-check:
+-	spin_lock(ptl);
+-	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
+-		*ptlp = ptl;
+-		return pte;
+-	}
 -	pte_unmap_unlock(pte, ptl);
--	if (ret != SWAP_FAIL && ret != SWAP_MLOCK && !(flags & TTU_MUNLOCK))
-+		page_remove_rmap(subpage, PageHuge(page));
-+		put_page(page);
- 		mmu_notifier_invalidate_page(mm, address);
--out:
-+	}
- 	return ret;
- }
- 
-@@ -1632,7 +1638,7 @@ static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)
- 
- static int page_mapcount_is_zero(struct page *page)
- {
--	return !page_mapcount(page);
-+	return !total_mapcount(page);
- }
- 
- /**
+-	return NULL;
+-}
+-
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-/*
+- * Check that @page is mapped at @address into @mm. In contrast to
+- * page_check_address(), this function can handle transparent huge pages.
+- *
+- * On success returns true with pte mapped and locked. For PMD-mapped
+- * transparent huge pages *@ptep is set to NULL.
+- */
+-bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
+-				  unsigned long address, pmd_t **pmdp,
+-				  pte_t **ptep, spinlock_t **ptlp)
+-{
+-	pgd_t *pgd;
+-	pud_t *pud;
+-	pmd_t *pmd;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-
+-	if (unlikely(PageHuge(page))) {
+-		/* when pud is not present, pte will be NULL */
+-		pte = huge_pte_offset(mm, address);
+-		if (!pte)
+-			return false;
+-
+-		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
+-		pmd = NULL;
+-		goto check_pte;
+-	}
+-
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return false;
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		return false;
+-	pmd = pmd_offset(pud, address);
+-
+-	if (pmd_trans_huge(*pmd)) {
+-		ptl = pmd_lock(mm, pmd);
+-		if (!pmd_present(*pmd))
+-			goto unlock_pmd;
+-		if (unlikely(!pmd_trans_huge(*pmd))) {
+-			spin_unlock(ptl);
+-			goto map_pte;
+-		}
+-
+-		if (pmd_page(*pmd) != page)
+-			goto unlock_pmd;
+-
+-		pte = NULL;
+-		goto found;
+-unlock_pmd:
+-		spin_unlock(ptl);
+-		return false;
+-	} else {
+-		pmd_t pmde = *pmd;
+-
+-		barrier();
+-		if (!pmd_present(pmde) || pmd_trans_huge(pmde))
+-			return false;
+-	}
+-map_pte:
+-	pte = pte_offset_map(pmd, address);
+-	if (!pte_present(*pte)) {
+-		pte_unmap(pte);
+-		return false;
+-	}
+-
+-	ptl = pte_lockptr(mm, pmd);
+-check_pte:
+-	spin_lock(ptl);
+-
+-	if (!pte_present(*pte)) {
+-		pte_unmap_unlock(pte, ptl);
+-		return false;
+-	}
+-
+-	/* THP can be referenced by any subpage */
+-	if (pte_pfn(*pte) - page_to_pfn(page) >= hpage_nr_pages(page)) {
+-		pte_unmap_unlock(pte, ptl);
+-		return false;
+-	}
+-found:
+-	*ptep = pte;
+-	*pmdp = pmd;
+-	*ptlp = ptl;
+-	return true;
+-}
+-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-
+ struct page_referenced_arg {
+ 	int mapcount;
+ 	int referenced;
 -- 
 2.11.0
 
