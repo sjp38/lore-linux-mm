@@ -1,94 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6716B0033
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 23:02:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id d123so8166811pfd.0
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:02:13 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B507F6B0069
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 23:06:31 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d123so8251128pfd.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 20:06:31 -0800 (PST)
 Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id x40si169714plb.112.2017.01.24.20.02.12
+        by mx.google.com with ESMTPS id f29si22002279pga.291.2017.01.24.20.06.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Jan 2017 20:02:12 -0800 (PST)
+        Tue, 24 Jan 2017 20:06:30 -0800 (PST)
 Received: from epcas1p4.samsung.com (unknown [182.195.41.48])
  by mailout1.samsung.com
  (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OKB00HPFHVM2U40@mailout1.samsung.com> for linux-mm@kvack.org;
- Wed, 25 Jan 2017 13:02:10 +0900 (KST)
-Subject: Re: [Bug 192571] zswap + zram enabled BUG
+ with ESMTP id <0OKB00DORI2SQD50@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 25 Jan 2017 13:06:28 +0900 (KST)
+Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
 From: Chulmin Kim <cmlaika.kim@samsung.com>
-Message-id: <2059ec0c-d817-9660-9a16-59fe46f3e3a7@samsung.com>
-Date: Tue, 24 Jan 2017 23:02:30 -0500
+Message-id: <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
+Date: Tue, 24 Jan 2017 23:06:51 -0500
 MIME-version: 1.0
-In-reply-to: 
- <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com>
-Content-type: text/plain; charset=utf-8; format=flowed
+In-reply-to: <20170123054034.GA12327@bbox>
+Content-type: text/plain; charset=windows-1252; format=flowed
 Content-transfer-encoding: 7bit
-References: <bug-192571-27@https.bugzilla.kernel.org/>
- <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
- <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
- <20170118013948.GA580@jagdpanzerIV.localdomain>
- <1484719121.25232.1.camel@list.ru>
- <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
- <1485216185.5952.2.camel@list.ru>
- <CGME20170124201830epcas5p4aefd0bcb970be36f405d23c24e8cedbd@epcas5p4.samsung.com>
- <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com>
+References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
+ <1464736881-24886-12-git-send-email-minchan@kernel.org>
+ <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
+ <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com>
+ <20170119024421.GA9367@bbox>
+ <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
+ <20170119062158.GB9367@bbox>
+ <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
+ <20170123052244.GC11763@bbox> <20170123053056.GB2327@jagdpanzerIV.localdomain>
+ <20170123054034.GA12327@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>, Alexandr <sss123next@list.ru>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 01/24/2017 03:16 PM, Dan Streetman wrote:
-> On Mon, Jan 23, 2017 at 7:03 PM, Alexandr <sss123next@list.ru> wrote:
->> -----BEGIN PGP SIGNED MESSAGE-----
->> Hash: SHA512
+On 01/23/2017 12:40 AM, Minchan Kim wrote:
+> On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
+>> On (01/23/17 14:22), Minchan Kim wrote:
+>> [..]
+>>>> Anyway, I will let you know the situation when it gets more clear.
+>>>
+>>> Yeb, Thanks.
+>>>
+>>> Perhaps, did you tried flush page before the writing?
+>>> I think arm64 have no d-cache alising problem but worth to try it.
+>>> Who knows :)
 >>
->>
->>> Why would you do this?  There's no benefit of using zswap together
->>> with zram.
->>
->> i just wanted to test zram and zswap, i still not dig to deep in it,
->> but what i wanted is to use zram swap (with zswap disabled), and if it
->> exceeded use real swap on block device with zswap enabled.
+>> I thought that flush_dcache_page() is only for cases when we write
+>> to page (store that makes pages dirty), isn't it?
 >
-> I don't believe that's possible, you can't enable zswap for only
-> specific swap devices; and anyway, if you fill up zram, you won't
-> really have any memory left for zswap to use will you?
->
-> However, it shouldn't encounter any BUG(), like you saw.  If it's
-> reproducable for you, can you give details on how to reproduce it?
+> I think we need both because to see recent stores done by the user.
+> I'm not sure it should be done by block device driver rather than
+> page cache. Anyway, brd added it so worth to try it, I thought. :)
 >
 
-Hello. Mr. Streetman.
+Thanks for the suggestion!
+It might be helpful
+though proving it is not easy as the problem appears rarely.
 
+Have you thought about
+zram swap or zswap dealing with self modifying code pages (ex. JIT)?
+(arm64 may have i-cache aliasing problem)
 
-Regarding to this problem, I have a question on zswap.
+If it is problematic,
+especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) 
+may provide the corrupted data
+and even swap out (compressing) may see the corrupted data sooner or 
+later, i guess.
 
-Is there any reason that
-zswap_frontswap_load() does not call flush_dcache_page()?
-
-The zswap load function can dirty the page mapped to user space (might 
-be shareable/writable) which seems exactly the condition mentioned in 
-the definition of flush_dcache_page().
-
-I'm thinking that
-flush_dcache_page() should be called in the end of zswap_frontswap_load().
-Could you review my opinion?
-
-Thanks!
-Chulmin Kim
+THanks!
 
 
 
 
 
-
-
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Thanks.
+>
+> http://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/commit/?id=c2572f2b4ffc27ba79211aceee3bef53a59bb5cd
+>
+>
 >
 >
 
