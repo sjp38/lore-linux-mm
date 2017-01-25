@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CC266B0069
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 05:34:18 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id j18so11622780ioe.3
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 02:34:18 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id w19si19237276ioi.6.2017.01.25.02.34.17
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 572E06B0069
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 05:40:25 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d123so16456439pfd.0
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 02:40:25 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id 207si22987234pgh.10.2017.01.25.02.40.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 02:34:17 -0800 (PST)
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pagesper zone
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170119112336.GN30786@dhcp22.suse.cz>
-	<20170119131143.2ze5l5fwheoqdpne@suse.de>
-	<201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
-	<201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
-	<20170125101517.GG32377@dhcp22.suse.cz>
-In-Reply-To: <20170125101517.GG32377@dhcp22.suse.cz>
-Message-Id: <201701251933.GBH43798.OMQFFtOJHVFOSL@I-love.SAKURA.ne.jp>
-Date: Wed, 25 Jan 2017 19:33:59 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 25 Jan 2017 02:40:24 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH] mm/migration: make isolate_movable_page always defined
+Date: Wed, 25 Jan 2017 18:36:03 +0800
+Message-ID: <1485340563-60785-1-git-send-email-xieyisheng1@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, hch@lst.de
-Cc: mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
 
-Michal Hocko wrote:
-> I think we are missing a check for fatal_signal_pending in
-> iomap_file_buffered_write. This means that an oom victim can consume the
-> full memory reserves. What do you think about the following? I haven't
-> tested this but it mimics generic_perform_write so I guess it should
-> work.
+Define isolate_movable_page as a static inline function when
+CONFIG_MIGRATION is not enable. It should return false
+here which means failed to isolate movable pages.
 
-Looks OK to me. I worried
+This patch do not have any functional change but to resolve compile
+error caused by former commit "HWPOISON: soft offlining for non-lru
+movable page" with CONFIG_MIGRATION disabled.
 
-#define AOP_FLAG_UNINTERRUPTIBLE        0x0001 /* will not do a short write */
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ include/linux/migrate.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-which forbids (!?) aborting the loop. But it seems that this flag is
-no longer checked (i.e. set but not used). So, everybody should be ready
-for short write, although I don't know whether exofs / hfs / hfsplus are
-doing appropriate error handling.
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ae8d475..631a8c8 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -56,6 +56,8 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		free_page_t free, unsigned long private, enum migrate_mode mode,
+ 		int reason)
+ 	{ return -ENOSYS; }
++static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
++	{ return false; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
