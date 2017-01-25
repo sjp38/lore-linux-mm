@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 55EAE6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 07:01:20 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t18so37081934wmt.7
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 04:01:20 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 081FC6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 07:34:50 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v77so37498785wmv.5
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 04:34:49 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y22si22136449wmh.29.2017.01.25.04.01.18
+        by mx.google.com with ESMTPS id a39si26756071wra.119.2017.01.25.04.34.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 04:01:19 -0800 (PST)
-Date: Wed, 25 Jan 2017 13:01:15 +0100
+        Wed, 25 Jan 2017 04:34:48 -0800 (PST)
+Date: Wed, 25 Jan 2017 13:34:46 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/migration: make isolate_movable_page always defined
-Message-ID: <20170125120115.GL32377@dhcp22.suse.cz>
-References: <1485340563-60785-1-git-send-email-xieyisheng1@huawei.com>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated
+ pagesper zone
+Message-ID: <20170125123446.GN32377@dhcp22.suse.cz>
+References: <20170119112336.GN30786@dhcp22.suse.cz>
+ <20170119131143.2ze5l5fwheoqdpne@suse.de>
+ <201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
+ <201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
+ <20170125101517.GG32377@dhcp22.suse.cz>
+ <201701251933.GBH43798.OMQFFtOJHVFOSL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1485340563-60785-1-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <201701251933.GBH43798.OMQFFtOJHVFOSL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-On Wed 25-01-17 18:36:03, Yisheng Xie wrote:
-> Define isolate_movable_page as a static inline function when
-> CONFIG_MIGRATION is not enable. It should return false
-> here which means failed to isolate movable pages.
+On Wed 25-01-17 19:33:59, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > I think we are missing a check for fatal_signal_pending in
+> > iomap_file_buffered_write. This means that an oom victim can consume the
+> > full memory reserves. What do you think about the following? I haven't
+> > tested this but it mimics generic_perform_write so I guess it should
+> > work.
 > 
-> This patch do not have any functional change but to resolve compile
-> error caused by former commit "HWPOISON: soft offlining for non-lru
-> movable page" with CONFIG_MIGRATION disabled.
+> Looks OK to me. I worried
 > 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
->  include/linux/migrate.h | 2 ++
->  1 file changed, 2 insertions(+)
+> #define AOP_FLAG_UNINTERRUPTIBLE        0x0001 /* will not do a short write */
 > 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index ae8d475..631a8c8 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -56,6 +56,8 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
->  		free_page_t free, unsigned long private, enum migrate_mode mode,
->  		int reason)
->  	{ return -ENOSYS; }
-> +static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
-> +	{ return false; }
+> which forbids (!?) aborting the loop. But it seems that this flag is
+> no longer checked (i.e. set but not used). So, everybody should be ready
+> for short write, although I don't know whether exofs / hfs / hfsplus are
+> doing appropriate error handling.
 
-OK, so we return false here which will make __soft_offline_page return
-true all the way up. Is this really what we want? Don't we want to
-return EBUSY in that case? The error code propagation here is just
-one big mess.
-
->  
->  static inline int migrate_prep(void) { return -ENOSYS; }
->  static inline int migrate_prep_local(void) { return -ENOSYS; }
-> -- 
-> 1.7.12.4
-> 
+Those were using generic implementation before and that handles this
+case AFAICS.
 
 -- 
 Michal Hocko
