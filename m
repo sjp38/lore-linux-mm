@@ -1,72 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1954B6B026C
-	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 21:24:29 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 204so258820646pge.5
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 18:24:29 -0800 (PST)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id s75si21739699pgs.53.2017.01.24.18.24.28
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C4AF66B0033
+	for <linux-mm@kvack.org>; Tue, 24 Jan 2017 21:48:40 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id d75so63950164qkc.0
+        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 18:48:40 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id c8si14545358qtg.1.2017.01.24.18.48.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jan 2017 18:24:28 -0800 (PST)
-Received: by mail-pg0-x242.google.com with SMTP id 3so394547pgj.1
-        for <linux-mm@kvack.org>; Tue, 24 Jan 2017 18:24:28 -0800 (PST)
-Subject: Re: [PATCH RFC 3/3] mm, vmscan: correct prepare_kswapd_sleep return
- value
-References: <1485244144-13487-1-git-send-email-hejianet@gmail.com>
- <1485244144-13487-4-git-send-email-hejianet@gmail.com>
- <1485295267.15964.38.camel@redhat.com>
-From: hejianet <hejianet@gmail.com>
-Message-ID: <1f17d49a-90dc-aa2b-6a3a-6fb5291e318f@gmail.com>
-Date: Wed, 25 Jan 2017 10:24:08 +0800
+        Tue, 24 Jan 2017 18:48:39 -0800 (PST)
+Date: Tue, 24 Jan 2017 18:48:36 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: extend zero pages to same element pages for zram
+Message-ID: <20170125024835.GA24387@bombadil.infradead.org>
+References: <20170121084338.GA405@jagdpanzerIV.localdomain>
+ <84073d07-6939-b22d-8bda-4fa2a9127555@huawei.com>
+ <20170123025826.GA24581@js1304-P5Q-DELUXE>
+ <20170123040347.GA2327@jagdpanzerIV.localdomain>
+ <20170123062716.GF24581@js1304-P5Q-DELUXE>
+ <20170123071339.GD2327@jagdpanzerIV.localdomain>
+ <20170123074054.GA12782@bbox>
+ <1ac33960-b523-1c58-b2de-8f6ddb3a5219@huawei.com>
+ <20170125012905.GA17937@bbox>
+ <20170125013244.GB2234@jagdpanzerIV.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <1485295267.15964.38.camel@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170125013244.GB2234@jagdpanzerIV.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, zhouxianrong <zhouxianrong@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
+On Wed, Jan 25, 2017 at 10:32:44AM +0900, Sergey Senozhatsky wrote:
+> Hello,
+> 
+> On (01/25/17 10:29), Minchan Kim wrote:
+> [..]
+> > > the result as listed below:
+> > > 
+> > > zero    pattern_char   pattern_short   pattern_int   pattern_long   total      (unit)
+> > > 162989  14454          3534            23516         2769           3294399    (page)
+> > > 
+> >
+> > so, int covers 93%. As considering non-zero dedup hit ratio is low, I think *int* is
+> > enough if memset is really fast. So, I'd like to go with 'int' if Sergey doesn't mind.
+> 
+> yep, 4 byte pattern matching and memset() sounds like a good plan to me
 
+what?  memset ONLY HANDLES BYTES.
 
-On 25/01/2017 6:01 AM, Rik van Riel wrote:
-> On Tue, 2017-01-24 at 15:49 +0800, Jia He wrote:
->> When there is no reclaimable pages in the zone, even the zone is
->> not balanced, we let kswapd go sleeping. That is prepare_kswapd_sleep
->> will return true in this case.
->>
->> Signed-off-by: Jia He <hejianet@gmail.com>
->> ---
->>  mm/vmscan.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 7396a0a..54445e2 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -3140,7 +3140,8 @@ static bool prepare_kswapd_sleep(pg_data_t
->> *pgdat, int order, int classzone_idx)
->>  		if (!managed_zone(zone))
->>  			continue;
->>
->> -		if (!zone_balanced(zone, order, classzone_idx))
->> +		if (!zone_balanced(zone, order, classzone_idx)
->> +			&& !zone_reclaimable_pages(zone))
->>  			return false;
->>  	}
->
-> This patch does the opposite of what your changelog
-> says.  The above keeps kswapd running forever if
-> the zone is not balanced, and there are no reclaimable
-> pages.
-sorry for the mistake, I will check what happened.
-I tested in my local system.
+I pointed this out earlier, but you don't seem to be listening.  Let me
+try it again.
 
-B.R.
-Jia
->
->
+MEMSET ONLY HANDLES BYTES.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
