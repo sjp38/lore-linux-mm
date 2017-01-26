@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5E36B026C
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:58:37 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 194so308380220pgd.7
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:58:37 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id u5si26287445pgi.223.2017.01.26.03.58.36
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C68926B026D
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:58:41 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 75so308735271pgf.3
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:58:41 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id j9si1196448pfc.290.2017.01.26.03.58.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 03:58:37 -0800 (PST)
+        Thu, 26 Jan 2017 03:58:40 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 08/37] filemap: handle huge pages in do_generic_file_read()
-Date: Thu, 26 Jan 2017 14:57:50 +0300
-Message-Id: <20170126115819.58875-9-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 09/37] filemap: allocate huge page in pagecache_get_page(), if allowed
+Date: Thu, 26 Jan 2017 14:57:51 +0300
+Message-Id: <20170126115819.58875-10-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,58 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Most of work happans on head page. Only when we need to do copy data to
-userspace we find relevant subpage.
-
-We are still limited by PAGE_SIZE per iteration. Lifting this limitation
-would require some more work.
+Write path allocate pages using pagecache_get_page(). We should be able
+to allocate huge pages there, if it's allowed. As usually, fallback to
+small pages, if failed.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ mm/filemap.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 301327685a71..6cba69176ea9 100644
+index 6cba69176ea9..4e398d5e4134 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1886,6 +1886,7 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
- 			if (unlikely(page == NULL))
- 				goto no_cached_page;
- 		}
-+		page = compound_head(page);
- 		if (PageReadahead(page)) {
- 			page_cache_async_readahead(mapping,
- 					ra, filp, page,
-@@ -1967,7 +1968,8 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
- 		 * now we can copy it to user space...
- 		 */
+@@ -1374,13 +1374,16 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
  
--		ret = copy_page_to_iter(page, offset, nr, iter);
-+		ret = copy_page_to_iter(page + index - page->index, offset,
-+				nr, iter);
- 		offset += ret;
- 		index += offset >> PAGE_SHIFT;
- 		offset &= ~PAGE_MASK;
-@@ -2385,6 +2387,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	 * because there really aren't any performance issues here
- 	 * and we need to check for errors.
- 	 */
-+	page = compound_head(page);
- 	ClearPageError(page);
- 	error = mapping->a_ops->readpage(file, page);
- 	if (!error) {
+ no_page:
+ 	if (!page && (fgp_flags & FGP_CREAT)) {
++		pgoff_t hoffset;
+ 		int err;
+ 		if ((fgp_flags & FGP_WRITE) && mapping_cap_account_dirty(mapping))
+ 			gfp_mask |= __GFP_WRITE;
+ 		if (fgp_flags & FGP_NOFS)
+ 			gfp_mask &= ~__GFP_FS;
+ 
+-		page = __page_cache_alloc(gfp_mask);
++		page = page_cache_alloc_huge(mapping, offset, gfp_mask);
++no_huge:	if (!page)
++			page = __page_cache_alloc(gfp_mask);
+ 		if (!page)
+ 			return NULL;
+ 
+@@ -1391,9 +1394,19 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 		if (fgp_flags & FGP_ACCESSED)
+ 			__SetPageReferenced(page);
+ 
+-		err = add_to_page_cache_lru(page, mapping, offset,
++		if (PageTransHuge(page))
++			hoffset = round_down(offset, HPAGE_PMD_NR);
++		else
++			hoffset = offset;
++
++		err = add_to_page_cache_lru(page, mapping, hoffset,
+ 				gfp_mask & GFP_RECLAIM_MASK);
+ 		if (unlikely(err)) {
++			if (PageTransHuge(page)) {
++				put_page(page);
++				page = NULL;
++				goto no_huge;
++			}
+ 			put_page(page);
+ 			page = NULL;
+ 			if (err == -EEXIST)
 -- 
 2.11.0
 
