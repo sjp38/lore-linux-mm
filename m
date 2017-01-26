@@ -1,80 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4CCB6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 11:06:23 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 75so317199931pgf.3
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 08:06:23 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0137.outbound.protection.outlook.com. [104.47.0.137])
-        by mx.google.com with ESMTPS id e11si1758896plj.120.2017.01.26.08.06.22
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 133186B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:04:47 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id x1so98653582lff.6
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:04:47 -0800 (PST)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id h85si1284278ljh.37.2017.01.26.09.04.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 26 Jan 2017 08:06:22 -0800 (PST)
-Subject: Re: [LSF/MM ATTEND] userfaultfd
-References: <20170126130831.GA28055@rapoport-lnx>
-From: Pavel Emelyanov <xemul@virtuozzo.com>
-Message-ID: <588A1F92.6010405@virtuozzo.com>
-Date: Thu, 26 Jan 2017 19:10:58 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jan 2017 09:04:44 -0800 (PST)
+Received: by mail-lf0-x243.google.com with SMTP id v186so24181502lfa.2
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:04:44 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170126130831.GA28055@rapoport-lnx>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170125052614.GB18289@bbox>
+References: <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
+ <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com> <20170119024421.GA9367@bbox>
+ <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com> <20170119062158.GB9367@bbox>
+ <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com> <20170123052244.GC11763@bbox>
+ <20170123053056.GB2327@jagdpanzerIV.localdomain> <20170123054034.GA12327@bbox>
+ <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com> <20170125052614.GB18289@bbox>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 26 Jan 2017 12:04:03 -0500
+Message-ID: <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
+Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 01/26/2017 04:08 PM, Mike Rapoport wrote:
-> Hello,
-> 
-> I'm working on integration of userfaultfd into CRIU. Currently we can
-> perform lazy restore and post-copy migration with the help of
-> userfaultfd, but there are some limitations because of incomplete
-> in-kernel support for non-cooperative mode of userfaultfd.
-> 
-> I'd like to particpate in userfaultfd-WP discussion suggested by
-> Andrea Acangeli [1].
+On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
+> On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
+>> On 01/23/2017 12:40 AM, Minchan Kim wrote:
+>> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
+>> >>On (01/23/17 14:22), Minchan Kim wrote:
+>> >>[..]
+>> >>>>Anyway, I will let you know the situation when it gets more clear.
+>> >>>
+>> >>>Yeb, Thanks.
+>> >>>
+>> >>>Perhaps, did you tried flush page before the writing?
+>> >>>I think arm64 have no d-cache alising problem but worth to try it.
+>> >>>Who knows :)
+>> >>
+>> >>I thought that flush_dcache_page() is only for cases when we write
+>> >>to page (store that makes pages dirty), isn't it?
+>> >
+>> >I think we need both because to see recent stores done by the user.
+>> >I'm not sure it should be done by block device driver rather than
+>> >page cache. Anyway, brd added it so worth to try it, I thought. :)
+>> >
+>>
+>> Thanks for the suggestion!
+>> It might be helpful
+>> though proving it is not easy as the problem appears rarely.
+>>
+>> Have you thought about
+>> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
+>> (arm64 may have i-cache aliasing problem)
+>
+> It can happen, I think, although I don't know how arm64 handles it.
+>
+>>
+>> If it is problematic,
+>> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
+>> provide the corrupted data
+>> and even swap out (compressing) may see the corrupted data sooner or later,
+>> i guess.
+>
+> try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
+> but for swap-in, I think zswap need flushing logic because it's first
+> touch of the user buffer so it's his resposibility.
 
-I'd like to support Mike's "self-nomination".
+Hmm, I don't think zswap needs to, because all the cache aliases were
+flushed when the page was written out.  After that, any access to the
+page will cause a fault, and the fault will cause the page to be read
+back in (via zswap).  I don't see how the page could be cached at any
+time between the swap write-out and swap read-in, so there should be
+no need to flush any caches when it's read back in; am I missing
+something?
 
--- Pavel
 
-> Besides, I would like to broaden userfaultfd discussion so it will
-> also cover the following topics:
-> 
-> * Non-cooperative userfaultfd APIs for checkpoint/restore
-> 
-> Checkpoint/restore of an application that uses userfaultfd will
-> require additions to the userfaultfd API. The new APIs are needed to
-> allow saving parts of in-kernel state of userfaultfd during checkpoint
-> and then recreating this state during restore.
-> 
-> * Userfaultfd and COW-sharing.
-> 
-> If we have two tasks that fork()-ed from each other and we try to
-> lazily restore a page that is still COW-ed between them, the uffd API
-> doesn't give us anything to do it. So we effectively break COW on lazy
-> restore.
-> 
-> * Userfaultfd "nesting" [2]
-> 
-> CRIU uses soft-dirty to track memory changes. We would like to switch
-> to userfaultfd-WP once it gets merged. If the process for which we are
-> tracking memory changes uses userfaultfd, we would need some notion of
-> uffd "nesting", so that the same memory region could be monitored by
-> different userfault file descriptors. Even more interesting case is
-> tracking memory changes of two different processes: one process that
-> has memory regions monitored by uffd and another one that owns the
-> non-cooperative userfault file descriptor to monitor the first
-> process.
-> The userfaultfd "nesting" is also required for lazy restore scenario so
-> that CRIU will be able to use userfaultfd for memory ranges that the
-> restored application is already managing with userfaultfd.
-> 
-> [1] http://www.spinics.net/lists/linux-mm/msg119866.html
-> [2] https://www.spinics.net/lists/linux-mm/msg112500.html
-> 
-> .
-> 
+>
+> Thanks.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
