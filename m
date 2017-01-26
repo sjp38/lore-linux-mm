@@ -1,63 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3E5C6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:48:59 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id ez4so38474524wjd.2
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:48:59 -0800 (PST)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.186])
-        by mx.google.com with ESMTPS id u5si1325133wru.47.2017.01.26.01.48.58
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23CD66B0038
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:53:41 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id d140so44047961wmd.4
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:53:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g3si1322874wrb.153.2017.01.26.01.53.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 01:48:58 -0800 (PST)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH 0/6 v3] kvmalloc
-Date: Thu, 26 Jan 2017 09:48:52 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6DB026EB24@AcuExch.aculab.com>
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
- <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz>
- <5889C331.7020101@iogearbox.net>
-In-Reply-To: <5889C331.7020101@iogearbox.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Jan 2017 01:53:40 -0800 (PST)
+Date: Thu, 26 Jan 2017 09:52:25 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/5] mm: vmscan: scan dirty pages even in laptop mode
+Message-ID: <20170126095225.kvv546uvofie25ym@suse.de>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-2-hannes@cmpxchg.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170123181641.23938-2-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Daniel Borkmann' <daniel@iogearbox.net>, Michal Hocko <mhocko@kernel.org>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "marcelo.leitner@gmail.com" <marcelo.leitner@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-From: Daniel Borkmann
-> Sent: 26 January 2017 09:37
-...
-> >> I assume that kvzalloc() is still the same from [1], right? If so, the=
-n
-> >> it would unfortunately (partially) reintroduce the issue that was fixe=
-d.
-> >> If you look above at flags, they're also passed to __vmalloc() to not
-> >> trigger OOM in these situations I've experienced.
-> >
-> > Pushing __GFP_NORETRY to __vmalloc doesn't have the effect you might
-> > think it would. It can still trigger the OOM killer becauset the flags
-> > are no propagated all the way down to all allocations requests (e.g.
-> > page tables). This is the same reason why GFP_NOFS is not supported in
-> > vmalloc.
->=20
-> Ok, good to know, is that somewhere clearly documented (like for the
-> case with kmalloc())? If not, could we do that for non-mm folks, or
-> at least add a similar WARN_ON_ONCE() as you did for kvmalloc() to make
-> it obvious to users that a given flag combination is not supported all
-> the way down?
+On Mon, Jan 23, 2017 at 01:16:37PM -0500, Johannes Weiner wrote:
+> We have an elaborate dirty/writeback throttling mechanism inside the
+> reclaim scanner, but for that to work the pages have to go through
+> shrink_page_list() and get counted for what they are. Otherwise, we
+> mess up the LRU order and don't match reclaim speed to writeback.
+> 
+> Especially during deactivation, there is never a reason to skip dirty
+> pages; nothing is even trying to write them out from there. Don't mess
+> up the LRU order for nothing, shuffle these pages along.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-ISTM that requests for the relatively small memory blocks needed for page
-tables aren't really likely to invoke the OOM killer when it isn't already
-being invoked by other actions. So that isn't really a problem.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-More of a problem is that requests that you really don't mind failing
-can use the last 'reasonably available' memory.
-This will cause the next allocate to fail when it would be better for
-the earlier one to fail instead.
-
-	David
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
