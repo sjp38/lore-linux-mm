@@ -1,76 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AB256B026E
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 08:10:15 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id q20so39920400ioi.0
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 05:10:15 -0800 (PST)
-Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
-        by mx.google.com with ESMTPS id c26si17011179itd.6.2017.01.26.05.10.14
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4909B6B026E
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 08:13:27 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c206so45009599wme.3
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 05:13:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2si1966747wra.193.2017.01.26.05.13.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 05:10:14 -0800 (PST)
-Message-ID: <5889F52E.7030602@iogearbox.net>
-Date: Thu, 26 Jan 2017 14:10:06 +0100
-From: Daniel Borkmann <daniel@iogearbox.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Jan 2017 05:13:25 -0800 (PST)
+Date: Thu, 26 Jan 2017 14:13:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/5] mm: vmscan: scan dirty pages even in laptop mode
+Message-ID: <20170126131322.GA7827@dhcp22.suse.cz>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-2-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com> <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz> <5889C331.7020101@iogearbox.net> <20170126100802.GF6590@dhcp22.suse.cz> <5889DEA3.7040106@iogearbox.net> <20170126115833.GI6590@dhcp22.suse.cz>
-In-Reply-To: <20170126115833.GI6590@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170123181641.23938-2-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 01/26/2017 12:58 PM, Michal Hocko wrote:
-> On Thu 26-01-17 12:33:55, Daniel Borkmann wrote:
->> On 01/26/2017 11:08 AM, Michal Hocko wrote:
-> [...]
->>> If you disagree I can drop the bpf part of course...
->>
->> If we could consolidate these spots with kvmalloc() eventually, I'm
->> all for it. But even if __GFP_NORETRY is not covered down to all
->> possible paths, it kind of does have an effect already of saying
->> 'don't try too hard', so would it be harmful to still keep that for
->> now? If it's not, I'd personally prefer to just leave it as is until
->> there's some form of support by kvmalloc() and friends.
->
-> Well, you can use kvmalloc(size, GFP_KERNEL|__GFP_NORETRY). It is not
-> disallowed. It is not _supported_ which means that if it doesn't work as
-> you expect you are on your own. Which is actually the situation right
-> now as well. But I still think that this is just not right thing to do.
-> Even though it might happen to work in some cases it gives a false
-> impression of a solution. So I would rather go with
+On Mon 23-01-17 13:16:37, Johannes Weiner wrote:
+> We have an elaborate dirty/writeback throttling mechanism inside the
+> reclaim scanner, but for that to work the pages have to go through
+> shrink_page_list() and get counted for what they are. Otherwise, we
+> mess up the LRU order and don't match reclaim speed to writeback.
+> 
+> Especially during deactivation, there is never a reason to skip dirty
+> pages; nothing is even trying to write them out from there. Don't mess
+> up the LRU order for nothing, shuffle these pages along.
 
-Hmm. 'On my own' means, we could potentially BUG somewhere down the
-vmalloc implementation, etc, presumably? So it might in-fact be
-harmful to pass that, right?
+absolutely agreed.
 
-> diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
-> index 8697f43cf93c..a6dc4d596f14 100644
-> --- a/kernel/bpf/syscall.c
-> +++ b/kernel/bpf/syscall.c
-> @@ -53,6 +53,11 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
->
->   void *bpf_map_area_alloc(size_t size)
->   {
-> +	/*
-> +	 * FIXME: we would really like to not trigger the OOM killer and rather
-> +	 * fail instead. This is not supported right now. Please nag MM people
-> +	 * if these OOM start bothering people.
-> +	 */
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Ok, I know this is out of scope for this series, but since i) this
-is _not_ the _only_ spot right now which has such a construct and ii)
-I am already kind of nagging a bit ;), my question would be, what
-would it take to start supporting it?
+Acked-by: Michal Hocko <mhocko@suse.com>
 
->   	return kvzalloc(size, GFP_USER);
->   }
+> ---
+>  include/linux/mmzone.h |  2 --
+>  mm/vmscan.c            | 14 ++------------
+>  2 files changed, 2 insertions(+), 14 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index df992831fde7..338a786a993f 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -236,8 +236,6 @@ struct lruvec {
+>  #define LRU_ALL_ANON (BIT(LRU_INACTIVE_ANON) | BIT(LRU_ACTIVE_ANON))
+>  #define LRU_ALL	     ((1 << NR_LRU_LISTS) - 1)
+>  
+> -/* Isolate clean file */
+> -#define ISOLATE_CLEAN		((__force isolate_mode_t)0x1)
+>  /* Isolate unmapped file */
+>  #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
+>  /* Isolate for asynchronous migration */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7bb23ff229b6..0d05f7f3b532 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -87,6 +87,7 @@ struct scan_control {
+>  	/* The highest zone to isolate pages for reclaim from */
+>  	enum zone_type reclaim_idx;
+>  
+> +	/* Writepage batching in laptop mode; RECLAIM_WRITE */
+>  	unsigned int may_writepage:1;
+>  
+>  	/* Can mapped pages be reclaimed? */
+> @@ -1373,13 +1374,10 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+>  	 * wants to isolate pages it will be able to operate on without
+>  	 * blocking - clean pages for the most part.
+>  	 *
+> -	 * ISOLATE_CLEAN means that only clean pages should be isolated. This
+> -	 * is used by reclaim when it is cannot write to backing storage
+> -	 *
+>  	 * ISOLATE_ASYNC_MIGRATE is used to indicate that it only wants to pages
+>  	 * that it is possible to migrate without blocking
+>  	 */
+> -	if (mode & (ISOLATE_CLEAN|ISOLATE_ASYNC_MIGRATE)) {
+> +	if (mode & ISOLATE_ASYNC_MIGRATE) {
+>  		/* All the caller can do on PageWriteback is block */
+>  		if (PageWriteback(page))
+>  			return ret;
+> @@ -1387,10 +1385,6 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+>  		if (PageDirty(page)) {
+>  			struct address_space *mapping;
+>  
+> -			/* ISOLATE_CLEAN means only clean pages */
+> -			if (mode & ISOLATE_CLEAN)
+> -				return ret;
+> -
+>  			/*
+>  			 * Only pages without mappings or that have a
+>  			 * ->migratepage callback are possible to migrate
+> @@ -1731,8 +1725,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  
+>  	if (!sc->may_unmap)
+>  		isolate_mode |= ISOLATE_UNMAPPED;
+> -	if (!sc->may_writepage)
+> -		isolate_mode |= ISOLATE_CLEAN;
+>  
+>  	spin_lock_irq(&pgdat->lru_lock);
+>  
+> @@ -1929,8 +1921,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>  
+>  	if (!sc->may_unmap)
+>  		isolate_mode |= ISOLATE_UNMAPPED;
+> -	if (!sc->may_writepage)
+> -		isolate_mode |= ISOLATE_CLEAN;
+>  
+>  	spin_lock_irq(&pgdat->lru_lock);
+>  
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks,
-Daniel
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
