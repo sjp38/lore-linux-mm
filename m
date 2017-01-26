@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F25C36B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:59:08 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id gt1so38599212wjc.0
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:59:08 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 030716B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 05:06:40 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id jz4so38645292wjb.5
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 02:06:39 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s16si819786wmb.17.2017.01.26.01.59.07
+        by mx.google.com with ESMTPS id o15si1354273wrb.191.2017.01.26.02.06.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Jan 2017 01:59:07 -0800 (PST)
-Date: Thu, 26 Jan 2017 09:57:45 +0000
+        Thu, 26 Jan 2017 02:06:38 -0800 (PST)
+Date: Thu, 26 Jan 2017 10:05:09 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/5] mm: vmscan: kick flushers when we encounter dirty
- pages on the LRU
-Message-ID: <20170126095745.ueigbrsop5vgmwzj@suse.de>
+Subject: Re: [PATCH 3/5] mm: vmscan: remove old flusher wakeup from direct
+ reclaim path
+Message-ID: <20170126100509.gbf6rxao6gsmqyq3@suse.de>
 References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-3-hannes@cmpxchg.org>
+ <20170123181641.23938-4-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170123181641.23938-3-hannes@cmpxchg.org>
+In-Reply-To: <20170123181641.23938-4-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jan 23, 2017 at 01:16:38PM -0500, Johannes Weiner wrote:
-> Memory pressure can put dirty pages at the end of the LRU without
-> anybody running into dirty limits. Don't start writing individual
-> pages from kswapd while the flushers might be asleep.
+On Mon, Jan 23, 2017 at 01:16:39PM -0500, Johannes Weiner wrote:
+> Direct reclaim has been replaced by kswapd reclaim in pretty much all
+> common memory pressure situations, so this code most likely doesn't
+> accomplish the described effect anymore. The previous patch wakes up
+> flushers for all reclaimers when we encounter dirty pages at the tail
+> end of the LRU. Remove the crufty old direct reclaim invocation.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I don't understand the motivation for checking the wb_reason name. Maybe
-it was easier to eyeball while reading ftraces. The comment about the
-flusher not doing its job could also be as simple as the writes took
-place and clean pages were reclaimed before dirty_expire was reached.
-Not impossible if there was a light writer combined with a heavy reader
-or a large number of anonymous faults.
+In general I like this. I worried first that if kswapd is blocked
+writing pages that it won't reach the wakeup_flusher_threads but the
+previous patch handles it.
 
-Anyway;
+Now though, it occurs to me with the last patch that we always writeout
+the world when flushing threads. This may not be a great idea. Consider
+for example if there is a heavy writer of short-lived tmp files. In such a
+case, it is possible for the files to be truncated before they even hit the
+disk. However, if there are multiple "writeout the world" calls, these may
+now be hitting the disk. Furthermore, multiplle kswapd and direct reclaimers
+could all be requested to writeout the world and each request unplugs.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Is it possible to maintain the property of writing back pages relative
+to the numbers of pages scanned or have you determined already that it's
+not necessary?
 
 -- 
 Mel Gorman
