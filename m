@@ -1,72 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CFF6B0038
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:08 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y143so328226387pfb.6
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:07 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x1si2577624pfa.171.2017.01.26.14.40.07
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 300EC6B0253
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:10 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d185so327888068pgc.2
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:10 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id w127si489546pgb.313.2017.01.26.14.40.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 14:40:07 -0800 (PST)
-Subject: [RFC][PATCH 1/4] x86, mpx: introduce per-mm MPX table size tracking
+        Thu, 26 Jan 2017 14:40:09 -0800 (PST)
+Subject: [RFC][PATCH 2/4] x86, mpx: update MPX to grok larger bounds tables
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 26 Jan 2017 14:40:06 -0800
+Date: Thu, 26 Jan 2017 14:40:07 -0800
 References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
 In-Reply-To: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
-Message-Id: <20170126224006.DED9C8D3@viggo.jf.intel.com>
+Message-Id: <20170126224007.3E06536B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>
 
 
-Larger address spaces mean larger MPX bounds table sizes.  This
-tracks which size tables we are using.
+As mentioned repeatedly, larger address spaces mean larger MPX bounds
+tables.  The MPX code in the kernel needs to walk these tables in order
+to populate them on demand as well as unmap them when memory is freed.
 
-"MAWA" is what the hardware documentation calls this feature:
-MPX Address-Width Adjust.  We will carry that nomenclature throughout
-this series.
-
-The new field will be optimized and get packed into 'bd_addr' in a later
-patch.  But, leave it separate for now to make the series simpler.
+This updates the bounds table walking code to understand how to walk
+the larger table size.  It uses the new per-mm "MAWA" value to determine
+which format to use.
 
 ---
 
- b/arch/x86/include/asm/mmu.h |    1 +
- b/arch/x86/include/asm/mpx.h |    9 +++++++++
- 2 files changed, 10 insertions(+)
+ b/arch/x86/include/asm/mpx.h |   27 +++++++++++++++++++++------
+ b/arch/x86/mm/mpx.c          |   25 +++++++++++++++++--------
+ 2 files changed, 38 insertions(+), 14 deletions(-)
 
-diff -puN arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa arch/x86/include/asm/mmu.h
---- a/arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa	2017-01-26 14:31:32.643673297 -0800
-+++ b/arch/x86/include/asm/mmu.h	2017-01-26 14:31:32.647673476 -0800
-@@ -34,6 +34,7 @@ typedef struct {
- #ifdef CONFIG_X86_INTEL_MPX
- 	/* address of the bounds directory */
- 	void __user *bd_addr;
-+	int mpx_mawa;
- #endif
- } mm_context_t;
+diff -puN arch/x86/include/asm/mpx.h~mawa-030-bounds-directory-sizes arch/x86/include/asm/mpx.h
+--- a/arch/x86/include/asm/mpx.h~mawa-030-bounds-directory-sizes	2017-01-26 14:31:33.098693731 -0800
++++ b/arch/x86/include/asm/mpx.h	2017-01-26 14:31:33.103693956 -0800
+@@ -14,15 +14,30 @@
+ #define MPX_BD_ENTRY_VALID_FLAG	0x1
  
-diff -puN arch/x86/include/asm/mpx.h~mawa-020-mmu_context-mawa arch/x86/include/asm/mpx.h
---- a/arch/x86/include/asm/mpx.h~mawa-020-mmu_context-mawa	2017-01-26 14:31:32.644673342 -0800
-+++ b/arch/x86/include/asm/mpx.h	2017-01-26 14:31:32.648673521 -0800
-@@ -68,6 +68,15 @@ static inline void mpx_mm_init(struct mm
- 	 * directory, so point this at an invalid address.
- 	 */
- 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
+ /*
+- * The upper 28 bits [47:20] of the virtual address in 64-bit
+- * are used to index into bounds directory (BD).
++ * The uppermost bits [56:20] of the virtual address in 64-bit
++ * are used to index into bounds directory (BD).  On processors
++ * with support for smaller virtual address space size, the "56"
++ * is obviously smaller.
+  *
+- * The directory is 2G (2^31) in size, and with 8-byte entries
+- * it has 2^28 entries.
++ * When using 47-bit virtual addresses, the directory is 2G
++ * (2^31) bytes in size, and with 8-byte entries it has 2^28
++ * entries.  With 56-bit virtual addresses, it goes to 1T in size
++ * and has 2^37 entries.
++ *
++ * Needs to be ULL so we can use this in 32-bit kernels without
++ * warnings.
+  */
+-#define MPX_BD_SIZE_BYTES_64	(1UL<<31)
++#define MPX_BD_BASE_SIZE_BYTES_64	(1ULL<<31)
+ #define MPX_BD_ENTRY_BYTES_64	8
+-#define MPX_BD_NR_ENTRIES_64	(MPX_BD_SIZE_BYTES_64/MPX_BD_ENTRY_BYTES_64)
++/*
++ * Note: size of tables on 64-bit is not constant, so we have no
++ * fixed definition for MPX_BD_NR_ENTRIES_64.
++ *
++ * The 5-Level Paging Whitepaper says:
++ * A bound directory comprises 2^(28+MAWA) 64-bit entries.
++ * MAWA=0 in the legacy mode, so:
++ */
++#define MPX_BD_LEGACY_NR_ENTRIES_64	(1UL<<28)
+ 
+ /*
+  * The 32-bit directory is 4MB (2^22) in size, and with 4-byte
+diff -puN arch/x86/mm/mpx.c~mawa-030-bounds-directory-sizes arch/x86/mm/mpx.c
+--- a/arch/x86/mm/mpx.c~mawa-030-bounds-directory-sizes	2017-01-26 14:31:33.099693776 -0800
++++ b/arch/x86/mm/mpx.c	2017-01-26 14:31:33.103693956 -0800
+@@ -22,10 +22,14 @@
+ 
+ static inline unsigned long mpx_bd_size_bytes(struct mm_struct *mm)
+ {
+-	if (is_64bit_mm(mm))
+-		return MPX_BD_SIZE_BYTES_64;
+-	else
++	if (!is_64bit_mm(mm))
+ 		return MPX_BD_SIZE_BYTES_32;
++
 +	/*
-+	 * All processes start out in "legacy" MPX mode with
-+	 * MAWA=0.
++	 * The bounds directory grows with the MAWA value.  The
++	 * "legacy" shift is 0.
 +	 */
-+	mm->context.mpx_mawa = 0;
-+}
-+static inline int mpx_mawa_shift(struct mm_struct *mm)
-+{
-+	return mm->context.mpx_mawa;
++	return MPX_BD_BASE_SIZE_BYTES_64 << mpx_mawa_shift(mm);
  }
- void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
- 		      unsigned long start, unsigned long end);
+ 
+ static inline unsigned long mpx_bt_size_bytes(struct mm_struct *mm)
+@@ -724,6 +728,7 @@ static inline unsigned long bd_entry_vir
+ {
+ 	unsigned long long virt_space;
+ 	unsigned long long GB = (1ULL << 30);
++	unsigned long legacy_64bit_vaddr_bits = 48;
+ 
+ 	/*
+ 	 * This covers 32-bit emulation as well as 32-bit kernels
+@@ -733,12 +738,16 @@ static inline unsigned long bd_entry_vir
+ 		return (4ULL * GB) / MPX_BD_NR_ENTRIES_32;
+ 
+ 	/*
+-	 * 'x86_virt_bits' returns what the hardware is capable
+-	 * of, and returns the full >32-bit address space when
+-	 * running 32-bit kernels on 64-bit hardware.
++	 * With 5-level paging, the virtual address space size
++	 * gets bigger.  A bounds directory entry still points to
++	 * a single bounds table and the *tables* stay the same
++	 * size.  Thus, the address space that a directory entry
++	 * covers does not change based on the paging mode (or
++	 * MAWA value).  Just use the legacy calculation despite
++	 * the MAWA mode.
+ 	 */
+-	virt_space = (1ULL << boot_cpu_data.x86_virt_bits);
+-	return virt_space / MPX_BD_NR_ENTRIES_64;
++	virt_space = (1ULL << legacy_64bit_vaddr_bits);
++	return virt_space / MPX_BD_LEGACY_NR_ENTRIES_64;
+ }
+ 
+ /*
 _
 
 --
