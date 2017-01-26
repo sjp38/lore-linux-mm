@@ -1,100 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EB71D6B026C
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 08:40:07 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id yr2so39779493wjc.4
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 05:40:07 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A776B026C
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 08:52:38 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c206so45217988wme.3
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 05:52:38 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 57si2077466wrv.17.2017.01.26.05.40.06
+        by mx.google.com with ESMTPS id e8si2068269wrc.310.2017.01.26.05.52.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Jan 2017 05:40:06 -0800 (PST)
-Date: Thu, 26 Jan 2017 14:40:04 +0100
+        Thu, 26 Jan 2017 05:52:37 -0800 (PST)
+Date: Thu, 26 Jan 2017 14:52:35 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-Message-ID: <20170126134004.GM6590@dhcp22.suse.cz>
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
- <588907AA.1020704@iogearbox.net>
- <20170126074354.GB8456@dhcp22.suse.cz>
- <5889C331.7020101@iogearbox.net>
- <20170126100802.GF6590@dhcp22.suse.cz>
- <5889DEA3.7040106@iogearbox.net>
- <20170126115833.GI6590@dhcp22.suse.cz>
- <5889F52E.7030602@iogearbox.net>
+Subject: Re: [PATCH 5/5] mm: vmscan: move dirty pages out of the way until
+ they're flushed
+Message-ID: <20170126135234.GE7827@dhcp22.suse.cz>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-6-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5889F52E.7030602@iogearbox.net>
+In-Reply-To: <20170123181641.23938-6-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Borkmann <daniel@iogearbox.net>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Thu 26-01-17 14:10:06, Daniel Borkmann wrote:
-> On 01/26/2017 12:58 PM, Michal Hocko wrote:
-> > On Thu 26-01-17 12:33:55, Daniel Borkmann wrote:
-> > > On 01/26/2017 11:08 AM, Michal Hocko wrote:
-> > [...]
-> > > > If you disagree I can drop the bpf part of course...
-> > > 
-> > > If we could consolidate these spots with kvmalloc() eventually, I'm
-> > > all for it. But even if __GFP_NORETRY is not covered down to all
-> > > possible paths, it kind of does have an effect already of saying
-> > > 'don't try too hard', so would it be harmful to still keep that for
-> > > now? If it's not, I'd personally prefer to just leave it as is until
-> > > there's some form of support by kvmalloc() and friends.
-> > 
-> > Well, you can use kvmalloc(size, GFP_KERNEL|__GFP_NORETRY). It is not
-> > disallowed. It is not _supported_ which means that if it doesn't work as
-> > you expect you are on your own. Which is actually the situation right
-> > now as well. But I still think that this is just not right thing to do.
-> > Even though it might happen to work in some cases it gives a false
-> > impression of a solution. So I would rather go with
+On Mon 23-01-17 13:16:41, Johannes Weiner wrote:
+> We noticed a performance regression when moving hadoop workloads from
+> 3.10 kernels to 4.0 and 4.6. This is accompanied by increased pageout
+> activity initiated by kswapd as well as frequent bursts of allocation
+> stalls and direct reclaim scans. Even lowering the dirty ratios to the
+> equivalent of less than 1% of memory would not eliminate the issue,
+> suggesting that dirty pages concentrate where the scanner is looking.
 > 
-> Hmm. 'On my own' means, we could potentially BUG somewhere down the
-> vmalloc implementation, etc, presumably? So it might in-fact be
-> harmful to pass that, right?
-
-No it would mean that it might eventually hit the behavior which you are
-trying to avoid - in other words it may invoke OOM killer even though
-__GFP_NORETRY means giving up before any system wide disruptive actions
-a re taken.
-
+> This can be traced back to recent efforts of thrash avoidance. Where
+> 3.10 would not detect refaulting pages and continuously supply clean
+> cache to the inactive list, a thrashing workload on 4.0+ will detect
+> and activate refaulting pages right away, distilling used-once pages
+> on the inactive list much more effectively. This is by design, and it
+> makes sense for clean cache. But for the most part our workload's
+> cache faults are refaults and its use-once cache is from streaming
+> writes. We end up with most of the inactive list dirty, and we don't
+> go after the active cache as long as we have use-once pages around.
 > 
-> > diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
-> > index 8697f43cf93c..a6dc4d596f14 100644
-> > --- a/kernel/bpf/syscall.c
-> > +++ b/kernel/bpf/syscall.c
-> > @@ -53,6 +53,11 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
-> > 
-> >   void *bpf_map_area_alloc(size_t size)
-> >   {
-> > +	/*
-> > +	 * FIXME: we would really like to not trigger the OOM killer and rather
-> > +	 * fail instead. This is not supported right now. Please nag MM people
-> > +	 * if these OOM start bothering people.
-> > +	 */
+> But waiting for writes to avoid reclaiming clean cache that *might*
+> refault is a bad trade-off. Even if the refaults happen, reads are
+> faster than writes. Before getting bogged down on writeback, reclaim
+> should first look at *all* cache in the system, even active cache.
 > 
-> Ok, I know this is out of scope for this series, but since i) this
-> is _not_ the _only_ spot right now which has such a construct and ii)
-> I am already kind of nagging a bit ;), my question would be, what
-> would it take to start supporting it?
+> To accomplish this, activate pages that have been dirty or under
+> writeback for two inactive LRU cycles. We know at this point that
+> there are not enough clean inactive pages left to satisfy memory
+> demand in the system. The pages are marked for immediate reclaim,
+> meaning they'll get moved back to the inactive LRU tail as soon as
+> they're written back and become reclaimable. But in the meantime, by
+> reducing the inactive list to only immediately reclaimable pages, we
+> allow the scanner to deactivate and refill the inactive list with
+> clean cache from the active list tail to guarantee forward progress.
 
-propagate gfp mask all the way down from vmalloc to all places which
-might allocate down the path and especially page table allocation
-function are PITA because they are really deep. This is a lot of work...
+I was worried that the inactive list can shrink too low and that could
+lead to pre-mature OOM declaration but should_reclaim_retry should cope
+with this because it considers NR_ZONE_WRITE_PENDING which includes both
+dirty and writeback pages.
 
-But realistically, how big is this problem really? Is it really worth
-it? You said this is an admin only interface and admin can kill the
-machine by OOM and other means already.
+That being said the patch makes sense to me
 
-Moreover and I should probably mention it explicitly, your d407bd25a204b
-reduced the likelyhood of oom for other reason. kmalloc used GPF_USER
-previously and with order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER this
-could indeed hit the OOM e.g. due to memory fragmentation. It would be
-much harder to hit the OOM killer from vmalloc which doesn't issue
-higher order allocation requests. Or have you ever seen the OOM killer
-pointing to the vmalloc fallback path?
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/mm_inline.h | 7 +++++++
+>  mm/swap.c                 | 9 +++++----
+>  mm/vmscan.c               | 6 +++---
+>  3 files changed, 15 insertions(+), 7 deletions(-)
+> 
+> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+> index 41d376e7116d..e030a68ead7e 100644
+> --- a/include/linux/mm_inline.h
+> +++ b/include/linux/mm_inline.h
+> @@ -50,6 +50,13 @@ static __always_inline void add_page_to_lru_list(struct page *page,
+>  	list_add(&page->lru, &lruvec->lists[lru]);
+>  }
+>  
+> +static __always_inline void add_page_to_lru_list_tail(struct page *page,
+> +				struct lruvec *lruvec, enum lru_list lru)
+> +{
+> +	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
+> +	list_add_tail(&page->lru, &lruvec->lists[lru]);
+> +}
+> +
+>  static __always_inline void del_page_from_lru_list(struct page *page,
+>  				struct lruvec *lruvec, enum lru_list lru)
+>  {
+> diff --git a/mm/swap.c b/mm/swap.c
+> index aabf2e90fe32..c4910f14f957 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -209,9 +209,10 @@ static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec,
+>  {
+>  	int *pgmoved = arg;
+>  
+> -	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> -		enum lru_list lru = page_lru_base_type(page);
+> -		list_move_tail(&page->lru, &lruvec->lists[lru]);
+> +	if (PageLRU(page) && !PageUnevictable(page)) {
+> +		del_page_from_lru_list(page, lruvec, page_lru(page));
+> +		ClearPageActive(page);
+> +		add_page_to_lru_list_tail(page, lruvec, page_lru(page));
+>  		(*pgmoved)++;
+>  	}
+>  }
+> @@ -235,7 +236,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
+>   */
+>  void rotate_reclaimable_page(struct page *page)
+>  {
+> -	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
+> +	if (!PageLocked(page) && !PageDirty(page) &&
+>  	    !PageUnevictable(page) && PageLRU(page)) {
+>  		struct pagevec *pvec;
+>  		unsigned long flags;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index df0fe0cc438e..947ab6f4db10 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1063,7 +1063,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			    PageReclaim(page) &&
+>  			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
+>  				nr_immediate++;
+> -				goto keep_locked;
+> +				goto activate_locked;
+>  
+>  			/* Case 2 above */
+>  			} else if (sane_reclaim(sc) ||
+> @@ -1081,7 +1081,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				 */
+>  				SetPageReclaim(page);
+>  				nr_writeback++;
+> -				goto keep_locked;
+> +				goto activate_locked;
+>  
+>  			/* Case 3 above */
+>  			} else {
+> @@ -1174,7 +1174,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				inc_node_page_state(page, NR_VMSCAN_IMMEDIATE);
+>  				SetPageReclaim(page);
+>  
+> -				goto keep_locked;
+> +				goto activate_locked;
+>  			}
+>  
+>  			if (references == PAGEREF_RECLAIM_CLEAN)
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
 Michal Hocko
 SUSE Labs
