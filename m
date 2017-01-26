@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F526B0274
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A62336B0276
 	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:58:47 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id z67so308241454pgb.0
+Received: by mail-pf0-f198.google.com with SMTP id 80so305776448pfy.2
         for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:58:47 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id u5si26287445pgi.223.2017.01.26.03.58.45
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id m129si26295026pgm.165.2017.01.26.03.58.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 26 Jan 2017 03:58:46 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 15/37] thp: do not threat slab pages as huge in hpage_{nr_pages,size,mask}
-Date: Thu, 26 Jan 2017 14:57:57 +0300
-Message-Id: <20170126115819.58875-16-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 16/37] thp: make thp_get_unmapped_area() respect S_HUGE_MODE
+Date: Thu, 26 Jan 2017 14:57:58 +0300
+Message-Id: <20170126115819.58875-17-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,32 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Slab pages can be compound, but we shouldn't threat them as THP for
-pupose of hpage_* helpers, otherwise it would lead to confusing results.
-
-For instance, ext4 uses slab pages for journal pages and we shouldn't
-confuse them with THPs. The easiest way is to exclude them in hpage_*
-helpers.
+We want mmap(NULL) to return PMD-aligned address if the inode can have
+huge pages in page cache.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/huge_memory.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index e5c9c26d2439..5e6c408f5b47 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -137,21 +137,21 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
- }
- static inline int hpage_nr_pages(struct page *page)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 55aee62e8444..2b1d8d13e2c3 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -528,10 +528,12 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags)
  {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_NR;
- 	return 1;
- }
+ 	loff_t off = (loff_t)pgoff << PAGE_SHIFT;
++	struct inode *inode = filp->f_mapping->host;
  
- static inline int hpage_size(struct page *page)
- {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_SIZE;
- 	return PAGE_SIZE;
- }
+ 	if (addr)
+ 		goto out;
+-	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
++	if ((inode->i_flags & S_HUGE_MODE) == S_HUGE_NEVER &&
++			(!IS_DAX(inode) || !IS_ENABLED(CONFIG_FS_DAX_PMD)))
+ 		goto out;
  
- static inline unsigned long hpage_mask(struct page *page)
- {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_MASK;
- 	return PAGE_MASK;
- }
+ 	addr = __thp_get_unmapped_area(filp, len, off, flags, PMD_SIZE);
 -- 
 2.11.0
 
