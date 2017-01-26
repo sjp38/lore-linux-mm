@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DD1C6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:06 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 80so327343566pfy.2
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:06 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id w33si2571532plb.273.2017.01.26.14.40.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06CFF6B0038
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:08 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y143so328226387pfb.6
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:07 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x1si2577624pfa.171.2017.01.26.14.40.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 14:40:05 -0800 (PST)
-Subject: [RFC][PATCH 0/4] x86, mpx: Support larger address space (MAWA)
+        Thu, 26 Jan 2017 14:40:07 -0800 (PST)
+Subject: [RFC][PATCH 1/4] x86, mpx: introduce per-mm MPX table size tracking
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 26 Jan 2017 14:40:05 -0800
-Message-Id: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
+Date: Thu, 26 Jan 2017 14:40:06 -0800
+References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
+In-Reply-To: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
+Message-Id: <20170126224006.DED9C8D3@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>
 
-Kirill is chugging right along getting his 5-level paging[1] patch set
-ready to be merged.  I figured I'd share an early draft of the MPX
-support that will to go along with it.
 
-Background: there is a lot more detail about what bounds tables are in
-the changelog for fe3d197f843.  But, basically MPX bounds tables help
-us to store the ranges to which a pointer is allowed to point.  The
-tables are walked by hardware and they are indexed by the virtual
-address of the pointer being checked.
+Larger address spaces mean larger MPX bounds table sizes.  This
+tracks which size tables we are using.
 
-A larger virtual address space (from 5-level paging) means that we
-need larger tables.  5-level paging hardware includes a feature called
-MPX Address-Width Adjust (MAWA) that grows the bounds tables so they
-can address the new address space.  MAWA is controlled independently
-from the paging mode (via an MSR) so that old MPX binaries can run on
-new hardware and kernels supporting 5-level paging.
+"MAWA" is what the hardware documentation calls this feature:
+MPX Address-Width Adjust.  We will carry that nomenclature throughout
+this series.
 
-But, since userspace is responsible for allocating the table that is
-growing (the directory), we need to ensure that userspace and the
-kernel agree about the size of these tables and the kernel can set the
-MSR appropriately.
+The new field will be optimized and get packed into 'bd_addr' in a later
+patch.  But, leave it separate for now to make the series simpler.
 
-These are not quite ready to get applied anywhere, but I don't expect
-the basics to change unless folks have big problems with this.  The
-only big remaining piece of work is to update the MPX selftest code.
+---
 
-Dave Hansen (4):
-      x86, mpx: introduce per-mm MPX table size tracking
-      x86, mpx: update MPX to grok larger bounds tables
-      x86, mpx: extend MPX prctl() to pass in size of bounds directory
-      x86, mpx: context-switch new MPX address size MSR
+ b/arch/x86/include/asm/mmu.h |    1 +
+ b/arch/x86/include/asm/mpx.h |    9 +++++++++
+ 2 files changed, 10 insertions(+)
 
- arch/x86/include/asm/mmu.h       |  1 +
- arch/x86/include/asm/mpx.h       | 41 ++++++++++++++---
- arch/x86/include/asm/msr-index.h |  1 +
- arch/x86/include/asm/processor.h |  6 +--
- arch/x86/mm/mpx.c                | 79 ++++++++++++++++++++++++++++----
- arch/x86/mm/pgtable.c            |  2 +-
- arch/x86/mm/tlb.c                | 42 +++++++++++++++++
- kernel/sys.c                     |  6 +--
- 8 files changed, 155 insertions(+), 23 deletions(-)
-
-1. https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf
+diff -puN arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa arch/x86/include/asm/mmu.h
+--- a/arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa	2017-01-26 14:31:32.643673297 -0800
++++ b/arch/x86/include/asm/mmu.h	2017-01-26 14:31:32.647673476 -0800
+@@ -34,6 +34,7 @@ typedef struct {
+ #ifdef CONFIG_X86_INTEL_MPX
+ 	/* address of the bounds directory */
+ 	void __user *bd_addr;
++	int mpx_mawa;
+ #endif
+ } mm_context_t;
+ 
+diff -puN arch/x86/include/asm/mpx.h~mawa-020-mmu_context-mawa arch/x86/include/asm/mpx.h
+--- a/arch/x86/include/asm/mpx.h~mawa-020-mmu_context-mawa	2017-01-26 14:31:32.644673342 -0800
++++ b/arch/x86/include/asm/mpx.h	2017-01-26 14:31:32.648673521 -0800
+@@ -68,6 +68,15 @@ static inline void mpx_mm_init(struct mm
+ 	 * directory, so point this at an invalid address.
+ 	 */
+ 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
++	/*
++	 * All processes start out in "legacy" MPX mode with
++	 * MAWA=0.
++	 */
++	mm->context.mpx_mawa = 0;
++}
++static inline int mpx_mawa_shift(struct mm_struct *mm)
++{
++	return mm->context.mpx_mawa;
+ }
+ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		      unsigned long start, unsigned long end);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
