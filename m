@@ -1,95 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 133186B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:04:47 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id x1so98653582lff.6
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:04:47 -0800 (PST)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id h85si1284278ljh.37.2017.01.26.09.04.44
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1BD6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:09:44 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id d185so316902087pgc.2
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:09:44 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id t124si26959294pgt.180.2017.01.26.09.09.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 09:04:44 -0800 (PST)
-Received: by mail-lf0-x243.google.com with SMTP id v186so24181502lfa.2
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:04:44 -0800 (PST)
+        Thu, 26 Jan 2017 09:09:43 -0800 (PST)
+Subject: [PATCH v2 0/3] 1G transparent hugepage support for device dax
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Thu, 26 Jan 2017 10:09:41 -0700
+Message-ID: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170125052614.GB18289@bbox>
-References: <CGME20170119001317epcas1p188357c77e1f4ff08b6d3dcb76dedca06@epcas1p1.samsung.com>
- <afd38699-f1c4-f63f-7362-29c514e9ffb4@samsung.com> <20170119024421.GA9367@bbox>
- <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com> <20170119062158.GB9367@bbox>
- <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com> <20170123052244.GC11763@bbox>
- <20170123053056.GB2327@jagdpanzerIV.localdomain> <20170123054034.GA12327@bbox>
- <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com> <20170125052614.GB18289@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 26 Jan 2017 12:04:03 -0500
-Message-ID: <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: akpm@linux-foundation.org
+Cc: dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
 
-On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
->> On 01/23/2017 12:40 AM, Minchan Kim wrote:
->> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
->> >>On (01/23/17 14:22), Minchan Kim wrote:
->> >>[..]
->> >>>>Anyway, I will let you know the situation when it gets more clear.
->> >>>
->> >>>Yeb, Thanks.
->> >>>
->> >>>Perhaps, did you tried flush page before the writing?
->> >>>I think arm64 have no d-cache alising problem but worth to try it.
->> >>>Who knows :)
->> >>
->> >>I thought that flush_dcache_page() is only for cases when we write
->> >>to page (store that makes pages dirty), isn't it?
->> >
->> >I think we need both because to see recent stores done by the user.
->> >I'm not sure it should be done by block device driver rather than
->> >page cache. Anyway, brd added it so worth to try it, I thought. :)
->> >
->>
->> Thanks for the suggestion!
->> It might be helpful
->> though proving it is not easy as the problem appears rarely.
->>
->> Have you thought about
->> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
->> (arm64 may have i-cache aliasing problem)
->
-> It can happen, I think, although I don't know how arm64 handles it.
->
->>
->> If it is problematic,
->> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
->> provide the corrupted data
->> and even swap out (compressing) may see the corrupted data sooner or later,
->> i guess.
->
-> try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
-> but for swap-in, I think zswap need flushing logic because it's first
-> touch of the user buffer so it's his resposibility.
+The following series implements support for 1G trasparent hugepage on
+x86 for device dax. The bulk of the code was written by Mathew Wilcox
+a while back supporting transparent 1G hugepage for fs DAX. I have
+forward ported the relevant bits to 4.10-rc. The current submission has
+only the necessary code to support device DAX.
 
-Hmm, I don't think zswap needs to, because all the cache aliases were
-flushed when the page was written out.  After that, any access to the
-page will cause a fault, and the fault will cause the page to be read
-back in (via zswap).  I don't see how the page could be cached at any
-time between the swap write-out and swap read-in, so there should be
-no need to flush any caches when it's read back in; am I missing
-something?
+Comments from Dan Williams:
+So the motivation and intended user of this functionality mirrors the
+motivation and users of 1GB page support in hugetlbfs. Given expected
+capacities of persistent memory devices an in-memory database may want
+to reduce tlb pressure beyond what they can already achieve with 2MB
+mappings of a device-dax file. We have customer feedback to that
+effect as Willy mentioned in his previous version of these patches
+[1].
+
+[1]: https://lkml.org/lkml/2016/1/31/52
 
 
->
-> Thanks.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Comments from Nilesh @ Oracle:
+
+There are applications which have a process model; and if you assume 10,000
+processes attempting to mmap all the 6TB memory available on a server;
+we are looking at the following:
+
+processes         : 10,000
+memory            :    6TB
+pte @ 4k page size: 8 bytes / 4K of memory * #processes = 6TB / 4k * 8 * 10000 = 1.5GB * 80000 = 120,000GB
+pmd @ 2M page size: 120,000 / 512 = ~240GB
+pud @ 1G page size: 240GB / 512 = ~480MB
+
+As you can see with 2M pages, this system will use up an
+exorbitant amount of DRAM to hold the page tables; but the 1G
+pages finally brings it down to a reasonable level.
+Memory sizes will keep increasing; so this number will keep
+increasing.
+
+An argument can be made to convert the applications from process
+model to thread model, but in the real world that may not be
+always practical.
+Hopefully this helps explain the use case where this is valuable.
+
+v2: Fixup build issues from 0-day build.
+
+---
+
+Dave Jiang (1):
+      dax: Support for transparent PUD pages for device DAX
+
+Matthew Wilcox (2):
+      mm,fs,dax: Change ->pmd_fault to ->huge_fault
+      mm,x86: Add support for PUD-sized transparent hugepages
+
+
+ arch/Kconfig                          |    3 
+ arch/x86/Kconfig                      |    1 
+ arch/x86/include/asm/paravirt.h       |   11 +
+ arch/x86/include/asm/paravirt_types.h |    2 
+ arch/x86/include/asm/pgtable-2level.h |   17 ++
+ arch/x86/include/asm/pgtable-3level.h |   24 +++
+ arch/x86/include/asm/pgtable.h        |  140 +++++++++++++++++++
+ arch/x86/include/asm/pgtable_64.h     |   15 ++
+ arch/x86/kernel/paravirt.c            |    1 
+ arch/x86/mm/pgtable.c                 |   31 ++++
+ drivers/dax/dax.c                     |   82 ++++++++---
+ fs/dax.c                              |   43 ++++--
+ fs/ext2/file.c                        |    2 
+ fs/ext4/file.c                        |    6 -
+ fs/xfs/xfs_file.c                     |   10 +
+ fs/xfs/xfs_trace.h                    |    2 
+ include/asm-generic/pgtable.h         |   80 ++++++++++-
+ include/asm-generic/tlb.h             |   14 ++
+ include/linux/dax.h                   |    6 -
+ include/linux/huge_mm.h               |   83 ++++++++++-
+ include/linux/mm.h                    |   40 +++++
+ include/linux/mmu_notifier.h          |   14 ++
+ include/linux/pfn_t.h                 |   12 ++
+ mm/gup.c                              |    7 +
+ mm/huge_memory.c                      |  249 +++++++++++++++++++++++++++++++++
+ mm/memory.c                           |  102 ++++++++++++--
+ mm/pagewalk.c                         |   20 +++
+ mm/pgtable-generic.c                  |   14 ++
+ 28 files changed, 956 insertions(+), 75 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
