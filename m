@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EF4696B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 00:50:51 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y143so296665812pfb.6
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:50:51 -0800 (PST)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTP id i64si474352pfk.182.2017.01.25.21.50.49
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 22FC86B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:56:40 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f5so300284100pgi.1
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 22:56:40 -0800 (PST)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id r22si585449pfi.273.2017.01.25.22.56.37
         for <linux-mm@kvack.org>;
-        Wed, 25 Jan 2017 21:50:51 -0800 (PST)
+        Wed, 25 Jan 2017 22:56:39 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
-In-Reply-To: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 0/5] userfaultfd: non-cooperative: better tracking for mapping changes
-Date: Thu, 26 Jan 2017 13:50:27 +0800
-Message-ID: <008001d27798$1dd18390$59748ab0$@alibaba-inc.com>
+References: <20170125182538.86249-1-kirill.shutemov@linux.intel.com> <20170125182538.86249-6-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170125182538.86249-6-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv2 05/12] mm, rmap: check all VMAs that PTE-mapped THP can be part of
+Date: Thu, 26 Jan 2017 14:56:20 +0800
+Message-ID: <008a01d277a1$4d7021c0$e8506540$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -22,62 +22,33 @@ Content-Transfer-Encoding: 7bit
 Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Rapoport' <rppt@linux.vnet.ibm.com>, 'Linux-MM' <linux-mm@kvack.org>
-Cc: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@virtuozzo.com>, 'LKML' <linux-kernel@vger.kernel.org>
+To: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, 'Hugh Dickins' <hughd@google.com>, 'Rik van Riel' <riel@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-On January 24, 2017 9:52 PM Mike Rapoport wrote: 
-> Hi,
+On January 26, 2017 2:26 AM Kirill A. Shutemov wrote: 
+> @@ -333,12 +333,15 @@ __vma_address(struct page *page, struct vm_area_struct *vma)
+>  static inline unsigned long
+>  vma_address(struct page *page, struct vm_area_struct *vma)
+>  {
+> -	unsigned long address = __vma_address(page, vma);
+> +	unsigned long start, end;
+> +
+> +	start = __vma_address(page, vma);
+> +	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
 > 
-> These patches try to address issues I've encountered during integration of
-> userfaultfd with CRIU.
-> Previously added userfaultfd events for fork(), madvise() and mremap()
-> unfortunately do not cover all possible changes to a process virtual memory
-> layout required for uffd monitor.
-> When one or more VMAs is removed from the process mm, the external uffd
-> monitor has no way to detect those changes and will attempt to fill the
-> removed regions with userfaultfd_copy.
-> Another problematic event is the exit() of the process. Here again, the
-> external uffd monitor will try to use userfaultfd_copy, although mm owning
-> the memory has already gone.
+>  	/* page should be within @vma mapping range */
+> -	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+> +	VM_BUG_ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
 > 
-> The first patch in the series is a minor cleanup and it's not strictly
-> related to the rest of the series.
-> 
-> The patches 2 and 3 below add UFFD_EVENT_UNMAP and UFFD_EVENT_EXIT to allow
-> the uffd monitor track changes in the memory layout of a process.
-> 
-> The patches 4 and 5 amend error codes returned by userfaultfd_copy to make
-> the uffd monitor able to cope with races that might occur between delivery
-> of unmap and exit events and outstanding userfaultfd_copy's.
-> 
-> The patches are agains current -mm tree.
-> 
-> Mike Rapoport (5):
->   mm: call vm_munmap in munmap syscall instead of using open coded version
->   userfaultfd: non-cooperative: add event for memory unmaps
->   userfaultfd: non-cooperative: add event for exit() notification
->   userfaultfd: mcopy_atomic: return -ENOENT when no compatible VMA found
->   userfaultfd_copy: return -ENOSPC in case mm has gone
-> 
->  arch/tile/mm/elf.c               |  2 +-
->  arch/x86/entry/vdso/vma.c        |  2 +-
->  arch/x86/mm/mpx.c                |  2 +-
->  fs/aio.c                         |  2 +-
->  fs/proc/vmcore.c                 |  4 +-
->  fs/userfaultfd.c                 | 91 ++++++++++++++++++++++++++++++++++++++++
->  include/linux/mm.h               | 14 ++++---
->  include/linux/userfaultfd_k.h    | 25 +++++++++++
->  include/uapi/linux/userfaultfd.h |  8 +++-
->  ipc/shm.c                        |  6 +--
->  kernel/exit.c                    |  2 +
->  mm/mmap.c                        | 55 ++++++++++++++----------
->  mm/mremap.c                      | 23 ++++++----
->  mm/userfaultfd.c                 | 42 ++++++++++---------
->  mm/util.c                        |  5 ++-
->  15 files changed, 215 insertions(+), 68 deletions(-)
-> 
-> --
+> -	return address;
+> +	return max(start, vma->vm_start);
+>  }
+Nit: currently it's buggy if page is not within the mapping range.
+In this work fix is added for start if unlikely it goes outside range, and 
+its currently relevant debugging is cut off.
+
+Other than that,
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 
