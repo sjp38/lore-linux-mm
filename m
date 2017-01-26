@@ -1,122 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBA526B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:36:57 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id j18so37140090ioe.3
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:36:57 -0800 (PST)
-Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
-        by mx.google.com with ESMTPS id k185si11499901itb.12.2017.01.26.01.36.57
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 653586B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:43:09 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id yr2so38482630wjc.4
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:43:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g15si2360677wmc.25.2017.01.26.01.43.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 01:36:57 -0800 (PST)
-Message-ID: <5889C331.7020101@iogearbox.net>
-Date: Thu, 26 Jan 2017 10:36:49 +0100
-From: Daniel Borkmann <daniel@iogearbox.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Jan 2017 01:43:08 -0800 (PST)
+Date: Thu, 26 Jan 2017 10:43:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC v2 PATCH] mm/hotplug: enable memory hotplug for non-lru
+ movable pages
+Message-ID: <20170126094303.GE6590@dhcp22.suse.cz>
+References: <1485327585-62872-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com> <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz>
-In-Reply-To: <20170126074354.GB8456@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1485327585-62872-1-git-send-email-xieyisheng1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, n-horiguchi@ah.jp.nec.com, minchan@kernel.org, qiuxishi@huawei.com, guohanjun@huawei.com
 
-On 01/26/2017 08:43 AM, Michal Hocko wrote:
-> On Wed 25-01-17 21:16:42, Daniel Borkmann wrote:
->> On 01/25/2017 07:14 PM, Alexei Starovoitov wrote:
->>> On Wed, Jan 25, 2017 at 5:21 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>>> On Wed 25-01-17 14:10:06, Michal Hocko wrote:
->>>>> On Tue 24-01-17 11:17:21, Alexei Starovoitov wrote:
->> [...]
->>>>>>> Are there any more comments? I would really appreciate to hear from
->>>>>>> networking folks before I resubmit the series.
->>>>>>
->>>>>> while this patchset was baking the bpf side switched to use bpf_map_area_alloc()
->>>>>> which fixes the issue with missing __GFP_NORETRY that we had to fix quickly.
->>>>>> See commit d407bd25a204 ("bpf: don't trigger OOM killer under pressure with map alloc")
->>>>>> it covers all kmalloc/vmalloc pairs instead of just one place as in this set.
->>>>>> So please rebase and switch bpf_map_area_alloc() to use kvmalloc().
->>>>>
->>>>> OK, will do. Thanks for the heads up.
->>>>
->>>> Just for the record, I will fold the following into the patch 1
->>>> ---
->>>> diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
->>>> index 19b6129eab23..8697f43cf93c 100644
->>>> --- a/kernel/bpf/syscall.c
->>>> +++ b/kernel/bpf/syscall.c
->>>> @@ -53,21 +53,7 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
->>>>
->>>>    void *bpf_map_area_alloc(size_t size)
->>>>    {
->>>> -       /* We definitely need __GFP_NORETRY, so OOM killer doesn't
->>>> -        * trigger under memory pressure as we really just want to
->>>> -        * fail instead.
->>>> -        */
->>>> -       const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
->>>> -       void *area;
->>>> -
->>>> -       if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
->>>> -               area = kmalloc(size, GFP_USER | flags);
->>>> -               if (area != NULL)
->>>> -                       return area;
->>>> -       }
->>>> -
->>>> -       return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | flags,
->>>> -                        PAGE_KERNEL);
->>>> +       return kvzalloc(size, GFP_USER);
->>>>    }
->>>>
->>>>    void bpf_map_area_free(void *area)
->>>
->>> Looks fine by me.
->>> Daniel, thoughts?
->>
->> I assume that kvzalloc() is still the same from [1], right? If so, then
->> it would unfortunately (partially) reintroduce the issue that was fixed.
->> If you look above at flags, they're also passed to __vmalloc() to not
->> trigger OOM in these situations I've experienced.
->
-> Pushing __GFP_NORETRY to __vmalloc doesn't have the effect you might
-> think it would. It can still trigger the OOM killer becauset the flags
-> are no propagated all the way down to all allocations requests (e.g.
-> page tables). This is the same reason why GFP_NOFS is not supported in
-> vmalloc.
+On Wed 25-01-17 14:59:45, Yisheng Xie wrote:
+> We had considered all of the non-lru pages as unmovable before
+> commit bda807d44454 ("mm: migrate: support non-lru movable page
+> migration"). But now some of non-lru pages like zsmalloc,
+> virtio-balloon pages also become movable. So we can offline such
+> blocks by using non-lru page migration.
+> 
+> This patch straightforwardly add non-lru migration code, which
+> means adding non-lru related code to the functions which scan
+> over pfn and collect pages to be migrated and isolate them before
+> migration.
+> 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> ---
+> v2
+>  make a minor change about lock_page logic in function scan_movable_pages.
+> 
+>  mm/memory_hotplug.c | 36 +++++++++++++++++++++++++-----------
+>  mm/page_alloc.c     |  8 ++++++--
+>  2 files changed, 31 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index e43142c1..5559175 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1510,10 +1510,10 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+>  }
+>  
+>  /*
+> - * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
+> - * and hugepages). We scan pfn because it's much easier than scanning over
+> - * linked list. This function returns the pfn of the first found movable
+> - * page if it's found, otherwise 0.
+> + * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
+> + * non-lru movable pages and hugepages). We scan pfn because it's much
+> + * easier than scanning over linked list. This function returns the pfn
+> + * of the first found movable page if it's found, otherwise 0.
+>   */
+>  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  {
+> @@ -1531,6 +1531,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  					pfn = round_up(pfn + 1,
+>  						1 << compound_order(page)) - 1;
+>  			}
+> +			/*
+> +			 * check __PageMovable in lock_page to avoid miss some
+> +			 * non-lru movable pages at race condition.
+> +			 */
+> +			lock_page(page);
+> +			if (__PageMovable(page)) {
+> +				unlock_page(page);
+> +				return pfn;
+> +			}
+> +			unlock_page(page);
 
-Ok, good to know, is that somewhere clearly documented (like for the
-case with kmalloc())? If not, could we do that for non-mm folks, or
-at least add a similar WARN_ON_ONCE() as you did for kvmalloc() to make
-it obvious to users that a given flag combination is not supported all
-the way down?
+This doesn't make any sense to me. __PageMovable can change right after
+you drop the lock so why the race matters? If we cannot tolerate races
+then the above doesn't work and if we can then taking the lock is
+pointless.
 
->> This is effectively the
->> same requirement as in other networking areas f.e. that 5bad87348c70
->> ("netfilter: x_tables: avoid warn and OOM killer on vmalloc call") has.
->> In your comment in kvzalloc() you eventually say that some of the above
->> modifiers are not supported. So there would be two options, i) just leave
->> out the kvzalloc() chunk for BPF area to avoid the merge conflict and tackle
->> it later (along with similar code from 5bad87348c70), or ii) implement
->> support for these modifiers as well to your original set. I guess it's not
->> too urgent, so we could also proceed with i) if that is easier for you to
->> proceed (I don't mind either way).
->
-> Could you clarify why the oom killer in vmalloc matters actually?
+>  		}
+>  	}
+>  	return 0;
+> @@ -1600,21 +1610,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+>  		if (!get_page_unless_zero(page))
+>  			continue;
+>  		/*
+> -		 * We can skip free pages. And we can only deal with pages on
+> -		 * LRU.
+> +		 * We can skip free pages. And we can deal with pages on
+> +		 * LRU and non-lru movable pages.
+>  		 */
+> -		ret = isolate_lru_page(page);
+> +		if (PageLRU(page))
+> +			ret = isolate_lru_page(page);
+> +		else
+> +			ret = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
 
-For both mentioned commits, (privileged) user space can potentially
-create large allocation requests, where we thus switch to vmalloc()
-flavor eventually and then OOM starts killing processes to try to
-satisfy the allocation request. This is bad, because we want the
-request to just fail instead as it's non-critical and f.e. not kill
-ssh connection et al. Failing is totally fine in this case, whereas
-triggering OOM is not. In my testing, __GFP_NORETRY did satisfy this
-just fine, but as you say it seems it's not enough. Given there are
-multiple places like these in the kernel, could we instead add an
-option such as __GFP_NOOOM, or just make __GFP_NORETRY supported?
+we really want to propagate the proper error code to the caller.
 
-Thanks,
-Daniel
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
