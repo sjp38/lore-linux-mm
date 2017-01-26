@@ -1,95 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 019AF6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 00:23:41 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id d13so263474552oib.3
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:23:40 -0800 (PST)
-Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
-        by mx.google.com with ESMTPS id b185si194983oif.244.2017.01.25.21.23.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 21:23:39 -0800 (PST)
-Received: by mail-oi0-x244.google.com with SMTP id u143so17217444oif.3
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:23:39 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E42C6B0253
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 00:44:25 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c73so297226418pfb.7
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:44:25 -0800 (PST)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id u5si25540967pgi.223.2017.01.25.21.44.22
+        for <linux-mm@kvack.org>;
+        Wed, 25 Jan 2017 21:44:24 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+In-Reply-To: <20170123181641.23938-1-hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/5] mm: vmscan: fix kswapd writeback regression
+Date: Thu, 26 Jan 2017 13:44:01 +0800
+Message-ID: <007c01d27797$34178790$9c4696b0$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20170125232713.GB20811@bbox>
-References: <1485344318-6418-1-git-send-email-vinmenon@codeaurora.org> <20170125232713.GB20811@bbox>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Thu, 26 Jan 2017 10:53:38 +0530
-Message-ID: <CAOaiJ-mk=SmNR4oK+udhJNxHzmobf28wSu+nf449c=1cHMBDAg@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: do not pass reclaimed slab to vmpressure
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, shiraz.hashim@gmail.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Mel Gorman' <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi Minchan
 
-On Thu, Jan 26, 2017 at 4:57 AM, Minchan Kim <minchan@kernel.org> wrote:
-> Hello Vinayak,
->
-> On Wed, Jan 25, 2017 at 05:08:38PM +0530, Vinayak Menon wrote:
->> It is noticed that during a global reclaim the memory
->> reclaimed via shrinking the slabs can sometimes result
->> in reclaimed pages being greater than the scanned pages
->> in shrink_node. When this is passed to vmpressure, the
->
-> I don't know you are saying zsmalloc. Anyway, it's one of those which
-> free larger pages than requested. I should fix that but was not sent
-> yet, unfortunately.
+On January 24, 2017 2:17 AM Johannes Weiner wrote:
+> 
+> We noticed a regression on multiple hadoop workloads when moving from
+> 3.10 to 4.0 and 4.6, which involves kswapd getting tangled up in page
+> writeout, causing direct reclaim herds that also don't make progress.
+> 
+> I tracked it down to the thrash avoidance efforts after 3.10 that make
+> the kernel better at keeping use-once cache and use-many cache sorted
+> on the inactive and active list, with more aggressive protection of
+> the active list as long as there is inactive cache. Unfortunately, our
+> workload's use-once cache is mostly from streaming writes. Waiting for
+> writes to avoid potential reloads in the future is not a good tradeoff.
+> 
+> These patches do the following:
+> 
+> 1. Wake the flushers when kswapd sees a lump of dirty pages. It's
+>    possible to be below the dirty background limit and still have
+>    cache velocity push them through the LRU. So start a-flushin'.
+> 
+> 2. Let kswapd only write pages that have been rotated twice. This
+>    makes sure we really tried to get all the clean pages on the
+>    inactive list before resorting to horrible LRU-order writeback.
+> 
+> 3. Move rotating dirty pages off the inactive list. Instead of
+>    churning or waiting on page writeback, we'll go after clean active
+>    cache. This might lead to thrashing, but in this state memory
+>    demand outstrips IO speed anyway, and reads are faster than writes.
+> 
+> More details in the individual changelogs.
+> 
+>  include/linux/mm_inline.h        |  7 ++++
+>  include/linux/mmzone.h           |  2 --
+>  include/linux/writeback.h        |  2 +-
+>  include/trace/events/writeback.h |  2 +-
+>  mm/swap.c                        |  9 ++---
+>  mm/vmscan.c                      | 68 +++++++++++++++-----------------------
+>  6 files changed, 41 insertions(+), 49 deletions(-)
+> 
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-As I understand, the problem is not related to a particular shrinker.
-In shrink_node, when subtree's reclaim efficiency is passed to vmpressure,
-the 4th parameter (sc->nr_scanned - nr_scanned) includes only the LRU
-scanned pages, but the 5th parameter (sc->nr_reclaimed - nr_reclaimed) includes
-the reclaimed slab pages also since in the previous step
-"reclaimed_slab" is added
-to it. i.e the slabs scanned are not included in scanned passed to vmpressure.
-This results in reclaimed going higher than scanned in vmpressure resulting in
-false events.
-
->
->> unsigned arithmetic results in the pressure value to be
->> huge, thus resulting in a critical event being sent to
->> root cgroup. Fix this by not passing the reclaimed slab
->> count to vmpressure, with the assumption that vmpressure
->> should show the actual pressure on LRU which is now
->> diluted by adding reclaimed slab without a corresponding
->> scanned value.
->
-> I can't guess justfication of your assumption from the description.
-> Why do we consider only LRU pages for vmpressure? Could you elaborate
-> a bit?
->
-When we encountered the false events from vmpressure, thought the problem
-could be that slab scanned is not included in sc->nr_scanned, like it is done
-for reclaimed. But later thought vmpressure works only on the scanned and
-reclaimed from LRU. I can explain what I understand, let me know if this is
-incorrect.
-vmpressure is an index which tells the pressure on LRU, and thus an
-indicator of thrashing. In shrink_node when we come out of the inner do-while
-loop after shrinking the lruvec, the scanned and reclaimed corresponds to the
-pressure felt on the LRUs which in turn indicates the pressure on VM. The
-moment we add the slab reclaimed pages to the reclaimed, we dilute the
-actual pressure felt on LRUs. When slab scanned/reclaimed is not included
-in the vmpressure, the values will indicate the actual pressure and if there
-were a lot of slab reclaimed pages it will result in lesser pressure
-on LRUs in the next run which will again be indicated by vmpressure. i.e. the
-pressure on LRUs indicate actual pressure on VM even if slab reclaimed is
-not included. Moreover, what I understand from code is, the reclaimed_slab
-includes only the inodesteals and the pages freed by slab allocator, and does
-not include the pages reclaimed by other shrinkers like
-lowmemorykiller, zsmalloc
-etc. That means even now we are including only a subset of reclaimed pages
-to vmpressure. Also, considering the case of a userspace lowmemorykiller
-which works on vmpressure on root cgroup, if the slab reclaimed in included in
-vmpressure, the lowmemorykiller will wait till most of the slab is
-shrinked before
-kicking in to kill a task. No ?
-
-Thanks,
-Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
