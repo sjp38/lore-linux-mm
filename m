@@ -1,174 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D4F6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 02:43:38 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 204so301850004pge.5
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 23:43:38 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 32si709459plf.34.2017.01.25.23.43.36
-        for <linux-mm@kvack.org>;
-        Wed, 25 Jan 2017 23:43:37 -0800 (PST)
-Date: Thu, 26 Jan 2017 16:43:33 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v5 05/13] lockdep: Pass a callback arg to
- check_prev_add() to handle stack_trace
-Message-ID: <20170126074333.GA16086@X58A-UD3R>
-References: <1484745459-2055-1-git-send-email-byungchul.park@lge.com>
- <1484745459-2055-6-git-send-email-byungchul.park@lge.com>
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B4666B0038
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 02:43:59 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id jz4so37866963wjb.5
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 23:43:59 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n49si924368wrn.256.2017.01.25.23.43.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Jan 2017 23:43:58 -0800 (PST)
+Date: Thu, 26 Jan 2017 08:43:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6 v3] kvmalloc
+Message-ID: <20170126074354.GB8456@dhcp22.suse.cz>
+References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
+ <588907AA.1020704@iogearbox.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1484745459-2055-6-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <588907AA.1020704@iogearbox.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 
-I fixed a hole that peterz pointed out. And then, I think the following
-is reasonable. Don't you think so?
+On Wed 25-01-17 21:16:42, Daniel Borkmann wrote:
+> On 01/25/2017 07:14 PM, Alexei Starovoitov wrote:
+> > On Wed, Jan 25, 2017 at 5:21 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > On Wed 25-01-17 14:10:06, Michal Hocko wrote:
+> > > > On Tue 24-01-17 11:17:21, Alexei Starovoitov wrote:
+> [...]
+> > > > > > Are there any more comments? I would really appreciate to hear from
+> > > > > > networking folks before I resubmit the series.
+> > > > > 
+> > > > > while this patchset was baking the bpf side switched to use bpf_map_area_alloc()
+> > > > > which fixes the issue with missing __GFP_NORETRY that we had to fix quickly.
+> > > > > See commit d407bd25a204 ("bpf: don't trigger OOM killer under pressure with map alloc")
+> > > > > it covers all kmalloc/vmalloc pairs instead of just one place as in this set.
+> > > > > So please rebase and switch bpf_map_area_alloc() to use kvmalloc().
+> > > > 
+> > > > OK, will do. Thanks for the heads up.
+> > > 
+> > > Just for the record, I will fold the following into the patch 1
+> > > ---
+> > > diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+> > > index 19b6129eab23..8697f43cf93c 100644
+> > > --- a/kernel/bpf/syscall.c
+> > > +++ b/kernel/bpf/syscall.c
+> > > @@ -53,21 +53,7 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
+> > > 
+> > >   void *bpf_map_area_alloc(size_t size)
+> > >   {
+> > > -       /* We definitely need __GFP_NORETRY, so OOM killer doesn't
+> > > -        * trigger under memory pressure as we really just want to
+> > > -        * fail instead.
+> > > -        */
+> > > -       const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
+> > > -       void *area;
+> > > -
+> > > -       if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+> > > -               area = kmalloc(size, GFP_USER | flags);
+> > > -               if (area != NULL)
+> > > -                       return area;
+> > > -       }
+> > > -
+> > > -       return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | flags,
+> > > -                        PAGE_KERNEL);
+> > > +       return kvzalloc(size, GFP_USER);
+> > >   }
+> > > 
+> > >   void bpf_map_area_free(void *area)
+> > 
+> > Looks fine by me.
+> > Daniel, thoughts?
+> 
+> I assume that kvzalloc() is still the same from [1], right? If so, then
+> it would unfortunately (partially) reintroduce the issue that was fixed.
+> If you look above at flags, they're also passed to __vmalloc() to not
+> trigger OOM in these situations I've experienced.
 
------>8-----
-commit ac185d1820ee7223773ec3e23f614c1fe5c079fc
-Author: Byungchul Park <byungchul.park@lge.com>
-Date:   Tue Jan 24 14:46:14 2017 +0900
+Pushing __GFP_NORETRY to __vmalloc doesn't have the effect you might
+think it would. It can still trigger the OOM killer becauset the flags
+are no propagated all the way down to all allocations requests (e.g.
+page tables). This is the same reason why GFP_NOFS is not supported in
+vmalloc.
 
-    lockdep: Pass a callback arg to check_prev_add() to handle stack_trace
-    
-    Currently, a separate stack_trace instance cannot be used in
-    check_prev_add(). The simplest way to achieve it is to pass a
-    stack_trace instance to check_prev_add() as an argument after
-    saving it. However, unnecessary saving can happen if so implemented.
-    
-    The proper solution is to pass a callback function additionally along
-    with a stack_trace so that a caller can decide the way to save. Actually,
-    crossrelease don't need to save stack_trace of current, but only need to
-    copy stack_traces from temporary buffers to the global stack_trace[].
-    
-    In addition, check_prev_add() returns 2 in case that the lock does not
-    need to be added into the dependency graph because it was already in.
-    However, the return value is not used any more. So, this patch changes
-    it to mean that lockdep successfully save stack_trace and add the lock
-    to the graph.
-    
-    Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> This is effectively the
+> same requirement as in other networking areas f.e. that 5bad87348c70
+> ("netfilter: x_tables: avoid warn and OOM killer on vmalloc call") has.
+> In your comment in kvzalloc() you eventually say that some of the above
+> modifiers are not supported. So there would be two options, i) just leave
+> out the kvzalloc() chunk for BPF area to avoid the merge conflict and tackle
+> it later (along with similar code from 5bad87348c70), or ii) implement
+> support for these modifiers as well to your original set. I guess it's not
+> too urgent, so we could also proceed with i) if that is easier for you to
+> proceed (I don't mind either way).
 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 7fe6af1..9562b29 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -1805,20 +1805,13 @@ static inline void inc_chains(void)
-  */
- static int
- check_prev_add(struct task_struct *curr, struct held_lock *prev,
--	       struct held_lock *next, int distance, int *stack_saved)
-+	       struct held_lock *next, int distance, struct stack_trace *trace,
-+	       int (*save)(struct stack_trace *trace))
- {
- 	struct lock_list *entry;
- 	int ret;
- 	struct lock_list this;
- 	struct lock_list *uninitialized_var(target_entry);
--	/*
--	 * Static variable, serialized by the graph_lock().
--	 *
--	 * We use this static variable to save the stack trace in case
--	 * we call into this function multiple times due to encountering
--	 * trylocks in the held lock stack.
--	 */
--	static struct stack_trace trace;
- 
- 	/*
- 	 * Prove that the new <prev> -> <next> dependency would not
-@@ -1862,15 +1855,12 @@ static inline void inc_chains(void)
- 		if (entry->class == hlock_class(next)) {
- 			if (distance == 1)
- 				entry->distance = 1;
--			return 2;
-+			return 1;
- 		}
- 	}
- 
--	if (!*stack_saved) {
--		if (!save_trace(&trace))
--			return 0;
--		*stack_saved = 1;
--	}
-+	if (save && !save(trace))
-+		return 0;
- 
- 	/*
- 	 * Ok, all validations passed, add the new lock
-@@ -1878,14 +1868,14 @@ static inline void inc_chains(void)
- 	 */
- 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
- 			       &hlock_class(prev)->locks_after,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 
- 	if (!ret)
- 		return 0;
- 
- 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
- 			       &hlock_class(next)->locks_before,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 	if (!ret)
- 		return 0;
- 
-@@ -1893,8 +1883,6 @@ static inline void inc_chains(void)
- 	 * Debugging printouts:
- 	 */
- 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
--		/* We drop graph lock, so another thread can overwrite trace. */
--		*stack_saved = 0;
- 		graph_unlock();
- 		printk("\n new dependency: ");
- 		print_lock_name(hlock_class(prev));
-@@ -1902,9 +1890,10 @@ static inline void inc_chains(void)
- 		print_lock_name(hlock_class(next));
- 		printk(KERN_CONT "\n");
- 		dump_stack();
--		return graph_lock();
-+		if (!graph_lock())
-+			return 0;
- 	}
--	return 1;
-+	return 2;
- }
- 
- /*
-@@ -1917,8 +1906,9 @@ static inline void inc_chains(void)
- check_prevs_add(struct task_struct *curr, struct held_lock *next)
- {
- 	int depth = curr->lockdep_depth;
--	int stack_saved = 0;
- 	struct held_lock *hlock;
-+	struct stack_trace trace;
-+	int (*save)(struct stack_trace *trace) = save_trace;
- 
- 	/*
- 	 * Debugging checks.
-@@ -1943,9 +1933,18 @@ static inline void inc_chains(void)
- 		 * added:
- 		 */
- 		if (hlock->read != 2 && hlock->check) {
--			if (!check_prev_add(curr, hlock, next,
--						distance, &stack_saved))
-+			int ret = check_prev_add(curr, hlock, next,
-+						distance, &trace, save);
-+			if (!ret)
- 				return 0;
-+
-+			/*
-+			 * Stop saving stack_trace if save_trace() was
-+			 * called at least once:
-+			 */
-+			if (save && ret == 2)
-+				save = NULL;
-+
- 			/*
- 			 * Stop after the first non-trylock entry,
- 			 * as non-trylock entries have added their
+Could you clarify why the oom killer in vmalloc matters actually?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
