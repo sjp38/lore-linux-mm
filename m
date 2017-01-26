@@ -1,123 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52B566B0260
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:12 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id d123so75999770pfd.0
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:12 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x1si2577624pfa.171.2017.01.26.14.40.11
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA826B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:46:29 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 3so75506140pgj.6
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:46:29 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id h69si522959pgc.108.2017.01.26.14.46.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 14:40:11 -0800 (PST)
-Subject: [RFC][PATCH 4/4] x86, mpx: context-switch new MPX address size MSR
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 26 Jan 2017 14:40:10 -0800
-References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
-In-Reply-To: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
-Message-Id: <20170126224010.3534C154@viggo.jf.intel.com>
+        Thu, 26 Jan 2017 14:46:28 -0800 (PST)
+Subject: Re: [PATCH v2 2/3] mm, x86: Add support for PUD-sized transparent
+ hugepages
+References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
+ <148545059381.17912.8602162635537598445.stgit@djiang5-desk3.ch.intel.com>
+ <20170126143854.9694811975f4c0945aba58b9@linux-foundation.org>
+From: Dave Jiang <dave.jiang@intel.com>
+Message-ID: <94209678-bb55-2085-9cc8-f47bdf754ea4@intel.com>
+Date: Thu, 26 Jan 2017 15:46:27 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170126143854.9694811975f4c0945aba58b9@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@ml01.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
 
+On 01/26/2017 03:38 PM, Andrew Morton wrote:
+> On Thu, 26 Jan 2017 10:09:53 -0700 Dave Jiang <dave.jiang@intel.com> wrote:
+> 
+>> The current transparent hugepage code only supports PMDs.  This patch
+>> adds support for transparent use of PUDs with DAX.  It does not include
+>> support for anonymous pages. x86 support code also added.
+>>
+>> Most of this patch simply parallels the work that was done for huge PMDs.
+>> The only major difference is how the new ->pud_entry method in mm_walk
+>> works.  The ->pmd_entry method replaces the ->pte_entry method, whereas
+>> the ->pud_entry method works along with either ->pmd_entry or ->pte_entry.
+>> The pagewalk code takes care of locking the PUD before calling ->pud_walk,
+>> so handlers do not need to worry whether the PUD is stable.
+> 
+> The patch adds a lot of new BUG()s and BG_ON()s.  We'll get in trouble
+> if any of those triggers.  Please recheck everything and decide if we
+> really really need them.  It's far better to drop a WARN and to back
+> out and recover in some fashion.
+> 
 
-As mentioned in previous patches, larger address spaces mean
-larger MPX tables.  But, the entire system is either entirely
-using 5-level paging, or not.  We do not mix pagetable formats.
-
-If the size of the MPX tables depended soley on the paging mode,
-old binaries would break because the format of the tables changed
-underneath them.  So, since CR4 never changes, but we need some
-way to change the MPX table format, a new MSR is introduced:
-MSR_IA32_MPX_LAX.
-
-If we are in 5-level paging mode *and* the enable bit in this MSR
-is set, the CPU will use the new, larger MPX bounds table format.
-If 5-level paging is disabled, or the enable bit is clear, then
-the legacy-style smaller tables will be used.
-
-But, we might mix legacy and non-legacy binaries on the same
-system, so this MSR needs to be context-switched.  Add code to
-do this, along with some simple optimizations to skip the MSR
-writes if the MSR does not need to be updated.
-
----
-
- b/arch/x86/include/asm/msr-index.h |    1 
- b/arch/x86/mm/tlb.c                |   42 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
-
-diff -puN arch/x86/include/asm/msr-index.h~mawa-050-context-switch-msr arch/x86/include/asm/msr-index.h
---- a/arch/x86/include/asm/msr-index.h~mawa-050-context-switch-msr	2017-01-26 14:31:37.747902524 -0800
-+++ b/arch/x86/include/asm/msr-index.h	2017-01-26 14:31:37.752902749 -0800
-@@ -410,6 +410,7 @@
- #define MSR_IA32_BNDCFGS		0x00000d90
- 
- #define MSR_IA32_XSS			0x00000da0
-+#define MSR_IA32_MPX_LAX		0x00001000
- 
- #define FEATURE_CONTROL_LOCKED				(1<<0)
- #define FEATURE_CONTROL_VMXON_ENABLED_INSIDE_SMX	(1<<1)
-diff -puN arch/x86/mm/tlb.c~mawa-050-context-switch-msr arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~mawa-050-context-switch-msr	2017-01-26 14:31:37.749902614 -0800
-+++ b/arch/x86/mm/tlb.c	2017-01-26 14:31:37.753902794 -0800
-@@ -71,6 +71,47 @@ void switch_mm(struct mm_struct *prev, s
- 	local_irq_restore(flags);
- }
- 
-+/*
-+ * The MPX tables change sizes based on the size of the virtual
-+ * (aka. linear) address space.  There is an MSR to tell the CPU
-+ * whether we want the legacy-style ones or the larger ones when
-+ * we are running with an eXtended virtual address space.
-+ */
-+static void switch_mawa(struct mm_struct *prev, struct mm_struct *next)
-+{
-+	/*
-+	 * Note: there is one and only one bit in use in the MSR
-+	 * at this time, so we do not have to be concerned with
-+	 * preseving any of the other bits.  Just write 0 or 1.
-+	 */
-+	unsigned IA32_MPX_LAX_ENABLE_MASK = 0x00000001;
-+
-+	if (!cpu_feature_enabled(X86_FEATURE_MPX))
-+		return;
-+	/*
-+	 * FIXME: do we want a check here for the 5-level paging
-+	 * CR4 bit or CPUID bit, or is the mawa check below OK?
-+	 * It's not obvious what would be the fastest or if it
-+	 * matters.
-+	 */
-+
-+	/*
-+	 * Avoid the relatively costly MSR if we are not changing
-+	 * MAWA state.  All processes not using MPX will have a
-+	 * mpx_mawa_shift()=0, so we do not need to check
-+	 * separately for whether MPX management is enabled.
-+	 */
-+	if (mpx_mawa_shift(prev) == mpx_mawa_shift(next))
-+		return;
-+
-+	if (mpx_mawa_shift(next)) {
-+		wrmsr(MSR_IA32_MPX_LAX, IA32_MPX_LAX_ENABLE_MASK, 0x0);
-+	} else {
-+		/* clear the enable bit: */
-+		wrmsr(MSR_IA32_MPX_LAX, 0x0, 0x0);
-+	}
-+}
-+
- void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 			struct task_struct *tsk)
- {
-@@ -136,6 +177,7 @@ void switch_mm_irqs_off(struct mm_struct
- 		/* Load per-mm CR4 state */
- 		load_mm_cr4(next);
- 
-+		switch_mawa(prev, next);
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
- 		/*
- 		 * Load the LDT, if the LDT is different.
-_
+So I believe all the BUG() and BUG_ON() are replicated the same way that
+the existing PMD support functions do with the same behavior. If we want
+them to be different then we probably need to examine if the PMD code
+(or maybe the PTE ones as well) need to be different also. I'm open to
+suggestions from the experts on the cc list though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
