@@ -1,102 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B4666B0038
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 02:43:59 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id jz4so37866963wjb.5
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 23:43:59 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D11BE6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 02:44:59 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c85so42815612wmi.6
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 23:44:59 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n49si924368wrn.256.2017.01.25.23.43.57
+        by mx.google.com with ESMTPS id f143si25455988wme.164.2017.01.25.23.44.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Jan 2017 23:43:58 -0800 (PST)
-Date: Thu, 26 Jan 2017 08:43:55 +0100
+        Wed, 25 Jan 2017 23:44:58 -0800 (PST)
+Date: Thu, 26 Jan 2017 08:44:55 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-Message-ID: <20170126074354.GB8456@dhcp22.suse.cz>
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
- <588907AA.1020704@iogearbox.net>
+Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
+Message-ID: <20170126074455.GC8456@dhcp22.suse.cz>
+References: <20170106141107.23953-9-mhocko@kernel.org>
+ <20170117025607.frrcdbduthhutrzj@thunk.org>
+ <20170117082425.GD19699@dhcp22.suse.cz>
+ <20170117151817.GR19699@dhcp22.suse.cz>
+ <20170117155916.dcizr65bwa6behe7@thunk.org>
+ <20170117161618.GT19699@dhcp22.suse.cz>
+ <20170117172925.GA2486@quack2.suse.cz>
+ <20170119083956.GE30786@dhcp22.suse.cz>
+ <20170119092236.GC2565@quack2.suse.cz>
+ <20170119094405.GK30786@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <588907AA.1020704@iogearbox.net>
+In-Reply-To: <20170119094405.GK30786@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Borkmann <daniel@iogearbox.net>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 25-01-17 21:16:42, Daniel Borkmann wrote:
-> On 01/25/2017 07:14 PM, Alexei Starovoitov wrote:
-> > On Wed, Jan 25, 2017 at 5:21 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Wed 25-01-17 14:10:06, Michal Hocko wrote:
-> > > > On Tue 24-01-17 11:17:21, Alexei Starovoitov wrote:
-> [...]
-> > > > > > Are there any more comments? I would really appreciate to hear from
-> > > > > > networking folks before I resubmit the series.
+On Thu 19-01-17 10:44:05, Michal Hocko wrote:
+> On Thu 19-01-17 10:22:36, Jan Kara wrote:
+> > On Thu 19-01-17 09:39:56, Michal Hocko wrote:
+> > > On Tue 17-01-17 18:29:25, Jan Kara wrote:
+> > > > On Tue 17-01-17 17:16:19, Michal Hocko wrote:
+> > > > > > > But before going to play with that I am really wondering whether we need
+> > > > > > > all this with no journal at all. AFAIU what Jack told me it is the
+> > > > > > > journal lock(s) which is the biggest problem from the reclaim recursion
+> > > > > > > point of view. What would cause a deadlock in no journal mode?
+> > > > > > 
+> > > > > > We still have the original problem for why we need GFP_NOFS even in
+> > > > > > ext2.  If we are in a writeback path, and we need to allocate memory,
+> > > > > > we don't want to recurse back into the file system's writeback path.
 > > > > > 
-> > > > > while this patchset was baking the bpf side switched to use bpf_map_area_alloc()
-> > > > > which fixes the issue with missing __GFP_NORETRY that we had to fix quickly.
-> > > > > See commit d407bd25a204 ("bpf: don't trigger OOM killer under pressure with map alloc")
-> > > > > it covers all kmalloc/vmalloc pairs instead of just one place as in this set.
-> > > > > So please rebase and switch bpf_map_area_alloc() to use kvmalloc().
+> > > > > But we do not enter the writeback path from the direct reclaim. Or do
+> > > > > you mean something other than pageout()'s mapping->a_ops->writepage?
+> > > > > There is only try_to_release_page where we get back to the filesystems
+> > > > > but I do not see any NOFS protection in ext4_releasepage.
 > > > > 
-> > > > OK, will do. Thanks for the heads up.
+> > > > Maybe to expand a bit: These days, direct reclaim can call ->releasepage()
+> > > > callback, ->evict_inode() callback (and only for inodes with i_nlink > 0),
+> > > > shrinkers. That's it. So the recursion possibilities are rather more limited
+> > > > than they used to be several years ago and we likely do not need as much
+> > > > GFP_NOFS protection as we used to.
 > > > 
-> > > Just for the record, I will fold the following into the patch 1
-> > > ---
-> > > diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
-> > > index 19b6129eab23..8697f43cf93c 100644
-> > > --- a/kernel/bpf/syscall.c
-> > > +++ b/kernel/bpf/syscall.c
-> > > @@ -53,21 +53,7 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
+> > > Thanks for making my remark more clear Jack! I would just want to add
+> > > that I was playing with the patch below (it is basically
+> > > GFP_NOFS->GFP_KERNEL for all allocations which trigger warning from the
+> > > debugging patch which means they are called from within transaction) and
+> > > it didn't hit the lockdep when running xfstests both with or without the
+> > > enabled journal.
 > > > 
-> > >   void *bpf_map_area_alloc(size_t size)
-> > >   {
-> > > -       /* We definitely need __GFP_NORETRY, so OOM killer doesn't
-> > > -        * trigger under memory pressure as we really just want to
-> > > -        * fail instead.
-> > > -        */
-> > > -       const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
-> > > -       void *area;
-> > > -
-> > > -       if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> > > -               area = kmalloc(size, GFP_USER | flags);
-> > > -               if (area != NULL)
-> > > -                       return area;
-> > > -       }
-> > > -
-> > > -       return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | flags,
-> > > -                        PAGE_KERNEL);
-> > > +       return kvzalloc(size, GFP_USER);
-> > >   }
-> > > 
-> > >   void bpf_map_area_free(void *area)
+> > > So am I still missing something or the nojournal mode is safe and the
+> > > current series is OK wrt. ext*?
 > > 
-> > Looks fine by me.
-> > Daniel, thoughts?
+> > I'm convinced the current series is OK, only real life will tell us whether
+> > we missed something or not ;)
 > 
-> I assume that kvzalloc() is still the same from [1], right? If so, then
-> it would unfortunately (partially) reintroduce the issue that was fixed.
-> If you look above at flags, they're also passed to __vmalloc() to not
-> trigger OOM in these situations I've experienced.
+> I would like to extend the changelog of "jbd2: mark the transaction
+> context with the scope GFP_NOFS context".
+> 
+> "
+> Please note that setups without journal do not suffer from potential
+> recursion problems and so they do not need the scope protection because
+> neither ->releasepage nor ->evict_inode (which are the only fs entry
+> points from the direct reclaim) can reenter a locked context which is
+> doing the allocation currently.
+> "
 
-Pushing __GFP_NORETRY to __vmalloc doesn't have the effect you might
-think it would. It can still trigger the OOM killer becauset the flags
-are no propagated all the way down to all allocations requests (e.g.
-page tables). This is the same reason why GFP_NOFS is not supported in
-vmalloc.
-
-> This is effectively the
-> same requirement as in other networking areas f.e. that 5bad87348c70
-> ("netfilter: x_tables: avoid warn and OOM killer on vmalloc call") has.
-> In your comment in kvzalloc() you eventually say that some of the above
-> modifiers are not supported. So there would be two options, i) just leave
-> out the kvzalloc() chunk for BPF area to avoid the merge conflict and tackle
-> it later (along with similar code from 5bad87348c70), or ii) implement
-> support for these modifiers as well to your original set. I guess it's not
-> too urgent, so we could also proceed with i) if that is easier for you to
-> proceed (I don't mind either way).
-
-Could you clarify why the oom killer in vmalloc matters actually?
+Could you comment on this Ted, please?
 -- 
 Michal Hocko
 SUSE Labs
