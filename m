@@ -1,128 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D64E6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:34:14 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id v96so49828771ioi.5
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:34:14 -0800 (PST)
-Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
-        by mx.google.com with ESMTPS id c132si2844846iof.144.2017.01.26.12.34.13
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DBD16B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:45:44 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id kq3so42313647wjc.1
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:45:44 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d75si238824wmd.67.2017.01.26.12.45.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 12:34:13 -0800 (PST)
-Message-ID: <588A5D3C.4060605@iogearbox.net>
-Date: Thu, 26 Jan 2017 21:34:04 +0100
-From: Daniel Borkmann <daniel@iogearbox.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Jan 2017 12:45:43 -0800 (PST)
+Date: Thu, 26 Jan 2017 20:45:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/5] mm: vmscan: remove old flusher wakeup from direct
+ reclaim path
+Message-ID: <20170126204540.vq26w3h7iu2rfo4g@suse.de>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-4-hannes@cmpxchg.org>
+ <20170126100509.gbf6rxao6gsmqyq3@suse.de>
+ <20170126185027.GB30636@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com> <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz> <5889C331.7020101@iogearbox.net> <20170126100802.GF6590@dhcp22.suse.cz> <5889DEA3.7040106@iogearbox.net> <20170126115833.GI6590@dhcp22.suse.cz> <5889F52E.7030602@iogearbox.net> <20170126134004.GM6590@dhcp22.suse.cz>
-In-Reply-To: <20170126134004.GM6590@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170126185027.GB30636@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 01/26/2017 02:40 PM, Michal Hocko wrote:
-> On Thu 26-01-17 14:10:06, Daniel Borkmann wrote:
->> On 01/26/2017 12:58 PM, Michal Hocko wrote:
->>> On Thu 26-01-17 12:33:55, Daniel Borkmann wrote:
->>>> On 01/26/2017 11:08 AM, Michal Hocko wrote:
->>> [...]
->>>>> If you disagree I can drop the bpf part of course...
->>>>
->>>> If we could consolidate these spots with kvmalloc() eventually, I'm
->>>> all for it. But even if __GFP_NORETRY is not covered down to all
->>>> possible paths, it kind of does have an effect already of saying
->>>> 'don't try too hard', so would it be harmful to still keep that for
->>>> now? If it's not, I'd personally prefer to just leave it as is until
->>>> there's some form of support by kvmalloc() and friends.
->>>
->>> Well, you can use kvmalloc(size, GFP_KERNEL|__GFP_NORETRY). It is not
->>> disallowed. It is not _supported_ which means that if it doesn't work as
->>> you expect you are on your own. Which is actually the situation right
->>> now as well. But I still think that this is just not right thing to do.
->>> Even though it might happen to work in some cases it gives a false
->>> impression of a solution. So I would rather go with
->>
->> Hmm. 'On my own' means, we could potentially BUG somewhere down the
->> vmalloc implementation, etc, presumably? So it might in-fact be
->> harmful to pass that, right?
->
-> No it would mean that it might eventually hit the behavior which you are
-> trying to avoid - in other words it may invoke OOM killer even though
-> __GFP_NORETRY means giving up before any system wide disruptive actions
-> a re taken.
+On Thu, Jan 26, 2017 at 01:50:27PM -0500, Johannes Weiner wrote:
+> On Thu, Jan 26, 2017 at 10:05:09AM +0000, Mel Gorman wrote:
+> > On Mon, Jan 23, 2017 at 01:16:39PM -0500, Johannes Weiner wrote:
+> > > Direct reclaim has been replaced by kswapd reclaim in pretty much all
+> > > common memory pressure situations, so this code most likely doesn't
+> > > accomplish the described effect anymore. The previous patch wakes up
+> > > flushers for all reclaimers when we encounter dirty pages at the tail
+> > > end of the LRU. Remove the crufty old direct reclaim invocation.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > In general I like this. I worried first that if kswapd is blocked
+> > writing pages that it won't reach the wakeup_flusher_threads but the
+> > previous patch handles it.
+> > 
+> > Now though, it occurs to me with the last patch that we always writeout
+> > the world when flushing threads. This may not be a great idea. Consider
+> > for example if there is a heavy writer of short-lived tmp files. In such a
+> > case, it is possible for the files to be truncated before they even hit the
+> > disk. However, if there are multiple "writeout the world" calls, these may
+> > now be hitting the disk. Furthermore, multiplle kswapd and direct reclaimers
+> > could all be requested to writeout the world and each request unplugs.
+> > 
+> > Is it possible to maintain the property of writing back pages relative
+> > to the numbers of pages scanned or have you determined already that it's
+> > not necessary?
+> 
+> That's what I started out with - waking the flushers for nr_taken. I
+> was using a silly test case that wrote < dirty background limit and
+> then allocated a burst of anon memory. When the dirty data is linear,
+> the bigger IO requests are beneficial. They don't exhaust struct
+> request (like kswapd 4k IO routinely does, and SWAP_CLUSTER_MAX is
+> only 32), and they require less frequent plugging.
+> 
 
-Ok, thanks for clarifying, more on that further below.
+Understood.
 
->>> diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
->>> index 8697f43cf93c..a6dc4d596f14 100644
->>> --- a/kernel/bpf/syscall.c
->>> +++ b/kernel/bpf/syscall.c
->>> @@ -53,6 +53,11 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
->>>
->>>    void *bpf_map_area_alloc(size_t size)
->>>    {
->>> +	/*
->>> +	 * FIXME: we would really like to not trigger the OOM killer and rather
->>> +	 * fail instead. This is not supported right now. Please nag MM people
->>> +	 * if these OOM start bothering people.
->>> +	 */
->>
->> Ok, I know this is out of scope for this series, but since i) this
->> is _not_ the _only_ spot right now which has such a construct and ii)
->> I am already kind of nagging a bit ;), my question would be, what
->> would it take to start supporting it?
->
-> propagate gfp mask all the way down from vmalloc to all places which
-> might allocate down the path and especially page table allocation
-> function are PITA because they are really deep. This is a lot of work...
->
-> But realistically, how big is this problem really? Is it really worth
-> it? You said this is an admin only interface and admin can kill the
-> machine by OOM and other means already.
->
-> Moreover and I should probably mention it explicitly, your d407bd25a204b
-> reduced the likelyhood of oom for other reason. kmalloc used GPF_USER
-> previously and with order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER this
-> could indeed hit the OOM e.g. due to memory fragmentation. It would be
-> much harder to hit the OOM killer from vmalloc which doesn't issue
-> higher order allocation requests. Or have you ever seen the OOM killer
-> pointing to the vmalloc fallback path?
+> Force-flushing temporary files under memory pressure is a concern -
+> although the most recently dirtied files would get queued last, giving
+> them still some time to get truncated - but I'm wary about splitting
+> the flush requests too aggressively when we DO sustain throngs of
+> dirty pages hitting the reclaim scanners.
+> 
 
-The case I was concerned about was from vmalloc() path, not kmalloc().
-That was where the stack trace indicating OOM pointed to. As an example,
-there could be really large allocation requests for maps where the map
-has pre-allocated memory for its elements. Thus, if we get to the point
-where we need to kill others due to shortage of mem for satisfying this,
-I'd much much rather prefer to just not let vmalloc() work really hard
-and fail early on instead. In my (crafted) test case, I was connected
-via ssh and it each time reliably killed my connection, which is really
-suboptimal.
+That's fair enough. It's rare to see a case where a tmp file being
+written instead of truncated in RAM causes problems. The only one that
+really springs to mind is dbench3 whose "performance" often relied on
+whether the files were truncated before writeback.
 
-F.e., I could also imagine a buggy or miscalculated map definition for
-a prog that is provisioned to multiple places, which then accidentally
-triggers this. Or if large on purpose, but we crossed the line, it
-could be handled more gracefully, f.e. I could imagine an option to
-falling back to a non-pre-allocated map flavor from the application
-loading the program. Trade-off for sure, but still allowing it to
-operate up to a certain extend. Granted, if vmalloc() succeeded without
-trying hard and we then OOM elsewhere, too bad, but we don't have much
-control over that one anyway, only about our own request. Reason I
-asked above was whether having __GFP_NORETRY in would be fatal
-somewhere down the path, but seems not as you say.
+> I didn't test this with the real workload that gave us problems yet,
+> though, because deploying enough machines to get a good sample size
+> takes 1-2 days and to run through the full load spectrum another 4-5.
+> So it's harder to fine-tune these patches.
+> 
+> But this is a legit concern. I'll try to find out what happens when we
+> reduce the wakeups to nr_taken.
+> 
+> Given the problem these patches address, though, would you be okay
+> with keeping this patch in -mm? We're too far into 4.10 to merge it
+> upstream now, and I should have data on more precise wakeups before
+> the next merge window.
+> 
 
-So to answer your second email with the bpf and netfilter hunks, why
-not replacing them with kvmalloc() and __GFP_NORETRY flag and add that
-big fat FIXME comment above there, saying explicitly that __GFP_NORETRY
-is not harmful though has only /partial/ effect right now and that full
-support needs to be implemented in future. That would still be better
-that not having it, imo, and the FIXME would make expectations clear
-to anyone reading that code.
+Yeah, that's fine. My concern is mostly theoritical but it's something
+to watch out for in future regression reports. It should be relatively
+easy to spot -- workload generates lots of short-lived tmp files for
+whatever reason and reports that write IO is higher causing the system
+to stall other IO requests.
 
-Thanks,
-Daniel
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
