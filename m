@@ -1,137 +1,1021 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DED96B028B
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED7F6B028C
 	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:59:02 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id f5so308447753pgi.1
+Received: by mail-pf0-f199.google.com with SMTP id f144so306644088pfa.3
         for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:59:02 -0800 (PST)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
         by mx.google.com with ESMTPS id g9si1218116plk.185.2017.01.26.03.59.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 03:59:01 -0800 (PST)
+        Thu, 26 Jan 2017 03:59:00 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 00/37] ext4: support of huge pages
-Date: Thu, 26 Jan 2017 14:57:42 +0300
-Message-Id: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 01/37] mm, shmem: swich huge tmpfs to multi-order radix-tree entries
+Date: Thu, 26 Jan 2017 14:57:43 +0300
+Message-Id: <20170126115819.58875-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
+References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Here's respin of my huge ext4 patchset on top v4.10-rc/5 + my recent
-patchset that fixes rmap-related THP bugs. That patchset also bring
-required for huge-ext4 page_mkclean() changes.
+We would need to use multi-order radix-tree entires for ext4 and other
+filesystems to have coherent view on tags (dirty/towrite) in the tree.
 
-Please review and consider applying.
+This patch converts huge tmpfs implementation to multi-order entries, so
+we will be able to use the same code patch for all filesystems.
 
-I don't see any xfstests regressions with huge pages enabled. Patch with
-new configurations for xfstests-bld is below.
+We also change interface for page-cache lookup function:
 
-The basics are the same as with tmpfs[1] which is in Linus' tree now and
-ext4 built on top of it. The main difference is that we need to handle
-read out from and write-back to backing storage.
+  - functions that lookup for pages[1] would return subpages of THP
+    relevant for requested indexes;
 
-As with other THPs, the implementation is build around compound pages:
-a naturally aligned collection of pages that memory management subsystem
-[in most cases] treat as a single entity:
+  - functions that lookup for entries[2] would return one entry per-THP
+    and index will point to index of head page (basically, round down to
+    HPAGE_PMD_NR);
 
-  - head page (the first subpage) on LRU represents whole huge page;
-  - head page's flags represent state of whole huge page (with few
-    exceptions);
-  - mm can't migrate subpages of the compound page individually;
+This would provide balanced exposure of multi-order entires to the rest
+of the kernel.
 
-For THP, we use PMD-sized huge pages.
+[1] find_get_pages(), pagecache_get_page(), pagevec_lookup(), etc.
+[2] find_get_entry(), find_get_entries(), pagevec_lookup_entries(), etc.
 
-Head page links buffer heads for whole huge page. Dirty/writeback/etc.
-tracking happens on per-hugepage level as all subpages share the same page
-flags.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/pagemap.h |   9 ++
+ mm/filemap.c            | 236 ++++++++++++++++++++++++++----------------------
+ mm/huge_memory.c        |  48 +++++++---
+ mm/khugepaged.c         |  26 ++----
+ mm/shmem.c              | 117 ++++++++++--------------
+ mm/truncate.c           |  15 ++-
+ 6 files changed, 235 insertions(+), 216 deletions(-)
 
-lock_page() on any subpage would lock whole hugepage for the same reason.
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 324c8dbad1e1..ad63a7be5a5e 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -332,6 +332,15 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
+ 			mapping_gfp_mask(mapping));
+ }
+ 
++static inline struct page *find_subpage(struct page *page, pgoff_t offset)
++{
++	VM_BUG_ON_PAGE(PageTail(page), page);
++	VM_BUG_ON_PAGE(page->index > offset, page);
++	VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) < offset,
++			page);
++	return page - page->index + offset;
++}
++
+ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
+ struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
+ unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index b772a33ef640..837a71a2a412 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -150,7 +150,9 @@ static int page_cache_tree_insert(struct address_space *mapping,
+ static void page_cache_tree_delete(struct address_space *mapping,
+ 				   struct page *page, void *shadow)
+ {
+-	int i, nr;
++	struct radix_tree_node *node;
++	void **slot;
++	int nr;
+ 
+ 	/* hugetlb pages are represented by one entry in the radix tree */
+ 	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+@@ -159,19 +161,12 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+ 
+-	for (i = 0; i < nr; i++) {
+-		struct radix_tree_node *node;
+-		void **slot;
++	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
++	VM_BUG_ON_PAGE(!node && nr != 1, page);
+ 
+-		__radix_tree_lookup(&mapping->page_tree, page->index + i,
+-				    &node, &slot);
+-
+-		VM_BUG_ON_PAGE(!node && nr != 1, page);
+-
+-		radix_tree_clear_tags(&mapping->page_tree, node, slot);
+-		__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
+-				     workingset_update_node, mapping);
+-	}
++	radix_tree_clear_tags(&mapping->page_tree, node, slot);
++	__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
++			workingset_update_node, mapping);
+ 
+ 	if (shadow) {
+ 		mapping->nrexceptional += nr;
+@@ -285,12 +280,7 @@ void delete_from_page_cache(struct page *page)
+ 	if (freepage)
+ 		freepage(page);
+ 
+-	if (PageTransHuge(page) && !PageHuge(page)) {
+-		page_ref_sub(page, HPAGE_PMD_NR);
+-		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+-	} else {
+-		put_page(page);
+-	}
++	put_page(page);
+ }
+ EXPORT_SYMBOL(delete_from_page_cache);
+ 
+@@ -1172,7 +1162,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
+ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
+ {
+ 	void **pagep;
+-	struct page *head, *page;
++	struct page *page;
+ 
+ 	rcu_read_lock();
+ repeat:
+@@ -1193,15 +1183,8 @@ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
+ 			goto out;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
+-			goto repeat;
+-
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+-		}
+ 
+ 		/*
+ 		 * Has the page moved?
+@@ -1209,7 +1192,7 @@ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
+ 		 * include/linux/pagemap.h for details.
+ 		 */
+ 		if (unlikely(page != *pagep)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ 	}
+@@ -1250,7 +1233,6 @@ struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset)
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
+ 	}
+ 	return page;
+ }
+@@ -1307,7 +1289,6 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		VM_BUG_ON_PAGE(page->index != offset, page);
+ 	}
+ 
+ 	if (page && (fgp_flags & FGP_ACCESSED))
+@@ -1342,6 +1323,8 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 		}
+ 	}
+ 
++	if (page)
++		page = find_subpage(page, offset);
+ 	return page;
+ }
+ EXPORT_SYMBOL(pagecache_get_page);
+@@ -1382,7 +1365,7 @@ unsigned find_get_entries(struct address_space *mapping,
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+-		struct page *head, *page;
++		struct page *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1400,19 +1383,12 @@ unsigned find_get_entries(struct address_space *mapping,
+ 			goto export;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+ 
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
+-			goto repeat;
+-		}
+-
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ export:
+@@ -1446,14 +1422,17 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ {
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+-	unsigned ret = 0;
++	unsigned refs, ret = 0;
+ 
+ 	if (unlikely(!nr_pages))
+ 		return 0;
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+-		struct page *head, *page;
++		struct page *page;
++		unsigned long index = iter.index;
++		if (index < start)
++			index = start;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1472,25 +1451,35 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ 			continue;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
+-			goto repeat;
+-
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+-		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ 
++		/* For multi-order entries, find relevant subpage */
++		if (PageTransHuge(page)) {
++			VM_BUG_ON(index - page->index < 0);
++			VM_BUG_ON(index - page->index >= HPAGE_PMD_NR);
++			page += index - page->index;
++		}
++
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages)
+ 			break;
++		if (!PageTransCompound(page))
++			continue;
++		for (refs = 0; ret < nr_pages &&
++				(index + 1) % HPAGE_PMD_NR;
++				ret++, refs++, index++)
++			pages[ret] = ++page;
++		if (refs)
++			page_ref_add(compound_head(page), refs);
++		if (ret == nr_pages)
++			break;
+ 	}
+ 
+ 	rcu_read_unlock();
+@@ -1500,7 +1489,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ /**
+  * find_get_pages_contig - gang contiguous pagecache lookup
+  * @mapping:	The address_space to search
+- * @index:	The starting page index
++ * @start:	The starting page index
+  * @nr_pages:	The maximum number of pages
+  * @pages:	Where the resulting pages are placed
+  *
+@@ -1509,19 +1498,22 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+  *
+  * find_get_pages_contig() returns the number of pages which were found.
+  */
+-unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
++unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
+ 			       unsigned int nr_pages, struct page **pages)
+ {
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+-	unsigned int ret = 0;
++	unsigned int refs, ret = 0;
+ 
+ 	if (unlikely(!nr_pages))
+ 		return 0;
+ 
+ 	rcu_read_lock();
+-	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
+-		struct page *head, *page;
++	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, start) {
++		struct page *page;
++		unsigned long index = iter.index;
++		if (index < start)
++			index = start;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		/* The hole, there no reason to continue */
+@@ -1541,19 +1533,12 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+ 			break;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+ 
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
+-			goto repeat;
+-		}
+-
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ 
+@@ -1562,14 +1547,31 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+ 		 * otherwise we can get both false positives and false
+ 		 * negatives, which is just confusing to the caller.
+ 		 */
+-		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
++		if (page->mapping == NULL || page_to_pgoff(page) != index) {
+ 			put_page(page);
+ 			break;
+ 		}
+ 
++		/* For multi-order entries, find relevant subpage */
++		if (PageTransHuge(page)) {
++			VM_BUG_ON(index - page->index < 0);
++			VM_BUG_ON(index - page->index >= HPAGE_PMD_NR);
++			page += index - page->index;
++		}
++
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages)
+ 			break;
++		if (!PageTransCompound(page))
++			continue;
++		for (refs = 0; ret < nr_pages &&
++				(index + 1) % HPAGE_PMD_NR;
++				ret++, refs++, index++)
++			pages[ret] = ++page;
++		if (refs)
++			page_ref_add(compound_head(page), refs);
++		if (ret == nr_pages)
++			break;
+ 	}
+ 	rcu_read_unlock();
+ 	return ret;
+@@ -1579,7 +1581,7 @@ EXPORT_SYMBOL(find_get_pages_contig);
+ /**
+  * find_get_pages_tag - find and return pages that match @tag
+  * @mapping:	the address_space to search
+- * @index:	the starting page index
++ * @indexp:	the starting page index
+  * @tag:	the tag index
+  * @nr_pages:	the maximum number of pages
+  * @pages:	where the resulting pages are placed
+@@ -1587,20 +1589,23 @@ EXPORT_SYMBOL(find_get_pages_contig);
+  * Like find_get_pages, except we only return pages which are tagged with
+  * @tag.   We update @index to index the next page for the traversal.
+  */
+-unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
++unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *indexp,
+ 			int tag, unsigned int nr_pages, struct page **pages)
+ {
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+-	unsigned ret = 0;
++	unsigned refs, ret = 0;
+ 
+ 	if (unlikely(!nr_pages))
+ 		return 0;
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
+-				   &iter, *index, tag) {
+-		struct page *head, *page;
++				   &iter, *indexp, tag) {
++		struct page *page;
++		unsigned long index = iter.index;
++		if (index < *indexp)
++			index = *indexp;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1625,31 +1630,41 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 			continue;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
+-			goto repeat;
+-
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+-		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ 
++		/* For multi-order entries, find relevant subpage */
++		if (PageTransHuge(page)) {
++			VM_BUG_ON(index - page->index < 0);
++			VM_BUG_ON(index - page->index >= HPAGE_PMD_NR);
++			page += index - page->index;
++		}
++
+ 		pages[ret] = page;
+ 		if (++ret == nr_pages)
+ 			break;
++		if (!PageTransCompound(page))
++			continue;
++		for (refs = 0; ret < nr_pages &&
++				(index + 1) % HPAGE_PMD_NR;
++				ret++, refs++, index++)
++			pages[ret] = ++page;
++		if (refs)
++			page_ref_add(compound_head(page), refs);
++		if (ret == nr_pages)
++			break;
+ 	}
+ 
+ 	rcu_read_unlock();
+ 
+ 	if (ret)
+-		*index = pages[ret - 1]->index + 1;
++		*indexp = page_to_pgoff(pages[ret - 1]) + 1;
+ 
+ 	return ret;
+ }
+@@ -1681,7 +1696,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+ 	rcu_read_lock();
+ 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
+ 				   &iter, start, tag) {
+-		struct page *head, *page;
++		struct page *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1700,19 +1715,12 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+ 			goto export;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
+-			goto repeat;
+-
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+-		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ export:
+@@ -2310,12 +2318,15 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 	struct address_space *mapping = file->f_mapping;
+ 	pgoff_t last_pgoff = start_pgoff;
+ 	loff_t size;
+-	struct page *head, *page;
++	struct page *page;
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
+ 			start_pgoff) {
+-		if (iter.index > end_pgoff)
++		unsigned long index = iter.index;
++		if (index < start_pgoff)
++			index = start_pgoff;
++		if (index > end_pgoff)
+ 			break;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+@@ -2326,25 +2337,26 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 				slot = radix_tree_iter_retry(&iter);
+ 				continue;
+ 			}
++			page = NULL;
+ 			goto next;
+ 		}
+ 
+-		head = compound_head(page);
+-		if (!page_cache_get_speculative(head))
++		if (!page_cache_get_speculative(page))
+ 			goto repeat;
+ 
+-		/* The page was split under us? */
+-		if (compound_head(page) != head) {
+-			put_page(head);
+-			goto repeat;
+-		}
+-
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+-			put_page(head);
++			put_page(page);
+ 			goto repeat;
+ 		}
+ 
++		/* For multi-order entries, find relevant subpage */
++		if (PageTransHuge(page)) {
++			VM_BUG_ON(index - page->index < 0);
++			VM_BUG_ON(index - page->index >= HPAGE_PMD_NR);
++			page += index - page->index;
++		}
++
+ 		if (!PageUptodate(page) ||
+ 				PageReadahead(page) ||
+ 				PageHWPoison(page))
+@@ -2352,20 +2364,20 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 		if (!trylock_page(page))
+ 			goto skip;
+ 
+-		if (page->mapping != mapping || !PageUptodate(page))
++		if (page_mapping(page) != mapping || !PageUptodate(page))
+ 			goto unlock;
+ 
+ 		size = round_up(i_size_read(mapping->host), PAGE_SIZE);
+-		if (page->index >= size >> PAGE_SHIFT)
++		if (compound_head(page)->index >= size >> PAGE_SHIFT)
+ 			goto unlock;
+ 
+ 		if (file->f_ra.mmap_miss > 0)
+ 			file->f_ra.mmap_miss--;
+ 
+-		vmf->address += (iter.index - last_pgoff) << PAGE_SHIFT;
++		vmf->address += (index - last_pgoff) << PAGE_SHIFT;
+ 		if (vmf->pte)
+-			vmf->pte += iter.index - last_pgoff;
+-		last_pgoff = iter.index;
++			vmf->pte += index - last_pgoff;
++		last_pgoff = index;
+ 		if (alloc_set_pte(vmf, NULL, page))
+ 			goto unlock;
+ 		unlock_page(page);
+@@ -2378,8 +2390,14 @@ void filemap_map_pages(struct vm_fault *vmf,
+ 		/* Huge page is mapped? No need to proceed. */
+ 		if (pmd_trans_huge(*vmf->pmd))
+ 			break;
+-		if (iter.index == end_pgoff)
++		if (index == end_pgoff)
+ 			break;
++		if (page && PageTransCompound(page) &&
++				(index & (HPAGE_PMD_NR - 1)) !=
++				HPAGE_PMD_NR - 1) {
++			index++;
++			goto repeat;
++		}
+ 	}
+ 	rcu_read_unlock();
+ }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ca7855f857fa..f383cb801e34 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1928,6 +1928,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	struct page *head = compound_head(page);
+ 	struct zone *zone = page_zone(head);
+ 	struct lruvec *lruvec;
++	struct page *subpage;
+ 	pgoff_t end = -1;
+ 	int i;
+ 
+@@ -1936,8 +1937,27 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	/* complete memcg works before add pages to LRU */
+ 	mem_cgroup_split_huge_fixup(head);
+ 
+-	if (!PageAnon(page))
+-		end = DIV_ROUND_UP(i_size_read(head->mapping->host), PAGE_SIZE);
++	if (!PageAnon(head)) {
++		struct address_space *mapping = head->mapping;
++		struct radix_tree_iter iter;
++		void **slot;
++
++		__dec_node_page_state(head, NR_SHMEM_THPS);
++
++		radix_tree_split(&mapping->page_tree, head->index, 0);
++		radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
++				head->index) {
++			if (iter.index >= head->index + HPAGE_PMD_NR)
++				break;
++			subpage = head + iter.index - head->index;
++			radix_tree_replace_slot(&mapping->page_tree,
++					slot, subpage);
++			VM_BUG_ON_PAGE(compound_head(subpage) != head, subpage);
++		}
++		radix_tree_preload_end();
++
++		end = DIV_ROUND_UP(i_size_read(mapping->host), PAGE_SIZE);
++	}
+ 
+ 	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
+ 		__split_huge_page_tail(head, i, lruvec, list);
+@@ -1966,7 +1986,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	unfreeze_page(head);
+ 
+ 	for (i = 0; i < HPAGE_PMD_NR; i++) {
+-		struct page *subpage = head + i;
++		subpage = head + i;
+ 		if (subpage == page)
+ 			continue;
+ 		unlock_page(subpage);
+@@ -2123,8 +2143,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			goto out;
+ 		}
+ 
+-		/* Addidional pins from radix tree */
+-		extra_pins = HPAGE_PMD_NR;
++		/* Addidional pin from radix tree */
++		extra_pins = 1;
+ 		anon_vma = NULL;
+ 		i_mmap_lock_read(mapping);
+ 	}
+@@ -2146,6 +2166,12 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	if (mlocked)
+ 		lru_add_drain();
+ 
++	if (mapping && radix_tree_split_preload(HPAGE_PMD_ORDER, 0,
++				GFP_KERNEL)) {
++		ret = -ENOMEM;
++		goto unfreeze;
++	}
++
+ 	/* prevent PageLRU to go away from under us, and freeze lru stats */
+ 	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
+ 
+@@ -2155,10 +2181,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 		spin_lock(&mapping->tree_lock);
+ 		pslot = radix_tree_lookup_slot(&mapping->page_tree,
+ 				page_index(head));
+-		/*
+-		 * Check if the head page is present in radix tree.
+-		 * We assume all tail are present too, if head is there.
+-		 */
++		/* Check if the page is present in radix tree */
+ 		if (radix_tree_deref_slot_protected(pslot,
+ 					&mapping->tree_lock) != head)
+ 			goto fail;
+@@ -2173,8 +2196,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			pgdata->split_queue_len--;
+ 			list_del(page_deferred_list(head));
+ 		}
+-		if (mapping)
+-			__dec_node_page_state(page, NR_SHMEM_THPS);
+ 		spin_unlock(&pgdata->split_queue_lock);
+ 		__split_huge_page(page, list, flags);
+ 		ret = 0;
+@@ -2188,9 +2209,12 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			BUG();
+ 		}
+ 		spin_unlock(&pgdata->split_queue_lock);
+-fail:		if (mapping)
++fail:		if (mapping) {
+ 			spin_unlock(&mapping->tree_lock);
++			radix_tree_preload_end();
++		}
+ 		spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
++unfreeze:
+ 		unfreeze_page(head);
+ 		ret = -EBUSY;
+ 	}
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 77ae3239c3de..1910048bf63a 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1350,10 +1350,8 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			break;
+ 		}
+ 		nr_none += n;
+-		for (; index < min(iter.index, end); index++) {
+-			radix_tree_insert(&mapping->page_tree, index,
+-					new_page + (index % HPAGE_PMD_NR));
+-		}
++		for (; index < min(iter.index, end); index++)
++			radix_tree_insert(&mapping->page_tree, index, new_page);
+ 
+ 		/* We are done. */
+ 		if (index >= end)
+@@ -1425,8 +1423,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		list_add_tail(&page->lru, &pagelist);
+ 
+ 		/* Finally, replace with the new page. */
+-		radix_tree_replace_slot(&mapping->page_tree, slot,
+-				new_page + (index % HPAGE_PMD_NR));
++		radix_tree_replace_slot(&mapping->page_tree, slot, new_page);
+ 
+ 		slot = radix_tree_iter_resume(slot, &iter);
+ 		index++;
+@@ -1444,24 +1441,17 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		break;
+ 	}
+ 
+-	/*
+-	 * Handle hole in radix tree at the end of the range.
+-	 * This code only triggers if there's nothing in radix tree
+-	 * beyond 'end'.
+-	 */
+-	if (result == SCAN_SUCCEED && index < end) {
++	if (result == SCAN_SUCCEED) {
+ 		int n = end - index;
+ 
+-		if (!shmem_charge(mapping->host, n)) {
++		if (n && !shmem_charge(mapping->host, n)) {
+ 			result = SCAN_FAIL;
+ 			goto tree_locked;
+ 		}
+-
+-		for (; index < end; index++) {
+-			radix_tree_insert(&mapping->page_tree, index,
+-					new_page + (index % HPAGE_PMD_NR));
+-		}
+ 		nr_none += n;
++
++		radix_tree_join(&mapping->page_tree, start,
++				HPAGE_PMD_ORDER, new_page);
+ 	}
+ 
+ tree_locked:
+diff --git a/mm/shmem.c b/mm/shmem.c
+index bb53285a1d99..ff017bbde4b3 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -544,33 +544,14 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 	VM_BUG_ON(expected && PageTransHuge(page));
+ 
+-	page_ref_add(page, nr);
++	get_page(page);
+ 	page->mapping = mapping;
+ 	page->index = index;
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+-	if (PageTransHuge(page)) {
+-		void __rcu **results;
+-		pgoff_t idx;
+-		int i;
+-
+-		error = 0;
+-		if (radix_tree_gang_lookup_slot(&mapping->page_tree,
+-					&results, &idx, index, 1) &&
+-				idx < index + HPAGE_PMD_NR) {
+-			error = -EEXIST;
+-		}
+-
+-		if (!error) {
+-			for (i = 0; i < HPAGE_PMD_NR; i++) {
+-				error = radix_tree_insert(&mapping->page_tree,
+-						index + i, page + i);
+-				VM_BUG_ON(error);
+-			}
+-			count_vm_event(THP_FILE_ALLOC);
+-		}
+-	} else if (!expected) {
+-		error = radix_tree_insert(&mapping->page_tree, index, page);
++	if (!expected) {
++		error = __radix_tree_insert(&mapping->page_tree, index,
++				compound_order(page), page);
+ 	} else {
+ 		error = shmem_radix_tree_replace(mapping, index, expected,
+ 								 page);
+@@ -578,15 +559,17 @@ static int shmem_add_to_page_cache(struct page *page,
+ 
+ 	if (!error) {
+ 		mapping->nrpages += nr;
+-		if (PageTransHuge(page))
++		if (PageTransHuge(page)) {
++			count_vm_event(THP_FILE_ALLOC);
+ 			__inc_node_page_state(page, NR_SHMEM_THPS);
++		}
+ 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+ 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, nr);
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 	} else {
+ 		page->mapping = NULL;
+ 		spin_unlock_irq(&mapping->tree_lock);
+-		page_ref_sub(page, nr);
++		put_page(page);
+ 	}
+ 	return error;
+ }
+@@ -727,8 +710,9 @@ void shmem_unlock_mapping(struct address_space *mapping)
+ 					   PAGEVEC_SIZE, pvec.pages, indices);
+ 		if (!pvec.nr)
+ 			break;
+-		index = indices[pvec.nr - 1] + 1;
+ 		pagevec_remove_exceptionals(&pvec);
++		index = indices[pvec.nr - 1] +
++			hpage_nr_pages(pvec.pages[pvec.nr - 1]);
+ 		check_move_unevictable_pages(pvec.pages, pvec.nr);
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+@@ -785,23 +769,25 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 			if (!trylock_page(page))
+ 				continue;
+ 
+-			if (PageTransTail(page)) {
+-				/* Middle of THP: zero out the page */
+-				clear_highpage(page);
+-				unlock_page(page);
+-				continue;
+-			} else if (PageTransHuge(page)) {
++			if (PageTransHuge(page)) {
++				/* Range starts in the middle of THP */
++				if (start > page->index) {
++					pgoff_t i;
++					index += HPAGE_PMD_NR;
++					page += start - page->index;
++					for (i = start; i < index; i++, page++)
++						clear_highpage(page);
++					unlock_page(page - 1);
++					continue;
++				}
++
++				/* Range ends in the middle of THP */
+ 				if (index == round_down(end, HPAGE_PMD_NR)) {
+-					/*
+-					 * Range ends in the middle of THP:
+-					 * zero out the page
+-					 */
+-					clear_highpage(page);
++					while (index++ < end)
++						clear_highpage(page++);
+ 					unlock_page(page);
+ 					continue;
+ 				}
+-				index += HPAGE_PMD_NR - 1;
+-				i += HPAGE_PMD_NR - 1;
+ 			}
+ 
+ 			if (!unfalloc || !PageUptodate(page)) {
+@@ -814,9 +800,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 			unlock_page(page);
+ 		}
+ 		pagevec_remove_exceptionals(&pvec);
++		index += pvec.nr ? hpage_nr_pages(pvec.pages[pvec.nr - 1]) : 1;
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+-		index++;
+ 	}
+ 
+ 	if (partial_start) {
+@@ -874,8 +860,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 					continue;
+ 				if (shmem_free_swap(mapping, index, page)) {
+ 					/* Swap was replaced by page: retry */
+-					index--;
+-					break;
++					goto retry;
+ 				}
+ 				nr_swaps_freed++;
+ 				continue;
+@@ -883,30 +868,24 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 
+ 			lock_page(page);
+ 
+-			if (PageTransTail(page)) {
+-				/* Middle of THP: zero out the page */
+-				clear_highpage(page);
+-				unlock_page(page);
+-				/*
+-				 * Partial thp truncate due 'start' in middle
+-				 * of THP: don't need to look on these pages
+-				 * again on !pvec.nr restart.
+-				 */
+-				if (index != round_down(end, HPAGE_PMD_NR))
+-					start++;
+-				continue;
+-			} else if (PageTransHuge(page)) {
++			if (PageTransHuge(page)) {
++				/* Range starts in the middle of THP */
++				if (start > page->index) {
++					index += HPAGE_PMD_NR;
++					page += start - page->index;
++					while (start++ < index)
++						clear_highpage(page++);
++					unlock_page(page - 1);
++					continue;
++				}
++
++				/* Range ends in the middle of THP */
+ 				if (index == round_down(end, HPAGE_PMD_NR)) {
+-					/*
+-					 * Range ends in the middle of THP:
+-					 * zero out the page
+-					 */
+-					clear_highpage(page);
++					while (index++ < end)
++						clear_highpage(page++);
+ 					unlock_page(page);
+ 					continue;
+ 				}
+-				index += HPAGE_PMD_NR - 1;
+-				i += HPAGE_PMD_NR - 1;
+ 			}
+ 
+ 			if (!unfalloc || !PageUptodate(page)) {
+@@ -917,15 +896,18 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 				} else {
+ 					/* Page was replaced by swap: retry */
+ 					unlock_page(page);
+-					index--;
+-					break;
++					goto retry;
+ 				}
+ 			}
+ 			unlock_page(page);
+ 		}
+ 		pagevec_remove_exceptionals(&pvec);
++		index += pvec.nr ? hpage_nr_pages(pvec.pages[pvec.nr - 1]) : 1;
++		pagevec_release(&pvec);
++		continue;
++retry:
++		pagevec_remove_exceptionals(&pvec);
+ 		pagevec_release(&pvec);
+-		index++;
+ 	}
+ 
+ 	spin_lock_irq(&info->lock);
+@@ -1762,8 +1744,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+ 				PageTransHuge(page));
+ 		if (error)
+ 			goto unacct;
+-		error = radix_tree_maybe_preload_order(gfp & GFP_RECLAIM_MASK,
+-				compound_order(page));
++		error = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+ 		if (!error) {
+ 			error = shmem_add_to_page_cache(page, mapping, hindex,
+ 							NULL);
+@@ -1837,7 +1818,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+ 		error = -EINVAL;
+ 		goto unlock;
+ 	}
+-	*pagep = page + index - hindex;
++	*pagep = find_subpage(page, index);
+ 	return 0;
+ 
+ 	/*
+diff --git a/mm/truncate.c b/mm/truncate.c
+index dd7b24e083c5..3a1a1c1a654e 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -524,16 +524,13 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 
+ 			WARN_ON(page_to_index(page) != index);
+ 
+-			/* Middle of THP: skip */
+-			if (PageTransTail(page)) {
++			/* Is 'start' or 'end' in the middle of THP ? */
++			if (PageTransHuge(page) &&
++				(start > index ||
++				 (index ==  round_down(end, HPAGE_PMD_NR)))) {
++				/* skip */
+ 				unlock_page(page);
+ 				continue;
+-			} else if (PageTransHuge(page)) {
+-				index += HPAGE_PMD_NR - 1;
+-				i += HPAGE_PMD_NR - 1;
+-				/* 'end' is in the middle of THP */
+-				if (index ==  round_down(end, HPAGE_PMD_NR))
+-					continue;
+ 			}
+ 
+ 			ret = invalidate_inode_page(page);
+@@ -547,9 +544,9 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			count += ret;
+ 		}
+ 		pagevec_remove_exceptionals(&pvec);
++		index += pvec.nr ? hpage_nr_pages(pvec.pages[pvec.nr - 1]) : 1;
+ 		pagevec_release(&pvec);
+ 		cond_resched();
+-		index++;
+ 	}
+ 	return count;
+ }
+-- 
+2.11.0
 
-On radix-tree, a huge page represented as a multi-order entry of the same
-order (HPAGE_PMD_ORDER). This allows us to track dirty/writeback on
-radix-tree tags with the same granularity as on struct page.
-
-On IO via syscalls, we are still limited by copying upto PAGE_SIZE per
-iteration. The limitation here comes from how copy_page_to_iter() and
-copy_page_from_iter() work wrt. highmem: it can only handle one small
-page a time.
-
-On write side, we also have problem with assuming small pages: write
-length and offset within page calculated before we know if small or huge
-page is allocated. It's not easy to fix. Looks like it would require
-change in ->write_begin() interface to accept len > PAGE_SIZE.
-
-On split_huge_page() we need to free buffers before splitting the page.
-Page buffers takes additional pin on the page and can be a vector to mess
-with the page during split. We want to avoid this.
-If try_to_free_buffers() fails, split_huge_page() would return -EBUSY.
-
-Readahead doesn't play with huge pages well: 128k max readahead window,
-assumption on page size, PageReadahead() to track hit/miss.  I've got it
-to allocate huge pages, but it doesn't provide any readahead as such.
-I don't know how to do this right. It's not clear at this point if we
-really need readahead with huge pages. I guess it's good enough for now.
-
-Shadow entries ignored on allocation -- recently evicted page is not
-promoted to active list. Not sure if current workingset logic is adequate
-for huge pages. On eviction, we split the huge page and setup 4k shadow
-entries as usual.
-
-Unlike tmpfs, ext4 makes use of tags in radix-tree. The approach I used
-for tmpfs -- 512 entries in radix-tree per-hugepages -- doesn't work well
-if we want to have coherent view on tags. So the first patch converts
-tmpfs to use multi-order entries in radix-tree. The same infrastructure
-used for ext4.
-
-Encryption doesn't handle huge pages yet. To avoid regressions we just
-disable huge pages for the inode if it has EXT4_INODE_ENCRYPT.
-
-Tested with 4k, 1k, encryption and bigalloc. All with and without
-huge=always. I think it's reasonable coverage.
-
-The patchset is also in git:
-
-git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git hugeext4/v6
-
-[1] http://lkml.kernel.org/r/1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com
-
-Changes since v5:
-  - Rebased;
-  - Reserve larger jounral transaction for huge pages (pointed by Jan);
-
-Changes since v4:
-  - Rebase onto updated radix-tree interface;
-  - Change interface to page cache lookups wrt. multi-order entries;
-  - Do not mess with BIO_MAX_PAGES: ext4_mpage_readpages() now uses
-    block_read_full_page() for THP read out;
-  - Fix work with memcg enabled;
-  - Drop bogus VM_BUG_ON() from wp_huge_pmd();
-
-Changes since v3:
-  - account huge page to dirty/writeback/reclaimable/etc. according to its
-    size. It fixes background writback.
-  - move code that adds huge page to radix-tree to
-    page_cache_tree_insert() (Jan);
-  - make ramdisk work with huge pages;
-  - fix unaccont of shadow entries (Jan);
-  - use try_to_release_page() instead of try_to_free_buffers() in
-    split_huge_page() (Jan);
-  -  make thp_get_unmapped_area() respect S_HUGE_MODE;
-  - use huge-page aligned address to zap page range in wp_huge_pmd();
-  - use ext4_kvmalloc in ext4_mpage_readpages() instead of
-    kmalloc() (Andreas);
-
-Changes since v2:
-  - fix intermittent crash in generic/299;
-  - typo (condition inversion) in do_generic_file_read(),
-    reported by Jitendra;
-
-TODO:
-  - on IO via syscalls, copy more than PAGE_SIZE per iteration to/from
-    userspace;
-  - readahead ?;
-  - wire up madvise()/fadvise();
-  - encryption with huge pages;
-  - reclaim of file huge pages can be optimized -- split_huge_page() is not
-    required for pages with backing storage;
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
