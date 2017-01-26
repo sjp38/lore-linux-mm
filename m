@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E42C6B0253
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 00:44:25 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c73so297226418pfb.7
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:44:25 -0800 (PST)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTP id u5si25540967pgi.223.2017.01.25.21.44.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4696B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 00:50:51 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y143so296665812pfb.6
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 21:50:51 -0800 (PST)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTP id i64si474352pfk.182.2017.01.25.21.50.49
         for <linux-mm@kvack.org>;
-        Wed, 25 Jan 2017 21:44:24 -0800 (PST)
+        Wed, 25 Jan 2017 21:50:51 -0800 (PST)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
-In-Reply-To: <20170123181641.23938-1-hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/5] mm: vmscan: fix kswapd writeback regression
-Date: Thu, 26 Jan 2017 13:44:01 +0800
-Message-ID: <007c01d27797$34178790$9c4696b0$@alibaba-inc.com>
+References: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <1485265923-20256-1-git-send-email-rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 0/5] userfaultfd: non-cooperative: better tracking for mapping changes
+Date: Thu, 26 Jan 2017 13:50:27 +0800
+Message-ID: <008001d27798$1dd18390$59748ab0$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -22,48 +22,62 @@ Content-Transfer-Encoding: 7bit
 Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Mel Gorman' <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: 'Mike Rapoport' <rppt@linux.vnet.ibm.com>, 'Linux-MM' <linux-mm@kvack.org>
+Cc: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>, "'Dr. David Alan Gilbert'" <dgilbert@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>, 'Pavel Emelyanov' <xemul@virtuozzo.com>, 'LKML' <linux-kernel@vger.kernel.org>
 
 
-On January 24, 2017 2:17 AM Johannes Weiner wrote:
+On January 24, 2017 9:52 PM Mike Rapoport wrote: 
+> Hi,
 > 
-> We noticed a regression on multiple hadoop workloads when moving from
-> 3.10 to 4.0 and 4.6, which involves kswapd getting tangled up in page
-> writeout, causing direct reclaim herds that also don't make progress.
+> These patches try to address issues I've encountered during integration of
+> userfaultfd with CRIU.
+> Previously added userfaultfd events for fork(), madvise() and mremap()
+> unfortunately do not cover all possible changes to a process virtual memory
+> layout required for uffd monitor.
+> When one or more VMAs is removed from the process mm, the external uffd
+> monitor has no way to detect those changes and will attempt to fill the
+> removed regions with userfaultfd_copy.
+> Another problematic event is the exit() of the process. Here again, the
+> external uffd monitor will try to use userfaultfd_copy, although mm owning
+> the memory has already gone.
 > 
-> I tracked it down to the thrash avoidance efforts after 3.10 that make
-> the kernel better at keeping use-once cache and use-many cache sorted
-> on the inactive and active list, with more aggressive protection of
-> the active list as long as there is inactive cache. Unfortunately, our
-> workload's use-once cache is mostly from streaming writes. Waiting for
-> writes to avoid potential reloads in the future is not a good tradeoff.
+> The first patch in the series is a minor cleanup and it's not strictly
+> related to the rest of the series.
 > 
-> These patches do the following:
+> The patches 2 and 3 below add UFFD_EVENT_UNMAP and UFFD_EVENT_EXIT to allow
+> the uffd monitor track changes in the memory layout of a process.
 > 
-> 1. Wake the flushers when kswapd sees a lump of dirty pages. It's
->    possible to be below the dirty background limit and still have
->    cache velocity push them through the LRU. So start a-flushin'.
+> The patches 4 and 5 amend error codes returned by userfaultfd_copy to make
+> the uffd monitor able to cope with races that might occur between delivery
+> of unmap and exit events and outstanding userfaultfd_copy's.
 > 
-> 2. Let kswapd only write pages that have been rotated twice. This
->    makes sure we really tried to get all the clean pages on the
->    inactive list before resorting to horrible LRU-order writeback.
+> The patches are agains current -mm tree.
 > 
-> 3. Move rotating dirty pages off the inactive list. Instead of
->    churning or waiting on page writeback, we'll go after clean active
->    cache. This might lead to thrashing, but in this state memory
->    demand outstrips IO speed anyway, and reads are faster than writes.
+> Mike Rapoport (5):
+>   mm: call vm_munmap in munmap syscall instead of using open coded version
+>   userfaultfd: non-cooperative: add event for memory unmaps
+>   userfaultfd: non-cooperative: add event for exit() notification
+>   userfaultfd: mcopy_atomic: return -ENOENT when no compatible VMA found
+>   userfaultfd_copy: return -ENOSPC in case mm has gone
 > 
-> More details in the individual changelogs.
+>  arch/tile/mm/elf.c               |  2 +-
+>  arch/x86/entry/vdso/vma.c        |  2 +-
+>  arch/x86/mm/mpx.c                |  2 +-
+>  fs/aio.c                         |  2 +-
+>  fs/proc/vmcore.c                 |  4 +-
+>  fs/userfaultfd.c                 | 91 ++++++++++++++++++++++++++++++++++++++++
+>  include/linux/mm.h               | 14 ++++---
+>  include/linux/userfaultfd_k.h    | 25 +++++++++++
+>  include/uapi/linux/userfaultfd.h |  8 +++-
+>  ipc/shm.c                        |  6 +--
+>  kernel/exit.c                    |  2 +
+>  mm/mmap.c                        | 55 ++++++++++++++----------
+>  mm/mremap.c                      | 23 ++++++----
+>  mm/userfaultfd.c                 | 42 ++++++++++---------
+>  mm/util.c                        |  5 ++-
+>  15 files changed, 215 insertions(+), 68 deletions(-)
 > 
->  include/linux/mm_inline.h        |  7 ++++
->  include/linux/mmzone.h           |  2 --
->  include/linux/writeback.h        |  2 +-
->  include/trace/events/writeback.h |  2 +-
->  mm/swap.c                        |  9 ++---
->  mm/vmscan.c                      | 68 +++++++++++++++-----------------------
->  6 files changed, 41 insertions(+), 49 deletions(-)
-> 
+> --
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
 
