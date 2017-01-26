@@ -1,102 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFD956B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:07:52 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id ez4so42043203wjd.2
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:07:52 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q9si3252979wrc.80.2017.01.26.12.07.51
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D64E6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:34:14 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id v96so49828771ioi.5
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:34:14 -0800 (PST)
+Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
+        by mx.google.com with ESMTPS id c132si2844846iof.144.2017.01.26.12.34.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 12:07:51 -0800 (PST)
-Date: Thu, 26 Jan 2017 15:07:45 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 5/5] mm: vmscan: move dirty pages out of the way until
- they're flushed
-Message-ID: <20170126200745.GC30636@cmpxchg.org>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-6-hannes@cmpxchg.org>
- <20170126101916.tmqa3hswtxfa6nsj@suse.de>
+        Thu, 26 Jan 2017 12:34:13 -0800 (PST)
+Message-ID: <588A5D3C.4060605@iogearbox.net>
+Date: Thu, 26 Jan 2017 21:34:04 +0100
+From: Daniel Borkmann <daniel@iogearbox.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170126101916.tmqa3hswtxfa6nsj@suse.de>
+Subject: Re: [PATCH 0/6 v3] kvmalloc
+References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com> <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz> <5889C331.7020101@iogearbox.net> <20170126100802.GF6590@dhcp22.suse.cz> <5889DEA3.7040106@iogearbox.net> <20170126115833.GI6590@dhcp22.suse.cz> <5889F52E.7030602@iogearbox.net> <20170126134004.GM6590@dhcp22.suse.cz>
+In-Reply-To: <20170126134004.GM6590@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
 
-On Thu, Jan 26, 2017 at 10:19:16AM +0000, Mel Gorman wrote:
-> On Mon, Jan 23, 2017 at 01:16:41PM -0500, Johannes Weiner wrote:
-> > We noticed a performance regression when moving hadoop workloads from
-> > 3.10 kernels to 4.0 and 4.6. This is accompanied by increased pageout
-> > activity initiated by kswapd as well as frequent bursts of allocation
-> > stalls and direct reclaim scans. Even lowering the dirty ratios to the
-> > equivalent of less than 1% of memory would not eliminate the issue,
-> > suggesting that dirty pages concentrate where the scanner is looking.
-> 
-> Note that some of this is also impacted by
-> bbddabe2e436aa7869b3ac5248df5c14ddde0cbf because it can have the effect
-> of dirty pages reaching the end of the LRU sooner if they are being
-> written. It's not impossible that hadoop is rewriting the same files,
-> hitting the end of the LRU due to no reads and then throwing reclaim
-> into a hole.
-> 
-> I've seen a few cases where random write only workloads regressed and it
-> was based on whether the random number generator was selecting the same
-> pages. With that commit, the LRU was effectively LIFO.
-> 
-> Similarly, I'd seen a case where a databases whose working set was
-> larger than the shared memory area regressed because the spill-over from
-> the database buffer to RAM was not being preserved because it was all
-> rights. That said, the same patch prevents the database being swapped so
-> it's not all bad but there have been consequences.
-> 
-> I don't have a problem with the patch although would prefer to have seen
-> more data for the series. However, I'm not entirely convinced that
-> thrash detection was the only problem. I think not activating pages on
-> write was a contributing factor although this patch looks better than
-> considering reverting bbddabe2e436aa7869b3ac5248df5c14ddde0cbf.
+On 01/26/2017 02:40 PM, Michal Hocko wrote:
+> On Thu 26-01-17 14:10:06, Daniel Borkmann wrote:
+>> On 01/26/2017 12:58 PM, Michal Hocko wrote:
+>>> On Thu 26-01-17 12:33:55, Daniel Borkmann wrote:
+>>>> On 01/26/2017 11:08 AM, Michal Hocko wrote:
+>>> [...]
+>>>>> If you disagree I can drop the bpf part of course...
+>>>>
+>>>> If we could consolidate these spots with kvmalloc() eventually, I'm
+>>>> all for it. But even if __GFP_NORETRY is not covered down to all
+>>>> possible paths, it kind of does have an effect already of saying
+>>>> 'don't try too hard', so would it be harmful to still keep that for
+>>>> now? If it's not, I'd personally prefer to just leave it as is until
+>>>> there's some form of support by kvmalloc() and friends.
+>>>
+>>> Well, you can use kvmalloc(size, GFP_KERNEL|__GFP_NORETRY). It is not
+>>> disallowed. It is not _supported_ which means that if it doesn't work as
+>>> you expect you are on your own. Which is actually the situation right
+>>> now as well. But I still think that this is just not right thing to do.
+>>> Even though it might happen to work in some cases it gives a false
+>>> impression of a solution. So I would rather go with
+>>
+>> Hmm. 'On my own' means, we could potentially BUG somewhere down the
+>> vmalloc implementation, etc, presumably? So it might in-fact be
+>> harmful to pass that, right?
+>
+> No it would mean that it might eventually hit the behavior which you are
+> trying to avoid - in other words it may invoke OOM killer even though
+> __GFP_NORETRY means giving up before any system wide disruptive actions
+> a re taken.
 
-We didn't backport this commit into our 4.6 kernel, so it couldn't
-have been a factor in our particular testing. But I will fully agree
-with you that this change probably exacerbates the problem.
+Ok, thanks for clarifying, more on that further below.
 
-Another example is the recent shrinking of the inactive list:
-59dc76b0d4df ("mm: vmscan: reduce size of inactive file list"). That
-one we did in fact backport, after which the problem we were already
-debugging got worse. That was a good hint where the problem was:
+>>> diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
+>>> index 8697f43cf93c..a6dc4d596f14 100644
+>>> --- a/kernel/bpf/syscall.c
+>>> +++ b/kernel/bpf/syscall.c
+>>> @@ -53,6 +53,11 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
+>>>
+>>>    void *bpf_map_area_alloc(size_t size)
+>>>    {
+>>> +	/*
+>>> +	 * FIXME: we would really like to not trigger the OOM killer and rather
+>>> +	 * fail instead. This is not supported right now. Please nag MM people
+>>> +	 * if these OOM start bothering people.
+>>> +	 */
+>>
+>> Ok, I know this is out of scope for this series, but since i) this
+>> is _not_ the _only_ spot right now which has such a construct and ii)
+>> I am already kind of nagging a bit ;), my question would be, what
+>> would it take to start supporting it?
+>
+> propagate gfp mask all the way down from vmalloc to all places which
+> might allocate down the path and especially page table allocation
+> function are PITA because they are really deep. This is a lot of work...
+>
+> But realistically, how big is this problem really? Is it really worth
+> it? You said this is an admin only interface and admin can kill the
+> machine by OOM and other means already.
+>
+> Moreover and I should probably mention it explicitly, your d407bd25a204b
+> reduced the likelyhood of oom for other reason. kmalloc used GPF_USER
+> previously and with order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER this
+> could indeed hit the OOM e.g. due to memory fragmentation. It would be
+> much harder to hit the OOM killer from vmalloc which doesn't issue
+> higher order allocation requests. Or have you ever seen the OOM killer
+> pointing to the vmalloc fallback path?
 
-Every time we got better at keeping the clean hot cache separated out
-on the active list, we increased the concentration of dirty pages on
-the inactive list. Whether this is workingset.c activating refaulting
-pages, whether that's not activating writeback cache, or whether that
-is shrinking the inactive list size, they all worked toward exposing
-the same deficiency in the reclaim-writeback model: that waiting for
-writes is worse than potentially causing reads. That flaw has always
-been there - since we had wait_on_page_writeback() in the reclaim
-scanner and the split between inactive and active cache. It was just
-historically much harder to trigger problems like this in practice.
+The case I was concerned about was from vmalloc() path, not kmalloc().
+That was where the stack trace indicating OOM pointed to. As an example,
+there could be really large allocation requests for maps where the map
+has pre-allocated memory for its elements. Thus, if we get to the point
+where we need to kill others due to shortage of mem for satisfying this,
+I'd much much rather prefer to just not let vmalloc() work really hard
+and fail early on instead. In my (crafted) test case, I was connected
+via ssh and it each time reliably killed my connection, which is really
+suboptimal.
 
-That's why this is a regression over a period of kernel development
-and cannot really be pinpointed to a specific commit.
+F.e., I could also imagine a buggy or miscalculated map definition for
+a prog that is provisioned to multiple places, which then accidentally
+triggers this. Or if large on purpose, but we crossed the line, it
+could be handled more gracefully, f.e. I could imagine an option to
+falling back to a non-pre-allocated map flavor from the application
+loading the program. Trade-off for sure, but still allowing it to
+operate up to a certain extend. Granted, if vmalloc() succeeded without
+trying hard and we then OOM elsewhere, too bad, but we don't have much
+control over that one anyway, only about our own request. Reason I
+asked above was whether having __GFP_NORETRY in would be fatal
+somewhere down the path, but seems not as you say.
 
-This patch, by straight-up putting dirty/writeback pages at the head
-of the combined page cache double LRU regardless of access frequency,
-is making an explicit update to the reclaim-writeback model to codify
-the trade-off between writes and potential refaults. Any alternative
-(implementation differences aside of course) would require regressing
-use-once separation to previous levels in some form.
+So to answer your second email with the bpf and netfilter hunks, why
+not replacing them with kvmalloc() and __GFP_NORETRY flag and add that
+big fat FIXME comment above there, saying explicitly that __GFP_NORETRY
+is not harmful though has only /partial/ effect right now and that full
+support needs to be implemented in future. That would still be better
+that not having it, imo, and the FIXME would make expectations clear
+to anyone reading that code.
 
-The lack of data is not great, agreed as well. The thing I can say is
-that for the hadoop workloads - and this is a whole spectrum of jobs
-running on hundreds of machines in a test group over several days -
-this patch series restores average job completions, allocation stalls,
-amount of kswapd-initiated IO, sys% and iowait% to 3.10 levels - with
-a high confidence, and no obvious metric that could have regressed.
-
-Is there something specific that you would like to see tested? Aside
-from trying that load with more civilized flusher wakeups in kswapd?
+Thanks,
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
