@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 69B576B0033
-	for <int-list-linux-mm@kvack.org>; Wed, 25 Jan 2017 19:45:17 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id c7so36301877wjb.7
-        for <int-list-linux-mm@kvack.org>; Wed, 25 Jan 2017 16:45:17 -0800 (PST)
-Received: from ns0125.iberstation.com ([154.44.190.13])
-        by mx.google.com with ESMTPS id 17si910337wmo.84.2017.01.25.16.45.16
-        for <int-list-linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Jan 2017 16:45:16 -0800 (PST)
-Message-ID: <DDD86E3D36E2CE4D9194DD63F7FD8681@sbcglobal.net> 
-Reply-To: "MyCanadian Pharmacy" <Flossienvnsl@sbcglobal.net> 
-From: "MyCanadian Pharmacy" <Flossienvnsl@sbcglobal.net> 
-Subject: Don't save on pleasure! Buy effective medications of highest quality. 
-Date: Thu, 26 Jan 2017 01:44:59 +0100 
-MIME-Version: 1.0 
-Content-Type: multipart/alternative; boundary="d954d67b6234c82d81f35f53cdac" 
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDAA6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 20:27:17 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 204so291747987pge.5
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:27:17 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m124si1075206pgm.123.2017.01.25.17.27.15
+        for <linux-mm@kvack.org>;
+        Wed, 25 Jan 2017 17:27:16 -0800 (PST)
+Date: Thu, 26 Jan 2017 10:27:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/5] mm: vmscan: scan dirty pages even in laptop mode
+Message-ID: <20170126012713.GA21211@bbox>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-2-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170123181641.23938-2-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jbell@houlegames.com, int-list-linux-mm@kvack.org, stonee@troyschools.net, kaneeshia.parker@gulfportschools.org, paul_audley@filmlainc.com, douglasf@cochise.edu, booking@dementiaband.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
---d954d67b6234c82d81f35f53cdac
-Content-Type: text/plain; charset="windows-1251"
-Content-Transfer-Encoding: quoted-printable
+On Mon, Jan 23, 2017 at 01:16:37PM -0500, Johannes Weiner wrote:
+> We have an elaborate dirty/writeback throttling mechanism inside the
+> reclaim scanner, but for that to work the pages have to go through
+> shrink_page_list() and get counted for what they are. Otherwise, we
+> mess up the LRU order and don't match reclaim speed to writeback.
+> 
+> Especially during deactivation, there is never a reason to skip dirty
+> pages; nothing is even trying to write them out from there. Don't mess
+> up the LRU order for nothing, shuffle these pages along.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-=A0Welcome! Use my good advice and you will manage to cure Erectyle disfu=
-nction under your steam!- http://tiny.cc/yssniy
-
---d954d67b6234c82d81f35f53cdac
-Content-Type: text/html; charset="windows-1251"
-Content-Transfer-Encoding: quoted-printable
-
-<HTML><HEAD>
-<META http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dwindows=
--1251">
-</HEAD>
-<BODY bgColor=3D#ffffff>
-<DIV align=3Dleft><FONT size=3D2 face=3DArial><FONT size=3D2 face=3DArial=
-><FONT size=3D2=20
-face=3DArial>
-<P>&nbsp;Welcome!=20
-Use my good advice and you will manage to cure Erectyle disfunction under=
- your steam!-</FONT></FONT> <A=20
-href=3D"http://tiny.cc/yssniy">http://tiny.cc/yssniy</A></P></FONT></DIV>=
-</BODY></HTML>
-
---d954d67b6234c82d81f35f53cdac--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
