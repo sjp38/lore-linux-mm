@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 23CD66B0038
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:53:41 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id d140so44047961wmd.4
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:53:41 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F25C36B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:59:08 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id gt1so38599212wjc.0
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 01:59:08 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g3si1322874wrb.153.2017.01.26.01.53.39
+        by mx.google.com with ESMTPS id s16si819786wmb.17.2017.01.26.01.59.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Jan 2017 01:53:40 -0800 (PST)
-Date: Thu, 26 Jan 2017 09:52:25 +0000
+        Thu, 26 Jan 2017 01:59:07 -0800 (PST)
+Date: Thu, 26 Jan 2017 09:57:45 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/5] mm: vmscan: scan dirty pages even in laptop mode
-Message-ID: <20170126095225.kvv546uvofie25ym@suse.de>
+Subject: Re: [PATCH 2/5] mm: vmscan: kick flushers when we encounter dirty
+ pages on the LRU
+Message-ID: <20170126095745.ueigbrsop5vgmwzj@suse.de>
 References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-2-hannes@cmpxchg.org>
+ <20170123181641.23938-3-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170123181641.23938-2-hannes@cmpxchg.org>
+In-Reply-To: <20170123181641.23938-3-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jan 23, 2017 at 01:16:37PM -0500, Johannes Weiner wrote:
-> We have an elaborate dirty/writeback throttling mechanism inside the
-> reclaim scanner, but for that to work the pages have to go through
-> shrink_page_list() and get counted for what they are. Otherwise, we
-> mess up the LRU order and don't match reclaim speed to writeback.
-> 
-> Especially during deactivation, there is never a reason to skip dirty
-> pages; nothing is even trying to write them out from there. Don't mess
-> up the LRU order for nothing, shuffle these pages along.
+On Mon, Jan 23, 2017 at 01:16:38PM -0500, Johannes Weiner wrote:
+> Memory pressure can put dirty pages at the end of the LRU without
+> anybody running into dirty limits. Don't start writing individual
+> pages from kswapd while the flushers might be asleep.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+I don't understand the motivation for checking the wb_reason name. Maybe
+it was easier to eyeball while reading ftraces. The comment about the
+flusher not doing its job could also be as simple as the writes took
+place and clean pages were reclaimed before dirty_expire was reached.
+Not impossible if there was a light writer combined with a heavy reader
+or a large number of anonymous faults.
+
+Anyway;
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
