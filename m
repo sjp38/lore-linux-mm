@@ -1,171 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C06CC6B0253
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:48:56 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id o185so52592419itb.6
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:48:56 -0800 (PST)
-Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
-        by mx.google.com with ESMTPS id c17si2870679ioa.167.2017.01.26.12.48.56
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A28426B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 15:58:28 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id yr2so42337272wjc.4
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:58:28 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b31si3355916wra.284.2017.01.26.12.58.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 12:48:56 -0800 (PST)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH 2/2] base/memory, hotplug: fix a kernel oops in show_valid_zones()
-Date: Thu, 26 Jan 2017 14:44:15 -0700
-Message-Id: <20170126214415.4509-3-toshi.kani@hpe.com>
-In-Reply-To: <20170126214415.4509-1-toshi.kani@hpe.com>
-References: <20170126214415.4509-1-toshi.kani@hpe.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 26 Jan 2017 12:58:27 -0800 (PST)
+Date: Thu, 26 Jan 2017 20:58:24 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 5/5] mm: vmscan: move dirty pages out of the way until
+ they're flushed
+Message-ID: <20170126205824.fmc6favnij2lx5x7@suse.de>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-6-hannes@cmpxchg.org>
+ <20170126101916.tmqa3hswtxfa6nsj@suse.de>
+ <20170126200745.GC30636@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170126200745.GC30636@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, gregkh@linuxfoundation.org
-Cc: linux-mm@kvack.org, zhenzhang.zhang@huawei.com, arbab@linux.vnet.ibm.com, dan.j.williams@intel.com, abanman@sgi.com, rientjes@google.com, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Reading a sysfs memoryN/valid_zones file leads to the following
-oops when the first page of a range is not backed by struct page.
-show_valid_zones() assumes that 'start_pfn' is always valid for
-page_zone().
+On Thu, Jan 26, 2017 at 03:07:45PM -0500, Johannes Weiner wrote:
+> On Thu, Jan 26, 2017 at 10:19:16AM +0000, Mel Gorman wrote:
+> > On Mon, Jan 23, 2017 at 01:16:41PM -0500, Johannes Weiner wrote:
+> > > We noticed a performance regression when moving hadoop workloads from
+> > > 3.10 kernels to 4.0 and 4.6. This is accompanied by increased pageout
+> > > activity initiated by kswapd as well as frequent bursts of allocation
+> > > stalls and direct reclaim scans. Even lowering the dirty ratios to the
+> > > equivalent of less than 1% of memory would not eliminate the issue,
+> > > suggesting that dirty pages concentrate where the scanner is looking.
+> > 
+> > Note that some of this is also impacted by
+> > bbddabe2e436aa7869b3ac5248df5c14ddde0cbf because it can have the effect
+> > of dirty pages reaching the end of the LRU sooner if they are being
+> > written. It's not impossible that hadoop is rewriting the same files,
+> > hitting the end of the LRU due to no reads and then throwing reclaim
+> > into a hole.
+> > 
+> > I've seen a few cases where random write only workloads regressed and it
+> > was based on whether the random number generator was selecting the same
+> > pages. With that commit, the LRU was effectively LIFO.
+> > 
+> > Similarly, I'd seen a case where a databases whose working set was
+> > larger than the shared memory area regressed because the spill-over from
+> > the database buffer to RAM was not being preserved because it was all
+> > rights. That said, the same patch prevents the database being swapped so
+> > it's not all bad but there have been consequences.
+> > 
+> > I don't have a problem with the patch although would prefer to have seen
+> > more data for the series. However, I'm not entirely convinced that
+> > thrash detection was the only problem. I think not activating pages on
+> > write was a contributing factor although this patch looks better than
+> > considering reverting bbddabe2e436aa7869b3ac5248df5c14ddde0cbf.
+> 
+> We didn't backport this commit into our 4.6 kernel, so it couldn't
+> have been a factor in our particular testing. But I will fully agree
+> with you that this change probably exacerbates the problem.
+> 
 
- BUG: unable to handle kernel paging request at ffffea017a000000
- IP: show_valid_zones+0x6f/0x160
+Ah, ok. I was not aware the patch couldn't have been part of what you
+were seeing.
 
-Since test_pages_in_a_zone() already checks holes, extend this
-function to return 'valid_start' and 'valid_end' for a given range.
-show_valid_zones() then proceeds with the valid range.
+> Another example is the recent shrinking of the inactive list:
+> 59dc76b0d4df ("mm: vmscan: reduce size of inactive file list"). That
+> one we did in fact backport, after which the problem we were already
+> debugging got worse. That was a good hint where the problem was:
+> 
+> Every time we got better at keeping the clean hot cache separated out
+> on the active list, we increased the concentration of dirty pages on
+> the inactive list.
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
----
- drivers/base/memory.c          |   12 ++++++------
- include/linux/memory_hotplug.h |    3 ++-
- mm/memory_hotplug.c            |   20 +++++++++++++++-----
- 3 files changed, 23 insertions(+), 12 deletions(-)
+Somewhat ironic because the improved separation increases the
+chances of kswapd writing out pages and direct reclaimers stalling on
+wait_iff_congested.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 8ab8ea1..2c9aad9 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -389,33 +389,33 @@ static ssize_t show_valid_zones(struct device *dev,
- {
- 	struct memory_block *mem = to_memory_block(dev);
- 	unsigned long start_pfn, end_pfn;
-+	unsigned long valid_start, valid_end, valid_pages;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
--	struct page *first_page;
- 	struct zone *zone;
- 	int zone_shift = 0;
- 
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
- 	end_pfn = start_pfn + nr_pages;
--	first_page = pfn_to_page(start_pfn);
- 
- 	/* The block contains more than one zone can not be offlined. */
--	if (!test_pages_in_a_zone(start_pfn, end_pfn))
-+	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start, &valid_end))
- 		return sprintf(buf, "none\n");
- 
--	zone = page_zone(first_page);
-+	zone = page_zone(pfn_to_page(valid_start));
-+	valid_pages = valid_end - valid_start;
- 
- 	/* MMOP_ONLINE_KEEP */
- 	sprintf(buf, "%s", zone->name);
- 
- 	/* MMOP_ONLINE_KERNEL */
--	zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_NORMAL);
-+	zone_shift = zone_can_shift(valid_start, valid_pages, ZONE_NORMAL);
- 	if (zone_shift) {
- 		strcat(buf, " ");
- 		strcat(buf, (zone + zone_shift)->name);
- 	}
- 
- 	/* MMOP_ONLINE_MOVABLE */
--	zone_shift = zone_can_shift(start_pfn, nr_pages, ZONE_MOVABLE);
-+	zone_shift = zone_can_shift(valid_start, valid_pages, ZONE_MOVABLE);
- 	if (zone_shift) {
- 		strcat(buf, " ");
- 		strcat(buf, (zone + zone_shift)->name);
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 01033fa..b6aa972 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -85,7 +85,8 @@ extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
- /* VM interface that may be used by firmware interface */
- extern int online_pages(unsigned long, unsigned long, int);
--extern int test_pages_in_a_zone(unsigned long, unsigned long);
-+extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
-+	unsigned long *valid_start, unsigned long *valid_end);
- extern void __offline_isolated_pages(unsigned long, unsigned long);
- 
- typedef void (*online_page_callback_t)(struct page *page);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7836606..9de2f83 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1478,10 +1478,13 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
- 
- /*
-  * Confirm all pages in a range [start, end) belong to the same zone.
-+ * When true, return its valid [start, end).
-  */
--int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
-+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
-+			 unsigned long *valid_start, unsigned long *valid_end)
- {
- 	unsigned long pfn, sec_end_pfn;
-+	unsigned long start, end;
- 	struct zone *zone = NULL;
- 	struct page *page;
- 	int i;
-@@ -1503,14 +1506,20 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
- 			page = pfn_to_page(pfn + i);
- 			if (zone && page_zone(page) != zone)
- 				return 0;
-+			if (!zone)
-+				start = pfn + i;
- 			zone = page_zone(page);
-+			end = pfn + MAX_ORDER_NR_PAGES;
- 		}
- 	}
- 
--	if (zone)
-+	if (zone) {
-+		*valid_start = start;
-+		*valid_end = end;
- 		return 1;
--	else
-+	} else {
- 		return 0;
-+	}
- }
- 
- /*
-@@ -1837,6 +1846,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	long offlined_pages;
- 	int ret, drain, retry_max, node;
- 	unsigned long flags;
-+	unsigned long valid_start, valid_end;
- 	struct zone *zone;
- 	struct memory_notify arg;
- 
-@@ -1847,10 +1857,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		return -EINVAL;
- 	/* This makes hotplug much easier...and readable.
- 	   we assume this for now. .*/
--	if (!test_pages_in_a_zone(start_pfn, end_pfn))
-+	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start, &valid_end))
- 		return -EINVAL;
- 
--	zone = page_zone(pfn_to_page(start_pfn));
-+	zone = page_zone(pfn_to_page(valid_start));
- 	node = zone_to_nid(zone);
- 	nr_pages = end_pfn - start_pfn;
- 
+> Whether this is workingset.c activating refaulting
+> pages, whether that's not activating writeback cache, or whether that
+> is shrinking the inactive list size, they all worked toward exposing
+> the same deficiency in the reclaim-writeback model: that waiting for
+> writes is worse than potentially causing reads. That flaw has always
+> been there - since we had wait_on_page_writeback() in the reclaim
+> scanner and the split between inactive and active cache. It was just
+> historically much harder to trigger problems like this in practice.
+> 
+> That's why this is a regression over a period of kernel development
+> and cannot really be pinpointed to a specific commit.
+> 
+
+Understood.
+
+> This patch, by straight-up putting dirty/writeback pages at the head
+> of the combined page cache double LRU regardless of access frequency,
+> is making an explicit update to the reclaim-writeback model to codify
+> the trade-off between writes and potential refaults. Any alternative
+> (implementation differences aside of course) would require regressing
+> use-once separation to previous levels in some form.
+> 
+> The lack of data is not great, agreed as well. The thing I can say is
+> that for the hadoop workloads - and this is a whole spectrum of jobs
+> running on hundreds of machines in a test group over several days -
+> this patch series restores average job completions, allocation stalls,
+> amount of kswapd-initiated IO, sys% and iowait% to 3.10 levels - with
+> a high confidence, and no obvious metric that could have regressed.
+> 
+
+That's fair enough. It's rarely the case that a regression in a complex
+workload has a single root cause. If it was, bisections would always work.
+
+> Is there something specific that you would like to see tested? Aside
+> from trying that load with more civilized flusher wakeups in kswapd?
+
+Nothing specific that I'll force on you. At some point I'll shove Chris's
+simoop workload through it has it allegedly has similar propertys to what
+you're seeing. I only got around to examining it last week to see how it
+behaved. It was very obvious that between 4.4 and 4.9 it started writing
+heavily from reclaim context. However, it had also stopped swappiing which
+pointing towards the grab_cache_page_write() commit. Kswapd scan rates had
+also doubled. Detailed examination of the stall stats showed extremely long
+stalls. I expect these patches to have an impact and would be surprised
+if they didn't.
+
+Similarly, any random read/write workload that is write intensive might
+also be interesting although that might just hit the dirty balancing limits
+if not tuned properly.
+
+A write-only sysbench would also be interesting. That is also a workload
+that between 4.4 and 4.9 had regressed severely. Partly this was dirty
+pages getting to the tail of the LRU and the other part was the random
+number generator reusing some pages that the activations preserved. I
+think your patches would at least mitigate the first problem.
+
+If you have the chance to do any of them, it would be nice, but the
+patches make enough sense from plain review. If I thought they were
+shakier than I would make more of a fuss.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
