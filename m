@@ -1,205 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 362366B025E
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:11 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 3so75329414pgj.6
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:11 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w16si2594822plk.57.2017.01.26.14.40.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B566B0260
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:40:12 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d123so75999770pfd.0
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:40:12 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x1si2577624pfa.171.2017.01.26.14.40.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 14:40:09 -0800 (PST)
-Subject: [RFC][PATCH 3/4] x86, mpx: extend MPX prctl() to pass in size of bounds directory
+        Thu, 26 Jan 2017 14:40:11 -0800 (PST)
+Subject: [RFC][PATCH 4/4] x86, mpx: context-switch new MPX address size MSR
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Thu, 26 Jan 2017 14:40:09 -0800
+Date: Thu, 26 Jan 2017 14:40:10 -0800
 References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
 In-Reply-To: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
-Message-Id: <20170126224009.ECA68304@viggo.jf.intel.com>
+Message-Id: <20170126224010.3534C154@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>
 
 
-The MPX bounds tables are indexed by virtual address.  A larger virtual
-address space means that we need larger tables.  But, we need to ensure
-that userspace and the kernel agree about the size of these tables.
+As mentioned in previous patches, larger address spaces mean
+larger MPX tables.  But, the entire system is either entirely
+using 5-level paging, or not.  We do not mix pagetable formats.
 
-To do this, we require that userspace pass in the size of the tables
-if they want a non-legacy size.  They do this with a previously unused
-(required to be 0) argument to the PR_MPX_ENABLE_MANAGEMENT ptctl().
+If the size of the MPX tables depended soley on the paging mode,
+old binaries would break because the format of the tables changed
+underneath them.  So, since CR4 never changes, but we need some
+way to change the MPX table format, a new MSR is introduced:
+MSR_IA32_MPX_LAX.
 
-This way, the kernel can make sure that the size of the tables is
-consistent with the size of the address space and can return an error
-if there is a mismatch.
+If we are in 5-level paging mode *and* the enable bit in this MSR
+is set, the CPU will use the new, larger MPX bounds table format.
+If 5-level paging is disabled, or the enable bit is clear, then
+the legacy-style smaller tables will be used.
 
-There are essentially 3 table sizes that matter:
-1. 32-bit table sized for a 32-bit address space
-2. 64-bit table sized for a 48-bit address space
-3. 64-bit table sized for a 57-bit address space
-
-We cover all three of those cases.
-
-FIXME: we also need to ensure that we check the current state of the
-larger address space opt-in.  If we've opted in to larger address spaces
-we can not allow a small bounds directory to be used.  Also, if we've
-not opted in, we can not allow the larger bounds directory to be used.
+But, we might mix legacy and non-legacy binaries on the same
+system, so this MSR needs to be context-switched.  Add code to
+do this, along with some simple optimizations to skip the MSR
+writes if the MSR does not need to be updated.
 
 ---
 
- b/arch/x86/include/asm/mpx.h       |    5 +++
- b/arch/x86/include/asm/processor.h |    6 ++--
- b/arch/x86/mm/mpx.c                |   54 +++++++++++++++++++++++++++++++++++--
- b/arch/x86/mm/pgtable.c            |    2 -
- b/kernel/sys.c                     |    6 ++--
- 5 files changed, 64 insertions(+), 9 deletions(-)
+ b/arch/x86/include/asm/msr-index.h |    1 
+ b/arch/x86/mm/tlb.c                |   42 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
 
-diff -puN arch/x86/include/asm/mpx.h~mawa-040-prctl-set-mawa arch/x86/include/asm/mpx.h
---- a/arch/x86/include/asm/mpx.h~mawa-040-prctl-set-mawa	2017-01-26 14:31:33.564714660 -0800
-+++ b/arch/x86/include/asm/mpx.h	2017-01-26 14:31:33.574715109 -0800
-@@ -40,6 +40,11 @@
- #define MPX_BD_LEGACY_NR_ENTRIES_64	(1UL<<28)
+diff -puN arch/x86/include/asm/msr-index.h~mawa-050-context-switch-msr arch/x86/include/asm/msr-index.h
+--- a/arch/x86/include/asm/msr-index.h~mawa-050-context-switch-msr	2017-01-26 14:31:37.747902524 -0800
++++ b/arch/x86/include/asm/msr-index.h	2017-01-26 14:31:37.752902749 -0800
+@@ -410,6 +410,7 @@
+ #define MSR_IA32_BNDCFGS		0x00000d90
  
- /*
-+ * We only support one value for MAWA
-+ */
-+#define MPX_MAWA_VALUE		9
-+
+ #define MSR_IA32_XSS			0x00000da0
++#define MSR_IA32_MPX_LAX		0x00001000
+ 
+ #define FEATURE_CONTROL_LOCKED				(1<<0)
+ #define FEATURE_CONTROL_VMXON_ENABLED_INSIDE_SMX	(1<<1)
+diff -puN arch/x86/mm/tlb.c~mawa-050-context-switch-msr arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~mawa-050-context-switch-msr	2017-01-26 14:31:37.749902614 -0800
++++ b/arch/x86/mm/tlb.c	2017-01-26 14:31:37.753902794 -0800
+@@ -71,6 +71,47 @@ void switch_mm(struct mm_struct *prev, s
+ 	local_irq_restore(flags);
+ }
+ 
 +/*
-  * The 32-bit directory is 4MB (2^22) in size, and with 4-byte
-  * entries it has 2^20 entries.
-  */
-diff -puN arch/x86/include/asm/processor.h~mawa-040-prctl-set-mawa arch/x86/include/asm/processor.h
---- a/arch/x86/include/asm/processor.h~mawa-040-prctl-set-mawa	2017-01-26 14:31:33.566714750 -0800
-+++ b/arch/x86/include/asm/processor.h	2017-01-26 14:31:33.575715154 -0800
-@@ -863,14 +863,14 @@ extern int get_tsc_mode(unsigned long ad
- extern int set_tsc_mode(unsigned int val);
- 
- /* Register/unregister a process' MPX related resource */
--#define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
-+#define MPX_ENABLE_MANAGEMENT(bd_size)	mpx_enable_management(bd_size)
- #define MPX_DISABLE_MANAGEMENT()	mpx_disable_management()
- 
- #ifdef CONFIG_X86_INTEL_MPX
--extern int mpx_enable_management(void);
-+extern int mpx_enable_management(unsigned long bd_size);
- extern int mpx_disable_management(void);
- #else
--static inline int mpx_enable_management(void)
-+static inline int mpx_enable_management(unsigned long bd_size)
- {
- 	return -EINVAL;
- }
-diff -puN arch/x86/mm/mpx.c~mawa-040-prctl-set-mawa arch/x86/mm/mpx.c
---- a/arch/x86/mm/mpx.c~mawa-040-prctl-set-mawa	2017-01-26 14:31:33.567714795 -0800
-+++ b/arch/x86/mm/mpx.c	2017-01-26 14:31:33.575715154 -0800
-@@ -339,7 +339,54 @@ static __user void *mpx_get_bounds_dir(v
- 		(bndcsr->bndcfgu & MPX_BNDCFG_ADDR_MASK);
- }
- 
--int mpx_enable_management(void)
-+int mpx_set_mm_bd_size(unsigned long bd_size)
++ * The MPX tables change sizes based on the size of the virtual
++ * (aka. linear) address space.  There is an MSR to tell the CPU
++ * whether we want the legacy-style ones or the larger ones when
++ * we are running with an eXtended virtual address space.
++ */
++static void switch_mawa(struct mm_struct *prev, struct mm_struct *next)
 +{
-+	struct mm_struct *mm = current->mm;
++	/*
++	 * Note: there is one and only one bit in use in the MSR
++	 * at this time, so we do not have to be concerned with
++	 * preseving any of the other bits.  Just write 0 or 1.
++	 */
++	unsigned IA32_MPX_LAX_ENABLE_MASK = 0x00000001;
 +
-+	switch ((unsigned long long)bd_size) {
-+	case 0:
-+		/* Legacy call to prctl(): */
-+		mm->context.mpx_mawa = 0;
-+		return 0;
-+	case MPX_BD_SIZE_BYTES_32:
-+		/* 32-bit, legacy-sized bounds directory: */
-+		if (is_64bit_mm(mm))
-+			return -EINVAL;
-+		mm->context.mpx_mawa = 0;
-+		return 0;
-+	case MPX_BD_BASE_SIZE_BYTES_64:
-+		/* 64-bit, legacy-sized bounds directory: */
-+		if (!is_64bit_mm(mm)
-+		// FIXME && ! opted-in to larger address space
-+		)
-+			return -EINVAL;
-+		mm->context.mpx_mawa = 0;
-+		return 0;
-+	case MPX_BD_BASE_SIZE_BYTES_64 << MPX_MAWA_VALUE:
-+		/*
-+		 * Non-legacy call, with larger directory.
-+		 * Note that there is no 32-bit equivalent for
-+		 * this case since its address space does not
-+		 * change sizes.
-+		 */
-+		if (!is_64bit_mm(mm))
-+			return -EINVAL;
-+		/*
-+		 * Do not let this be enabled unles we are on
-+		 * 5-level hardware *and* have that feature
-+		 * enabled. FIXME: need runtime check
-+		 */
-+		if (!cpu_feature_enabled(X86_FEATURE_LA57)
-+		// FIXME && opted into larger address space
-+		)
-+			return -EINVAL;
-+		mm->context.mpx_mawa = MPX_MAWA_VALUE;
-+		return 0;
++	if (!cpu_feature_enabled(X86_FEATURE_MPX))
++		return;
++	/*
++	 * FIXME: do we want a check here for the 5-level paging
++	 * CR4 bit or CPUID bit, or is the mawa check below OK?
++	 * It's not obvious what would be the fastest or if it
++	 * matters.
++	 */
++
++	/*
++	 * Avoid the relatively costly MSR if we are not changing
++	 * MAWA state.  All processes not using MPX will have a
++	 * mpx_mawa_shift()=0, so we do not need to check
++	 * separately for whether MPX management is enabled.
++	 */
++	if (mpx_mawa_shift(prev) == mpx_mawa_shift(next))
++		return;
++
++	if (mpx_mawa_shift(next)) {
++		wrmsr(MSR_IA32_MPX_LAX, IA32_MPX_LAX_ENABLE_MASK, 0x0);
++	} else {
++		/* clear the enable bit: */
++		wrmsr(MSR_IA32_MPX_LAX, 0x0, 0x0);
 +	}
-+	return -EINVAL;
 +}
 +
-+int mpx_enable_management(unsigned long bd_size)
+ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+ 			struct task_struct *tsk)
  {
- 	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
- 	struct mm_struct *mm = current->mm;
-@@ -358,10 +405,13 @@ int mpx_enable_management(void)
- 	 */
- 	bd_base = mpx_get_bounds_dir();
- 	down_write(&mm->mmap_sem);
-+	ret = mpx_set_mm_bd_size(bd_size);
-+	if (ret)
-+		goto out;
- 	mm->context.bd_addr = bd_base;
- 	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
- 		ret = -ENXIO;
--
-+out:
- 	up_write(&mm->mmap_sem);
- 	return ret;
- }
-diff -puN arch/x86/mm/pgtable.c~mawa-040-prctl-set-mawa arch/x86/mm/pgtable.c
---- a/arch/x86/mm/pgtable.c~mawa-040-prctl-set-mawa	2017-01-26 14:31:33.569714885 -0800
-+++ b/arch/x86/mm/pgtable.c	2017-01-26 14:31:33.575715154 -0800
-@@ -85,7 +85,7 @@ void ___pud_free_tlb(struct mmu_gather *
- #if CONFIG_PGTABLE_LEVELS > 4
- void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d)
- {
--	paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
-+	//paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
- 	tlb_remove_page(tlb, virt_to_page(p4d));
- }
- #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
-diff -puN kernel/sys.c~mawa-040-prctl-set-mawa kernel/sys.c
---- a/kernel/sys.c~mawa-040-prctl-set-mawa	2017-01-26 14:31:33.571714974 -0800
-+++ b/kernel/sys.c	2017-01-26 14:31:33.576715199 -0800
-@@ -92,7 +92,7 @@
- # define SET_TSC_CTL(a)		(-EINVAL)
- #endif
- #ifndef MPX_ENABLE_MANAGEMENT
--# define MPX_ENABLE_MANAGEMENT()	(-EINVAL)
-+# define MPX_ENABLE_MANAGEMENT(bd_size)	(-EINVAL)
- #endif
- #ifndef MPX_DISABLE_MANAGEMENT
- # define MPX_DISABLE_MANAGEMENT()	(-EINVAL)
-@@ -2246,9 +2246,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
- 		up_write(&me->mm->mmap_sem);
- 		break;
- 	case PR_MPX_ENABLE_MANAGEMENT:
--		if (arg2 || arg3 || arg4 || arg5)
-+		if (arg3 || arg4 || arg5)
- 			return -EINVAL;
--		error = MPX_ENABLE_MANAGEMENT();
-+		error = MPX_ENABLE_MANAGEMENT(arg2);
- 		break;
- 	case PR_MPX_DISABLE_MANAGEMENT:
- 		if (arg2 || arg3 || arg4 || arg5)
+@@ -136,6 +177,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 		/* Load per-mm CR4 state */
+ 		load_mm_cr4(next);
+ 
++		switch_mawa(prev, next);
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+ 		/*
+ 		 * Load the LDT, if the LDT is different.
 _
 
 --
