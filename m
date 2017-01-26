@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D42816B0289
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:58:57 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id e4so178338816pfg.4
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:58:57 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 85F9D6B028A
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 06:59:01 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c73so307406184pfb.7
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 03:59:01 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id j24si1230799pfk.32.2017.01.26.03.58.56
+        by mx.google.com with ESMTPS id j24si1230799pfk.32.2017.01.26.03.59.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 03:58:56 -0800 (PST)
+        Thu, 26 Jan 2017 03:59:00 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 37/37] ext4, vfs: add huge= mount option
-Date: Thu, 26 Jan 2017 14:58:19 +0300
-Message-Id: <20170126115819.58875-38-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 02/37] Revert "radix-tree: implement radix_tree_maybe_preload_order()"
+Date: Thu, 26 Jan 2017 14:57:44 +0300
+Message-Id: <20170126115819.58875-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 References: <20170126115819.58875-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,154 +20,135 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The same four values as in tmpfs case.
+This reverts commit 356e1c23292a4f63cfdf1daf0e0ddada51f32de8.
 
-Encyption code is not yet ready to handle huge page, so we disable huge
-pages support if the inode has EXT4_INODE_ENCRYPT.
+After conversion of huge tmpfs to multi-order entries, we don't need
+this anymore.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/ext4.h  |  5 +++++
- fs/ext4/inode.c | 32 +++++++++++++++++++++++---------
- fs/ext4/super.c | 24 ++++++++++++++++++++++++
- 3 files changed, 52 insertions(+), 9 deletions(-)
+ include/linux/radix-tree.h |  1 -
+ lib/radix-tree.c           | 74 ----------------------------------------------
+ 2 files changed, 75 deletions(-)
 
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index 2163c1e69f2a..19bb9995fa96 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -1134,6 +1134,11 @@ struct ext4_inode_info {
- #define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
- #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
- #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
-+#define EXT4_MOUNT_HUGE_MODE		0x6000000 /* Huge support mode: */
-+#define EXT4_MOUNT_HUGE_NEVER		0x0000000
-+#define EXT4_MOUNT_HUGE_ALWAYS		0x2000000
-+#define EXT4_MOUNT_HUGE_WITHIN_SIZE	0x4000000
-+#define EXT4_MOUNT_HUGE_ADVISE		0x6000000
- #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
- #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
- #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index e24ccf4c3694..120d32bcb6af 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4481,7 +4481,7 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
- void ext4_set_inode_flags(struct inode *inode)
- {
- 	unsigned int flags = EXT4_I(inode)->i_flags;
--	unsigned int new_fl = 0;
-+	unsigned int mask, new_fl = 0;
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 52bda854593b..e75b20179eee 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -322,7 +322,6 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+ 			unsigned long first_index, unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+ 			unsigned long index, unsigned int tag);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 0b92d605fb69..8d8e3b42ab20 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -38,9 +38,6 @@
+ #include <linux/preempt.h>		/* in_interrupt() */
  
- 	if (flags & EXT4_SYNC_FL)
- 		new_fl |= S_SYNC;
-@@ -4493,11 +4493,25 @@ void ext4_set_inode_flags(struct inode *inode)
- 		new_fl |= S_NOATIME;
- 	if (flags & EXT4_DIRSYNC_FL)
- 		new_fl |= S_DIRSYNC;
--	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode) &&
--	    !ext4_should_journal_data(inode) && !ext4_has_inline_data(inode) &&
--	    !ext4_encrypted_inode(inode))
--		new_fl |= S_DAX;
+ 
+-/* Number of nodes in fully populated tree of given height */
+-static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
 -
-+	if (S_ISREG(inode->i_mode) && !ext4_encrypted_inode(inode)) {
-+		if (test_opt(inode->i_sb, DAX) &&
-+				!ext4_should_journal_data(inode) &&
-+				!ext4_has_inline_data(inode))
-+			new_fl |= S_DAX;
-+		switch (test_opt(inode->i_sb, HUGE_MODE)) {
-+		case EXT4_MOUNT_HUGE_NEVER:
-+			break;
-+		case EXT4_MOUNT_HUGE_ALWAYS:
-+			new_fl |= S_HUGE_ALWAYS;
-+			break;
-+		case EXT4_MOUNT_HUGE_WITHIN_SIZE:
-+			new_fl |= S_HUGE_WITHIN_SIZE;
-+			break;
-+		case EXT4_MOUNT_HUGE_ADVISE:
-+			new_fl |= S_HUGE_ADVISE;
-+			break;
-+		}
-+	}
- 	if ((new_fl & S_HUGE_MODE) != S_HUGE_NEVER &&
- 			EXT4_JOURNAL(inode) != NULL) {
- 		int bpp = __ext4_journal_blocks_per_page(inode, true);
-@@ -4511,9 +4525,9 @@ void ext4_set_inode_flags(struct inode *inode)
- 			new_fl &= ~S_HUGE_MODE;
- 		}
- 	}
+ /*
+  * Radix tree node cache.
+  */
+@@ -465,51 +462,6 @@ int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
+ }
+ #endif
+ 
+-/*
+- * The same as function above, but preload number of nodes required to insert
+- * (1 << order) continuous naturally-aligned elements.
+- */
+-int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
+-{
+-	unsigned long nr_subtrees;
+-	int nr_nodes, subtree_height;
 -
--	inode_set_flags(inode, new_fl,
--			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);
-+	mask = S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
-+		S_DIRSYNC | S_DAX | S_HUGE_MODE;
-+	inode_set_flags(inode, new_fl, mask);
+-	/* Preloading doesn't help anything with this gfp mask, skip it */
+-	if (!gfpflags_allow_blocking(gfp_mask)) {
+-		preempt_disable();
+-		return 0;
+-	}
+-
+-	/*
+-	 * Calculate number and height of fully populated subtrees it takes to
+-	 * store (1 << order) elements.
+-	 */
+-	nr_subtrees = 1 << order;
+-	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
+-			subtree_height++)
+-		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
+-
+-	/*
+-	 * The worst case is zero height tree with a single item at index 0 and
+-	 * then inserting items starting at ULONG_MAX - (1 << order).
+-	 *
+-	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
+-	 * 0-index item.
+-	 */
+-	nr_nodes = RADIX_TREE_MAX_PATH;
+-
+-	/* Plus branch to fully populated subtrees. */
+-	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
+-
+-	/* Root node is shared. */
+-	nr_nodes--;
+-
+-	/* Plus nodes required to build subtrees. */
+-	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
+-
+-	return __radix_tree_preload(gfp_mask, nr_nodes);
+-}
+-
+ static unsigned radix_tree_load_root(struct radix_tree_root *root,
+ 		struct radix_tree_node **nodep, unsigned long *maxindex)
+ {
+@@ -1936,31 +1888,6 @@ radix_tree_node_ctor(void *arg)
+ 	INIT_LIST_HEAD(&node->private_list);
  }
  
- /* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 66845a08a87a..13376a72050c 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -1296,6 +1296,7 @@ enum {
- 	Opt_dioread_nolock, Opt_dioread_lock,
- 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
- 	Opt_max_dir_size_kb, Opt_nojournal_checksum,
-+	Opt_huge_never, Opt_huge_always, Opt_huge_within_size, Opt_huge_advise,
- };
- 
- static const match_table_t tokens = {
-@@ -1376,6 +1377,10 @@ static const match_table_t tokens = {
- 	{Opt_init_itable, "init_itable"},
- 	{Opt_noinit_itable, "noinit_itable"},
- 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
-+	{Opt_huge_never, "huge=never"},
-+	{Opt_huge_always, "huge=always"},
-+	{Opt_huge_within_size, "huge=within_size"},
-+	{Opt_huge_advise, "huge=advise"},
- 	{Opt_test_dummy_encryption, "test_dummy_encryption"},
- 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
- 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
-@@ -1494,6 +1499,11 @@ static int clear_qf_name(struct super_block *sb, int qtype)
- #define MOPT_NO_EXT3	0x0200
- #define MOPT_EXT4_ONLY	(MOPT_NO_EXT2 | MOPT_NO_EXT3)
- #define MOPT_STRING	0x0400
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+#define MOPT_HUGE	0x1000
-+#else
-+#define MOPT_HUGE	MOPT_NOSUPPORT
-+#endif
- 
- static const struct mount_opts {
- 	int	token;
-@@ -1581,6 +1591,10 @@ static const struct mount_opts {
- 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
- 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
- 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
-+	{Opt_huge_never, EXT4_MOUNT_HUGE_NEVER, MOPT_HUGE},
-+	{Opt_huge_always, EXT4_MOUNT_HUGE_ALWAYS, MOPT_HUGE},
-+	{Opt_huge_within_size, EXT4_MOUNT_HUGE_WITHIN_SIZE, MOPT_HUGE},
-+	{Opt_huge_advise, EXT4_MOUNT_HUGE_ADVISE, MOPT_HUGE},
- 	{Opt_test_dummy_encryption, 0, MOPT_GTE0},
- 	{Opt_err, 0, 0}
- };
-@@ -1662,6 +1676,16 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
- 		} else
- 			return -1;
- 	}
-+	if (MOPT_HUGE != MOPT_NOSUPPORT && m->flags & MOPT_HUGE) {
-+		sbi->s_mount_opt &= ~EXT4_MOUNT_HUGE_MODE;
-+		sbi->s_mount_opt |= m->mount_opt;
-+		if (m->mount_opt) {
-+			ext4_msg(sb, KERN_WARNING, "Warning: "
-+					"Support of huge pages is EXPERIMENTAL,"
-+					" use at your own risk");
-+		}
-+		return 1;
-+	}
- 	if (m->flags & MOPT_CLEAR_ERR)
- 		clear_opt(sb, ERRORS_MASK);
- 	if (token == Opt_noquota && sb_any_quota_loaded(sb)) {
+-static __init unsigned long __maxindex(unsigned int height)
+-{
+-	unsigned int width = height * RADIX_TREE_MAP_SHIFT;
+-	int shift = RADIX_TREE_INDEX_BITS - width;
+-
+-	if (shift < 0)
+-		return ~0UL;
+-	if (shift >= BITS_PER_LONG)
+-		return 0UL;
+-	return ~0UL >> shift;
+-}
+-
+-static __init void radix_tree_init_maxnodes(void)
+-{
+-	unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1];
+-	unsigned int i, j;
+-
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
+-		height_to_maxindex[i] = __maxindex(i);
+-	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
+-		for (j = i; j > 0; j--)
+-			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
+-	}
+-}
+-
+ static int radix_tree_cpu_dead(unsigned int cpu)
+ {
+ 	struct radix_tree_preload *rtp;
+@@ -1984,7 +1911,6 @@ void __init radix_tree_init(void)
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ 			radix_tree_node_ctor);
+-	radix_tree_init_maxnodes();
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+ 					NULL, radix_tree_cpu_dead);
+ 	WARN_ON(ret < 0);
 -- 
 2.11.0
 
