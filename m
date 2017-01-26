@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 54B346B0253
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 07:09:53 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id jz4so39320746wjb.5
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:09:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p71si1744133wrc.275.2017.01.26.04.09.51
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 48DCD6B0268
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 07:14:41 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id f9so180227267otd.4
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 04:14:41 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0133.hostedemail.com. [216.40.44.133])
+        by mx.google.com with ESMTPS id j127si1687801itj.118.2017.01.26.04.14.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Jan 2017 04:09:51 -0800 (PST)
-Date: Thu, 26 Jan 2017 13:09:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/6] mm: introduce kv[mz]alloc helpers
-Message-ID: <20170126120948.GK6590@dhcp22.suse.cz>
-References: <20170112153717.28943-1-mhocko@kernel.org>
- <20170112153717.28943-2-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170112153717.28943-2-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jan 2017 04:14:40 -0800 (PST)
+Message-ID: <1485432877.12563.100.camel@perches.com>
+Subject: Re: [PATCH 0/6 v3] kvmalloc
+From: Joe Perches <joe@perches.com>
+Date: Thu, 26 Jan 2017 04:14:37 -0800
+In-Reply-To: <20170126103216.GG6590@dhcp22.suse.cz>
+References: 
+	<CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
+	 <588907AA.1020704@iogearbox.net> <20170126074354.GB8456@dhcp22.suse.cz>
+	 <5889C331.7020101@iogearbox.net> <20170126100802.GF6590@dhcp22.suse.cz>
+	 <20170126103216.GG6590@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Anatoly Stepanov <astepanov@cloudlinux.com>, Paolo Bonzini <pbonzini@redhat.com>, Mike Snitzer <snitzer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>
+To: Michal Hocko <mhocko@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>
+Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
 
-On Thu 12-01-17 16:37:12, Michal Hocko wrote:
-[...]
-> +void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> +{
-> +	gfp_t kmalloc_flags = flags;
-> +	void *ret;
-> +
-> +	/*
-> +	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
-> +	 * so the given set of flags has to be compatible.
-> +	 */
-> +	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-> +
-> +	/*
-> +	 * Make sure that larger requests are not too disruptive - no OOM
-> +	 * killer and no allocation failure warnings as we have a fallback
-> +	 */
-> +	if (size > PAGE_SIZE)
-> +		kmalloc_flags |= __GFP_NORETRY | __GFP_NOWARN;
-> +
-> +	ret = kmalloc_node(size, kmalloc_flags, node);
-> +
-> +	/*
-> +	 * It doesn't really make sense to fallback to vmalloc for sub page
-> +	 * requests
-> +	 */
-> +	if (ret || size <= PAGE_SIZE)
-> +		return ret;
-> +
-> +	return __vmalloc_node_flags(size, node, flags);
-> +}
-> +EXPORT_SYMBOL(kvmalloc_node);
+On Thu, 2017-01-26 at 11:32 +0100, Michal Hocko wrote:
+> So I have folded the following to the patch 1. It is in line with
+> kvmalloc and hopefully at least tell more than the current code.
+[]
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+[]
+> @@ -1741,6 +1741,13 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>   *	Allocate enough pages to cover @size from the page level
+>   *	allocator with @gfp_mask flags.  Map them into contiguous
+>   *	kernel virtual space, using a pagetable protection of @prot.
+> + *
+> + *	Reclaim modifiers in @gfp_mask - __GFP_NORETRY, __GFP_REPEAT
+> + *	and __GFP_NOFAIL are not supported
 
-While discussing bpf change I've realized that the vmalloc fallback
-doesn't request __GFP_HIGHMEM. So I've updated the patch to do so. All
-the current users except for f2fs_kv[zm]alloc which just seemed to
-forgot or didn't know about the flag. In the next step, I would like to
-check whether we actually have any __vmalloc* user which would strictly
-refuse __GFP_HIGHMEM because I do not really see any reason for that and
-if there is none then I would simply pull __GFP_HIGHMEM handling into
-the vmalloc.
+Maybe add a BUILD_BUG or a WARN_ON_ONCE to catch new occurrences?
 
-So before I resend the full series again, can I keep acks with the
-following?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
