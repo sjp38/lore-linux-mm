@@ -1,108 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1BD6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:09:44 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id d185so316902087pgc.2
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:09:44 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id t124si26959294pgt.180.2017.01.26.09.09.43
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D47006B0038
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:09:45 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id v186so98645401lfa.2
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:09:45 -0800 (PST)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id 84si1280268lfp.363.2017.01.26.09.09.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 09:09:43 -0800 (PST)
-Subject: [PATCH v2 0/3] 1G transparent hugepage support for device dax
-From: Dave Jiang <dave.jiang@intel.com>
-Date: Thu, 26 Jan 2017 10:09:41 -0700
-Message-ID: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
+        Thu, 26 Jan 2017 09:09:44 -0800 (PST)
+Received: by mail-lf0-x244.google.com with SMTP id q89so24168695lfi.1
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:09:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <2059ec0c-d817-9660-9a16-59fe46f3e3a7@samsung.com>
+References: <bug-192571-27@https.bugzilla.kernel.org/> <bug-192571-27-qFfm1cXEv4@https.bugzilla.kernel.org/>
+ <20170117122249.815342d95117c3f444acc952@linux-foundation.org>
+ <20170118013948.GA580@jagdpanzerIV.localdomain> <1484719121.25232.1.camel@list.ru>
+ <CALZtONBaJ0JJ+KBiRhRxh0=JWrfdVOsK_ThGE7hyyNPp2zFLrw@mail.gmail.com>
+ <1485216185.5952.2.camel@list.ru> <CGME20170124201830epcas5p4aefd0bcb970be36f405d23c24e8cedbd@epcas5p4.samsung.com>
+ <CALZtONAtjv1fjfVX2d5MKf2HY-kUtSDvA-m7pDbHW+ry2+OhAg@mail.gmail.com> <2059ec0c-d817-9660-9a16-59fe46f3e3a7@samsung.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 26 Jan 2017 12:09:03 -0500
+Message-ID: <CALZtONDuV-B1uOL9yr0MdeM5+YwD0Y9ofqd3WQD-ZyJLFJt67g@mail.gmail.com>
+Subject: Re: [Bug 192571] zswap + zram enabled BUG
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
+To: Chulmin Kim <cmlaika.kim@samsung.com>
+Cc: Alexandr <sss123next@list.ru>, bugzilla-daemon@bugzilla.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-The following series implements support for 1G trasparent hugepage on
-x86 for device dax. The bulk of the code was written by Mathew Wilcox
-a while back supporting transparent 1G hugepage for fs DAX. I have
-forward ported the relevant bits to 4.10-rc. The current submission has
-only the necessary code to support device DAX.
+On Tue, Jan 24, 2017 at 11:02 PM, Chulmin Kim <cmlaika.kim@samsung.com> wrote:
+> On 01/24/2017 03:16 PM, Dan Streetman wrote:
+>>
+>> On Mon, Jan 23, 2017 at 7:03 PM, Alexandr <sss123next@list.ru> wrote:
+>>>
+>>> -----BEGIN PGP SIGNED MESSAGE-----
+>>> Hash: SHA512
+>>>
+>>>
+>>>> Why would you do this?  There's no benefit of using zswap together
+>>>> with zram.
+>>>
+>>>
+>>> i just wanted to test zram and zswap, i still not dig to deep in it,
+>>> but what i wanted is to use zram swap (with zswap disabled), and if it
+>>> exceeded use real swap on block device with zswap enabled.
+>>
+>>
+>> I don't believe that's possible, you can't enable zswap for only
+>> specific swap devices; and anyway, if you fill up zram, you won't
+>> really have any memory left for zswap to use will you?
+>>
+>> However, it shouldn't encounter any BUG(), like you saw.  If it's
+>> reproducable for you, can you give details on how to reproduce it?
+>>
+>
+> Hello. Mr. Streetman.
+>
+>
+> Regarding to this problem, I have a question on zswap.
+>
+> Is there any reason that
+> zswap_frontswap_load() does not call flush_dcache_page()?
+>
+> The zswap load function can dirty the page mapped to user space (might be
+> shareable/writable) which seems exactly the condition mentioned in the
+> definition of flush_dcache_page().
+>
+> I'm thinking that
+> flush_dcache_page() should be called in the end of zswap_frontswap_load().
+> Could you review my opinion?
 
-Comments from Dan Williams:
-So the motivation and intended user of this functionality mirrors the
-motivation and users of 1GB page support in hugetlbfs. Given expected
-capacities of persistent memory devices an in-memory database may want
-to reduce tlb pressure beyond what they can already achieve with 2MB
-mappings of a device-dax file. We have customer feedback to that
-effect as Willy mentioned in his previous version of these patches
-[1].
+I don't think it needs to, as i detailed in my response to the other thread.
 
-[1]: https://lkml.org/lkml/2016/1/31/52
+Also, this is a different issue, I think - even if there is a cache
+problem with pages loaded from zswap, i don't see how it would cause a
+decompression failure - the zpool storage is the only code that has a
+copy of its compressed pages, no userspace or any other kernel code
+should be accessing any of it.
 
-
-Comments from Nilesh @ Oracle:
-
-There are applications which have a process model; and if you assume 10,000
-processes attempting to mmap all the 6TB memory available on a server;
-we are looking at the following:
-
-processes         : 10,000
-memory            :    6TB
-pte @ 4k page size: 8 bytes / 4K of memory * #processes = 6TB / 4k * 8 * 10000 = 1.5GB * 80000 = 120,000GB
-pmd @ 2M page size: 120,000 / 512 = ~240GB
-pud @ 1G page size: 240GB / 512 = ~480MB
-
-As you can see with 2M pages, this system will use up an
-exorbitant amount of DRAM to hold the page tables; but the 1G
-pages finally brings it down to a reasonable level.
-Memory sizes will keep increasing; so this number will keep
-increasing.
-
-An argument can be made to convert the applications from process
-model to thread model, but in the real world that may not be
-always practical.
-Hopefully this helps explain the use case where this is valuable.
-
-v2: Fixup build issues from 0-day build.
-
----
-
-Dave Jiang (1):
-      dax: Support for transparent PUD pages for device DAX
-
-Matthew Wilcox (2):
-      mm,fs,dax: Change ->pmd_fault to ->huge_fault
-      mm,x86: Add support for PUD-sized transparent hugepages
-
-
- arch/Kconfig                          |    3 
- arch/x86/Kconfig                      |    1 
- arch/x86/include/asm/paravirt.h       |   11 +
- arch/x86/include/asm/paravirt_types.h |    2 
- arch/x86/include/asm/pgtable-2level.h |   17 ++
- arch/x86/include/asm/pgtable-3level.h |   24 +++
- arch/x86/include/asm/pgtable.h        |  140 +++++++++++++++++++
- arch/x86/include/asm/pgtable_64.h     |   15 ++
- arch/x86/kernel/paravirt.c            |    1 
- arch/x86/mm/pgtable.c                 |   31 ++++
- drivers/dax/dax.c                     |   82 ++++++++---
- fs/dax.c                              |   43 ++++--
- fs/ext2/file.c                        |    2 
- fs/ext4/file.c                        |    6 -
- fs/xfs/xfs_file.c                     |   10 +
- fs/xfs/xfs_trace.h                    |    2 
- include/asm-generic/pgtable.h         |   80 ++++++++++-
- include/asm-generic/tlb.h             |   14 ++
- include/linux/dax.h                   |    6 -
- include/linux/huge_mm.h               |   83 ++++++++++-
- include/linux/mm.h                    |   40 +++++
- include/linux/mmu_notifier.h          |   14 ++
- include/linux/pfn_t.h                 |   12 ++
- mm/gup.c                              |    7 +
- mm/huge_memory.c                      |  249 +++++++++++++++++++++++++++++++++
- mm/memory.c                           |  102 ++++++++++++--
- mm/pagewalk.c                         |   20 +++
- mm/pgtable-generic.c                  |   14 ++
- 28 files changed, 956 insertions(+), 75 deletions(-)
+>
+> Thanks!
+> Chulmin Kim
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
