@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4596B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:47:51 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id an2so41135825wjc.3
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:47:51 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 1si2815558wrh.309.2017.01.26.09.47.49
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5906B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 12:48:57 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 194so320283938pgd.7
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 09:48:57 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id g126si42861pgc.83.2017.01.26.09.48.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 09:47:49 -0800 (PST)
-Date: Thu, 26 Jan 2017 12:47:39 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/5] mm: vmscan: kick flushers when we encounter dirty
- pages on the LRU
-Message-ID: <20170126174739.GA30636@cmpxchg.org>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-3-hannes@cmpxchg.org>
- <20170126095745.ueigbrsop5vgmwzj@suse.de>
+        Thu, 26 Jan 2017 09:48:56 -0800 (PST)
+Date: Thu, 26 Jan 2017 18:48:50 +0100
+From: Sebastian Reichel <sre@kernel.org>
+Subject: Re: [PATCH] fixup! mm, fs: reduce fault, page_mkwrite, and
+ pfn_mkwrite to take only vmf
+Message-ID: <20170126174850.yukhiaclt6gxbfac@earth>
+References: <20170125223558.1451224-1-arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="ae5crblg2o7xpqat"
 Content-Disposition: inline
-In-Reply-To: <20170126095745.ueigbrsop5vgmwzj@suse.de>
+In-Reply-To: <20170125223558.1451224-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, Russell King <linux@armlinux.org.uk>, David Airlie <airlied@linux.ie>, Lucas Stach <l.stach@pengutronix.de>, Christian Gmeiner <christian.gmeiner@gmail.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Chris Wilson <chris@chris-wilson.co.uk>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, etnaviv@lists.freedesktop.org
 
-On Thu, Jan 26, 2017 at 09:57:45AM +0000, Mel Gorman wrote:
-> On Mon, Jan 23, 2017 at 01:16:38PM -0500, Johannes Weiner wrote:
-> > Memory pressure can put dirty pages at the end of the LRU without
-> > anybody running into dirty limits. Don't start writing individual
-> > pages from kswapd while the flushers might be asleep.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> I don't understand the motivation for checking the wb_reason name. Maybe
-> it was easier to eyeball while reading ftraces. The comment about the
-> flusher not doing its job could also be as simple as the writes took
-> place and clean pages were reclaimed before dirty_expire was reached.
-> Not impossible if there was a light writer combined with a heavy reader
-> or a large number of anonymous faults.
 
-The name change was only because try_to_free_pages() wasn't the only
-function doing this flusher wakeup anymore. I associate that name with
-direct reclaim rather than reclaim in general, so I figured this makes
-more sense. No strong feelings either way, but I doubt this will break
-anything in userspace.
+--ae5crblg2o7xpqat
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The comment on dirty expiration is a good point. Let's add this to the
-list of reasons why reclaim might run into dirty data. Fixlet below.
+Hi,
 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+On Wed, Jan 25, 2017 at 11:35:05PM +0100, Arnd Bergmann wrote:
+> I ran into a couple of build problems on ARM, these are the changes that
+> should be folded into the original patch that changed all the ->fault()
+> prototypes
+>=20
+> Fixes: mmtom ("mm, fs: reduce fault, page_mkwrite, and pfn_mkwrite to tak=
+e only vmf")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Thanks!
+Acked-By: Sebastian Reichel <sre@kernel.org>
 
----
+-- Sebastian
+
+--ae5crblg2o7xpqat
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAABCgAdFiEE72YNB0Y/i3JqeVQT2O7X88g7+poFAliKNn8ACgkQ2O7X88g7
++pocTBAAmh4+NZI6gzaz/4ENPv7croz6eX4dtFloLS0dWhJMxu/aiatrzEkDWloQ
+z5tcz2ivSA/zGgayNIq/wXIUUIC5Owv5Sk3SMlLObsdLU1vbO7bZM1g3MWPTDDlj
+inVUIRhpITIVH3HviIi/uGUYBpC7oFwQ1H2agHwYZDw8VNJlDImaStLwj6OD+q4L
+zirOsiVNKXnVMnzJUd+FT8X7iJjZARtkmPEeAGD+oM5A5a/K6YaIxk3AnY5ZcotB
+nr/ywFkAnR1IHcYZ0PFMOpotwDHnyVT8TIG7vHPt5ScgAA0WPgw/basGcNcLzEp9
+bqWj8UiSWNPEPgpGyy2EtUTTe5KGfQZMPSkBbOYi+utCi3Nmkt2hayY9cgSanv4F
+8r2cauquf4Fg2Ej5exkO6nR0mWmPjH+3smyMqzljxsf728CYBv9m/bwlXJXI5/Oh
+OPZEu7QmRFzgWnIfYUAXNZu5s7RdLPP4DsnI7hU2msvoTbfi2h4y1xsxuy3f19ve
+XfNo0Zi/d/MWm1Y4HPTGVEGXos4jzwMW5x/bZZl6weZU/Y/VL3RiZ3lIYGPQ3s60
+2RioQ/+7TPmli/kgdyy2JhKPOYpGGkBUi2NB3GE6sBeI12+sCK3Xy5RlZz+xaaUX
+kb/F++HQCAKxJjStuiGITjd/eXXFpHe+VMCJLTqa0LZhoT/6Kn8=
+=c4Ep
+-----END PGP SIGNATURE-----
+
+--ae5crblg2o7xpqat--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
