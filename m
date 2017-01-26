@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2012C6B0253
-	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 20:47:39 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so290919875pfb.7
-        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:47:39 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id s196si25101555pgs.141.2017.01.25.17.47.37
-        for <linux-mm@kvack.org>;
-        Wed, 25 Jan 2017 17:47:38 -0800 (PST)
-Date: Thu, 26 Jan 2017 10:47:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 5/5] mm: vmscan: move dirty pages out of the way until
- they're flushed
-Message-ID: <20170126014736.GE21211@bbox>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-6-hannes@cmpxchg.org>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 22A326B0260
+	for <linux-mm@kvack.org>; Wed, 25 Jan 2017 20:50:12 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 194so291961104pgd.7
+        for <linux-mm@kvack.org>; Wed, 25 Jan 2017 17:50:12 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id v75si34957pfj.50.2017.01.25.17.50.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jan 2017 17:50:11 -0800 (PST)
+Date: Wed, 25 Jan 2017 17:50:06 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH] mm: write protect MADV_FREE pages
+Message-ID: <20170126015006.2ft2vi3evkkjxw7i@kernel.org>
+References: <791151284cd6941296f08488b8cb7f1968175a0a.1485212872.git.shli@fb.com>
+ <20170124023212.GA24523@bbox>
+ <20170125171429.5vbqizijrhav522d@kernel.org>
+ <20170125230909.GA20811@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170123181641.23938-6-hannes@cmpxchg.org>
+In-Reply-To: <20170125230909.GA20811@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Mon, Jan 23, 2017 at 01:16:41PM -0500, Johannes Weiner wrote:
-> We noticed a performance regression when moving hadoop workloads from
-> 3.10 kernels to 4.0 and 4.6. This is accompanied by increased pageout
-> activity initiated by kswapd as well as frequent bursts of allocation
-> stalls and direct reclaim scans. Even lowering the dirty ratios to the
-> equivalent of less than 1% of memory would not eliminate the issue,
-> suggesting that dirty pages concentrate where the scanner is looking.
+On Thu, Jan 26, 2017 at 08:09:09AM +0900, Minchan Kim wrote:
+> Hello,
 > 
-> This can be traced back to recent efforts of thrash avoidance. Where
-> 3.10 would not detect refaulting pages and continuously supply clean
-> cache to the inactive list, a thrashing workload on 4.0+ will detect
-> and activate refaulting pages right away, distilling used-once pages
-> on the inactive list much more effectively. This is by design, and it
-> makes sense for clean cache. But for the most part our workload's
-> cache faults are refaults and its use-once cache is from streaming
-> writes. We end up with most of the inactive list dirty, and we don't
-> go after the active cache as long as we have use-once pages around.
+> On Wed, Jan 25, 2017 at 09:15:19AM -0800, Shaohua Li wrote:
+> > On Tue, Jan 24, 2017 at 11:32:12AM +0900, Minchan Kim wrote:
+> > > Hi Shaohua,
+> > > 
+> > > On Mon, Jan 23, 2017 at 03:15:52PM -0800, Shaohua Li wrote:
+> > > > The page reclaim has an assumption writting to a page with clean pte
+> > > > should trigger a page fault, because there is a window between pte zero
+> > > > and tlb flush where a new write could come. If the new write doesn't
+> > > > trigger page fault, page reclaim will not notice it and think the page
+> > > > is clean and reclaim it. The MADV_FREE pages don't comply with the rule
+> > > > and the pte is just cleaned without writeprotect, so there will be no
+> > > > pagefault for new write. This will cause data corruption.
+> > > 
+> > > It's hard to understand.
+> > > Could you show me exact scenario seqence you have in mind?
+> > Sorry for the delay, for some reason, I didn't receive the mail.
+> > in try_to_unmap_one:
+> > CPU 1:						CPU2:
+> > 1. pteval = ptep_get_and_clear(mm, address, pte);
+> > 2.						write to the address
+> > 3. tlb flush
+> > 
+> > step 1 will get a clean pteval, step2 dirty it, but the unmap missed the dirty
+> > bit so discard the page without pageout. step2 doesn't trigger a page fault,
 > 
-> But waiting for writes to avoid reclaiming clean cache that *might*
-> refault is a bad trade-off. Even if the refaults happen, reads are
-> faster than writes. Before getting bogged down on writeback, reclaim
-> should first look at *all* cache in the system, even active cache.
+> I thought about that when Mel introduced deferred flush and concluded it
+> should be no problem from theses discussion:
+>  
+> 1. https://lkml.org/lkml/2015/4/15/565
+> 2. https://lkml.org/lkml/2015/4/16/136
 > 
-> To accomplish this, activate pages that have been dirty or under
-> writeback for two inactive LRU cycles. We know at this point that
-> there are not enough clean inactive pages left to satisfy memory
-> demand in the system. The pages are marked for immediate reclaim,
-> meaning they'll get moved back to the inactive LRU tail as soon as
-> they're written back and become reclaimable. But in the meantime, by
-> reducing the inactive list to only immediately reclaimable pages, we
-> allow the scanner to deactivate and refill the inactive list with
-> clean cache from the active list tail to guarantee forward progress.
+> So, shouldn't it make trap?
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Minchan Kim <minchan@kernel.org>
+> Ccing Mel.
 
-Every patches look reasaonable to me.
+Ah, don't know the cpu will refetch and trigger the fault. Thanks for the
+clarification.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
