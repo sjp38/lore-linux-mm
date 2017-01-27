@@ -1,136 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DF7046B0033
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 05:57:10 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c85so50692411wmi.6
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 02:57:10 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DD6346B0033
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 06:06:08 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id p192so51336692wme.1
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:06:08 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u15si2381368wmf.119.2017.01.27.02.57.09
+        by mx.google.com with ESMTPS id w33si5531629wrc.202.2017.01.27.03.06.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 Jan 2017 02:57:09 -0800 (PST)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [PATCH 3.12 010/235] hotplug: Make register and unregister notifier API symmetric
-Date: Fri, 27 Jan 2017 11:52:23 +0100
-Message-Id: <ae252fd89dfa9e6b15a1299ab690ec2c99da8e1e.1485514374.git.jslaby@suse.cz>
-In-Reply-To: <5b46dc789ca2be4046e4e40a131858d386cac741.1485514374.git.jslaby@suse.cz>
-References: <5b46dc789ca2be4046e4e40a131858d386cac741.1485514374.git.jslaby@suse.cz>
-In-Reply-To: <cover.1485514374.git.jslaby@suse.cz>
-References: <cover.1485514374.git.jslaby@suse.cz>
+        Fri, 27 Jan 2017 03:06:07 -0800 (PST)
+Subject: Re: [PATCHv2 02/29] asm-generic: introduce 5level-fixup.h
+References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
+ <20161227015413.187403-3-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0183120a-5e8b-5da9-0bad-cc0295bb8337@suse.cz>
+Date: Fri, 27 Jan 2017 12:06:02 +0100
+MIME-Version: 1.0
+In-Reply-To: <20161227015413.187403-3-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Thomas Gleixner <tglx@linutronix.de>, Jiri Slaby <jslaby@suse.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On 12/27/2016 02:53 AM, Kirill A. Shutemov wrote:
+> We are going to switch core MM to 5-level paging abstraction.
+>
+> This is preparation step which adds <asm-generic/5level-fixup.h>
+> As with 4level-fixup.h, the new header allows quickly make all
+> architectures compatible with 5-level paging in core MM.
+>
+> In long run we would like to switch architectures to properly folded p4d
+> level by using <asm-generic/pgtable-nop4d.h>, but it requires more
+> changes to arch-specific code.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/asm-generic/4level-fixup.h |  3 ++-
+>  include/asm-generic/5level-fixup.h | 41 ++++++++++++++++++++++++++++++++++++++
+>  include/linux/mm.h                 |  3 +++
+>  3 files changed, 46 insertions(+), 1 deletion(-)
+>  create mode 100644 include/asm-generic/5level-fixup.h
+>
+> diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
+> index 5bdab6bffd23..928fd66b1271 100644
+> --- a/include/asm-generic/4level-fixup.h
+> +++ b/include/asm-generic/4level-fixup.h
+> @@ -15,7 +15,6 @@
+>  	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
+>   		NULL: pmd_offset(pud, address))
+>
+> -#define pud_alloc(mm, pgd, address)	(pgd)
 
-3.12-stable review patch.  If anyone has any objections, please let me know.
+This...
 
-===============
+>  #define pud_offset(pgd, start)		(pgd)
+>  #define pud_none(pud)			0
+>  #define pud_bad(pud)			0
+> @@ -35,4 +34,6 @@
+>  #undef  pud_addr_end
+>  #define pud_addr_end(addr, end)		(end)
+>
+> +#include <asm-generic/5level-fixup.h>
 
-commit 777c6e0daebb3fcefbbd6f620410a946b07ef6d0 upstream.
+... plus this...
 
-Yu Zhao has noticed that __unregister_cpu_notifier only unregisters its
-notifiers when HOTPLUG_CPU=y while the registration might succeed even
-when HOTPLUG_CPU=n if MODULE is enabled. This means that e.g. zswap
-might keep a stale notifier on the list on the manual clean up during
-the pool tear down and thus corrupt the list. Resulting in the following
+> +
+>  #endif
+> diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+> new file mode 100644
+> index 000000000000..b5ca82dc4175
+> --- /dev/null
+> +++ b/include/asm-generic/5level-fixup.h
+> @@ -0,0 +1,41 @@
+> +#ifndef _5LEVEL_FIXUP_H
+> +#define _5LEVEL_FIXUP_H
+> +
+> +#define __ARCH_HAS_5LEVEL_HACK
+> +#define __PAGETABLE_P4D_FOLDED
+> +
+> +#define P4D_SHIFT			PGDIR_SHIFT
+> +#define P4D_SIZE			PGDIR_SIZE
+> +#define P4D_MASK			PGDIR_MASK
+> +#define PTRS_PER_P4D			1
+> +
+> +#define p4d_t				pgd_t
+> +
+> +#define pud_alloc(mm, p4d, address) \
+> +	((unlikely(pgd_none(*(p4d))) && __pud_alloc(mm, p4d, address)) ? \
+> +		NULL : pud_offset(p4d, address))
 
-[  144.964346] BUG: unable to handle kernel paging request at ffff880658a2be78
-[  144.971337] IP: [<ffffffffa290b00b>] raw_notifier_chain_register+0x1b/0x40
-<snipped>
-[  145.122628] Call Trace:
-[  145.125086]  [<ffffffffa28e5cf8>] __register_cpu_notifier+0x18/0x20
-[  145.131350]  [<ffffffffa2a5dd73>] zswap_pool_create+0x273/0x400
-[  145.137268]  [<ffffffffa2a5e0fc>] __zswap_param_set+0x1fc/0x300
-[  145.143188]  [<ffffffffa2944c1d>] ? trace_hardirqs_on+0xd/0x10
-[  145.149018]  [<ffffffffa2908798>] ? kernel_param_lock+0x28/0x30
-[  145.154940]  [<ffffffffa2a3e8cf>] ? __might_fault+0x4f/0xa0
-[  145.160511]  [<ffffffffa2a5e237>] zswap_compressor_param_set+0x17/0x20
-[  145.167035]  [<ffffffffa2908d3c>] param_attr_store+0x5c/0xb0
-[  145.172694]  [<ffffffffa290848d>] module_attr_store+0x1d/0x30
-[  145.178443]  [<ffffffffa2b2b41f>] sysfs_kf_write+0x4f/0x70
-[  145.183925]  [<ffffffffa2b2a5b9>] kernfs_fop_write+0x149/0x180
-[  145.189761]  [<ffffffffa2a99248>] __vfs_write+0x18/0x40
-[  145.194982]  [<ffffffffa2a9a412>] vfs_write+0xb2/0x1a0
-[  145.200122]  [<ffffffffa2a9a732>] SyS_write+0x52/0xa0
-[  145.205177]  [<ffffffffa2ff4d97>] entry_SYSCALL_64_fastpath+0x12/0x17
-
-This can be even triggered manually by changing
-/sys/module/zswap/parameters/compressor multiple times.
-
-Fix this issue by making unregister APIs symmetric to the register so
-there are no surprises.
-
-[js] backport to 3.12
-
-Fixes: 47e627bc8c9a ("[PATCH] hotplug: Allow modules to use the cpu hotplug notifiers even if !CONFIG_HOTPLUG_CPU")
-Reported-and-tested-by: Yu Zhao <yuzhao@google.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>
-Link: http://lkml.kernel.org/r/20161207135438.4310-1-mhocko@kernel.org
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
----
- include/linux/cpu.h | 12 +++---------
- kernel/cpu.c        |  3 +--
- 2 files changed, 4 insertions(+), 11 deletions(-)
-
-diff --git a/include/linux/cpu.h b/include/linux/cpu.h
-index 801ff9e73679..d1fcdcbc01e4 100644
---- a/include/linux/cpu.h
-+++ b/include/linux/cpu.h
-@@ -119,22 +119,16 @@ enum {
- 		{ .notifier_call = fn, .priority = pri };	\
- 	register_cpu_notifier(&fn##_nb);			\
- }
--#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
--#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
--#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
--#ifdef CONFIG_HOTPLUG_CPU
- extern int register_cpu_notifier(struct notifier_block *nb);
- extern void unregister_cpu_notifier(struct notifier_block *nb);
--#else
- 
--#ifndef MODULE
--extern int register_cpu_notifier(struct notifier_block *nb);
--#else
-+#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
-+#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
-+
- static inline int register_cpu_notifier(struct notifier_block *nb)
- {
- 	return 0;
- }
--#endif
- 
- static inline void unregister_cpu_notifier(struct notifier_block *nb)
- {
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index 92599d897125..c1f258a0a10e 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -182,8 +182,6 @@ static int cpu_notify(unsigned long val, void *v)
- 	return __cpu_notify(val, v, -1, NULL);
- }
- 
--#ifdef CONFIG_HOTPLUG_CPU
--
- static void cpu_notify_nofail(unsigned long val, void *v)
- {
- 	BUG_ON(cpu_notify(val, v));
-@@ -198,6 +196,7 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
- }
- EXPORT_SYMBOL(unregister_cpu_notifier);
- 
-+#ifdef CONFIG_HOTPLUG_CPU
- /**
-  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
-  * @cpu: a CPU id
--- 
-2.11.0
+... and this, makes me wonder if that broke pud_alloc() for architectures that 
+use the 4level-fixup.h. Don't those need to continue having pud_alloc() as (pgd)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
