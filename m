@@ -1,114 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7449E6B0033
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 06:30:18 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id c7so46136480wjb.7
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:30:18 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id j59si5588545wrj.283.2017.01.27.03.30.16
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 517B96B0033
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 07:01:06 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id kq3so46326807wjc.1
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 04:01:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 13si5687914wrz.282.2017.01.27.04.01.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 03:30:17 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id d140so57819676wmd.2
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:30:16 -0800 (PST)
-Date: Fri, 27 Jan 2017 14:30:14 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 02/29] asm-generic: introduce 5level-fixup.h
-Message-ID: <20170127113014.GA7662@node.shutemov.name>
-References: <20161227015413.187403-1-kirill.shutemov@linux.intel.com>
- <20161227015413.187403-3-kirill.shutemov@linux.intel.com>
- <0183120a-5e8b-5da9-0bad-cc0295bb8337@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 27 Jan 2017 04:01:04 -0800 (PST)
+Date: Fri, 27 Jan 2017 13:01:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/5] mm: vmscan: remove old flusher wakeup from direct
+ reclaim path
+Message-ID: <20170127120101.GA4148@dhcp22.suse.cz>
+References: <20170123181641.23938-1-hannes@cmpxchg.org>
+ <20170123181641.23938-4-hannes@cmpxchg.org>
+ <20170126100509.gbf6rxao6gsmqyq3@suse.de>
+ <20170126185027.GB30636@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0183120a-5e8b-5da9-0bad-cc0295bb8337@suse.cz>
+In-Reply-To: <20170126185027.GB30636@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Jan 27, 2017 at 12:06:02PM +0100, Vlastimil Babka wrote:
-> On 12/27/2016 02:53 AM, Kirill A. Shutemov wrote:
-> >We are going to switch core MM to 5-level paging abstraction.
-> >
-> >This is preparation step which adds <asm-generic/5level-fixup.h>
-> >As with 4level-fixup.h, the new header allows quickly make all
-> >architectures compatible with 5-level paging in core MM.
-> >
-> >In long run we would like to switch architectures to properly folded p4d
-> >level by using <asm-generic/pgtable-nop4d.h>, but it requires more
-> >changes to arch-specific code.
-> >
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >---
-> > include/asm-generic/4level-fixup.h |  3 ++-
-> > include/asm-generic/5level-fixup.h | 41 ++++++++++++++++++++++++++++++++++++++
-> > include/linux/mm.h                 |  3 +++
-> > 3 files changed, 46 insertions(+), 1 deletion(-)
-> > create mode 100644 include/asm-generic/5level-fixup.h
-> >
-> >diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
-> >index 5bdab6bffd23..928fd66b1271 100644
-> >--- a/include/asm-generic/4level-fixup.h
-> >+++ b/include/asm-generic/4level-fixup.h
-> >@@ -15,7 +15,6 @@
-> > 	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
-> >  		NULL: pmd_offset(pud, address))
-> >
-> >-#define pud_alloc(mm, pgd, address)	(pgd)
+On Thu 26-01-17 13:50:27, Johannes Weiner wrote:
+> On Thu, Jan 26, 2017 at 10:05:09AM +0000, Mel Gorman wrote:
+> > On Mon, Jan 23, 2017 at 01:16:39PM -0500, Johannes Weiner wrote:
+> > > Direct reclaim has been replaced by kswapd reclaim in pretty much all
+> > > common memory pressure situations, so this code most likely doesn't
+> > > accomplish the described effect anymore. The previous patch wakes up
+> > > flushers for all reclaimers when we encounter dirty pages at the tail
+> > > end of the LRU. Remove the crufty old direct reclaim invocation.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > In general I like this. I worried first that if kswapd is blocked
+> > writing pages that it won't reach the wakeup_flusher_threads but the
+> > previous patch handles it.
+> > 
+> > Now though, it occurs to me with the last patch that we always writeout
+> > the world when flushing threads. This may not be a great idea. Consider
+> > for example if there is a heavy writer of short-lived tmp files. In such a
+> > case, it is possible for the files to be truncated before they even hit the
+> > disk. However, if there are multiple "writeout the world" calls, these may
+> > now be hitting the disk. Furthermore, multiplle kswapd and direct reclaimers
+> > could all be requested to writeout the world and each request unplugs.
+> > 
+> > Is it possible to maintain the property of writing back pages relative
+> > to the numbers of pages scanned or have you determined already that it's
+> > not necessary?
 > 
-> This...
+> That's what I started out with - waking the flushers for nr_taken. I
+> was using a silly test case that wrote < dirty background limit and
+> then allocated a burst of anon memory. When the dirty data is linear,
+> the bigger IO requests are beneficial. They don't exhaust struct
+> request (like kswapd 4k IO routinely does, and SWAP_CLUSTER_MAX is
+> only 32), and they require less frequent plugging.
 > 
-> > #define pud_offset(pgd, start)		(pgd)
-> > #define pud_none(pud)			0
-> > #define pud_bad(pud)			0
-> >@@ -35,4 +34,6 @@
-> > #undef  pud_addr_end
-> > #define pud_addr_end(addr, end)		(end)
-> >
-> >+#include <asm-generic/5level-fixup.h>
-> 
-> ... plus this...
-> 
-> >+
-> > #endif
-> >diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
-> >new file mode 100644
-> >index 000000000000..b5ca82dc4175
-> >--- /dev/null
-> >+++ b/include/asm-generic/5level-fixup.h
-> >@@ -0,0 +1,41 @@
-> >+#ifndef _5LEVEL_FIXUP_H
-> >+#define _5LEVEL_FIXUP_H
-> >+
-> >+#define __ARCH_HAS_5LEVEL_HACK
-> >+#define __PAGETABLE_P4D_FOLDED
-> >+
-> >+#define P4D_SHIFT			PGDIR_SHIFT
-> >+#define P4D_SIZE			PGDIR_SIZE
-> >+#define P4D_MASK			PGDIR_MASK
-> >+#define PTRS_PER_P4D			1
-> >+
-> >+#define p4d_t				pgd_t
-> >+
-> >+#define pud_alloc(mm, p4d, address) \
-> >+	((unlikely(pgd_none(*(p4d))) && __pud_alloc(mm, p4d, address)) ? \
-> >+		NULL : pud_offset(p4d, address))
-> 
-> ... and this, makes me wonder if that broke pud_alloc() for architectures
-> that use the 4level-fixup.h. Don't those need to continue having pud_alloc()
-> as (pgd)?
+> Force-flushing temporary files under memory pressure is a concern -
+> although the most recently dirtied files would get queued last, giving
+> them still some time to get truncated - but I'm wary about splitting
+> the flush requests too aggressively when we DO sustain throngs of
+> dirty pages hitting the reclaim scanners.
 
-Okay, that's very hacky, but works:
-
-For 4level-fixup.h case we have __PAGETABLE_PUD_FOLDED set, so
-__pud_alloc() will always succeed (see <linux/mm.h>). And pud_offset()
-from 4level-fixup.h always returns pgd.
-
-I've tested this on alpha with qemu.
+I think the above would be helpful in the changelog for future
+reference.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
