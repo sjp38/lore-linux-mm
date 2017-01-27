@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C8DC36B0038
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:14:10 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z67so343115346pgb.0
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:14:10 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A99A06B0253
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:14:26 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 80so340478085pfy.2
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:14:26 -0800 (PST)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id d67si3751792pfe.39.2017.01.27.00.14.10
+        by mx.google.com with ESMTPS id s19si3752251pfd.78.2017.01.27.00.14.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 00:14:10 -0800 (PST)
+        Fri, 27 Jan 2017 00:14:25 -0800 (PST)
 From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH 1/2 v2] mm: vmscan: do not pass reclaimed slab to vmpressure
-Date: Fri, 27 Jan 2017 13:43:36 +0530
-Message-Id: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
+Subject: [PATCH 2/2] mm: vmpressure: fix sending wrong events on underflow
+Date: Fri, 27 Jan 2017 13:43:37 +0530
+Message-Id: <1485504817-3124-2-git-send-email-vinmenon@codeaurora.org>
+In-Reply-To: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
+References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shashim@codeaurora.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
 
-It is noticed that during a global reclaim the memory
-reclaimed via shrinking the slabs can sometimes result
-in reclaimed pages being greater than the scanned pages
-in shrink_node. When this is passed to vmpressure, the
-unsigned arithmetic results in the pressure value to be
-huge, thus resulting in a critical event being sent to
-root cgroup. While this can be fixed by underflow checks
-in vmpressure, adding reclaimed slab without a corresponding
-increment of nr_scanned results in incorrect vmpressure
-reporting. So do not consider reclaimed slab pages in
-vmpressure calculation.
+At the end of a window period, if the reclaimed pages
+is greater than scanned, an unsigned underflow can
+result in a huge pressure value and thus a critical event.
+Reclaimed pages is found to go higher than scanned because
+of the addition of reclaimed slab pages to reclaimed in
+shrink_node without a corresponding increment to scanned
+pages. Minchan Kim mentioned that this can also happen in
+the case of a THP page where the scanned is 1 and reclaimed
+could be 512.
 
 Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
 ---
- mm/vmscan.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/vmpressure.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 947ab6f..37c4486 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2594,16 +2594,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				    sc->nr_scanned - nr_scanned,
- 				    node_lru_pages);
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 149fdf6..3281b34 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -112,8 +112,10 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 						    unsigned long reclaimed)
+ {
+ 	unsigned long scale = scanned + reclaimed;
+-	unsigned long pressure;
++	unsigned long pressure = 0;
  
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
--
- 		/* Record the subtree's reclaim efficiency */
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
- 			   sc->nr_scanned - nr_scanned,
- 			   sc->nr_reclaimed - nr_reclaimed);
++	if (reclaimed >= scanned)
++		goto out;
+ 	/*
+ 	 * We calculate the ratio (in percents) of how many pages were
+ 	 * scanned vs. reclaimed in a given time frame (window). Note that
+@@ -124,6 +126,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 	pressure = scale - (reclaimed * scale / scanned);
+ 	pressure = pressure * 100 / scale;
  
-+		if (reclaim_state) {
-+			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-+			reclaim_state->reclaimed_slab = 0;
-+		}
-+
- 		if (sc->nr_reclaimed - nr_reclaimed)
- 			reclaimable = true;
++out:
+ 	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
+ 		 scanned, reclaimed);
  
 -- 
 QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
