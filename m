@@ -1,105 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 409406B0260
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:31:27 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so45146337wjc.4
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:31:27 -0800 (PST)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id a16si5064682wra.331.2017.01.27.00.31.25
+	by kanga.kvack.org (Postfix) with ESMTP id 6C90B6B0033
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 04:37:39 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id ez4so45451083wjd.2
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 01:37:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2si5271374wra.193.2017.01.27.01.37.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 00:31:25 -0800 (PST)
-Received: by mail-wm0-x241.google.com with SMTP id r126so56484960wmr.3
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:31:25 -0800 (PST)
-Date: Fri, 27 Jan 2017 09:31:22 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC][PATCH 4/4] x86, mpx: context-switch new MPX address size
- MSR
-Message-ID: <20170127083122.GC25162@gmail.com>
-References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
- <20170126224010.3534C154@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 27 Jan 2017 01:37:38 -0800 (PST)
+Date: Fri, 27 Jan 2017 10:37:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 8/8] Revert "ext4: fix wrong gfp type under transaction"
+Message-ID: <20170127093735.GB4143@dhcp22.suse.cz>
+References: <20170117082425.GD19699@dhcp22.suse.cz>
+ <20170117151817.GR19699@dhcp22.suse.cz>
+ <20170117155916.dcizr65bwa6behe7@thunk.org>
+ <20170117161618.GT19699@dhcp22.suse.cz>
+ <20170117172925.GA2486@quack2.suse.cz>
+ <20170119083956.GE30786@dhcp22.suse.cz>
+ <20170119092236.GC2565@quack2.suse.cz>
+ <20170119094405.GK30786@dhcp22.suse.cz>
+ <20170126074455.GC8456@dhcp22.suse.cz>
+ <20170127061318.xd2qxashbl4dajez@thunk.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170126224010.3534C154@viggo.jf.intel.com>
+In-Reply-To: <20170127061318.xd2qxashbl4dajez@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
+On Fri 27-01-17 01:13:18, Theodore Ts'o wrote:
+> On Thu, Jan 26, 2017 at 08:44:55AM +0100, Michal Hocko wrote:
+> > > > I'm convinced the current series is OK, only real life will tell us whether
+> > > > we missed something or not ;)
+> > > 
+> > > I would like to extend the changelog of "jbd2: mark the transaction
+> > > context with the scope GFP_NOFS context".
+> > > 
+> > > "
+> > > Please note that setups without journal do not suffer from potential
+> > > recursion problems and so they do not need the scope protection because
+> > > neither ->releasepage nor ->evict_inode (which are the only fs entry
+> > > points from the direct reclaim) can reenter a locked context which is
+> > > doing the allocation currently.
+> > > "
+> > 
+> > Could you comment on this Ted, please?
+> 
+> I guess....   so there still is one way this could screw us, and it's this reason for GFP_NOFS:
+> 
+>         - to prevent from stack overflows during the reclaim because
+> 	          the allocation is performed from a deep context already
+> 
+> The writepages call stack can be pretty deep.  (Especially if we're
+> using ext4 in no journal mode over, say, iSCSI.)
+> 
+> How much stack space can get consumed by a reclaim?
 
-* Dave Hansen <dave.hansen@linux.intel.com> wrote:
+./scripts/stackusage with allyesconfig says:
 
-> + * The MPX tables change sizes based on the size of the virtual
-> + * (aka. linear) address space.  There is an MSR to tell the CPU
-> + * whether we want the legacy-style ones or the larger ones when
-> + * we are running with an eXtended virtual address space.
-> + */
-> +static void switch_mawa(struct mm_struct *prev, struct mm_struct *next)
-> +{
-> +	/*
-> +	 * Note: there is one and only one bit in use in the MSR
-> +	 * at this time, so we do not have to be concerned with
-> +	 * preseving any of the other bits.  Just write 0 or 1.
-> +	 */
-> +	unsigned IA32_MPX_LAX_ENABLE_MASK = 0x00000001;
-> +
-> +	if (!cpu_feature_enabled(X86_FEATURE_MPX))
-> +		return;
-> +	/*
-> +	 * FIXME: do we want a check here for the 5-level paging
-> +	 * CR4 bit or CPUID bit, or is the mawa check below OK?
-> +	 * It's not obvious what would be the fastest or if it
-> +	 * matters.
-> +	 */
-> +
-> +	/*
-> +	 * Avoid the relatively costly MSR if we are not changing
-> +	 * MAWA state.  All processes not using MPX will have a
-> +	 * mpx_mawa_shift()=0, so we do not need to check
-> +	 * separately for whether MPX management is enabled.
-> +	 */
-> +	if (mpx_mawa_shift(prev) == mpx_mawa_shift(next))
-> +		return;
+./mm/page_alloc.c:3745  __alloc_pages_nodemask  264     static
+./mm/page_alloc.c:3531  __alloc_pages_slowpath  520     static
+./mm/vmscan.c:2946      try_to_free_pages       216     static
+./mm/vmscan.c:2753      do_try_to_free_pages    304     static
+./mm/vmscan.c:2517      shrink_node     	352     static
+./mm/vmscan.c:2317      shrink_node_memcg       560     static
+./mm/vmscan.c:1692      shrink_inactive_list    688     static
+./mm/vmscan.c:908       shrink_page_list        608     static
 
-Please stop the senseless looking wrappery - if the field is name sensibly then it 
-can be accessed directly through mm_struct.
+So this would be 3512 for the standard LRUs reclaim whether we have
+GFP_FS or not. shrink_page_list can recurse to releasepage but there is
+no NOFS protection there so it doesn't make much sense to check this
+path. So we are left with the slab shrinkers path
 
-> +
-> +	if (mpx_mawa_shift(next)) {
-> +		wrmsr(MSR_IA32_MPX_LAX, IA32_MPX_LAX_ENABLE_MASK, 0x0);
-> +	} else {
-> +		/* clear the enable bit: */
-> +		wrmsr(MSR_IA32_MPX_LAX, 0x0, 0x0);
-> +	}
-> +}
-> +
->  void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->  			struct task_struct *tsk)
->  {
-> @@ -136,6 +177,7 @@ void switch_mm_irqs_off(struct mm_struct
->  		/* Load per-mm CR4 state */
->  		load_mm_cr4(next);
->  
-> +		switch_mawa(prev, next);
+./mm/page_alloc.c:3745  __alloc_pages_nodemask  264     static
+./mm/page_alloc.c:3531  __alloc_pages_slowpath  520     static
+./mm/vmscan.c:2946      try_to_free_pages       216     static
+./mm/vmscan.c:2753      do_try_to_free_pages    304     static
+./mm/vmscan.c:2517      shrink_node     	352     static
+./mm/vmscan.c:427       shrink_slab     	336     static
+./fs/super.c:56 	super_cache_scan        104     static << here we have the NOFS protection
+./fs/dcache.c:1089      prune_dcache_sb 	152     static
+./fs/dcache.c:939       shrink_dentry_list      96      static
+./fs/dcache.c:509       __dentry_kill   	72      static
+./fs/dcache.c:323       dentry_unlink_inode     64      static
+./fs/inode.c:1527       iput    		80      static
+./fs/inode.c:532        evict   		72      static
 
-This implementation adds about 4-5 unnecessary instructions to the context 
-switching hot path of every non-MPX task, even on non-MPX hardware.
+This is where the fs specific callbacks play role and I am not sure
+which paths can pass through for ext4 in the nojournal mode and how much
+of the stack this can eat. But currently we are at +536 wrt. NOFS
+context. This is quite a lot but still much less (2632 vs. 3512) than
+the regular reclaim. So there is quite some stack space to eat... I am
+wondering whether we have to really treat nojournal mode any special
+just because of the stack usage?
 
-Please make sure that this is something like:
+If this ever turn out to be a problem and with the vmapped stacks we
+have good chances to get a proper stack traces on a potential overflow
+we can add the scope API around the problematic code path with the
+explanation why it is needed.
 
-	if (unlikely(prev->mpx_msr_val != next->mpx_msr_val))
-		switch_mpx(prev, next);
+Does that make sense to you?
 
-... which reduces the hot path overhead to something like 2 instruction (if we are 
-lucky).
-
-This can be put into switch_mpx() and can be inlined - just make sure that on a 
-defconfig the generated machine code is sane.
-
-Thanks,
-
-	Ingo
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
