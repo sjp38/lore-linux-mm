@@ -1,56 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AA826B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:46:29 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 3so75506140pgj.6
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 14:46:29 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id h69si522959pgc.108.2017.01.26.14.46.28
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 72DCB6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 20:59:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c73so334314994pfb.7
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:28 -0800 (PST)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id 79si2981435pfs.104.2017.01.26.17.59.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 14:46:28 -0800 (PST)
-Subject: Re: [PATCH v2 2/3] mm, x86: Add support for PUD-sized transparent
- hugepages
-References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
- <148545059381.17912.8602162635537598445.stgit@djiang5-desk3.ch.intel.com>
- <20170126143854.9694811975f4c0945aba58b9@linux-foundation.org>
-From: Dave Jiang <dave.jiang@intel.com>
-Message-ID: <94209678-bb55-2085-9cc8-f47bdf754ea4@intel.com>
-Date: Thu, 26 Jan 2017 15:46:27 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170126143854.9694811975f4c0945aba58b9@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Thu, 26 Jan 2017 17:59:27 -0800 (PST)
+Received: by mail-pg0-x243.google.com with SMTP id 75so23700001pgf.3
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:27 -0800 (PST)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH 1/2] mm/memblock: use NUMA_NO_NODE instead of MAX_NUMNODES as default node_id
+Date: Fri, 27 Jan 2017 09:59:21 +0800
+Message-Id: <20170127015922.36249-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@ml01.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
+To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-On 01/26/2017 03:38 PM, Andrew Morton wrote:
-> On Thu, 26 Jan 2017 10:09:53 -0700 Dave Jiang <dave.jiang@intel.com> wrote:
-> 
->> The current transparent hugepage code only supports PMDs.  This patch
->> adds support for transparent use of PUDs with DAX.  It does not include
->> support for anonymous pages. x86 support code also added.
->>
->> Most of this patch simply parallels the work that was done for huge PMDs.
->> The only major difference is how the new ->pud_entry method in mm_walk
->> works.  The ->pmd_entry method replaces the ->pte_entry method, whereas
->> the ->pud_entry method works along with either ->pmd_entry or ->pte_entry.
->> The pagewalk code takes care of locking the PUD before calling ->pud_walk,
->> so handlers do not need to worry whether the PUD is stable.
-> 
-> The patch adds a lot of new BUG()s and BG_ON()s.  We'll get in trouble
-> if any of those triggers.  Please recheck everything and decide if we
-> really really need them.  It's far better to drop a WARN and to back
-> out and recover in some fashion.
-> 
+According to commit <b115423357e0> ('mm/memblock: switch to use
+NUMA_NO_NODE instead of MAX_NUMNODES'), MAX_NUMNODES is not preferred as an
+node_id indicator.
 
-So I believe all the BUG() and BUG_ON() are replicated the same way that
-the existing PMD support functions do with the same behavior. If we want
-them to be different then we probably need to examine if the PMD code
-(or maybe the PTE ones as well) need to be different also. I'm open to
-suggestions from the experts on the cc list though.
+This patch use NUMA_NO_NODE as the default node_id for memblock.
+
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ arch/x86/mm/numa.c | 6 +++---
+ mm/memblock.c      | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 3f35b48d1d9d..4366242356c5 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -506,7 +506,7 @@ static void __init numa_clear_kernel_node_hotplug(void)
+ 	 *   reserve specific pages for Sandy Bridge graphics. ]
+ 	 */
+ 	for_each_memblock(reserved, mb_region) {
+-		if (mb_region->nid != MAX_NUMNODES)
++		if (mb_region->nid != NUMA_NO_NODE)
+ 			node_set(mb_region->nid, reserved_nodemask);
+ 	}
+ 
+@@ -633,9 +633,9 @@ static int __init numa_init(int (*init_func)(void))
+ 	nodes_clear(node_online_map);
+ 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+ 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
+-				  MAX_NUMNODES));
++				  NUMA_NO_NODE));
+ 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
+-				  MAX_NUMNODES));
++				  NUMA_NO_NODE));
+ 	/* In case that parsing SRAT failed. */
+ 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
+ 	numa_reset_distance();
+diff --git a/mm/memblock.c b/mm/memblock.c
+index d0f2c9632187..7d27566cee11 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -292,7 +292,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 		type->regions[0].base = 0;
+ 		type->regions[0].size = 0;
+ 		type->regions[0].flags = 0;
+-		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
++		memblock_set_region_node(&type->regions[0], NUMA_NO_NODE);
+ 	}
+ }
+ 
+@@ -616,7 +616,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+ 		     (unsigned long long)base + size - 1,
+ 		     0UL, (void *)_RET_IP_);
+ 
+-	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
++	return memblock_add_range(&memblock.memory, base, size, NUMA_NO_NODE, 0);
+ }
+ 
+ /**
+@@ -734,7 +734,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+ 		     (unsigned long long)base + size - 1,
+ 		     0UL, (void *)_RET_IP_);
+ 
+-	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
++	return memblock_add_range(&memblock.reserved, base, size, NUMA_NO_NODE, 0);
+ }
+ 
+ /**
+@@ -1684,7 +1684,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
+ 		size = rgn->size;
+ 		flags = rgn->flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+-		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
++		if (memblock_get_region_node(rgn) != NUMA_NO_NODE)
+ 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+ 				 memblock_get_region_node(rgn));
+ #endif
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
