@@ -1,98 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 001966B0253
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 05:05:47 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id jz4so45686491wjb.5
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 02:05:47 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DF7046B0033
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 05:57:10 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c85so50692411wmi.6
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 02:57:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s131si2228311wmf.117.2017.01.27.02.05.46
+        by mx.google.com with ESMTPS id u15si2381368wmf.119.2017.01.27.02.57.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 Jan 2017 02:05:46 -0800 (PST)
-Date: Fri, 27 Jan 2017 11:05:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6 v3] kvmalloc
-Message-ID: <20170127100544.GF4143@dhcp22.suse.cz>
-References: <CAADnVQ+iGPFwTwQ03P1Ga2qM1nt14TfA+QO8-npkEYzPD+vpdw@mail.gmail.com>
- <588907AA.1020704@iogearbox.net>
- <20170126074354.GB8456@dhcp22.suse.cz>
- <5889C331.7020101@iogearbox.net>
- <20170126100802.GF6590@dhcp22.suse.cz>
- <5889DEA3.7040106@iogearbox.net>
- <20170126115833.GI6590@dhcp22.suse.cz>
- <5889F52E.7030602@iogearbox.net>
- <20170126134004.GM6590@dhcp22.suse.cz>
- <588A5D3C.4060605@iogearbox.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <588A5D3C.4060605@iogearbox.net>
+        Fri, 27 Jan 2017 02:57:09 -0800 (PST)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH 3.12 010/235] hotplug: Make register and unregister notifier API symmetric
+Date: Fri, 27 Jan 2017 11:52:23 +0100
+Message-Id: <ae252fd89dfa9e6b15a1299ab690ec2c99da8e1e.1485514374.git.jslaby@suse.cz>
+In-Reply-To: <5b46dc789ca2be4046e4e40a131858d386cac741.1485514374.git.jslaby@suse.cz>
+References: <5b46dc789ca2be4046e4e40a131858d386cac741.1485514374.git.jslaby@suse.cz>
+In-Reply-To: <cover.1485514374.git.jslaby@suse.cz>
+References: <cover.1485514374.git.jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Borkmann <daniel@iogearbox.net>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, marcelo.leitner@gmail.com
+To: stable@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Thomas Gleixner <tglx@linutronix.de>, Jiri Slaby <jslaby@suse.cz>
 
-On Thu 26-01-17 21:34:04, Daniel Borkmann wrote:
-> On 01/26/2017 02:40 PM, Michal Hocko wrote:
-[...]
-> > But realistically, how big is this problem really? Is it really worth
-> > it? You said this is an admin only interface and admin can kill the
-> > machine by OOM and other means already.
-> > 
-> > Moreover and I should probably mention it explicitly, your d407bd25a204b
-> > reduced the likelyhood of oom for other reason. kmalloc used GPF_USER
-> > previously and with order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER this
-> > could indeed hit the OOM e.g. due to memory fragmentation. It would be
-> > much harder to hit the OOM killer from vmalloc which doesn't issue
-> > higher order allocation requests. Or have you ever seen the OOM killer
-> > pointing to the vmalloc fallback path?
-> 
-> The case I was concerned about was from vmalloc() path, not kmalloc().
-> That was where the stack trace indicating OOM pointed to. As an example,
-> there could be really large allocation requests for maps where the map
-> has pre-allocated memory for its elements. Thus, if we get to the point
-> where we need to kill others due to shortage of mem for satisfying this,
-> I'd much much rather prefer to just not let vmalloc() work really hard
-> and fail early on instead. 
+From: Michal Hocko <mhocko@suse.com>
 
-I see, but as already mentioned, chances are that by the time you get
-close to the OOM somebody else will hit the OOM before the vmalloc path
-manages to free the allocated memory.
+3.12-stable review patch.  If anyone has any objections, please let me know.
 
-> In my (crafted) test case, I was connected
-> via ssh and it each time reliably killed my connection, which is really
-> suboptimal.
-> 
-> F.e., I could also imagine a buggy or miscalculated map definition for
-> a prog that is provisioned to multiple places, which then accidentally
-> triggers this. Or if large on purpose, but we crossed the line, it
-> could be handled more gracefully, f.e. I could imagine an option to
-> falling back to a non-pre-allocated map flavor from the application
-> loading the program. Trade-off for sure, but still allowing it to
-> operate up to a certain extend. Granted, if vmalloc() succeeded without
-> trying hard and we then OOM elsewhere, too bad, but we don't have much
-> control over that one anyway, only about our own request. Reason I
-> asked above was whether having __GFP_NORETRY in would be fatal
-> somewhere down the path, but seems not as you say.
-> 
-> So to answer your second email with the bpf and netfilter hunks, why
-> not replacing them with kvmalloc() and __GFP_NORETRY flag and add that
-> big fat FIXME comment above there, saying explicitly that __GFP_NORETRY
-> is not harmful though has only /partial/ effect right now and that full
-> support needs to be implemented in future. That would still be better
-> that not having it, imo, and the FIXME would make expectations clear
-> to anyone reading that code.
+===============
 
-Well, we can do that, I just would like to prevent from this (ab)use
-if there is no _real_ and _sensible_ usecase for it. Having a real bug
-report or a fallback mechanism you are mentioning above would justify
-the (ab)use IMHO. But that abuse would be documented properly and have a
-real reason to exist. That sounds like a better approach to me.
+commit 777c6e0daebb3fcefbbd6f620410a946b07ef6d0 upstream.
 
-But if you absolutely _insist_ I can change that.
+Yu Zhao has noticed that __unregister_cpu_notifier only unregisters its
+notifiers when HOTPLUG_CPU=y while the registration might succeed even
+when HOTPLUG_CPU=n if MODULE is enabled. This means that e.g. zswap
+might keep a stale notifier on the list on the manual clean up during
+the pool tear down and thus corrupt the list. Resulting in the following
+
+[  144.964346] BUG: unable to handle kernel paging request at ffff880658a2be78
+[  144.971337] IP: [<ffffffffa290b00b>] raw_notifier_chain_register+0x1b/0x40
+<snipped>
+[  145.122628] Call Trace:
+[  145.125086]  [<ffffffffa28e5cf8>] __register_cpu_notifier+0x18/0x20
+[  145.131350]  [<ffffffffa2a5dd73>] zswap_pool_create+0x273/0x400
+[  145.137268]  [<ffffffffa2a5e0fc>] __zswap_param_set+0x1fc/0x300
+[  145.143188]  [<ffffffffa2944c1d>] ? trace_hardirqs_on+0xd/0x10
+[  145.149018]  [<ffffffffa2908798>] ? kernel_param_lock+0x28/0x30
+[  145.154940]  [<ffffffffa2a3e8cf>] ? __might_fault+0x4f/0xa0
+[  145.160511]  [<ffffffffa2a5e237>] zswap_compressor_param_set+0x17/0x20
+[  145.167035]  [<ffffffffa2908d3c>] param_attr_store+0x5c/0xb0
+[  145.172694]  [<ffffffffa290848d>] module_attr_store+0x1d/0x30
+[  145.178443]  [<ffffffffa2b2b41f>] sysfs_kf_write+0x4f/0x70
+[  145.183925]  [<ffffffffa2b2a5b9>] kernfs_fop_write+0x149/0x180
+[  145.189761]  [<ffffffffa2a99248>] __vfs_write+0x18/0x40
+[  145.194982]  [<ffffffffa2a9a412>] vfs_write+0xb2/0x1a0
+[  145.200122]  [<ffffffffa2a9a732>] SyS_write+0x52/0xa0
+[  145.205177]  [<ffffffffa2ff4d97>] entry_SYSCALL_64_fastpath+0x12/0x17
+
+This can be even triggered manually by changing
+/sys/module/zswap/parameters/compressor multiple times.
+
+Fix this issue by making unregister APIs symmetric to the register so
+there are no surprises.
+
+[js] backport to 3.12
+
+Fixes: 47e627bc8c9a ("[PATCH] hotplug: Allow modules to use the cpu hotplug notifiers even if !CONFIG_HOTPLUG_CPU")
+Reported-and-tested-by: Yu Zhao <yuzhao@google.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Streetman <ddstreet@ieee.org>
+Link: http://lkml.kernel.org/r/20161207135438.4310-1-mhocko@kernel.org
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ include/linux/cpu.h | 12 +++---------
+ kernel/cpu.c        |  3 +--
+ 2 files changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/cpu.h b/include/linux/cpu.h
+index 801ff9e73679..d1fcdcbc01e4 100644
+--- a/include/linux/cpu.h
++++ b/include/linux/cpu.h
+@@ -119,22 +119,16 @@ enum {
+ 		{ .notifier_call = fn, .priority = pri };	\
+ 	register_cpu_notifier(&fn##_nb);			\
+ }
+-#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
+-#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
+-#endif /* #else #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
+-#ifdef CONFIG_HOTPLUG_CPU
+ extern int register_cpu_notifier(struct notifier_block *nb);
+ extern void unregister_cpu_notifier(struct notifier_block *nb);
+-#else
+ 
+-#ifndef MODULE
+-extern int register_cpu_notifier(struct notifier_block *nb);
+-#else
++#else /* #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE) */
++#define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
++
+ static inline int register_cpu_notifier(struct notifier_block *nb)
+ {
+ 	return 0;
+ }
+-#endif
+ 
+ static inline void unregister_cpu_notifier(struct notifier_block *nb)
+ {
+diff --git a/kernel/cpu.c b/kernel/cpu.c
+index 92599d897125..c1f258a0a10e 100644
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -182,8 +182,6 @@ static int cpu_notify(unsigned long val, void *v)
+ 	return __cpu_notify(val, v, -1, NULL);
+ }
+ 
+-#ifdef CONFIG_HOTPLUG_CPU
+-
+ static void cpu_notify_nofail(unsigned long val, void *v)
+ {
+ 	BUG_ON(cpu_notify(val, v));
+@@ -198,6 +196,7 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
+ }
+ EXPORT_SYMBOL(unregister_cpu_notifier);
+ 
++#ifdef CONFIG_HOTPLUG_CPU
+ /**
+  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
+  * @cpu: a CPU id
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
