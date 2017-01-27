@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 517B96B0033
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 07:01:06 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id kq3so46326807wjc.1
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 04:01:06 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE3516B0033
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 08:12:21 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id ez4so46649385wjd.2
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 05:12:21 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 13si5687914wrz.282.2017.01.27.04.01.04
+        by mx.google.com with ESMTPS id k20si2790359wmc.118.2017.01.27.05.12.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 Jan 2017 04:01:04 -0800 (PST)
-Date: Fri, 27 Jan 2017 13:01:01 +0100
+        Fri, 27 Jan 2017 05:12:20 -0800 (PST)
+Date: Fri, 27 Jan 2017 14:12:18 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/5] mm: vmscan: remove old flusher wakeup from direct
- reclaim path
-Message-ID: <20170127120101.GA4148@dhcp22.suse.cz>
-References: <20170123181641.23938-1-hannes@cmpxchg.org>
- <20170123181641.23938-4-hannes@cmpxchg.org>
- <20170126100509.gbf6rxao6gsmqyq3@suse.de>
- <20170126185027.GB30636@cmpxchg.org>
+Subject: Re: [ATTEND] many topics
+Message-ID: <20170127131218.GH4143@dhcp22.suse.cz>
+References: <878tq5ff0i.fsf@notabene.neil.brown.name>
+ <20170121131644.zupuk44p5jyzu5c5@thunk.org>
+ <87ziijem9e.fsf@notabene.neil.brown.name>
+ <20170123060544.GA12833@bombadil.infradead.org>
+ <20170123170924.ubx2honzxe7g34on@thunk.org>
+ <87mvehd0ze.fsf@notabene.neil.brown.name>
+ <58357cf1-65fc-b637-de8e-6cf9c9d91882@suse.cz>
+ <8760l2vibg.fsf@notabene.neil.brown.name>
+ <20170126085639.GA6590@dhcp22.suse.cz>
+ <87tw8ltt6n.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170126185027.GB30636@cmpxchg.org>
+In-Reply-To: <87tw8ltt6n.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: NeilBrown <neilb@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 26-01-17 13:50:27, Johannes Weiner wrote:
-> On Thu, Jan 26, 2017 at 10:05:09AM +0000, Mel Gorman wrote:
-> > On Mon, Jan 23, 2017 at 01:16:39PM -0500, Johannes Weiner wrote:
-> > > Direct reclaim has been replaced by kswapd reclaim in pretty much all
-> > > common memory pressure situations, so this code most likely doesn't
-> > > accomplish the described effect anymore. The previous patch wakes up
-> > > flushers for all reclaimers when we encounter dirty pages at the tail
-> > > end of the LRU. Remove the crufty old direct reclaim invocation.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > In general I like this. I worried first that if kswapd is blocked
-> > writing pages that it won't reach the wakeup_flusher_threads but the
-> > previous patch handles it.
-> > 
-> > Now though, it occurs to me with the last patch that we always writeout
-> > the world when flushing threads. This may not be a great idea. Consider
-> > for example if there is a heavy writer of short-lived tmp files. In such a
-> > case, it is possible for the files to be truncated before they even hit the
-> > disk. However, if there are multiple "writeout the world" calls, these may
-> > now be hitting the disk. Furthermore, multiplle kswapd and direct reclaimers
-> > could all be requested to writeout the world and each request unplugs.
-> > 
-> > Is it possible to maintain the property of writing back pages relative
-> > to the numbers of pages scanned or have you determined already that it's
-> > not necessary?
+On Fri 27-01-17 08:20:00, NeilBrown wrote:
+> On Thu, Jan 26 2017, Michal Hocko wrote:
 > 
-> That's what I started out with - waking the flushers for nr_taken. I
-> was using a silly test case that wrote < dirty background limit and
-> then allocated a burst of anon memory. When the dirty data is linear,
-> the bigger IO requests are beneficial. They don't exhaust struct
-> request (like kswapd 4k IO routinely does, and SWAP_CLUSTER_MAX is
-> only 32), and they require less frequent plugging.
+> > On Thu 26-01-17 10:19:31, NeilBrown wrote:
+> >
+> >> I think it would be better if we could discard the idea of "reclaimable"
+> >> and just stick with "movable" and "unmovable".  Lots of things are not
+> >> movable at present, but could be made movable with relatively little
+> >> effort.  Once the interfaces are in place to allow arbitrary kernel code
+> >> to find out when things should be moved, I suspect that a lot of
+> >> allocations could become movable.
+> >
+> > I believe we need both. There will be many objects which are hard to be
+> > movable yet they are reclaimable which can help to reduce the
+> > fragmentation longterm.
 > 
-> Force-flushing temporary files under memory pressure is a concern -
-> although the most recently dirtied files would get queued last, giving
-> them still some time to get truncated - but I'm wary about splitting
-> the flush requests too aggressively when we DO sustain throngs of
-> dirty pages hitting the reclaim scanners.
+> Do we?  Any "reclaimable" objects which are "busy", are really
+> "unmovable" objects, and so contribute to fragmentation.
 
-I think the above would be helpful in the changelog for future
-reference.
+true and not much different from other reclaimable or movable objects.
+E.g. a pinned LRU page is also unmovable.
 
+> I've been thinking about inodes and dentries - which usually come up as
+> problematic objects in this context.
+> It would be quite complex to support moving arbitrary inodes or dentries
+> given the current design.  But maybe we don't need to.
+> Suppose these objects were allocated as 'movable', but when the first
+> long-term reference was taken (i.e. the first non-movable reference),
+> they were first moved to the "non-movable" region?
+
+I am not familiar with the [di]cache enough to comment on how easy would
+be to move those objects around. But there were already suggestions that
+LRU pages would be migrated before a long term pins to not block
+migration. Anyway this sounds like a topic on its own. From the current
+discussion so far it really seems that it would be really hard to define
+sensible semantic for GFP_TEMPORARY with the current implementation so I
+will send a patch to simply drop this flag. If we want to have such a
+flag then we should start over with defining the semantic first and
+think this thing over properly.
 -- 
 Michal Hocko
 SUSE Labs
