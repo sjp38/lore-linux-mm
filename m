@@ -1,102 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 72DCB6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 20:59:28 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c73so334314994pfb.7
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:28 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id 79si2981435pfs.104.2017.01.26.17.59.27
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 431FE6B0253
+	for <linux-mm@kvack.org>; Thu, 26 Jan 2017 20:59:32 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 194so335269177pgd.7
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:32 -0800 (PST)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id x190si803471pgd.418.2017.01.26.17.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jan 2017 17:59:27 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 75so23700001pgf.3
-        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:27 -0800 (PST)
+        Thu, 26 Jan 2017 17:59:31 -0800 (PST)
+Received: by mail-pg0-x242.google.com with SMTP id 3so5946597pgj.1
+        for <linux-mm@kvack.org>; Thu, 26 Jan 2017 17:59:31 -0800 (PST)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 1/2] mm/memblock: use NUMA_NO_NODE instead of MAX_NUMNODES as default node_id
-Date: Fri, 27 Jan 2017 09:59:21 +0800
-Message-Id: <20170127015922.36249-1-richard.weiyang@gmail.com>
+Subject: [PATCH 2/2] mm/memblock: switch to use NUMA_NO_NODE instead of MAX_NUMNODES in for_each_mem_pfn_range()
+Date: Fri, 27 Jan 2017 09:59:22 +0800
+Message-Id: <20170127015922.36249-2-richard.weiyang@gmail.com>
+In-Reply-To: <20170127015922.36249-1-richard.weiyang@gmail.com>
+References: <20170127015922.36249-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-According to commit <b115423357e0> ('mm/memblock: switch to use
-NUMA_NO_NODE instead of MAX_NUMNODES'), MAX_NUMNODES is not preferred as an
-node_id indicator.
+As in commit <b115423357e0> '(mm/memblock: switch to use NUMA_NO_NODE
+instead of MAX_NUMNODES)', NUMA_NO_NODE is recommended to be the selector
+of the nid.
 
-This patch use NUMA_NO_NODE as the default node_id for memblock.
+This patch does the same thing.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- arch/x86/mm/numa.c | 6 +++---
- mm/memblock.c      | 8 ++++----
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ include/linux/memblock.h | 2 +-
+ mm/memblock.c            | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 3f35b48d1d9d..4366242356c5 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -506,7 +506,7 @@ static void __init numa_clear_kernel_node_hotplug(void)
- 	 *   reserve specific pages for Sandy Bridge graphics. ]
- 	 */
- 	for_each_memblock(reserved, mb_region) {
--		if (mb_region->nid != MAX_NUMNODES)
-+		if (mb_region->nid != NUMA_NO_NODE)
- 			node_set(mb_region->nid, reserved_nodemask);
- 	}
- 
-@@ -633,9 +633,9 @@ static int __init numa_init(int (*init_func)(void))
- 	nodes_clear(node_online_map);
- 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
- 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
--				  MAX_NUMNODES));
-+				  NUMA_NO_NODE));
- 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
--				  MAX_NUMNODES));
-+				  NUMA_NO_NODE));
- 	/* In case that parsing SRAT failed. */
- 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
- 	numa_reset_distance();
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 5b759c9acf97..4bf9d3f7c539 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -207,7 +207,7 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ /**
+  * for_each_mem_pfn_range - early memory pfn range iterator
+  * @i: an integer used as loop variable
+- * @nid: node selector, %MAX_NUMNODES for all nodes
++ * @nid: node selector, %NUMA_NO_NODE for all nodes
+  * @p_start: ptr to ulong for start pfn of the range, can be %NULL
+  * @p_end: ptr to ulong for end pfn of the range, can be %NULL
+  * @p_nid: ptr to int for nid of the range, can be %NULL
 diff --git a/mm/memblock.c b/mm/memblock.c
-index d0f2c9632187..7d27566cee11 100644
+index 7d27566cee11..8d41421aa589 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -292,7 +292,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
- 		type->regions[0].base = 0;
- 		type->regions[0].size = 0;
- 		type->regions[0].flags = 0;
--		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
-+		memblock_set_region_node(&type->regions[0], NUMA_NO_NODE);
+@@ -1084,12 +1084,16 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
+ 	struct memblock_type *type = &memblock.memory;
+ 	struct memblock_region *r;
+ 
++	if (WARN_ONCE(nid == MAX_NUMNODES,
++	"Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
++		nid = NUMA_NO_NODE;
++
+ 	while (++*idx < type->cnt) {
+ 		r = &type->regions[*idx];
+ 
+ 		if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
+ 			continue;
+-		if (nid == MAX_NUMNODES || nid == r->nid)
++		if (nid == NUMA_NO_NODE || nid == r->nid)
+ 			break;
  	}
- }
- 
-@@ -616,7 +616,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
- 		     (unsigned long long)base + size - 1,
- 		     0UL, (void *)_RET_IP_);
- 
--	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
-+	return memblock_add_range(&memblock.memory, base, size, NUMA_NO_NODE, 0);
- }
- 
- /**
-@@ -734,7 +734,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- 		     (unsigned long long)base + size - 1,
- 		     0UL, (void *)_RET_IP_);
- 
--	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
-+	return memblock_add_range(&memblock.reserved, base, size, NUMA_NO_NODE, 0);
- }
- 
- /**
-@@ -1684,7 +1684,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
- 		size = rgn->size;
- 		flags = rgn->flags;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
--		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
-+		if (memblock_get_region_node(rgn) != NUMA_NO_NODE)
- 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
- 				 memblock_get_region_node(rgn));
- #endif
+ 	if (*idx >= type->cnt) {
 -- 
 2.11.0
 
