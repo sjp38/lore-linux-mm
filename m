@@ -1,119 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5866B0253
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 12:26:52 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id ez4so48415198wjd.2
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 09:26:52 -0800 (PST)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id a25si6650320wrb.177.2017.01.27.09.26.50
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AED76B0038
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 12:47:51 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id 73so218385215otj.1
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 09:47:51 -0800 (PST)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0138.outbound.protection.outlook.com. [104.47.42.138])
+        by mx.google.com with ESMTPS id w83si2292638oib.247.2017.01.27.09.47.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 09:26:51 -0800 (PST)
-From: Lucas Stach <l.stach@pengutronix.de>
-Subject: [PATCH v2 1/3] mm: alloc_contig_range: allow to specify GFP mask
-Date: Fri, 27 Jan 2017 18:23:26 +0100
-Message-Id: <20170127172328.18574-1-l.stach@pengutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 27 Jan 2017 09:47:50 -0800 (PST)
+From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Subject: Re: [PATCH 2/2] base/memory, hotplug: fix a kernel oops in
+ show_valid_zones()
+Date: Fri, 27 Jan 2017 17:47:49 +0000
+Message-ID: <1485542594.2029.30.camel@hpe.com>
+References: <20170126214415.4509-1-toshi.kani@hpe.com>
+	 <20170126214415.4509-3-toshi.kani@hpe.com>
+	 <20170126135254.cbd0bdbe3cdc5910c288ad32@linux-foundation.org>
+	 <1485472910.2029.28.camel@hpe.com> <20170127074854.GA31443@kroah.com>
+In-Reply-To: <20170127074854.GA31443@kroah.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <DBE5EA41D7C82D40A76C78625515EEE3@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mips@linux-mips.org, Michal Hocko <mhocko@suse.com>, kvm@vger.kernel.org, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Max Filippov <jcmvbkbc@gmail.com>, "H . Peter Anvin" <hpa@zytor.com>, Joerg Roedel <joro@8bytes.org>, Russell King <linux@armlinux.org.uk>, patchwork-lst@pengutronix.de, Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-xtensa@linux-xtensa.org, kvm-ppc@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org, Chris Zankel <chris@zankel.net>, linux-mm@kvack.org, Ralf Baechle <ralf@linux-mips.org>, iommu@lists.linux-foundation.org, kernel@pengutronix.de, Paolo Bonzini <pbonzini@redhat.com>, David Woodhouse <dwmw2@infradead.org>, Alexander Graf <agraf@suse.com>
+To: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
+Cc: "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "arbab@linux.vnet.ibm.com" <arbab@linux.vnet.ibm.com>, "abanman@sgi.com" <abanman@sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rientjes@google.com" <rientjes@google.com>
 
-Currently alloc_contig_range assumes that the compaction should
-be done with the default GFP_KERNEL flags. This is probably
-right for all current uses of this interface, but may change as
-CMA is used in more use-cases (including being the default DMA
-memory allocator on some platforms).
-
-Change the function prototype, to allow for passing through the
-GFP mask set by upper layers.
-
-Also respect global restrictions by applying memalloc_noio_flags
-to the passed in flags.
-
-Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
-v2: add memalloc_noio restriction
----
- include/linux/gfp.h | 2 +-
- mm/cma.c            | 3 ++-
- mm/hugetlb.c        | 3 ++-
- mm/page_alloc.c     | 5 +++--
- 4 files changed, 8 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 4175dca4ac39..1efa221e0e1d 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -549,7 +549,7 @@ static inline bool pm_suspended_storage(void)
- #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
- /* The below functions must be run on a range from a single zone. */
- extern int alloc_contig_range(unsigned long start, unsigned long end,
--			      unsigned migratetype);
-+			      unsigned migratetype, gfp_t gfp_mask);
- extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
- #endif
- 
-diff --git a/mm/cma.c b/mm/cma.c
-index c960459eda7e..fbd67d866f67 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -407,7 +407,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
- 
- 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
- 		mutex_lock(&cma_mutex);
--		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
-+		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
-+					 GFP_KERNEL);
- 		mutex_unlock(&cma_mutex);
- 		if (ret == 0) {
- 			page = pfn_to_page(pfn);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3edb759c5c7d..6ed8b160fc0d 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1051,7 +1051,8 @@ static int __alloc_gigantic_page(unsigned long start_pfn,
- 				unsigned long nr_pages)
- {
- 	unsigned long end_pfn = start_pfn + nr_pages;
--	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-+	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
-+				  GFP_KERNEL);
- }
- 
- static bool pfn_range_valid_gigantic(struct zone *z,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index eced9fee582b..c5a745b521c0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7230,6 +7230,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
-  *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
-  *			in range must have the same migratetype and it must
-  *			be either of the two.
-+ * @gfp_mask:	GFP mask to use during compaction
-  *
-  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
-  * aligned, however it's the caller's responsibility to guarantee that
-@@ -7243,7 +7244,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
-  * need to be freed with free_contig_range().
-  */
- int alloc_contig_range(unsigned long start, unsigned long end,
--		       unsigned migratetype)
-+		       unsigned migratetype, gfp_t gfp_mask)
- {
- 	unsigned long outer_start, outer_end;
- 	unsigned int order;
-@@ -7255,7 +7256,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		.zone = page_zone(pfn_to_page(start)),
- 		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
--		.gfp_mask = GFP_KERNEL,
-+		.gfp_mask = memalloc_noio_flags(gfp_mask),
- 	};
- 	INIT_LIST_HEAD(&cc.migratepages);
- 
--- 
-2.11.0
+T24gRnJpLCAyMDE3LTAxLTI3IGF0IDA4OjQ4ICswMTAwLCBncmVna2hAbGludXhmb3VuZGF0aW9u
+Lm9yZyB3cm90ZToNCj4gT24gVGh1LCBKYW4gMjYsIDIwMTcgYXQgMTA6MjY6MjNQTSArMDAwMCwg
+S2FuaSwgVG9zaGltaXRzdSB3cm90ZToNCj4gPiBPbiBUaHUsIDIwMTctMDEtMjYgYXQgMTM6NTIg
+LTA4MDAsIEFuZHJldyBNb3J0b24gd3JvdGU6DQo+ID4gPiBPbiBUaHUsIDI2IEphbiAyMDE3IDE0
+OjQ0OjE1IC0wNzAwIFRvc2hpIEthbmkgPHRvc2hpLmthbmlAaHBlLmNvbQ0KPiA+ID4gPg0KPiA+
+ID4gd3JvdGU6DQo+ID4gPiANCj4gPiA+ID4gUmVhZGluZyBhIHN5c2ZzIG1lbW9yeU4vdmFsaWRf
+em9uZXMgZmlsZSBsZWFkcyB0byB0aGUgZm9sbG93aW5nDQo+ID4gPiA+IG9vcHMgd2hlbiB0aGUg
+Zmlyc3QgcGFnZSBvZiBhIHJhbmdlIGlzIG5vdCBiYWNrZWQgYnkgc3RydWN0DQo+ID4gPiA+IHBh
+Z2UuIHNob3dfdmFsaWRfem9uZXMoKSBhc3N1bWVzIHRoYXQgJ3N0YXJ0X3BmbicgaXMgYWx3YXlz
+DQo+ID4gPiA+IHZhbGlkIGZvciBwYWdlX3pvbmUoKS4NCj4gPiA+ID4gDQo+ID4gPiA+IMKgQlVH
+OiB1bmFibGUgdG8gaGFuZGxlIGtlcm5lbCBwYWdpbmcgcmVxdWVzdCBhdA0KPiA+ID4gPiBmZmZm
+ZWEwMTdhMDAwMDAwDQo+ID4gPiA+IMKgSVA6IHNob3dfdmFsaWRfem9uZXMrMHg2Zi8weDE2MA0K
+PiA+ID4gPiANCj4gPiA+ID4gU2luY2UgdGVzdF9wYWdlc19pbl9hX3pvbmUoKSBhbHJlYWR5IGNo
+ZWNrcyBob2xlcywgZXh0ZW5kIHRoaXMNCj4gPiA+ID4gZnVuY3Rpb24gdG8gcmV0dXJuICd2YWxp
+ZF9zdGFydCcgYW5kICd2YWxpZF9lbmQnIGZvciBhIGdpdmVuDQo+ID4gPiA+IHJhbmdlLiBzaG93
+X3ZhbGlkX3pvbmVzKCkgdGhlbiBwcm9jZWVkcyB3aXRoIHRoZSB2YWxpZCByYW5nZS4NCj4gPiA+
+IA0KPiA+ID4gVGhpcyBkb2Vzbid0IGFwcGx5IHRvIGN1cnJlbnQgbWFpbmxpbmUgZHVlIHRvIGNo
+YW5nZXMgaW4NCj4gPiA+IHpvbmVfY2FuX3NoaWZ0KCkuwqDCoFBsZWFzZSByZWRvIGFuZCByZXNl
+bmQuDQo+ID4gDQo+ID4gU29ycnksIEkgd2lsbCByZWJhc2UgdG8gdGhlIC1tbSB0cmVlIGFuZCBy
+ZXNlbmQgdGhlIHBhdGNoZXMuDQo+ID4gDQo+ID4gPiBQbGVhc2UgYWxzbyB1cGRhdGUgdGhlIGNo
+YW5nZWxvZyB0byBwcm92aWRlIHN1ZmZpY2llbnQNCj4gPiA+IGluZm9ybWF0aW9uIGZvciBvdGhl
+cnMgdG8gZGVjaWRlIHdoaWNoIGtlcm5lbChzKSBuZWVkIHRoZQ0KPiA+ID4gZml4LsKgwqBJbiBw
+YXJ0aWN1bGFyOiB1bmRlciB3aGF0IGNpcmN1bXN0YW5jZXMgd2lsbCBpdCBvY2N1cj/CoMKgT24N
+Cj4gPiA+IHJlYWwgbWFjaGluZXMgd2hpY2ggcmVhbCBwZW9wbGUgb3duPw0KPiA+IA0KPiA+IFll
+cywgdGhpcyBpc3N1ZSBoYXBwZW5zIG9uIHJlYWwgeDg2IG1hY2hpbmVzIHdpdGggNjRHaUIgb3Ig
+bW9yZQ0KPiA+IG1lbW9yeS4gwqBPbiBzdWNoIHN5c3RlbXMsIHRoZSBtZW1vcnkgYmxvY2sgc2l6
+ZSBpcyBidW1wZWQgdXAgdG8NCj4gPiAyR2lCLiBbMV0NCj4gPiANCj4gPiBIZXJlIGlzIGFuIGV4
+YW1wbGUgc3lzdGVtLsKgwqAweDMyNDAwMDAwMDAgaXMgb25seSBhbGlnbmVkIGJ5IDFHaUINCj4g
+PiBhbmQgaXRzIG1lbW9yeSBibG9jayBzdGFydHMgZnJvbSAweDMyMDAwMDAwMDAsIHdoaWNoIGlz
+IG5vdCBiYWNrZWQNCj4gPiBieSBzdHJ1Y3QgcGFnZS4NCj4gPiANCj4gPiDCoEJJT1MtZTgyMDog
+W21lbcKgMHgwMDAwMDAzMjQwMDAwMDAwLTB4MDAwMDAwNjAzZmZmZmZmZl0gdXNhYmxlDQo+ID4g
+DQo+ID4gSSB3aWxsIGFkZCB0aGUgZGVzY3JpcHRpb25zIHRvIHRoZSBwYXRjaC4NCj4gDQo+IFNo
+b3VsZCBpdCBhbHNvIGJlIGJhY2twb3J0ZWQgdG8gdGhlIHN0YWJsZSBrZXJuZWxzIHRvIHJlc29s
+dmUgdGhlDQo+IGlzc3VlIHRoZXJlPw0KDQpZZXMsIGl0IHNob3VsZCBiZSBiYWNrcG9ydGVkIHRv
+IHRoZSBzdGFibGUga2VybmVscy4gIFRoZSBtZW1vcnkgYmxvY2sNCnNpemUgY2hhbmdlIHdhcyBt
+YWRlIGJ5IGNvbW1pdCBiZGVlMjM3YzAzNCwgd2hpY2ggd2FzIGFjY2VwdGVkIHRvIDMuOS4gDQpI
+b3dldmVyLCB0aGlzIHBhdGNoLXNldCBkZXBlbmRzIG9uIChhbmQgZml4ZXMpIHRoZSBjaGFuZ2Ug
+dG8NCnRlc3RfcGFnZXNfaW5fYV96b25lKCkgbWFkZSBieSBjb21taXQgNWYwZjI4ODdmNCwgd2hp
+Y2ggd2FzIGFjY2VwdGVkIHRvDQo0LjQuICBTbywgaW4gdGhlIGN1cnJlbnQgZm9ybSwgSSdkIHJl
+Y29tbWVuZCB3ZSBiYWNrcG9ydCBpdCB1cCB0byA0LjQuDQoNClRoYW5rcywNCi1Ub3NoaQ==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
