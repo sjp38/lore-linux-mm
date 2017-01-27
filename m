@@ -1,71 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 65FCC6B0253
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:26:34 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r144so50219155wme.0
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:26:34 -0800 (PST)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 185si1990498wmm.14.2017.01.27.00.26.33
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 409406B0260
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 03:31:27 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id yr2so45146337wjc.4
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:31:27 -0800 (PST)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id a16si5064682wra.331.2017.01.27.00.31.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 00:26:33 -0800 (PST)
-Received: by mail-wm0-x244.google.com with SMTP id r144so56520780wme.0
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:26:33 -0800 (PST)
-Date: Fri, 27 Jan 2017 09:26:30 +0100
+        Fri, 27 Jan 2017 00:31:25 -0800 (PST)
+Received: by mail-wm0-x241.google.com with SMTP id r126so56484960wmr.3
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 00:31:25 -0800 (PST)
+Date: Fri, 27 Jan 2017 09:31:22 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC][PATCH 1/4] x86, mpx: introduce per-mm MPX table size
- tracking
-Message-ID: <20170127082629.GB25162@gmail.com>
+Subject: Re: [RFC][PATCH 4/4] x86, mpx: context-switch new MPX address size
+ MSR
+Message-ID: <20170127083122.GC25162@gmail.com>
 References: <20170126224005.A6BBEF2C@viggo.jf.intel.com>
- <20170126224006.DED9C8D3@viggo.jf.intel.com>
+ <20170126224010.3534C154@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170126224006.DED9C8D3@viggo.jf.intel.com>
+In-Reply-To: <20170126224010.3534C154@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 
 
 * Dave Hansen <dave.hansen@linux.intel.com> wrote:
 
-> Larger address spaces mean larger MPX bounds table sizes.  This
-> tracks which size tables we are using.
-> 
-> "MAWA" is what the hardware documentation calls this feature:
-> MPX Address-Width Adjust.  We will carry that nomenclature throughout
-> this series.
-> 
-> The new field will be optimized and get packed into 'bd_addr' in a later
-> patch.  But, leave it separate for now to make the series simpler.
-> 
-> ---
-> 
->  b/arch/x86/include/asm/mmu.h |    1 +
->  b/arch/x86/include/asm/mpx.h |    9 +++++++++
->  2 files changed, 10 insertions(+)
-> 
-> diff -puN arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa arch/x86/include/asm/mmu.h
-> --- a/arch/x86/include/asm/mmu.h~mawa-020-mmu_context-mawa	2017-01-26 14:31:32.643673297 -0800
-> +++ b/arch/x86/include/asm/mmu.h	2017-01-26 14:31:32.647673476 -0800
-> @@ -34,6 +34,7 @@ typedef struct {
->  #ifdef CONFIG_X86_INTEL_MPX
->  	/* address of the bounds directory */
->  	void __user *bd_addr;
-> +	int mpx_mawa;
+> + * The MPX tables change sizes based on the size of the virtual
+> + * (aka. linear) address space.  There is an MSR to tell the CPU
+> + * whether we want the legacy-style ones or the larger ones when
+> + * we are running with an eXtended virtual address space.
+> + */
+> +static void switch_mawa(struct mm_struct *prev, struct mm_struct *next)
+> +{
+> +	/*
+> +	 * Note: there is one and only one bit in use in the MSR
+> +	 * at this time, so we do not have to be concerned with
+> +	 * preseving any of the other bits.  Just write 0 or 1.
+> +	 */
+> +	unsigned IA32_MPX_LAX_ENABLE_MASK = 0x00000001;
+> +
+> +	if (!cpu_feature_enabled(X86_FEATURE_MPX))
+> +		return;
+> +	/*
+> +	 * FIXME: do we want a check here for the 5-level paging
+> +	 * CR4 bit or CPUID bit, or is the mawa check below OK?
+> +	 * It's not obvious what would be the fastest or if it
+> +	 * matters.
+> +	 */
+> +
+> +	/*
+> +	 * Avoid the relatively costly MSR if we are not changing
+> +	 * MAWA state.  All processes not using MPX will have a
+> +	 * mpx_mawa_shift()=0, so we do not need to check
+> +	 * separately for whether MPX management is enabled.
+> +	 */
+> +	if (mpx_mawa_shift(prev) == mpx_mawa_shift(next))
+> +		return;
 
--ENOCOMMENT.
+Please stop the senseless looking wrappery - if the field is name sensibly then it 
+can be accessed directly through mm_struct.
 
-Plus 'int' looks probably wrong, unless the hardware really wants signed shift 
-values. (whatever 'mpx_mawa' is.)
+> +
+> +	if (mpx_mawa_shift(next)) {
+> +		wrmsr(MSR_IA32_MPX_LAX, IA32_MPX_LAX_ENABLE_MASK, 0x0);
+> +	} else {
+> +		/* clear the enable bit: */
+> +		wrmsr(MSR_IA32_MPX_LAX, 0x0, 0x0);
+> +	}
+> +}
+> +
+>  void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>  			struct task_struct *tsk)
+>  {
+> @@ -136,6 +177,7 @@ void switch_mm_irqs_off(struct mm_struct
+>  		/* Load per-mm CR4 state */
+>  		load_mm_cr4(next);
+>  
+> +		switch_mawa(prev, next);
 
-Plus, while Intel is free to use sucky acronyms such as MAWA, could we please name 
-this and related functionality sensibly: mpx_table_size or mpx_table_shift or 
-such? The data structure comment can point out that Intel calls this 'MAWA'.
+This implementation adds about 4-5 unnecessary instructions to the context 
+switching hot path of every non-MPX task, even on non-MPX hardware.
 
-(Also, the changelog refers to a later change, which never happens in this 
-series.)
+Please make sure that this is something like:
+
+	if (unlikely(prev->mpx_msr_val != next->mpx_msr_val))
+		switch_mpx(prev, next);
+
+... which reduces the hot path overhead to something like 2 instruction (if we are 
+lucky).
+
+This can be put into switch_mpx() and can be inlined - just make sure that on a 
+defconfig the generated machine code is sane.
 
 Thanks,
 
