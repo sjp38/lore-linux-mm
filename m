@@ -1,86 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 290ED6B025E
-	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 21:49:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 204so375602638pge.5
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 18:49:46 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E176B0038
+	for <linux-mm@kvack.org>; Fri, 27 Jan 2017 22:48:11 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y143so374425787pfb.6
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 19:48:11 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id b26si3309964pgf.332.2017.01.27.18.49.45
+        by mx.google.com with ESMTPS id z62si3394762pgb.391.2017.01.27.19.48.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 18:49:45 -0800 (PST)
+        Fri, 27 Jan 2017 19:48:10 -0800 (PST)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 4B684204DE
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2017 03:48:09 +0000 (UTC)
+Received: from mail-ua0-f175.google.com (mail-ua0-f175.google.com [209.85.217.175])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id B0696204AD
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2017 03:48:06 +0000 (UTC)
+Received: by mail-ua0-f175.google.com with SMTP id i68so218213725uad.0
+        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 19:48:06 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160525214935.GI14480@ZenIV.linux.org.uk>
+References: <20160114212201.GA28910@www.outflux.net> <CALYGNiNN+QYpd-FhM+4WXd=-1UYrhR7kpefbN8mpjh4gSbDO4A@mail.gmail.com>
+ <CAGXu5j+cwZQfnSPQNjb=VVzZfJH8n=iZUCM+vz_a6nPku5tQ2g@mail.gmail.com> <20160525214935.GI14480@ZenIV.linux.org.uk>
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 2/2] fs: Harden against open(..., O_CREAT, 02777) in a setgid directory
-Date: Fri, 27 Jan 2017 18:49:32 -0800
-Message-Id: <99f64a2676f0bec4ad32e39fc76eb0914ee091b8.1485571668.git.luto@kernel.org>
-In-Reply-To: <cover.1485571668.git.luto@kernel.org>
-References: <cover.1485571668.git.luto@kernel.org>
-In-Reply-To: <cover.1485571668.git.luto@kernel.org>
-References: <cover.1485571668.git.luto@kernel.org>
+Date: Fri, 27 Jan 2017 19:47:45 -0800
+Message-ID: <CALCETrUVyF7KwLk29pXDPKVehAxKfKNf_1z7fHjKLg4Y0dzKrQ@mail.gmail.com>
+Subject: Re: [PATCH v9] fs: clear file privilege bits when mmap writing
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: security@kernel.org
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, yalin wang <yalin.wang2010@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Frank Filz <ffilzlnx@mindspring.com>, Andy Lutomirski <luto@kernel.org>, stable@vger.kernel.org
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Jan Kara <jack@suse.cz>, yalin wang <yalin.wang2010@gmail.com>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Currently, if you open("foo", O_WRONLY | O_CREAT | ..., 02777) in a
-directory that is setgid and owned by a different gid than current's
-fsgid, you end up with an SGID executable that is owned by the
-directory's GID.  This is a Bad Thing (tm).  Exploiting this is
-nontrivial because most ways of creating a new file create an empty
-file and empty executables aren't particularly interesting, but this
-is nevertheless quite dangerous.
+On Wed, May 25, 2016 at 2:49 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> On Wed, May 25, 2016 at 02:36:57PM -0700, Kees Cook wrote:
+>
+>> Hm, this didn't end up getting picked up. (This jumped out at me again
+>> because i_mutex just vanished...)
+>>
+>> Al, what's the right way to update the locking in this patch?
+>
+> ->i_mutex is dealt with just by using lock_inode(inode)/unlock_inode(inode);
+> I hadn't looked at the rest of the locking in there.
 
-Harden against this type of attack by detecting this particular
-corner case (unprivileged program creates SGID executable inode in
-SGID directory owned by a different GID) and clearing the new
-inode's SGID bit.
+Ping?
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- fs/inode.c | 24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
-
-diff --git a/fs/inode.c b/fs/inode.c
-index 0e1e141b094c..f6acb9232263 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -2025,12 +2025,30 @@ void inode_init_owner(struct inode *inode, const struct inode *dir,
- 			umode_t mode)
- {
- 	inode->i_uid = current_fsuid();
-+	inode->i_gid = current_fsgid();
-+
- 	if (dir && dir->i_mode & S_ISGID) {
-+		bool changing_gid = !gid_eq(inode->i_gid, dir->i_gid);
-+
- 		inode->i_gid = dir->i_gid;
--		if (S_ISDIR(mode))
-+
-+		if (S_ISDIR(mode)) {
- 			mode |= S_ISGID;
--	} else
--		inode->i_gid = current_fsgid();
-+		} else if (((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
-+			   && S_ISREG(mode) && changing_gid
-+			   && !capable(CAP_FSETID)) {
-+			/*
-+			 * Whoa there!  An unprivileged program just
-+			 * tried to create a new executable with SGID
-+			 * set in a directory with SGID set that belongs
-+			 * to a different group.  Don't let this program
-+			 * create a SGID executable that ends up owned
-+			 * by the wrong group.
-+			 */
-+			mode &= ~S_ISGID;
-+		}
-+	}
-+
- 	inode->i_mode = mode;
- }
- EXPORT_SYMBOL(inode_init_owner);
--- 
-2.9.3
+If this is too messy, I'm wondering if we could get away with a much
+simpler approach: clear the suid and sgid bits when the file is opened
+for write.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
