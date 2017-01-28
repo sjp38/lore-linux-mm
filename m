@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 066536B0038
-	for <linux-mm@kvack.org>; Sat, 28 Jan 2017 02:32:25 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 75so380953963pgf.3
-        for <linux-mm@kvack.org>; Fri, 27 Jan 2017 23:32:24 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id m11si6651343pln.99.2017.01.27.23.32.22
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A89386B0038
+	for <linux-mm@kvack.org>; Sat, 28 Jan 2017 03:18:22 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id j82so429724319ybg.0
+        for <linux-mm@kvack.org>; Sat, 28 Jan 2017 00:18:22 -0800 (PST)
+Received: from bifrost.lang.hm (lang.hm. [66.167.227.134])
+        by mx.google.com with ESMTPS id u20si2038672ywh.247.2017.01.28.00.18.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jan 2017 23:32:23 -0800 (PST)
-Date: Fri, 27 Jan 2017 23:32:15 -0800
-From: Christoph Hellwig <hch@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 28 Jan 2017 00:18:21 -0800 (PST)
+Date: Sat, 28 Jan 2017 00:17:04 -0800 (PST)
+From: David Lang <david@lang.hm>
 Subject: Re: [Cluster-devel] [PATCH 8/8] Revert "ext4: fix wrong gfp type
  under transaction"
-Message-ID: <20170128073215.GA19424@infradead.org>
-References: <20170117155916.dcizr65bwa6behe7@thunk.org>
- <20170117161618.GT19699@dhcp22.suse.cz>
- <20170117172925.GA2486@quack2.suse.cz>
- <20170119083956.GE30786@dhcp22.suse.cz>
- <20170119092236.GC2565@quack2.suse.cz>
- <20170119094405.GK30786@dhcp22.suse.cz>
- <20170126074455.GC8456@dhcp22.suse.cz>
- <20170127061318.xd2qxashbl4dajez@thunk.org>
- <20170127093735.GB4143@dhcp22.suse.cz>
- <20170127164042.2o3bnyopihcb224g@thunk.org>
+In-Reply-To: <20170128073215.GA19424@infradead.org>
+Message-ID: <nycvar.QRO.7.75.62.1701280016010.6590@qynat-yncgbc>
+References: <20170117155916.dcizr65bwa6behe7@thunk.org> <20170117161618.GT19699@dhcp22.suse.cz> <20170117172925.GA2486@quack2.suse.cz> <20170119083956.GE30786@dhcp22.suse.cz> <20170119092236.GC2565@quack2.suse.cz> <20170119094405.GK30786@dhcp22.suse.cz>
+ <20170126074455.GC8456@dhcp22.suse.cz> <20170127061318.xd2qxashbl4dajez@thunk.org> <20170127093735.GB4143@dhcp22.suse.cz> <20170127164042.2o3bnyopihcb224g@thunk.org> <20170128073215.GA19424@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170127164042.2o3bnyopihcb224g@thunk.org>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, djwong@kernel.org, Chris Mason <clm@fb.com>, David Sterba <dsterba@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 27, 2017 at 11:40:42AM -0500, Theodore Ts'o wrote:
-> The reason why I'm nervous is that nojournal mode is not a common
-> configuration, and "wait until production systems start failing" is
-> not a strategy that I or many SRE-types find.... comforting.
+On Fri, 27 Jan 2017, Christoph Hellwig wrote:
 
-What does SRE stand for?
+> On Fri, Jan 27, 2017 at 11:40:42AM -0500, Theodore Ts'o wrote:
+>> The reason why I'm nervous is that nojournal mode is not a common
+>> configuration, and "wait until production systems start failing" is
+>> not a strategy that I or many SRE-types find.... comforting.
+>
+> What does SRE stand for?
+
+Site Reliability Engineer, a mix of operations and engineering (DevOps++)
+
+David Lang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
