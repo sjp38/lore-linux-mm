@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D186B028F
-	for <linux-mm@kvack.org>; Sun, 29 Jan 2017 12:40:10 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 201so426162405pfw.5
-        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 09:40:10 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y5si6576012pgi.411.2017.01.29.09.40.10
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3FE6B0291
+	for <linux-mm@kvack.org>; Sun, 29 Jan 2017 12:40:13 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id d123so173301721pfd.0
+        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 09:40:13 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id q9si4781097plk.87.2017.01.29.09.40.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Jan 2017 09:40:10 -0800 (PST)
+        Sun, 29 Jan 2017 09:40:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 08/12] mm, ksm: convert write_protect_page() to use page_vma_mapped_walk()
-Date: Sun, 29 Jan 2017 20:38:54 +0300
-Message-Id: <20170129173858.45174-9-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 10/12] mm: convert page_mapped_in_vma() to use page_vma_mapped_walk()
+Date: Sun, 29 Jan 2017 20:38:56 +0300
+Message-Id: <20170129173858.45174-11-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170129173858.45174-1-kirill.shutemov@linux.intel.com>
 References: <20170129173858.45174-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,92 +24,87 @@ For consistency, it worth converting all page_check_address() to
 page_vma_mapped_walk(), so we could drop the former.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 ---
- mm/ksm.c | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ mm/page_vma_mapped.c | 30 ++++++++++++++++++++++++++++++
+ mm/rmap.c            | 26 --------------------------
+ 2 files changed, 30 insertions(+), 26 deletions(-)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 9ae6011a41f8..91a2eb048516 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -850,33 +850,35 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 			      pte_t *orig_pte)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	unsigned long addr;
--	pte_t *ptep;
--	spinlock_t *ptl;
+diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
+index bbd2a39e985d..dc4756f878be 100644
+--- a/mm/page_vma_mapped.c
++++ b/mm/page_vma_mapped.c
+@@ -186,3 +186,33 @@ next_pte:	do {
+ 		}
+ 	}
+ }
++
++/**
++ * page_mapped_in_vma - check whether a page is really mapped in a VMA
++ * @page: the page to test
++ * @vma: the VMA to test
++ *
++ * Returns 1 if the page is mapped into the page tables of the VMA, 0
++ * if the page is not mapped into the page tables of this VMA.  Only
++ * valid for normal file or anonymous VMAs.
++ */
++int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
++{
 +	struct page_vma_mapped_walk pvmw = {
 +		.page = page,
 +		.vma = vma,
++		.flags = PVMW_SYNC,
 +	};
- 	int swapped;
- 	int err = -EFAULT;
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 
--	addr = page_address_in_vma(page, vma);
--	if (addr == -EFAULT)
-+	pvmw.address = page_address_in_vma(page, vma);
-+	if (pvmw.address == -EFAULT)
- 		goto out;
- 
- 	BUG_ON(PageTransCompound(page));
- 
--	mmun_start = addr;
--	mmun_end   = addr + PAGE_SIZE;
-+	mmun_start = pvmw.address;
-+	mmun_end   = pvmw.address + PAGE_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
--	ptep = page_check_address(page, mm, addr, &ptl, 0);
--	if (!ptep)
++	unsigned long start, end;
++
++	start = __vma_address(page, vma);
++	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
++
++	if (unlikely(end < vma->vm_start || start >= vma->vm_end))
++		return 0;
++	pvmw.address = max(start, vma->vm_start);
 +	if (!page_vma_mapped_walk(&pvmw))
- 		goto out_mn;
-+	if (WARN_ONCE(!pvmw.pte, "Unexpected PMD mapping?"))
-+		goto out_unlock;
- 
--	if (pte_write(*ptep) || pte_dirty(*ptep)) {
-+	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte)) {
- 		pte_t entry;
- 
- 		swapped = PageSwapCache(page);
--		flush_cache_page(vma, addr, page_to_pfn(page));
-+		flush_cache_page(vma, pvmw.address, page_to_pfn(page));
- 		/*
- 		 * Ok this is tricky, when get_user_pages_fast() run it doesn't
- 		 * take any lock, therefore the check that we are going to make
-@@ -886,25 +888,25 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 		 * this assure us that no O_DIRECT can happen after the check
- 		 * or in the middle of the check.
- 		 */
--		entry = ptep_clear_flush_notify(vma, addr, ptep);
-+		entry = ptep_clear_flush_notify(vma, pvmw.address, pvmw.pte);
- 		/*
- 		 * Check that no O_DIRECT or similar I/O is in progress on the
- 		 * page
- 		 */
- 		if (page_mapcount(page) + 1 + swapped != page_count(page)) {
--			set_pte_at(mm, addr, ptep, entry);
-+			set_pte_at(mm, pvmw.address, pvmw.pte, entry);
- 			goto out_unlock;
- 		}
- 		if (pte_dirty(entry))
- 			set_page_dirty(page);
- 		entry = pte_mkclean(pte_wrprotect(entry));
--		set_pte_at_notify(mm, addr, ptep, entry);
-+		set_pte_at_notify(mm, pvmw.address, pvmw.pte, entry);
- 	}
--	*orig_pte = *ptep;
-+	*orig_pte = *pvmw.pte;
- 	err = 0;
- 
- out_unlock:
--	pte_unmap_unlock(ptep, ptl);
++		return 0;
 +	page_vma_mapped_walk_done(&pvmw);
- out_mn:
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- out:
++	return 1;
++}
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 11668fb881d8..80525820aada 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -756,32 +756,6 @@ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
+ 	return NULL;
+ }
+ 
+-/**
+- * page_mapped_in_vma - check whether a page is really mapped in a VMA
+- * @page: the page to test
+- * @vma: the VMA to test
+- *
+- * Returns 1 if the page is mapped into the page tables of the VMA, 0
+- * if the page is not mapped into the page tables of this VMA.  Only
+- * valid for normal file or anonymous VMAs.
+- */
+-int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+-{
+-	unsigned long address;
+-	pte_t *pte;
+-	spinlock_t *ptl;
+-
+-	address = __vma_address(page, vma);
+-	if (unlikely(address < vma->vm_start || address >= vma->vm_end))
+-		return 0;
+-	pte = page_check_address(page, vma->vm_mm, address, &ptl, 1);
+-	if (!pte)			/* the page is not in this mm */
+-		return 0;
+-	pte_unmap_unlock(pte, ptl);
+-
+-	return 1;
+-}
+-
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ /*
+  * Check that @page is mapped at @address into @mm. In contrast to
 -- 
 2.11.0
 
