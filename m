@@ -1,402 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E9FFC6B0272
-	for <linux-mm@kvack.org>; Sun, 29 Jan 2017 05:54:41 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z67so417368706pgb.0
-        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 02:54:41 -0800 (PST)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id s5si6045810pgj.372.2017.01.29.02.54.40
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8C86B0274
+	for <linux-mm@kvack.org>; Sun, 29 Jan 2017 07:45:07 -0500 (EST)
+Received: by mail-vk0-f70.google.com with SMTP id r136so177915041vke.6
+        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 04:45:07 -0800 (PST)
+Received: from mail-ua0-x22b.google.com (mail-ua0-x22b.google.com. [2607:f8b0:400c:c08::22b])
+        by mx.google.com with ESMTPS id w66si29896vkb.71.2017.01.29.04.45.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Jan 2017 02:54:40 -0800 (PST)
-Received: by mail-pg0-x243.google.com with SMTP id 194so29033570pgd.0
-        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 02:54:40 -0800 (PST)
-Date: Sun, 29 Jan 2017 19:54:36 +0900
-From: Jinbum Park <jinb.park7@gmail.com>
-Subject: [PATCH v4] mm: add arch-independent testcases for RODATA
-Message-ID: <20170129105436.GA9303@pjb1027-Latitude-E5410>
+        Sun, 29 Jan 2017 04:45:06 -0800 (PST)
+Received: by mail-ua0-x22b.google.com with SMTP id y9so235596107uae.2
+        for <linux-mm@kvack.org>; Sun, 29 Jan 2017 04:45:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 29 Jan 2017 13:44:46 +0100
+Message-ID: <CACT4Y+asbKDni4RBavNf0-HwApTXjbbNko9eQbU6zCOgB2Yvnw@mail.gmail.com>
+Subject: mm: deadlock between get_online_cpus/pcpu_alloc
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de
-Cc: mingo@redhat.com, hpa@zytor.com, x86@kernel.org, keescook@chromium.org, arjan@linux.intel.com, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, labbott@redhat.com, kernel-hardening@lists.openwall.com, mark.rutland@arm.com, kernel-janitors@vger.kernel.org, linux@armlinux.org.uk
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: syzkaller <syzkaller@googlegroups.com>
 
-This patch makes arch-independent testcases for RODATA.
-Both x86 and x86_64 already have testcases for RODATA,
-But they are arch-specific because using inline assembly directly.
+Hello,
 
-and cacheflush.h is not suitable location for rodata-test related things.
-Since they were in cacheflush.h,
-If someone change the state of CONFIG_DEBUG_RODATA_TEST,
-It cause overhead of kernel build.
+I've got the following deadlock report while running syzkaller fuzzer
+on f37208bc3c9c2f811460ef264909dfbc7f605a60:
 
-To solve above issue,
-write arch-independent testcases and move it to shared location.
+[ INFO: possible circular locking dependency detected ]
+4.10.0-rc5-next-20170125 #1 Not tainted
+-------------------------------------------------------
+syz-executor3/14255 is trying to acquire lock:
+ (cpu_hotplug.dep_map){++++++}, at: [<ffffffff814271c7>]
+get_online_cpus+0x37/0x90 kernel/cpu.c:239
 
-Signed-off-by: Jinbum Park <jinb.park7@gmail.com>
----
-v4: Move the rodata_test() call out into mark_readonly()
-	Delete some comment
+but task is already holding lock:
+ (pcpu_alloc_mutex){+.+.+.}, at: [<ffffffff81937fee>]
+pcpu_alloc+0xbfe/0x1290 mm/percpu.c:897
 
-v3: Use probe_kernel_write() instead of put_user()
-	Move declaration of rodata_test_data to separate header (rodata_test.h)
-	Fix a kbuild-test-robot-error related to DEBUG_NX_TEST
+which lock already depends on the new lock.
 
-v2: Restore original credit of mm/rodata_test.c
 
- arch/x86/Kconfig.debug            | 10 +-----
- arch/x86/include/asm/cacheflush.h | 10 ------
- arch/x86/kernel/Makefile          |  1 -
- arch/x86/kernel/test_rodata.c     | 75 ---------------------------------------
- arch/x86/mm/init_32.c             |  4 ---
- arch/x86/mm/init_64.c             |  5 ---
- include/linux/rodata_test.h       | 24 +++++++++++++
- init/main.c                       |  6 ++--
- mm/Kconfig.debug                  |  7 ++++
- mm/Makefile                       |  1 +
- mm/rodata_test.c                  | 56 +++++++++++++++++++++++++++++
- 11 files changed, 93 insertions(+), 106 deletions(-)
- delete mode 100644 arch/x86/kernel/test_rodata.c
- create mode 100644 include/linux/rodata_test.h
- create mode 100644 mm/rodata_test.c
+the existing dependency chain (in reverse order) is:
 
-diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
-index 67eec55..3fa469c 100644
---- a/arch/x86/Kconfig.debug
-+++ b/arch/x86/Kconfig.debug
-@@ -74,14 +74,6 @@ config EFI_PGT_DUMP
- 	  issues with the mapping of the EFI runtime regions into that
- 	  table.
- 
--config DEBUG_RODATA_TEST
--	bool "Testcase for the marking rodata read-only"
--	default y
--	---help---
--	  This option enables a testcase for the setting rodata read-only
--	  as well as for the change_page_attr() infrastructure.
--	  If in doubt, say "N"
--
- config DEBUG_WX
- 	bool "Warn on W+X mappings at boot"
- 	select X86_PTDUMP_CORE
-@@ -122,7 +114,7 @@ config DEBUG_SET_MODULE_RONX
- 
- config DEBUG_NX_TEST
- 	tristate "Testcase for the NX non-executable stack feature"
--	depends on DEBUG_KERNEL && m
-+	depends on DEBUG_KERNEL && DEBUG_RODATA_TEST && m
- 	---help---
- 	  This option enables a testcase for the CPU NX capability
- 	  and the software setup of this feature.
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index 872877d..e7e1942e 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -90,18 +90,8 @@
- 
- #define mmio_flush_range(addr, size) clflush_cache_range(addr, size)
- 
--extern const int rodata_test_data;
- extern int kernel_set_to_readonly;
- void set_kernel_text_rw(void);
- void set_kernel_text_ro(void);
- 
--#ifdef CONFIG_DEBUG_RODATA_TEST
--int rodata_test(void);
--#else
--static inline int rodata_test(void)
--{
--	return 0;
--}
--#endif
--
- #endif /* _ASM_X86_CACHEFLUSH_H */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 581386c..f6caf82 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -100,7 +100,6 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
- obj-$(CONFIG_APB_TIMER)		+= apb_timer.o
- 
- obj-$(CONFIG_AMD_NB)		+= amd_nb.o
--obj-$(CONFIG_DEBUG_RODATA_TEST)	+= test_rodata.o
- obj-$(CONFIG_DEBUG_NX_TEST)	+= test_nx.o
- obj-$(CONFIG_DEBUG_NMI_SELFTEST) += nmi_selftest.o
- 
-diff --git a/arch/x86/kernel/test_rodata.c b/arch/x86/kernel/test_rodata.c
-deleted file mode 100644
-index 222e84e..0000000
---- a/arch/x86/kernel/test_rodata.c
-+++ /dev/null
-@@ -1,75 +0,0 @@
--/*
-- * test_rodata.c: functional test for mark_rodata_ro function
-- *
-- * (C) Copyright 2008 Intel Corporation
-- * Author: Arjan van de Ven <arjan@linux.intel.com>
-- *
-- * This program is free software; you can redistribute it and/or
-- * modify it under the terms of the GNU General Public License
-- * as published by the Free Software Foundation; version 2
-- * of the License.
-- */
--#include <asm/cacheflush.h>
--#include <asm/sections.h>
--#include <asm/asm.h>
--
--int rodata_test(void)
--{
--	unsigned long result;
--	unsigned long start, end;
--
--	/* test 1: read the value */
--	/* If this test fails, some previous testrun has clobbered the state */
--	if (!rodata_test_data) {
--		printk(KERN_ERR "rodata_test: test 1 fails (start data)\n");
--		return -ENODEV;
--	}
--
--	/* test 2: write to the variable; this should fault */
--	/*
--	 * If this test fails, we managed to overwrite the data
--	 *
--	 * This is written in assembly to be able to catch the
--	 * exception that is supposed to happen in the correct
--	 * case
--	 */
--
--	result = 1;
--	asm volatile(
--		"0:	mov %[zero],(%[rodata_test])\n"
--		"	mov %[zero], %[rslt]\n"
--		"1:\n"
--		".section .fixup,\"ax\"\n"
--		"2:	jmp 1b\n"
--		".previous\n"
--		_ASM_EXTABLE(0b,2b)
--		: [rslt] "=r" (result)
--		: [rodata_test] "r" (&rodata_test_data), [zero] "r" (0UL)
--	);
--
--
--	if (!result) {
--		printk(KERN_ERR "rodata_test: test data was not read only\n");
--		return -ENODEV;
--	}
--
--	/* test 3: check the value hasn't changed */
--	/* If this test fails, we managed to overwrite the data */
--	if (!rodata_test_data) {
--		printk(KERN_ERR "rodata_test: Test 3 fails (end data)\n");
--		return -ENODEV;
--	}
--	/* test 4: check if the rodata section is 4Kb aligned */
--	start = (unsigned long)__start_rodata;
--	end = (unsigned long)__end_rodata;
--	if (start & (PAGE_SIZE - 1)) {
--		printk(KERN_ERR "rodata_test: .rodata is not 4k aligned\n");
--		return -ENODEV;
--	}
--	if (end & (PAGE_SIZE - 1)) {
--		printk(KERN_ERR "rodata_test: .rodata end is not 4k aligned\n");
--		return -ENODEV;
--	}
--
--	return 0;
--}
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 928d657..2b4b53e 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -864,9 +864,6 @@ static noinline int do_test_wp_bit(void)
- 	return flag;
- }
- 
--const int rodata_test_data = 0xC3;
--EXPORT_SYMBOL_GPL(rodata_test_data);
--
- int kernel_set_to_readonly __read_mostly;
- 
- void set_kernel_text_rw(void)
-@@ -939,7 +936,6 @@ void mark_rodata_ro(void)
- 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
- 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
- 		size >> 10);
--	rodata_test();
- 
- #ifdef CONFIG_CPA_DEBUG
- 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 5fff913..a4880d8 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1011,9 +1011,6 @@ void __init mem_init(void)
- 	mem_init_print_info(NULL);
- }
- 
--const int rodata_test_data = 0xC3;
--EXPORT_SYMBOL_GPL(rodata_test_data);
--
- int kernel_set_to_readonly;
- 
- void set_kernel_text_rw(void)
-@@ -1082,8 +1079,6 @@ void mark_rodata_ro(void)
- 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
- 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
- 
--	rodata_test();
--
- #ifdef CONFIG_CPA_DEBUG
- 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
- 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
-diff --git a/include/linux/rodata_test.h b/include/linux/rodata_test.h
-new file mode 100644
-index 0000000..562537f
---- /dev/null
-+++ b/include/linux/rodata_test.h
-@@ -0,0 +1,24 @@
-+/*
-+ * rodata_test.h: functional test for mark_rodata_ro function
-+ *
-+ * (C) Copyright 2008 Intel Corporation
-+ * Author: Arjan van de Ven <arjan@linux.intel.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+#ifndef _RODATA_TEST_H
-+#define _RODATA_TEST_H
-+
-+#ifdef CONFIG_DEBUG_RODATA_TEST
-+extern const int rodata_test_data;
-+void rodata_test(void);
-+#else
-+static inline void rodata_test(void) {}
-+#endif
-+
-+#endif /* _RODATA_TEST_H */
-+
-diff --git a/init/main.c b/init/main.c
-index e47373d..1e417bb 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -82,6 +82,7 @@
- #include <linux/proc_ns.h>
- #include <linux/io.h>
- #include <linux/cache.h>
-+#include <linux/rodata_test.h>
- 
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -935,9 +936,10 @@ static int __init set_debug_rodata(char *str)
- #ifdef CONFIG_DEBUG_RODATA
- static void mark_readonly(void)
- {
--	if (rodata_enabled)
-+	if (rodata_enabled) {
- 		mark_rodata_ro();
--	else
-+		rodata_test();
-+	} else
- 		pr_info("Kernel memory protection disabled.\n");
- }
- #else
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index afcc550..3e5eada 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -90,3 +90,10 @@ config DEBUG_PAGE_REF
- 	  careful when enabling this feature because it adds about 30 KB to the
- 	  kernel code.  However the runtime performance overhead is virtually
- 	  nil until the tracepoints are actually enabled.
-+
-+config DEBUG_RODATA_TEST
-+    bool "Testcase for the marking rodata read-only"
-+    depends on DEBUG_RODATA
-+    ---help---
-+      This option enables a testcase for the setting rodata read-only.
-+
-diff --git a/mm/Makefile b/mm/Makefile
-index 433eaf9..d6199d4 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -83,6 +83,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
- obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
- obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
- obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
-+obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
- obj-$(CONFIG_PAGE_OWNER) += page_owner.o
- obj-$(CONFIG_CLEANCACHE) += cleancache.o
- obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-new file mode 100644
-index 0000000..0fd2167
---- /dev/null
-+++ b/mm/rodata_test.c
-@@ -0,0 +1,56 @@
-+/*
-+ * rodata_test.c: functional test for mark_rodata_ro function
-+ *
-+ * (C) Copyright 2008 Intel Corporation
-+ * Author: Arjan van de Ven <arjan@linux.intel.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+#include <linux/uaccess.h>
-+#include <asm/sections.h>
-+
-+const int rodata_test_data = 0xC3;
-+EXPORT_SYMBOL_GPL(rodata_test_data);
-+
-+void rodata_test(void)
-+{
-+	unsigned long start, end;
-+	int zero = 0;
-+
-+	/* test 1: read the value */
-+	/* If this test fails, some previous testrun has clobbered the state */
-+	if (!rodata_test_data) {
-+		pr_err("rodata_test: test 1 fails (start data)\n");
-+		return;
-+	}
-+
-+	/* test 2: write to the variable; this should fault */
-+	if (!probe_kernel_write((void *)&rodata_test_data,
-+						(void *)&zero, sizeof(zero))) {
-+		pr_err("rodata_test: test data was not read only\n");
-+		return;
-+	}
-+
-+	/* test 3: check the value hasn't changed */
-+	if (rodata_test_data == zero) {
-+		pr_err("rodata_test: test data was changed\n");
-+		return;
-+	}
-+
-+	/* test 4: check if the rodata section is PAGE_SIZE aligned */
-+	start = (unsigned long)__start_rodata;
-+	end = (unsigned long)__end_rodata;
-+	if (start & (PAGE_SIZE - 1)) {
-+		pr_err("rodata_test: start of .rodata is not page size aligned\n");
-+		return;
-+	}
-+	if (end & (PAGE_SIZE - 1)) {
-+		pr_err("rodata_test: end of .rodata is not page size aligned\n");
-+		return;
-+	}
-+
-+	pr_info("rodata_test: all tests were successful\n");
-+}
--- 
-1.9.1
+-> #2 (pcpu_alloc_mutex){+.+.+.}:
+
+[<ffffffff8157a169>] validate_chain kernel/locking/lockdep.c:2265 [inline]
+[<ffffffff8157a169>] __lock_acquire+0x2149/0x3430 kernel/locking/lockdep.c:3338
+[<ffffffff8157c2f1>] lock_acquire+0x2a1/0x630 kernel/locking/lockdep.c:3753
+[<ffffffff8447fb62>] __mutex_lock_common kernel/locking/mutex.c:757 [inline]
+[<ffffffff8447fb62>] __mutex_lock+0x382/0x25c0 kernel/locking/mutex.c:894
+[<ffffffff84481db6>] mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:909
+[<ffffffff81937fee>] pcpu_alloc+0xbfe/0x1290 mm/percpu.c:897
+[<ffffffff819386d4>] __alloc_percpu+0x24/0x30 mm/percpu.c:1076
+[<ffffffff81684963>] smpcfd_prepare_cpu+0x73/0xd0 kernel/smp.c:47
+[<ffffffff81428296>] cpuhp_invoke_callback+0x256/0x1480 kernel/cpu.c:136
+[<ffffffff81429a11>] cpuhp_up_callbacks+0x81/0x2a0 kernel/cpu.c:425
+[<ffffffff8142bd53>] _cpu_up+0x1e3/0x2a0 kernel/cpu.c:940
+[<ffffffff8142be83>] do_cpu_up+0x73/0xa0 kernel/cpu.c:970
+[<ffffffff8142bec8>] cpu_up+0x18/0x20 kernel/cpu.c:978
+[<ffffffff8570eec9>] smp_init+0x148/0x160 kernel/smp.c:565
+[<ffffffff856a2fef>] kernel_init_freeable+0x43e/0x695 init/main.c:1026
+[<ffffffff8446ccf3>] kernel_init+0x13/0x180 init/main.c:955
+[<ffffffff8448f0b1>] ret_from_fork+0x31/0x40 arch/x86/entry/entry_64.S:430
+
+-> #1 (cpu_hotplug.lock){+.+.+.}:
+
+[<ffffffff8157a169>] validate_chain kernel/locking/lockdep.c:2265 [inline]
+[<ffffffff8157a169>] __lock_acquire+0x2149/0x3430 kernel/locking/lockdep.c:3338
+[<ffffffff8157c2f1>] lock_acquire+0x2a1/0x630 kernel/locking/lockdep.c:3753
+[<ffffffff8447fb62>] __mutex_lock_common kernel/locking/mutex.c:757 [inline]
+[<ffffffff8447fb62>] __mutex_lock+0x382/0x25c0 kernel/locking/mutex.c:894
+[<ffffffff84481db6>] mutex_lock_nested+0x16/0x20 kernel/locking/mutex.c:909
+[<ffffffff8142b9d6>] cpu_hotplug_begin+0x206/0x2e0 kernel/cpu.c:297
+[<ffffffff8142bc3a>] _cpu_up+0xca/0x2a0 kernel/cpu.c:894
+[<ffffffff8142be83>] do_cpu_up+0x73/0xa0 kernel/cpu.c:970
+[<ffffffff8142bec8>] cpu_up+0x18/0x20 kernel/cpu.c:978
+[<ffffffff8570eec9>] smp_init+0x148/0x160 kernel/smp.c:565
+[<ffffffff856a2fef>] kernel_init_freeable+0x43e/0x695 init/main.c:1026
+[<ffffffff8446ccf3>] kernel_init+0x13/0x180 init/main.c:955
+[<ffffffff8448f0b1>] ret_from_fork+0x31/0x40 arch/x86/entry/entry_64.S:430
+
+-> #0 (cpu_hotplug.dep_map){++++++}:
+
+[<ffffffff81573ebf>] check_prev_add kernel/locking/lockdep.c:1828 [inline]
+[<ffffffff81573ebf>] check_prevs_add+0xa8f/0x19f0 kernel/locking/lockdep.c:1938
+[<ffffffff8157a169>] validate_chain kernel/locking/lockdep.c:2265 [inline]
+[<ffffffff8157a169>] __lock_acquire+0x2149/0x3430 kernel/locking/lockdep.c:3338
+[<ffffffff8157c2f1>] lock_acquire+0x2a1/0x630 kernel/locking/lockdep.c:3753
+[<ffffffff814271f2>] get_online_cpus+0x62/0x90 kernel/cpu.c:241
+[<ffffffff818991ec>] drain_all_pages.part.98+0x8c/0x8f0 mm/page_alloc.c:2371
+[<ffffffff818adac6>] drain_all_pages mm/page_alloc.c:2364 [inline]
+[<ffffffff818adac6>] __alloc_pages_direct_reclaim mm/page_alloc.c:3435 [inline]
+[<ffffffff818adac6>] __alloc_pages_slowpath+0x966/0x23d0 mm/page_alloc.c:3773
+[<ffffffff818afe25>] __alloc_pages_nodemask+0x8f5/0xc60 mm/page_alloc.c:3975
+[<ffffffff819348a1>] __alloc_pages include/linux/gfp.h:426 [inline]
+[<ffffffff819348a1>] __alloc_pages_node include/linux/gfp.h:439 [inline]
+[<ffffffff819348a1>] alloc_pages_node include/linux/gfp.h:453 [inline]
+[<ffffffff819348a1>] pcpu_alloc_pages mm/percpu-vm.c:93 [inline]
+[<ffffffff819348a1>] pcpu_populate_chunk+0x1e1/0x900 mm/percpu-vm.c:282
+[<ffffffff81938205>] pcpu_alloc+0xe15/0x1290 mm/percpu.c:999
+[<ffffffff819386a7>] __alloc_percpu_gfp+0x27/0x30 mm/percpu.c:1063
+[<ffffffff81811913>] bpf_array_alloc_percpu kernel/bpf/arraymap.c:33 [inline]
+[<ffffffff81811913>] array_map_alloc+0x543/0x700 kernel/bpf/arraymap.c:94
+[<ffffffff817f53cd>] find_and_alloc_map kernel/bpf/syscall.c:37 [inline]
+[<ffffffff817f53cd>] map_create kernel/bpf/syscall.c:228 [inline]
+[<ffffffff817f53cd>] SYSC_bpf kernel/bpf/syscall.c:1040 [inline]
+[<ffffffff817f53cd>] SyS_bpf+0x108d/0x27c0 kernel/bpf/syscall.c:997
+[<ffffffff8448ee41>] entry_SYSCALL_64_fastpath+0x1f/0xc2
+
+other info that might help us debug this:
+
+Chain exists of:
+  cpu_hotplug.dep_map --> cpu_hotplug.lock --> pcpu_alloc_mutex
+
+ Possible unsafe locking scenario:
+
+       CPU0                    CPU1
+       ----                    ----
+  lock(pcpu_alloc_mutex);
+                               lock(cpu_hotplug.lock);
+                               lock(pcpu_alloc_mutex);
+  lock(cpu_hotplug.dep_map);
+
+ *** DEADLOCK ***
+
+1 lock held by syz-executor3/14255:
+ #0:  (pcpu_alloc_mutex){+.+.+.}, at: [<ffffffff81937fee>]
+pcpu_alloc+0xbfe/0x1290 mm/percpu.c:897
+
+stack backtrace:
+CPU: 1 PID: 14255 Comm: syz-executor3 Not tainted 4.10.0-rc5-next-20170125 #1
+Hardware name: Google Google Compute Engine/Google Compute Engine,
+BIOS Google 01/01/2011
+Call Trace:
+ __dump_stack lib/dump_stack.c:15 [inline]
+ dump_stack+0x2ee/0x3ef lib/dump_stack.c:51
+ print_circular_bug+0x307/0x3b0 kernel/locking/lockdep.c:1202
+ check_prev_add kernel/locking/lockdep.c:1828 [inline]
+ check_prevs_add+0xa8f/0x19f0 kernel/locking/lockdep.c:1938
+ validate_chain kernel/locking/lockdep.c:2265 [inline]
+ __lock_acquire+0x2149/0x3430 kernel/locking/lockdep.c:3338
+ lock_acquire+0x2a1/0x630 kernel/locking/lockdep.c:3753
+ get_online_cpus+0x62/0x90 kernel/cpu.c:241
+ drain_all_pages.part.98+0x8c/0x8f0 mm/page_alloc.c:2371
+ drain_all_pages mm/page_alloc.c:2364 [inline]
+ __alloc_pages_direct_reclaim mm/page_alloc.c:3435 [inline]
+ __alloc_pages_slowpath+0x966/0x23d0 mm/page_alloc.c:3773
+ __alloc_pages_nodemask+0x8f5/0xc60 mm/page_alloc.c:3975
+ __alloc_pages include/linux/gfp.h:426 [inline]
+ __alloc_pages_node include/linux/gfp.h:439 [inline]
+ alloc_pages_node include/linux/gfp.h:453 [inline]
+ pcpu_alloc_pages mm/percpu-vm.c:93 [inline]
+ pcpu_populate_chunk+0x1e1/0x900 mm/percpu-vm.c:282
+ pcpu_alloc+0xe15/0x1290 mm/percpu.c:999
+ __alloc_percpu_gfp+0x27/0x30 mm/percpu.c:1063
+ bpf_array_alloc_percpu kernel/bpf/arraymap.c:33 [inline]
+ array_map_alloc+0x543/0x700 kernel/bpf/arraymap.c:94
+ find_and_alloc_map kernel/bpf/syscall.c:37 [inline]
+ map_create kernel/bpf/syscall.c:228 [inline]
+ SYSC_bpf kernel/bpf/syscall.c:1040 [inline]
+ SyS_bpf+0x108d/0x27c0 kernel/bpf/syscall.c:997
+ entry_SYSCALL_64_fastpath+0x1f/0xc2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
