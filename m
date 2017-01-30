@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF3C6B0261
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 04:49:58 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id an2so60104087wjc.3
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 01:49:58 -0800 (PST)
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B16796B0260
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 04:49:59 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id h7so60386648wjy.6
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 01:49:59 -0800 (PST)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id e63si12717022wmi.104.2017.01.30.01.49.57
+        by mx.google.com with ESMTPS id c19si15810328wrc.287.2017.01.30.01.49.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 01:49:57 -0800 (PST)
-Received: by mail-wm0-f68.google.com with SMTP id v77so15086256wmv.0
+        Mon, 30 Jan 2017 01:49:58 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id v77so15086317wmv.0
         for <linux-mm@kvack.org>; Mon, 30 Jan 2017 01:49:57 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/9] rhashtable: simplify a strange allocation pattern
-Date: Mon, 30 Jan 2017 10:49:34 +0100
-Message-Id: <20170130094940.13546-4-mhocko@kernel.org>
+Subject: [PATCH 4/9] ila: simplify a strange allocation pattern
+Date: Mon, 30 Jan 2017 10:49:35 +0100
+Message-Id: <20170130094940.13546-5-mhocko@kernel.org>
 In-Reply-To: <20170130094940.13546-1-mhocko@kernel.org>
 References: <20170130094940.13546-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,49 +24,42 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel 
 
 From: Michal Hocko <mhocko@suse.com>
 
-alloc_bucket_locks allocation pattern is quite unusual. We are
-preferring vmalloc when CONFIG_NUMA is enabled. The rationale is that
-vmalloc will respect the memory policy of the current process and so the
-backing memory will get distributed over multiple nodes if the requester
-is configured properly. At least that is the intention, in reality
-rhastable is shrunk and expanded from a kernel worker so no mempolicy
-can be assumed.
+alloc_ila_locks seemed to c&p from alloc_bucket_locks allocation
+pattern which is quite unusual. The default allocation size is 320 *
+sizeof(spinlock_t) which is sub page unless lockdep is enabled when the
+performance benefit is really questionable and not worth the subtle code
+IMHO. Also note that the context when we call ila_init_net (modprobe or
+a task creating a net namespace) has to be properly configured.
 
-Let's just simplify the code and use kvmalloc helper, which is a
-transparent way to use kmalloc with vmalloc fallback, if the caller
-is allowed to block and use the flag otherwise.
+Let's just simplify the code and use kvmalloc helper which is a
+transparent way to use kmalloc with vmalloc fallback.
 
 Cc: Tom Herbert <tom@herbertland.com>
 Cc: Eric Dumazet <eric.dumazet@gmail.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- lib/rhashtable.c | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
+ net/ipv6/ila/ila_xlat.c | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
 
-diff --git a/lib/rhashtable.c b/lib/rhashtable.c
-index 32d0ad058380..1a487ea70829 100644
---- a/lib/rhashtable.c
-+++ b/lib/rhashtable.c
-@@ -77,16 +77,9 @@ static int alloc_bucket_locks(struct rhashtable *ht, struct bucket_table *tbl,
- 	size = min_t(unsigned int, size, tbl->size >> 1);
+diff --git a/net/ipv6/ila/ila_xlat.c b/net/ipv6/ila/ila_xlat.c
+index af8f52ee7180..2fd5ca151dcf 100644
+--- a/net/ipv6/ila/ila_xlat.c
++++ b/net/ipv6/ila/ila_xlat.c
+@@ -41,13 +41,7 @@ static int alloc_ila_locks(struct ila_net *ilan)
+ 	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
  
  	if (sizeof(spinlock_t) != 0) {
--		tbl->locks = NULL;
 -#ifdef CONFIG_NUMA
--		if (size * sizeof(spinlock_t) > PAGE_SIZE &&
--		    gfp == GFP_KERNEL)
--			tbl->locks = vmalloc(size * sizeof(spinlock_t));
+-		if (size * sizeof(spinlock_t) > PAGE_SIZE)
+-			ilan->locks = vmalloc(size * sizeof(spinlock_t));
+-		else
 -#endif
--		if (gfp != GFP_KERNEL)
--			gfp |= __GFP_NOWARN | __GFP_NORETRY;
--
--		if (!tbl->locks)
-+		if (gfpflags_allow_blocking(gfp))
-+			tbl->locks = kvmalloc(size * sizeof(spinlock_t), gfp);
-+		else
- 			tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
- 						   gfp);
- 		if (!tbl->locks)
+-		ilan->locks = kmalloc_array(size, sizeof(spinlock_t),
+-					    GFP_KERNEL);
++		ilan->locks = kvmalloc(size * sizeof(spinlock_t), GFP_KERNEL);
+ 		if (!ilan->locks)
+ 			return -ENOMEM;
+ 		for (i = 0; i < size; i++)
 -- 
 2.11.0
 
