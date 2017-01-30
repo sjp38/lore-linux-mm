@@ -1,177 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 938946B026B
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 03:55:50 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so60002448wjc.4
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 00:55:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i67si12568705wmh.2.2017.01.30.00.55.48
+	by kanga.kvack.org (Postfix) with ESMTP id 16FE36B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 04:49:56 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id an2so60103882wjc.3
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 01:49:56 -0800 (PST)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id h28si12698214wmi.75.2017.01.30.01.49.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 00:55:49 -0800 (PST)
-Date: Mon, 30 Jan 2017 09:55:46 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jan 2017 01:49:54 -0800 (PST)
+Received: by mail-wm0-f68.google.com with SMTP id v77so15086080wmv.0
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 01:49:54 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170130085546.GF8443@dhcp22.suse.cz>
-References: <20170125101957.GA17632@lst.de>
- <20170125104605.GI32377@dhcp22.suse.cz>
- <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
- <20170125130014.GO32377@dhcp22.suse.cz>
- <20170127144906.GB4148@dhcp22.suse.cz>
- <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
+Subject: [PATCH 0/6 v3] kvmalloc
+Date: Mon, 30 Jan 2017 10:49:31 +0100
+Message-Id: <20170130094940.13546-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Alexei Starovoitov <ast@kernel.org>, Andreas Dilger <adilger@dilger.ca>, Andreas Dilger <andreas.dilger@intel.com>, Andrey Konovalov <andreyknvl@google.com>, Anton Vorontsov <anton@enomsg.org>, Ben Skeggs <bskeggs@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Colin Cross <ccross@android.com>, Daniel Borkmann <daniel@iogearbox.net>, Dan Williams <dan.j.williams@intel.com>, David Sterba <dsterba@suse.com>, Eric Dumazet <edumazet@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, Hariprasad S <hariprasad@chelsio.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Ilya Dryomov <idryomov@gmail.com>, John Hubbard <jhubbard@nvidia.com>, Kees Cook <keescook@chromium.org>, Kent Overstreet <kent.overstreet@gmail.com>, Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>, Mike Snitzer <snitzer@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Oleg Drokin <oleg.drokin@intel.com>, Pablo Neira Ayuso <pablo@netfilter.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Santosh Raspatur <santosh@chelsio.com>, Tariq Toukan <tariqt@mellanox.com>, Tom Herbert <tom@herbertland.com>, Tony Luck <tony.luck@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Yishai Hadas <yishaih@mellanox.com>
 
-On Sun 29-01-17 00:27:27, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > Tetsuo,
-> > before we settle on the proper fix for this issue, could you give the
-> > patch a try and try to reproduce the too_many_isolated() issue or
-> > just see whether patch [1] has any negative effect on your oom stress
-> > testing?
-> > 
-> > [1] http://lkml.kernel.org/r/20170119112336.GN30786@dhcp22.suse.cz
-> 
-> I tested with both [1] and below patch applied on linux-next-20170125 and
-> the result is at http://I-love.SAKURA.ne.jp/tmp/serial-20170128.txt.xz .
-> 
-> Regarding below patch, it helped avoiding complete memory depletion with
-> large write() request. I don't know whether below patch helps avoiding
-> complete memory depletion when reading large amount (in other words, I
-> don't know whether this check is done for large read() request).
+Hi,
+this has been previously posted here [1] and it received quite some
+feedback. As a result the number of patches has grown again. We are at
+9 patches right now. I have rebased the series on top of the current
+next-20170130. There were some changes since the last posting, namely
+a7f6c1b63b86 ("AppArmor: Use GFP_KERNEL for __aa_kvmalloc().") which
+dropped GFP_NOIO from __aa_kvmalloc and d407bd25a204 ("bpf: don't
+trigger OOM killer under pressure with map alloc") which has created a
+kvmalloc alternative for bpf code. Both have been changed to use the mm
+kvmalloc but it is worth noting this dependency during the merge window.
 
-It's not AFAICS. do_generic_file_read doesn't do the
-fatal_signal_pending check.
+I hope there are no further obstacles to have this merged into the mmotm
+tree and go in in the next merge window.
 
-> But
-> I believe that __GFP_KILLABLE (despite the limitation that there are
-> unkillable waits in the reclaim path) is better solution compared to
-> scattering around fatal_signal_pending() in the callers. The reason
-> we check SIGKILL here is to avoid allocating memory more than needed.
-> If we check SIGKILL in the entry point of __alloc_pages_nodemask() and
-> retry: label in __alloc_pages_slowpath(), we waste 0 page. Regardless
-> of whether the OOM killer is invoked, whether memory can be allocated
-> without direct reclaim operation, not allocating memory unless needed
-> (in other words, allow page allocator fail immediately if the caller
-> can give up on SIGKILL and SIGKILL is pending) makes sense. It will
-> reduce possibility of OOM livelock on CONFIG_MMU=n kernels where the
-> OOM reaper is not available.
+Original cover:
 
-I am not really convinced this is a good idea. Put aside the fuzzy
-semantic of __GFP_KILLABLE, we would have to use this flag in all
-potentially allocating places from read/write paths and then it is just
-easier to do the explicit checks in the the loops around those
-allocations.
- 
-> > On Wed 25-01-17 14:00:14, Michal Hocko wrote:
-> > [...]
-> > > From 362da5cac527146a341300c2ca441245c16043e8 Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > Date: Wed, 25 Jan 2017 11:06:37 +0100
-> > > Subject: [PATCH] fs: break out of iomap_file_buffered_write on fatal signals
-> > > 
-> > > Tetsuo has noticed that an OOM stress test which performs large write
-> > > requests can cause the full memory reserves depletion. He has tracked
-> > > this down to the following path
-> > > 	__alloc_pages_nodemask+0x436/0x4d0
-> > > 	alloc_pages_current+0x97/0x1b0
-> > > 	__page_cache_alloc+0x15d/0x1a0          mm/filemap.c:728
-> > > 	pagecache_get_page+0x5a/0x2b0           mm/filemap.c:1331
-> > > 	grab_cache_page_write_begin+0x23/0x40   mm/filemap.c:2773
-> > > 	iomap_write_begin+0x50/0xd0             fs/iomap.c:118
-> > > 	iomap_write_actor+0xb5/0x1a0            fs/iomap.c:190
-> > > 	? iomap_write_end+0x80/0x80             fs/iomap.c:150
-> > > 	iomap_apply+0xb3/0x130                  fs/iomap.c:79
-> > > 	iomap_file_buffered_write+0x68/0xa0     fs/iomap.c:243
-> > > 	? iomap_write_end+0x80/0x80
-> > > 	xfs_file_buffered_aio_write+0x132/0x390 [xfs]
-> > > 	? remove_wait_queue+0x59/0x60
-> > > 	xfs_file_write_iter+0x90/0x130 [xfs]
-> > > 	__vfs_write+0xe5/0x140
-> > > 	vfs_write+0xc7/0x1f0
-> > > 	? syscall_trace_enter+0x1d0/0x380
-> > > 	SyS_write+0x58/0xc0
-> > > 	do_syscall_64+0x6c/0x200
-> > > 	entry_SYSCALL64_slow_path+0x25/0x25
-> > > 
-> > > the oom victim has access to all memory reserves to make a forward
-> > > progress to exit easier. But iomap_file_buffered_write and other callers
-> > > of iomap_apply loop to complete the full request. We need to check for
-> > > fatal signals and back off with a short write instead. As the
-> > > iomap_apply delegates all the work down to the actor we have to hook
-> > > into those. All callers that work with the page cache are calling
-> > > iomap_write_begin so we will check for signals there. dax_iomap_actor
-> > > has to handle the situation explicitly because it copies data to the
-> > > userspace directly. Other callers like iomap_page_mkwrite work on a
-> > > single page or iomap_fiemap_actor do not allocate memory based on the
-> > > given len.
-> > > 
-> > > Fixes: 68a9f5e7007c ("xfs: implement iomap based buffered write path")
-> > > Cc: stable # 4.8+
-> > > Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > ---
-> > >  fs/dax.c   | 5 +++++
-> > >  fs/iomap.c | 3 +++
-> > >  2 files changed, 8 insertions(+)
-> > > 
-> > > diff --git a/fs/dax.c b/fs/dax.c
-> > > index 413a91db9351..0e263dacf9cf 100644
-> > > --- a/fs/dax.c
-> > > +++ b/fs/dax.c
-> > > @@ -1033,6 +1033,11 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
-> > >  		struct blk_dax_ctl dax = { 0 };
-> > >  		ssize_t map_len;
-> > >  
-> > > +		if (fatal_signal_pending(current)) {
-> > > +			ret = -EINTR;
-> > > +			break;
-> > > +		}
-> > > +
-> > >  		dax.sector = dax_iomap_sector(iomap, pos);
-> > >  		dax.size = (length + offset + PAGE_SIZE - 1) & PAGE_MASK;
-> > >  		map_len = dax_map_atomic(iomap->bdev, &dax);
-> > > diff --git a/fs/iomap.c b/fs/iomap.c
-> > > index e57b90b5ff37..691eada58b06 100644
-> > > --- a/fs/iomap.c
-> > > +++ b/fs/iomap.c
-> > > @@ -114,6 +114,9 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
-> > >  
-> > >  	BUG_ON(pos + len > iomap->offset + iomap->length);
-> > >  
-> > > +	if (fatal_signal_pending(current))
-> > > +		return -EINTR;
-> > > +
-> > >  	page = grab_cache_page_write_begin(inode->i_mapping, index, flags);
-> > >  	if (!page)
-> > >  		return -ENOMEM;
-> > > -- 
-> > > 2.11.0
-> 
-> Regarding [1], it helped avoiding the too_many_isolated() issue. I can't
-> tell whether it has any negative effect, but I got on the first trial that
-> all allocating threads are blocked on wait_for_completion() from flush_work()
-> in drain_all_pages() introduced by "mm, page_alloc: drain per-cpu pages from
-> workqueue context". There was no warn_alloc() stall warning message afterwords.
+There are many open coded kmalloc with vmalloc fallback instances in
+the tree.  Most of them are not careful enough or simply do not care
+about the underlying semantic of the kmalloc/page allocator which means
+that a) some vmalloc fallbacks are basically unreachable because the
+kmalloc part will keep retrying until it succeeds b) the page allocator
+can invoke a really disruptive steps like the OOM killer to move forward
+which doesn't sound appropriate when we consider that the vmalloc
+fallback is available.
 
-That patch is buggy and there is a follow up [1] which is not sitting in the
-mmotm (and thus linux-next) yet. I didn't get to review it properly and
-I cannot say I would be too happy about using WQ from the page
-allocator. I believe even the follow up needs to have WQ_RECLAIM WQ.
+As it can be seen implementing kvmalloc requires quite an intimate
+knowledge if the page allocator and the memory reclaim internals which
+strongly suggests that a helper should be implemented in the memory
+subsystem proper.
 
-[1] http://lkml.kernel.org/r/20170125083038.rzb5f43nptmk7aed@techsingularity.net
+Most callers, I could find, have been converted to use the helper
+instead.  This is patch 5. There are some more relying on __GFP_REPEAT
+in the networking stack which I have converted as well and Eric Dumazet
+was not opposed [2] to convert them as well.
 
-Thanks for your testing!
--- 
-Michal Hocko
-SUSE Labs
+[1] http://lkml.kernel.org/r/20170112153717.28943-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/1485273626.16328.301.camel@edumazet-glaptop3.roam.corp.google.com
+
+Michal Hocko (9):
+      mm: introduce kv[mz]alloc helpers
+      mm: support __GFP_REPEAT in kvmalloc_node for >32kB
+      rhashtable: simplify a strange allocation pattern
+      ila: simplify a strange allocation pattern
+      treewide: use kv[mz]alloc* rather than opencoded variants
+      net: use kvmalloc with __GFP_REPEAT rather than open coded variant
+      md: use kvmalloc rather than opencoded variant
+      bcache: use kvmalloc
+      net, bpf: use kvzalloc helper
+
+ arch/s390/kvm/kvm-s390.c                           | 10 +---
+ arch/x86/kvm/lapic.c                               |  4 +-
+ arch/x86/kvm/page_track.c                          |  4 +-
+ arch/x86/kvm/x86.c                                 |  4 +-
+ crypto/lzo.c                                       |  4 +-
+ drivers/acpi/apei/erst.c                           |  8 +--
+ drivers/char/agp/generic.c                         |  8 +--
+ drivers/gpu/drm/nouveau/nouveau_gem.c              |  4 +-
+ drivers/md/bcache/super.c                          |  8 +--
+ drivers/md/bcache/util.h                           | 12 +----
+ drivers/md/dm-ioctl.c                              | 13 ++---
+ drivers/md/dm-stats.c                              |  7 +--
+ drivers/net/ethernet/chelsio/cxgb3/cxgb3_defs.h    |  3 --
+ drivers/net/ethernet/chelsio/cxgb3/cxgb3_offload.c | 29 ++---------
+ drivers/net/ethernet/chelsio/cxgb3/l2t.c           |  8 +--
+ drivers/net/ethernet/chelsio/cxgb3/l2t.h           |  1 -
+ drivers/net/ethernet/chelsio/cxgb4/clip_tbl.c      | 12 ++---
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4.h         |  3 --
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4_debugfs.c | 10 ++--
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4_ethtool.c |  8 +--
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c    | 31 ++----------
+ drivers/net/ethernet/chelsio/cxgb4/cxgb4_tc_u32.c  | 13 +++--
+ drivers/net/ethernet/chelsio/cxgb4/l2t.c           |  2 +-
+ drivers/net/ethernet/chelsio/cxgb4/sched.c         | 12 ++---
+ drivers/net/ethernet/mellanox/mlx4/en_tx.c         |  9 ++--
+ drivers/net/ethernet/mellanox/mlx4/mr.c            |  9 ++--
+ drivers/nvdimm/dimm_devs.c                         |  5 +-
+ .../staging/lustre/lnet/libcfs/linux/linux-mem.c   | 11 +----
+ drivers/vhost/net.c                                |  9 ++--
+ drivers/vhost/vhost.c                              | 15 ++----
+ drivers/vhost/vsock.c                              |  9 ++--
+ drivers/xen/evtchn.c                               | 14 +-----
+ fs/btrfs/ctree.c                                   |  9 ++--
+ fs/btrfs/ioctl.c                                   |  9 ++--
+ fs/btrfs/send.c                                    | 27 ++++------
+ fs/ceph/file.c                                     |  9 ++--
+ fs/ext4/mballoc.c                                  |  2 +-
+ fs/ext4/super.c                                    |  4 +-
+ fs/f2fs/f2fs.h                                     | 20 --------
+ fs/f2fs/file.c                                     |  4 +-
+ fs/f2fs/segment.c                                  | 14 +++---
+ fs/select.c                                        |  5 +-
+ fs/seq_file.c                                      | 16 +-----
+ fs/xattr.c                                         | 27 ++++------
+ include/linux/kvm_host.h                           |  2 -
+ include/linux/mlx5/driver.h                        |  7 +--
+ include/linux/mm.h                                 | 22 +++++++++
+ include/linux/vmalloc.h                            |  1 +
+ ipc/util.c                                         |  7 +--
+ kernel/bpf/syscall.c                               | 19 ++------
+ lib/iov_iter.c                                     |  5 +-
+ lib/rhashtable.c                                   | 13 ++---
+ mm/frame_vector.c                                  |  5 +-
+ mm/nommu.c                                         |  5 ++
+ mm/util.c                                          | 57 ++++++++++++++++++++++
+ mm/vmalloc.c                                       |  9 +++-
+ net/core/dev.c                                     | 24 ++++-----
+ net/ipv4/inet_hashtables.c                         |  6 +--
+ net/ipv4/tcp_metrics.c                             |  5 +-
+ net/ipv6/ila/ila_xlat.c                            |  8 +--
+ net/mpls/af_mpls.c                                 |  5 +-
+ net/netfilter/x_tables.c                           | 37 ++++----------
+ net/netfilter/xt_recent.c                          |  5 +-
+ net/sched/sch_choke.c                              |  5 +-
+ net/sched/sch_fq.c                                 | 12 +----
+ net/sched/sch_fq_codel.c                           | 26 +++-------
+ net/sched/sch_hhf.c                                | 33 ++++---------
+ net/sched/sch_netem.c                              |  6 +--
+ net/sched/sch_sfq.c                                |  6 +--
+ security/apparmor/apparmorfs.c                     |  2 +-
+ security/apparmor/include/lib.h                    | 11 -----
+ security/apparmor/lib.c                            | 30 ------------
+ security/apparmor/match.c                          |  2 +-
+ security/apparmor/policy_unpack.c                  |  2 +-
+ security/keys/keyctl.c                             | 22 +++------
+ virt/kvm/kvm_main.c                                | 18 ++-----
+ 76 files changed, 279 insertions(+), 583 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
