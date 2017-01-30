@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3106C6B0253
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:41 -0500 (EST)
-Received: by mail-wj0-f199.google.com with SMTP id yr2so60704878wjc.4
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 02:47:41 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i128si12889313wmi.52.2017.01.30.02.47.39
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 285EA6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:04:54 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id j82so371135642oih.6
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 04:04:54 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40109.outbound.protection.outlook.com. [40.107.4.109])
+        by mx.google.com with ESMTPS id r188si5335530oib.142.2017.01.30.04.04.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 02:47:39 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0UAi3Js146840
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:38 -0500
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com [125.16.236.5])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 28a09s8gmp-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:38 -0500
-Received: from localhost
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 30 Jan 2017 16:17:35 +0530
-Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
-	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0UAlWit23920828
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:17:32 +0530
-Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
-	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0UAlUP9019646
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:17:32 +0530
-Subject: Re: [PATCH v2 00/12] mm: page migration enhancement for thp
-References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 30 Jan 2017 16:17:27 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 30 Jan 2017 04:04:53 -0800 (PST)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv4 0/5] Fix compatible mmap() return pointer over 4Gb
+Date: Mon, 30 Jan 2017 15:04:27 +0300
+Message-ID: <20170130120432.6716-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <b6f7dd5d-47aa-0ec2-b18a-bb4074ab2a2a@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>Zi Yan <zi.yan@cs.rutgers.edu>
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
 
-On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
-> Hi everyone,
-> 
-> I've updated thp migration patches for v4.9-rc2-mmotm-2016-10-27-18-27
-> with feedbacks for ver.1.
+Changes since v3:
+- fixed usage of 64-bit random mask for 32-bit mm->mmap_compat_base,
+  during introducing mmap_compat{_legacy,}_base
 
-Hello Noaya,
+Changes since v2:
+- don't distinguish native and compat tasks by TIF_ADDR32,
+  introduced mmap_compat{_legacy,}_base which allows to treat them
+  the same
+- fixed kbuild errors
 
-I have been working with Zi Yan on the parallel huge page migration series
-(https://lkml.org/lkml/2016/11/22/457) and planning to post them on top of
-this THP migration enhancement series. Hence we were wondering if you have
-plans to post a new version of this series in near future ?
+Changes since v1:
+- Recalculate mmap_base instead of using max possible virtual address
+  for compat/native syscall. That will make policy for allocation the
+  same in 32-bit binaries and in 32-bit syscalls in 64-bit binaries.
+  I need this because sys_mmap() in restored 32-bit process shouldn't
+  hit the stack area.
+- Fixed mmap() with MAP_32BIT flag in the same usecases
+- used in_compat_syscall() helper rather TS_COMPAT check (Andy noticed)
+- introduced find_top() helper as suggested by Andy to simplify code
+- fixed test error-handeling: it checked the result of sys_mmap() with
+  MMAP_FAILED, which is not correct, as it calls raw syscall - now
+  checks return value to be aligned to PAGE_SIZE.
 
-Regards
-Anshuman
+Description from v1 [2]:
+
+A fix for bug in mmap() that I referenced in [1].
+Also selftest for it.
+
+I would like to mark the fix as for stable v4.9 kernel if it'll
+be accepted, as I try to support compatible 32-bit C/R
+after v4.9 and working compatible mmap() is really wanted there.
+
+[1]: https://marc.info/?l=linux-kernel&m=148311451525315
+[2]: https://marc.info/?l=linux-kernel&m=148415888707662
+
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: x86@kernel.org
+Cc: linux-mm@kvack.org
+
+Dmitry Safonov (5):
+  x86/mm: split arch_mmap_rnd() on compat/native versions
+  x86/mm: introduce mmap{,_legacy}_base
+  x86/mm: fix 32-bit mmap() for 64-bit ELF
+  x86/mm: check in_compat_syscall() instead TIF_ADDR32 for
+    mmap(MAP_32BIT)
+  selftests/x86: add test to check compat mmap() return addr
+
+ arch/Kconfig                                   |   7 +
+ arch/x86/Kconfig                               |   1 +
+ arch/x86/include/asm/elf.h                     |   4 +-
+ arch/x86/include/asm/processor.h               |   3 +-
+ arch/x86/kernel/sys_x86_64.c                   |  32 +++-
+ arch/x86/mm/mmap.c                             |  89 +++++++----
+ include/linux/mm_types.h                       |   5 +
+ tools/testing/selftests/x86/Makefile           |   2 +-
+ tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
+ 9 files changed, 311 insertions(+), 40 deletions(-)
+ create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
