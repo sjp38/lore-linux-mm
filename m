@@ -1,85 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 02C496B0278
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:38:51 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v77so69509528wmv.5
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 08:38:50 -0800 (PST)
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 08F446B0069
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:43:24 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id kq3so63200791wjc.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 08:43:23 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w48si17152879wrc.70.2017.01.30.08.38.49
+        by mx.google.com with ESMTPS id z4si14053049wmb.59.2017.01.30.08.43.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 08:38:49 -0800 (PST)
-Date: Mon, 30 Jan 2017 17:38:47 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4 2/2] HWPOISON: soft offlining for non-lru movable page
-Message-ID: <20170130163846.GD4664@dhcp22.suse.cz>
-References: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
- <1485356738-4831-3-git-send-email-ysxie@foxmail.com>
- <20170126092725.GD6590@dhcp22.suse.cz>
- <588F55ED.3010509@foxmail.com>
+        Mon, 30 Jan 2017 08:43:22 -0800 (PST)
+Subject: Re: [PATCH 7/9] md: use kvmalloc rather than opencoded variant
+References: <20170130094940.13546-1-mhocko@kernel.org>
+ <20170130094940.13546-8-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d80af165-9af1-97dc-edda-b1f8701164cd@suse.cz>
+Date: Mon, 30 Jan 2017 17:42:18 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <588F55ED.3010509@foxmail.com>
+In-Reply-To: <20170130094940.13546-8-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <ysxie@foxmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Mikulas Patocka <mpatocka@redhat.com>, Mike Snitzer <snitzer@redhat.com>
 
-On Mon 30-01-17 23:04:13, Yisheng Xie wrote:
-> Hi, Michal,
-> Sorry for late reply.
-> 
-> On 01/26/2017 05:27 PM, Michal Hocko wrote:
-> > On Wed 25-01-17 23:05:38, ysxie@foxmail.com wrote:
-> >> From: Yisheng Xie <xieyisheng1@huawei.com>
-> >>
-> >> This patch is to extends soft offlining framework to support
-> >> non-lru page, which already support migration after
-> >> commit bda807d44454 ("mm: migrate: support non-lru movable page
-> >> migration")
-> >>
-> >> When memory corrected errors occur on a non-lru movable page,
-> >> we can choose to stop using it by migrating data onto another
-> >> page and disable the original (maybe half-broken) one.
-> >>
-> >> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> >> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> >> Suggested-by: Minchan Kim <minchan@kernel.org>
-> >> Reviewed-by: Minchan Kim <minchan@kernel.org>
-> >> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >> CC: Vlastimil Babka <vbabka@suse.cz>
-> >> ---
-> >>  mm/memory-failure.c | 26 ++++++++++++++++----------
-> >>  1 file changed, 16 insertions(+), 10 deletions(-)
-> >>
-> >> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> >> index f283c7e..56e39f8 100644
-> >> --- a/mm/memory-failure.c
-> >> +++ b/mm/memory-failure.c
-> >> @@ -1527,7 +1527,8 @@ static int get_any_page(struct page *page, unsigned long pfn, int flags)
-> >>  {
-> >>  	int ret = __get_any_page(page, pfn, flags);
-> >>  
-> >> -	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
-> >> +	if (ret == 1 && !PageHuge(page) &&
-> >> +	    !PageLRU(page) && !__PageMovable(page)) {
-> >>  		/*
-> >>  		 * Try to free it.
-> >>  		 */
-> > Is this sufficient? Not that I am familiar with get_any_page() but
-> > __get_any_page doesn't seem to be aware of movable pages and neither
-> > shake_page is.
-> Sorry,maybe I do not quite get what you mean.
->  If the page can be migrated, it can skip "shake_page and __get_any_page once more" here,
-> though it is not a free page. right ?
-> Please let me know if I miss anything.
+On 01/30/2017 10:49 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> copy_params uses kmalloc with vmalloc fallback. We already have a helper
+> for that - kvmalloc. This caller requires GFP_NOIO semantic so it hasn't
+> been converted with many others by previous patches. All we need to
+> achieve this semantic is to use the scope memalloc_noio_{save,restore}
+> around kvmalloc.
+>
+> Cc: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-No, you are right, it is me who read the code incorrectly. Sorry about
-the confusion.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  drivers/md/dm-ioctl.c | 13 ++++---------
+>  1 file changed, 4 insertions(+), 9 deletions(-)
+>
+> diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+> index a5a9b17f0f7f..dbf5b981f7d7 100644
+> --- a/drivers/md/dm-ioctl.c
+> +++ b/drivers/md/dm-ioctl.c
+> @@ -1698,6 +1698,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+>  	struct dm_ioctl *dmi;
+>  	int secure_data;
+>  	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
+> +	unsigned noio_flag;
+>
+>  	if (copy_from_user(param_kernel, user, minimum_data_size))
+>  		return -EFAULT;
+> @@ -1720,15 +1721,9 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+>  	 * Use kmalloc() rather than vmalloc() when we can.
+>  	 */
+>  	dmi = NULL;
+> -	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
+> -		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+> -
+> -	if (!dmi) {
+> -		unsigned noio_flag;
+> -		noio_flag = memalloc_noio_save();
+> -		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+> -		memalloc_noio_restore(noio_flag);
+> -	}
+> +	noio_flag = memalloc_noio_save();
+> +	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL);
+> +	memalloc_noio_restore(noio_flag);
+>
+>  	if (!dmi) {
+>  		if (secure_data && clear_user(user, param_kernel->data_size))
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
