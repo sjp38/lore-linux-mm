@@ -1,108 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FD706B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:21:54 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so449769960pgd.7
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 02:21:54 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id a204si12220336pfa.101.2017.01.30.02.21.53
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3106C6B0253
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:41 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id yr2so60704878wjc.4
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 02:47:41 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i128si12889313wmi.52.2017.01.30.02.47.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 02:21:53 -0800 (PST)
-Date: Mon, 30 Jan 2017 12:21:55 +0200
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [PATCH 5/9] treewide: use kv[mz]alloc* rather than opencoded
- variants
-Message-ID: <20170130102155.GK6005@mtr-leonro.local>
-References: <20170130094940.13546-1-mhocko@kernel.org>
- <20170130094940.13546-6-mhocko@kernel.org>
+        Mon, 30 Jan 2017 02:47:39 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0UAi3Js146840
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:38 -0500
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com [125.16.236.5])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28a09s8gmp-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 05:47:38 -0500
+Received: from localhost
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 30 Jan 2017 16:17:35 +0530
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0UAlWit23920828
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:17:32 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0UAlUP9019646
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:17:32 +0530
+Subject: Re: [PATCH v2 00/12] mm: page migration enhancement for thp
+References: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 30 Jan 2017 16:17:27 +0530
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="LNKrWK8T5LDJo+fl"
-Content-Disposition: inline
-In-Reply-To: <20170130094940.13546-6-mhocko@kernel.org>
+In-Reply-To: <1478561517-4317-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <b6f7dd5d-47aa-0ec2-b18a-bb4074ab2a2a@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Yishai Hadas <yishaih@mellanox.com>, Oleg Drokin <oleg.drokin@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Pavel Emelyanov <xemul@parallels.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Balbir Singh <bsingharora@gmail.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>Zi Yan <zi.yan@cs.rutgers.edu>
 
+On 11/08/2016 05:01 AM, Naoya Horiguchi wrote:
+> Hi everyone,
+> 
+> I've updated thp migration patches for v4.9-rc2-mmotm-2016-10-27-18-27
+> with feedbacks for ver.1.
 
---LNKrWK8T5LDJo+fl
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Hello Noaya,
 
-On Mon, Jan 30, 2017 at 10:49:36AM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> There are many code paths opencoding kvmalloc. Let's use the helper
-> instead. The main difference to kvmalloc is that those users are usually
-> not considering all the aspects of the memory allocator. E.g. allocation
-> requests <= 32kB (with 4kB pages) are basically never failing and invoke
-> OOM killer to satisfy the allocation. This sounds too disruptive for
-> something that has a reasonable fallback - the vmalloc. On the other
-> hand those requests might fallback to vmalloc even when the memory
-> allocator would succeed after several more reclaim/compaction attempts
-> previously. There is no guarantee something like that happens though.
->
-> This patch converts many of those places to kv[mz]alloc* helpers because
-> they are more conservative.
->
-> Changes since v1
-> - add kvmalloc_array - this might silently fix some overflow issues
->   because most users simply didn't check the overflow for the vmalloc
->   fallback.
->
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Herbert Xu <herbert@gondor.apana.org.au>
-> Cc: Anton Vorontsov <anton@enomsg.org>
-> Cc: Colin Cross <ccross@android.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Ben Skeggs <bskeggs@redhat.com>
-> Cc: Kent Overstreet <kent.overstreet@gmail.com>
-> Cc: Santosh Raspatur <santosh@chelsio.com>
-> Cc: Hariprasad S <hariprasad@chelsio.com>
-> Cc: Yishai Hadas <yishaih@mellanox.com>
-> Cc: Oleg Drokin <oleg.drokin@intel.com>
-> Cc: "Yan, Zheng" <zyan@redhat.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Alexei Starovoitov <ast@kernel.org>
-> Cc: Eric Dumazet <eric.dumazet@gmail.com>
-> Cc: netdev@vger.kernel.org
-> Acked-by: Andreas Dilger <andreas.dilger@intel.com> # Lustre
-> Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com> # Xen bits
-> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com> # KVM/s390
-> Acked-by: Dan Williams <dan.j.williams@intel.com> # nvdim
-> Acked-by: David Sterba <dsterba@suse.com> # btrfs
-> Acked-by: Ilya Dryomov <idryomov@gmail.com> # Ceph
-> Acked-by: Tariq Toukan <tariqt@mellanox.com> # mlx4
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+I have been working with Zi Yan on the parallel huge page migration series
+(https://lkml.org/lkml/2016/11/22/457) and planning to post them on top of
+this THP migration enhancement series. Hence we were wondering if you have
+plans to post a new version of this series in near future ?
 
-Acked-by: Leon Romanovsky <leonro@mellanox.com> # mlx5
-
---LNKrWK8T5LDJo+fl
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAliPE8MACgkQ5GN7iDZy
-WKfJfg//VOxtLjgK0HaPkAHu0w0PVT1lOHx8xasYvbhQVtdUGdmspMrgIhcAvkNt
-MN4/sLUPfm86tvwUlHqp36jmcXHXnauAZTUL/HYcwmEsLeAD65JlpR+KG2sz9ijb
-47FBDOd5nPzfIO0k7iXB8kSiEdp8H9SwTedV2MgiFfeHM180gTv2q2QzMCJry644
-eq/efEIcfvzhrSpzLboQ1b7p19HkuKhWRqZdSZB+PL8lp7WZoFL8jdUd6PeXAek7
-9TCrMZJvuyCgJgTRgijPJlcgERJ9rn2ri7k+YLuHdig8GV6D6LyxHICrPZvwsdLr
-Y+lyLWLAUwW3P3k1oa41CIo/f2HeKITYgfU4rdVLmzi0iXUFpl2A3PZDfxA6eYzk
-wMG+GHuwDsLYmbBE6XOMToL07MHh5GlZXchykRNit1bS4pACKfj9Jk9gqJLVd3gn
-Xte0WTaBVoqNB3uW6VH1ViwlmjKLD7y6aBMKwdFZIIuDLlYOk/ir6LZMb+qfvnU9
-CHZ221XyJhr2RgaynmaHiC8nOXIwVn1HJm/etDHWM05ohbyep8Rr3+Mk/OmZfDS/
-TQu9J9zono//KblkmaBY39Bcuw4bmncmKmT5dnT/0jPKtwFQL8vQ1OSDFk4b/GgL
-WnYF9bqB1XA2ZKmvTI0ye167CTCuBfsE5MGpOgds5FUjMg/QKDw=
-=qAIc
------END PGP SIGNATURE-----
-
---LNKrWK8T5LDJo+fl--
+Regards
+Anshuman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
