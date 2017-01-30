@@ -1,85 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F506B026C
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:16:25 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id d123so204231734pfd.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:16:24 -0800 (PST)
-Received: from smtpbg298.qq.com (smtpbg298.qq.com. [184.105.67.102])
-        by mx.google.com with ESMTPS id v187si8680294pgv.219.2017.01.30.07.16.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B8A6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:21:13 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id r18so9568338wmd.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:21:13 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o97si16865908wrc.185.2017.01.30.07.21.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 07:16:24 -0800 (PST)
-Subject: Re: [RFC v2 PATCH] mm/hotplug: enable memory hotplug for non-lru
- movable pages
-References: <1485327585-62872-1-git-send-email-xieyisheng1@huawei.com>
- <20170126094303.GE6590@dhcp22.suse.cz>
-From: Yisheng Xie <ysxie@foxmail.com>
-Message-ID: <588F584F.5080904@foxmail.com>
-Date: Mon, 30 Jan 2017 23:14:23 +0800
+        Mon, 30 Jan 2017 07:21:12 -0800 (PST)
+Subject: Re: [PATCH 4/9] ila: simplify a strange allocation pattern
+References: <20170130094940.13546-1-mhocko@kernel.org>
+ <20170130094940.13546-5-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7d8d27b2-2556-efb1-f319-666133014f2b@suse.cz>
+Date: Mon, 30 Jan 2017 16:21:08 +0100
 MIME-Version: 1.0
-In-Reply-To: <20170126094303.GE6590@dhcp22.suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170130094940.13546-5-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, n-horiguchi@ah.jp.nec.com, minchan@kernel.org, qiuxishi@huawei.com, guohanjun@huawei.com
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Tom Herbert <tom@herbertland.com>, Eric Dumazet <eric.dumazet@gmail.com>
 
-
-hi Michal,
-Thank you for reviewing and sorry for late reply.
-
-On 01/26/2017 05:43 PM, Michal Hocko wrote:
-> On Wed 25-01-17 14:59:45, Yisheng Xie wrote:
+On 01/30/2017 10:49 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
->  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->  {
-> @@ -1531,6 +1531,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
->  					pfn = round_up(pfn + 1,
->  						1 << compound_order(page)) - 1;
->  			}
-> +			/*
-> +			 * check __PageMovable in lock_page to avoid miss some
-> +			 * non-lru movable pages at race condition.
-> +			 */
-> +			lock_page(page);
-> +			if (__PageMovable(page)) {
-> +				unlock_page(page);
-> +				return pfn;
-> +			}
-> +			unlock_page(page);
-> This doesn't make any sense to me. __PageMovable can change right after
-> you drop the lock so why the race matters? If we cannot tolerate races
-> then the above doesn't work and if we can then taking the lock is
-> pointless.
-hmm, for PageLRU check may also race without lru-locki 1/4 ?
-I think it is ok to check __PageMovable without lock_page, here.
+> alloc_ila_locks seemed to c&p from alloc_bucket_locks allocation
+> pattern which is quite unusual. The default allocation size is 320 *
+> sizeof(spinlock_t) which is sub page unless lockdep is enabled when the
+> performance benefit is really questionable and not worth the subtle code
+> IMHO. Also note that the context when we call ila_init_net (modprobe or
+> a task creating a net namespace) has to be properly configured.
+>
+> Let's just simplify the code and use kvmalloc helper which is a
+> transparent way to use kmalloc with vmalloc fallback.
+>
+> Cc: Tom Herbert <tom@herbertland.com>
+> Cc: Eric Dumazet <eric.dumazet@gmail.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
->>  		}
->>  	}
->>  	return 0;
->> @@ -1600,21 +1610,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
->>  		if (!get_page_unless_zero(page))
->>  			continue;
->>  		/*
->> -		 * We can skip free pages. And we can only deal with pages on
->> -		 * LRU.
->> +		 * We can skip free pages. And we can deal with pages on
->> +		 * LRU and non-lru movable pages.
->>  		 */
->> -		ret = isolate_lru_page(page);
->> +		if (PageLRU(page))
->> +			ret = isolate_lru_page(page);
->> +		else
->> +			ret = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
-> we really want to propagate the proper error code to the caller.
-Yes , I make the same mistake again. Really sorry about that.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Maybe I can rewrite the isolate_movable_page to let it return int as isolate_lru_page
-do in this patchset :)
-
-Thanks
-Yisheng Xie
+> ---
+>  net/ipv6/ila/ila_xlat.c | 8 +-------
+>  1 file changed, 1 insertion(+), 7 deletions(-)
+>
+> diff --git a/net/ipv6/ila/ila_xlat.c b/net/ipv6/ila/ila_xlat.c
+> index af8f52ee7180..2fd5ca151dcf 100644
+> --- a/net/ipv6/ila/ila_xlat.c
+> +++ b/net/ipv6/ila/ila_xlat.c
+> @@ -41,13 +41,7 @@ static int alloc_ila_locks(struct ila_net *ilan)
+>  	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
+>
+>  	if (sizeof(spinlock_t) != 0) {
+> -#ifdef CONFIG_NUMA
+> -		if (size * sizeof(spinlock_t) > PAGE_SIZE)
+> -			ilan->locks = vmalloc(size * sizeof(spinlock_t));
+> -		else
+> -#endif
+> -		ilan->locks = kmalloc_array(size, sizeof(spinlock_t),
+> -					    GFP_KERNEL);
+> +		ilan->locks = kvmalloc(size * sizeof(spinlock_t), GFP_KERNEL);
+>  		if (!ilan->locks)
+>  			return -ENOMEM;
+>  		for (i = 0; i < size; i++)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
