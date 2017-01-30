@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D726B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 14:24:04 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id v96so152184441ioi.5
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:24:04 -0800 (PST)
-Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
-        by mx.google.com with ESMTPS id i138si11420631ioe.200.2017.01.30.11.24.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 178006B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 15:30:10 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id r141so9503701wmg.4
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:30:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b203si13572974wmf.125.2017.01.30.12.30.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 11:24:03 -0800 (PST)
-Received: by mail-it0-x22e.google.com with SMTP id 203so201250374ith.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:24:03 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 Jan 2017 12:30:08 -0800 (PST)
+Date: Mon, 30 Jan 2017 20:30:03 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC V2 05/12] cpuset: Add cpuset_inc() inside cpuset_init()
+Message-ID: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-6-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170130094940.13546-6-mhocko@kernel.org>
-References: <20170130094940.13546-1-mhocko@kernel.org> <20170130094940.13546-6-mhocko@kernel.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 30 Jan 2017 11:24:02 -0800
-Message-ID: <CAGXu5jLFwQuUyZuRuK60YBGYbbEkt+C3dKxCyDe65Ad5co2oLw@mail.gmail.com>
-Subject: Re: [PATCH 5/9] treewide: use kv[mz]alloc* rather than opencoded variants
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170130033602.12275-6-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Yishai Hadas <yishaih@mellanox.com>, Oleg Drokin <oleg.drokin@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Network Development <netdev@vger.kernel.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Mon, Jan 30, 2017 at 1:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> There are many code paths opencoding kvmalloc. Let's use the helper
-> instead. The main difference to kvmalloc is that those users are usually
-> not considering all the aspects of the memory allocator. E.g. allocation
-> requests <= 32kB (with 4kB pages) are basically never failing and invoke
-> OOM killer to satisfy the allocation. This sounds too disruptive for
-> something that has a reasonable fallback - the vmalloc. On the other
-> hand those requests might fallback to vmalloc even when the memory
-> allocator would succeed after several more reclaim/compaction attempts
-> previously. There is no guarantee something like that happens though.
->
-> This patch converts many of those places to kv[mz]alloc* helpers because
-> they are more conservative.
->
-> Changes since v1
-> - add kvmalloc_array - this might silently fix some overflow issues
->   because most users simply didn't check the overflow for the vmalloc
->   fallback.
+On Mon, Jan 30, 2017 at 09:05:46AM +0530, Anshuman Khandual wrote:
+> Currently cpusets_enabled() wrongfully returns 0 even if we have a root
+> cpuset configured on the system. This got missed when jump level was
+> introduced in place of number_of_cpusets with the commit 664eeddeef65
+> ("mm: page_alloc: use jump labels to avoid checking number_of_cpusets")
+> . This fixes the problem so that cpusets_enabled() returns positive even
+> for the root cpuset.
+> 
+> Fixes: 664eeddeef65 ("mm: page_alloc: use jump labels to avoid")
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Awesome, thanks for adding that API. :)
-
-Acked-by: Kees Cook <keescook@chromium.org>
-
--Kees
+Superficially, this appears to always activate the cpuset_enabled
+branch() when it doesn't really make sense that the root cpuset be
+restricted. I strongly suspect it should be altered to cpuset_inc only
+if the root cpuset is configured to isolate memory.
 
 -- 
-Kees Cook
-Nexus Security
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
