@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3265D6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:25:38 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id kq3so63501808wjc.1
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:25:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e18si17262012wra.151.2017.01.30.09.25.36
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 771516B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:34:28 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c73so462054096pfb.7
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:34:28 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id g9si13159578plk.185.2017.01.30.09.34.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 09:25:37 -0800 (PST)
-Date: Mon, 30 Jan 2017 18:25:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 8/9] bcache: use kvmalloc
-Message-ID: <20170130172535.GC14783@dhcp22.suse.cz>
-References: <20170130094940.13546-1-mhocko@kernel.org>
- <20170130094940.13546-9-mhocko@kernel.org>
- <28e7a4de-6940-5626-d382-1381640d58f0@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jan 2017 09:34:27 -0800 (PST)
+Subject: Re: [RFC V2 03/12] mm: Change generic FALLBACK zonelist creation
+ process
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-4-khandual@linux.vnet.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <07bd439c-6270-b219-227b-4079d36a2788@intel.com>
+Date: Mon, 30 Jan 2017 09:34:27 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <28e7a4de-6940-5626-d382-1381640d58f0@suse.cz>
+In-Reply-To: <20170130033602.12275-4-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Kent Overstreet <kent.overstreet@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
 
-On Mon 30-01-17 17:47:31, Vlastimil Babka wrote:
-> On 01/30/2017 10:49 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > bcache_device_init uses kmalloc for small requests and vmalloc for those
-> > which are larger than 64 pages. This alone is a strange criterion.
-> > Moreover kmalloc can fallback to vmalloc on the failure. Let's simply
-> > use kvmalloc instead as it knows how to handle the fallback properly
-> 
-> I don't see why separate patch, some of the conversions in 5/9 were quite
-> similar (except comparing with PAGE_SIZE, not 64*PAGE_SIZE), but nevermind.
+On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
+> * CDM node's zones are not part of any other node's FALLBACK zonelist
+> * CDM node's FALLBACK list contains it's own memory zones followed by
+>   all system RAM zones in regular order as before
+> * CDM node's zones are part of it's own NOFALLBACK zonelist
 
-I just found it later so I kept it separate. It can be folded to 5/9 if
-that makes more sense.
- 
-> > Cc: Kent Overstreet <kent.overstreet@gmail.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+This seems like a sane policy for the system that you're describing.
+But, it's still a policy, and it's rather hard-coded into the kernel.
+Let's say we had a CDM node with 100x more RAM than the rest of the
+system and it was just as fast as the rest of the RAM.  Would we still
+want it isolated like this?  Or would we want a different policy?
 
-Thanks!
+Why do we need this hard-coded along with the cpuset stuff later in the
+series.  Doesn't taking a node out of the cpuset also take it out of the
+fallback lists?
 
-> > ---
-> >  drivers/md/bcache/super.c | 8 ++------
-> >  1 file changed, 2 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
-> > index 3a19cbc8b230..4cb6b88a1465 100644
-> > --- a/drivers/md/bcache/super.c
-> > +++ b/drivers/md/bcache/super.c
-> > @@ -767,16 +767,12 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
-> >  	}
-> > 
-> >  	n = d->nr_stripes * sizeof(atomic_t);
-> > -	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
-> > -		? kzalloc(n, GFP_KERNEL)
-> > -		: vzalloc(n);
-> > +	d->stripe_sectors_dirty = kvzalloc(n, GFP_KERNEL);
-> >  	if (!d->stripe_sectors_dirty)
-> >  		return -ENOMEM;
-> > 
-> >  	n = BITS_TO_LONGS(d->nr_stripes) * sizeof(unsigned long);
-> > -	d->full_dirty_stripes = n < PAGE_SIZE << 6
-> > -		? kzalloc(n, GFP_KERNEL)
-> > -		: vzalloc(n);
-> > +	d->full_dirty_stripes = kvzalloc(n, GFP_KERNEL);
-> >  	if (!d->full_dirty_stripes)
-> >  		return -ENOMEM;
-> > 
-> > 
+>  	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
+> +#ifdef CONFIG_COHERENT_DEVICE
+> +		/*
+> +		 * CDM node's own zones should not be part of any other
+> +		 * node's fallback zonelist but only it's own fallback
+> +		 * zonelist.
+> +		 */
+> +		if (is_cdm_node(node) && (pgdat->node_id != node))
+> +			continue;
+> +#endif
 
--- 
-Michal Hocko
-SUSE Labs
+On a superficial note: Isn't that #ifdef unnecessary?  is_cdm_node() has
+a 'return 0' stub when the config option is off anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
