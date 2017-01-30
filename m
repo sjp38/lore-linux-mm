@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 285EA6B0038
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 950806B025E
 	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:04:54 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id j82so371135642oih.6
+Received: by mail-ot0-f200.google.com with SMTP id g13so287367080otd.5
         for <linux-mm@kvack.org>; Mon, 30 Jan 2017 04:04:54 -0800 (PST)
 Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40109.outbound.protection.outlook.com. [40.107.4.109])
-        by mx.google.com with ESMTPS id r188si5335530oib.142.2017.01.30.04.04.52
+        by mx.google.com with ESMTPS id r188si5335530oib.142.2017.01.30.04.04.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Mon, 30 Jan 2017 04:04:53 -0800 (PST)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4 0/5] Fix compatible mmap() return pointer over 4Gb
-Date: Mon, 30 Jan 2017 15:04:27 +0300
-Message-ID: <20170130120432.6716-1-dsafonov@virtuozzo.com>
+Subject: [PATCHv4 1/5] x86/mm: split arch_mmap_rnd() on compat/native versions
+Date: Mon, 30 Jan 2017 15:04:28 +0300
+Message-ID: <20170130120432.6716-2-dsafonov@virtuozzo.com>
+In-Reply-To: <20170130120432.6716-1-dsafonov@virtuozzo.com>
+References: <20170130120432.6716-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org, Shuah Khan <shuah@kernel.org>, linux-kselftest@vger.kernel.org
+ Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, x86@kernel.org, linux-mm@kvack.org
 
-Changes since v3:
-- fixed usage of 64-bit random mask for 32-bit mm->mmap_compat_base,
-  during introducing mmap_compat{_legacy,}_base
+I need those arch_{native,compat}_rnd() to compute separately
+random factor for mmap() in compat syscalls for 64-bit binaries
+and vice-versa for native syscall in 32-bit compat binaries.
+They will be used in the following patches.
 
-Changes since v2:
-- don't distinguish native and compat tasks by TIF_ADDR32,
-  introduced mmap_compat{_legacy,}_base which allows to treat them
-  the same
-- fixed kbuild errors
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ arch/x86/mm/mmap.c | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
 
-Changes since v1:
-- Recalculate mmap_base instead of using max possible virtual address
-  for compat/native syscall. That will make policy for allocation the
-  same in 32-bit binaries and in 32-bit syscalls in 64-bit binaries.
-  I need this because sys_mmap() in restored 32-bit process shouldn't
-  hit the stack area.
-- Fixed mmap() with MAP_32BIT flag in the same usecases
-- used in_compat_syscall() helper rather TS_COMPAT check (Andy noticed)
-- introduced find_top() helper as suggested by Andy to simplify code
-- fixed test error-handeling: it checked the result of sys_mmap() with
-  MMAP_FAILED, which is not correct, as it calls raw syscall - now
-  checks return value to be aligned to PAGE_SIZE.
-
-Description from v1 [2]:
-
-A fix for bug in mmap() that I referenced in [1].
-Also selftest for it.
-
-I would like to mark the fix as for stable v4.9 kernel if it'll
-be accepted, as I try to support compatible 32-bit C/R
-after v4.9 and working compatible mmap() is really wanted there.
-
-[1]: https://marc.info/?l=linux-kernel&m=148311451525315
-[2]: https://marc.info/?l=linux-kernel&m=148415888707662
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: x86@kernel.org
-Cc: linux-mm@kvack.org
-
-Dmitry Safonov (5):
-  x86/mm: split arch_mmap_rnd() on compat/native versions
-  x86/mm: introduce mmap{,_legacy}_base
-  x86/mm: fix 32-bit mmap() for 64-bit ELF
-  x86/mm: check in_compat_syscall() instead TIF_ADDR32 for
-    mmap(MAP_32BIT)
-  selftests/x86: add test to check compat mmap() return addr
-
- arch/Kconfig                                   |   7 +
- arch/x86/Kconfig                               |   1 +
- arch/x86/include/asm/elf.h                     |   4 +-
- arch/x86/include/asm/processor.h               |   3 +-
- arch/x86/kernel/sys_x86_64.c                   |  32 +++-
- arch/x86/mm/mmap.c                             |  89 +++++++----
- include/linux/mm_types.h                       |   5 +
- tools/testing/selftests/x86/Makefile           |   2 +-
- tools/testing/selftests/x86/test_compat_mmap.c | 208 +++++++++++++++++++++++++
- 9 files changed, 311 insertions(+), 40 deletions(-)
- create mode 100644 tools/testing/selftests/x86/test_compat_mmap.c
-
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index d2dc0438d654..42063e787717 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -65,20 +65,27 @@ static int mmap_is_legacy(void)
+ 	return sysctl_legacy_va_layout;
+ }
+ 
+-unsigned long arch_mmap_rnd(void)
++#ifdef CONFIG_COMPAT
++static unsigned long arch_compat_rnd(void)
+ {
+-	unsigned long rnd;
++	return (get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1))
++		<< PAGE_SHIFT;
++}
++#endif
+ 
+-	if (mmap_is_ia32())
++static unsigned long arch_native_rnd(void)
++{
++	return (get_random_long() & ((1UL << mmap_rnd_bits) - 1)) << PAGE_SHIFT;
++}
++
++unsigned long arch_mmap_rnd(void)
++{
+ #ifdef CONFIG_COMPAT
+-		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
+-#else
+-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
++	if (mmap_is_ia32())
++		return arch_compat_rnd();
+ #endif
+-	else
+-		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
+ 
+-	return rnd << PAGE_SHIFT;
++	return arch_native_rnd();
+ }
+ 
+ static unsigned long mmap_base(unsigned long rnd)
 -- 
 2.11.0
 
