@@ -1,61 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0B56B0033
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:13:35 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id x4so8349487wme.3
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:13:35 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h6si16826652wrb.227.2017.01.30.07.13.34
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F506B026C
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:16:25 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id d123so204231734pfd.0
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:16:24 -0800 (PST)
+Received: from smtpbg298.qq.com (smtpbg298.qq.com. [184.105.67.102])
+        by mx.google.com with ESMTPS id v187si8680294pgv.219.2017.01.30.07.16.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 07:13:34 -0800 (PST)
-Date: Mon, 30 Jan 2017 16:13:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4 1/2] mm/migration: make isolate_movable_page always
- defined
-Message-ID: <20170130151331.GA5311@dhcp22.suse.cz>
-References: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
- <1485356738-4831-2-git-send-email-ysxie@foxmail.com>
- <20170126091833.GC6590@dhcp22.suse.cz>
- <588F54E8.5040303@foxmail.com>
+        Mon, 30 Jan 2017 07:16:24 -0800 (PST)
+Subject: Re: [RFC v2 PATCH] mm/hotplug: enable memory hotplug for non-lru
+ movable pages
+References: <1485327585-62872-1-git-send-email-xieyisheng1@huawei.com>
+ <20170126094303.GE6590@dhcp22.suse.cz>
+From: Yisheng Xie <ysxie@foxmail.com>
+Message-ID: <588F584F.5080904@foxmail.com>
+Date: Mon, 30 Jan 2017 23:14:23 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <20170126094303.GE6590@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <588F54E8.5040303@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <ysxie@foxmail.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Michal Hocko <mhocko@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, n-horiguchi@ah.jp.nec.com, minchan@kernel.org, qiuxishi@huawei.com, guohanjun@huawei.com
 
-On Mon 30-01-17 22:59:52, Yisheng Xie wrote:
-> Hii 1/4 ? Michali 1/4 ?
-> Sorry for late reply.
-> 
-> On 01/26/2017 05:18 PM, Michal Hocko wrote:
-> > On Wed 25-01-17 23:05:37, ysxie@foxmail.com wrote:
-> >> From: Yisheng Xie <xieyisheng1@huawei.com>
-> >>
-> >> Define isolate_movable_page as a static inline function when
-> >> CONFIG_MIGRATION is not enable. It should return false
-> >> here which means failed to isolate movable pages.
-> >>
-> >> This patch do not have any functional change but prepare for
-> >> later patch.
-> > I think it would make more sense to make isolate_movable_page return int
-> > and have the same semantic as __isolate_lru_page. This would be a better
-> > preparatory patch for the later work.
-> Yes, I think you are right, it is better to make isolate_movable_page return int
-> just as what isolate_lru_page do, to make a better code style.
-> 
-> It seems Andrew had already merged the fixed patch from Arnd Bergmann,
-> Maybe I can rewrite it in a later patch if it is suitable :)
 
-I guess Andrew can just drop the current series with the folow up fixes
-and wait for your newer version.
--- 
-Michal Hocko
-SUSE Labs
+hi Michal,
+Thank you for reviewing and sorry for late reply.
+
+On 01/26/2017 05:43 PM, Michal Hocko wrote:
+> On Wed 25-01-17 14:59:45, Yisheng Xie wrote:
+>
+>  static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  {
+> @@ -1531,6 +1531,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>  					pfn = round_up(pfn + 1,
+>  						1 << compound_order(page)) - 1;
+>  			}
+> +			/*
+> +			 * check __PageMovable in lock_page to avoid miss some
+> +			 * non-lru movable pages at race condition.
+> +			 */
+> +			lock_page(page);
+> +			if (__PageMovable(page)) {
+> +				unlock_page(page);
+> +				return pfn;
+> +			}
+> +			unlock_page(page);
+> This doesn't make any sense to me. __PageMovable can change right after
+> you drop the lock so why the race matters? If we cannot tolerate races
+> then the above doesn't work and if we can then taking the lock is
+> pointless.
+hmm, for PageLRU check may also race without lru-locki 1/4 ?
+I think it is ok to check __PageMovable without lock_page, here.
+
+>>  		}
+>>  	}
+>>  	return 0;
+>> @@ -1600,21 +1610,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+>>  		if (!get_page_unless_zero(page))
+>>  			continue;
+>>  		/*
+>> -		 * We can skip free pages. And we can only deal with pages on
+>> -		 * LRU.
+>> +		 * We can skip free pages. And we can deal with pages on
+>> +		 * LRU and non-lru movable pages.
+>>  		 */
+>> -		ret = isolate_lru_page(page);
+>> +		if (PageLRU(page))
+>> +			ret = isolate_lru_page(page);
+>> +		else
+>> +			ret = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
+> we really want to propagate the proper error code to the caller.
+Yes , I make the same mistake again. Really sorry about that.
+
+Maybe I can rewrite the isolate_movable_page to let it return int as isolate_lru_page
+do in this patchset :)
+
+Thanks
+Yisheng Xie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
