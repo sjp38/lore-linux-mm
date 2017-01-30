@@ -1,103 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6FD6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 18:40:31 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 80so475159905pfy.2
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 15:40:31 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id o19si9700059pgk.11.2017.01.30.15.40.29
-        for <linux-mm@kvack.org>;
-        Mon, 30 Jan 2017 15:40:30 -0800 (PST)
-Date: Tue, 31 Jan 2017 08:40:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: vmscan: do not pass reclaimed slab to vmpressure
-Message-ID: <20170130234028.GA7942@bbox>
-References: <1485344318-6418-1-git-send-email-vinmenon@codeaurora.org>
- <20170125232713.GB20811@bbox>
- <CAOaiJ-mk=SmNR4oK+udhJNxHzmobf28wSu+nf449c=1cHMBDAg@mail.gmail.com>
- <20170126141836.GA3584@bbox>
- <CAOaiJ-m=X=8GpLCW-7wVkBmT=Gq9V9ocXtcXbmNNALffLepWeg@mail.gmail.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA0866B0253
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 18:43:23 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e4so342270511pfg.4
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 15:43:23 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id y60si14038320plh.265.2017.01.30.15.43.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jan 2017 15:43:22 -0800 (PST)
+Date: Mon, 30 Jan 2017 16:43:21 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 1/3] mm,fs,dax: Change ->pmd_fault to ->huge_fault
+Message-ID: <20170130234321.GA26702@linux.intel.com>
+References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
+ <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOaiJ-m=X=8GpLCW-7wVkBmT=Gq9V9ocXtcXbmNNALffLepWeg@mail.gmail.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayak menon <vinayakm.list@gmail.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Shiraz Hashim <shiraz.hashim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Dave Jiang <dave.jiang@intel.com>
+Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
 
-Hi Vinayak,
-Sorry for late response. It was Lunar New Year holidays.
-
-On Fri, Jan 27, 2017 at 01:43:23PM +0530, vinayak menon wrote:
-> >
-> > Thanks for the explain. However, such case can happen with THP page
-> > as well as slab. In case of THP page, nr_scanned is 1 but nr_reclaimed
-> > could be 512 so I think vmpressure should have a logic to prevent undeflow
-> > regardless of slab shrinking.
-> >
-> I see. Going to send a vmpressure fix. But, wouldn't the THP case
-> result in incorrect
-> vmpressure reporting even if we fix the vmpressure underflow problem ?
-
-If a THP page is reclaimed, it reports lower pressure due to bigger
-reclaim ratio(ie, reclaimed/scanned) compared to normal pages but
-it's not a problem, is it? Because VM reclaimed more memory than
-expected so memory pressure isn't severe now.
-
+On Thu, Jan 26, 2017 at 10:09:47AM -0700, Dave Jiang wrote:
+> In preparation for adding the ability to handle PUD pages, convert
+> ->pmd_fault to ->huge_fault.  The vm_fault structure is extended to
+> include a union of the different page table pointers that may be needed,
+> and three flag bits are reserved to indicate which type of pointer is in
+> the union.
 > 
-> >>
-> >> >
-> >> >> unsigned arithmetic results in the pressure value to be
-> >> >> huge, thus resulting in a critical event being sent to
-> >> >> root cgroup. Fix this by not passing the reclaimed slab
-> >> >> count to vmpressure, with the assumption that vmpressure
-> >> >> should show the actual pressure on LRU which is now
-> >> >> diluted by adding reclaimed slab without a corresponding
-> >> >> scanned value.
-> >> >
-> >> > I can't guess justfication of your assumption from the description.
-> >> > Why do we consider only LRU pages for vmpressure? Could you elaborate
-> >> > a bit?
-> >> >
-> >> When we encountered the false events from vmpressure, thought the problem
-> >> could be that slab scanned is not included in sc->nr_scanned, like it is done
-> >> for reclaimed. But later thought vmpressure works only on the scanned and
-> >> reclaimed from LRU. I can explain what I understand, let me know if this is
-> >> incorrect.
-> >> vmpressure is an index which tells the pressure on LRU, and thus an
-> >> indicator of thrashing. In shrink_node when we come out of the inner do-while
-> >> loop after shrinking the lruvec, the scanned and reclaimed corresponds to the
-> >> pressure felt on the LRUs which in turn indicates the pressure on VM. The
-> >> moment we add the slab reclaimed pages to the reclaimed, we dilute the
-> >> actual pressure felt on LRUs. When slab scanned/reclaimed is not included
-> >> in the vmpressure, the values will indicate the actual pressure and if there
-> >> were a lot of slab reclaimed pages it will result in lesser pressure
-> >> on LRUs in the next run which will again be indicated by vmpressure. i.e. the
-> >
-> > I think there is no intention to exclude slab by design of vmpressure.
-> > Beause slab is memory consumption so freeing of slab pages really helps
-> > the memory pressure. Also, there might be slab-intensive workload rather
-> > than LRU. It would be great if vmpressure works well with that case.
-> > But the problem with involving slab for vmpressure is it's not fair with
-> > LRU pages. LRU pages are 1:1 cost model for scan:free but slab shriking
-> > depends the each slab's object population. It means it's impossible to
-> > get stable cost model with current slab shrinkg model, unfortunately.
-> > So I don't obejct this patch although I want to see slab shrink model's
-> > change which is heavy-handed work.
-> >
-> Looking at the code, the slab reclaimed pages started getting passed to
-> vmpressure after the commit ("mm: vmscan: invoke slab shrinkers from
-> shrink_zone()").
-> But as you said, this may be helpful for slab intensive workloads. But in its
-> current form I think it results in incorrect vmpressure reporting because of not
-> accounting the slab scanned pages. Resending the patch with a modified
-> commit msg
-> since the underflow issue is fixed separately. Thanks Minchan.
+> [DJ: Forward ported to 4.10-rc]
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
 
-Make sense.
+Hey Dave,
 
-Thanks, Vinayak!
+Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
+which I bisected to this commit:
+
+[  370.086205] ------------[ cut here ]------------
+[  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
+[  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
+[  370.089073] Modules linked in: dax_pmem nd_pmem dax nd_btt nd_e820 libnvdimm
+[  370.090212] CPU: 0 PID: 12415 Comm: xfs_io Tainted: G      D         4.10.0-rc5-mm1-00202-g7e90fc0 #10
+[  370.091648] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
+[  370.092946] task: ffff8800ac4f8000 task.stack: ffffc9001148c000
+[  370.093769] RIP: 0010:mm_fault_error+0x15e/0x190
+[  370.094410] RSP: 0000:ffffc9001148fe60 EFLAGS: 00010246
+[  370.095135] RAX: 0000000000000000 RBX: 0000000000000006 RCX: ffff8800ac4f8000
+[  370.096107] RDX: 00007f111c8e6400 RSI: 0000000000000006 RDI: ffffc9001148ff58
+[  370.097087] RBP: ffffc9001148fe88 R08: 0000000000000000 R09: ffff880510bd3300
+[  370.098072] R10: ffff8800ac4f8000 R11: 0000000000000000 R12: 00007f111c8e6400
+[  370.099057] R13: 00007f111c8e6400 R14: ffff880510bd3300 R15: 0000000000000055
+[  370.100135] FS:  00007f111d95e700(0000) GS:ffff880514800000(0000) knlGS:0000000000000000
+[  370.101238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  370.102021] CR2: 00007f111c8e6400 CR3: 00000000add00000 CR4: 00000000001406f0
+[  370.103189] Call Trace:
+[  370.103537]  __do_page_fault+0x54e/0x590
+[  370.104090]  trace_do_page_fault+0x58/0x2c0
+[  370.104675]  do_async_page_fault+0x2c/0x90
+[  370.105342]  async_page_fault+0x28/0x30
+[  370.106044] RIP: 0033:0x405e9a
+[  370.106470] RSP: 002b:00007fffb7f30590 EFLAGS: 00010287
+[  370.107185] RAX: 00000000004e6400 RBX: 0000000000000057 RCX: 00000000004e7000
+[  370.108155] RDX: 00007f111c400000 RSI: 00000000004e7000 RDI: 0000000001c35080
+[  370.109157] RBP: 00000000004e6400 R08: 0000000000000014 R09: 1999999999999999
+[  370.110158] R10: 00007f111d2dc200 R11: 0000000000000000 R12: 0000000001c32fc0
+[  370.111165] R13: 0000000000000000 R14: 0000000000000c00 R15: 0000000000000005
+[  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9 
+[  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
+[  370.115722] ---[ end trace 2ce10d930638254d ]---
+
+
+Can you let me know if you can reproduce this?
+
+Thanks,
+- Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
