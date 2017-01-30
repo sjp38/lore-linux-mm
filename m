@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9506B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:04:47 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id gt1so62062372wjc.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 06:04:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e68si13521783wmd.117.2017.01.30.06.04.45
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6126B0253
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:00:03 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id y196so153481550ity.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:00:03 -0800 (PST)
+Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
+        by mx.google.com with ESMTPS id k185si8250140itb.12.2017.01.30.07.00.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 06:04:46 -0800 (PST)
-Subject: Re: [PATCH 3/9] rhashtable: simplify a strange allocation pattern
-References: <20170130094940.13546-1-mhocko@kernel.org>
- <20170130094940.13546-4-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <42a48532-23f5-f965-1e14-aa4b292b13cd@suse.cz>
-Date: Mon, 30 Jan 2017 15:04:43 +0100
+        Mon, 30 Jan 2017 07:00:02 -0800 (PST)
+Subject: Re: [PATCH v4 1/2] mm/migration: make isolate_movable_page always
+ defined
+References: <1485356738-4831-1-git-send-email-ysxie@foxmail.com>
+ <1485356738-4831-2-git-send-email-ysxie@foxmail.com>
+ <20170126091833.GC6590@dhcp22.suse.cz>
+From: Yisheng Xie <ysxie@foxmail.com>
+Message-ID: <588F54E8.5040303@foxmail.com>
+Date: Mon, 30 Jan 2017 22:59:52 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170130094940.13546-4-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170126091833.GC6590@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Tom Herbert <tom@herbertland.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On 01/30/2017 10:49 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> alloc_bucket_locks allocation pattern is quite unusual. We are
-> preferring vmalloc when CONFIG_NUMA is enabled. The rationale is that
-> vmalloc will respect the memory policy of the current process and so the
-> backing memory will get distributed over multiple nodes if the requester
-> is configured properly. At least that is the intention, in reality
-> rhastable is shrunk and expanded from a kernel worker so no mempolicy
-> can be assumed.
->
-> Let's just simplify the code and use kvmalloc helper, which is a
-> transparent way to use kmalloc with vmalloc fallback, if the caller
-> is allowed to block and use the flag otherwise.
->
-> Cc: Tom Herbert <tom@herbertland.com>
-> Cc: Eric Dumazet <eric.dumazet@gmail.com>
+Hii 1/4 ? Michali 1/4 ?
+Sorry for late reply.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On 01/26/2017 05:18 PM, Michal Hocko wrote:
+> On Wed 25-01-17 23:05:37, ysxie@foxmail.com wrote:
+>> From: Yisheng Xie <xieyisheng1@huawei.com>
+>>
+>> Define isolate_movable_page as a static inline function when
+>> CONFIG_MIGRATION is not enable. It should return false
+>> here which means failed to isolate movable pages.
+>>
+>> This patch do not have any functional change but prepare for
+>> later patch.
+> I think it would make more sense to make isolate_movable_page return int
+> and have the same semantic as __isolate_lru_page. This would be a better
+> preparatory patch for the later work.
+Yes, I think you are right, it is better to make isolate_movable_page return int
+just as what isolate_lru_page do, to make a better code style.
 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  lib/rhashtable.c | 13 +++----------
->  1 file changed, 3 insertions(+), 10 deletions(-)
->
-> diff --git a/lib/rhashtable.c b/lib/rhashtable.c
-> index 32d0ad058380..1a487ea70829 100644
-> --- a/lib/rhashtable.c
-> +++ b/lib/rhashtable.c
-> @@ -77,16 +77,9 @@ static int alloc_bucket_locks(struct rhashtable *ht, struct bucket_table *tbl,
->  	size = min_t(unsigned int, size, tbl->size >> 1);
->
->  	if (sizeof(spinlock_t) != 0) {
-> -		tbl->locks = NULL;
-> -#ifdef CONFIG_NUMA
-> -		if (size * sizeof(spinlock_t) > PAGE_SIZE &&
-> -		    gfp == GFP_KERNEL)
-> -			tbl->locks = vmalloc(size * sizeof(spinlock_t));
-> -#endif
-> -		if (gfp != GFP_KERNEL)
-> -			gfp |= __GFP_NOWARN | __GFP_NORETRY;
-> -
-> -		if (!tbl->locks)
-> +		if (gfpflags_allow_blocking(gfp))
-> +			tbl->locks = kvmalloc(size * sizeof(spinlock_t), gfp);
-> +		else
->  			tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
->  						   gfp);
->  		if (!tbl->locks)
->
+It seems Andrew had already merged the fixed patch from Arnd Bergmann,
+Maybe I can rewrite it in a later patch if it is suitable :)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
