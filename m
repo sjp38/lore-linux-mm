@@ -1,54 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2846B0270
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:04:10 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id u63so14331986wmu.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 08:04:10 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B95FA6B0272
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:14:26 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id r18so9979798wmd.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 08:14:26 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j3si17017710wra.42.2017.01.30.08.04.09
+        by mx.google.com with ESMTPS id i3si13927029wmd.88.2017.01.30.08.14.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 08:04:09 -0800 (PST)
-Date: Mon, 30 Jan 2017 17:04:06 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] I/O error handling and fsync()
-Message-ID: <20170130160406.GB23022@quack2.suse.cz>
-References: <20170123100941.GA5745@noname.redhat.com>
- <1485210957.2786.19.camel@poochiereds.net>
- <1485212994.3722.1.camel@primarydata.com>
- <878tq1ia6l.fsf@notabene.neil.brown.name>
- <1485228841.8987.1.camel@primarydata.com>
- <20170125183542.557drncuktc5wgzy@thunk.org>
- <87ziieu06k.fsf@notabene.neil.brown.name>
- <20170126092542.GA17099@quack2.suse.cz>
- <87r33ptqg1.fsf@notabene.neil.brown.name>
- <20170127032318.rkdiwu6nog3nifdo@thunk.org>
+        Mon, 30 Jan 2017 08:14:25 -0800 (PST)
+Subject: Re: [PATCH 5/9] treewide: use kv[mz]alloc* rather than opencoded
+ variants
+References: <20170130094940.13546-1-mhocko@kernel.org>
+ <20170130094940.13546-6-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9793f9d3-4ef1-aad0-b38f-d8760e536ff9@suse.cz>
+Date: Mon, 30 Jan 2017 17:14:21 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170127032318.rkdiwu6nog3nifdo@thunk.org>
+In-Reply-To: <20170130094940.13546-6-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: NeilBrown <neilb@suse.com>, "kwolf@redhat.com" <kwolf@redhat.com>, "riel@redhat.com" <riel@redhat.com>, Jan Kara <jack@suse.cz>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Trond Myklebust <trondmy@primarydata.com>, "jlayton@poochiereds.net" <jlayton@poochiereds.net>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "rwheeler@redhat.com" <rwheeler@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Yishai Hadas <yishaih@mellanox.com>, Oleg Drokin <oleg.drokin@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, netdev@vger.kernel.org
 
-On Thu 26-01-17 22:23:18, Ted Tso wrote:
-> > And aio_write() isn't non-blocking for O_DIRECT already because .... oh,
-> > it doesn't even try.  Is there something intrinsically hard about async
-> > O_DIRECT writes, or is it just that no-one has written acceptable code
-> > yet?
-> 
-> AIO/DIO writes can indeed be non-blocking, if the file system doesn't
-> need to do any metadata operations.  So if the file is preallocated,
-> you should be able to issue an async DIO write without losing the CPU.
+On 01/30/2017 10:49 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> There are many code paths opencoding kvmalloc. Let's use the helper
+> instead. The main difference to kvmalloc is that those users are usually
+> not considering all the aspects of the memory allocator. E.g. allocation
+> requests <= 32kB (with 4kB pages) are basically never failing and invoke
+> OOM killer to satisfy the allocation. This sounds too disruptive for
+> something that has a reasonable fallback - the vmalloc. On the other
+> hand those requests might fallback to vmalloc even when the memory
+> allocator would succeed after several more reclaim/compaction attempts
+> previously. There is no guarantee something like that happens though.
+>
+> This patch converts many of those places to kv[mz]alloc* helpers because
+> they are more conservative.
+>
+> Changes since v1
+> - add kvmalloc_array - this might silently fix some overflow issues
+>   because most users simply didn't check the overflow for the vmalloc
+>   fallback.
+>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Herbert Xu <herbert@gondor.apana.org.au>
+> Cc: Anton Vorontsov <anton@enomsg.org>
+> Cc: Colin Cross <ccross@android.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> Cc: Ben Skeggs <bskeggs@redhat.com>
+> Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> Cc: Santosh Raspatur <santosh@chelsio.com>
+> Cc: Hariprasad S <hariprasad@chelsio.com>
+> Cc: Yishai Hadas <yishaih@mellanox.com>
+> Cc: Oleg Drokin <oleg.drokin@intel.com>
+> Cc: "Yan, Zheng" <zyan@redhat.com>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Alexei Starovoitov <ast@kernel.org>
+> Cc: Eric Dumazet <eric.dumazet@gmail.com>
+> Cc: netdev@vger.kernel.org
+> Acked-by: Andreas Dilger <andreas.dilger@intel.com> # Lustre
+> Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com> # Xen bits
+> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com> # KVM/s390
+> Acked-by: Dan Williams <dan.j.williams@intel.com> # nvdim
+> Acked-by: David Sterba <dsterba@suse.com> # btrfs
+> Acked-by: Ilya Dryomov <idryomov@gmail.com> # Ceph
+> Acked-by: Tariq Toukan <tariqt@mellanox.com> # mlx4
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Well, there are couple ifs though. You can still block on locks, memory
-allocation, or IO request allocation...
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
