@@ -1,127 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 506D26B0069
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:20:06 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id ez4so63374542wjd.2
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:20:06 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3265D6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:25:38 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id kq3so63501808wjc.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:25:38 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k19si14119038wmi.125.2017.01.30.09.20.04
+        by mx.google.com with ESMTPS id e18si17262012wra.151.2017.01.30.09.25.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 09:20:04 -0800 (PST)
-Date: Mon, 30 Jan 2017 18:20:03 +0100
+        Mon, 30 Jan 2017 09:25:37 -0800 (PST)
+Date: Mon, 30 Jan 2017 18:25:35 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 9/9] net, bpf: use kvzalloc helper
-Message-ID: <20170130172002.GA14783@dhcp22.suse.cz>
+Subject: Re: [PATCH 8/9] bcache: use kvmalloc
+Message-ID: <20170130172535.GC14783@dhcp22.suse.cz>
 References: <20170130094940.13546-1-mhocko@kernel.org>
- <20170130094940.13546-10-mhocko@kernel.org>
+ <20170130094940.13546-9-mhocko@kernel.org>
+ <28e7a4de-6940-5626-d382-1381640d58f0@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170130094940.13546-10-mhocko@kernel.org>
+In-Reply-To: <28e7a4de-6940-5626-d382-1381640d58f0@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Alexei Starovoitov <ast@kernel.org>, Andrey Konovalov <andreyknvl@google.com>, Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>, Pablo Neira Ayuso <pablo@netfilter.org>, Daniel Borkmann <daniel@iogearbox.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Kent Overstreet <kent.overstreet@gmail.com>
 
-Andrew, please ignore this one.
+On Mon 30-01-17 17:47:31, Vlastimil Babka wrote:
+> On 01/30/2017 10:49 AM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > bcache_device_init uses kmalloc for small requests and vmalloc for those
+> > which are larger than 64 pages. This alone is a strange criterion.
+> > Moreover kmalloc can fallback to vmalloc on the failure. Let's simply
+> > use kvmalloc instead as it knows how to handle the fallback properly
+> 
+> I don't see why separate patch, some of the conversions in 5/9 were quite
+> similar (except comparing with PAGE_SIZE, not 64*PAGE_SIZE), but nevermind.
 
-On Mon 30-01-17 10:49:40, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+I just found it later so I kept it separate. It can be folded to 5/9 if
+that makes more sense.
+ 
+> > Cc: Kent Overstreet <kent.overstreet@gmail.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> both bpf_map_area_alloc and xt_alloc_table_info try really hard to
-> play nicely with large memory requests which can be triggered from
-> the userspace (by an admin). See 5bad87348c70 ("netfilter: x_tables:
-> avoid warn and OOM killer on vmalloc call") resp. d407bd25a204 ("bpf:
-> don't trigger OOM killer under pressure with map alloc").
-> 
-> The current allocation pattern strongly resembles kvmalloc helper except
-> for one thing __GFP_NORETRY is not used for the vmalloc fallback. The
-> main reason why kvmalloc doesn't really support __GFP_NORETRY is
-> because vmalloc doesn't support this flag properly and it is far from
-> straightforward to make it understand it because there are some hard
-> coded GFP_KERNEL allocation deep in the call chains. This patch simply
-> replaces the open coded variants with kvmalloc and puts a note to
-> push on MM people to support __GFP_NORETRY in kvmalloc it this turns out
-> to be really needed along with OOM report pointing at vmalloc.
-> 
-> If there is an immediate need and no full support yet then
-> 	kvmalloc(size, gfp | __GFP_NORETRY)
-> will work as good as __vmalloc(gfp | __GFP_NORETRY) - in other words it
-> might trigger the OOM in some cases.
-> 
-> Cc: Alexei Starovoitov <ast@kernel.org>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
-> Cc: Pablo Neira Ayuso <pablo@netfilter.org>
-> Acked-by: Daniel Borkmann <daniel@iogearbox.net>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  kernel/bpf/syscall.c     | 19 +++++--------------
->  net/netfilter/x_tables.c | 16 ++++++----------
->  2 files changed, 11 insertions(+), 24 deletions(-)
-> 
-> diff --git a/kernel/bpf/syscall.c b/kernel/bpf/syscall.c
-> index 08a4d287226b..3d38c7a51e1a 100644
-> --- a/kernel/bpf/syscall.c
-> +++ b/kernel/bpf/syscall.c
-> @@ -54,21 +54,12 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
->  
->  void *bpf_map_area_alloc(size_t size)
->  {
-> -	/* We definitely need __GFP_NORETRY, so OOM killer doesn't
-> -	 * trigger under memory pressure as we really just want to
-> -	 * fail instead.
-> +	/*
-> +	 * FIXME: we would really like to not trigger the OOM killer and rather
-> +	 * fail instead. This is not supported right now. Please nag MM people
-> +	 * if these OOM start bothering people.
->  	 */
-> -	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
-> -	void *area;
-> -
-> -	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> -		area = kmalloc(size, GFP_USER | flags);
-> -		if (area != NULL)
-> -			return area;
-> -	}
-> -
-> -	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | flags,
-> -			 PAGE_KERNEL);
-> +	return kvzalloc(size, GFP_USER);
->  }
->  
->  void bpf_map_area_free(void *area)
-> diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
-> index d529989f5791..ba8ba633da72 100644
-> --- a/net/netfilter/x_tables.c
-> +++ b/net/netfilter/x_tables.c
-> @@ -995,16 +995,12 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
->  	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
->  		return NULL;
->  
-> -	if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-> -		info = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-> -	if (!info) {
-> -		info = __vmalloc(sz, GFP_KERNEL | __GFP_NOWARN |
-> -				     __GFP_NORETRY | __GFP_HIGHMEM,
-> -				 PAGE_KERNEL);
-> -		if (!info)
-> -			return NULL;
-> -	}
-> -	memset(info, 0, sizeof(*info));
-> +	/*
-> +	 * FIXME: we would really like to not trigger the OOM killer and rather
-> +	 * fail instead. This is not supported right now. Please nag MM people
-> +	 * if these OOM start bothering people.
-> +	 */
-> +	info = kvzalloc(sz, GFP_KERNEL);
->  	info->size = size;
->  	return info;
->  }
-> -- 
-> 2.11.0
-> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Thanks!
+
+> > ---
+> >  drivers/md/bcache/super.c | 8 ++------
+> >  1 file changed, 2 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+> > index 3a19cbc8b230..4cb6b88a1465 100644
+> > --- a/drivers/md/bcache/super.c
+> > +++ b/drivers/md/bcache/super.c
+> > @@ -767,16 +767,12 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
+> >  	}
+> > 
+> >  	n = d->nr_stripes * sizeof(atomic_t);
+> > -	d->stripe_sectors_dirty = n < PAGE_SIZE << 6
+> > -		? kzalloc(n, GFP_KERNEL)
+> > -		: vzalloc(n);
+> > +	d->stripe_sectors_dirty = kvzalloc(n, GFP_KERNEL);
+> >  	if (!d->stripe_sectors_dirty)
+> >  		return -ENOMEM;
+> > 
+> >  	n = BITS_TO_LONGS(d->nr_stripes) * sizeof(unsigned long);
+> > -	d->full_dirty_stripes = n < PAGE_SIZE << 6
+> > -		? kzalloc(n, GFP_KERNEL)
+> > -		: vzalloc(n);
+> > +	d->full_dirty_stripes = kvzalloc(n, GFP_KERNEL);
+> >  	if (!d->full_dirty_stripes)
+> >  		return -ENOMEM;
+> > 
+> > 
 
 -- 
 Michal Hocko
