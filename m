@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 498AC6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 12:54:29 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 201so462221107pfw.5
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 09:54:29 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r23si9002593pgo.422.2017.01.30.09.54.28
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5B66B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 13:47:08 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y196so159484545ity.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:47:08 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id g140si11381909iog.117.2017.01.30.10.47.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 09:54:28 -0800 (PST)
-Subject: Re: [RFC V2 12/12] mm: Tag VMA with VM_CDM flag explicitly during
- mbind(MPOL_BIND)
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
- <20170130033602.12275-13-khandual@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <26a17cd1-dd50-43b9-03b1-dd967466a273@intel.com>
-Date: Mon, 30 Jan 2017 09:54:27 -0800
-MIME-Version: 1.0
-In-Reply-To: <20170130033602.12275-13-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Mon, 30 Jan 2017 10:47:08 -0800 (PST)
+Date: Mon, 30 Jan 2017 12:47:04 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] slab reclaim
+In-Reply-To: <b3e28101-1129-d2bc-8695-e7f7529a1442@suse.cz>
+Message-ID: <alpine.DEB.2.20.1701301243470.2833@east.gentwo.org>
+References: <20161228130949.GA11480@dhcp22.suse.cz> <20170102110257.GB18058@quack2.suse.cz> <b3e28101-1129-d2bc-8695-e7f7529a1442@suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
-> +		if ((new_pol->mode == MPOL_BIND)
-> +			&& nodemask_has_cdm(new_pol->v.nodes))
-> +			set_vm_cdm(vma);
+On Thu, 5 Jan 2017, Vlastimil Babka wrote:
 
-So, if you did:
+>
+> Yeah, some of the related stuff that was discussed at Kernel Summit [1]
+> would be nice to have at least prototyped, i.e. the dentry cache
+> separation and the slab helper for providing objects on the same page?
+>
+> [1] https://lwn.net/Articles/705758/
 
-	mbind(addr, PAGE_SIZE, MPOL_BIND, all_nodes, ...);
-	mbind(addr, PAGE_SIZE, MPOL_BIND, one_non_cdm_node, ...);
-
-You end up with a VMA that can never have KSM done on it, etc...  Even
-though there's no good reason for it.  I guess /proc/$pid/smaps might be
-able to help us figure out what was going on here, but that still seems
-like an awful lot of damage.
+Hmmm. Sorry I am a bit late reading this I think. But I have a patchset
+that addresses some of these issues. See https://lwn.net/Articles/371892/
+Would like to rework some of that for the current kernel sources. Matthew
+Wilcox told me that he may be able top use this to implement
+reclaim/defrag in the radix tree code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
