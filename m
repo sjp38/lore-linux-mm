@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C77E66B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 13:52:17 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id d201so133255210qkg.2
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:52:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s26si10166078qte.294.2017.01.30.10.52.16
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D726B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 14:24:04 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id v96so152184441ioi.5
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:24:04 -0800 (PST)
+Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
+        by mx.google.com with ESMTPS id i138si11420631ioe.200.2017.01.30.11.24.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 10:52:17 -0800 (PST)
-Date: Mon, 30 Jan 2017 13:52:14 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC V2 08/12] mm: Add new VMA flag VM_CDM
-Message-ID: <20170130185213.GA7198@redhat.com>
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
- <20170130033602.12275-9-khandual@linux.vnet.ibm.com>
+        Mon, 30 Jan 2017 11:24:03 -0800 (PST)
+Received: by mail-it0-x22e.google.com with SMTP id 203so201250374ith.0
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 11:24:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170130033602.12275-9-khandual@linux.vnet.ibm.com>
+In-Reply-To: <20170130094940.13546-6-mhocko@kernel.org>
+References: <20170130094940.13546-1-mhocko@kernel.org> <20170130094940.13546-6-mhocko@kernel.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 30 Jan 2017 11:24:02 -0800
+Message-ID: <CAGXu5jLFwQuUyZuRuK60YBGYbbEkt+C3dKxCyDe65Ad5co2oLw@mail.gmail.com>
+Subject: Re: [PATCH 5/9] treewide: use kv[mz]alloc* rather than opencoded variants
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Tony Luck <tony.luck@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Ben Skeggs <bskeggs@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Santosh Raspatur <santosh@chelsio.com>, Hariprasad S <hariprasad@chelsio.com>, Yishai Hadas <yishaih@mellanox.com>, Oleg Drokin <oleg.drokin@intel.com>, "Yan, Zheng" <zyan@redhat.com>, Alexei Starovoitov <ast@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Network Development <netdev@vger.kernel.org>
 
-On Mon, Jan 30, 2017 at 09:05:49AM +0530, Anshuman Khandual wrote:
-> VMA which contains CDM memory pages should be marked with new VM_CDM flag.
-> These VMAs need to be identified in various core kernel paths for special
-> handling and this flag will help in their identification.
-> 
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+On Mon, Jan 30, 2017 at 1:49 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> There are many code paths opencoding kvmalloc. Let's use the helper
+> instead. The main difference to kvmalloc is that those users are usually
+> not considering all the aspects of the memory allocator. E.g. allocation
+> requests <= 32kB (with 4kB pages) are basically never failing and invoke
+> OOM killer to satisfy the allocation. This sounds too disruptive for
+> something that has a reasonable fallback - the vmalloc. On the other
+> hand those requests might fallback to vmalloc even when the memory
+> allocator would succeed after several more reclaim/compaction attempts
+> previously. There is no guarantee something like that happens though.
+>
+> This patch converts many of those places to kv[mz]alloc* helpers because
+> they are more conservative.
+>
+> Changes since v1
+> - add kvmalloc_array - this might silently fix some overflow issues
+>   because most users simply didn't check the overflow for the vmalloc
+>   fallback.
 
+Awesome, thanks for adding that API. :)
 
-Why doing this on vma basis ? Why not special casing all those path on page
-basis ?
+Acked-by: Kees Cook <keescook@chromium.org>
 
-After all you can have a big vma with some pages in it being cdm and other
-being regular page. The CPU process might migrate to different CPU in a
-different node and you might still want to have the regular page to migrate
-to this new node and keep the cdm page while the device is still working
-on them.
+-Kees
 
-This is just an example, same can apply for ksm or any other kernel feature
-you want to special case. Maybe we can store a set of flag in node that
-tells what is allowed for page in node (ksm, hugetlb, migrate, numa, ...).
-
-This would be more flexible and the policy choice can be left to each of
-the device driver.
-
-Cheers,
-Jerome
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
