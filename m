@@ -1,84 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0866B0253
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 18:43:23 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e4so342270511pfg.4
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 15:43:23 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id y60si14038320plh.265.2017.01.30.15.43.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 15:43:22 -0800 (PST)
-Date: Mon, 30 Jan 2017 16:43:21 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 1/3] mm,fs,dax: Change ->pmd_fault to ->huge_fault
-Message-ID: <20170130234321.GA26702@linux.intel.com>
-References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
- <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ACB66B0253
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 18:56:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so478063753pfx.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 15:56:47 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id t8si9686630pgn.178.2017.01.30.15.56.45
+        for <linux-mm@kvack.org>;
+        Mon, 30 Jan 2017 15:56:46 -0800 (PST)
+Date: Tue, 31 Jan 2017 08:56:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2 v2] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <20170130235642.GB7942@bbox>
+References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
+In-Reply-To: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, shashim@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 26, 2017 at 10:09:47AM -0700, Dave Jiang wrote:
-> In preparation for adding the ability to handle PUD pages, convert
-> ->pmd_fault to ->huge_fault.  The vm_fault structure is extended to
-> include a union of the different page table pointers that may be needed,
-> and three flag bits are reserved to indicate which type of pointer is in
-> the union.
+On Fri, Jan 27, 2017 at 01:43:36PM +0530, Vinayak Menon wrote:
+> It is noticed that during a global reclaim the memory
+> reclaimed via shrinking the slabs can sometimes result
+> in reclaimed pages being greater than the scanned pages
+> in shrink_node. When this is passed to vmpressure, the
+> unsigned arithmetic results in the pressure value to be
+> huge, thus resulting in a critical event being sent to
+> root cgroup. While this can be fixed by underflow checks
+> in vmpressure, adding reclaimed slab without a corresponding
+> increment of nr_scanned results in incorrect vmpressure
+> reporting. So do not consider reclaimed slab pages in
+> vmpressure calculation.
+
+I belive we could enhance the description better.
+
+problem
+
+VM include nr_reclaimed of slab but not nr_scanned so pressure
+calculation can be underflow.
+
+solution
+
+do not consider reclaimed slab pages for vmpressure
+
+why
+
+Freeing a page by slab shrinking depends on each slab's object
+population so the cost model(i.e., scan:free) is not fair with
+LRU pages. Also, every shrinker doesn't account reclaimed pages.
+Lastly, this regression happens since 6b4f7799c6a5
+
 > 
-> [DJ: Forward ported to 4.10-rc]
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> ---
+>  mm/vmscan.c | 10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
 > 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 947ab6f..37c4486 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2594,16 +2594,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  				    sc->nr_scanned - nr_scanned,
+>  				    node_lru_pages);
+>  
+> -		if (reclaim_state) {
+> -			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> -			reclaim_state->reclaimed_slab = 0;
+> -		}
+> -
+>  		/* Record the subtree's reclaim efficiency */
+>  		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+>  			   sc->nr_scanned - nr_scanned,
+>  			   sc->nr_reclaimed - nr_reclaimed);
+>  
 
-Hey Dave,
+Please add comment about "vmpressure excludes reclaimed pages via slab
+because blah blah blah" so upcoming patches doesn't make mistake again.
 
-Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
-which I bisected to this commit:
+Thanks!
 
-[  370.086205] ------------[ cut here ]------------
-[  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
-[  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
-[  370.089073] Modules linked in: dax_pmem nd_pmem dax nd_btt nd_e820 libnvdimm
-[  370.090212] CPU: 0 PID: 12415 Comm: xfs_io Tainted: G      D         4.10.0-rc5-mm1-00202-g7e90fc0 #10
-[  370.091648] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
-[  370.092946] task: ffff8800ac4f8000 task.stack: ffffc9001148c000
-[  370.093769] RIP: 0010:mm_fault_error+0x15e/0x190
-[  370.094410] RSP: 0000:ffffc9001148fe60 EFLAGS: 00010246
-[  370.095135] RAX: 0000000000000000 RBX: 0000000000000006 RCX: ffff8800ac4f8000
-[  370.096107] RDX: 00007f111c8e6400 RSI: 0000000000000006 RDI: ffffc9001148ff58
-[  370.097087] RBP: ffffc9001148fe88 R08: 0000000000000000 R09: ffff880510bd3300
-[  370.098072] R10: ffff8800ac4f8000 R11: 0000000000000000 R12: 00007f111c8e6400
-[  370.099057] R13: 00007f111c8e6400 R14: ffff880510bd3300 R15: 0000000000000055
-[  370.100135] FS:  00007f111d95e700(0000) GS:ffff880514800000(0000) knlGS:0000000000000000
-[  370.101238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  370.102021] CR2: 00007f111c8e6400 CR3: 00000000add00000 CR4: 00000000001406f0
-[  370.103189] Call Trace:
-[  370.103537]  __do_page_fault+0x54e/0x590
-[  370.104090]  trace_do_page_fault+0x58/0x2c0
-[  370.104675]  do_async_page_fault+0x2c/0x90
-[  370.105342]  async_page_fault+0x28/0x30
-[  370.106044] RIP: 0033:0x405e9a
-[  370.106470] RSP: 002b:00007fffb7f30590 EFLAGS: 00010287
-[  370.107185] RAX: 00000000004e6400 RBX: 0000000000000057 RCX: 00000000004e7000
-[  370.108155] RDX: 00007f111c400000 RSI: 00000000004e7000 RDI: 0000000001c35080
-[  370.109157] RBP: 00000000004e6400 R08: 0000000000000014 R09: 1999999999999999
-[  370.110158] R10: 00007f111d2dc200 R11: 0000000000000000 R12: 0000000001c32fc0
-[  370.111165] R13: 0000000000000000 R14: 0000000000000c00 R15: 0000000000000005
-[  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9 
-[  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
-[  370.115722] ---[ end trace 2ce10d930638254d ]---
-
-
-Can you let me know if you can reproduce this?
-
-Thanks,
-- Ross
+> +		if (reclaim_state) {
+> +			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> +			reclaim_state->reclaimed_slab = 0;
+> +		}
+> +
+>  		if (sc->nr_reclaimed - nr_reclaimed)
+>  			reclaimable = true;
+>  
+> -- 
+> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+> member of the Code Aurora Forum, hosted by The Linux Foundation
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
