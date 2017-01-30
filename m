@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B8A6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:21:13 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r18so9568338wmd.1
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:21:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o97si16865908wrc.185.2017.01.30.07.21.12
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B72EB6B026E
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 10:48:30 -0500 (EST)
+Received: by mail-vk0-f70.google.com with SMTP id k127so189742891vke.7
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:48:30 -0800 (PST)
+Received: from mail-ua0-x22d.google.com (mail-ua0-x22d.google.com. [2607:f8b0:400c:c08::22d])
+        by mx.google.com with ESMTPS id j34si3888669uad.92.2017.01.30.07.48.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Jan 2017 07:21:12 -0800 (PST)
-Subject: Re: [PATCH 4/9] ila: simplify a strange allocation pattern
-References: <20170130094940.13546-1-mhocko@kernel.org>
- <20170130094940.13546-5-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7d8d27b2-2556-efb1-f319-666133014f2b@suse.cz>
-Date: Mon, 30 Jan 2017 16:21:08 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jan 2017 07:48:29 -0800 (PST)
+Received: by mail-ua0-x22d.google.com with SMTP id 96so252519636uaq.3
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 07:48:29 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20170130094940.13546-5-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <c7658ace-23ae-227a-2ea9-7e6bd1c8c761@suse.cz>
+References: <CACT4Y+asbKDni4RBavNf0-HwApTXjbbNko9eQbU6zCOgB2Yvnw@mail.gmail.com>
+ <c7658ace-23ae-227a-2ea9-7e6bd1c8c761@suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 30 Jan 2017 16:48:08 +0100
+Message-ID: <CACT4Y+ZT+_L3deDUcmBkr_Pr3KdCdLv6ON=2QHbK5YnBxJfLDg@mail.gmail.com>
+Subject: Re: mm: deadlock between get_online_cpus/pcpu_alloc
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Tom Herbert <tom@herbertland.com>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, syzkaller <syzkaller@googlegroups.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/30/2017 10:49 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Sun, Jan 29, 2017 at 6:22 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 29.1.2017 13:44, Dmitry Vyukov wrote:
+>> Hello,
+>>
+>> I've got the following deadlock report while running syzkaller fuzzer
+>> on f37208bc3c9c2f811460ef264909dfbc7f605a60:
+>>
+>> [ INFO: possible circular locking dependency detected ]
+>> 4.10.0-rc5-next-20170125 #1 Not tainted
+>> -------------------------------------------------------
+>> syz-executor3/14255 is trying to acquire lock:
+>>  (cpu_hotplug.dep_map){++++++}, at: [<ffffffff814271c7>]
+>> get_online_cpus+0x37/0x90 kernel/cpu.c:239
+>>
+>> but task is already holding lock:
+>>  (pcpu_alloc_mutex){+.+.+.}, at: [<ffffffff81937fee>]
+>> pcpu_alloc+0xbfe/0x1290 mm/percpu.c:897
+>>
+>> which lock already depends on the new lock.
 >
-> alloc_ila_locks seemed to c&p from alloc_bucket_locks allocation
-> pattern which is quite unusual. The default allocation size is 320 *
-> sizeof(spinlock_t) which is sub page unless lockdep is enabled when the
-> performance benefit is really questionable and not worth the subtle code
-> IMHO. Also note that the context when we call ila_init_net (modprobe or
-> a task creating a net namespace) has to be properly configured.
->
-> Let's just simplify the code and use kvmalloc helper which is a
-> transparent way to use kmalloc with vmalloc fallback.
->
-> Cc: Tom Herbert <tom@herbertland.com>
-> Cc: Eric Dumazet <eric.dumazet@gmail.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> I suspect the dependency comes from recent changes in drain_all_pages(). They
+> were later redone (for other reasons, but nice to have another validation) in
+> the mmots patch [1], which AFAICS is not yet in mmotm and thus linux-next. Could
+> you try if it helps?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  net/ipv6/ila/ila_xlat.c | 8 +-------
->  1 file changed, 1 insertion(+), 7 deletions(-)
->
-> diff --git a/net/ipv6/ila/ila_xlat.c b/net/ipv6/ila/ila_xlat.c
-> index af8f52ee7180..2fd5ca151dcf 100644
-> --- a/net/ipv6/ila/ila_xlat.c
-> +++ b/net/ipv6/ila/ila_xlat.c
-> @@ -41,13 +41,7 @@ static int alloc_ila_locks(struct ila_net *ilan)
->  	size = roundup_pow_of_two(nr_pcpus * LOCKS_PER_CPU);
->
->  	if (sizeof(spinlock_t) != 0) {
-> -#ifdef CONFIG_NUMA
-> -		if (size * sizeof(spinlock_t) > PAGE_SIZE)
-> -			ilan->locks = vmalloc(size * sizeof(spinlock_t));
-> -		else
-> -#endif
-> -		ilan->locks = kmalloc_array(size, sizeof(spinlock_t),
-> -					    GFP_KERNEL);
-> +		ilan->locks = kvmalloc(size * sizeof(spinlock_t), GFP_KERNEL);
->  		if (!ilan->locks)
->  			return -ENOMEM;
->  		for (i = 0; i < size; i++)
->
+It happened only once on linux-next, so I can't verify the fix. But I
+will watch out for other occurrences.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
