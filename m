@@ -1,121 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A85496B0253
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:10:36 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id o12so143856773lfg.7
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:10:36 -0800 (PST)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id i15si10246548lfh.270.2017.01.31.05.10.34
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0673B6B0253
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:17:09 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id j82so400731194oih.6
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:17:09 -0800 (PST)
+Received: from smtpbg.qq.com (SMTPBG353.QQ.COM. [183.57.50.164])
+        by mx.google.com with ESMTPS id s8si6809329otb.189.2017.01.31.05.17.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jan 2017 05:10:35 -0800 (PST)
-Received: by mail-lf0-x243.google.com with SMTP id x1so33984792lff.0
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:10:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170131001025.GD7942@bbox>
-References: <20170119024421.GA9367@bbox> <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
- <20170119062158.GB9367@bbox> <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
- <20170123052244.GC11763@bbox> <20170123053056.GB2327@jagdpanzerIV.localdomain>
- <20170123054034.GA12327@bbox> <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
- <20170125052614.GB18289@bbox> <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
- <20170131001025.GD7942@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 31 Jan 2017 08:09:53 -0500
-Message-ID: <CALZtONDQ5yQKV6-jpJGBg7gakV8-7XXmmAATSQq346Tby4WLsg@mail.gmail.com>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Jan 2017 05:17:08 -0800 (PST)
+From: ysxie@foxmail.com
+Subject: [PATCH v5 0/4] HWPOISON: soft offlining for non-lru movable page
+Date: Tue, 31 Jan 2017 21:06:17 +0800
+Message-Id: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On Mon, Jan 30, 2017 at 7:10 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Hi Dan,
->
-> On Thu, Jan 26, 2017 at 12:04:03PM -0500, Dan Streetman wrote:
->> On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
->> > On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
->> >> On 01/23/2017 12:40 AM, Minchan Kim wrote:
->> >> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
->> >> >>On (01/23/17 14:22), Minchan Kim wrote:
->> >> >>[..]
->> >> >>>>Anyway, I will let you know the situation when it gets more clear.
->> >> >>>
->> >> >>>Yeb, Thanks.
->> >> >>>
->> >> >>>Perhaps, did you tried flush page before the writing?
->> >> >>>I think arm64 have no d-cache alising problem but worth to try it.
->> >> >>>Who knows :)
->> >> >>
->> >> >>I thought that flush_dcache_page() is only for cases when we write
->> >> >>to page (store that makes pages dirty), isn't it?
->> >> >
->> >> >I think we need both because to see recent stores done by the user.
->> >> >I'm not sure it should be done by block device driver rather than
->> >> >page cache. Anyway, brd added it so worth to try it, I thought. :)
->> >> >
->> >>
->> >> Thanks for the suggestion!
->> >> It might be helpful
->> >> though proving it is not easy as the problem appears rarely.
->> >>
->> >> Have you thought about
->> >> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
->> >> (arm64 may have i-cache aliasing problem)
->> >
->> > It can happen, I think, although I don't know how arm64 handles it.
->> >
->> >>
->> >> If it is problematic,
->> >> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
->> >> provide the corrupted data
->> >> and even swap out (compressing) may see the corrupted data sooner or later,
->> >> i guess.
->> >
->> > try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
->> > but for swap-in, I think zswap need flushing logic because it's first
->> > touch of the user buffer so it's his resposibility.
->>
->> Hmm, I don't think zswap needs to, because all the cache aliases were
->> flushed when the page was written out.  After that, any access to the
->> page will cause a fault, and the fault will cause the page to be read
->> back in (via zswap).  I don't see how the page could be cached at any
->> time between the swap write-out and swap read-in, so there should be
->> no need to flush any caches when it's read back in; am I missing
->> something?
->
-> Documentation/cachetlb.txt says
->
->   void flush_dcache_page(struct page *page)
->
->         Any time the kernel writes to a page cache page, _OR_
->         the kernel is about to read from a page cache page and
->         user space shared/writable mappings of this page potentially
->         exist, this routine is called.
->
-> For swap-in side, I don't see any logic to prevent the aliasing
-> problem. Let's consider other examples like cow_user_page->
-> copy_user_highpage. For architectures which can make aliasing,
-> it has arch specific functions which has flushing function.
+From: Yisheng Xie <xieyisheng1@huawei.com>
 
-COW works with a page that has a physical backing.  swap-in does not.
-COW pages can be accessed normally; swapped out pages cannot.
+Hi Andrew,
+Could you please help to abandon the v3 of this patch for it will compile
+error with CONFIG_MIGRATION=n, and it also has error path handling problem.
+I am so sorry about troubling you.
 
->
-> IOW, if a kernel makes store operation to the page which will
-> be mapped to user space address, kernel should call flush function.
-> Otherwise, user space will miss recent update from kernel side.
+Hi Michal, Minchan and all,
+Could you please help to review it?
 
-as I said before, when it's swapped out caches are flushed, and the
-page mapping invalidated, so it will cause a fault on any access, and
-thus cause swap to re-load the page from disk (or zswap).  So how
-would a cache of the page be created after swap-out, but before
-swap-in?  It's not possible for user space to have any caches to the
-page, unless (as I said) I'm missing something?
+Any suggestion is more than welcome. And Thanks for all of you.
 
+After Minchan's commit bda807d44454 ("mm: migrate: support non-lru movable
+page migration"), some type of non-lru page like zsmalloc and virtio-balloon
+page also support migration.
 
->
-> Thanks.
+Therefore, we can:
+1) soft offlining no-lru movable pages, which means when memory corrected
+errors occur on a non-lru movable page, we can stop to use it by migrating
+data onto another page and disable the original (maybe half-broken) one.
+
+2) enable memory hotplug for non-lru movable pages, i.e. we may offline
+blocks, which include such pages, by using non-lru page migration.
+
+This patchset is heavily depend on non-lru movable page migration.
+--------
+v5:
+ * change the return type of isolate_movable_page() from bool to int as
+   Michal's suggestion.
+ * add "enable memory hotplug for non-lru movable pages" to this patchset,
+   which also make some change as Michal's suggestion here.
+
+v4:
+ * make isolate_movable_page always defined to avoid compile error with
+   CONFIG_MIGRATION = n
+ * return -EBUSY when isolate_movable_page return false which means failed
+   to isolate movable page.
+
+v3:
+  * delete some unneed limitation and use !__PageMovable instead of PageLRU
+    after isolate page to avoid isolated count mismatch, as Minchan Kim's suggestion.
+
+v2:
+ * delete function soft_offline_movable_page() and hanle non-lru movable
+   page in __soft_offline_page() as Michal Hocko suggested.
+
+Yisheng Xie (4):
+  mm/migration: make isolate_movable_page() return int type
+  mm/migration: make isolate_movable_page always defined
+  HWPOISON: soft offlining for non-lru movable page
+  mm/hotplug: enable memory hotplug for non-lru movable pages
+
+ include/linux/migrate.h |  4 +++-
+ mm/compaction.c         |  2 +-
+ mm/memory-failure.c     | 26 ++++++++++++++++----------
+ mm/memory_hotplug.c     | 28 +++++++++++++++++-----------
+ mm/migrate.c            | 11 +++++++----
+ mm/page_alloc.c         |  8 ++++++--
+ 6 files changed, 50 insertions(+), 29 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
