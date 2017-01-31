@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0673B6B0253
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:17:09 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id j82so400731194oih.6
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:17:09 -0800 (PST)
-Received: from smtpbg.qq.com (SMTPBG353.QQ.COM. [183.57.50.164])
-        by mx.google.com with ESMTPS id s8si6809329otb.189.2017.01.31.05.17.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8665C6B025E
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:18:08 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f144so509068672pfa.3
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:18:08 -0800 (PST)
+Received: from smtpbg337.qq.com (smtpbg337.qq.com. [14.17.44.32])
+        by mx.google.com with ESMTPS id v128si11214124pgv.72.2017.01.31.05.18.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Jan 2017 05:17:08 -0800 (PST)
+        Tue, 31 Jan 2017 05:18:07 -0800 (PST)
 From: ysxie@foxmail.com
-Subject: [PATCH v5 0/4] HWPOISON: soft offlining for non-lru movable page
-Date: Tue, 31 Jan 2017 21:06:17 +0800
-Message-Id: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+Subject: [PATCH v5 2/4] mm/migration: make isolate_movable_page always defined
+Date: Tue, 31 Jan 2017 21:06:19 +0800
+Message-Id: <1485867981-16037-3-git-send-email-ysxie@foxmail.com>
+In-Reply-To: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -20,66 +22,38 @@ Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minch
 
 From: Yisheng Xie <xieyisheng1@huawei.com>
 
-Hi Andrew,
-Could you please help to abandon the v3 of this patch for it will compile
-error with CONFIG_MIGRATION=n, and it also has error path handling problem.
-I am so sorry about troubling you.
+Define isolate_movable_page as a static inline function when
+CONFIG_MIGRATION is not enable. It should return -EBUSY
+here which means failed to isolate movable pages.
 
-Hi Michal, Minchan and all,
-Could you please help to review it?
+This patch do not have any functional change but prepare for
+later patch.
 
-Any suggestion is more than welcome. And Thanks for all of you.
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+CC: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/migrate.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-After Minchan's commit bda807d44454 ("mm: migrate: support non-lru movable
-page migration"), some type of non-lru page like zsmalloc and virtio-balloon
-page also support migration.
-
-Therefore, we can:
-1) soft offlining no-lru movable pages, which means when memory corrected
-errors occur on a non-lru movable page, we can stop to use it by migrating
-data onto another page and disable the original (maybe half-broken) one.
-
-2) enable memory hotplug for non-lru movable pages, i.e. we may offline
-blocks, which include such pages, by using non-lru page migration.
-
-This patchset is heavily depend on non-lru movable page migration.
---------
-v5:
- * change the return type of isolate_movable_page() from bool to int as
-   Michal's suggestion.
- * add "enable memory hotplug for non-lru movable pages" to this patchset,
-   which also make some change as Michal's suggestion here.
-
-v4:
- * make isolate_movable_page always defined to avoid compile error with
-   CONFIG_MIGRATION = n
- * return -EBUSY when isolate_movable_page return false which means failed
-   to isolate movable page.
-
-v3:
-  * delete some unneed limitation and use !__PageMovable instead of PageLRU
-    after isolate page to avoid isolated count mismatch, as Minchan Kim's suggestion.
-
-v2:
- * delete function soft_offline_movable_page() and hanle non-lru movable
-   page in __soft_offline_page() as Michal Hocko suggested.
-
-Yisheng Xie (4):
-  mm/migration: make isolate_movable_page() return int type
-  mm/migration: make isolate_movable_page always defined
-  HWPOISON: soft offlining for non-lru movable page
-  mm/hotplug: enable memory hotplug for non-lru movable pages
-
- include/linux/migrate.h |  4 +++-
- mm/compaction.c         |  2 +-
- mm/memory-failure.c     | 26 ++++++++++++++++----------
- mm/memory_hotplug.c     | 28 +++++++++++++++++-----------
- mm/migrate.c            | 11 +++++++----
- mm/page_alloc.c         |  8 ++++++--
- 6 files changed, 50 insertions(+), 29 deletions(-)
-
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 43d5deb..fa76b51 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -56,6 +56,8 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		free_page_t free, unsigned long private, enum migrate_mode mode,
+ 		int reason)
+ 	{ return -ENOSYS; }
++static inline int isolate_movable_page(struct page *page, isolate_mode_t mode)
++	{ return -EBUSY; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
 -- 
 1.9.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
