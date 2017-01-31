@@ -1,56 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AAD56B0253
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 13:04:13 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 201so524318644pfw.5
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 10:04:13 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id z86si16602989pfj.81.2017.01.31.10.04.12
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B9D06B0033
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 13:59:59 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id kq3so72538298wjc.1
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 10:59:59 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 31si21824989wrj.324.2017.01.31.10.59.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jan 2017 10:04:12 -0800 (PST)
-Subject: Re: [RFC V2 03/12] mm: Change generic FALLBACK zonelist creation
- process
-References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
- <20170130033602.12275-4-khandual@linux.vnet.ibm.com>
- <07bd439c-6270-b219-227b-4079d36a2788@intel.com>
- <434aa74c-e917-490e-85ab-8c67b1a82d95@linux.vnet.ibm.com>
- <f1521ecc-e2a2-7368-07b7-7af6c0e88cc6@intel.com>
- <79bfd849-8e6c-2f6d-0acf-4256a4137526@nvidia.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <217e817e-2f91-91a5-1bef-16fb0cbacb63@intel.com>
-Date: Tue, 31 Jan 2017 10:04:11 -0800
+        Tue, 31 Jan 2017 10:59:58 -0800 (PST)
+Date: Tue, 31 Jan 2017 13:59:49 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 0/6]mm: add new LRU list for MADV_FREE pages
+Message-ID: <20170131185949.GA5037@cmpxchg.org>
+References: <cover.1485748619.git.shli@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <79bfd849-8e6c-2f6d-0acf-4256a4137526@nvidia.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cover.1485748619.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
 
-On 01/30/2017 11:25 PM, John Hubbard wrote:
-> I also don't like having these policies hard-coded, and your 100x
-> example above helps clarify what can go wrong about it. It would be
-> nicer if, instead, we could better express the "distance" between nodes
-> (bandwidth, latency, relative to sysmem, perhaps), and let the NUMA
-> system figure out the Right Thing To Do.
-> 
-> I realize that this is not quite possible with NUMA just yet, but I
-> wonder if that's a reasonable direction to go with this?
+Hi Shaohua,
 
-In the end, I don't think the kernel can make the "right" decision very
-widely here.
+On Sun, Jan 29, 2017 at 09:51:17PM -0800, Shaohua Li wrote:
+> We are trying to use MADV_FREE in jemalloc. Several issues are found. Without
+> solving the issues, jemalloc can't use the MADV_FREE feature.
+> - Doesn't support system without swap enabled. Because if swap is off, we can't
+>   or can't efficiently age anonymous pages. And since MADV_FREE pages are mixed
+>   with other anonymous pages, we can't reclaim MADV_FREE pages. In current
+>   implementation, MADV_FREE will fallback to MADV_DONTNEED without swap enabled.
+>   But in our environment, a lot of machines don't enable swap. This will prevent
+>   our setup using MADV_FREE.
+> - Increases memory pressure. page reclaim bias file pages reclaim against
+>   anonymous pages. This doesn't make sense for MADV_FREE pages, because those
+>   pages could be freed easily and refilled with very slight penality. Even page
+>   reclaim doesn't bias file pages, there is still an issue, because MADV_FREE
+>   pages and other anonymous pages are mixed together. To reclaim a MADV_FREE
+>   page, we probably must scan a lot of other anonymous pages, which is
+>   inefficient. In our test, we usually see oom with MADV_FREE enabled and nothing
+>   without it.
 
-Intel's Xeon Phis have some high-bandwidth memory (MCDRAM) that
-evidently has a higher latency than DRAM.  Given a plain malloc(), how
-is the kernel to know that the memory will be used for AVX-512
-instructions that need lots of bandwidth vs. some random data structure
-that's latency-sensitive?
+Fully agreed, the anon LRU is a bad place for these pages.
 
-In the end, I think all we can do is keep the kernel's existing default
-of "low latency to the CPU that allocated it", and let apps override
-when that policy doesn't fit them.
+> For the first two issues, introducing a new LRU list for MADV_FREE pages could
+> solve the issues. We can directly reclaim MADV_FREE pages without writting them
+> out to swap, so the first issue could be fixed. If only MADV_FREE pages are in
+> the new list, page reclaim can easily reclaim such pages without interference
+> of file or anonymous pages. The memory pressure issue will disappear.
+
+Do we actually need a new page flag and a special LRU for them? These
+pages are basically like clean cache pages at that point. What do you
+think about clearing their PG_swapbacked flag on MADV_FREE and moving
+them to the inactive file list? The way isolate+putback works should
+not even need much modification, something like clear_page_mlock().
+
+When the reclaim scanner finds anon && dirty && !swapbacked, it can
+again set PG_swapbacked and goto keep_locked to move the page back
+into the anon LRU to get reclaimed according to swapping rules.
+
+> For the third issue, we can add a separate RSS count for MADV_FREE pages. The
+> count will be increased in madvise syscall and decreased in page reclaim (eg,
+> unmap). One issue is activate_page(). A MADV_FREE page can be promoted to
+> active page there. But there isn't mm_struct context at that place. Iterating
+> vma there sounds too silly. The patchset don't fix this issue yet. Hopefully
+> somebody can share a hint how to fix this issue.
+
+This problem also goes away if we use the file LRUs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
