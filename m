@@ -1,322 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8886B0033
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 15:46:54 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id v186so150051328lfa.2
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 12:46:54 -0800 (PST)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id t14si10971403ljd.60.2017.01.31.12.46.52
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 210776B0033
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 16:33:49 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d123so281071831pfd.0
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 13:33:49 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id a79si17078392pfc.236.2017.01.31.13.33.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jan 2017 12:46:53 -0800 (PST)
-Received: by mail-lf0-x241.google.com with SMTP id h65so34758697lfi.3
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 12:46:52 -0800 (PST)
-Date: Tue, 31 Jan 2017 21:46:50 +0100
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH/RESEND v3 5/5] z3fold: add kref refcounting
-Message-Id: <20170131214650.8ea78033d91ded233f552bc0@gmail.com>
-In-Reply-To: <20170131213829.3d86c07ffd1358019354c937@gmail.com>
-References: <20170131213829.3d86c07ffd1358019354c937@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 31 Jan 2017 13:33:48 -0800 (PST)
+Subject: [PATCH] mm,
+ dax: clear PMD or PUD size flags when in fall through path
+From: Dave Jiang <dave.jiang@intel.com>
+Date: Tue, 31 Jan 2017 14:33:47 -0700
+Message-ID: <148589842696.5820.16078080610311444794.stgit@djiang5-desk3.ch.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: mawilcox@microsoft.com, linux-nvdimm@lists.01.org, dave.hansen@linux.intel.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, vbabka@suse.cz
 
-With both coming and already present locking optimizations,
-introducing kref to reference-count z3fold objects is the right
-thing to do. Moreover, it makes buddied list no longer necessary,
-and allows for a simpler handling of headless pages.
+Ross reported that:
+Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
+which I bisected to this commit: mm,fs,dax: Change ->pmd_fault to ->huge_fault
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+[  370.086205] ------------[ cut here ]------------
+[  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
+[  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
+[  370.089073] Modules linked in: dax_pmem nd_pmem dax nd_btt nd_e820 libnvdimm
+[  370.090212] CPU: 0 PID: 12415 Comm: xfs_io Tainted: G      D         4.10.0-rc5-mm1-00202-g7e90fc0 #10
+[  370.091648] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
+[  370.092946] task: ffff8800ac4f8000 task.stack: ffffc9001148c000
+[  370.093769] RIP: 0010:mm_fault_error+0x15e/0x190
+[  370.094410] RSP: 0000:ffffc9001148fe60 EFLAGS: 00010246
+[  370.095135] RAX: 0000000000000000 RBX: 0000000000000006 RCX: ffff8800ac4f8000
+[  370.096107] RDX: 00007f111c8e6400 RSI: 0000000000000006 RDI: ffffc9001148ff58
+[  370.097087] RBP: ffffc9001148fe88 R08: 0000000000000000 R09: ffff880510bd3300
+[  370.098072] R10: ffff8800ac4f8000 R11: 0000000000000000 R12: 00007f111c8e6400
+[  370.099057] R13: 00007f111c8e6400 R14: ffff880510bd3300 R15: 0000000000000055
+[  370.100135] FS:  00007f111d95e700(0000) GS:ffff880514800000(0000) knlGS:0000000000000000
+[  370.101238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  370.102021] CR2: 00007f111c8e6400 CR3: 00000000add00000 CR4: 00000000001406f0
+[  370.103189] Call Trace:
+[  370.103537]  __do_page_fault+0x54e/0x590
+[  370.104090]  trace_do_page_fault+0x58/0x2c0
+[  370.104675]  do_async_page_fault+0x2c/0x90
+[  370.105342]  async_page_fault+0x28/0x30
+[  370.106044] RIP: 0033:0x405e9a
+[  370.106470] RSP: 002b:00007fffb7f30590 EFLAGS: 00010287
+[  370.107185] RAX: 00000000004e6400 RBX: 0000000000000057 RCX: 00000000004e7000
+[  370.108155] RDX: 00007f111c400000 RSI: 00000000004e7000 RDI: 0000000001c35080
+[  370.109157] RBP: 00000000004e6400 R08: 0000000000000014 R09: 1999999999999999
+[  370.110158] R10: 00007f111d2dc200 R11: 0000000000000000 R12: 0000000001c32fc0
+[  370.111165] R13: 0000000000000000 R14: 0000000000000c00 R15: 0000000000000005
+[  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9
+[  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
+[  370.115722] ---[ end trace 2ce10d930638254d ]---
+
+It appears that there are 2 issues. First, the size bits used for vm_fault
+needs to be shifted over. Otherwise, FAULT_FLAG_SIZE_PMD is clobbering
+FAULT_FLAG_INSTRUCTION. Second issue, after create_huge_pmd() is being
+called and is falling back to the pte fault handler, the FAULT_FLAG_SIZE_PMD
+flag remains and that causes the dax fault handler to go towards the pmd
+fault handler instead of the pte fault handler. Fixes are made for the pud
+and pmd fall through paths.
+
+Reported-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Dave Jiang <dave.jiang@intel.com>
 ---
- mm/z3fold.c | 151 ++++++++++++++++++++++++++----------------------------------
- 1 file changed, 66 insertions(+), 85 deletions(-)
+ include/linux/mm.h |    8 ++++----
+ mm/memory.c        |    4 ++++
+ 2 files changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index fa91b56..bcbcf47 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -52,6 +52,7 @@ enum buddy {
-  *			z3fold page, except for HEADLESS pages
-  * @buddy:	links the z3fold page into the relevant list in the pool
-  * @page_lock:		per-page lock
-+ * @refcount:		reference cound for the z3fold page
-  * @first_chunks:	the size of the first buddy in chunks, 0 if free
-  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
-  * @last_chunks:	the size of the last buddy in chunks, 0 if free
-@@ -60,6 +61,7 @@ enum buddy {
- struct z3fold_header {
- 	struct list_head buddy;
- 	spinlock_t page_lock;
-+	struct kref refcount;
- 	unsigned short first_chunks;
- 	unsigned short middle_chunks;
- 	unsigned short last_chunks;
-@@ -95,8 +97,6 @@ struct z3fold_header {
-  * @unbuddied:	array of lists tracking z3fold pages that contain 2- buddies;
-  *		the lists each z3fold page is added to depends on the size of
-  *		its free region.
-- * @buddied:	list tracking the z3fold pages that contain 3 buddies;
-- *		these z3fold pages are full
-  * @lru:	list tracking the z3fold pages in LRU order by most recently
-  *		added buddy.
-  * @pages_nr:	number of z3fold pages in the pool.
-@@ -109,7 +109,6 @@ struct z3fold_header {
- struct z3fold_pool {
- 	spinlock_t lock;
- 	struct list_head unbuddied[NCHUNKS];
--	struct list_head buddied;
- 	struct list_head lru;
- 	atomic64_t pages_nr;
- 	const struct z3fold_ops *ops;
-@@ -121,8 +120,7 @@ struct z3fold_pool {
-  * Internal z3fold page flags
-  */
- enum z3fold_page_flags {
--	UNDER_RECLAIM = 0,
--	PAGE_HEADLESS,
-+	PAGE_HEADLESS = 0,
- 	MIDDLE_CHUNK_MAPPED,
- };
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f50e730..6194aeb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -285,10 +285,10 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+ #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
  
-@@ -146,11 +144,11 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
- 	struct z3fold_header *zhdr = page_address(page);
+-#define FAULT_FLAG_SIZE_MASK	0x700	/* Support up to 8-level page tables */
+-#define FAULT_FLAG_SIZE_PTE	0x000	/* First level (eg 4k) */
+-#define FAULT_FLAG_SIZE_PMD	0x100	/* Second level (eg 2MB) */
+-#define FAULT_FLAG_SIZE_PUD	0x200	/* Third level (eg 1GB) */
++#define FAULT_FLAG_SIZE_MASK	0x7000	/* Support up to 8-level page tables */
++#define FAULT_FLAG_SIZE_PTE	0x0000	/* First level (eg 4k) */
++#define FAULT_FLAG_SIZE_PMD	0x1000	/* Second level (eg 2MB) */
++#define FAULT_FLAG_SIZE_PUD	0x2000	/* Third level (eg 1GB) */
  
- 	INIT_LIST_HEAD(&page->lru);
--	clear_bit(UNDER_RECLAIM, &page->private);
- 	clear_bit(PAGE_HEADLESS, &page->private);
- 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
- 
- 	spin_lock_init(&zhdr->page_lock);
-+	kref_init(&zhdr->refcount);
- 	zhdr->first_chunks = 0;
- 	zhdr->middle_chunks = 0;
- 	zhdr->last_chunks = 0;
-@@ -161,9 +159,21 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
- }
- 
- /* Resets the struct page fields and frees the page */
--static void free_z3fold_page(struct z3fold_header *zhdr)
-+static void free_z3fold_page(struct page *page)
- {
--	__free_page(virt_to_page(zhdr));
-+	__free_page(page);
-+}
-+
-+static void release_z3fold_page(struct kref *ref)
-+{
-+	struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
-+						refcount);
-+	struct page *page = virt_to_page(zhdr);
-+	if (!list_empty(&zhdr->buddy))
-+		list_del(&zhdr->buddy);
-+	if (!list_empty(&page->lru))
-+		list_del(&page->lru);
-+	free_z3fold_page(page);
- }
- 
- /* Lock a z3fold page */
-@@ -257,7 +267,6 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
- 	spin_lock_init(&pool->lock);
- 	for_each_unbuddied_list(i, 0)
- 		INIT_LIST_HEAD(&pool->unbuddied[i]);
--	INIT_LIST_HEAD(&pool->buddied);
- 	INIT_LIST_HEAD(&pool->lru);
- 	atomic64_set(&pool->pages_nr, 0);
- 	pool->ops = ops;
-@@ -378,6 +387,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 				spin_unlock(&pool->lock);
- 				continue;
- 			}
-+			kref_get(&zhdr->refcount);
- 			list_del_init(&zhdr->buddy);
- 			spin_unlock(&pool->lock);
- 
-@@ -394,10 +404,12 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 			else if (zhdr->middle_chunks == 0)
- 				bud = MIDDLE;
- 			else {
-+				z3fold_page_unlock(zhdr);
- 				spin_lock(&pool->lock);
--				list_add(&zhdr->buddy, &pool->buddied);
-+				if (kref_put(&zhdr->refcount,
-+					     release_z3fold_page))
-+					atomic64_dec(&pool->pages_nr);
- 				spin_unlock(&pool->lock);
--				z3fold_page_unlock(zhdr);
- 				pr_err("No free chunks in unbuddied\n");
- 				WARN_ON(1);
- 				continue;
-@@ -438,9 +450,6 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 		/* Add to unbuddied list */
- 		freechunks = num_free_chunks(zhdr);
- 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
--	} else {
--		/* Add to buddied list */
--		list_add(&zhdr->buddy, &pool->buddied);
- 	}
- 
- headless:
-@@ -504,52 +513,29 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		}
- 	}
- 
--	if (test_bit(UNDER_RECLAIM, &page->private)) {
--		/* z3fold page is under reclaim, reclaim will free */
--		if (bud != HEADLESS)
--			z3fold_page_unlock(zhdr);
--		return;
--	}
--
--	/* Remove from existing buddy list */
--	if (bud != HEADLESS) {
--		spin_lock(&pool->lock);
--		/*
--		 * this object may have been removed from its list by
--		 * z3fold_alloc(). In that case we just do nothing,
--		 * z3fold_alloc() will allocate an object and add the page
--		 * to the relevant list.
--		 */
--		if (!list_empty(&zhdr->buddy)) {
--			list_del(&zhdr->buddy);
--		} else {
--			spin_unlock(&pool->lock);
--			z3fold_page_unlock(zhdr);
--			return;
--		}
--		spin_unlock(&pool->lock);
--	}
--
--	if (bud == HEADLESS ||
--	    (zhdr->first_chunks == 0 && zhdr->middle_chunks == 0 &&
--			zhdr->last_chunks == 0)) {
--		/* z3fold page is empty, free */
-+	if (bud == HEADLESS) {
- 		spin_lock(&pool->lock);
- 		list_del(&page->lru);
- 		spin_unlock(&pool->lock);
--		clear_bit(PAGE_HEADLESS, &page->private);
--		if (bud != HEADLESS)
--			z3fold_page_unlock(zhdr);
--		free_z3fold_page(zhdr);
-+		free_z3fold_page(page);
- 		atomic64_dec(&pool->pages_nr);
+ #define FAULT_FLAG_TRACE \
+ 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
+diff --git a/mm/memory.c b/mm/memory.c
+index d465806..bdf1661 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3663,6 +3663,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 		ret = create_huge_pud(&vmf);
+ 		if (!(ret & VM_FAULT_FALLBACK))
+ 			return ret;
++		/* fall through path, remove PUD flag */
++		vmf.flags &= ~FAULT_FLAG_SIZE_PUD;
  	} else {
--		z3fold_compact_page(zhdr);
--		/* Add to the unbuddied list */
-+		if (zhdr->first_chunks != 0 || zhdr->middle_chunks != 0 ||
-+		    zhdr->last_chunks != 0) {
-+			z3fold_compact_page(zhdr);
-+			/* Add to the unbuddied list */
-+			spin_lock(&pool->lock);
-+			if (!list_empty(&zhdr->buddy))
-+				list_del(&zhdr->buddy);
-+			freechunks = num_free_chunks(zhdr);
-+			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+			spin_unlock(&pool->lock);
-+		}
-+		z3fold_page_unlock(zhdr);
- 		spin_lock(&pool->lock);
--		freechunks = num_free_chunks(zhdr);
--		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+		if (kref_put(&zhdr->refcount, release_z3fold_page))
-+			atomic64_dec(&pool->pages_nr);
- 		spin_unlock(&pool->lock);
--		z3fold_page_unlock(zhdr);
- 	}
+ 		pud_t orig_pud = *vmf.pud;
  
- }
-@@ -608,13 +594,13 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			return -EINVAL;
- 		}
- 		page = list_last_entry(&pool->lru, struct page, lru);
--		list_del(&page->lru);
-+		list_del_init(&page->lru);
+@@ -3693,6 +3695,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 		ret = create_huge_pmd(&vmf);
+ 		if (!(ret & VM_FAULT_FALLBACK))
+ 			return ret;
++		/* fall through path, remove PMD flag */
++		vmf.flags &= ~FAULT_FLAG_SIZE_PMD;
+ 	} else {
+ 		pmd_t orig_pmd = *vmf.pmd;
  
--		/* Protect z3fold page against free */
--		set_bit(UNDER_RECLAIM, &page->private);
- 		zhdr = page_address(page);
- 		if (!test_bit(PAGE_HEADLESS, &page->private)) {
--			list_del(&zhdr->buddy);
-+			if (!list_empty(&zhdr->buddy))
-+				list_del_init(&zhdr->buddy);
-+			kref_get(&zhdr->refcount);
- 			spin_unlock(&pool->lock);
- 			z3fold_page_lock(zhdr);
- 			/*
-@@ -655,30 +641,19 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 				goto next;
- 		}
- next:
--		if (!test_bit(PAGE_HEADLESS, &page->private))
--			z3fold_page_lock(zhdr);
--		clear_bit(UNDER_RECLAIM, &page->private);
--		if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
--		    (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
--		     zhdr->middle_chunks == 0)) {
--			/*
--			 * All buddies are now free, free the z3fold page and
--			 * return success.
--			 */
--			if (!test_and_clear_bit(PAGE_HEADLESS, &page->private))
--				z3fold_page_unlock(zhdr);
--			free_z3fold_page(zhdr);
--			atomic64_dec(&pool->pages_nr);
--			return 0;
--		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
--			if (zhdr->first_chunks != 0 &&
--			    zhdr->last_chunks != 0 &&
--			    zhdr->middle_chunks != 0) {
--				/* Full, add to buddied list */
--				spin_lock(&pool->lock);
--				list_add(&zhdr->buddy, &pool->buddied);
--				spin_unlock(&pool->lock);
-+		if (test_bit(PAGE_HEADLESS, &page->private)) {
-+			if (ret == 0) {
-+				free_z3fold_page(page);
-+				return 0;
- 			} else {
-+				spin_lock(&pool->lock);
-+			}
-+		} else {
-+			z3fold_page_lock(zhdr);
-+			if ((zhdr->first_chunks || zhdr->last_chunks ||
-+			     zhdr->middle_chunks) &&
-+			    !(zhdr->first_chunks && zhdr->last_chunks &&
-+			      zhdr->middle_chunks)) {
- 				z3fold_compact_page(zhdr);
- 				/* add to unbuddied list */
- 				spin_lock(&pool->lock);
-@@ -687,13 +662,19 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 					 &pool->unbuddied[freechunks]);
- 				spin_unlock(&pool->lock);
- 			}
--		}
--
--		if (!test_bit(PAGE_HEADLESS, &page->private))
- 			z3fold_page_unlock(zhdr);
-+			spin_lock(&pool->lock);
-+			if (kref_put(&zhdr->refcount, release_z3fold_page)) {
-+				atomic64_dec(&pool->pages_nr);
-+				return 0;
-+			}
-+		}
- 
--		spin_lock(&pool->lock);
--		/* add to beginning of LRU */
-+		/*
-+		 * Add to the beginning of LRU.
-+		 * Pool lock has to be kept here to ensure the page has
-+		 * not already been released
-+		 */
- 		list_add(&page->lru, &pool->lru);
- 	}
- 	spin_unlock(&pool->lock);
--- 
-2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
