@@ -1,82 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 123356B0033
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 04:02:24 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id d123so245970135pfd.0
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 01:02:24 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id s17si10707231pgo.49.2017.01.31.01.02.22
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3803B6B0033
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 04:31:47 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id h7so68480539wjy.6
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 01:31:47 -0800 (PST)
+Received: from mail-wj0-x242.google.com (mail-wj0-x242.google.com. [2a00:1450:400c:c01::242])
+        by mx.google.com with ESMTPS id g206si16522066wmf.103.2017.01.31.01.31.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jan 2017 01:02:23 -0800 (PST)
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to vmpressure
-Date: Tue, 31 Jan 2017 14:32:08 +0530
-Message-Id: <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
-In-Reply-To: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
-References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
+        Tue, 31 Jan 2017 01:31:44 -0800 (PST)
+Received: by mail-wj0-x242.google.com with SMTP id kq3so10008392wjc.3
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 01:31:44 -0800 (PST)
+Date: Tue, 31 Jan 2017 12:31:41 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mm: sleeping function called from invalid context
+ shmem_undo_range
+Message-ID: <20170131093141.GA15899@node.shutemov.name>
+References: <CACT4Y+Y+mAg82iUD4gMA_DPoEBzjA3uO=kVki1x9NCJRQKwhHg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+Y+mAg82iUD4gMA_DPoEBzjA3uO=kVki1x9NCJRQKwhHg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shashim@codeaurora.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Andrey Ryabinin <aryabinin@virtuozzo.com>, syzkaller <syzkaller@googlegroups.com>
 
-During global reclaim, the nr_reclaimed passed to vmpressure
-includes the pages reclaimed from slab. But the corresponding
-scanned slab pages is not passed. This can cause total reclaimed
-pages to be greater than scanned, causing an unsigned underflow
-in vmpressure resulting in a critical event being sent to root
-cgroup. So do not consider reclaimed slab pages for vmpressure
-calculation. The reclaimed pages from slab can be excluded because
-the freeing of a page by slab shrinking depends on each slab's
-object population, making the cost model (i.e. scan:free) different
-from that of LRU. Also, not every shrinker accounts the pages it
-reclaims. This is a regression introduced by commit 6b4f7799c6a5
-("mm: vmscan: invoke slab shrinkers from shrink_zone()").
+On Tue, Jan 31, 2017 at 09:27:41AM +0100, Dmitry Vyukov wrote:
+> Hello,
+> 
+> I've got the following report while running syzkaller fuzzer on
+> fd694aaa46c7ed811b72eb47d5eb11ce7ab3f7f1:
 
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
----
- mm/vmscan.c | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 947ab6f..8969f8e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2594,16 +2594,23 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 				    sc->nr_scanned - nr_scanned,
- 				    node_lru_pages);
- 
-+		/*
-+		 * Record the subtree's reclaim efficiency. The reclaimed
-+		 * pages from slab is excluded here because the corresponding
-+		 * scanned pages is not accounted. Moreover, freeing a page
-+		 * by slab shrinking depends on each slab's object population,
-+		 * making the cost model (i.e. scan:free) different from that
-+		 * of LRU.
-+		 */
-+		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
-+			   sc->nr_scanned - nr_scanned,
-+			   sc->nr_reclaimed - nr_reclaimed);
-+
- 		if (reclaim_state) {
- 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
- 			reclaim_state->reclaimed_slab = 0;
- 		}
- 
--		/* Record the subtree's reclaim efficiency */
--		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
--			   sc->nr_scanned - nr_scanned,
--			   sc->nr_reclaimed - nr_reclaimed);
--
- 		if (sc->nr_reclaimed - nr_reclaimed)
- 			reclaimable = true;
- 
--- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This should help:
