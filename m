@@ -1,216 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D846B0253
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:32:46 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f144so509742484pfa.3
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:32:46 -0800 (PST)
-Received: from smtpbg202.qq.com (smtpbg202.qq.com. [184.105.206.29])
-        by mx.google.com with ESMTPS id d11si15981752plj.282.2017.01.31.05.32.43
+	by kanga.kvack.org (Postfix) with ESMTP id E9C356B0069
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:22:53 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c73so514279678pfb.7
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 06:22:53 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q9si10681937plk.87.2017.01.31.06.22.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Jan 2017 05:32:45 -0800 (PST)
-From: "=?ISO-8859-1?B?WWlzaGVuZyBYaWU=?=" <ysxie@foxmail.com>
-Subject: [PATCH v5 4/4] mm/hotplug: enable memory hotplug for non-lru movable pages
-Mime-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_589091F1_0944EDE0_569BDD02"
-Content-Transfer-Encoding: 8Bit
-Date: Tue, 31 Jan 2017 21:32:33 +0800
-Message-ID: <tencent_00309BF2214D3FAD4CBA2D3A@qq.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jan 2017 06:22:52 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0VEIxk8114695
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:22:52 -0500
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28asa0fxfk-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:22:51 -0500
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 31 Jan 2017 19:52:48 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B63373940064
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 19:52:46 +0530 (IST)
+Received: from d28av06.in.ibm.com (d28av06.in.ibm.com [9.184.220.48])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0VEMklS8847426
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 19:52:46 +0530
+Received: from d28av06.in.ibm.com (localhost [127.0.0.1])
+	by d28av06.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0VEMjDo011756
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 19:52:46 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [RFC] cpuset: Enable changing of top_cpuset's mems_allowed nodemask
+Date: Tue, 31 Jan 2017 19:52:37 +0530
+In-Reply-To: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
+References: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
+Message-Id: <20170131142237.27097-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?ISO-8859-1?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>
-Cc: =?ISO-8859-1?B?bi1ob3JpZ3VjaGk=?= <n-horiguchi@ah.jp.nec.com>, =?ISO-8859-1?B?bWhvY2tv?= <mhocko@suse.com>, =?ISO-8859-1?B?YWtwbQ==?= <akpm@linux-foundation.org>, =?ISO-8859-1?B?bWluY2hhbg==?= <minchan@kernel.org>, =?ISO-8859-1?B?dmJhYmth?= <vbabka@suse.cz>, =?ISO-8859-1?B?bWdvcm1hbg==?= <mgorman@techsingularity.net>, =?ISO-8859-1?B?aGFubmVz?= <hannes@cmpxchg.org>, =?ISO-8859-1?B?aWFtam9vbnNvby5raW0=?= <iamjoonsoo.kim@lge.com>, =?ISO-8859-1?B?aXp1bWkudGFrdQ==?= <izumi.taku@jp.fujitsu.com>, =?ISO-8859-1?B?YXJiYWI=?= <arbab@linux.vnet.ibm.com>, =?ISO-8859-1?B?dmt1em5ldHM=?= <vkuznets@redhat.com>, =?ISO-8859-1?B?YWs=?= <ak@linux.intel.com>, =?ISO-8859-1?B?Z3VvaGFuanVu?= <guohanjun@huawei.com>, =?ISO-8859-1?B?cWl1eGlzaGk=?= <qiuxishi@huawei.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-This is a multi-part message in MIME format.
+At present, top_cpuset.mems_allowed is same as node_states[N_MEMORY] and it
+cannot be changed at the runtime. Maximum possible node_states[N_MEMORY]
+also gets reflected in top_cpuset.effective_mems interface. It prevents some
+one from removing or restricting memory placement which will be applicable
+system wide on a given memory node through cpuset mechanism which might be
+limiting. This solves the problem by enabling update_nodemask() function to
+accept changes to top_cpuset.mems_allowed as well. Once changed, it also
+updates the value of top_cpuset.effective_mems. Updates all it's task's
+mems_allowed nodemask as well. It calls cpuset_inc() to make sure cpuset
+is accounted for in the buddy allocator through cpusets_enabled() check.
 
-------=_NextPart_589091F1_0944EDE0_569BDD02
-Content-Type: text/plain;
-	charset="ISO-8859-1"
-Content-Transfer-Encoding: base64
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+Tested for
 
-RnJvbTogWWlzaGVuZyBYaWUgPHhpZXlpc2hlbmcxQGh1YXdlaS5jb20+DQoNCldlIGhhZCBj
-b25zaWRlcmVkIGFsbCBvZiB0aGUgbm9uLWxydSBwYWdlcyBhcyB1bm1vdmFibGUgYmVmb3Jl
-DQpjb21taXQgYmRhODA3ZDQ0NDU0ICgibW06IG1pZ3JhdGU6IHN1cHBvcnQgbm9uLWxydSBt
-b3ZhYmxlIHBhZ2UNCm1pZ3JhdGlvbiIpLiBCdXQgbm93IHNvbWUgb2Ygbm9uLWxydSBwYWdl
-cyBsaWtlIHpzbWFsbG9jLA0KdmlydGlvLWJhbGxvb24gcGFnZXMgYWxzbyBiZWNvbWUgbW92
-YWJsZS4gU28gd2UgY2FuIG9mZmxpbmUgc3VjaA0KYmxvY2tzIGJ5IHVzaW5nIG5vbi1scnUg
-cGFnZSBtaWdyYXRpb24uDQoNClRoaXMgcGF0Y2ggc3RyYWlnaHRmb3J3YXJkbHkgYWRkIG5v
-bi1scnUgbWlncmF0aW9uIGNvZGUsIHdoaWNoDQptZWFucyBhZGRpbmcgbm9uLWxydSByZWxh
-dGVkIGNvZGUgdG8gdGhlIGZ1bmN0aW9ucyB3aGljaCBzY2FuDQpvdmVyIHBmbiBhbmQgY29s
-bGVjdCBwYWdlcyB0byBiZSBtaWdyYXRlZCBhbmQgaXNvbGF0ZSB0aGVtIGJlZm9yZQ0KbWln
-cmF0aW9uLg0KDQpTaWduZWQtb2ZmLWJ5OiBZaXNoZW5nIFhpZSA8eGlleWlzaGVuZzFAaHVh
-d2VpLmNvbT4NCkNjOiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BrZXJuZWwub3JnPg0KQ2M6IE1p
-bmNoYW4gS2ltIDxtaW5jaGFuQGtlcm5lbC5vcmc+DQpDYzogTmFveWEgSG9yaWd1Y2hpIDxu
-LWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KQ0M6IFZsYXN0aW1pbCBCYWJrYSA8dmJhYmth
-QHN1c2UuY3o+DQotLS0NCiBtbS9tZW1vcnlfaG90cGx1Zy5jIHwgMjggKysrKysrKysrKysr
-KysrKystLS0tLS0tLS0tLQ0KIG1tL3BhZ2VfYWxsb2MuYyAgICAgfCAgOCArKysrKystLQ0K
-IDIgZmlsZXMgY2hhbmdlZCwgMjMgaW5zZXJ0aW9ucygrKSwgMTMgZGVsZXRpb25zKC0pDQoN
-CmRpZmYgLS1naXQgYS9tbS9tZW1vcnlfaG90cGx1Zy5jIGIvbW0vbWVtb3J5X2hvdHBsdWcu
-Yw0KaW5kZXggY2EyNzIzZC4uZWExYmUwOCAxMDA2NDQNCi0tLSBhL21tL21lbW9yeV9ob3Rw
-bHVnLmMNCisrKyBiL21tL21lbW9yeV9ob3RwbHVnLmMNCkBAIC0xNTE2LDEwICsxNTE2LDEw
-IEBAIGludCB0ZXN0X3BhZ2VzX2luX2Ffem9uZSh1bnNpZ25lZCBsb25nIHN0YXJ0X3Bmbiwg
-dW5zaWduZWQgbG9uZyBlbmRfcGZuKQ0KIH0NCiANCiAvKg0KLSAqIFNjYW4gcGZuIHJhbmdl
-IFtzdGFydCxlbmQpIHRvIGZpbmQgbW92YWJsZS9taWdyYXRhYmxlIHBhZ2VzIChMUlUgcGFn
-ZXMNCi0gKiBhbmQgaHVnZXBhZ2VzKS4gV2Ugc2NhbiBwZm4gYmVjYXVzZSBpdCdzIG11Y2gg
-ZWFzaWVyIHRoYW4gc2Nhbm5pbmcgb3Zlcg0KLSAqIGxpbmtlZCBsaXN0LiBUaGlzIGZ1bmN0
-aW9uIHJldHVybnMgdGhlIHBmbiBvZiB0aGUgZmlyc3QgZm91bmQgbW92YWJsZQ0KLSAqIHBh
-Z2UgaWYgaXQncyBmb3VuZCwgb3RoZXJ3aXNlIDAuDQorICogU2NhbiBwZm4gcmFuZ2UgW3N0
-YXJ0LGVuZCkgdG8gZmluZCBtb3ZhYmxlL21pZ3JhdGFibGUgcGFnZXMgKExSVSBwYWdlcywN
-CisgKiBub24tbHJ1IG1vdmFibGUgcGFnZXMgYW5kIGh1Z2VwYWdlcykuIFdlIHNjYW4gcGZu
-IGJlY2F1c2UgaXQncyBtdWNoDQorICogZWFzaWVyIHRoYW4gc2Nhbm5pbmcgb3ZlciBsaW5r
-ZWQgbGlzdC4gVGhpcyBmdW5jdGlvbiByZXR1cm5zIHRoZSBwZm4NCisgKiBvZiB0aGUgZmly
-c3QgZm91bmQgbW92YWJsZSBwYWdlIGlmIGl0J3MgZm91bmQsIG90aGVyd2lzZSAwLg0KICAq
-Lw0KIHN0YXRpYyB1bnNpZ25lZCBsb25nIHNjYW5fbW92YWJsZV9wYWdlcyh1bnNpZ25lZCBs
-b25nIHN0YXJ0LCB1bnNpZ25lZCBsb25nIGVuZCkNCiB7DQpAQCAtMTUzMCw2ICsxNTMwLDgg
-QEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgc2Nhbl9tb3ZhYmxlX3BhZ2VzKHVuc2lnbmVkIGxv
-bmcgc3RhcnQsIHVuc2lnbmVkIGxvbmcgZW5kKQ0KIAkJCXBhZ2UgPSBwZm5fdG9fcGFnZShw
-Zm4pOw0KIAkJCWlmIChQYWdlTFJVKHBhZ2UpKQ0KIAkJCQlyZXR1cm4gcGZuOw0KKwkJCWlm
-IChfX1BhZ2VNb3ZhYmxlKHBhZ2UpKQ0KKwkJCQlyZXR1cm4gcGZuOw0KIAkJCWlmIChQYWdl
-SHVnZShwYWdlKSkgew0KIAkJCQlpZiAocGFnZV9odWdlX2FjdGl2ZShwYWdlKSkNCiAJCQkJ
-CXJldHVybiBwZm47DQpAQCAtMTYwNiwyMSArMTYwOCwyNSBAQCBzdGF0aWMgc3RydWN0IHBh
-Z2UgKm5ld19ub2RlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHVuc2lnbmVkIGxvbmcgcHJp
-dmF0ZSwNCiAJCWlmICghZ2V0X3BhZ2VfdW5sZXNzX3plcm8ocGFnZSkpDQogCQkJY29udGlu
-dWU7DQogCQkvKg0KLQkJICogV2UgY2FuIHNraXAgZnJlZSBwYWdlcy4gQW5kIHdlIGNhbiBv
-bmx5IGRlYWwgd2l0aCBwYWdlcyBvbg0KLQkJICogTFJVLg0KKwkJICogV2UgY2FuIHNraXAg
-ZnJlZSBwYWdlcy4gQW5kIHdlIGNhbiBkZWFsIHdpdGggcGFnZXMgb24NCisJCSAqIExSVSBh
-bmQgbm9uLWxydSBtb3ZhYmxlIHBhZ2VzLg0KIAkJICovDQotCQlyZXQgPSBpc29sYXRlX2xy
-dV9wYWdlKHBhZ2UpOw0KKwkJaWYgKFBhZ2VMUlUocGFnZSkpDQorCQkJcmV0ID0gaXNvbGF0
-ZV9scnVfcGFnZShwYWdlKTsNCisJCWVsc2UNCisJCQlyZXQgPSBpc29sYXRlX21vdmFibGVf
-cGFnZShwYWdlLCBJU09MQVRFX1VORVZJQ1RBQkxFKTsNCiAJCWlmICghcmV0KSB7IC8qIFN1
-Y2Nlc3MgKi8NCiAJCQlwdXRfcGFnZShwYWdlKTsNCiAJCQlsaXN0X2FkZF90YWlsKCZwYWdl
-LT5scnUsICZzb3VyY2UpOw0KIAkJCW1vdmVfcGFnZXMtLTsNCi0JCQlpbmNfbm9kZV9wYWdl
-X3N0YXRlKHBhZ2UsIE5SX0lTT0xBVEVEX0FOT04gKw0KLQkJCQkJICAgIHBhZ2VfaXNfZmls
-ZV9jYWNoZShwYWdlKSk7DQorCQkJaWYgKCFfX1BhZ2VNb3ZhYmxlKHBhZ2UpKQ0KKwkJCQlp
-bmNfbm9kZV9wYWdlX3N0YXRlKHBhZ2UsIE5SX0lTT0xBVEVEX0FOT04gKw0KKwkJCQkJCSAg
-ICBwYWdlX2lzX2ZpbGVfY2FjaGUocGFnZSkpOw0KIA0KIAkJfSBlbHNlIHsNCiAjaWZkZWYg
-Q09ORklHX0RFQlVHX1ZNDQotCQkJcHJfYWxlcnQoInJlbW92aW5nIHBmbiAlbHggZnJvbSBM
-UlUgZmFpbGVkXG4iLCBwZm4pOw0KLQkJCWR1bXBfcGFnZShwYWdlLCAiZmFpbGVkIHRvIHJl
-bW92ZSBmcm9tIExSVSIpOw0KKwkJCXByX2FsZXJ0KCJmYWlsZWQgdG8gaXNvbGF0ZSBwZm4g
-JWx4XG4iLCBwZm4pOw0KKwkJCWR1bXBfcGFnZShwYWdlLCAiaXNvbGF0aW9uIGZhaWxlZCIp
-Ow0KICNlbmRpZg0KIAkJCXB1dF9wYWdlKHBhZ2UpOw0KIAkJCS8qIEJlY2F1c2Ugd2UgZG9u
-J3QgaGF2ZSBiaWcgem9uZS0+bG9jay4gd2Ugc2hvdWxkDQpkaWZmIC0tZ2l0IGEvbW0vcGFn
-ZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jDQppbmRleCBmM2UwYzY5Li45YzRlMjI5IDEw
-MDY0NA0KLS0tIGEvbW0vcGFnZV9hbGxvYy5jDQorKysgYi9tbS9wYWdlX2FsbG9jLmMNCkBA
-IC03MDgxLDggKzcwODEsOSBAQCB2b2lkICpfX2luaXQgYWxsb2NfbGFyZ2Vfc3lzdGVtX2hh
-c2goY29uc3QgY2hhciAqdGFibGVuYW1lLA0KICAqIElmIEBjb3VudCBpcyBub3QgemVybywg
-aXQgaXMgb2theSB0byBpbmNsdWRlIGxlc3MgQGNvdW50IHVubW92YWJsZSBwYWdlcw0KICAq
-DQogICogUGFnZUxSVSBjaGVjayB3aXRob3V0IGlzb2xhdGlvbiBvciBscnVfbG9jayBjb3Vs
-ZCByYWNlIHNvIHRoYXQNCi0gKiBNSUdSQVRFX01PVkFCTEUgYmxvY2sgbWlnaHQgaW5jbHVk
-ZSB1bm1vdmFibGUgcGFnZXMuIEl0IG1lYW5zIHlvdSBjYW4ndA0KLSAqIGV4cGVjdCB0aGlz
-IGZ1bmN0aW9uIHNob3VsZCBiZSBleGFjdC4NCisgKiBNSUdSQVRFX01PVkFCTEUgYmxvY2sg
-bWlnaHQgaW5jbHVkZSB1bm1vdmFibGUgcGFnZXMuIEFuZCBfX1BhZ2VNb3ZhYmxlDQorICog
-Y2hlY2sgd2l0aG91dCBsb2NrX3BhZ2UgYWxzbyBtYXkgbWlzcyBzb21lIG1vdmFibGUgbm9u
-LWxydSBwYWdlcyBhdA0KKyAqIHJhY2UgY29uZGl0aW9uLiBTbyB5b3UgY2FuJ3QgZXhwZWN0
-IHRoaXMgZnVuY3Rpb24gc2hvdWxkIGJlIGV4YWN0Lg0KICAqLw0KIGJvb2wgaGFzX3VubW92
-YWJsZV9wYWdlcyhzdHJ1Y3Qgem9uZSAqem9uZSwgc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBj
-b3VudCwNCiAJCQkgYm9vbCBza2lwX2h3cG9pc29uZWRfcGFnZXMpDQpAQCAtNzEzOCw2ICs3
-MTM5LDkgQEAgYm9vbCBoYXNfdW5tb3ZhYmxlX3BhZ2VzKHN0cnVjdCB6b25lICp6b25lLCBz
-dHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGNvdW50LA0KIAkJaWYgKHNraXBfaHdwb2lzb25lZF9w
-YWdlcyAmJiBQYWdlSFdQb2lzb24ocGFnZSkpDQogCQkJY29udGludWU7DQogDQorCQlpZiAo
-X19QYWdlTW92YWJsZShwYWdlKSkNCisJCQljb250aW51ZTsNCisNCiAJCWlmICghUGFnZUxS
-VShwYWdlKSkNCiAJCQlmb3VuZCsrOw0KIAkJLyoNCi0tIA0KMS45LjE=
+* Enforcement of changed top_cpuset.mems_allowed
+* Global mems_allowed cannot be changed till there are other
+  cpusets present underneath the top root cpuset. I guess it
+  is expected.
 
-------=_NextPart_589091F1_0944EDE0_569BDD02
-Content-Type: text/html;
-	charset="ISO-8859-1"
-Content-Transfer-Encoding: base64
+ kernel/cpuset.c | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
 
-RnJvbTogWWlzaGVuZyBYaWUgJmx0O3hpZXlpc2hlbmcxQGh1YXdlaS5jb20mZ3Q7PGJyPjxi
-cj5XZSBoYWQgY29uc2lkZXJlZCBhbGwgb2YgdGhlIG5vbi1scnUgcGFnZXMgYXMgdW5tb3Zh
-YmxlIGJlZm9yZTxicj5jb21taXQgYmRhODA3ZDQ0NDU0ICgibW06IG1pZ3JhdGU6IHN1cHBv
-cnQgbm9uLWxydSBtb3ZhYmxlIHBhZ2U8YnI+bWlncmF0aW9uIikuIEJ1dCBub3cgc29tZSBv
-ZiBub24tbHJ1IHBhZ2VzIGxpa2UgenNtYWxsb2MsPGJyPnZpcnRpby1iYWxsb29uIHBhZ2Vz
-IGFsc28gYmVjb21lIG1vdmFibGUuIFNvIHdlIGNhbiBvZmZsaW5lIHN1Y2g8YnI+YmxvY2tz
-IGJ5IHVzaW5nIG5vbi1scnUgcGFnZSBtaWdyYXRpb24uPGJyPjxicj5UaGlzIHBhdGNoIHN0
-cmFpZ2h0Zm9yd2FyZGx5IGFkZCBub24tbHJ1IG1pZ3JhdGlvbiBjb2RlLCB3aGljaDxicj5t
-ZWFucyBhZGRpbmcgbm9uLWxydSByZWxhdGVkIGNvZGUgdG8gdGhlIGZ1bmN0aW9ucyB3aGlj
-aCBzY2FuPGJyPm92ZXIgcGZuIGFuZCBjb2xsZWN0IHBhZ2VzIHRvIGJlIG1pZ3JhdGVkIGFu
-ZCBpc29sYXRlIHRoZW0gYmVmb3JlPGJyPm1pZ3JhdGlvbi48YnI+PGJyPlNpZ25lZC1vZmYt
-Ynk6IFlpc2hlbmcgWGllICZsdDt4aWV5aXNoZW5nMUBodWF3ZWkuY29tJmd0Ozxicj5DYzog
-TWljaGFsIEhvY2tvICZsdDttaG9ja29Aa2VybmVsLm9yZyZndDs8YnI+Q2M6IE1pbmNoYW4g
-S2ltICZsdDttaW5jaGFuQGtlcm5lbC5vcmcmZ3Q7PGJyPkNjOiBOYW95YSBIb3JpZ3VjaGkg
-Jmx0O24taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20mZ3Q7PGJyPkNDOiBWbGFzdGltaWwgQmFi
-a2EgJmx0O3ZiYWJrYUBzdXNlLmN6Jmd0Ozxicj4tLS08YnI+Jm5ic3A7bW0vbWVtb3J5X2hv
-dHBsdWcuYyB8IDI4ICsrKysrKysrKysrKysrKysrLS0tLS0tLS0tLS08YnI+Jm5ic3A7bW0v
-cGFnZV9hbGxvYy5jJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHwmbmJzcDsgOCArKysrKyst
-LTxicj4mbmJzcDsyIGZpbGVzIGNoYW5nZWQsIDIzIGluc2VydGlvbnMoKyksIDEzIGRlbGV0
-aW9ucygtKTxicj48YnI+ZGlmZiAtLWdpdCBhL21tL21lbW9yeV9ob3RwbHVnLmMgYi9tbS9t
-ZW1vcnlfaG90cGx1Zy5jPGJyPmluZGV4IGNhMjcyM2QuLmVhMWJlMDggMTAwNjQ0PGJyPi0t
-LSBhL21tL21lbW9yeV9ob3RwbHVnLmM8YnI+KysrIGIvbW0vbWVtb3J5X2hvdHBsdWcuYzxi
-cj5AQCAtMTUxNiwxMCArMTUxNiwxMCBAQCBpbnQgdGVzdF9wYWdlc19pbl9hX3pvbmUodW5z
-aWduZWQgbG9uZyBzdGFydF9wZm4sIHVuc2lnbmVkIGxvbmcgZW5kX3Bmbik8YnI+Jm5ic3A7
-fTxicj4mbmJzcDs8YnI+Jm5ic3A7Lyo8YnI+LSAqIFNjYW4gcGZuIHJhbmdlIFtzdGFydCxl
-bmQpIHRvIGZpbmQgbW92YWJsZS9taWdyYXRhYmxlIHBhZ2VzIChMUlUgcGFnZXM8YnI+LSAq
-IGFuZCBodWdlcGFnZXMpLiBXZSBzY2FuIHBmbiBiZWNhdXNlIGl0J3MgbXVjaCBlYXNpZXIg
-dGhhbiBzY2FubmluZyBvdmVyPGJyPi0gKiBsaW5rZWQgbGlzdC4gVGhpcyBmdW5jdGlvbiBy
-ZXR1cm5zIHRoZSBwZm4gb2YgdGhlIGZpcnN0IGZvdW5kIG1vdmFibGU8YnI+LSAqIHBhZ2Ug
-aWYgaXQncyBmb3VuZCwgb3RoZXJ3aXNlIDAuPGJyPisgKiBTY2FuIHBmbiByYW5nZSBbc3Rh
-cnQsZW5kKSB0byBmaW5kIG1vdmFibGUvbWlncmF0YWJsZSBwYWdlcyAoTFJVIHBhZ2VzLDxi
-cj4rICogbm9uLWxydSBtb3ZhYmxlIHBhZ2VzIGFuZCBodWdlcGFnZXMpLiBXZSBzY2FuIHBm
-biBiZWNhdXNlIGl0J3MgbXVjaDxicj4rICogZWFzaWVyIHRoYW4gc2Nhbm5pbmcgb3ZlciBs
-aW5rZWQgbGlzdC4gVGhpcyBmdW5jdGlvbiByZXR1cm5zIHRoZSBwZm48YnI+KyAqIG9mIHRo
-ZSBmaXJzdCBmb3VuZCBtb3ZhYmxlIHBhZ2UgaWYgaXQncyBmb3VuZCwgb3RoZXJ3aXNlIDAu
-PGJyPiZuYnNwOyAqLzxicj4mbmJzcDtzdGF0aWMgdW5zaWduZWQgbG9uZyBzY2FuX21vdmFi
-bGVfcGFnZXModW5zaWduZWQgbG9uZyBzdGFydCwgdW5zaWduZWQgbG9uZyBlbmQpPGJyPiZu
-YnNwO3s8YnI+QEAgLTE1MzAsNiArMTUzMCw4IEBAIHN0YXRpYyB1bnNpZ25lZCBsb25nIHNj
-YW5fbW92YWJsZV9wYWdlcyh1bnNpZ25lZCBsb25nIHN0YXJ0LCB1bnNpZ25lZCBsb25nIGVu
-ZCk8YnI+Jm5ic3A7CQkJcGFnZSA9IHBmbl90b19wYWdlKHBmbik7PGJyPiZuYnNwOwkJCWlm
-IChQYWdlTFJVKHBhZ2UpKTxicj4mbmJzcDsJCQkJcmV0dXJuIHBmbjs8YnI+KwkJCWlmIChf
-X1BhZ2VNb3ZhYmxlKHBhZ2UpKTxicj4rCQkJCXJldHVybiBwZm47PGJyPiZuYnNwOwkJCWlm
-IChQYWdlSHVnZShwYWdlKSkgezxicj4mbmJzcDsJCQkJaWYgKHBhZ2VfaHVnZV9hY3RpdmUo
-cGFnZSkpPGJyPiZuYnNwOwkJCQkJcmV0dXJuIHBmbjs8YnI+QEAgLTE2MDYsMjEgKzE2MDgs
-MjUgQEAgc3RhdGljIHN0cnVjdCBwYWdlICpuZXdfbm9kZV9wYWdlKHN0cnVjdCBwYWdlICpw
-YWdlLCB1bnNpZ25lZCBsb25nIHByaXZhdGUsPGJyPiZuYnNwOwkJaWYgKCFnZXRfcGFnZV91
-bmxlc3NfemVybyhwYWdlKSk8YnI+Jm5ic3A7CQkJY29udGludWU7PGJyPiZuYnNwOwkJLyo8
-YnI+LQkJICogV2UgY2FuIHNraXAgZnJlZSBwYWdlcy4gQW5kIHdlIGNhbiBvbmx5IGRlYWwg
-d2l0aCBwYWdlcyBvbjxicj4tCQkgKiBMUlUuPGJyPisJCSAqIFdlIGNhbiBza2lwIGZyZWUg
-cGFnZXMuIEFuZCB3ZSBjYW4gZGVhbCB3aXRoIHBhZ2VzIG9uPGJyPisJCSAqIExSVSBhbmQg
-bm9uLWxydSBtb3ZhYmxlIHBhZ2VzLjxicj4mbmJzcDsJCSAqLzxicj4tCQlyZXQgPSBpc29s
-YXRlX2xydV9wYWdlKHBhZ2UpOzxicj4rCQlpZiAoUGFnZUxSVShwYWdlKSk8YnI+KwkJCXJl
-dCA9IGlzb2xhdGVfbHJ1X3BhZ2UocGFnZSk7PGJyPisJCWVsc2U8YnI+KwkJCXJldCA9IGlz
-b2xhdGVfbW92YWJsZV9wYWdlKHBhZ2UsIElTT0xBVEVfVU5FVklDVEFCTEUpOzxicj4mbmJz
-cDsJCWlmICghcmV0KSB7IC8qIFN1Y2Nlc3MgKi88YnI+Jm5ic3A7CQkJcHV0X3BhZ2UocGFn
-ZSk7PGJyPiZuYnNwOwkJCWxpc3RfYWRkX3RhaWwoJmFtcDtwYWdlLSZndDtscnUsICZhbXA7
-c291cmNlKTs8YnI+Jm5ic3A7CQkJbW92ZV9wYWdlcy0tOzxicj4tCQkJaW5jX25vZGVfcGFn
-ZV9zdGF0ZShwYWdlLCBOUl9JU09MQVRFRF9BTk9OICs8YnI+LQkJCQkJJm5ic3A7Jm5ic3A7
-Jm5ic3A7IHBhZ2VfaXNfZmlsZV9jYWNoZShwYWdlKSk7PGJyPisJCQlpZiAoIV9fUGFnZU1v
-dmFibGUocGFnZSkpPGJyPisJCQkJaW5jX25vZGVfcGFnZV9zdGF0ZShwYWdlLCBOUl9JU09M
-QVRFRF9BTk9OICs8YnI+KwkJCQkJCSZuYnNwOyZuYnNwOyZuYnNwOyBwYWdlX2lzX2ZpbGVf
-Y2FjaGUocGFnZSkpOzxicj4mbmJzcDs8YnI+Jm5ic3A7CQl9IGVsc2Ugezxicj4mbmJzcDsj
-aWZkZWYgQ09ORklHX0RFQlVHX1ZNPGJyPi0JCQlwcl9hbGVydCgicmVtb3ZpbmcgcGZuICVs
-eCBmcm9tIExSVSBmYWlsZWRcbiIsIHBmbik7PGJyPi0JCQlkdW1wX3BhZ2UocGFnZSwgImZh
-aWxlZCB0byByZW1vdmUgZnJvbSBMUlUiKTs8YnI+KwkJCXByX2FsZXJ0KCJmYWlsZWQgdG8g
-aXNvbGF0ZSBwZm4gJWx4XG4iLCBwZm4pOzxicj4rCQkJZHVtcF9wYWdlKHBhZ2UsICJpc29s
-YXRpb24gZmFpbGVkIik7PGJyPiZuYnNwOyNlbmRpZjxicj4mbmJzcDsJCQlwdXRfcGFnZShw
-YWdlKTs8YnI+Jm5ic3A7CQkJLyogQmVjYXVzZSB3ZSBkb24ndCBoYXZlIGJpZyB6b25lLSZn
-dDtsb2NrLiB3ZSBzaG91bGQ8YnI+ZGlmZiAtLWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21t
-L3BhZ2VfYWxsb2MuYzxicj5pbmRleCBmM2UwYzY5Li45YzRlMjI5IDEwMDY0NDxicj4tLS0g
-YS9tbS9wYWdlX2FsbG9jLmM8YnI+KysrIGIvbW0vcGFnZV9hbGxvYy5jPGJyPkBAIC03MDgx
-LDggKzcwODEsOSBAQCB2b2lkICpfX2luaXQgYWxsb2NfbGFyZ2Vfc3lzdGVtX2hhc2goY29u
-c3QgY2hhciAqdGFibGVuYW1lLDxicj4mbmJzcDsgKiBJZiBAY291bnQgaXMgbm90IHplcm8s
-IGl0IGlzIG9rYXkgdG8gaW5jbHVkZSBsZXNzIEBjb3VudCB1bm1vdmFibGUgcGFnZXM8YnI+
-Jm5ic3A7ICo8YnI+Jm5ic3A7ICogUGFnZUxSVSBjaGVjayB3aXRob3V0IGlzb2xhdGlvbiBv
-ciBscnVfbG9jayBjb3VsZCByYWNlIHNvIHRoYXQ8YnI+LSAqIE1JR1JBVEVfTU9WQUJMRSBi
-bG9jayBtaWdodCBpbmNsdWRlIHVubW92YWJsZSBwYWdlcy4gSXQgbWVhbnMgeW91IGNhbid0
-PGJyPi0gKiBleHBlY3QgdGhpcyBmdW5jdGlvbiBzaG91bGQgYmUgZXhhY3QuPGJyPisgKiBN
-SUdSQVRFX01PVkFCTEUgYmxvY2sgbWlnaHQgaW5jbHVkZSB1bm1vdmFibGUgcGFnZXMuIEFu
-ZCBfX1BhZ2VNb3ZhYmxlPGJyPisgKiBjaGVjayB3aXRob3V0IGxvY2tfcGFnZSBhbHNvIG1h
-eSBtaXNzIHNvbWUgbW92YWJsZSBub24tbHJ1IHBhZ2VzIGF0PGJyPisgKiByYWNlIGNvbmRp
-dGlvbi4gU28geW91IGNhbid0IGV4cGVjdCB0aGlzIGZ1bmN0aW9uIHNob3VsZCBiZSBleGFj
-dC48YnI+Jm5ic3A7ICovPGJyPiZuYnNwO2Jvb2wgaGFzX3VubW92YWJsZV9wYWdlcyhzdHJ1
-Y3Qgem9uZSAqem9uZSwgc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBjb3VudCw8YnI+Jm5ic3A7
-CQkJIGJvb2wgc2tpcF9od3BvaXNvbmVkX3BhZ2VzKTxicj5AQCAtNzEzOCw2ICs3MTM5LDkg
-QEAgYm9vbCBoYXNfdW5tb3ZhYmxlX3BhZ2VzKHN0cnVjdCB6b25lICp6b25lLCBzdHJ1Y3Qg
-cGFnZSAqcGFnZSwgaW50IGNvdW50LDxicj4mbmJzcDsJCWlmIChza2lwX2h3cG9pc29uZWRf
-cGFnZXMgJmFtcDsmYW1wOyBQYWdlSFdQb2lzb24ocGFnZSkpPGJyPiZuYnNwOwkJCWNvbnRp
-bnVlOzxicj4mbmJzcDs8YnI+KwkJaWYgKF9fUGFnZU1vdmFibGUocGFnZSkpPGJyPisJCQlj
-b250aW51ZTs8YnI+Kzxicj4mbmJzcDsJCWlmICghUGFnZUxSVShwYWdlKSk8YnI+Jm5ic3A7
-CQkJZm91bmQrKzs8YnI+Jm5ic3A7CQkvKjxicj4tLSA8YnI+MS45LjE8YnI+
-
-------=_NextPart_589091F1_0944EDE0_569BDD02--
-
-
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index b308888..e8c105a 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -1210,15 +1210,6 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 	int retval;
+ 
+ 	/*
+-	 * top_cpuset.mems_allowed tracks node_stats[N_MEMORY];
+-	 * it's read-only
+-	 */
+-	if (cs == &top_cpuset) {
+-		retval = -EACCES;
+-		goto done;
+-	}
+-
+-	/*
+ 	 * An empty mems_allowed is ok iff there are no tasks in the cpuset.
+ 	 * Since nodelist_parse() fails on an empty mask, we special case
+ 	 * that parsing.  The validate_change() call ensures that cpusets
+@@ -1232,7 +1223,7 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 			goto done;
+ 
+ 		if (!nodes_subset(trialcs->mems_allowed,
+-				  top_cpuset.mems_allowed)) {
++				  node_states[N_MEMORY])) {
+ 			retval = -EINVAL;
+ 			goto done;
+ 		}
+@@ -1250,6 +1241,16 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 	cs->mems_allowed = trialcs->mems_allowed;
+ 	spin_unlock_irq(&callback_lock);
+ 
++	if (cs == &top_cpuset) {
++		spin_lock_irq(&callback_lock);
++		cs->effective_mems = trialcs->mems_allowed;
++		spin_unlock_irq(&callback_lock);
++
++		update_tasks_nodemask(cs);
++		cpuset_inc();
++		goto done;
++	}
++
+ 	/* use trialcs->mems_allowed as a temp variable */
+ 	update_nodemasks_hier(cs, &trialcs->mems_allowed);
+ done:
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
