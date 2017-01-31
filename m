@@ -1,52 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6B56B025E
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:21:45 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r18so15807785wmd.1
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:21:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e56si20768714wre.332.2017.01.31.05.21.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Jan 2017 05:21:43 -0800 (PST)
-Date: Tue, 31 Jan 2017 14:21:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170131132141.GF19082@dhcp22.suse.cz>
-References: <201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
- <201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
- <20170125101517.GG32377@dhcp22.suse.cz>
- <20170125101957.GA17632@lst.de>
- <20170125104605.GI32377@dhcp22.suse.cz>
- <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
- <20170125130014.GO32377@dhcp22.suse.cz>
- <20170131115846.GD19082@dhcp22.suse.cz>
- <20170131125140.GA5298@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170131125140.GA5298@lst.de>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E9E1D6B0253
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:23:15 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id c80so177142403iod.4
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:23:15 -0800 (PST)
+Received: from smtpbg123.qq.com (smtpbg123.qq.com. [183.60.2.34])
+        by mx.google.com with SMTP id 30si15950775pla.317.2017.01.31.05.23.14
+        for <linux-mm@kvack.org>;
+        Tue, 31 Jan 2017 05:23:15 -0800 (PST)
+From: ysxie@foxmail.com
+Subject: [PATCH v5 1/4] mm/migration: make isolate_movable_page() return int type
+Date: Tue, 31 Jan 2017 21:06:18 +0800
+Message-Id: <1485867981-16037-2-git-send-email-ysxie@foxmail.com>
+In-Reply-To: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On Tue 31-01-17 13:51:40, Christoph Hellwig wrote:
-> On Tue, Jan 31, 2017 at 12:58:46PM +0100, Michal Hocko wrote:
-> > What do you think Christoph? I have an additional patch to handle
-> > do_generic_file_read and a similar one to back off in
-> > __vmalloc_area_node. I would like to post them all in one series but I
-> > would like to know that this one is OK before I do that.
-> 
-> Well, that patch you posted is okay, but you probably need additional
-> ones for the other interesting users of iomap_apply.
+From: Yisheng Xie <xieyisheng1@huawei.com>
 
-I have checked all of them I guees/hope. Which one you have in mind?
+This patch changes the return type of isolate_movable_page()
+from bool to int. It will return 0 when isolate movable page
+successfully, return -EINVAL when the page is not a non-lru movable
+page, and for other cases it will return -EBUSY.
 
+There is no functional change within this patch but prepare
+for later patch.
+
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+CC: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/migrate.h |  2 +-
+ mm/compaction.c         |  2 +-
+ mm/migrate.c            | 11 +++++++----
+ 3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ae8d475..43d5deb 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -37,7 +37,7 @@ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+ 		unsigned long private, enum migrate_mode mode, int reason);
+-extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
++extern int isolate_movable_page(struct page *page, isolate_mode_t mode);
+ extern void putback_movable_page(struct page *page);
+ 
+ extern int migrate_prep(void);
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 949198d..1d89147 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -802,7 +802,7 @@ static bool too_many_isolated(struct zone *zone)
+ 					locked = false;
+ 				}
+ 
+-				if (isolate_movable_page(page, isolate_mode))
++				if (!isolate_movable_page(page, isolate_mode))
+ 					goto isolate_success;
+ 			}
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 87f4d0f..bbbd170 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -74,8 +74,9 @@ int migrate_prep_local(void)
+ 	return 0;
+ }
+ 
+-bool isolate_movable_page(struct page *page, isolate_mode_t mode)
++int isolate_movable_page(struct page *page, isolate_mode_t mode)
+ {
++	int ret = -EBUSY;
+ 	struct address_space *mapping;
+ 
+ 	/*
+@@ -95,8 +96,10 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+ 	 * assumes anybody doesn't touch PG_lock of newly allocated page
+ 	 * so unconditionally grapping the lock ruins page's owner side.
+ 	 */
+-	if (unlikely(!__PageMovable(page)))
++	if (unlikely(!__PageMovable(page))) {
++		ret = -EINVAL;
+ 		goto out_putpage;
++	}
+ 	/*
+ 	 * As movable pages are not isolated from LRU lists, concurrent
+ 	 * compaction threads can race against page migration functions
+@@ -125,14 +128,14 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+ 	__SetPageIsolated(page);
+ 	unlock_page(page);
+ 
+-	return true;
++	return 0;
+ 
+ out_no_isolated:
+ 	unlock_page(page);
+ out_putpage:
+ 	put_page(page);
+ out:
+-	return false;
++	return ret;
+ }
+ 
+ /* It should be called on page which is PG_movable */
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
