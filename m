@@ -1,90 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EBAE6B0069
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 19:15:43 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id s10so168499147itb.7
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:15:43 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id v6si14135808plk.133.2017.01.30.16.15.42
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7E26B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 20:03:34 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id d9so168929427itc.4
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 17:03:34 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m78si14285432pfg.240.2017.01.30.17.03.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 16:15:42 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] mm,fs,dax: Change ->pmd_fault to ->huge_fault
-References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
- <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
- <20170130234321.GA26702@linux.intel.com>
-From: Dave Jiang <dave.jiang@intel.com>
-Message-ID: <79fcc6fe-77c5-7145-cf24-4a04df482803@intel.com>
-Date: Mon, 30 Jan 2017 17:15:40 -0700
+        Mon, 30 Jan 2017 17:03:33 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0V13W5v043224
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 20:03:32 -0500
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 28abjkt7mt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 20:03:27 -0500
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 31 Jan 2017 06:33:24 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 7FE44125801F
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 06:35:06 +0530 (IST)
+Received: from d28av08.in.ibm.com (d28av08.in.ibm.com [9.184.220.148])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0V13Lao33226894
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 06:33:21 +0530
+Received: from d28av08.in.ibm.com (localhost [127.0.0.1])
+	by d28av08.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0V13KKa001112
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 06:33:21 +0530
+Subject: Re: [RFC V2 02/12] mm: Isolate HugeTLB allocations away from CDM
+ nodes
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-3-khandual@linux.vnet.ibm.com>
+ <01671749-c649-e015-4f51-7acaa1fb5b80@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 31 Jan 2017 06:33:12 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170130234321.GA26702@linux.intel.com>
+In-Reply-To: <01671749-c649-e015-4f51-7acaa1fb5b80@intel.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <be8665a1-43d2-436a-90df-b644365a2fc5@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, kirill.shutemov@linux.intel.com
+To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
 
-On 01/30/2017 04:43 PM, Ross Zwisler wrote:
-> On Thu, Jan 26, 2017 at 10:09:47AM -0700, Dave Jiang wrote:
->> In preparation for adding the ability to handle PUD pages, convert
->> ->pmd_fault to ->huge_fault.  The vm_fault structure is extended to
->> include a union of the different page table pointers that may be needed,
->> and three flag bits are reserved to indicate which type of pointer is in
->> the union.
->>
->> [DJ: Forward ported to 4.10-rc]
->>
->> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
->> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+On 01/30/2017 10:49 PM, Dave Hansen wrote:
+> On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
+>> HugeTLB allocation/release/accounting currently spans across all the nodes
+>> under N_MEMORY node mask. Coherent memory nodes should not be part of these
+>> allocations. So use system_ram() call to fetch system RAM only nodes on the
+>> platform which can then be used for HugeTLB allocation purpose instead of
+>> N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB
+>> allocations.
 > 
-> Hey Dave,
-> 
-> Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
-> which I bisected to this commit:
-> 
-> [  370.086205] ------------[ cut here ]------------
-> [  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
-> [  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
-> [  370.089073] Modules linked in: dax_pmem nd_pmem dax nd_btt nd_e820 libnvdimm
-> [  370.090212] CPU: 0 PID: 12415 Comm: xfs_io Tainted: G      D         4.10.0-rc5-mm1-00202-g7e90fc0 #10
-> [  370.091648] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
-> [  370.092946] task: ffff8800ac4f8000 task.stack: ffffc9001148c000
-> [  370.093769] RIP: 0010:mm_fault_error+0x15e/0x190
-> [  370.094410] RSP: 0000:ffffc9001148fe60 EFLAGS: 00010246
-> [  370.095135] RAX: 0000000000000000 RBX: 0000000000000006 RCX: ffff8800ac4f8000
-> [  370.096107] RDX: 00007f111c8e6400 RSI: 0000000000000006 RDI: ffffc9001148ff58
-> [  370.097087] RBP: ffffc9001148fe88 R08: 0000000000000000 R09: ffff880510bd3300
-> [  370.098072] R10: ffff8800ac4f8000 R11: 0000000000000000 R12: 00007f111c8e6400
-> [  370.099057] R13: 00007f111c8e6400 R14: ffff880510bd3300 R15: 0000000000000055
-> [  370.100135] FS:  00007f111d95e700(0000) GS:ffff880514800000(0000) knlGS:0000000000000000
-> [  370.101238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  370.102021] CR2: 00007f111c8e6400 CR3: 00000000add00000 CR4: 00000000001406f0
-> [  370.103189] Call Trace:
-> [  370.103537]  __do_page_fault+0x54e/0x590
-> [  370.104090]  trace_do_page_fault+0x58/0x2c0
-> [  370.104675]  do_async_page_fault+0x2c/0x90
-> [  370.105342]  async_page_fault+0x28/0x30
-> [  370.106044] RIP: 0033:0x405e9a
-> [  370.106470] RSP: 002b:00007fffb7f30590 EFLAGS: 00010287
-> [  370.107185] RAX: 00000000004e6400 RBX: 0000000000000057 RCX: 00000000004e7000
-> [  370.108155] RDX: 00007f111c400000 RSI: 00000000004e7000 RDI: 0000000001c35080
-> [  370.109157] RBP: 00000000004e6400 R08: 0000000000000014 R09: 1999999999999999
-> [  370.110158] R10: 00007f111d2dc200 R11: 0000000000000000 R12: 0000000001c32fc0
-> [  370.111165] R13: 0000000000000000 R14: 0000000000000c00 R15: 0000000000000005
-> [  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9 
-> [  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
-> [  370.115722] ---[ end trace 2ce10d930638254d ]---
-> 
-> 
-> Can you let me know if you can reproduce this?
+> Does this end up making it impossible to use hugetlbfs to access device
+> memory?
 
-I reproduced. Will debug.
+Right, thats the implementation at the moment. But going forward if we need
+to have HugeTLB pages on the CDM node, then we can implement through the
+sysfs interface from individual NUMA node paths instead of changing the
+generic HugeTLB path. I wrote this up in the cover letter but should also
+have mentioned in the comment section of this patch as well. Does this
+approach look okay ?
 
-> 
-> Thanks,
-> - Ross
-> 
+"Now, we ensure complete HugeTLB allocation isolation from CDM nodes. Going
+forward if we need to support HugeTLB allocation on CDM nodes on targeted
+basis, then we would have to enable those allocations through the
+/sys/devices/system/node/nodeN/hugepages/hugepages-16384kB/nr_hugepages
+interface while still ensuring isolation from other generic sysctl and
+/sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages interfaces."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
