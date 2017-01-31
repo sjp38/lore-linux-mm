@@ -1,109 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DB756B0253
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 19:10:28 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y143so477281693pfb.6
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:10:28 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id a204si14167464pfa.101.2017.01.30.16.10.26
-        for <linux-mm@kvack.org>;
-        Mon, 30 Jan 2017 16:10:27 -0800 (PST)
-Date: Tue, 31 Jan 2017 09:10:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Message-ID: <20170131001025.GD7942@bbox>
-References: <20170119024421.GA9367@bbox>
- <0a184bbf-0612-5f71-df68-c37500fa1eda@samsung.com>
- <20170119062158.GB9367@bbox>
- <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
- <20170123052244.GC11763@bbox>
- <20170123053056.GB2327@jagdpanzerIV.localdomain>
- <20170123054034.GA12327@bbox>
- <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
- <20170125052614.GB18289@bbox>
- <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EBAE6B0069
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 19:15:43 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id s10so168499147itb.7
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 16:15:43 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id v6si14135808plk.133.2017.01.30.16.15.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jan 2017 16:15:42 -0800 (PST)
+Subject: Re: [PATCH v2 1/3] mm,fs,dax: Change ->pmd_fault to ->huge_fault
+References: <148545012634.17912.13951763606410303827.stgit@djiang5-desk3.ch.intel.com>
+ <148545058784.17912.6353162518188733642.stgit@djiang5-desk3.ch.intel.com>
+ <20170130234321.GA26702@linux.intel.com>
+From: Dave Jiang <dave.jiang@intel.com>
+Message-ID: <79fcc6fe-77c5-7145-cf24-4a04df482803@intel.com>
+Date: Mon, 30 Jan 2017 17:15:40 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
+In-Reply-To: <20170130234321.GA26702@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, vbabka@suse.cz, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, kirill.shutemov@linux.intel.com
 
-Hi Dan,
-
-On Thu, Jan 26, 2017 at 12:04:03PM -0500, Dan Streetman wrote:
-> On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
-> >> On 01/23/2017 12:40 AM, Minchan Kim wrote:
-> >> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
-> >> >>On (01/23/17 14:22), Minchan Kim wrote:
-> >> >>[..]
-> >> >>>>Anyway, I will let you know the situation when it gets more clear.
-> >> >>>
-> >> >>>Yeb, Thanks.
-> >> >>>
-> >> >>>Perhaps, did you tried flush page before the writing?
-> >> >>>I think arm64 have no d-cache alising problem but worth to try it.
-> >> >>>Who knows :)
-> >> >>
-> >> >>I thought that flush_dcache_page() is only for cases when we write
-> >> >>to page (store that makes pages dirty), isn't it?
-> >> >
-> >> >I think we need both because to see recent stores done by the user.
-> >> >I'm not sure it should be done by block device driver rather than
-> >> >page cache. Anyway, brd added it so worth to try it, I thought. :)
-> >> >
-> >>
-> >> Thanks for the suggestion!
-> >> It might be helpful
-> >> though proving it is not easy as the problem appears rarely.
-> >>
-> >> Have you thought about
-> >> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
-> >> (arm64 may have i-cache aliasing problem)
-> >
-> > It can happen, I think, although I don't know how arm64 handles it.
-> >
-> >>
-> >> If it is problematic,
-> >> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
-> >> provide the corrupted data
-> >> and even swap out (compressing) may see the corrupted data sooner or later,
-> >> i guess.
-> >
-> > try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
-> > but for swap-in, I think zswap need flushing logic because it's first
-> > touch of the user buffer so it's his resposibility.
+On 01/30/2017 04:43 PM, Ross Zwisler wrote:
+> On Thu, Jan 26, 2017 at 10:09:47AM -0700, Dave Jiang wrote:
+>> In preparation for adding the ability to handle PUD pages, convert
+>> ->pmd_fault to ->huge_fault.  The vm_fault structure is extended to
+>> include a union of the different page table pointers that may be needed,
+>> and three flag bits are reserved to indicate which type of pointer is in
+>> the union.
+>>
+>> [DJ: Forward ported to 4.10-rc]
+>>
+>> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+>> Signed-off-by: Dave Jiang <dave.jiang@intel.com>
 > 
-> Hmm, I don't think zswap needs to, because all the cache aliases were
-> flushed when the page was written out.  After that, any access to the
-> page will cause a fault, and the fault will cause the page to be read
-> back in (via zswap).  I don't see how the page could be cached at any
-> time between the swap write-out and swap read-in, so there should be
-> no need to flush any caches when it's read back in; am I missing
-> something?
+> Hey Dave,
+> 
+> Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
+> which I bisected to this commit:
+> 
+> [  370.086205] ------------[ cut here ]------------
+> [  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
+> [  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
+> [  370.089073] Modules linked in: dax_pmem nd_pmem dax nd_btt nd_e820 libnvdimm
+> [  370.090212] CPU: 0 PID: 12415 Comm: xfs_io Tainted: G      D         4.10.0-rc5-mm1-00202-g7e90fc0 #10
+> [  370.091648] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
+> [  370.092946] task: ffff8800ac4f8000 task.stack: ffffc9001148c000
+> [  370.093769] RIP: 0010:mm_fault_error+0x15e/0x190
+> [  370.094410] RSP: 0000:ffffc9001148fe60 EFLAGS: 00010246
+> [  370.095135] RAX: 0000000000000000 RBX: 0000000000000006 RCX: ffff8800ac4f8000
+> [  370.096107] RDX: 00007f111c8e6400 RSI: 0000000000000006 RDI: ffffc9001148ff58
+> [  370.097087] RBP: ffffc9001148fe88 R08: 0000000000000000 R09: ffff880510bd3300
+> [  370.098072] R10: ffff8800ac4f8000 R11: 0000000000000000 R12: 00007f111c8e6400
+> [  370.099057] R13: 00007f111c8e6400 R14: ffff880510bd3300 R15: 0000000000000055
+> [  370.100135] FS:  00007f111d95e700(0000) GS:ffff880514800000(0000) knlGS:0000000000000000
+> [  370.101238] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  370.102021] CR2: 00007f111c8e6400 CR3: 00000000add00000 CR4: 00000000001406f0
+> [  370.103189] Call Trace:
+> [  370.103537]  __do_page_fault+0x54e/0x590
+> [  370.104090]  trace_do_page_fault+0x58/0x2c0
+> [  370.104675]  do_async_page_fault+0x2c/0x90
+> [  370.105342]  async_page_fault+0x28/0x30
+> [  370.106044] RIP: 0033:0x405e9a
+> [  370.106470] RSP: 002b:00007fffb7f30590 EFLAGS: 00010287
+> [  370.107185] RAX: 00000000004e6400 RBX: 0000000000000057 RCX: 00000000004e7000
+> [  370.108155] RDX: 00007f111c400000 RSI: 00000000004e7000 RDI: 0000000001c35080
+> [  370.109157] RBP: 00000000004e6400 R08: 0000000000000014 R09: 1999999999999999
+> [  370.110158] R10: 00007f111d2dc200 R11: 0000000000000000 R12: 0000000001c32fc0
+> [  370.111165] R13: 0000000000000000 R14: 0000000000000c00 R15: 0000000000000005
+> [  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9 
+> [  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
+> [  370.115722] ---[ end trace 2ce10d930638254d ]---
+> 
+> 
+> Can you let me know if you can reproduce this?
 
-Documentation/cachetlb.txt says
+I reproduced. Will debug.
 
-  void flush_dcache_page(struct page *page)
-
-        Any time the kernel writes to a page cache page, _OR_
-        the kernel is about to read from a page cache page and
-        user space shared/writable mappings of this page potentially
-        exist, this routine is called.
-
-For swap-in side, I don't see any logic to prevent the aliasing
-problem. Let's consider other examples like cow_user_page->
-copy_user_highpage. For architectures which can make aliasing,
-it has arch specific functions which has flushing function.
-
-IOW, if a kernel makes store operation to the page which will
-be mapped to user space address, kernel should call flush function.
-Otherwise, user space will miss recent update from kernel side.
-
-Thanks.
+> 
+> Thanks,
+> - Ross
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
