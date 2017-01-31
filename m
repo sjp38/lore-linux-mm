@@ -1,85 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9046B0266
-	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 22:56:26 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id j94so211887662uad.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 19:56:26 -0800 (PST)
-Received: from mail-ua0-x229.google.com (mail-ua0-x229.google.com. [2607:f8b0:400c:c08::229])
-        by mx.google.com with ESMTPS id q9si4417291uaf.142.2017.01.30.19.56.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A5196B0033
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 23:22:34 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 204so488186492pfx.1
+        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 20:22:34 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b4si14722109plb.157.2017.01.30.20.22.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jan 2017 19:56:25 -0800 (PST)
-Received: by mail-ua0-x229.google.com with SMTP id i68so264375819uad.0
-        for <linux-mm@kvack.org>; Mon, 30 Jan 2017 19:56:25 -0800 (PST)
+        Mon, 30 Jan 2017 20:22:33 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v0V4J4Hw051291
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 23:22:32 -0500
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com [125.16.236.1])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28aec39c3v-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 30 Jan 2017 23:22:31 -0500
+Received: from localhost
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 31 Jan 2017 09:52:29 +0530
+Received: from d28relay06.in.ibm.com (d28relay06.in.ibm.com [9.184.220.150])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E0385E005A
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:53:44 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v0V4MPuR22872126
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:52:25 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v0V4MOv0022076
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 09:52:25 +0530
+Subject: Re: [RFC V2 08/12] mm: Add new VMA flag VM_CDM
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-9-khandual@linux.vnet.ibm.com>
+ <20170130185213.GA7198@redhat.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 31 Jan 2017 09:52:20 +0530
 MIME-Version: 1.0
-In-Reply-To: <CAHO5Pa21FTT9ZRiYbAQ43=Zd+qwP4KXgCbs+40iQ3cV_LPSR3Q@mail.gmail.com>
-References: <cover.1485571668.git.luto@kernel.org> <CAHO5Pa21FTT9ZRiYbAQ43=Zd+qwP4KXgCbs+40iQ3cV_LPSR3Q@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 30 Jan 2017 19:56:04 -0800
-Message-ID: <CALCETrUuR-ZkvEs0_5aN4yyyR34jYcJj7-_VjOv4nJWu6fvOjA@mail.gmail.com>
-Subject: Re: [PATCH v2 0/2] setgid hardening
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20170130185213.GA7198@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <28bd4abc-3cbd-514e-1535-15ce67131772@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andy Lutomirski <luto@kernel.org>, "security@kernel.org" <security@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Willy Tarreau <w@1wt.eu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, yalin wang <yalin.wang2010@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Frank Filz <ffilzlnx@mindspring.com>, Linux API <linux-api@vger.kernel.org>
+To: Jerome Glisse <jglisse@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Mon, Jan 30, 2017 at 7:49 PM, Michael Kerrisk <mtk.manpages@gmail.com> wrote:
-> [CC += linux-api@]
->
-> Andy, this is an API change!
+On 01/31/2017 12:22 AM, Jerome Glisse wrote:
+> On Mon, Jan 30, 2017 at 09:05:49AM +0530, Anshuman Khandual wrote:
+>> VMA which contains CDM memory pages should be marked with new VM_CDM flag.
+>> These VMAs need to be identified in various core kernel paths for special
+>> handling and this flag will help in their identification.
+>>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> 
+> 
+> Why doing this on vma basis ? Why not special casing all those path on page
+> basis ?
 
-Indeed.  I should be ashamed of myself!
+The primary motivation being the cost. Wont it be too expensive to account
+for and act on individual pages rather than on the VMA as a whole ? For
+example page_to_nid() seemed pretty expensive when tried to tag VMA on
+individual page fault basis.
 
->
-> On Sat, Jan 28, 2017 at 3:49 PM, Andy Lutomirski <luto@kernel.org> wrote:
->> The kernel has some dangerous behavior involving the creation and
->> modification of setgid executables.  These issues aren't kernel
->> security bugs per se, but they have been used to turn various
->> filesystem permission oddities into reliably privilege escalation
->> exploits.
->>
->> See http://www.halfdog.net/Security/2015/SetgidDirectoryPrivilegeEscalation/
->> for a nice writeup.
->>
->> Let's fix them for real.
->>
->> Changes from v1:
->>  - Fix uninitialized variable issue (Willy, Ben)
->>  - Also check current creds in should_remove_suid() (Ben)
->>
->> Andy Lutomirski (2):
->>   fs: Check f_cred as well as of current's creds in should_remove_suid()
->>   fs: Harden against open(..., O_CREAT, 02777) in a setgid directory
->>
->>  fs/inode.c         | 61 ++++++++++++++++++++++++++++++++++++++++++++++--------
->>  fs/internal.h      |  2 +-
->>  fs/ocfs2/file.c    |  4 ++--
->>  fs/open.c          |  2 +-
->>  include/linux/fs.h |  2 +-
->>  5 files changed, 57 insertions(+), 14 deletions(-)
->>
->> --
->> 2.9.3
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->
->
-> --
-> Michael Kerrisk Linux man-pages maintainer;
-> http://www.kernel.org/doc/man-pages/
-> Author of "The Linux Programming Interface", http://blog.man7.org/
+> 
+> After all you can have a big vma with some pages in it being cdm and other
+> being regular page. The CPU process might migrate to different CPU in a
+> different node and you might still want to have the regular page to migrate
+> to this new node and keep the cdm page while the device is still working
+> on them.
 
+Right, that is the ideal thing to do. But wont it be better to split the
+big VMA into smaller chunks and tag them appropriately so that those VMAs
+tagged would contain as much CDM pages as possible for them to be likely
+restricted from auto NUMA, KSM etc.
 
+> 
+> This is just an example, same can apply for ksm or any other kernel feature
+> you want to special case. Maybe we can store a set of flag in node that
+> tells what is allowed for page in node (ksm, hugetlb, migrate, numa, ...).
+> 
+> This would be more flexible and the policy choice can be left to each of
+> the device driver.
 
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Hmm, thats another way of doing the special cases. The other way as Dave
+had mentioned before is to classify coherent memory property into various
+kinds and store them for each node and implement a predefined set of
+restrictions for each kind of coherent memory which might include features
+like auto NUMA, HugeTLB, KSM etc. Maintaining two different property sets
+one for the kind of coherent memory and the other being for each special
+cases) wont be too complicated ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
