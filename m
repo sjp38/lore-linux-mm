@@ -1,134 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CAB26B0038
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 18:35:22 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 204so541277946pfx.1
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 15:35:22 -0800 (PST)
-Received: from smtpbg.qq.com (SMTPBG353.QQ.COM. [183.57.50.164])
-        by mx.google.com with SMTP id u84si12613457pgb.258.2017.01.31.15.35.20
-        for <linux-mm@kvack.org>;
-        Tue, 31 Jan 2017 15:35:21 -0800 (PST)
-From: ysxie@foxmail.com
-Subject: [PATCH v5 4/4] mm/hotplug: enable memory hotplug for non-lru movable pages
-Date: Wed,  1 Feb 2017 07:28:43 +0800
-Message-Id: <1485905323-2615-1-git-send-email-ysxie@foxmail.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 64CE26B0253
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 18:39:08 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f144so538521366pfa.3
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 15:39:08 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 81si17331034pfh.264.2017.01.31.15.39.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jan 2017 15:39:07 -0800 (PST)
+Subject: Re: [PATCH v5 4/4] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1485362562.git.khalid.aziz@oracle.com>
+ <cover.1485362562.git.khalid.aziz@oracle.com>
+ <0b6865aabc010ee3a7ea956a70447abbab53ea70.1485362562.git.khalid.aziz@oracle.com>
+ <20170130.171531.1973857503703372714.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <6c514e7e-338a-f1cd-140d-d4980ea6ac0f@oracle.com>
+Date: Tue, 31 Jan 2017 16:38:49 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170130.171531.1973857503703372714.davem@davemloft.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
+To: David Miller <davem@davemloft.net>
+Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-From: Yisheng Xie <xieyisheng1@huawei.com>
+On 01/30/2017 03:15 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Wed, 25 Jan 2017 12:57:16 -0700
+>
+>> +static inline void enable_adi(void)
+>> +{
+>  ...
+>> +	__asm__ __volatile__(
+>> +		"rdpr %%pstate, %%g1\n\t"
+>> +		"or %%g1, %0, %%g1\n\t"
+>> +		"wrpr %%g1, %%g0, %%pstate\n\t"
+>> +		".word 0x83438000\n\t"	/* rd %mcdper, %g1 */
+>> +		".word 0xaf900001\n\t"	/* wrpr  %g0, %g1, %pmcdper */
+>> +		:
+>> +		: "i" (PSTATE_MCDE)
+>> +		: "g1");
+>> +}
+>
+> This is _crazy_ expensive.
+>
+> This is 4 privileged register operations, every single one incurs a full
+> pipline flush and virtual cpu thread yield.
+>
+> And we do this around _every_ single userspace access from the kernel
+> when the thread has ADI enabled.
 
-We had considered all of the non-lru pages as unmovable before
-commit bda807d44454 ("mm: migrate: support non-lru movable page
-migration"). But now some of non-lru pages like zsmalloc,
-virtio-balloon pages also become movable. So we can offline such
-blocks by using non-lru page migration.
+Hi Dave,
 
-This patch straightforwardly add non-lru migration code, which
-means adding non-lru related code to the functions which scan
-over pfn and collect pages to be migrated and isolate them before
-migration.
+Thanks for the feedback. This is very helpful. I checked and it indeed 
+can cost 50+ cycles even on M7 processor for PSTATE accesses.
 
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-CC: Vlastimil Babka <vbabka@suse.cz>
----
- mm/memory_hotplug.c | 28 +++++++++++++++++-----------
- mm/page_alloc.c     |  8 ++++++--
- 2 files changed, 23 insertions(+), 13 deletions(-)
+>
+> I think if the kernel manages the ADI metadata properly, you can get rid
+> of all of this.
+>
+> On etrap, you change ESTATE_PSTATE{1,2} to have the MCDE bit enabled.
+> Then the kernel always runs with ADI enabled.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ca2723d..ea1be08 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1516,10 +1516,10 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- /*
-- * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
-- * and hugepages). We scan pfn because it's much easier than scanning over
-- * linked list. This function returns the pfn of the first found movable
-- * page if it's found, otherwise 0.
-+ * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
-+ * non-lru movable pages and hugepages). We scan pfn because it's much
-+ * easier than scanning over linked list. This function returns the pfn
-+ * of the first found movable page if it's found, otherwise 0.
-  */
- static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- {
-@@ -1530,6 +1530,8 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- 			page = pfn_to_page(pfn);
- 			if (PageLRU(page))
- 				return pfn;
-+			if (__PageMovable(page))
-+				return pfn;
- 			if (PageHuge(page)) {
- 				if (page_huge_active(page))
- 					return pfn;
-@@ -1606,21 +1608,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		if (!get_page_unless_zero(page))
- 			continue;
- 		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
-+		 * We can skip free pages. And we can deal with pages on
-+		 * LRU and non-lru movable pages.
- 		 */
--		ret = isolate_lru_page(page);
-+		if (PageLRU(page))
-+			ret = isolate_lru_page(page);
-+		else
-+			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
- 		if (!ret) { /* Success */
- 			put_page(page);
- 			list_add_tail(&page->lru, &source);
- 			move_pages--;
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+			if (!__PageMovable(page))
-+				inc_node_page_state(page, NR_ISOLATED_ANON +
-+						    page_is_file_cache(page));
- 
- 		} else {
- #ifdef CONFIG_DEBUG_VM
--			pr_alert("removing pfn %lx from LRU failed\n", pfn);
--			dump_page(page, "failed to remove from LRU");
-+			pr_alert("failed to isolate pfn %lx\n", pfn);
-+			dump_page(page, "isolation failed");
- #endif
- 			put_page(page);
- 			/* Because we don't have big zone->lock. we should
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f3e0c69..9c4e229 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7081,8 +7081,9 @@ void *__init alloc_large_system_hash(const char *tablename,
-  * If @count is not zero, it is okay to include less @count unmovable pages
-  *
-  * PageLRU check without isolation or lru_lock could race so that
-- * MIGRATE_MOVABLE block might include unmovable pages. It means you can't
-- * expect this function should be exact.
-+ * MIGRATE_MOVABLE block might include unmovable pages. And __PageMovable
-+ * check without lock_page also may miss some movable non-lru pages at
-+ * race condition. So you can't expect this function should be exact.
-  */
- bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 			 bool skip_hwpoisoned_pages)
-@@ -7138,6 +7139,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		if (skip_hwpoisoned_pages && PageHWPoison(page))
- 			continue;
- 
-+		if (__PageMovable(page))
-+			continue;
-+
- 		if (!PageLRU(page))
- 			found++;
- 		/*
--- 
-1.9.1
+Running the kernel with PSTATE.mcde=1 can possibly be problematic as we 
+had discussed earlier in this thread where keeping PSTATE.mcde enabled 
+might mean kernel having to keep track of which pages still have tags 
+set on them or flush tags on every page on free. I will go through the 
+code again to see if it PSTATE.mcde can be turned on in kernel all the 
+time, which might be the case if we can ensure kernel accesses pages 
+with TTE.mcd cleared.
+
+>
+> Furthermore, since the %mcdper register should be set to whatever the
+> current task has asked for, you should be able to avoid touching it
+> as well assuming that traps do not change %mcdper's value.
+
+When running in privileged mode, it is the value of %pmcdper that 
+matter, not %mcdper, hence I added code to sync %pmcdper with %mcdper 
+when entering privileged mode. Nevertheless, one of the HW designers has 
+suggested I might be able to get away without having to futz with 
+%pmcdper by using membar before exiting privileged mode which might 
+still get me the same effect I am looking for without the cost.
+
+--
+Khalid
+
+>
+> Then you don't need to do anything special during userspace accesses
+> which seems to be the way this was designed to be used.
+> --
+> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
