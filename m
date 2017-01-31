@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8665C6B025E
-	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:18:08 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f144so509068672pfa.3
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:18:08 -0800 (PST)
-Received: from smtpbg337.qq.com (smtpbg337.qq.com. [14.17.44.32])
-        by mx.google.com with ESMTPS id v128si11214124pgv.72.2017.01.31.05.18.07
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D6B56B025E
+	for <linux-mm@kvack.org>; Tue, 31 Jan 2017 08:21:45 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r18so15807785wmd.1
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 05:21:45 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e56si20768714wre.332.2017.01.31.05.21.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Jan 2017 05:18:07 -0800 (PST)
-From: ysxie@foxmail.com
-Subject: [PATCH v5 2/4] mm/migration: make isolate_movable_page always defined
-Date: Tue, 31 Jan 2017 21:06:19 +0800
-Message-Id: <1485867981-16037-3-git-send-email-ysxie@foxmail.com>
-In-Reply-To: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
-References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+        Tue, 31 Jan 2017 05:21:43 -0800 (PST)
+Date: Tue, 31 Jan 2017 14:21:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170131132141.GF19082@dhcp22.suse.cz>
+References: <201701202227.GCC13598.OHJMSQFVOtFOLF@I-love.SAKURA.ne.jp>
+ <201701211642.JBC39590.SFtVJHMFOLFOQO@I-love.SAKURA.ne.jp>
+ <20170125101517.GG32377@dhcp22.suse.cz>
+ <20170125101957.GA17632@lst.de>
+ <20170125104605.GI32377@dhcp22.suse.cz>
+ <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
+ <20170125130014.GO32377@dhcp22.suse.cz>
+ <20170131115846.GD19082@dhcp22.suse.cz>
+ <20170131125140.GA5298@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170131125140.GA5298@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: n-horiguchi@ah.jp.nec.com, mhocko@suse.com, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-From: Yisheng Xie <xieyisheng1@huawei.com>
+On Tue 31-01-17 13:51:40, Christoph Hellwig wrote:
+> On Tue, Jan 31, 2017 at 12:58:46PM +0100, Michal Hocko wrote:
+> > What do you think Christoph? I have an additional patch to handle
+> > do_generic_file_read and a similar one to back off in
+> > __vmalloc_area_node. I would like to post them all in one series but I
+> > would like to know that this one is OK before I do that.
+> 
+> Well, that patch you posted is okay, but you probably need additional
+> ones for the other interesting users of iomap_apply.
 
-Define isolate_movable_page as a static inline function when
-CONFIG_MIGRATION is not enable. It should return -EBUSY
-here which means failed to isolate movable pages.
+I have checked all of them I guees/hope. Which one you have in mind?
 
-This patch do not have any functional change but prepare for
-later patch.
-
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Suggested-by: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-CC: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/migrate.h | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 43d5deb..fa76b51 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -56,6 +56,8 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
- 		free_page_t free, unsigned long private, enum migrate_mode mode,
- 		int reason)
- 	{ return -ENOSYS; }
-+static inline int isolate_movable_page(struct page *page, isolate_mode_t mode)
-+	{ return -EBUSY; }
- 
- static inline int migrate_prep(void) { return -ENOSYS; }
- static inline int migrate_prep_local(void) { return -ENOSYS; }
 -- 
-1.9.1
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
