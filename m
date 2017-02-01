@@ -1,100 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ACEEF6B0033
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 04:02:27 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id h7so76409585wjy.6
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:02:27 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 05E176B0033
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 04:18:52 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id yr2so76457689wjc.4
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:18:51 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c21si24017037wrc.301.2017.02.01.01.02.26
+        by mx.google.com with ESMTPS id q4si24065974wrc.328.2017.02.01.01.18.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Feb 2017 01:02:26 -0800 (PST)
-Date: Wed, 1 Feb 2017 10:02:24 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 0/6]mm: add new LRU list for MADV_FREE pages
-Message-ID: <20170201090224.GF5977@dhcp22.suse.cz>
-References: <cover.1485748619.git.shli@fb.com>
- <20170131185949.GA5037@cmpxchg.org>
- <20170131194546.GA70126@shli-mbp.local>
- <20170131213810.GA12952@cmpxchg.org>
+        Wed, 01 Feb 2017 01:18:49 -0800 (PST)
+Date: Wed, 1 Feb 2017 09:18:44 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC] cpuset: Enable changing of top_cpuset's mems_allowed
+ nodemask
+Message-ID: <20170201091844.6hhbzqg465qg7uql@suse.de>
+References: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
+ <20170131142237.27097-1-khandual@linux.vnet.ibm.com>
+ <20170131160029.ubt6fvw6oh2fgxpd@suse.de>
+ <c6864b3c-1b7f-ded9-eea4-538262631813@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170131213810.GA12952@cmpxchg.org>
+In-Reply-To: <c6864b3c-1b7f-ded9-eea4-538262631813@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, minchan@kernel.org, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
 
-On Tue 31-01-17 16:38:10, Johannes Weiner wrote:
-> On Tue, Jan 31, 2017 at 11:45:47AM -0800, Shaohua Li wrote:
-> > On Tue, Jan 31, 2017 at 01:59:49PM -0500, Johannes Weiner wrote:
-> > > Hi Shaohua,
-> > > 
-> > > On Sun, Jan 29, 2017 at 09:51:17PM -0800, Shaohua Li wrote:
-> > > > We are trying to use MADV_FREE in jemalloc. Several issues are found. Without
-> > > > solving the issues, jemalloc can't use the MADV_FREE feature.
-> > > > - Doesn't support system without swap enabled. Because if swap is off, we can't
-> > > >   or can't efficiently age anonymous pages. And since MADV_FREE pages are mixed
-> > > >   with other anonymous pages, we can't reclaim MADV_FREE pages. In current
-> > > >   implementation, MADV_FREE will fallback to MADV_DONTNEED without swap enabled.
-> > > >   But in our environment, a lot of machines don't enable swap. This will prevent
-> > > >   our setup using MADV_FREE.
-> > > > - Increases memory pressure. page reclaim bias file pages reclaim against
-> > > >   anonymous pages. This doesn't make sense for MADV_FREE pages, because those
-> > > >   pages could be freed easily and refilled with very slight penality. Even page
-> > > >   reclaim doesn't bias file pages, there is still an issue, because MADV_FREE
-> > > >   pages and other anonymous pages are mixed together. To reclaim a MADV_FREE
-> > > >   page, we probably must scan a lot of other anonymous pages, which is
-> > > >   inefficient. In our test, we usually see oom with MADV_FREE enabled and nothing
-> > > >   without it.
-> > > 
-> > > Fully agreed, the anon LRU is a bad place for these pages.
-> > > 
-> > > > For the first two issues, introducing a new LRU list for MADV_FREE pages could
-> > > > solve the issues. We can directly reclaim MADV_FREE pages without writting them
-> > > > out to swap, so the first issue could be fixed. If only MADV_FREE pages are in
-> > > > the new list, page reclaim can easily reclaim such pages without interference
-> > > > of file or anonymous pages. The memory pressure issue will disappear.
-> > > 
-> > > Do we actually need a new page flag and a special LRU for them? These
-> > > pages are basically like clean cache pages at that point. What do you
-> > > think about clearing their PG_swapbacked flag on MADV_FREE and moving
-> > > them to the inactive file list? The way isolate+putback works should
-> > > not even need much modification, something like clear_page_mlock().
-> > > 
-> > > When the reclaim scanner finds anon && dirty && !swapbacked, it can
-> > > again set PG_swapbacked and goto keep_locked to move the page back
-> > > into the anon LRU to get reclaimed according to swapping rules.
+On Wed, Feb 01, 2017 at 01:01:24PM +0530, Anshuman Khandual wrote:
+> On 01/31/2017 09:30 PM, Mel Gorman wrote:
+> > On Tue, Jan 31, 2017 at 07:52:37PM +0530, Anshuman Khandual wrote:
+> >> At present, top_cpuset.mems_allowed is same as node_states[N_MEMORY] and it
+> >> cannot be changed at the runtime. Maximum possible node_states[N_MEMORY]
+> >> also gets reflected in top_cpuset.effective_mems interface. It prevents some
+> >> one from removing or restricting memory placement which will be applicable
+> >> system wide on a given memory node through cpuset mechanism which might be
+> >> limiting. This solves the problem by enabling update_nodemask() function to
+> >> accept changes to top_cpuset.mems_allowed as well. Once changed, it also
+> >> updates the value of top_cpuset.effective_mems. Updates all it's task's
+> >> mems_allowed nodemask as well. It calls cpuset_inc() to make sure cpuset
+> >> is accounted for in the buddy allocator through cpusets_enabled() check.
+> >>
 > > 
-> > Interesting idea! Not sure though, the MADV_FREE pages are actually anonymous
-> > pages, this will introduce confusion. On the other hand, if the MADV_FREE pages
-> > are mixed with inactive file pages, page reclaim need to reclaim a lot of file
-> > pages first before reclaim the MADV_FREE pages. This doesn't look good. The
-> > point of a separate LRU is to avoid scan other anon/file pages.
+> > What's the point of allowing the root cpuset to be restricted?
 > 
-> The LRU code and the rest of VM already use independent page type
-> distinctions. That's because shmem pages are !PageAnon - they have a
-> page->mapping that points to a real address space, not an anon_vma -
-> but they are swapbacked and thus go through the anon LRU. This would
-> just do the reverse: put PageAnon pages on the file LRU when they
-> don't contain valid data and are thus not swapbacked.
+> After an extended period of run time on a system, currently if we have
+> to run HW diagnostics and dump (which are run out of band) for debug
+> purpose, we have to stop further allocations to the node. Hot plugging
+> the memory node out of the kernel will achieve this. But it can also
+> be made possible by just enabling top_cpuset.memory_migrate and then
+> restricting all the allocations by removing the node from top_cpuset.
+> mems_allowed nodemask. This will force all the existing allocations
+> out of the target node.
 > 
-> As far as mixing with inactive file pages goes, it'd be possible to
-> link the MADV_FREE pages to the tail of the inactive list, rather than
-> the head. That said, I'm not sure reclaiming use-once filesystem cache
-> before MADV_FREE is such a bad policy. MADV_FREE retains the vmas for
-> the sole purpose of reusing them in the (near) future. That is
-> actually a stronger reuse signal than we have for use-once file pages.
-> If somebody does continuous writes to a logfile or a one-off search
-> through one or more files, we should actually reclaim that cache
-> before we go after MADV_FREE pages that are temporarily invalidated.
 
-I completely agree here. LRU_*_FILE will be a bit misnomer (LRU_*CACHE
-would sound more appropriate). I expect there would be few places which
-account based on the LRU list but those shouldn't be that hard to fix.
+So would creating a restricted cpuset and migrating all tasks from the
+root cpuset into it.
+
+> More importantly it also extends the cpuset memory restriction feature
+> to the logical completion without adding any regressions for the
+> existing use cases. Then why not do this ? Does it add any overhead ?
+> 
+
+It violates the expectation that the root cgroup can access all
+resources. Once enabled, there is some overhead in the page allocator as
+it must check all cpusets even for tasks that weren't configured to be
+isolated.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
