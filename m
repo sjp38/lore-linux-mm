@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 05E176B0033
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 04:18:52 -0500 (EST)
-Received: by mail-wj0-f200.google.com with SMTP id yr2so76457689wjc.4
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:18:51 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q4si24065974wrc.328.2017.02.01.01.18.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F8946B0033
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 04:26:14 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id u63so4073630wmu.0
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:26:14 -0800 (PST)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id h82si20520635wmh.163.2017.02.01.01.26.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Feb 2017 01:18:49 -0800 (PST)
-Date: Wed, 1 Feb 2017 09:18:44 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC] cpuset: Enable changing of top_cpuset's mems_allowed
- nodemask
-Message-ID: <20170201091844.6hhbzqg465qg7uql@suse.de>
-References: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
- <20170131142237.27097-1-khandual@linux.vnet.ibm.com>
- <20170131160029.ubt6fvw6oh2fgxpd@suse.de>
- <c6864b3c-1b7f-ded9-eea4-538262631813@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <c6864b3c-1b7f-ded9-eea4-538262631813@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Feb 2017 01:26:13 -0800 (PST)
+Received: by mail-wm0-f67.google.com with SMTP id u63so4473583wmu.2
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:26:12 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/3] fix few OOM victim allocation runaways
+Date: Wed,  1 Feb 2017 10:26:00 +0100
+Message-Id: <20170201092603.9523-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 01, 2017 at 01:01:24PM +0530, Anshuman Khandual wrote:
-> On 01/31/2017 09:30 PM, Mel Gorman wrote:
-> > On Tue, Jan 31, 2017 at 07:52:37PM +0530, Anshuman Khandual wrote:
-> >> At present, top_cpuset.mems_allowed is same as node_states[N_MEMORY] and it
-> >> cannot be changed at the runtime. Maximum possible node_states[N_MEMORY]
-> >> also gets reflected in top_cpuset.effective_mems interface. It prevents some
-> >> one from removing or restricting memory placement which will be applicable
-> >> system wide on a given memory node through cpuset mechanism which might be
-> >> limiting. This solves the problem by enabling update_nodemask() function to
-> >> accept changes to top_cpuset.mems_allowed as well. Once changed, it also
-> >> updates the value of top_cpuset.effective_mems. Updates all it's task's
-> >> mems_allowed nodemask as well. It calls cpuset_inc() to make sure cpuset
-> >> is accounted for in the buddy allocator through cpusets_enabled() check.
-> >>
-> > 
-> > What's the point of allowing the root cpuset to be restricted?
-> 
-> After an extended period of run time on a system, currently if we have
-> to run HW diagnostics and dump (which are run out of band) for debug
-> purpose, we have to stop further allocations to the node. Hot plugging
-> the memory node out of the kernel will achieve this. But it can also
-> be made possible by just enabling top_cpuset.memory_migrate and then
-> restricting all the allocations by removing the node from top_cpuset.
-> mems_allowed nodemask. This will force all the existing allocations
-> out of the target node.
-> 
+Hi,
+these three patches tried to address a simple OOM victim runaways when
+the oom victim can deplete the memory reserve completely. Tetsuo was able
+to trigger the depletion in the write(2) path and I believe the similar
+is possible for the read part. Vmalloc would be a bit harder but still
+not impossible.
 
-So would creating a restricted cpuset and migrating all tasks from the
-root cpuset into it.
+Unfortunately I do not see a better way around this issue as long as we
+give OOM victims access to memory reserves without any limits. I have
+tried to limit this access [1] which would help at least to keep some
+memory for emergency actions. Anyway, even if we limit the amount of
+reserves the OOM victim can consume it is still preferable to back off
+before accessible reserves are depleted.
 
-> More importantly it also extends the cpuset memory restriction feature
-> to the logical completion without adding any regressions for the
-> existing use cases. Then why not do this ? Does it add any overhead ?
-> 
+Tetsuo was suggesting introducing __GFP_KILLABLE which would fail the
+allocation rather than consuming the reserves. I see two problems with
+this approach.
+        1) in order this flags work as expected all the blocking
+        operations in the allocator call chain (including the direct
+        reclaim) would have to be killable and this is really non
+        trivial to achieve. Especially when we do not have any control
+        over shrinkers.
+        2) even if the above could be dealt with we would still have to
+        find all the places which do allocation in the loop based on
+        the user request. So it wouldn't be simpler than an explicit
+        fatal_signal_pending check.
 
-It violates the expectation that the root cgroup can access all
-resources. Once enabled, there is some overhead in the page allocator as
-it must check all cpusets even for tasks that weren't configured to be
-isolated.
+Thoughts?
+Michal Hocko (3):
+      fs: break out of iomap_file_buffered_write on fatal signals
+      mm, fs: check for fatal signals in do_generic_file_read
+      vmalloc: back of when the current is killed
 
--- 
-Mel Gorman
-SUSE Labs
+ fs/dax.c     | 5 +++++
+ fs/iomap.c   | 3 +++
+ mm/filemap.c | 5 +++++
+ mm/vmalloc.c | 5 +++++
+ 4 files changed, 18 insertions(+)
+
+[1] http://lkml.kernel.org/r/20161004090009.7974-2-mhocko@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
