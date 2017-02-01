@@ -1,285 +1,459 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 08E056B0268
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:24:20 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 194so504947966pgd.7
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:24:20 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id k73si15714848pge.47.2017.02.01.15.24.18
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD576B0038
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:36:21 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z67so505395521pgb.0
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:36:21 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n1si3750794pge.384.2017.02.01.15.36.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 15:24:18 -0800 (PST)
-Subject: [RFC][PATCH 7/7] x86, mpx: update MPX selftest to test larger bounds dir
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 01 Feb 2017 15:24:18 -0800
-References: <20170201232408.FA486473@viggo.jf.intel.com>
-In-Reply-To: <20170201232408.FA486473@viggo.jf.intel.com>
-Message-Id: <20170201232418.BEE04481@viggo.jf.intel.com>
+        Wed, 01 Feb 2017 15:36:20 -0800 (PST)
+Date: Wed, 01 Feb 2017 15:36:19 -0800
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-02-01-15-35 uploaded
+Message-ID: <589270f3.aetDRVPrj4rZ65Vu%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, x86@kernel.org, kirill.shutemov@linux.intel.com, Dave Hansen <dave.hansen@linux.intel.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+
+The mm-of-the-moment snapshot 2017-02-01-15-35 has been uploaded to
+
+   http://www.ozlabs.org/~akpm/mmotm/
+
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
-Since the bounds directory is changing its size, we also need to
-update userspace to allocate a larger one.
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-This adds support to the MPX selftests to detect hardware where
-we need a larger bounds directory and attempts to enable MPX
-support for the larger directory.
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-The messiest thing here is that the hardware will not claim to
-*have* a larger bounds directory until after we've enabled MPX.
-But, that's after we needed to have allocated the bounds
-directory.  In other words, we can't use the hardware's bounds
-table size enumeration (MAWA) to tell us how large the directory
-should be.
+To develop on top of mmotm git:
 
----
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
- b/tools/testing/selftests/x86/mpx-hw.h        |   23 +++
- b/tools/testing/selftests/x86/mpx-mini-test.c |  154 ++++++++++++++++++++------
- 2 files changed, 140 insertions(+), 37 deletions(-)
+To rebase a branch with older patches to a new mmotm release:
 
-diff -puN tools/testing/selftests/x86/mpx-hw.h~mawa-070-mpx-selftests tools/testing/selftests/x86/mpx-hw.h
---- a/tools/testing/selftests/x86/mpx-hw.h~mawa-070-mpx-selftests	2017-02-01 15:12:18.512250684 -0800
-+++ b/tools/testing/selftests/x86/mpx-hw.h	2017-02-01 15:12:18.518250953 -0800
-@@ -32,7 +32,8 @@
- #define MPX_BOUNDS_TABLE_ENTRY_SIZE_BYTES	32
- #define MPX_BOUNDS_TABLE_SIZE_BYTES		(1ULL << 22) /* 4MB */
- #define MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES		8
--#define MPX_BOUNDS_DIR_SIZE_BYTES		(1ULL << 31) /* 2GB */
-+#define MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES	(1ULL << 31) /* 2GB */
-+#define MPX_LA57_BOUNDS_DIR_SIZE_BYTES		(1ULL << 40) /* 1TB */
- 
- #define MPX_BOUNDS_TABLE_BOTTOM_BIT		3
- #define MPX_BOUNDS_TABLE_TOP_BIT		19
-@@ -41,8 +42,23 @@
- 
- #endif
- 
-+/* What size should we allocate for the bounds directory? */
-+extern unsigned long long mpx_bounds_dir_alloc_size_bytes(void);
-+/*
-+ * How large is the hardware currently expecting the bounds
-+ * directory to be?
-+ *
-+ * Note: We have to *tell* the hardware when we want it to use
-+ * a larger bounds directory.  Until that point, this will
-+ * return the smaller "legacy" value.  But, we *allocate* the
-+ * directory before well tell the hardware what size we want
-+ * it to be.  So, we need to separate the concepts and have two
-+ * different functions.
-+ */
-+extern unsigned long long mpx_bounds_dir_hw_size_bytes(void);
-+
- #define MPX_BOUNDS_DIR_NR_ENTRIES	\
--	(MPX_BOUNDS_DIR_SIZE_BYTES/MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES)
-+	(mpx_bounds_dir_hw_size_bytes()/MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES)
- #define MPX_BOUNDS_TABLE_NR_ENTRIES	\
- 	(MPX_BOUNDS_TABLE_SIZE_BYTES/MPX_BOUNDS_TABLE_ENTRY_SIZE_BYTES)
- 
-@@ -63,7 +79,8 @@ struct mpx_bt_entry {
- } __attribute__((packed));
- 
- struct mpx_bounds_dir {
--	struct mpx_bd_entry entries[MPX_BOUNDS_DIR_NR_ENTRIES];
-+	/* This is a variable size array: */
-+	struct mpx_bd_entry entries[0];
- } __attribute__((packed));
- 
- struct mpx_bounds_table {
-diff -puN tools/testing/selftests/x86/mpx-mini-test.c~mawa-070-mpx-selftests tools/testing/selftests/x86/mpx-mini-test.c
---- a/tools/testing/selftests/x86/mpx-mini-test.c~mawa-070-mpx-selftests	2017-02-01 15:12:18.514250773 -0800
-+++ b/tools/testing/selftests/x86/mpx-mini-test.c	2017-02-01 15:12:18.518250953 -0800
-@@ -462,6 +462,72 @@ static inline void cpuid_count(unsigned
- }
- 
- #define XSTATE_CPUID	    0x0000000d
-+#define CPUID_MAWA_LEAF	    0x00000007
-+#define CPUID_MAWA_SUBLEAF  0x00000000
-+#define CPUID_MAWA_BOTTOM_BIT	17
-+#define CPUID_MAWA_TOP_BIT	21
-+
-+/*
-+ * On CPUs supporting 5-level paging with a larger virtual address
-+ * space, the bounds directory is also larger.  The mechanism to
-+ * grow the bounds directory is called "MPX Address-Width Adjust"
-+ * (MAWA) and its presence is enumerated via CPUID.
-+ */
-+static inline int bd_size_shift(void)
-+{
-+	unsigned int eax, ebx, ecx, edx;
-+	unsigned int shift;
-+
-+	cpuid_count(CPUID_MAWA_LEAF, CPUID_MAWA_SUBLEAF,
-+			&eax, &ebx, &ecx, &edx);
-+
-+	shift = ecx;
-+	shift >>= CPUID_MAWA_BOTTOM_BIT;
-+	shift &= (1U << (CPUID_MAWA_TOP_BIT - CPUID_MAWA_BOTTOM_BIT)) - 1;
-+
-+	return shift;
-+}
-+
-+#define CPUID_LA57_LEAF		0x00000007
-+#define CPUID_LA57_SUBLEAF	0x00000000
-+#define CPUID_LA57_ECX_MASK	(1UL << 16)
-+
-+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx) */
-+static inline int cpu_supports_lax(void)
-+{
-+	unsigned int eax, ebx, ecx, edx;
-+
-+	cpuid_count(CPUID_LA57_LEAF, CPUID_LA57_SUBLEAF,
-+			&eax, &ebx, &ecx, &edx);
-+
-+	return !!(ecx & CPUID_LA57_ECX_MASK);
-+}
-+
-+unsigned long long mpx_bounds_dir_hw_size_bytes(void)
-+{
-+#ifdef __i386__
-+	/* 32-bit has a fixed size directory: */
-+	return MPX_BOUNDS_DIR_SIZE_BYTES;
-+#else
-+	/*
-+	 * 64-bit depends on what mode the hardware is in.
-+	 * Are we in LA57 mode, and has the kernel set up
-+	 * the "MAWA" MSR for us?
-+	 */
-+	return MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES << bd_size_shift();
-+#endif
-+}
-+
-+unsigned long long mpx_bounds_dir_alloc_size_bytes(void)
-+{
-+#ifdef __i386__
-+	return mpx_bounds_dir_hw_size_bytes();
-+#else
-+	if (cpu_supports_lax())
-+		return MPX_LA57_BOUNDS_DIR_SIZE_BYTES;
-+	return MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES;
-+#endif
-+}
- 
- /*
-  * List of XSAVE features Linux knows about:
-@@ -601,7 +667,8 @@ struct mpx_bounds_dir *bounds_dir_ptr;
- 
- unsigned long __bd_incore(const char *func, int line)
- {
--	unsigned long ret = nr_incore(bounds_dir_ptr, MPX_BOUNDS_DIR_SIZE_BYTES);
-+	unsigned long ret = nr_incore(bounds_dir_ptr,
-+				      mpx_bounds_dir_hw_size_bytes());
- 	return ret;
- }
- #define bd_incore() __bd_incore(__func__, __LINE__)
-@@ -624,43 +691,50 @@ void check_clear_bd(void)
- 	check_clear(bounds_dir_ptr, 2UL << 30);
- }
- 
--#define USE_MALLOC_FOR_BOUNDS_DIR 1
--bool process_specific_init(void)
-+void *alloc_bounds_directory(unsigned long long size)
- {
--	unsigned long size;
--	unsigned long *dir;
-+	/*
-+	 * This can make debugging easier because the
-+	 * address calculations are simpler:
-+	 */
-+	void *hint_addr = NULL; //0x200000000000;
- 	/* Guarantee we have the space to align it, add padding: */
- 	unsigned long pad = getpagesize();
-+	unsigned long *dir;
-+	int flags;
- 
--	size = 2UL << 30; /* 2GB */
--	if (sizeof(unsigned long) == 4)
--		size = 4UL << 20; /* 4MB */
--	dprintf1("trying to allocate %ld MB bounds directory\n", (size >> 20));
--
--	if (USE_MALLOC_FOR_BOUNDS_DIR) {
--		unsigned long _dir;
--
--		dir = malloc(size + pad);
--		assert(dir);
--		_dir = (unsigned long)dir;
--		_dir += 0xfffUL;
--		_dir &= ~0xfffUL;
--		dir = (void *)_dir;
--	} else {
--		/*
--		 * This makes debugging easier because the address
--		 * calculations are simpler:
--		 */
--		dir = mmap((void *)0x200000000000, size + pad,
--				PROT_READ|PROT_WRITE,
--				MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
--		if (dir == (void *)-1) {
--			perror("unable to allocate bounds directory");
--			abort();
--		}
--		check_clear(dir, size);
-+	/*
-+	 * The bounds directory can be very large and cause us
-+	 * to exceed overcommit limits.  Use MAP_NORESERVE to
-+	 * avoid the overcommit limits.
-+	 */
-+	flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-+	dir = mmap(hint_addr, size + pad , PROT_READ|PROT_WRITE, flags, -1, 0);
-+	if (dir == (void *)-1) {
-+		perror("unable to allocate bounds directory");
-+		abort();
- 	}
--	bounds_dir_ptr = (void *)dir;
-+	check_clear(dir, size);
-+	return dir;
-+}
-+
-+#define USE_MALLOC_FOR_BOUNDS_DIR 0
-+bool process_specific_init(void)
-+{
-+	unsigned long long size;
-+	unsigned long *dir;
-+	int err;
-+
-+	size = mpx_bounds_dir_alloc_size_bytes();
-+	dprintf1("trying to allocate %lld MB bounds directory\n", (size >> 20));
-+
-+	dir = alloc_bounds_directory(size);
-+	/*
-+	 * The directory is a large anonymous allocation, so it
-+	 * looks like an ideal place to use transparent large pages.
-+	 * But, in practice, it's usually sparsely populated and
-+	 * will waste lots of memory.  Turn THP off:
-+	 */
- 	madvise(bounds_dir_ptr, size, MADV_NOHUGEPAGE);
- 	bd_incore();
- 	dprintf1("bounds directory: 0x%p -> 0x%p\n", bounds_dir_ptr,
-@@ -668,7 +742,19 @@ bool process_specific_init(void)
- 	check_clear(dir, size);
- 	enable_mpx(dir);
- 	check_clear(dir, size);
--	if (prctl(PR_MPX_ENABLE_MANAGEMENT, 0, 0, 0, 0)) {
-+
-+	/* Try to tell newer kernels the size of the directory: */
-+	err = prctl(PR_MPX_ENABLE_MANAGEMENT, size, 0, 0, 0);
-+	/*
-+	 * But also handle older kernels that need argument 2 to be 0.
-+	 * If the hardware supports larger bounds directories, we
-+	 * allocated a large one in anticipation of needing it. But,
-+	 * the kernel does not support it, so will use only a
-+	 * small portion (1/512th) of it in these tests.
-+	 */
-+	if (err)
-+		err = prctl(PR_MPX_ENABLE_MANAGEMENT, 0, 0, 0, 0);
-+	if (err) {
- 		printf("no MPX support\n");
- 		abort();
- 		return false;
-_
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.10-rc6:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  i-need-old-gcc.patch
+* zswap-disable-changing-params-if-init-fails.patch
+* kasan-respect-proc-sys-kernel-traceoff_on_warning.patch
+* mm-sleeping-function-called-from-invalid-context-shmem_undo_range.patch
+* jump-label-pass-kbuild_cflags-when-checking-for-asm-goto-support.patch
+* mm-memory_hotplugc-check-start_pfn-in-test_pages_in_a_zone.patch
+* base-memory-hotplug-fix-a-kernel-oops-in-show_valid_zones.patch
+* scatterlist-dont-overflow-length-field.patch
+* fs-break-out-of-iomap_file_buffered_write-on-fatal-signals.patch
+* mm-fs-check-for-fatal-signals-in-do_generic_file_read.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* tracing-add-__print_flags_u64.patch
+* dax-add-tracepoint-infrastructure-pmd-tracing.patch
+* dax-update-maintainers-entries-for-fs-dax.patch
+* dax-add-tracepoints-to-dax_pmd_load_hole.patch
+* dax-add-tracepoints-to-dax_pmd_insert_mapping.patch
+* mm-dax-make-pmd_fault-and-friends-to-be-the-same-as-fault.patch
+* mm-dax-make-pmd_fault-and-friends-to-be-the-same-as-fault-v7.patch
+* mm-dax-move-pmd_fault-to-take-only-vmf-parameter.patch
+* dma-debug-add-comment-for-failed-to-check-map-error.patch
+* prctl-implement-pr_get_endian-for-all-architectures.patch
+* tools-vm-add-missing-makefile-rules.patch
+* scripts-spellingtxt-add-several-more-common-spelling-mistakes.patch
+* scripts-lindent-clean-up-and-optimize.patch
+* scripts-checkstackpl-add-support-for-nios2.patch
+* m32r-use-generic-currenth.patch
+* m32r-fix-build-warning.patch
+* debugobjects-track-number-of-kmem_cache_alloc-kmem_cache_free-done.patch
+* debugobjects-scale-thresholds-with-of-cpus.patch
+* debugobjects-reduce-contention-on-the-global-pool_lock.patch
+* ocfs2-dlmglue-prepare-tracking-logic-to-avoid-recursive-cluster-lock.patch
+* ocfs2-fix-deadlock-issue-when-taking-inode-lock-at-vfs-entry-points.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks.patch
+* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks-checkpatch-fixes.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* kernel-watchdogc-do-not-hardcode-cpu-0-as-the-initial-thread.patch
+  mm.patch
+* slub-do-not-merge-cache-if-slub_debug-contains-a-never-merge-flag.patch
+* mm-slub-add-a-dump_stack-to-the-unexpected-gfp-check.patch
+* tmpfs-change-shmem_mapping-to-test-shmem_aops.patch
+* mm-throttle-show_mem-from-warn_alloc.patch
+* mm-throttle-show_mem-from-warn_alloc-fix.patch
+* mm-page_alloc-dont-convert-pfn-to-idx-when-merging.patch
+* mm-page_alloc-avoid-page_to_pfn-when-merging-buddies.patch
+* mm-vmallocc-use-rb_entry_safe.patch
+* mm-trace-extract-compaction_status-and-zone_type-to-a-common-header.patch
+* oom-trace-add-oom-detection-tracepoints.patch
+* oom-trace-add-compaction-retry-tracepoint.patch
+* userfaultfd-document-_ior-_iow.patch
+* userfaultfd-correct-comment-about-uffd_feature_pagefault_flag_wp.patch
+* userfaultfd-convert-bug-to-warn_on_once.patch
+* userfaultfd-use-vma_is_anonymous.patch
+* userfaultfd-non-cooperative-split-the-find_userfault-routine.patch
+* userfaultfd-non-cooperative-add-ability-to-report-non-pf-events-from-uffd-descriptor.patch
+* userfaultfd-non-cooperative-report-all-available-features-to-userland.patch
+* userfaultfd-non-cooperative-add-fork-event.patch
+* userfaultfd-non-cooperative-add-fork-event-build-warning-fix.patch
+* userfaultfd-non-cooperative-dup_userfaultfd-use-mm_count-instead-of-mm_users.patch
+* userfaultfd-non-cooperative-add-mremap-event.patch
+* userfaultfd-non-cooperative-optimize-mremap_userfaultfd_complete.patch
+* userfaultfd-non-cooperative-add-madvise-event-for-madv_dontneed-request.patch
+* userfaultfd-non-cooperative-avoid-madv_dontneed-race-condition.patch
+* userfaultfd-non-cooperative-wake-userfaults-after-uffdio_unregister.patch
+* userfaultfd-hugetlbfs-add-copy_huge_page_from_user-for-hugetlb-userfaultfd-support.patch
+* userfaultfd-hugetlbfs-add-hugetlb_mcopy_atomic_pte-for-userfaultfd-support.patch
+* userfaultfd-hugetlbfs-add-__mcopy_atomic_hugetlb-for-huge-page-uffdio_copy.patch
+* userfaultfd-hugetlbfs-fix-__mcopy_atomic_hugetlb-retry-error-processing.patch
+* userfaultfd-hugetlbfs-fix-__mcopy_atomic_hugetlb-retry-error-processing-fix.patch
+* userfaultfd-hugetlbfs-fix-__mcopy_atomic_hugetlb-retry-error-processing-fix-fix.patch
+* userfaultfd-hugetlbfs-add-userfaultfd-hugetlb-hook.patch
+* userfaultfd-hugetlbfs-allow-registration-of-ranges-containing-huge-pages.patch
+* userfaultfd-hugetlbfs-add-userfaultfd_hugetlb-test.patch
+* userfaultfd-hugetlbfs-userfaultfd_huge_must_wait-for-hugepmd-ranges.patch
+* userfaultfd-hugetlbfs-gup-support-vm_fault_retry.patch
+* userfaultfd-hugetlbfs-reserve-count-on-error-in-__mcopy_atomic_hugetlb.patch
+* userfaultfd-hugetlbfs-uffd_feature_missing_hugetlbfs.patch
+* userfaultfd-introduce-vma_can_userfault.patch
+* userfaultfd-shmem-add-shmem_mcopy_atomic_pte-for-userfaultfd-support.patch
+* userfaultfd-shmem-introduce-vma_is_shmem.patch
+* userfaultfd-shmem-add-tlbflushh-header-for-microblaze.patch
+* userfaultfd-shmem-use-shmem_mcopy_atomic_pte-for-shared-memory.patch
+* userfaultfd-shmem-add-userfaultfd-hook-for-shared-memory-faults.patch
+* userfaultfd-shmem-allow-registration-of-shared-memory-ranges.patch
+* userfaultfd-shmem-add-userfaultfd_shmem-test.patch
+* userfaultfd-shmem-lock-the-page-before-adding-it-to-pagecache.patch
+* userfaultfd-shmem-avoid-a-lockup-resulting-from-corrupted-page-flags.patch
+* userfaultfd-shmem-avoid-leaking-blocks-and-used-blocks-in-uffdio_copy.patch
+* userfaultfd-hugetlbfs-uffd_feature_missing_shmem.patch
+* userfaultfd-non-cooperative-selftest-introduce-userfaultfd_open.patch
+* userfaultfd-non-cooperative-selftest-add-ufd-parameter-to-copy_page.patch
+* userfaultfd-non-cooperative-selftest-add-test-for-fork-madvdontneed-and-remap-events.patch
+* userfaultfd-selftest-test-uffdio_zeropage-on-all-memory-types.patch
+* mm-mprotect-use-pmd_trans_unstable-instead-of-taking-the-pmd_lock.patch
+* mm-vmscan-remove-unused-mm_vmscan_memcg_isolate.patch
+* mm-vmscan-add-active-list-aging-tracepoint.patch
+* mm-vmscan-add-active-list-aging-tracepoint-update.patch
+* mm-vmscan-show-the-number-of-skipped-pages-in-mm_vmscan_lru_isolate.patch
+* mm-vmscan-show-lru-name-in-mm_vmscan_lru_isolate-tracepoint.patch
+* mm-vmscan-extract-shrink_page_list-reclaim-counters-into-a-struct.patch
+* mm-vmscan-enhance-mm_vmscan_lru_shrink_inactive-tracepoint.patch
+* mm-vmscan-add-mm_vmscan_inactive_list_is_low-tracepoint.patch
+* trace-vmscan-postprocess-sync-with-tracepoints-updates.patch
+* nfs-no-pg_private-waiters-remain-remove-waker.patch
+* mm-un-export-wake_up_page-functions.patch
+* mm-fix-filemapc-kernel-doc-warnings.patch
+* mm-page_alloc-swap-likely-to-unlikely-as-code-logic-is-different-for-next_zones_zonelist.patch
+* mm-compaction-add-vmstats-for-kcompactd-work.patch
+* mm-page_alloc-skip-over-regions-of-invalid-pfns-where-possible.patch
+* mmcompaction-serialize-waitqueue_active-checks.patch
+* mm-bootmemc-cosmetic-improvement-of-code-readability.patch
+* mm-fix-some-typos-in-mm-zsmallocc.patch
+* mm-memblockc-trivial-code-refine-in-memblock_is_region_memory.patch
+* mm-memblockc-check-return-value-of-memblock_reserve-in-memblock_virt_alloc_internal.patch
+* mm-sparse-use-page_private-to-get-page-private-value.patch
+* mm-memory_hotplug-set-magic-number-to-page-freelsit-instead-of-page-lrunext.patch
+* powerpc-do-not-make-the-entire-heap-executable.patch
+* mm-swap-fix-kernel-message-in-swap_info_get.patch
+* mm-swap-add-cluster-lock.patch
+* mm-swap-add-cluster-lock-v5.patch
+* mm-swap-split-swap-cache-into-64mb-trunks.patch
+* mm-swap-skip-read-ahead-for-unreferenced-swap-slots.patch
+* mm-swap-allocate-swap-slots-in-batches.patch
+* mm-swap-free-swap-slots-in-batch.patch
+* mm-swap-add-cache-for-swap-slots-allocation.patch
+* mm-swap-add-cache-for-swap-slots-allocation-fix.patch
+* mm-swap-add-cache-for-swap-slots-allocation-fix-2.patch
+* mm-swap-enable-swap-slots-cache-usage.patch
+* mm-swap-skip-readahead-only-when-swap-slot-cache-is-enabled.patch
+* mm-thp-add-new-defermadvise-defrag-option.patch
+* writeback-use-rb_entry.patch
+* mm-vmscan-do-not-count-freed-pages-as-pgdeactivate.patch
+* mm-vmscan-cleanup-lru-size-claculations.patch
+* mm-vmscan-consider-eligible-zones-in-get_scan_count.patch
+* revert-mm-bail-out-in-shrink_inactive_list.patch
+* mm-page_alloc-do-not-report-all-nodes-in-show_mem.patch
+* mm-page_alloc-warn_alloc-print-nodemask.patch
+* arch-mm-remove-arch-specific-show_mem.patch
+* lib-show_memc-teach-show_mem-to-work-with-the-given-nodemask.patch
+* lib-show_memc-teach-show_mem-to-work-with-the-given-nodemask-checkpatch-fixes.patch
+* mm-consolidate-gfp_nofail-checks-in-the-allocator-slowpath.patch
+* mm-consolidate-gfp_nofail-checks-in-the-allocator-slowpath-fix.patch
+* mm-oom-do-not-enfore-oom-killer-for-__gfp_nofail-automatically.patch
+* mm-help-__gfp_nofail-allocations-which-do-not-trigger-oom-killer.patch
+* mm-page_alloc-warn_alloc-nodemask-is-null-when-cpusets-are-disabled.patch
+* mm-drop-zap_details-ignore_dirty.patch
+* mm-drop-zap_details-check_swap_entries.patch
+* mm-drop-unused-argument-of-zap_page_range.patch
+* oom-reaper-use-madvise_dontneed-logic-to-decide-if-unmap-the-vma.patch
+* mm-memblockc-remove-unnecessary-log-and-clean-up.patch
+* zram-remove-obsolete-sysfs-attrs.patch
+* mm-fix-linux-pagemaph-stray-kernel-doc-notation.patch
+* z3fold-limit-first_num-to-the-actual-range-of-possible-buddy-indexes.patch
+* mm-ksm-improve-deduplication-of-zero-pages-with-colouring.patch
+* mm-ksm-improve-deduplication-of-zero-pages-with-colouring-fix.patch
+* mm-ksm-improve-deduplication-of-zero-pages-with-colouring-fix-2.patch
+* mm-oom-header-nodemask-is-null-when-cpusets-are-disabled.patch
+* mm-oom-header-nodemask-is-null-when-cpusets-are-disabled-fix.patch
+* mm-fix-type-width-of-section-to-from-pfn-conversion-macros.patch
+* mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
+* mm-introduce-struct-mem_section_usage-to-track-partial-population-of-a-section.patch
+* mm-introduce-common-definitions-for-the-size-and-mask-of-a-section.patch
+* mm-cleanup-sparse_init_one_section-return-value.patch
+* mm-track-active-portions-of-a-section-at-boot.patch
+* mm-track-active-portions-of-a-section-at-boot-fix.patch
+* mm-track-active-portions-of-a-section-at-boot-fix-fix.patch
+* mm-fix-register_new_memory-zone-type-detection.patch
+* mm-convert-kmalloc_section_memmap-to-populate_section_memmap.patch
+* mm-prepare-for-hot-add-remove-of-sub-section-ranges.patch
+* mm-support-section-unaligned-zone_device-memory-ranges.patch
+* mm-support-section-unaligned-zone_device-memory-ranges-fix.patch
+* mm-support-section-unaligned-zone_device-memory-ranges-fix-2.patch
+* mm-enable-section-unaligned-devm_memremap_pages.patch
+* libnvdimm-pfn-dax-stop-padding-pmem-namespaces-to-section-alignment.patch
+* mm-memory_hotplugc-unexport-__remove_pages.patch
+* memblock-let-memblock_type_name-know-about-physmem-type.patch
+* memblock-also-dump-physmem-list-within-__memblock_dump_all.patch
+* memblock-embed-memblock-type-name-within-struct-memblock_type.patch
+* userfaultfd-non-cooperative-rename-event_madvdontneed-to-event_remove.patch
+* userfaultfd-non-cooperative-add-madvise-event-for-madv_remove-request.patch
+* userfaultfd-non-cooperative-selftest-enable-remove-event-test-for-shmem.patch
+* mm-vmscan-scan-dirty-pages-even-in-laptop-mode.patch
+* mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru.patch
+* mm-vmscan-kick-flushers-when-we-encounter-dirty-pages-on-the-lru-fix.patch
+* mm-vmscan-remove-old-flusher-wakeup-from-direct-reclaim-path.patch
+* mm-vmscan-only-write-dirty-pages-that-the-scanner-has-seen-twice.patch
+* mm-vmscan-move-dirty-pages-out-of-the-way-until-theyre-flushed.patch
+* mm-page_alloc-split-buffered_rmqueue.patch
+* mm-page_alloc-split-buffered_rmqueue-fix.patch
+* mm-page_alloc-split-alloc_pages_nodemask.patch
+* mm-page_alloc-drain-per-cpu-pages-from-workqueue-context.patch
+* mm-page_alloc-only-use-per-cpu-allocator-for-irq-safe-requests.patch
+* mm-fs-reduce-fault-page_mkwrite-and-pfn_mkwrite-to-take-only-vmf.patch
+* mm-fs-reduce-fault-page_mkwrite-and-pfn_mkwrite-to-take-only-vmf-fix.patch
+* mm-fix-comments-for-mmap_init.patch
+* zram-remove-waitqueue-for-io-done.patch
+* zswap-allow-initialization-at-boot-without-pool.patch
+* zswap-clear-compressor-or-zpool-param-if-invalid-at-init.patch
+* mm-page_alloc-remove-redundant-checks-from-alloc-fastpath.patch
+* mm-page_alloc-dont-check-cpuset-allowed-twice-in-fast-path.patch
+* mm-page_alloc-use-static-global-work_struct-for-draining-per-cpu-pages.patch
+* zswap-dont-param_set_charp-while-holding-spinlock.patch
+* mmfsdax-change-pmd_fault-to-huge_fault.patch
+* mmfsdax-change-pmd_fault-to-huge_fault-fix.patch
+* mm-x86-add-support-for-pud-sized-transparent-hugepages.patch
+* dax-support-for-transparent-pud-pages-for-device-dax.patch
+* z3fold-make-pages_nr-atomic.patch
+* z3fold-fix-header-size-related-issues.patch
+* z3fold-extend-compaction-function.patch
+* z3fold-use-per-page-spinlock.patch
+* z3fold-add-kref-refcounting.patch
+* z3fold-add-kref-refcounting-checkpatch-fixes.patch
+* mm-migration-make-isolate_movable_page-return-int-type.patch
+* mm-migration-make-isolate_movable_page-always-defined.patch
+* hwpoison-soft-offlining-for-non-lru-movable-page.patch
+* mm-hotplug-enable-memory-hotplug-for-non-lru-movable-pages.patch
+* uprobes-split-thps-before-trying-replace-them.patch
+* mm-introduce-page_vma_mapped_walk.patch
+* mm-fix-handling-pte-mapped-thps-in-page_referenced.patch
+* mm-fix-handling-pte-mapped-thps-in-page_idle_clear_pte_refs.patch
+* mm-rmap-check-all-vmas-that-pte-mapped-thp-can-be-part-of.patch
+* mm-convert-page_mkclean_one-to-use-page_vma_mapped_walk.patch
+* mm-convert-try_to_unmap_one-to-use-page_vma_mapped_walk.patch
+* mm-ksm-convert-write_protect_page-to-use-page_vma_mapped_walk.patch
+* mm-uprobes-convert-__replace_page-to-use-page_vma_mapped_walk.patch
+* mm-convert-page_mapped_in_vma-to-use-page_vma_mapped_walk.patch
+* mm-drop-page_check_address_transhuge.patch
+* mm-convert-remove_migration_pte-to-use-page_vma_mapped_walk.patch
+* mm-convert-remove_migration_pte-to-use-page_vma_mapped_walk-checkpatch-fixes.patch
+* mm-call-vm_munmap-in-munmap-syscall-instead-of-using-open-coded-version.patch
+* userfaultfd-non-cooperative-add-event-for-memory-unmaps.patch
+* userfaultfd-non-cooperative-add-event-for-exit-notification.patch
+* userfaultfd-mcopy_atomic-return-enoent-when-no-compatible-vma-found.patch
+* userfaultfd_copy-return-enospc-in-case-mm-has-gone.patch
+* mm-alloc_contig_range-allow-to-specify-gfp-mask.patch
+* mm-cma_alloc-allow-to-specify-gfp-mask.patch
+* mm-wire-up-gfp-flag-passing-in-dma_alloc_from_contiguous.patch
+* mm-madvise-fail-with-enomem-when-splitting-vma-will-hit-max_map_count.patch
+* mm-cma-print-allocation-failure-reason-and-bitmap-status.patch
+* vmalloc-back-of-when-the-current-is-killed.patch
+* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* kasan-drain-quarantine-of-memcg-slab-objects.patch
+* kasan-add-memcg-kmem_cache-test.patch
+* frv-pci-frv-fix-build-warning.patch
+* proc-use-rb_entry.patch
+* proc-less-code-duplication-in-proc-cmdline.patch
+* uapi-mqueueh-add-missing-linux-typesh-include.patch
+* iopoll-include-linux-ktimeh-instead-of-linux-hrtimerh.patch
+* mm-add-arch-independent-testcases-for-rodata.patch
+* compiler-gcch-added-a-new-macro-to-wrap-gcc-attribute.patch
+* m68k-replaced-gcc-specific-macros-with-ones-from-compilerh.patch
+* notifier-simplify-expression.patch
+* lib-add-module-support-to-crc32-tests.patch
+* lib-add-module-support-to-glob-tests.patch
+* lib-add-module-support-to-atomic64-tests.patch
+* find_bit-micro-optimise-find_next__bit.patch
+* find_bit-micro-optimise-find_next__bit-v2.patch
+* linux-kernelh-fix-div_round_closest-to-support-negative-divisors.patch
+* linux-kernelh-fix-div_round_closest-to-support-negative-divisors-fix.patch
+* rbtree-use-designated-initializers.patch
+* lib-add-config_test_sort-to-enable-self-test-of-sort.patch
+* lib-add-config_test_sort-to-enable-self-test-of-sort-fix.patch
+* lib-update-lz4-compressor-module.patch
+* lib-decompress_unlz4-change-module-to-work-with-new-lz4-module-version.patch
+* crypto-change-lz4-modules-to-work-with-new-lz4-module-version.patch
+* fs-pstore-fs-squashfs-change-usage-of-lz4-to-work-with-new-lz4-version.patch
+* lib-lz4-remove-back-compat-wrappers.patch
+* lib-test_sort-make-it-explicitly-non-modular.patch
+* checkpatch-warn-on-embedded-function-names.patch
+* checkpatch-warn-on-logging-continuations.patch
+* checkpatch-update-logfunctions.patch
+* checkpatch-add-another-old-address-for-the-fsf.patch
+* autofs-remove-wrong-comment.patch
+* autofs-fix-typo-in-documentation.patch
+* autofs-fix-wrong-ioctl-documentation-regarding-devid.patch
+* autofs-update-ioctl-documentation-regarding-struct-autofs_dev_ioctl.patch
+* autofs-add-command-enum-macros-for-root-dir-ioctls.patch
+* autofs-remove-duplicated-autofs_dev_ioctl_size-definition.patch
+* autofs-take-more-care-to-not-update-last_used-on-path-walk.patch
+* hfs-fix-fix-hfs_readdir.patch
+* hfs-atomically-read-inode-size.patch
+* hfsplus-atomically-read-inode-size.patch
+* fs-reiserfs-atomically-read-inode-size.patch
+* exit-fix-the-setns-pr_set_child_subreaper-interaction.patch
+* proc-kcore-update-physical-address-for-kcore-ram-and-text.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* rapidio-use-get_user_pages_unlocked.patch
+* fs-affs-remove-reference-to-affs_parent_ino.patch
+* fs-affs-add-validation-block-function.patch
+* fs-affs-make-affs-exportable.patch
+* fs-affs-use-octal-for-permissions.patch
+* fs-affs-add-prefix-to-some-functions.patch
+* fs-affs-nameic-forward-declarations-clean-up.patch
+* fs-affs-make-export-work-with-cold-dcache.patch
+* fs-affs-make-export-work-with-cold-dcache-fix.patch
+* config-android-recommended-disable-aio-support.patch
+* config-android-base-enable-hardened-usercopy-and-kernel-aslr.patch
+* fonts-keep-non-sparc-fonts-listed-together.patch
+* scripts-gdb-add-lx-fdtdump-command.patch
+* initramfs-finish-fput-before-accessing-any-binary-from-initramfs.patch
+* ipc-semc-avoid-using-spin_unlock_wait.patch
+* ipc-sem-add-hysteresis.patch
+* ipc-mqueue-add-missing-sparse-annotation.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* fs-add-i_blocksize.patch
+* fs-add-i_blocksize-fix.patch
+* nilfs2-use-nilfs_btree_node_size.patch
+* nilfs2-use-i_blocksize.patch
+* scripts-spellingtxt-add-swith-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-swithc-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-user-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-union-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-an-one-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-partiton-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-aligment-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-algined-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-efective-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-varible-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-embeded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-againt-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-neded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-unneded-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-intialization-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-initialiazation-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-intialised-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-comsumer-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-disbled-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overide-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overrided-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-configuartion-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-applys-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-explictely-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-omited-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-disassocation-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-deintialized-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overwritting-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-overwriten-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-therfore-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-followings-pattern-and-fix-typo-instances.patch
+* scripts-spellingtxt-add-some-typo-words.patch
+* lib-vsprintfc-remove-%z-support.patch
+* checkpatchpl-warn-against-using-%z.patch
+* checkpatchpl-warn-against-using-%z-fix.patch
+* mm-add-new-mmgrab-helper.patch
+* mm-add-new-mmget-helper.patch
+* mm-use-mmget_not_zero-helper.patch
+* mm-clarify-mm_structmm_userscount-documentation.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
