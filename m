@@ -1,129 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF346B0253
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 01:51:34 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 204so477658889pge.5
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 22:51:34 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t186si13537893pgd.213.2017.01.31.22.51.33
-        for <linux-mm@kvack.org>;
-        Tue, 31 Jan 2017 22:51:34 -0800 (PST)
-Date: Wed, 1 Feb 2017 15:51:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
-Message-ID: <20170201065131.GB10342@bbox>
-References: <20170119062158.GB9367@bbox>
- <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
- <20170123052244.GC11763@bbox>
- <20170123053056.GB2327@jagdpanzerIV.localdomain>
- <20170123054034.GA12327@bbox>
- <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
- <20170125052614.GB18289@bbox>
- <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
- <20170131001025.GD7942@bbox>
- <CALZtONDQ5yQKV6-jpJGBg7gakV8-7XXmmAATSQq346Tby4WLsg@mail.gmail.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7FB6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 01:57:24 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id f5so477299204pgi.1
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 22:57:24 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d187si13549703pgc.362.2017.01.31.22.57.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Jan 2017 22:57:23 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v116sWV1002848
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 01:57:23 -0500
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28b8c4v4h7-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 01 Feb 2017 01:57:22 -0500
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 1 Feb 2017 16:57:20 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id A0ED42BB0055
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 17:57:18 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v116vAAo35913854
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 17:57:18 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v116ukPM008409
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 17:56:46 +1100
+Subject: Re: [RFC V2 03/12] mm: Change generic FALLBACK zonelist creation
+ process
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-4-khandual@linux.vnet.ibm.com>
+ <07bd439c-6270-b219-227b-4079d36a2788@intel.com>
+ <434aa74c-e917-490e-85ab-8c67b1a82d95@linux.vnet.ibm.com>
+ <f1521ecc-e2a2-7368-07b7-7af6c0e88cc6@intel.com>
+ <79bfd849-8e6c-2f6d-0acf-4256a4137526@nvidia.com>
+ <217e817e-2f91-91a5-1bef-16fb0cbacb63@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 1 Feb 2017 12:26:16 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALZtONDQ5yQKV6-jpJGBg7gakV8-7XXmmAATSQq346Tby4WLsg@mail.gmail.com>
+In-Reply-To: <217e817e-2f91-91a5-1bef-16fb0cbacb63@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <1ab159b5-1b67-9dae-4112-3360d8f909fd@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>, John Hubbard <jhubbard@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
 
-Hi Dan,
-
-On Tue, Jan 31, 2017 at 08:09:53AM -0500, Dan Streetman wrote:
-> On Mon, Jan 30, 2017 at 7:10 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hi Dan,
-> >
-> > On Thu, Jan 26, 2017 at 12:04:03PM -0500, Dan Streetman wrote:
-> >> On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
-> >> > On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
-> >> >> On 01/23/2017 12:40 AM, Minchan Kim wrote:
-> >> >> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
-> >> >> >>On (01/23/17 14:22), Minchan Kim wrote:
-> >> >> >>[..]
-> >> >> >>>>Anyway, I will let you know the situation when it gets more clear.
-> >> >> >>>
-> >> >> >>>Yeb, Thanks.
-> >> >> >>>
-> >> >> >>>Perhaps, did you tried flush page before the writing?
-> >> >> >>>I think arm64 have no d-cache alising problem but worth to try it.
-> >> >> >>>Who knows :)
-> >> >> >>
-> >> >> >>I thought that flush_dcache_page() is only for cases when we write
-> >> >> >>to page (store that makes pages dirty), isn't it?
-> >> >> >
-> >> >> >I think we need both because to see recent stores done by the user.
-> >> >> >I'm not sure it should be done by block device driver rather than
-> >> >> >page cache. Anyway, brd added it so worth to try it, I thought. :)
-> >> >> >
-> >> >>
-> >> >> Thanks for the suggestion!
-> >> >> It might be helpful
-> >> >> though proving it is not easy as the problem appears rarely.
-> >> >>
-> >> >> Have you thought about
-> >> >> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
-> >> >> (arm64 may have i-cache aliasing problem)
-> >> >
-> >> > It can happen, I think, although I don't know how arm64 handles it.
-> >> >
-> >> >>
-> >> >> If it is problematic,
-> >> >> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
-> >> >> provide the corrupted data
-> >> >> and even swap out (compressing) may see the corrupted data sooner or later,
-> >> >> i guess.
-> >> >
-> >> > try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
-> >> > but for swap-in, I think zswap need flushing logic because it's first
-> >> > touch of the user buffer so it's his resposibility.
-> >>
-> >> Hmm, I don't think zswap needs to, because all the cache aliases were
-> >> flushed when the page was written out.  After that, any access to the
-> >> page will cause a fault, and the fault will cause the page to be read
-> >> back in (via zswap).  I don't see how the page could be cached at any
-> >> time between the swap write-out and swap read-in, so there should be
-> >> no need to flush any caches when it's read back in; am I missing
-> >> something?
-> >
-> > Documentation/cachetlb.txt says
-> >
-> >   void flush_dcache_page(struct page *page)
-> >
-> >         Any time the kernel writes to a page cache page, _OR_
-> >         the kernel is about to read from a page cache page and
-> >         user space shared/writable mappings of this page potentially
-> >         exist, this routine is called.
-> >
-> > For swap-in side, I don't see any logic to prevent the aliasing
-> > problem. Let's consider other examples like cow_user_page->
-> > copy_user_highpage. For architectures which can make aliasing,
-> > it has arch specific functions which has flushing function.
+On 01/31/2017 11:34 PM, Dave Hansen wrote:
+> On 01/30/2017 11:25 PM, John Hubbard wrote:
+>> I also don't like having these policies hard-coded, and your 100x
+>> example above helps clarify what can go wrong about it. It would be
+>> nicer if, instead, we could better express the "distance" between nodes
+>> (bandwidth, latency, relative to sysmem, perhaps), and let the NUMA
+>> system figure out the Right Thing To Do.
+>>
+>> I realize that this is not quite possible with NUMA just yet, but I
+>> wonder if that's a reasonable direction to go with this?
 > 
-> COW works with a page that has a physical backing.  swap-in does not.
-> COW pages can be accessed normally; swapped out pages cannot.
+> In the end, I don't think the kernel can make the "right" decision very
+> widely here.
 > 
-> >
-> > IOW, if a kernel makes store operation to the page which will
-> > be mapped to user space address, kernel should call flush function.
-> > Otherwise, user space will miss recent update from kernel side.
+> Intel's Xeon Phis have some high-bandwidth memory (MCDRAM) that
+> evidently has a higher latency than DRAM.  Given a plain malloc(), how
+> is the kernel to know that the memory will be used for AVX-512
+> instructions that need lots of bandwidth vs. some random data structure
+> that's latency-sensitive?
+
+CDM has been designed to work with a driver which can take these kind
+of appropriate memory placement decisions along the way. But as per
+the above example of an generic malloc() allocated buffer.
+
+(1) System RAM gets allocated if there are first CPU faults
+(2) CDM memory gets allocated if there are first device access faults
+(3) After monitoring the access patterns there after, the driver can
+    then take required "right" decisions about its eventual placement
+    and migrates memory as required
+
 > 
-> as I said before, when it's swapped out caches are flushed, and the
-> page mapping invalidated, so it will cause a fault on any access, and
-> thus cause swap to re-load the page from disk (or zswap).  So how
-> would a cache of the page be created after swap-out, but before
-> swap-in?  It's not possible for user space to have any caches to the
-> page, unless (as I said) I'm missing something?
+> In the end, I think all we can do is keep the kernel's existing default
+> of "low latency to the CPU that allocated it", and let apps override
+> when that policy doesn't fit them.
 
-I'm saying H/W cache, not S/W cache.
-Please think over VIVT architecture. The virtual address kernel is using
-for store is different with the one user will use so it's cache-aliasing
-candidate.
-
-Thanks.
+I think this is almost similar to what we are trying to achieve with
+CDM representation and driver based migrations. Dont you agree ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
