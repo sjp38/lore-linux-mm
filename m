@@ -1,291 +1,284 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 26D456B0261
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:24:18 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 204so507072954pge.5
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:24:18 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id v3si20485008plb.129.2017.02.01.15.24.16
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 08E056B0268
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:24:20 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 194so504947966pgd.7
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:24:20 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id k73si15714848pge.47.2017.02.01.15.24.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 15:24:16 -0800 (PST)
-Subject: [RFC][PATCH 5/7] x86, mpx: shrink per-mm MPX data
+        Wed, 01 Feb 2017 15:24:18 -0800 (PST)
+Subject: [RFC][PATCH 7/7] x86, mpx: update MPX selftest to test larger bounds dir
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 01 Feb 2017 15:24:14 -0800
+Date: Wed, 01 Feb 2017 15:24:18 -0800
 References: <20170201232408.FA486473@viggo.jf.intel.com>
 In-Reply-To: <20170201232408.FA486473@viggo.jf.intel.com>
-Message-Id: <20170201232414.8D9B9BAC@viggo.jf.intel.com>
+Message-Id: <20170201232418.BEE04481@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, x86@kernel.org, kirill.shutemov@linux.intel.com, Dave Hansen <dave.hansen@linux.intel.com>
 
 
-We have three pieces of data that we need to store about MPX's operation:
-1. Is kernel management on/off?
-2. If it's on, where is the bounds directory located?
-3. If it's on, how big is the bounds directory?
+Since the bounds directory is changing its size, we also need to
+update userspace to allocate a larger one.
 
-We keep all this data in the mm_context_t.  Currently, #1 and #2
-are stored in 'bd_addr' and #3 in 'mpx_bd_shift'.  But, the
-address in 'bd_addr' must be page-aligned, so we have plenty of
-space to share with things like 'mpx_bd_shift' which is a single
-bit.
+This adds support to the MPX selftests to detect hardware where
+we need a larger bounds directory and attempts to enable MPX
+support for the larger directory.
 
-We rename the 'bd_addr' field to 'mpx_directory_info' since it
-now has more than just the address, move the "invalid" value to a
-single bit instead of -1 so it does not collide with the "large"
-bit.
-
-Note that these new bits _start_ at bit 2.  This is explained in
-a comment too, but I started at bit 2 since the hardware register
-(BNDCFGU) that stores a bounds directory pointer uses the two low
-bits for other purposes.  Starting at bit 2 makes it much more
-obvious that these bits mean very different things than the bits
-in the register.
-
-The rest of the patch is pretty mechanical.  the one exception is the
-mpx_enable_management() code.  I wanted to keep it fairly tidy and
-straightforward, but the logic behind mpx_set_dir_size() is pretty
-messy.  It looks strange to be passing "&mm->context.mpx_directory_info"
-around instead of just the mm or the mm->context, but considering the
-context:
-
-	/* Mask out the invalid bit: */
-	mm->context.mpx_directory_info &= ~MPX_INVALID_BOUNDS_DIR;
-	ret = mpx_set_dir_size(bd_size, &mm->context.mpx_directory_info);
-
-I think it makes it a lot more obvious what is going on.
+The messiest thing here is that the hardware will not claim to
+*have* a larger bounds directory until after we've enabled MPX.
+But, that's after we needed to have allocated the bounds
+directory.  In other words, we can't use the hardware's bounds
+table size enumeration (MAWA) to tell us how large the directory
+should be.
 
 ---
 
- b/arch/x86/include/asm/mmu.h |   10 +++++--
- b/arch/x86/include/asm/mpx.h |   44 +++++++++++++++++++++-------------
- b/arch/x86/mm/mpx.c          |   55 +++++++++++++++++++++++++------------------
- 3 files changed, 66 insertions(+), 43 deletions(-)
+ b/tools/testing/selftests/x86/mpx-hw.h        |   23 +++
+ b/tools/testing/selftests/x86/mpx-mini-test.c |  154 ++++++++++++++++++++------
+ 2 files changed, 140 insertions(+), 37 deletions(-)
 
-diff -puN arch/x86/include/asm/mmu.h~mawa-060-onebit arch/x86/include/asm/mmu.h
---- a/arch/x86/include/asm/mmu.h~mawa-060-onebit	2017-02-01 15:12:17.598209567 -0800
-+++ b/arch/x86/include/asm/mmu.h	2017-02-01 15:12:17.605209882 -0800
-@@ -32,9 +32,13 @@ typedef struct {
- 	s16 execute_only_pkey;
- #endif
- #ifdef CONFIG_X86_INTEL_MPX
--	/* address of the bounds directory */
--	void __user *bd_addr;
--	int mpx_bd_shift;
-+	/*
-+	 * The bounds directory must be page-aligned, so we store
-+	 * its address in the high bits and information about its
-+	 * size in some low bits.  A bit is also used to indicate
-+	 * when the directory is invalid and MPX management is off.
-+	 */
-+	unsigned long mpx_directory_info;
- #endif
- } mm_context_t;
+diff -puN tools/testing/selftests/x86/mpx-hw.h~mawa-070-mpx-selftests tools/testing/selftests/x86/mpx-hw.h
+--- a/tools/testing/selftests/x86/mpx-hw.h~mawa-070-mpx-selftests	2017-02-01 15:12:18.512250684 -0800
++++ b/tools/testing/selftests/x86/mpx-hw.h	2017-02-01 15:12:18.518250953 -0800
+@@ -32,7 +32,8 @@
+ #define MPX_BOUNDS_TABLE_ENTRY_SIZE_BYTES	32
+ #define MPX_BOUNDS_TABLE_SIZE_BYTES		(1ULL << 22) /* 4MB */
+ #define MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES		8
+-#define MPX_BOUNDS_DIR_SIZE_BYTES		(1ULL << 31) /* 2GB */
++#define MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES	(1ULL << 31) /* 2GB */
++#define MPX_LA57_BOUNDS_DIR_SIZE_BYTES		(1ULL << 40) /* 1TB */
  
-diff -puN arch/x86/include/asm/mpx.h~mawa-060-onebit arch/x86/include/asm/mpx.h
---- a/arch/x86/include/asm/mpx.h~mawa-060-onebit	2017-02-01 15:12:17.600209657 -0800
-+++ b/arch/x86/include/asm/mpx.h	2017-02-01 15:12:17.605209882 -0800
-@@ -6,10 +6,14 @@
- #include <asm/insn.h>
+ #define MPX_BOUNDS_TABLE_BOTTOM_BIT		3
+ #define MPX_BOUNDS_TABLE_TOP_BIT		19
+@@ -41,8 +42,23 @@
  
- /*
-- * NULL is theoretically a valid place to put the bounds
-- * directory, so point this at an invalid address.
-+ * These get stored into mm_context_t->mpx_directory_info.
-+ * We could theoretically use bits 0 and 1, but those are
-+ * used in the BNDCFGU register that also holds the bounds
-+ * directory pointer.  To avoid confusion, use different bits.
-  */
--#define MPX_INVALID_BOUNDS_DIR	((void __user *)-1)
-+#define MPX_INVALID_BOUNDS_DIR	(1UL<<2)
-+#define MPX_LARGE_BOUNDS_DIR	(1UL<<3)
+ #endif
+ 
++/* What size should we allocate for the bounds directory? */
++extern unsigned long long mpx_bounds_dir_alloc_size_bytes(void);
++/*
++ * How large is the hardware currently expecting the bounds
++ * directory to be?
++ *
++ * Note: We have to *tell* the hardware when we want it to use
++ * a larger bounds directory.  Until that point, this will
++ * return the smaller "legacy" value.  But, we *allocate* the
++ * directory before well tell the hardware what size we want
++ * it to be.  So, we need to separate the concepts and have two
++ * different functions.
++ */
++extern unsigned long long mpx_bounds_dir_hw_size_bytes(void);
 +
- #define MPX_BNDCFG_ENABLE_FLAG	0x1
- #define MPX_BD_ENTRY_VALID_FLAG	0x1
+ #define MPX_BOUNDS_DIR_NR_ENTRIES	\
+-	(MPX_BOUNDS_DIR_SIZE_BYTES/MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES)
++	(mpx_bounds_dir_hw_size_bytes()/MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES)
+ #define MPX_BOUNDS_TABLE_NR_ENTRIES	\
+ 	(MPX_BOUNDS_TABLE_SIZE_BYTES/MPX_BOUNDS_TABLE_ENTRY_SIZE_BYTES)
  
-@@ -44,7 +48,7 @@
-  * bounds directory.  There are only two sizes supported: large
-  * and small, so we only need a single value here.
-  */
--#define MPX_LARGE_BOUNDS_DIR_SHIFT 9
-+#define MPX_LARGE_BOUNDS_DIR_SHIFT	9
+@@ -63,7 +79,8 @@ struct mpx_bt_entry {
+ } __attribute__((packed));
  
- /*
-  * The 32-bit directory is 4MB (2^22) in size, and with 4-byte
-@@ -79,32 +83,38 @@
- #ifdef CONFIG_X86_INTEL_MPX
- siginfo_t *mpx_generate_siginfo(struct pt_regs *regs);
- int mpx_handle_bd_fault(void);
-+static inline void __user *mpx_bounds_dir_addr(struct mm_struct *mm)
+ struct mpx_bounds_dir {
+-	struct mpx_bd_entry entries[MPX_BOUNDS_DIR_NR_ENTRIES];
++	/* This is a variable size array: */
++	struct mpx_bd_entry entries[0];
+ } __attribute__((packed));
+ 
+ struct mpx_bounds_table {
+diff -puN tools/testing/selftests/x86/mpx-mini-test.c~mawa-070-mpx-selftests tools/testing/selftests/x86/mpx-mini-test.c
+--- a/tools/testing/selftests/x86/mpx-mini-test.c~mawa-070-mpx-selftests	2017-02-01 15:12:18.514250773 -0800
++++ b/tools/testing/selftests/x86/mpx-mini-test.c	2017-02-01 15:12:18.518250953 -0800
+@@ -462,6 +462,72 @@ static inline void cpuid_count(unsigned
+ }
+ 
+ #define XSTATE_CPUID	    0x0000000d
++#define CPUID_MAWA_LEAF	    0x00000007
++#define CPUID_MAWA_SUBLEAF  0x00000000
++#define CPUID_MAWA_BOTTOM_BIT	17
++#define CPUID_MAWA_TOP_BIT	21
++
++/*
++ * On CPUs supporting 5-level paging with a larger virtual address
++ * space, the bounds directory is also larger.  The mechanism to
++ * grow the bounds directory is called "MPX Address-Width Adjust"
++ * (MAWA) and its presence is enumerated via CPUID.
++ */
++static inline int bd_size_shift(void)
 +{
-+	/*
-+	 * The only bit that can be set in a valid bounds
-+	 * directory is MPX_LARGE_BOUNDS_DIR, so only mask
-+	 * it back off.
-+	 */
-+	return (void __user *)
-+		(mm->context.mpx_directory_info & ~MPX_LARGE_BOUNDS_DIR);
-+}
- static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
- {
--	return (mm->context.bd_addr != MPX_INVALID_BOUNDS_DIR);
-+	return (mm->context.mpx_directory_info != MPX_INVALID_BOUNDS_DIR);
- }
- static inline void mpx_mm_init(struct mm_struct *mm)
- {
- 	/*
--	 * NULL is theoretically a valid place to put the bounds
--	 * directory, so point this at an invalid address.
--	 */
--	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
--	/*
--	 * All processes start out in "legacy" MPX mode with
--	 * the old bounds directory size.  This corresponds to
--	 * what the specs call MAWA=0.
-+	 * MPX starts out off (invalid) and with a legacy-size
-+	 * bounds directory (cleared MPX_LARGE_BOUNDS_DIR bit).
- 	 */
--	mm->context.mpx_bd_shift = 0;
-+	mm->context.mpx_directory_info = MPX_INVALID_BOUNDS_DIR;
- }
- void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
- 		      unsigned long start, unsigned long end);
--
- static inline int mpx_bd_size_shift(struct mm_struct *mm)
- {
--	return mm->context.mpx_bd_shift;
-+	if (!kernel_managing_mpx_tables(mm))
-+		return 0;
-+	if (mm->context.mpx_directory_info & MPX_LARGE_BOUNDS_DIR)
-+		return MPX_LARGE_BOUNDS_DIR_SHIFT;
-+	return 0;
- }
--#else
- static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
- {
- 	return NULL;
-diff -puN arch/x86/mm/mpx.c~mawa-060-onebit arch/x86/mm/mpx.c
---- a/arch/x86/mm/mpx.c~mawa-060-onebit	2017-02-01 15:12:17.602209747 -0800
-+++ b/arch/x86/mm/mpx.c	2017-02-01 15:12:17.606209927 -0800
-@@ -339,29 +339,31 @@ static __user void *mpx_get_bounds_dir(v
- 		(bndcsr->bndcfgu & MPX_BNDCFG_ADDR_MASK);
- }
- 
--int mpx_set_mm_bd_size(unsigned long bd_size)
-+int mpx_set_dir_size(unsigned long bd_size, unsigned long *mpx_directory_info)
- {
- 	struct mm_struct *mm = current->mm;
-+	int ret = 0;
-+	bool large_dir = false;
- 
- 	switch ((unsigned long long)bd_size) {
- 	case 0:
--		/* Legacy call to prctl(): */
--		mm->context.mpx_bd_shift = 0;
--		return 0;
-+		/* Legacy call to prctl() */
-+		break;
- 	case MPX_BD_SIZE_BYTES_32:
- 		/* 32-bit, legacy-sized bounds directory: */
--		if (is_64bit_mm(mm))
--			return -EINVAL;
--		mm->context.mpx_bd_shift = 0;
--		return 0;
-+		if (is_64bit_mm(mm)) {
-+			ret = -EINVAL;
-+			break;
-+		}
-+		ret = 0;
-+		break;
- 	case MPX_BD_BASE_SIZE_BYTES_64:
- 		/* 64-bit, legacy-sized bounds directory: */
- 		if (!is_64bit_mm(mm)
- 		// FIXME && ! opted-in to larger address space
- 		)
--			return -EINVAL;
--		mm->context.mpx_bd_shift = 0;
--		return 0;
-+			ret = -EINVAL;
-+		break;
- 	case MPX_BD_BASE_SIZE_BYTES_64 << MPX_LARGE_BOUNDS_DIR_SHIFT:
- 		/*
- 		 * Non-legacy call, with larger directory.
-@@ -370,7 +372,7 @@ int mpx_set_mm_bd_size(unsigned long bd_
- 		 * change sizes.
- 		 */
- 		if (!is_64bit_mm(mm))
--			return -EINVAL;
-+			ret = -EINVAL;
- 		/*
- 		 * Do not let this be enabled unles we are on
- 		 * 5-level hardware *and* have that feature
-@@ -379,16 +381,20 @@ int mpx_set_mm_bd_size(unsigned long bd_
- 		if (!cpu_feature_enabled(X86_FEATURE_LA57)
- 		// FIXME && opted into larger address space
- 		)
--			return -EINVAL;
--		mm->context.mpx_bd_shift = MPX_LARGE_BOUNDS_DIR_SHIFT;
--		return 0;
-+			ret = -EINVAL;
-+		if (ret)
-+			break;
-+		large_dir = true;
-+		break;
- 	}
--	return -EINVAL;
-+	if (large_dir)
-+		(*mpx_directory_info) |= MPX_LARGE_BOUNDS_DIR;
-+	return ret;
- }
- 
- int mpx_enable_management(unsigned long bd_size)
- {
--	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
-+	void __user *bd_base;
- 	struct mm_struct *mm = current->mm;
- 	int ret = 0;
- 
-@@ -404,13 +410,16 @@ int mpx_enable_management(unsigned long
- 	 * unmap path; we can just use mm->context.bd_addr instead.
- 	 */
- 	bd_base = mpx_get_bounds_dir();
-+	if (bd_base == MPX_INVALID_BOUNDS_DIR)
-+		return -ENXIO;
++	unsigned int eax, ebx, ecx, edx;
++	unsigned int shift;
 +
- 	down_write(&mm->mmap_sem);
--	ret = mpx_set_mm_bd_size(bd_size);
-+	/* Mask out the invalid bit: */
-+	mm->context.mpx_directory_info &= ~MPX_INVALID_BOUNDS_DIR;
-+	ret = mpx_set_dir_size(bd_size, &mm->context.mpx_directory_info);
- 	if (ret)
- 		goto out;
--	mm->context.bd_addr = bd_base;
--	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
--		ret = -ENXIO;
-+	mm->context.mpx_directory_info |= bd_base;
- out:
- 	up_write(&mm->mmap_sem);
++	cpuid_count(CPUID_MAWA_LEAF, CPUID_MAWA_SUBLEAF,
++			&eax, &ebx, &ecx, &edx);
++
++	shift = ecx;
++	shift >>= CPUID_MAWA_BOTTOM_BIT;
++	shift &= (1U << (CPUID_MAWA_TOP_BIT - CPUID_MAWA_BOTTOM_BIT)) - 1;
++
++	return shift;
++}
++
++#define CPUID_LA57_LEAF		0x00000007
++#define CPUID_LA57_SUBLEAF	0x00000000
++#define CPUID_LA57_ECX_MASK	(1UL << 16)
++
++/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx) */
++static inline int cpu_supports_lax(void)
++{
++	unsigned int eax, ebx, ecx, edx;
++
++	cpuid_count(CPUID_LA57_LEAF, CPUID_LA57_SUBLEAF,
++			&eax, &ebx, &ecx, &edx);
++
++	return !!(ecx & CPUID_LA57_ECX_MASK);
++}
++
++unsigned long long mpx_bounds_dir_hw_size_bytes(void)
++{
++#ifdef __i386__
++	/* 32-bit has a fixed size directory: */
++	return MPX_BOUNDS_DIR_SIZE_BYTES;
++#else
++	/*
++	 * 64-bit depends on what mode the hardware is in.
++	 * Are we in LA57 mode, and has the kernel set up
++	 * the "MAWA" MSR for us?
++	 */
++	return MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES << bd_size_shift();
++#endif
++}
++
++unsigned long long mpx_bounds_dir_alloc_size_bytes(void)
++{
++#ifdef __i386__
++	return mpx_bounds_dir_hw_size_bytes();
++#else
++	if (cpu_supports_lax())
++		return MPX_LA57_BOUNDS_DIR_SIZE_BYTES;
++	return MPX_LEGACY_BOUNDS_DIR_SIZE_BYTES;
++#endif
++}
+ 
+ /*
+  * List of XSAVE features Linux knows about:
+@@ -601,7 +667,8 @@ struct mpx_bounds_dir *bounds_dir_ptr;
+ 
+ unsigned long __bd_incore(const char *func, int line)
+ {
+-	unsigned long ret = nr_incore(bounds_dir_ptr, MPX_BOUNDS_DIR_SIZE_BYTES);
++	unsigned long ret = nr_incore(bounds_dir_ptr,
++				      mpx_bounds_dir_hw_size_bytes());
  	return ret;
-@@ -424,7 +433,7 @@ int mpx_disable_management(void)
- 		return -ENXIO;
- 
- 	down_write(&mm->mmap_sem);
--	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
-+	mm->context.mpx_directory_info = MPX_INVALID_BOUNDS_DIR;
- 	up_write(&mm->mmap_sem);
- 	return 0;
  }
-@@ -1006,7 +1015,7 @@ static int try_unmap_single_bt(struct mm
- 		end = bta_end_vaddr;
- 	}
+ #define bd_incore() __bd_incore(__func__, __LINE__)
+@@ -624,43 +691,50 @@ void check_clear_bd(void)
+ 	check_clear(bounds_dir_ptr, 2UL << 30);
+ }
  
--	bde_vaddr = mm->context.bd_addr + mpx_get_bd_entry_offset(mm, start);
-+	bde_vaddr = mpx_bounds_dir_addr(mm) + mpx_get_bd_entry_offset(mm, start);
- 	ret = get_bt_addr(mm, bde_vaddr, &bt_addr);
- 	/*
- 	 * No bounds table there, so nothing to unmap.
+-#define USE_MALLOC_FOR_BOUNDS_DIR 1
+-bool process_specific_init(void)
++void *alloc_bounds_directory(unsigned long long size)
+ {
+-	unsigned long size;
+-	unsigned long *dir;
++	/*
++	 * This can make debugging easier because the
++	 * address calculations are simpler:
++	 */
++	void *hint_addr = NULL; //0x200000000000;
+ 	/* Guarantee we have the space to align it, add padding: */
+ 	unsigned long pad = getpagesize();
++	unsigned long *dir;
++	int flags;
+ 
+-	size = 2UL << 30; /* 2GB */
+-	if (sizeof(unsigned long) == 4)
+-		size = 4UL << 20; /* 4MB */
+-	dprintf1("trying to allocate %ld MB bounds directory\n", (size >> 20));
+-
+-	if (USE_MALLOC_FOR_BOUNDS_DIR) {
+-		unsigned long _dir;
+-
+-		dir = malloc(size + pad);
+-		assert(dir);
+-		_dir = (unsigned long)dir;
+-		_dir += 0xfffUL;
+-		_dir &= ~0xfffUL;
+-		dir = (void *)_dir;
+-	} else {
+-		/*
+-		 * This makes debugging easier because the address
+-		 * calculations are simpler:
+-		 */
+-		dir = mmap((void *)0x200000000000, size + pad,
+-				PROT_READ|PROT_WRITE,
+-				MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+-		if (dir == (void *)-1) {
+-			perror("unable to allocate bounds directory");
+-			abort();
+-		}
+-		check_clear(dir, size);
++	/*
++	 * The bounds directory can be very large and cause us
++	 * to exceed overcommit limits.  Use MAP_NORESERVE to
++	 * avoid the overcommit limits.
++	 */
++	flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
++	dir = mmap(hint_addr, size + pad , PROT_READ|PROT_WRITE, flags, -1, 0);
++	if (dir == (void *)-1) {
++		perror("unable to allocate bounds directory");
++		abort();
+ 	}
+-	bounds_dir_ptr = (void *)dir;
++	check_clear(dir, size);
++	return dir;
++}
++
++#define USE_MALLOC_FOR_BOUNDS_DIR 0
++bool process_specific_init(void)
++{
++	unsigned long long size;
++	unsigned long *dir;
++	int err;
++
++	size = mpx_bounds_dir_alloc_size_bytes();
++	dprintf1("trying to allocate %lld MB bounds directory\n", (size >> 20));
++
++	dir = alloc_bounds_directory(size);
++	/*
++	 * The directory is a large anonymous allocation, so it
++	 * looks like an ideal place to use transparent large pages.
++	 * But, in practice, it's usually sparsely populated and
++	 * will waste lots of memory.  Turn THP off:
++	 */
+ 	madvise(bounds_dir_ptr, size, MADV_NOHUGEPAGE);
+ 	bd_incore();
+ 	dprintf1("bounds directory: 0x%p -> 0x%p\n", bounds_dir_ptr,
+@@ -668,7 +742,19 @@ bool process_specific_init(void)
+ 	check_clear(dir, size);
+ 	enable_mpx(dir);
+ 	check_clear(dir, size);
+-	if (prctl(PR_MPX_ENABLE_MANAGEMENT, 0, 0, 0, 0)) {
++
++	/* Try to tell newer kernels the size of the directory: */
++	err = prctl(PR_MPX_ENABLE_MANAGEMENT, size, 0, 0, 0);
++	/*
++	 * But also handle older kernels that need argument 2 to be 0.
++	 * If the hardware supports larger bounds directories, we
++	 * allocated a large one in anticipation of needing it. But,
++	 * the kernel does not support it, so will use only a
++	 * small portion (1/512th) of it in these tests.
++	 */
++	if (err)
++		err = prctl(PR_MPX_ENABLE_MANAGEMENT, 0, 0, 0, 0);
++	if (err) {
+ 		printf("no MPX support\n");
+ 		abort();
+ 		return false;
 _
 
 --
