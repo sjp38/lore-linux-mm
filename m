@@ -1,97 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0D66B0266
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 10:27:45 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id gt1so78839409wjc.0
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 07:27:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p25si21601519wmi.109.2017.02.01.07.27.43
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B916B0038
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 11:18:51 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id q124so6670571wmg.2
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 08:18:51 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
+        by mx.google.com with ESMTPS id b62si25343367wrd.98.2017.02.01.08.18.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Feb 2017 07:27:43 -0800 (PST)
-Date: Wed, 1 Feb 2017 16:27:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 192981] New: page allocation stalls
-Message-ID: <20170201152742.GA3728@dhcp22.suse.cz>
-References: <bug-192981-27@https.bugzilla.kernel.org/>
- <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170123135111.13ac3e47110de10a4bd503ef@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Feb 2017 08:18:49 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] initity: try to improve __nocapture annotations
+Date: Wed,  1 Feb 2017 17:11:51 +0100
+Message-Id: <20170201161311.2050831-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, apolyakov@beget.ru
+To: Kees Cook <keescook@chromium.org>
+Cc: pageexec@freemail.hu, Emese Revfy <re.emese@gmail.com>, linux-kernel@vger.kernel.org, Josh Triplett <josh@joshtriplett.org>, yamada.masahiro@socionext.com, minipli@ld-linux.so, linux@armlinux.org.uk, akpm@linux-foundation.org, jlayton@poochiereds.net, Arnd Bergmann <arnd@arndb.de>, Robert Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, linux-acpi@vger.kernel.org, devel@acpica.org, linux-arch@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
 
-[Sorry for a late reply]
+There are some additional declarations that got missed in the original patch,
+and some annotated functions that use the pointer is a correct but nonobvious
+way:
 
-On Mon 23-01-17 13:51:11, Andrew Morton wrote:
-[...]
-> > We have been experiencing page allocation stalls regularly on our machines used
-> > as backup servers (many disks, mostly running rsync and rm).
-> > 
-> > A notable one (2102516ms):
-> > 
-> > 2017-01-17T11:08:33.754562+03:00 storage8 [335170.452601] rsync: 
-> > 2017-01-17T11:08:33.754574+03:00 page allocation stalls for 2102516ms, order:0
-> > 2017-01-17T11:08:33.754825+03:00 storage8 ,
-> > mode:0x26040d0(GFP_TEMPORARY|__GFP_COMP|__GFP_NOTRACK)
+mm/kasan/kasan.c: In function 'memmove':
+mm/kasan/kasan.c:346:7: error: 'memmove' captures its 2 ('src') parameter, please remove it from the nocapture attribute. [-Werror]
+ void *memmove(void *dest, const void *src, size_t len)
+       ^~~~~~~
+mm/kasan/kasan.c: In function 'memcpy':
+mm/kasan/kasan.c:355:7: error: 'memcpy' captures its 2 ('src') parameter, please remove it from the nocapture attribute. [-Werror]
+ void *memcpy(void *dest, const void *src, size_t len)
+       ^~~~~~
+drivers/acpi/acpica/utdebug.c: In function 'acpi_debug_print':
+drivers/acpi/acpica/utdebug.c:158:1: error: 'acpi_debug_print' captures its 3 ('function_name') parameter, please remove it from the nocapture attribute. [-Werror]
 
-I have checked the log https://bugzilla.kernel.org/attachment.cgi?id=252621
-and there are more problems than just this allocation stall.
-2017-01-18T02:01:17.613811+03:00 storage8 [24768.850743] INFO: task mcpu:8505 blocked for more than 30 seconds.
-2017-01-18T02:01:17.619823+03:00 storage8 [24768.856784] INFO: task mcpu:8506 blocked for more than 30 seconds.
-2017-01-18T02:01:17.623022+03:00 storage8 [24768.859983] INFO: task mcpu:8507 blocked for more than 30 seconds.
-2017-01-18T02:01:17.626262+03:00 storage8 [24768.863212] INFO: task mcpu:8508 blocked for more than 30 seconds.
-2017-01-18T04:24:39.204636+03:00 storage8 [33370.536543] INFO: task atop:18760 blocked for more than 30 seconds.
-2017-01-18T04:25:09.924667+03:00 storage8 [33401.256617] INFO: task kswapd0:136 blocked for more than 30 seconds.
-2017-01-18T04:25:09.928503+03:00 storage8 [33401.260427] INFO: task kswapd1:137 blocked for more than 30 seconds.
-2017-01-18T04:25:09.935268+03:00 storage8 [33401.267236] INFO: task atop:18760 blocked for more than 30 seconds.
-2017-01-18T04:25:09.938539+03:00 storage8 [33401.270503] INFO: task rsync:29177 blocked for more than 30 seconds.
-2017-01-18T11:40:44.709603+03:00 storage8 [  743.887448] INFO: task rsync:18111 blocked for more than 30 seconds.
-2017-01-18T11:40:44.720724+03:00 storage8 [  743.898581] INFO: task rsync:19378 blocked for more than 30 seconds.
-2017-01-18T11:42:47.589968+03:00 storage8 [  866.767027] INFO: task kswapd1:139 blocked for more than 30 seconds.
-2017-01-18T11:42:47.594015+03:00 storage8 [  866.771109] INFO: task rsync:6909 blocked for more than 30 seconds.
-2017-01-18T11:42:47.604005+03:00 storage8 [  866.781098] INFO: task rsync:17582 blocked for more than 30 seconds.
-2017-01-18T11:42:47.611063+03:00 storage8 [  866.788159] INFO: task rsync:18111 blocked for more than 30 seconds.
-2017-01-18T11:42:47.619089+03:00 storage8 [  866.796183] INFO: task rsync:18776 blocked for more than 30 seconds.
-2017-01-18T11:42:47.631557+03:00 storage8 [  866.808652] INFO: task rsync:18777 blocked for more than 30 seconds.
-2017-01-18T11:42:47.641018+03:00 storage8 [  866.818099] INFO: task rsync:19281 blocked for more than 30 seconds.
-2017-01-18T11:42:47.647701+03:00 storage8 [  866.824797] INFO: task rsync:19740 blocked for more than 30 seconds.
+lib/string.c:893:7: error: 'memchr_inv' captures its 1 ('start') parameter, please remove it from the nocapture attribute. [-Werror]
+ void *memchr_inv(const void *start, int c, size_t bytes)
+lib/string.c: In function 'strnstr':
+lib/string.c:832:7: error: 'strnstr' captures its 1 ('s1') parameter, please remove it from the nocapture attribute. [-Werror]
+ char *strnstr(const char *s1, const char *s2, size_t len)
+       ^~~~~~~
+lib/string.c:832:7: error: 'strnstr' captures its 2 ('s2') parameter, please remove it from the nocapture attribute. [-Werror]
 
-Most of them are waiting for mmap_sem for read but there are cases where
-the direct reclaim is waiting for a FS lock (in xfs_reclaim_inodes_ag).
-I do not see the 2102516ms stall in the attached log and the information
-given here doesn't contain the memory counters. When checking few random
-stalls the picture seems to be pretty much consistent
+I'm not sure if these are all appropriate fixes, please have a careful look
 
-[slightly edited to fix the broken new lines in the output]
+Fixes: c2bc07665495 ("initify: Mark functions with the __nocapture attribute")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ drivers/acpi/acpica/utdebug.c        | 2 +-
+ include/acpi/acpixf.h                | 2 +-
+ include/asm-generic/asm-prototypes.h | 8 ++++----
+ include/linux/string.h               | 2 +-
+ lib/string.c                         | 2 +-
+ mm/kasan/kasan.c                     | 4 ++--
+ 6 files changed, 10 insertions(+), 10 deletions(-)
 
-2017-01-18T13:28:41.783833+03:00 page allocation stalls for 10380ms, order:0, mode:0x2604050(GFP_NOFS|__GFP_COMP|__GFP_RECLAIMABLE|__GFP_NOTRACK)
-[...]
-7221.937932]  free:1142851 free_pcp:20 free_cma:2942
-2017-01-18T13:28:42.743176+03:00 storage8 [ 7221.938674] Node 0 active_anon:3352112kB inactive_anon:2120kB active_file:87308kB inactive_file:85252kB unevictable:3532kB isolated(anon):0kB iso
-lated(file):2852kB mapped:5492kB dirty:0kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 2128kB writeback_tmp:0kB unstable:0kB pages_scanned:592392 all_unreclaimable?
- yes
-2017-01-18T13:28:42.743780+03:00 storage8 [ 7221.939273] Node 1 active_anon:3472092kB inactive_anon:292kB active_file:73592kB inactive_file:72548kB unevictable:61700kB isolated(anon):0kB isolated(file):6640kB mapped:3268kB dirty:0kB writeback:0kB shmem:0kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 292kB writeback_tmp:0kB unstable:0kB pages_scanned:1064 all_unreclaimable? no
-[...]
-2017-01-18T13:28:42.744551+03:00 storage8 [ 7221.940642] Node 0 DMA32 free: 491744kB min:129476kB low:161844kB high:194212kB active_anon:59952kB inactive_anon:0kB active_file:148kB inactive_file:108kB unevictable:0kB writepending:0kB present:3120640kB managed:3055072kB mlocked:0kB slab_reclaimable:2317296kB slab_unreclaimable:96572kB kernel_stack:32kB pagetables:136kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-2017-01-18T13:28:42.892456+03:00 storage8 [ 7222.088527] lowmem_reserve[]: 90576 90576 0 0
-2017-01-18T13:28:42.892592+03:00 storage8 [ 7222.088696] Node 0 Normal free: 1965392kB min:1965456kB low:2456820kB high:2948184kB active_anon:3292160kB inactive_anon:2120kB active_file:87560kB inactive_file:85192kB unevictable:3532kB writepending:0kB present:47185920kB managed:46375368kB mlocked:3532kB slab_reclaimable:24725412kB slab_unreclaimable:2591604kB kernel_stack:15944kB pagetables:98056kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-2017-01-18T13:28:42.893512+03:00 storage8 [ 7222.089602] Node 1 Normal free: 2099044kB min:2098692kB low:2623364kB high:3148036kB active_anon:3472092kB inactive_anon:292kB active_file:71624kB inactive_file:71456kB unevictable:61700kB writepending:0kB present:50331648kB managed:49519168kB mlocked:61700kB slab_reclaimable:28674160kB slab_unreclaimable:2597592kB kernel_stack:8472kB pagetables:51836kB bounce:0kB free_pcp:296kB local_pcp:0kB free_cma:11768kB
-
-All the eligible zones are low on memoyr (DMA32 with the lowmem
-protection). Anon memory is not reclaimable because you do not have
-any swap. The file LRU seems to contain quite some memory. Dirty
-and writeback counters would suggest that the page cache should be
-reclaimable but maybe something is pinning those pages. I suspect the
-reclaim blocked waiting for IO for metadata. I am not an expert on the
-fs side of this but this smells like the IO cannot keep pace with the
-load.
+diff --git a/drivers/acpi/acpica/utdebug.c b/drivers/acpi/acpica/utdebug.c
+index 044df9b0356e..de3c9cb305a2 100644
+--- a/drivers/acpi/acpica/utdebug.c
++++ b/drivers/acpi/acpica/utdebug.c
+@@ -154,7 +154,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
+  *
+  ******************************************************************************/
+ 
+-void ACPI_INTERNAL_VAR_XFACE
++void __unverified_nocapture(3) ACPI_INTERNAL_VAR_XFACE
+ acpi_debug_print(u32 requested_debug_level,
+ 		 u32 line_number,
+ 		 const char *function_name,
+diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
+index 9f4637e9dd92..9644cec5b082 100644
+--- a/include/acpi/acpixf.h
++++ b/include/acpi/acpixf.h
+@@ -946,7 +946,7 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6) __nocapture(3)
+ 						const char *module_name,
+ 						u32 component_id,
+ 						const char *format, ...))
+-ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
++ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6) __nocapture(3)
+ 				void ACPI_INTERNAL_VAR_XFACE
+ 				acpi_debug_print_raw(u32 requested_debug_level,
+ 						     u32 line_number,
+diff --git a/include/asm-generic/asm-prototypes.h b/include/asm-generic/asm-prototypes.h
+index 939869c772b1..ffc0dd7e8ed2 100644
+--- a/include/asm-generic/asm-prototypes.h
++++ b/include/asm-generic/asm-prototypes.h
+@@ -2,12 +2,12 @@
+ #undef __memset
+ extern void *__memset(void *, int, __kernel_size_t);
+ #undef __memcpy
+-extern void *__memcpy(void *, const void *, __kernel_size_t);
++extern void *__memcpy(void *, const void *, __kernel_size_t) __nocapture(2);
+ #undef __memmove
+-extern void *__memmove(void *, const void *, __kernel_size_t);
++extern void *__memmove(void *, const void *, __kernel_size_t) __nocapture(2);
+ #undef memset
+ extern void *memset(void *, int, __kernel_size_t);
+ #undef memcpy
+-extern void *memcpy(void *, const void *, __kernel_size_t);
++extern void *memcpy(void *, const void *, __kernel_size_t) __nocapture(2);
+ #undef memmove
+-extern void *memmove(void *, const void *, __kernel_size_t);
++extern void *memmove(void *, const void *, __kernel_size_t) __nocapture(2);
+diff --git a/include/linux/string.h b/include/linux/string.h
+index 8b3b97e7b2b0..0ee877593464 100644
+--- a/include/linux/string.h
++++ b/include/linux/string.h
+@@ -76,7 +76,7 @@ static inline __must_check char *strstrip(char *str)
+ extern char * strstr(const char *, const char *) __nocapture(-1, 2);
+ #endif
+ #ifndef __HAVE_ARCH_STRNSTR
+-extern char * strnstr(const char *, const char *, size_t) __nocapture(-1, 2);
++extern char * strnstr(const char *, const char *, size_t);
+ #endif
+ #ifndef __HAVE_ARCH_STRLEN
+ extern __kernel_size_t strlen(const char *) __nocapture(1);
+diff --git a/lib/string.c b/lib/string.c
+index ed83562a53ae..01151a1a0b61 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -870,7 +870,7 @@ void *memchr(const void *s, int c, size_t n)
+ EXPORT_SYMBOL(memchr);
+ #endif
+ 
+-static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
++static __always_inline void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
+ {
+ 	while (bytes) {
+ 		if (*start != value)
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 5f6e09c88d25..ebc02ee1118e 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -343,7 +343,7 @@ void *memset(void *addr, int c, size_t len)
+ }
+ 
+ #undef memmove
+-void *memmove(void *dest, const void *src, size_t len)
++__unverified_nocapture(2) void *memmove(void *dest, const void *src, size_t len)
+ {
+ 	check_memory_region((unsigned long)src, len, false, _RET_IP_);
+ 	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
+@@ -352,7 +352,7 @@ void *memmove(void *dest, const void *src, size_t len)
+ }
+ 
+ #undef memcpy
+-void *memcpy(void *dest, const void *src, size_t len)
++__unverified_nocapture(2) void *memcpy(void *dest, const void *src, size_t len)
+ {
+ 	check_memory_region((unsigned long)src, len, false, _RET_IP_);
+ 	check_memory_region((unsigned long)dest, len, true, _RET_IP_);
 -- 
-Michal Hocko
-SUSE Labs
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
