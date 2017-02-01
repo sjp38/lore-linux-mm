@@ -1,54 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DD3A6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 12:18:38 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 75so494655692pgf.3
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 09:18:38 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTP id y6si14903592pgo.299.2017.02.01.09.18.36
-        for <linux-mm@kvack.org>;
-        Wed, 01 Feb 2017 09:18:37 -0800 (PST)
-Date: Wed, 01 Feb 2017 12:18:32 -0500 (EST)
-Message-Id: <20170201.121832.1810577893703014061.davem@davemloft.net>
-Subject: Re: [PATCH v5 4/4] sparc64: Add support for ADI (Application Data
- Integrity)
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <6c514e7e-338a-f1cd-140d-d4980ea6ac0f@oracle.com>
-References: <0b6865aabc010ee3a7ea956a70447abbab53ea70.1485362562.git.khalid.aziz@oracle.com>
-	<20170130.171531.1973857503703372714.davem@davemloft.net>
-	<6c514e7e-338a-f1cd-140d-d4980ea6ac0f@oracle.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 329726B0038
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 12:30:00 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id h53so200933582qth.6
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 09:30:00 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n2si14894697qtn.164.2017.02.01.09.29.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Feb 2017 09:29:59 -0800 (PST)
+Date: Wed, 1 Feb 2017 12:29:56 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH 7/9] md: use kvmalloc rather than opencoded variant
+In-Reply-To: <20170130094940.13546-8-mhocko@kernel.org>
+Message-ID: <alpine.LRH.2.02.1702011213070.20806@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20170130094940.13546-1-mhocko@kernel.org> <20170130094940.13546-8-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: khalid.aziz@oracle.com
-Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Mike Snitzer <snitzer@redhat.com>
 
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Date: Tue, 31 Jan 2017 16:38:49 -0700
 
-> Thanks for the feedback. This is very helpful. I checked and it indeed
-> can cost 50+ cycles even on M7 processor for PSTATE accesses.
 
-Consider how many bytes can be copied in 50+ cycles :-)
+On Mon, 30 Jan 2017, Michal Hocko wrote:
 
->> On etrap, you change ESTATE_PSTATE{1,2} to have the MCDE bit enabled.
->> Then the kernel always runs with ADI enabled.
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Running the kernel with PSTATE.mcde=1 can possibly be problematic as
-> we had discussed earlier in this thread where keeping PSTATE.mcde
-> enabled might mean kernel having to keep track of which pages still
-> have tags set on them or flush tags on every page on free. I will go
-> through the code again to see if it PSTATE.mcde can be turned on in
-> kernel all the time, which might be the case if we can ensure kernel
-> accesses pages with TTE.mcd cleared.
+> copy_params uses kmalloc with vmalloc fallback. We already have a helper
+> for that - kvmalloc. This caller requires GFP_NOIO semantic so it hasn't
+> been converted with many others by previous patches. All we need to
+> achieve this semantic is to use the scope memalloc_noio_{save,restore}
+> around kvmalloc.
+> 
+> Cc: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: Mike Snitzer <snitzer@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/md/dm-ioctl.c | 13 ++++---------
+>  1 file changed, 4 insertions(+), 9 deletions(-)
+> 
+> diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+> index a5a9b17f0f7f..dbf5b981f7d7 100644
+> --- a/drivers/md/dm-ioctl.c
+> +++ b/drivers/md/dm-ioctl.c
+> @@ -1698,6 +1698,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+>  	struct dm_ioctl *dmi;
+>  	int secure_data;
+>  	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
+> +	unsigned noio_flag;
+>  
+>  	if (copy_from_user(param_kernel, user, minimum_data_size))
+>  		return -EFAULT;
+> @@ -1720,15 +1721,9 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+>  	 * Use kmalloc() rather than vmalloc() when we can.
+>  	 */
+>  	dmi = NULL;
+> -	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
+> -		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+> -
+> -	if (!dmi) {
+> -		unsigned noio_flag;
+> -		noio_flag = memalloc_noio_save();
+> -		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+> -		memalloc_noio_restore(noio_flag);
+> -	}
+> +	noio_flag = memalloc_noio_save();
+> +	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL);
+> +	memalloc_noio_restore(noio_flag);
+>  
+>  	if (!dmi) {
+>  		if (secure_data && clear_user(user, param_kernel->data_size))
+> -- 
+> 2.11.0
 
-If we can clear the tags properly on page release when the page was
-used for ADI, it can work.
+I would push these memalloc_noio_save/memalloc_noio_restore calls to 
+kvmalloc, so that the othe callers can use them too.
 
-One way would be to track the state in the page struct somehow, and
-in arch_alloc_page() clear the tags if necessary.
+Something like
+	if ((flags & (__GFP_IO | __GFP_FS)) != (__GFP_IO | __GFP_FS))
+		noio_flag = memalloc_noio_save();
+	ptr = __vmalloc_node_flags(size, node, flags);
+	if ((flags & (__GFP_IO | __GFP_FS)) != (__GFP_IO | __GFP_FS))
+		memalloc_noio_restore(noio_flag)
+
+Or perhaps even better - push memalloc_noio_save/memalloc_noio_restore 
+directly to __vmalloc, so that __vmalloc respects the gfp flags properly - 
+note that there are 14 places in the kernel where __vmalloc is called with 
+GFP_NOFS and they are all buggy because __vmalloc doesn't respect the 
+GFP_NOFS flag.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
