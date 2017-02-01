@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A8446B025E
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:37:58 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id g49so413317962qta.0
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:37:58 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1246E6B025E
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 18:38:01 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id c25so167224887qtg.2
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 15:38:01 -0800 (PST)
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id c43si15549320qte.145.2017.02.01.15.37.57
+        by mx.google.com with ESMTPS id m124si13205989qke.228.2017.02.01.15.38.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 15:37:57 -0800 (PST)
+        Wed, 01 Feb 2017 15:38:00 -0800 (PST)
 From: "Tobin C. Harding" <me@tobin.cc>
-Subject: [PATCH 1/4] mm: Fix sparse, use plain integer as NULL pointer
-Date: Thu,  2 Feb 2017 10:37:17 +1100
-Message-Id: <1485992240-10986-2-git-send-email-me@tobin.cc>
+Subject: [PATCH 2/4] mm: Fix checkpatch warnings, whitespace
+Date: Thu,  2 Feb 2017 10:37:18 +1100
+Message-Id: <1485992240-10986-3-git-send-email-me@tobin.cc>
 In-Reply-To: <1485992240-10986-1-git-send-email-me@tobin.cc>
 References: <1485992240-10986-1-git-send-email-me@tobin.cc>
 Sender: owner-linux-mm@kvack.org
@@ -22,45 +22,70 @@ Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Ki
 
 From: Tobin C Harding <me@tobin.cc>
 
-Patch fixes sparse warning: Using plain integer as NULL pointer. Replaces
-assignment of 0 to pointer with NULL assignment.
+Patch fixes whitespace checkpatch warnings.
 
 Signed-off-by: Tobin C Harding <me@tobin.cc>
 ---
- mm/memory.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/memory.c | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 6bf2b47..cc5fa12 100644
+index cc5fa12..3562314 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2905,7 +2905,7 @@ static int pte_alloc_one_map(struct vm_fault *vmf)
- 		atomic_long_inc(&vma->vm_mm->nr_ptes);
- 		pmd_populate(vma->vm_mm, vmf->pmd, vmf->prealloc_pte);
- 		spin_unlock(vmf->ptl);
--		vmf->prealloc_pte = 0;
-+		vmf->prealloc_pte = NULL;
- 	} else if (unlikely(pte_alloc(vma->vm_mm, vmf->pmd, vmf->address))) {
- 		return VM_FAULT_OOM;
- 	}
-@@ -2953,7 +2953,7 @@ static void deposit_prealloc_pte(struct vm_fault *vmf)
- 	 * count that as nr_ptes.
- 	 */
- 	atomic_long_inc(&vma->vm_mm->nr_ptes);
--	vmf->prealloc_pte = 0;
-+	vmf->prealloc_pte = NULL;
- }
+@@ -30,7 +30,7 @@
  
- static int do_set_pmd(struct vm_fault *vmf, struct page *page)
-@@ -3359,7 +3359,7 @@ static int do_fault(struct vm_fault *vmf)
- 	/* preallocated pagetable is unused: free it */
- 	if (vmf->prealloc_pte) {
- 		pte_free(vma->vm_mm, vmf->prealloc_pte);
--		vmf->prealloc_pte = 0;
-+		vmf->prealloc_pte = NULL;
+ /*
+  * 05.04.94  -  Multi-page memory management added for v1.1.
+- * 		Idea by Alex Bligh (alex@cconcepts.co.uk)
++ *              Idea by Alex Bligh (alex@cconcepts.co.uk)
+  *
+  * 16.07.99  -  Support of BIGMEM added by Gerhard Wichert, Siemens AG
+  *		(Gerhard.Wichert@pdb.siemens.de)
+@@ -82,9 +82,9 @@
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+ unsigned long max_mapnr;
+-struct page *mem_map;
+-
+ EXPORT_SYMBOL(max_mapnr);
++
++struct page *mem_map;
+ EXPORT_SYMBOL(mem_map);
+ #endif
+ 
+@@ -96,7 +96,6 @@ EXPORT_SYMBOL(mem_map);
+  * and ZONE_HIGHMEM.
+  */
+ void * high_memory;
+-
+ EXPORT_SYMBOL(high_memory);
+ 
+ /*
+@@ -120,10 +119,10 @@ static int __init disable_randmaps(char *s)
+ __setup("norandmaps", disable_randmaps);
+ 
+ unsigned long zero_pfn __read_mostly;
+-unsigned long highest_memmap_pfn __read_mostly;
+-
+ EXPORT_SYMBOL(zero_pfn);
+ 
++unsigned long highest_memmap_pfn __read_mostly;
++
+ /*
+  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
+  */
+@@ -3696,8 +3695,8 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+                  * VM_FAULT_OOM), there is no need to kill anything.
+                  * Just clean up the OOM state peacefully.
+                  */
+-                if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
+-                        mem_cgroup_oom_synchronize(false);
++		if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
++			mem_cgroup_oom_synchronize(false);
  	}
- 	return ret;
- }
+ 
+ 	/*
 -- 
 2.7.4
 
