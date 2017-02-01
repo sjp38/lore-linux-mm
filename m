@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C14246B0069
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 11:38:17 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id s36so353130761otd.3
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 08:38:17 -0800 (PST)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id h19si8309677otc.281.2017.02.01.08.38.17
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5186B0038
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 11:40:36 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id h56so153887870qtc.1
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 08:40:36 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
+        by mx.google.com with ESMTPS id h125si24569424wme.3.2017.02.01.08.40.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 08:38:17 -0800 (PST)
-Received: by mail-oi0-x241.google.com with SMTP id w144so31265738oiw.1
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 08:38:17 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170201163426.2287910-1-arnd@arndb.de>
-References: <20170201163426.2287910-1-arnd@arndb.de>
+        Wed, 01 Feb 2017 08:40:35 -0800 (PST)
 From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 1 Feb 2017 17:38:16 +0100
-Message-ID: <CAK8P3a0uo5gpDJ-u6OeG4rAXg+BaXcz7CVcY9rR=n826m=2XMQ@mail.gmail.com>
-Subject: Re: [PATCH] [RFC] sched: make DECLARE_COMPLETION_ONSTACK() work with clang
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] [RFC v2] sched: make DECLARE_COMPLETION_ONSTACK() work with clang
+Date: Wed,  1 Feb 2017 17:40:19 +0100
+Message-Id: <20170201164030.2379546-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@elte.hu>
 
-On Wed, Feb 1, 2017 at 5:34 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+Building with clang, we get a warning for each use of COMPLETION_INITIALIZER_ONSTACK, e.g.:
 
-> diff --git a/include/linux/completion.h b/include/linux/completion.h
-> index fa5d3efaba56..5d5aaae3af43 100644
-> --- a/include/linux/completion.h
-> +++ b/include/linux/completion.h
-> @@ -31,7 +31,7 @@ struct completion {
->         { 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
->
->  #define COMPLETION_INITIALIZER_ONSTACK(work) \
-> -       (*init_completion(&work))
-> +       ({ init_completion(&work); work; })
->
->  /**
->   * DECLARE_COMPLETION - declare and initialize a completion structure
-> @@ -70,11 +70,10 @@ struct completion {
->   * This inline function will initialize a dynamically created completion
->   * structure.
->   */
-> -static inline struct completion *init_completion(struct completion *x)
-> +static inline void init_completion(struct completion *x)
->  {
->         x->done = 0;
->         init_waitqueue_head(&x->wait);
-> -       return x;
->  }
->
+block/blk-exec.c:103:29: warning: variable 'wait' is uninitialized when used within its own initialization [-Wuninitialized]
+include/linux/completion.h:61:58: note: expanded from macro 'DECLARE_COMPLETION_ONSTACK'
+include/linux/completion.h:34:29: note: expanded from macro 'COMPLETION_INITIALIZER_ONSTACK'
 
-I accidentally submitted the wrong patch, this is the revert of the
-actual change.
+This seems to be a problem in clang, but it's relatively easy to work around
+by changing the assignment.
 
-       Arnd
+I filed a bug against clang for the warning, but if we want to support old versions,
+we may want this change as well.
+
+I have not yet checked if the new version produces worse object code.
+
+Link: https://llvm.org/bugs/show_bug.cgi?id=31829
+Cc: Ingo Molnar <mingo@elte.hu>
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+v2: send the correct patch
+---
+ include/linux/completion.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/completion.h b/include/linux/completion.h
+index 5d5aaae3af43..fa5d3efaba56 100644
+--- a/include/linux/completion.h
++++ b/include/linux/completion.h
+@@ -31,7 +31,7 @@ struct completion {
+ 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
+ 
+ #define COMPLETION_INITIALIZER_ONSTACK(work) \
+-	({ init_completion(&work); work; })
++	(*init_completion(&work))
+ 
+ /**
+  * DECLARE_COMPLETION - declare and initialize a completion structure
+@@ -70,10 +70,11 @@ struct completion {
+  * This inline function will initialize a dynamically created completion
+  * structure.
+  */
+-static inline void init_completion(struct completion *x)
++static inline struct completion *init_completion(struct completion *x)
+ {
+ 	x->done = 0;
+ 	init_waitqueue_head(&x->wait);
++	return x;
+ }
+ 
+ /**
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
