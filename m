@@ -1,94 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F356B0033
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 02:31:42 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 3so223090289pgj.6
-        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 23:31:42 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e7si18357623pfa.53.2017.01.31.23.31.41
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B10A26B0033
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 02:59:33 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id kq3so76031959wjc.1
+        for <linux-mm@kvack.org>; Tue, 31 Jan 2017 23:59:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b41si23819903wrb.307.2017.01.31.23.59.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Jan 2017 23:31:41 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v117SmeT143792
-	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 02:31:40 -0500
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com [125.16.236.2])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 28aws0kcmc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 01 Feb 2017 02:31:39 -0500
-Received: from localhost
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 1 Feb 2017 13:01:36 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 801FC394006A
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 13:01:33 +0530 (IST)
-Received: from d28av07.in.ibm.com (d28av07.in.ibm.com [9.184.220.146])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v117VVmL25034998
-	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 13:01:31 +0530
-Received: from d28av07.in.ibm.com (localhost [127.0.0.1])
-	by d28av07.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v117VVng002395
-	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 13:01:32 +0530
-Subject: Re: [RFC] cpuset: Enable changing of top_cpuset's mems_allowed
- nodemask
-References: <20170130203003.dm2ydoi3e6cbbwcj@suse.de>
- <20170131142237.27097-1-khandual@linux.vnet.ibm.com>
- <20170131160029.ubt6fvw6oh2fgxpd@suse.de>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 1 Feb 2017 13:01:24 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Jan 2017 23:59:32 -0800 (PST)
+Date: Wed, 1 Feb 2017 08:59:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v5 1/4] mm/migration: make isolate_movable_page() return
+ int type
+Message-ID: <20170201075924.GB5977@dhcp22.suse.cz>
+References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+ <1485867981-16037-2-git-send-email-ysxie@foxmail.com>
+ <20170201064821.GA10342@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20170131160029.ubt6fvw6oh2fgxpd@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
-Message-Id: <c6864b3c-1b7f-ded9-eea4-538262631813@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170201064821.GA10342@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dave.hansen@intel.com, dan.j.williams@intel.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: ysxie@foxmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-On 01/31/2017 09:30 PM, Mel Gorman wrote:
-> On Tue, Jan 31, 2017 at 07:52:37PM +0530, Anshuman Khandual wrote:
->> At present, top_cpuset.mems_allowed is same as node_states[N_MEMORY] and it
->> cannot be changed at the runtime. Maximum possible node_states[N_MEMORY]
->> also gets reflected in top_cpuset.effective_mems interface. It prevents some
->> one from removing or restricting memory placement which will be applicable
->> system wide on a given memory node through cpuset mechanism which might be
->> limiting. This solves the problem by enabling update_nodemask() function to
->> accept changes to top_cpuset.mems_allowed as well. Once changed, it also
->> updates the value of top_cpuset.effective_mems. Updates all it's task's
->> mems_allowed nodemask as well. It calls cpuset_inc() to make sure cpuset
->> is accounted for in the buddy allocator through cpusets_enabled() check.
->>
+On Wed 01-02-17 15:48:21, Minchan Kim wrote:
+> Hi Yisheng,
 > 
-> What's the point of allowing the root cpuset to be restricted?
+> On Tue, Jan 31, 2017 at 09:06:18PM +0800, ysxie@foxmail.com wrote:
+> > From: Yisheng Xie <xieyisheng1@huawei.com>
+> > 
+> > This patch changes the return type of isolate_movable_page()
+> > from bool to int. It will return 0 when isolate movable page
+> > successfully, return -EINVAL when the page is not a non-lru movable
+> > page, and for other cases it will return -EBUSY.
+> > 
+> > There is no functional change within this patch but prepare
+> > for later patch.
+> > 
+> > Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> > Suggested-by: Michal Hocko <mhocko@kernel.org>
+> 
+> Sorry for missing this one you guys were discussing.
+> I don't understand the patch's goal although I read later patches.
 
-After an extended period of run time on a system, currently if we have
-to run HW diagnostics and dump (which are run out of band) for debug
-purpose, we have to stop further allocations to the node. Hot plugging
-the memory node out of the kernel will achieve this. But it can also
-be made possible by just enabling top_cpuset.memory_migrate and then
-restricting all the allocations by removing the node from top_cpuset.
-mems_allowed nodemask. This will force all the existing allocations
-out of the target node.
+The point is that the failed isolation has to propagate error up the
+call chain to the userspace which has initiated the migration.
 
-More importantly it also extends the cpuset memory restriction feature
-to the logical completion without adding any regressions for the
-existing use cases. Then why not do this ? Does it add any overhead ?
+> isolate_movable_pages returns success/fail so that's why I selected
+> bool rather than int but it seems you guys want to propagate more
+> detailed error to the user so added -EBUSY and -EINVAL.
+> 
+> But the question is why isolate_lru_pages doesn't have -EINVAL?
 
-In the future this feature can also be used to isolate a memory node
-from all possible general allocations and at the same time provide an
-alternate method for explicit allocation into it (still working on this
-part, though have a hack right now). The current RFC series proposes
-one such possible use case through the top_cpuset.mems_allowed nodemask.
-But in this case it is being restricted during boot as well as after
-hotplug of a memory only NUMA node.
+It doesn't have to same as isolate_movable_pages. We should just return
+EBUSY when the page is no longer movable.
 
-If you think currently this does not have a use case to stand on it's
-own, then I will carry it along with this patch series as part of the
-proposed cpuset based isolation solution (with explicit allocation
-access to the isolated node) as described just above.
+> Secondly, madvise man page should update?
 
-- Anshuman
+Why?
+
+> Thirdly, if a driver fail isolation due to -ENOMEM, it should be
+> propagated, too?
+
+Yes
+
+> if we want to propagte detailed error to user, driver's isolate_page
+> function should return right error.
+
+Yes
+
+> I don't feel this all changes should be done now. What's the problem
+> if we change isolate_lru_page from int to bool? it returns just binary
+> value so it should be right place to use bool. If it fails, error val
+> is just -EBUSY.
+
+We really want to propagate the reason why the offline operation has
+failed. Why would we want to postpone that?
+
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > CC: Vlastimil Babka <vbabka@suse.cz>
+> > ---
+> >  include/linux/migrate.h |  2 +-
+> >  mm/compaction.c         |  2 +-
+> >  mm/migrate.c            | 11 +++++++----
+> >  3 files changed, 9 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> > index ae8d475..43d5deb 100644
+> > --- a/include/linux/migrate.h
+> > +++ b/include/linux/migrate.h
+> > @@ -37,7 +37,7 @@ extern int migrate_page(struct address_space *,
+> >  			struct page *, struct page *, enum migrate_mode);
+> >  extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+> >  		unsigned long private, enum migrate_mode mode, int reason);
+> > -extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
+> > +extern int isolate_movable_page(struct page *page, isolate_mode_t mode);
+> >  extern void putback_movable_page(struct page *page);
+> >  
+> >  extern int migrate_prep(void);
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 949198d..1d89147 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -802,7 +802,7 @@ static bool too_many_isolated(struct zone *zone)
+> >  					locked = false;
+> >  				}
+> >  
+> > -				if (isolate_movable_page(page, isolate_mode))
+> > +				if (!isolate_movable_page(page, isolate_mode))
+> >  					goto isolate_success;
+> >  			}
+> >  
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 87f4d0f..bbbd170 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -74,8 +74,9 @@ int migrate_prep_local(void)
+> >  	return 0;
+> >  }
+> >  
+> > -bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+> > +int isolate_movable_page(struct page *page, isolate_mode_t mode)
+> >  {
+> > +	int ret = -EBUSY;
+> >  	struct address_space *mapping;
+> >  
+> >  	/*
+> > @@ -95,8 +96,10 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+> >  	 * assumes anybody doesn't touch PG_lock of newly allocated page
+> >  	 * so unconditionally grapping the lock ruins page's owner side.
+> >  	 */
+> > -	if (unlikely(!__PageMovable(page)))
+> > +	if (unlikely(!__PageMovable(page))) {
+> > +		ret = -EINVAL;
+> >  		goto out_putpage;
+> > +	}
+> >  	/*
+> >  	 * As movable pages are not isolated from LRU lists, concurrent
+> >  	 * compaction threads can race against page migration functions
+> > @@ -125,14 +128,14 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+> >  	__SetPageIsolated(page);
+> >  	unlock_page(page);
+> >  
+> > -	return true;
+> > +	return 0;
+> >  
+> >  out_no_isolated:
+> >  	unlock_page(page);
+> >  out_putpage:
+> >  	put_page(page);
+> >  out:
+> > -	return false;
+> > +	return ret;
+> >  }
+> >  
+> >  /* It should be called on page which is PG_movable */
+> > -- 
+> > 1.9.1
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
