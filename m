@@ -1,133 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B66066B0033
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 07:44:30 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id d185so482691509pgc.2
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 04:44:30 -0800 (PST)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id b3si19075410pll.166.2017.02.01.04.44.29
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 589336B0033
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 09:00:14 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y143so560825048pfb.6
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 06:00:14 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w17si14438793pgm.344.2017.02.01.06.00.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 04:44:29 -0800 (PST)
-Received: by mail-pf0-x232.google.com with SMTP id e4so117959363pfg.1
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 04:44:29 -0800 (PST)
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: [PATCH v31 01/12] memblock: add memblock_cap_memory_range()
-Date: Wed,  1 Feb 2017 21:45:39 +0900
-Message-Id: <20170201124539.5963-1-takahiro.akashi@linaro.org>
-In-Reply-To: <20170201124218.5823-1-takahiro.akashi@linaro.org>
-References: <20170201124218.5823-1-takahiro.akashi@linaro.org>
+        Wed, 01 Feb 2017 06:00:13 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v11DsHPB144159
+	for <linux-mm@kvack.org>; Wed, 1 Feb 2017 09:00:12 -0500
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28be1nq4yt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 01 Feb 2017 09:00:12 -0500
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 2 Feb 2017 00:00:07 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 355233578053
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 01:00:04 +1100 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v11DxuJk28311740
+	for <linux-mm@kvack.org>; Thu, 2 Feb 2017 01:00:04 +1100
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v11DxVJI019373
+	for <linux-mm@kvack.org>; Thu, 2 Feb 2017 00:59:32 +1100
+Subject: Re: [RFC V2 02/12] mm: Isolate HugeTLB allocations away from CDM
+ nodes
+References: <20170130033602.12275-1-khandual@linux.vnet.ibm.com>
+ <20170130033602.12275-3-khandual@linux.vnet.ibm.com>
+ <01671749-c649-e015-4f51-7acaa1fb5b80@intel.com>
+ <be8665a1-43d2-436a-90df-b644365a2fc5@linux.vnet.ibm.com>
+ <db9e7345-da08-5011-22ae-b20927b174f4@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 1 Feb 2017 19:29:00 +0530
+MIME-Version: 1.0
+In-Reply-To: <db9e7345-da08-5011-22ae-b20927b174f4@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <d1995ee9-246f-5920-8a75-61868c2a209e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org
-Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
+To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, dan.j.williams@intel.com
 
-Add memblock_cap_memory_range() which will remove all the memblock regions
-except the memory range specified in the arguments. In addition, rework is
-done on memblock_mem_limit_remove_map() to re-implement it using
-memblock_cap_memory_range().
+On 01/31/2017 07:07 AM, Dave Hansen wrote:
+> On 01/30/2017 05:03 PM, Anshuman Khandual wrote:
+>> On 01/30/2017 10:49 PM, Dave Hansen wrote:
+>>> On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
+>>>> HugeTLB allocation/release/accounting currently spans across all the nodes
+>>>> under N_MEMORY node mask. Coherent memory nodes should not be part of these
+>>>> allocations. So use system_ram() call to fetch system RAM only nodes on the
+>>>> platform which can then be used for HugeTLB allocation purpose instead of
+>>>> N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB
+>>>> allocations.
+>>>
+>>> Does this end up making it impossible to use hugetlbfs to access device
+>>> memory?
+>>
+>> Right, thats the implementation at the moment. But going forward if we need
+>> to have HugeTLB pages on the CDM node, then we can implement through the
+>> sysfs interface from individual NUMA node paths instead of changing the
+>> generic HugeTLB path. I wrote this up in the cover letter but should also
+>> have mentioned in the comment section of this patch as well. Does this
+>> approach look okay ?
+> 
+> The cover letter is not the most approachable document I've ever seen. :)
 
-This function, like memblock_mem_limit_remove_map(), will not remove
-memblocks with MEMMAP_NOMAP attribute as they may be mapped and accessed
-later as "device memory."
-See the commit a571d4eb55d8 ("mm/memblock.c: add new infrastructure to
-address the mem limit issue").
+Hmm,
 
-This function is used, in a succeeding patch in the series of arm64 kdump
-suuport, to limit the range of usable memory, or System RAM, on crash dump
-kernel.
-(Please note that "mem=" parameter is of little use for this purpose.)
+So shall we write all these details in the comment section for each
+patch after the SOB statement to be more visible ? Or some where
+in-code documentation as FIXME or XXX or something. These are little
+large paragraphs, hence was wondering.
 
-Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Reviewed-by: Will Deacon <will.deacon@arm.com>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Acked-by: Dennis Chen <dennis.chen@arm.com>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 44 +++++++++++++++++++++++++++++---------------
- 2 files changed, 30 insertions(+), 15 deletions(-)
+> 
+>> "Now, we ensure complete HugeTLB allocation isolation from CDM nodes. Going
+>> forward if we need to support HugeTLB allocation on CDM nodes on targeted
+>> basis, then we would have to enable those allocations through the
+>> /sys/devices/system/node/nodeN/hugepages/hugepages-16384kB/nr_hugepages
+>> interface while still ensuring isolation from other generic sysctl and
+>> /sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages interfaces."
+> 
+> That would be passable if that's the only way you can allocate hugetlbfs
+> pages.  But we also have the fault-based allocations that can pull stuff
+> right out of the buddy allocator.  This approach would break that path
+> entirely.
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5b759c9acf97..fbfcacc50c29 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -333,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
- phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-+void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
- void memblock_mem_limit_remove_map(phys_addr_t limit);
- bool memblock_is_memory(phys_addr_t addr);
- int memblock_is_map_memory(phys_addr_t addr);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc305936..fea1688fef60 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1514,11 +1514,37 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
- 			      (phys_addr_t)ULLONG_MAX);
- }
- 
-+void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-+{
-+	int start_rgn, end_rgn;
-+	int i, ret;
-+
-+	if (!size)
-+		return;
-+
-+	ret = memblock_isolate_range(&memblock.memory, base, size,
-+						&start_rgn, &end_rgn);
-+	if (ret)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = start_rgn - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, base);
-+	memblock_remove_range(&memblock.reserved,
-+			base + size, (phys_addr_t)ULLONG_MAX);
-+}
-+
- void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- {
--	struct memblock_type *type = &memblock.memory;
- 	phys_addr_t max_addr;
--	int i, ret, start_rgn, end_rgn;
- 
- 	if (!limit)
- 		return;
-@@ -1529,19 +1555,7 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 	if (max_addr == (phys_addr_t)ULLONG_MAX)
- 		return;
- 
--	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
--				&start_rgn, &end_rgn);
--	if (ret)
--		return;
--
--	/* remove all the MAP regions above the limit */
--	for (i = end_rgn - 1; i >= start_rgn; i--) {
--		if (!memblock_is_nomap(&type->regions[i]))
--			memblock_remove_region(type, i);
--	}
--	/* truncate the reserved regions */
--	memblock_remove_range(&memblock.reserved, max_addr,
--			      (phys_addr_t)ULLONG_MAX);
-+	memblock_cap_memory_range(0, max_addr);
- }
- 
- static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
--- 
-2.11.0
+There two distinct points which I think will prevent the problem you just
+mentioned.
+
+* No regular node has CDM memory in their fallback zone list. Hence any
+  allocation attempt without __GFP_THISNODE will never go into CDM memory
+  zones. If the allocation happens with __GFP_THISNODE flag it will only
+  happen from the exact node. Remember we have removed CDM nodes from the
+  global nodemask iterators. Then how can pre allocated reserve HugeTLB
+  pages can come from CDM nodes ?
+
+* Page faults (which will probably use __GFP_THISNODE) cannot come from the
+  CDM nodes as they dont have any CPUs.
+
+I did a quick scan of all the allocation paths leading upto the allocation
+functions alloc_pages_node() and __alloc_pages_node() inside the hugetlb.c
+file. Might be missing something here.
+
+> 
+> FWIW, I think you really need to separate the true "CDM" stuff that's
+> *really* device-specific from the parts of this from which you really
+> just want to implement isolation.
+
+IIUC, are you suggesting something like a pure CDM HugeTLB implementation
+which is completely separated from the generic one ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
