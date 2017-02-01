@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5186B0038
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 11:40:36 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id h56so153887870qtc.1
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 08:40:36 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
-        by mx.google.com with ESMTPS id h125si24569424wme.3.2017.02.01.08.40.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 08:40:35 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] [RFC v2] sched: make DECLARE_COMPLETION_ONSTACK() work with clang
-Date: Wed,  1 Feb 2017 17:40:19 +0100
-Message-Id: <20170201164030.2379546-1-arnd@arndb.de>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD3A6B0038
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 12:18:38 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 75so494655692pgf.3
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 09:18:38 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTP id y6si14903592pgo.299.2017.02.01.09.18.36
+        for <linux-mm@kvack.org>;
+        Wed, 01 Feb 2017 09:18:37 -0800 (PST)
+Date: Wed, 01 Feb 2017 12:18:32 -0500 (EST)
+Message-Id: <20170201.121832.1810577893703014061.davem@davemloft.net>
+Subject: Re: [PATCH v5 4/4] sparc64: Add support for ADI (Application Data
+ Integrity)
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <6c514e7e-338a-f1cd-140d-d4980ea6ac0f@oracle.com>
+References: <0b6865aabc010ee3a7ea956a70447abbab53ea70.1485362562.git.khalid.aziz@oracle.com>
+	<20170130.171531.1973857503703372714.davem@davemloft.net>
+	<6c514e7e-338a-f1cd-140d-d4980ea6ac0f@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, Ingo Molnar <mingo@elte.hu>
+To: khalid.aziz@oracle.com
+Cc: corbet@lwn.net, viro@zeniv.linux.org.uk, nitin.m.gupta@oracle.com, mike.kravetz@oracle.com, akpm@linux-foundation.org, mingo@kernel.org, kirill.shutemov@linux.intel.com, adam.buchbinder@gmail.com, hughd@google.com, minchan@kernel.org, keescook@chromium.org, chris.hyser@oracle.com, atish.patra@oracle.com, cmetcalf@mellanox.com, atomlin@redhat.com, jslaby@suse.cz, joe@perches.com, paul.gortmaker@windriver.com, mhocko@suse.com, lstoakes@gmail.com, jack@suse.cz, dave.hansen@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-Building with clang, we get a warning for each use of COMPLETION_INITIALIZER_ONSTACK, e.g.:
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Date: Tue, 31 Jan 2017 16:38:49 -0700
 
-block/blk-exec.c:103:29: warning: variable 'wait' is uninitialized when used within its own initialization [-Wuninitialized]
-include/linux/completion.h:61:58: note: expanded from macro 'DECLARE_COMPLETION_ONSTACK'
-include/linux/completion.h:34:29: note: expanded from macro 'COMPLETION_INITIALIZER_ONSTACK'
+> Thanks for the feedback. This is very helpful. I checked and it indeed
+> can cost 50+ cycles even on M7 processor for PSTATE accesses.
 
-This seems to be a problem in clang, but it's relatively easy to work around
-by changing the assignment.
+Consider how many bytes can be copied in 50+ cycles :-)
 
-I filed a bug against clang for the warning, but if we want to support old versions,
-we may want this change as well.
+>> On etrap, you change ESTATE_PSTATE{1,2} to have the MCDE bit enabled.
+>> Then the kernel always runs with ADI enabled.
+> 
+> Running the kernel with PSTATE.mcde=1 can possibly be problematic as
+> we had discussed earlier in this thread where keeping PSTATE.mcde
+> enabled might mean kernel having to keep track of which pages still
+> have tags set on them or flush tags on every page on free. I will go
+> through the code again to see if it PSTATE.mcde can be turned on in
+> kernel all the time, which might be the case if we can ensure kernel
+> accesses pages with TTE.mcd cleared.
 
-I have not yet checked if the new version produces worse object code.
+If we can clear the tags properly on page release when the page was
+used for ADI, it can work.
 
-Link: https://llvm.org/bugs/show_bug.cgi?id=31829
-Cc: Ingo Molnar <mingo@elte.hu>
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
-v2: send the correct patch
----
- include/linux/completion.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index 5d5aaae3af43..fa5d3efaba56 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -31,7 +31,7 @@ struct completion {
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
- 
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
--	({ init_completion(&work); work; })
-+	(*init_completion(&work))
- 
- /**
-  * DECLARE_COMPLETION - declare and initialize a completion structure
-@@ -70,10 +70,11 @@ struct completion {
-  * This inline function will initialize a dynamically created completion
-  * structure.
-  */
--static inline void init_completion(struct completion *x)
-+static inline struct completion *init_completion(struct completion *x)
- {
- 	x->done = 0;
- 	init_waitqueue_head(&x->wait);
-+	return x;
- }
- 
- /**
--- 
-2.9.0
+One way would be to track the state in the page struct somehow, and
+in arch_alloc_page() clear the tags if necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
