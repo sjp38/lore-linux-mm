@@ -1,164 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7316B0033
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 07:04:56 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id x4so12142127wme.3
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 04:04:56 -0800 (PST)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id y187si1884125wmd.87.2017.02.02.04.04.54
-        for <linux-mm@kvack.org>;
-        Thu, 02 Feb 2017 04:04:55 -0800 (PST)
-From: James Hogan <james.hogan@imgtec.com>
-Subject: [PATCH v2 0/30] KVM: MIPS: Implement GVA page tables
-Date: Thu, 2 Feb 2017 12:04:13 +0000
-Message-ID: <cover.e37f86dece46fc3ed00a075d68119cab361cda8e.1486036366.git-series.james.hogan@imgtec.com>
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F58E6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 08:08:29 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id jz4so3956966wjb.5
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 05:08:29 -0800 (PST)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id f4si17833767wmf.139.2017.02.02.05.08.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Feb 2017 05:08:27 -0800 (PST)
+Received: by mail-wm0-x244.google.com with SMTP id c85so4029690wmi.1
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 05:08:27 -0800 (PST)
+Date: Thu, 2 Feb 2017 16:08:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/4] mm: Fix sparse, use plain integer as NULL pointer
+Message-ID: <20170202130825.GA32180@node>
+References: <1485992240-10986-1-git-send-email-me@tobin.cc>
+ <1485992240-10986-2-git-send-email-me@tobin.cc>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1485992240-10986-2-git-send-email-me@tobin.cc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mips@linux-mips.org
-Cc: James Hogan <james.hogan@imgtec.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-mm@kvack.org
+To: "Tobin C. Harding" <me@tobin.cc>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@suse.com>
 
-Note: My intention is to take this series via the MIPS KVM tree, with a
-topic branch for the MIPS architecture changes, so acks welcome for the
-relevant parts (mainly patches 1-4, 15, 28), and please don't apply yet.
+On Thu, Feb 02, 2017 at 10:37:17AM +1100, Tobin C. Harding wrote:
+> From: Tobin C Harding <me@tobin.cc>
+> 
+> Patch fixes sparse warning: Using plain integer as NULL pointer. Replaces
+> assignment of 0 to pointer with NULL assignment.
+> 
+> Signed-off-by: Tobin C Harding <me@tobin.cc>
 
-This series primarily implements GVA->HPA page tables for MIPS T&E KVM
-implementation, and a fast TLB refill handler generated at runtime using
-uasm (sharing MIPS arch code to do this), accompanied by a bunch of
-related cleanups. There are several solid advantages of this:
+I wrote this part when ARC had pgtable_t defined as 'unsigned long', so
+NULL wasn't an option, but 0 was as it's valid pointer according to spec.
 
-- An optimised TLB refill handler will be much faster than using the
-  slow exit path through C code. It also avoids repeated guest TLB
-  lookups for guest mapped addresses that are evicted from the host TLB
-  (which are currently implemented as a linear walk through the guest
-  TLB array).
-
-- The TLB refill handler can be pretty much reused in future for VZ, to
-  fill the root TLB with GPA->HPA mappings from a soon to be implemented
-  GPA page table.
-
-- Although not enabled yet, it potentially allows page table walker
-  hardware (HTW) to be used during guest execution (both for VZ GPA
-  mappings, and potentially T&E GVA mappings) further reducing TLB
-  refill overhead.
-
-- It improves the robustness of direct access to guest memory by KVM,
-  i.e. reading guest instructions for emulation, writing guest
-  instructions for dynamic translation, and emulating CACHE
-  instructions. This is because the standard userland memory accessors
-  can be used, allowing the host kernel TLB refill handler to safely
-  fill from the GVA page table, allowing faults to be sanely detected,
-  and allowing it to work when EVA is enabled (which requires different
-  instructions to be used when accessing the user address space).
-
-The main disadvantage is a higher flushing overhead when the guest ASID
-is changed, due to the need to walk and invalidate GVA page tables
-(since we only manage a single GVA page table for each guest privilege
-mode, across all guest ASIDs).
-
-Changes in v2:
- [1/30] MIPS: Move pgd_alloc() out of header
-  - Move pgd_alloc() into C code rather than exporting init_mm itself
-    (feedback from Arjan van de Ven).
-
- [2/30] MIPS: Export pgd/pmd symbols for KVM
-  - Don't bother exporting pgd_init(), as it was used by pgd_alloc()
-    which is moved out of the headers and exported itself now.
-
- [12/30] KVM: MIPS/T&E: active_mm = init_mm in guest context
-  - Use well defined helpers in static kernel code to avoid having to
-    export init_mm to modules.
-
-The patches are roughly grouped as follows:
-
-Patches 1-4:
-  These are generic or MIPS architecture changes needed by the later
-  patches, mainly to expose the existing MIPS TLB exception generation
-  cade to KVM. As I mentioned above I intend to combine the MIPS ones
-  into a topic branch which can be merged into both the MIPS
-  architecture tree and the MIPS KVM tree.
-
-Patches 5-13:
-  These are preliminary MIPS KVM changes and cleanups.
-
-Patches 14-25:
-  These incrementally add GVA page table support, allocating the GVA
-  page tables, adding the fast TLB refill handler, adding page table
-  invalidation, and finally converting guest fault handling (KSeg0, TLB
-  mapped, and commpage) to use the GVA page table rather than injecting
-  entries directly into the host TLB.
-
-Patches 26-27:
-  These switch to using uaccess and protected cache ops, which fixes KVM
-  on EVA enabled host kernels.
-
-Patches 28-30:
-  These make some final cleanups.
-
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: "Radim KrA?mA!A?" <rkrcmar@redhat.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: linux-mips@linux-mips.org
-Cc: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org
-
-James Hogan (30):
-  MIPS: Move pgd_alloc() out of header
-  MIPS: Export pgd/pmd symbols for KVM
-  MIPS: uasm: Add include guards in asm/uasm.h
-  MIPS: Export some tlbex internals for KVM to use
-  KVM: MIPS: Drop partial KVM_NMI implementation
-  KVM: MIPS/MMU: Simplify ASID restoration
-  KVM: MIPS: Convert get/set_regs -> vcpu_load/put
-  KVM: MIPS/MMU: Move preempt/ASID handling to implementation
-  KVM: MIPS: Remove duplicated ASIDs from vcpu
-  KVM: MIPS: Add vcpu_run() & vcpu_reenter() callbacks
-  KVM: MIPS/T&E: Restore host asid on return to host
-  KVM: MIPS/T&E: active_mm = init_mm in guest context
-  KVM: MIPS: Wire up vcpu uninit
-  KVM: MIPS/T&E: Allocate GVA -> HPA page tables
-  KVM: MIPS/T&E: Activate GVA page tables in guest context
-  KVM: MIPS: Support NetLogic KScratch registers
-  KVM: MIPS: Add fast path TLB refill handler
-  KVM: MIPS/TLB: Fix off-by-one in TLB invalidate
-  KVM: MIPS/TLB: Generalise host TLB invalidate to kernel ASID
-  KVM: MIPS/MMU: Invalidate GVA PTs on ASID changes
-  KVM: MIPS/MMU: Invalidate stale GVA PTEs on TLBW
-  KVM: MIPS/MMU: Convert KSeg0 faults to page tables
-  KVM: MIPS/MMU: Convert TLB mapped faults to page tables
-  KVM: MIPS/MMU: Convert commpage fault handling to page tables
-  KVM: MIPS: Drop vm_init() callback
-  KVM: MIPS: Use uaccess to read/modify guest instructions
-  KVM: MIPS/Emulate: Fix CACHE emulation for EVA hosts
-  KVM: MIPS/TLB: Drop kvm_local_flush_tlb_all()
-  KVM: MIPS/Emulate: Drop redundant TLB flushes on exceptions
-  KVM: MIPS/MMU: Drop kvm_get_new_mmu_context()
-
- arch/mips/include/asm/kvm_host.h    |  79 ++--
- arch/mips/include/asm/mmu_context.h |   9 +-
- arch/mips/include/asm/pgalloc.h     |  16 +-
- arch/mips/include/asm/tlbex.h       |  26 +-
- arch/mips/include/asm/uasm.h        |   5 +-
- arch/mips/kvm/dyntrans.c            |  28 +-
- arch/mips/kvm/emulate.c             |  59 +--
- arch/mips/kvm/entry.c               | 141 +++++++-
- arch/mips/kvm/mips.c                | 130 +------
- arch/mips/kvm/mmu.c                 | 545 +++++++++++++++++------------
- arch/mips/kvm/tlb.c                 | 256 +++-----------
- arch/mips/kvm/trap_emul.c           | 216 ++++++++++-
- arch/mips/mm/Makefile               |   2 +-
- arch/mips/mm/init.c                 |   1 +-
- arch/mips/mm/pgtable-64.c           |   2 +-
- arch/mips/mm/pgtable.c              |  25 +-
- arch/mips/mm/tlbex.c                |  38 +-
- 17 files changed, 916 insertions(+), 662 deletions(-)
- create mode 100644 arch/mips/include/asm/tlbex.h
- create mode 100644 arch/mips/mm/pgtable.c
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
-git-series 0.8.10
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
