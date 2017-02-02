@@ -1,134 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F11DF6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 06:59:10 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 36so12187333otx.0
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 03:59:10 -0800 (PST)
-Received: from mail-ot0-x241.google.com (mail-ot0-x241.google.com. [2607:f8b0:4003:c0f::241])
-        by mx.google.com with ESMTPS id y60si9378713otb.10.2017.02.02.03.59.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Feb 2017 03:59:10 -0800 (PST)
-Received: by mail-ot0-x241.google.com with SMTP id f9so1525559otd.0
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 03:59:10 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7316B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 07:04:56 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id x4so12142127wme.3
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 04:04:56 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id y187si1884125wmd.87.2017.02.02.04.04.54
+        for <linux-mm@kvack.org>;
+        Thu, 02 Feb 2017 04:04:55 -0800 (PST)
+From: James Hogan <james.hogan@imgtec.com>
+Subject: [PATCH v2 0/30] KVM: MIPS: Implement GVA page tables
+Date: Thu, 2 Feb 2017 12:04:13 +0000
+Message-ID: <cover.e37f86dece46fc3ed00a075d68119cab361cda8e.1486036366.git-series.james.hogan@imgtec.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jLc8z0Q-etB-=9rBnt-mNPKEL3t5rDooSwTyACPX2NW0g@mail.gmail.com>
-References: <20170201161311.2050831-1-arnd@arndb.de> <CAGXu5jLc8z0Q-etB-=9rBnt-mNPKEL3t5rDooSwTyACPX2NW0g@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Thu, 2 Feb 2017 12:59:09 +0100
-Message-ID: <CAK8P3a2Qmc0H5sE2w106We1P=OpQ_CRQ-A8b+2rZR7Zb5C40fw@mail.gmail.com>
-Subject: Re: [PATCH] initity: try to improve __nocapture annotations
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: PaX Team <pageexec@freemail.hu>, Emese Revfy <re.emese@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Josh Triplett <josh@joshtriplett.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, minipli@ld-linux.so, Russell King <linux@armlinux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Jeff Layton <jlayton@poochiereds.net>, Robert Moore <robert.moore@intel.com>, Lv Zheng <lv.zheng@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, devel@acpica.org, linux-arch <linux-arch@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>
+To: linux-mips@linux-mips.org
+Cc: James Hogan <james.hogan@imgtec.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, kvm@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Feb 2, 2017 at 1:39 AM, Kees Cook <keescook@chromium.org> wrote:
-> On Wed, Feb 1, 2017 at 8:11 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+Note: My intention is to take this series via the MIPS KVM tree, with a
+topic branch for the MIPS architecture changes, so acks welcome for the
+relevant parts (mainly patches 1-4, 15, 28), and please don't apply yet.
 
->> -void ACPI_INTERNAL_VAR_XFACE
->> +void __unverified_nocapture(3) ACPI_INTERNAL_VAR_XFACE
->>  acpi_debug_print(u32 requested_debug_level,
->>                  u32 line_number,
->>                  const char *function_name,
->
-> This might be better by marking acpi_ut_trim_function_name() as
-> __nocapture. I'll give it a try...
+This series primarily implements GVA->HPA page tables for MIPS T&E KVM
+implementation, and a fast TLB refill handler generated at runtime using
+uasm (sharing MIPS arch code to do this), accompanied by a bunch of
+related cleanups. There are several solid advantages of this:
 
-I tried that without success: the problem is actually the later acpi_os_printf()
-that takes the result from acpi_ut_trim_function_name().
+- An optimised TLB refill handler will be much faster than using the
+  slow exit path through C code. It also avoids repeated guest TLB
+  lookups for guest mapped addresses that are evicted from the host TLB
+  (which are currently implemented as a linear walk through the guest
+  TLB array).
 
->> diff --git a/include/acpi/acpixf.h b/include/acpi/acpixf.h
->> index 9f4637e9dd92..9644cec5b082 100644
->> --- a/include/acpi/acpixf.h
->> +++ b/include/acpi/acpixf.h
->> @@ -946,7 +946,7 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6) __nocapture(3)
->>                                                 const char *module_name,
->>                                                 u32 component_id,
->>                                                 const char *format, ...))
->> -ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
->> +ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6) __nocapture(3)
->>                                 void ACPI_INTERNAL_VAR_XFACE
->>                                 acpi_debug_print_raw(u32 requested_debug_level,
->>                                                      u32 line_number,
->
-> I wonder why the plugin needs this at all: function_name (the third
-> arg) isn't even used in the function.
+- The TLB refill handler can be pretty much reused in future for VZ, to
+  fill the root TLB with GPA->HPA mappings from a soon to be implemented
+  GPA page table.
 
-This one wasn't needed, I should probably have left it out. It just seemed
-right for consistency to do the same for acpi_debug_print_raw() and
-acpi_debug_print().
+- Although not enabled yet, it potentially allows page table walker
+  hardware (HTW) to be used during guest execution (both for VZ GPA
+  mappings, and potentially T&E GVA mappings) further reducing TLB
+  refill overhead.
 
->> diff --git a/include/linux/string.h b/include/linux/string.h
->> index 8b3b97e7b2b0..0ee877593464 100644
->> --- a/include/linux/string.h
->> +++ b/include/linux/string.h
->> @@ -76,7 +76,7 @@ static inline __must_check char *strstrip(char *str)
->>  extern char * strstr(const char *, const char *) __nocapture(-1, 2);
->>  #endif
->>  #ifndef __HAVE_ARCH_STRNSTR
->> -extern char * strnstr(const char *, const char *, size_t) __nocapture(-1, 2);
->> +extern char * strnstr(const char *, const char *, size_t);
->
-> That doesn't seem right: strnstr doesn't capture...
+- It improves the robustness of direct access to guest memory by KVM,
+  i.e. reading guest instructions for emulation, writing guest
+  instructions for dynamic translation, and emulating CACHE
+  instructions. This is because the standard userland memory accessors
+  can be used, allowing the host kernel TLB refill handler to safely
+  fill from the GVA page table, allowing faults to be sanely detected,
+  and allowing it to work when EVA is enabled (which requires different
+  instructions to be used when accessing the user address space).
 
-Right, so better __unverified_nocapture() then?
+The main disadvantage is a higher flushing overhead when the guest ASID
+is changed, due to the need to walk and invalidate GVA page tables
+(since we only manage a single GVA page table for each guest privilege
+mode, across all guest ASIDs).
 
->>  #endif
->>  #ifndef __HAVE_ARCH_STRLEN
->>  extern __kernel_size_t strlen(const char *) __nocapture(1);
->> diff --git a/lib/string.c b/lib/string.c
->> index ed83562a53ae..01151a1a0b61 100644
->> --- a/lib/string.c
->> +++ b/lib/string.c
->> @@ -870,7 +870,7 @@ void *memchr(const void *s, int c, size_t n)
->>  EXPORT_SYMBOL(memchr);
->>  #endif
->>
->> -static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
->> +static __always_inline void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
->
-> Is this from another fix? Seems unrelated?
+Changes in v2:
+ [1/30] MIPS: Move pgd_alloc() out of header
+  - Move pgd_alloc() into C code rather than exporting init_mm itself
+    (feedback from Arjan van de Ven).
 
-This fixed a warning about memchr_inv() for me: when check_bytes8()
-is inlined, the compiler can see that the argument is not captured, but
-if gcc decides against inlining, it warns.
+ [2/30] MIPS: Export pgd/pmd symbols for KVM
+  - Don't bother exporting pgd_init(), as it was used by pgd_alloc()
+    which is moved out of the headers and exported itself now.
 
->> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->> index 5f6e09c88d25..ebc02ee1118e 100644
->> --- a/mm/kasan/kasan.c
->> +++ b/mm/kasan/kasan.c
->> @@ -343,7 +343,7 @@ void *memset(void *addr, int c, size_t len)
->>  }
->>
->>  #undef memmove
->> -void *memmove(void *dest, const void *src, size_t len)
->> +__unverified_nocapture(2) void *memmove(void *dest, const void *src, size_t len)
->>  {
->>         check_memory_region((unsigned long)src, len, false, _RET_IP_);
->>         check_memory_region((unsigned long)dest, len, true, _RET_IP_);
->> @@ -352,7 +352,7 @@ void *memmove(void *dest, const void *src, size_t len)
->>  }
->>
->>  #undef memcpy
->> -void *memcpy(void *dest, const void *src, size_t len)
->> +__unverified_nocapture(2) void *memcpy(void *dest, const void *src, size_t len)
->>  {
->>         check_memory_region((unsigned long)src, len, false, _RET_IP_);
->>         check_memory_region((unsigned long)dest, len, true, _RET_IP_);
->> --
->> 2.9.0
->>
->
-> Thanks for the patch! I'll try to reproduce the warnings and get some
-> fixes built if Emese or PaX Team don't beat me to it. :)
+ [12/30] KVM: MIPS/T&E: active_mm = init_mm in guest context
+  - Use well defined helpers in static kernel code to avoid having to
+    export init_mm to modules.
 
-I later got more warnings for some of the string functions, but we can
-deal with them
-separately.
+The patches are roughly grouped as follows:
 
-    Arnd
+Patches 1-4:
+  These are generic or MIPS architecture changes needed by the later
+  patches, mainly to expose the existing MIPS TLB exception generation
+  cade to KVM. As I mentioned above I intend to combine the MIPS ones
+  into a topic branch which can be merged into both the MIPS
+  architecture tree and the MIPS KVM tree.
+
+Patches 5-13:
+  These are preliminary MIPS KVM changes and cleanups.
+
+Patches 14-25:
+  These incrementally add GVA page table support, allocating the GVA
+  page tables, adding the fast TLB refill handler, adding page table
+  invalidation, and finally converting guest fault handling (KSeg0, TLB
+  mapped, and commpage) to use the GVA page table rather than injecting
+  entries directly into the host TLB.
+
+Patches 26-27:
+  These switch to using uaccess and protected cache ops, which fixes KVM
+  on EVA enabled host kernels.
+
+Patches 28-30:
+  These make some final cleanups.
+
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: "Radim KrA?mA!A?" <rkrcmar@redhat.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-mips@linux-mips.org
+Cc: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org
+
+James Hogan (30):
+  MIPS: Move pgd_alloc() out of header
+  MIPS: Export pgd/pmd symbols for KVM
+  MIPS: uasm: Add include guards in asm/uasm.h
+  MIPS: Export some tlbex internals for KVM to use
+  KVM: MIPS: Drop partial KVM_NMI implementation
+  KVM: MIPS/MMU: Simplify ASID restoration
+  KVM: MIPS: Convert get/set_regs -> vcpu_load/put
+  KVM: MIPS/MMU: Move preempt/ASID handling to implementation
+  KVM: MIPS: Remove duplicated ASIDs from vcpu
+  KVM: MIPS: Add vcpu_run() & vcpu_reenter() callbacks
+  KVM: MIPS/T&E: Restore host asid on return to host
+  KVM: MIPS/T&E: active_mm = init_mm in guest context
+  KVM: MIPS: Wire up vcpu uninit
+  KVM: MIPS/T&E: Allocate GVA -> HPA page tables
+  KVM: MIPS/T&E: Activate GVA page tables in guest context
+  KVM: MIPS: Support NetLogic KScratch registers
+  KVM: MIPS: Add fast path TLB refill handler
+  KVM: MIPS/TLB: Fix off-by-one in TLB invalidate
+  KVM: MIPS/TLB: Generalise host TLB invalidate to kernel ASID
+  KVM: MIPS/MMU: Invalidate GVA PTs on ASID changes
+  KVM: MIPS/MMU: Invalidate stale GVA PTEs on TLBW
+  KVM: MIPS/MMU: Convert KSeg0 faults to page tables
+  KVM: MIPS/MMU: Convert TLB mapped faults to page tables
+  KVM: MIPS/MMU: Convert commpage fault handling to page tables
+  KVM: MIPS: Drop vm_init() callback
+  KVM: MIPS: Use uaccess to read/modify guest instructions
+  KVM: MIPS/Emulate: Fix CACHE emulation for EVA hosts
+  KVM: MIPS/TLB: Drop kvm_local_flush_tlb_all()
+  KVM: MIPS/Emulate: Drop redundant TLB flushes on exceptions
+  KVM: MIPS/MMU: Drop kvm_get_new_mmu_context()
+
+ arch/mips/include/asm/kvm_host.h    |  79 ++--
+ arch/mips/include/asm/mmu_context.h |   9 +-
+ arch/mips/include/asm/pgalloc.h     |  16 +-
+ arch/mips/include/asm/tlbex.h       |  26 +-
+ arch/mips/include/asm/uasm.h        |   5 +-
+ arch/mips/kvm/dyntrans.c            |  28 +-
+ arch/mips/kvm/emulate.c             |  59 +--
+ arch/mips/kvm/entry.c               | 141 +++++++-
+ arch/mips/kvm/mips.c                | 130 +------
+ arch/mips/kvm/mmu.c                 | 545 +++++++++++++++++------------
+ arch/mips/kvm/tlb.c                 | 256 +++-----------
+ arch/mips/kvm/trap_emul.c           | 216 ++++++++++-
+ arch/mips/mm/Makefile               |   2 +-
+ arch/mips/mm/init.c                 |   1 +-
+ arch/mips/mm/pgtable-64.c           |   2 +-
+ arch/mips/mm/pgtable.c              |  25 +-
+ arch/mips/mm/tlbex.c                |  38 +-
+ 17 files changed, 916 insertions(+), 662 deletions(-)
+ create mode 100644 arch/mips/include/asm/tlbex.h
+ create mode 100644 arch/mips/mm/pgtable.c
+
+-- 
+git-series 0.8.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
