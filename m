@@ -1,56 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C216B0033
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 22:51:23 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id k15so6747445qtg.5
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 19:51:23 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id w62si15951573qkb.124.2017.02.01.19.51.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 19:51:22 -0800 (PST)
-Date: Thu, 2 Feb 2017 14:51:17 +1100
-From: Tobin Harding <me@tobin.cc>
-Subject: Re: [PATCH 2/4] mm: Fix checkpatch warnings, whitespace
-Message-ID: <20170202035117.GA15650@eros>
-References: <1485992240-10986-1-git-send-email-me@tobin.cc>
- <1485992240-10986-3-git-send-email-me@tobin.cc>
- <alpine.DEB.2.10.1702011648160.58909@chino.kir.corp.google.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF03A6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 00:14:13 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 75so7183487pgf.3
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 21:14:13 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id a125si16503618pgc.9.2017.02.01.21.14.12
+        for <linux-mm@kvack.org>;
+        Wed, 01 Feb 2017 21:14:12 -0800 (PST)
+Date: Thu, 2 Feb 2017 14:14:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 0/6]mm: add new LRU list for MADV_FREE pages
+Message-ID: <20170202051410.GB11694@bbox>
+References: <cover.1485748619.git.shli@fb.com>
+ <20170131185949.GA5037@cmpxchg.org>
+ <20170131194546.GA70126@shli-mbp.local>
+ <20170131213810.GA12952@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1702011648160.58909@chino.kir.corp.google.com>
+In-Reply-To: <20170131213810.GA12952@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
 
-On Wed, Feb 01, 2017 at 04:48:28PM -0800, David Rientjes wrote:
-> On Thu, 2 Feb 2017, Tobin C. Harding wrote:
+Hi Johannes,
+
+On Tue, Jan 31, 2017 at 04:38:10PM -0500, Johannes Weiner wrote:
+> On Tue, Jan 31, 2017 at 11:45:47AM -0800, Shaohua Li wrote:
+> > On Tue, Jan 31, 2017 at 01:59:49PM -0500, Johannes Weiner wrote:
+> > > Hi Shaohua,
+> > > 
+> > > On Sun, Jan 29, 2017 at 09:51:17PM -0800, Shaohua Li wrote:
+> > > > We are trying to use MADV_FREE in jemalloc. Several issues are found. Without
+> > > > solving the issues, jemalloc can't use the MADV_FREE feature.
+> > > > - Doesn't support system without swap enabled. Because if swap is off, we can't
+> > > >   or can't efficiently age anonymous pages. And since MADV_FREE pages are mixed
+> > > >   with other anonymous pages, we can't reclaim MADV_FREE pages. In current
+> > > >   implementation, MADV_FREE will fallback to MADV_DONTNEED without swap enabled.
+> > > >   But in our environment, a lot of machines don't enable swap. This will prevent
+> > > >   our setup using MADV_FREE.
+> > > > - Increases memory pressure. page reclaim bias file pages reclaim against
+> > > >   anonymous pages. This doesn't make sense for MADV_FREE pages, because those
+> > > >   pages could be freed easily and refilled with very slight penality. Even page
+> > > >   reclaim doesn't bias file pages, there is still an issue, because MADV_FREE
+> > > >   pages and other anonymous pages are mixed together. To reclaim a MADV_FREE
+> > > >   page, we probably must scan a lot of other anonymous pages, which is
+> > > >   inefficient. In our test, we usually see oom with MADV_FREE enabled and nothing
+> > > >   without it.
+> > > 
+> > > Fully agreed, the anon LRU is a bad place for these pages.
+> > > 
+> > > > For the first two issues, introducing a new LRU list for MADV_FREE pages could
+> > > > solve the issues. We can directly reclaim MADV_FREE pages without writting them
+> > > > out to swap, so the first issue could be fixed. If only MADV_FREE pages are in
+> > > > the new list, page reclaim can easily reclaim such pages without interference
+> > > > of file or anonymous pages. The memory pressure issue will disappear.
+> > > 
+> > > Do we actually need a new page flag and a special LRU for them? These
+> > > pages are basically like clean cache pages at that point. What do you
+> > > think about clearing their PG_swapbacked flag on MADV_FREE and moving
+> > > them to the inactive file list? The way isolate+putback works should
+> > > not even need much modification, something like clear_page_mlock().
+> > > 
+> > > When the reclaim scanner finds anon && dirty && !swapbacked, it can
+> > > again set PG_swapbacked and goto keep_locked to move the page back
+> > > into the anon LRU to get reclaimed according to swapping rules.
+> > 
+> > Interesting idea! Not sure though, the MADV_FREE pages are actually anonymous
+> > pages, this will introduce confusion. On the other hand, if the MADV_FREE pages
+> > are mixed with inactive file pages, page reclaim need to reclaim a lot of file
+> > pages first before reclaim the MADV_FREE pages. This doesn't look good. The
+> > point of a separate LRU is to avoid scan other anon/file pages.
 > 
-> > @@ -3696,8 +3695,8 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-> >                   * VM_FAULT_OOM), there is no need to kill anything.
-> >                   * Just clean up the OOM state peacefully.
-> >                   */
-> > -                if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
-> > -                        mem_cgroup_oom_synchronize(false);
-> > +		if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
-> > +			mem_cgroup_oom_synchronize(false);
-> >  	}
-> >  
-> >  	/*
+> The LRU code and the rest of VM already use independent page type
+> distinctions. That's because shmem pages are !PageAnon - they have a
+> page->mapping that points to a real address space, not an anon_vma -
+> but they are swapbacked and thus go through the anon LRU. This would
+> just do the reverse: put PageAnon pages on the file LRU when they
+> don't contain valid data and are thus not swapbacked.
 > 
-> The comment suffers from the same problem.
+> As far as mixing with inactive file pages goes, it'd be possible to
+> link the MADV_FREE pages to the tail of the inactive list, rather than
+> the head. That said, I'm not sure reclaiming use-once filesystem cache
+> before MADV_FREE is such a bad policy. MADV_FREE retains the vmas for
+> the sole purpose of reusing them in the (near) future. That is
+> actually a stronger reuse signal than we have for use-once file pages.
+> If somebody does continuous writes to a logfile or a one-off search
+> through one or more files, we should actually reclaim that cache
+> before we go after MADV_FREE pages that are temporarily invalidated.
 
-The comment is fixed in the next patch of the set. The fixes are in
-separate patches because one was a checkpatch warning and one was an
-error.
+Yes, we should be careful on this issue. It was main arguable point.
+How about moving them to head of inactive file, not tail if we want to
+go with inactive file LRU?
 
-Any comments on the structure of the patchset most appreciated.
+With that, VM try to reclaim file pages first from the tail of list
+and if pages reclaimed were workingset, it could be activated by
+workingset_refault. Otherwise, we can discard use-once pages without
+puring *madv_free* pages so I think it's good compromise.
 
-
-thanks,
-Tobin.
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
