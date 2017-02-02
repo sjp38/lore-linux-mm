@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 46DC66B025E
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 04:15:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r18so11225653wmd.1
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 01:15:07 -0800 (PST)
+Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3956B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 05:14:18 -0500 (EST)
+Received: by mail-wj0-f197.google.com with SMTP id ez4so2845209wjd.2
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 02:14:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w30si27856655wra.79.2017.02.02.01.15.05
+        by mx.google.com with ESMTPS id h63si6891774wme.168.2017.02.02.02.14.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Feb 2017 01:15:05 -0800 (PST)
-Date: Thu, 2 Feb 2017 10:15:03 +0100
+        Thu, 02 Feb 2017 02:14:17 -0800 (PST)
+Date: Thu, 2 Feb 2017 11:14:15 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/5] userfaultfd: non-cooperative: add event for
- memory unmaps
-Message-ID: <20170202091503.GA22823@dhcp22.suse.cz>
-References: <1485542673-24387-1-git-send-email-rppt@linux.vnet.ibm.com>
- <1485542673-24387-3-git-send-email-rppt@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
+ per zone
+Message-ID: <20170202101415.GE22806@dhcp22.suse.cz>
+References: <20170125101957.GA17632@lst.de>
+ <20170125104605.GI32377@dhcp22.suse.cz>
+ <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
+ <20170125130014.GO32377@dhcp22.suse.cz>
+ <20170127144906.GB4148@dhcp22.suse.cz>
+ <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
+ <20170130085546.GF8443@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1485542673-24387-3-git-send-email-rppt@linux.vnet.ibm.com>
+In-Reply-To: <20170130085546.GF8443@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-On Fri 27-01-17 20:44:30, Mike Rapoport wrote:
-> When a non-cooperative userfaultfd monitor copies pages in the background,
-> it may encounter regions that were already unmapped. Addition of
-> UFFD_EVENT_UNMAP allows the uffd monitor to track precisely changes in the
-> virtual memory layout.
+On Mon 30-01-17 09:55:46, Michal Hocko wrote:
+> On Sun 29-01-17 00:27:27, Tetsuo Handa wrote:
+[...]
+> > Regarding [1], it helped avoiding the too_many_isolated() issue. I can't
+> > tell whether it has any negative effect, but I got on the first trial that
+> > all allocating threads are blocked on wait_for_completion() from flush_work()
+> > in drain_all_pages() introduced by "mm, page_alloc: drain per-cpu pages from
+> > workqueue context". There was no warn_alloc() stall warning message afterwords.
 > 
-> Since there might be different uffd contexts for the affected VMAs, we
-> first should create a temporary representation for the unmap event for each
-> uffd context and then notify them one by one to the appropriate userfault
-> file descriptors.
+> That patch is buggy and there is a follow up [1] which is not sitting in the
+> mmotm (and thus linux-next) yet. I didn't get to review it properly and
+> I cannot say I would be too happy about using WQ from the page
+> allocator. I believe even the follow up needs to have WQ_RECLAIM WQ.
 > 
-> The event notification occurs after the mmap_sem has been released.
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> [1] http://lkml.kernel.org/r/20170125083038.rzb5f43nptmk7aed@techsingularity.net
 
-This breaks NOMMU compilation
----
+Did you get chance to test with this follow up patch? It would be
+interesting to see whether OOM situation can still starve the waiter.
+The current linux-next should contain this patch.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
