@@ -1,44 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 777D26B0274
-	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 19:48:31 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id d123so1670234pfd.0
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 16:48:31 -0800 (PST)
-Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
-        by mx.google.com with ESMTPS id t2si15861219pgb.296.2017.02.01.16.48.30
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BF66B0273
+	for <linux-mm@kvack.org>; Wed,  1 Feb 2017 20:19:47 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 3so2020170pgj.6
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 17:19:47 -0800 (PST)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id v3si20705679plk.296.2017.02.01.17.19.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Feb 2017 16:48:30 -0800 (PST)
-Received: by mail-pg0-x236.google.com with SMTP id 194so377308pgd.2
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 16:48:30 -0800 (PST)
-Date: Wed, 1 Feb 2017 16:48:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/4] mm: Fix checkpatch warnings, whitespace
-In-Reply-To: <1485992240-10986-3-git-send-email-me@tobin.cc>
-Message-ID: <alpine.DEB.2.10.1702011648160.58909@chino.kir.corp.google.com>
-References: <1485992240-10986-1-git-send-email-me@tobin.cc> <1485992240-10986-3-git-send-email-me@tobin.cc>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 01 Feb 2017 17:19:46 -0800 (PST)
+Received: by mail-pg0-x241.google.com with SMTP id 204so179439pge.2
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 17:19:46 -0800 (PST)
+From: Masanari Iida <standby24x7@gmail.com>
+Subject: [PATCH] [linux-next]mm:page_alloc: Remove duplicate page_ext.h
+Date: Thu,  2 Feb 2017 10:19:42 +0900
+Message-Id: <20170202011942.1609-1-standby24x7@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Tobin C. Harding" <me@tobin.cc>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@suse.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, trivial@kernel.org
+Cc: Masanari Iida <standby24x7@gmail.com>
 
-On Thu, 2 Feb 2017, Tobin C. Harding wrote:
+This patch removes duplicate page_ext.h from page_alloc.c
 
-> @@ -3696,8 +3695,8 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->                   * VM_FAULT_OOM), there is no need to kill anything.
->                   * Just clean up the OOM state peacefully.
->                   */
-> -                if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
-> -                        mem_cgroup_oom_synchronize(false);
-> +		if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
-> +			mem_cgroup_oom_synchronize(false);
->  	}
->  
->  	/*
+Signed-off-by: Masanari Iida <standby24x7@gmail.com>
+---
+ mm/page_alloc.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-The comment suffers from the same problem.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 11b4cd48a355..4da0b5febf0d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -59,7 +59,6 @@
+ #include <linux/prefetch.h>
+ #include <linux/mm_inline.h>
+ #include <linux/migrate.h>
+-#include <linux/page_ext.h>
+ #include <linux/hugetlb.h>
+ #include <linux/sched/rt.h>
+ #include <linux/page_owner.h>
+-- 
+2.11.0.616.g8f60064c1f53
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
