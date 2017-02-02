@@ -1,106 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BF03A6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 00:14:13 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 75so7183487pgf.3
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 21:14:13 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id a125si16503618pgc.9.2017.02.01.21.14.12
+	by kanga.kvack.org (Postfix) with ESMTP id BCE426B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 02:31:08 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 204so9994288pge.5
+        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 23:31:08 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id j17si16731134pgg.167.2017.02.01.23.31.06
         for <linux-mm@kvack.org>;
-        Wed, 01 Feb 2017 21:14:12 -0800 (PST)
-Date: Thu, 2 Feb 2017 14:14:10 +0900
+        Wed, 01 Feb 2017 23:31:07 -0800 (PST)
+Date: Thu, 2 Feb 2017 16:28:26 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/6]mm: add new LRU list for MADV_FREE pages
-Message-ID: <20170202051410.GB11694@bbox>
-References: <cover.1485748619.git.shli@fb.com>
- <20170131185949.GA5037@cmpxchg.org>
- <20170131194546.GA70126@shli-mbp.local>
- <20170131213810.GA12952@cmpxchg.org>
+Subject: Re: [PATCH v5 1/4] mm/migration: make isolate_movable_page() return
+ int type
+Message-ID: <20170202072826.GC11694@bbox>
+References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
+ <1485867981-16037-2-git-send-email-ysxie@foxmail.com>
+ <20170201064821.GA10342@bbox>
+ <20170201075924.GB5977@dhcp22.suse.cz>
+ <20170201094636.GC10342@bbox>
+ <20170201100022.GI5977@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20170201100022.GI5977@dhcp22.suse.cz>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170131213810.GA12952@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shaohua Li <shli@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kernel-team@fb.com, mhocko@suse.com, hughd@google.com, riel@redhat.com, mgorman@techsingularity.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ysxie@foxmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
 
-Hi Johannes,
-
-On Tue, Jan 31, 2017 at 04:38:10PM -0500, Johannes Weiner wrote:
-> On Tue, Jan 31, 2017 at 11:45:47AM -0800, Shaohua Li wrote:
-> > On Tue, Jan 31, 2017 at 01:59:49PM -0500, Johannes Weiner wrote:
-> > > Hi Shaohua,
+On Wed, Feb 01, 2017 at 11:00:23AM +0100, Michal Hocko wrote:
+> On Wed 01-02-17 18:46:36, Minchan Kim wrote:
+> > On Wed, Feb 01, 2017 at 08:59:24AM +0100, Michal Hocko wrote:
+> > > On Wed 01-02-17 15:48:21, Minchan Kim wrote:
+> > > > Hi Yisheng,
+> > > > 
+> > > > On Tue, Jan 31, 2017 at 09:06:18PM +0800, ysxie@foxmail.com wrote:
+> > > > > From: Yisheng Xie <xieyisheng1@huawei.com>
+> > > > > 
+> > > > > This patch changes the return type of isolate_movable_page()
+> > > > > from bool to int. It will return 0 when isolate movable page
+> > > > > successfully, return -EINVAL when the page is not a non-lru movable
+> > > > > page, and for other cases it will return -EBUSY.
+> > > > > 
+> > > > > There is no functional change within this patch but prepare
+> > > > > for later patch.
+> > > > > 
+> > > > > Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> > > > > Suggested-by: Michal Hocko <mhocko@kernel.org>
+> > > > 
+> > > > Sorry for missing this one you guys were discussing.
+> > > > I don't understand the patch's goal although I read later patches.
 > > > 
-> > > On Sun, Jan 29, 2017 at 09:51:17PM -0800, Shaohua Li wrote:
-> > > > We are trying to use MADV_FREE in jemalloc. Several issues are found. Without
-> > > > solving the issues, jemalloc can't use the MADV_FREE feature.
-> > > > - Doesn't support system without swap enabled. Because if swap is off, we can't
-> > > >   or can't efficiently age anonymous pages. And since MADV_FREE pages are mixed
-> > > >   with other anonymous pages, we can't reclaim MADV_FREE pages. In current
-> > > >   implementation, MADV_FREE will fallback to MADV_DONTNEED without swap enabled.
-> > > >   But in our environment, a lot of machines don't enable swap. This will prevent
-> > > >   our setup using MADV_FREE.
-> > > > - Increases memory pressure. page reclaim bias file pages reclaim against
-> > > >   anonymous pages. This doesn't make sense for MADV_FREE pages, because those
-> > > >   pages could be freed easily and refilled with very slight penality. Even page
-> > > >   reclaim doesn't bias file pages, there is still an issue, because MADV_FREE
-> > > >   pages and other anonymous pages are mixed together. To reclaim a MADV_FREE
-> > > >   page, we probably must scan a lot of other anonymous pages, which is
-> > > >   inefficient. In our test, we usually see oom with MADV_FREE enabled and nothing
-> > > >   without it.
+> > > The point is that the failed isolation has to propagate error up the
+> > > call chain to the userspace which has initiated the migration.
 > > > 
-> > > Fully agreed, the anon LRU is a bad place for these pages.
+> > > > isolate_movable_pages returns success/fail so that's why I selected
+> > > > bool rather than int but it seems you guys want to propagate more
+> > > > detailed error to the user so added -EBUSY and -EINVAL.
+> > > > 
+> > > > But the question is why isolate_lru_pages doesn't have -EINVAL?
 > > > 
-> > > > For the first two issues, introducing a new LRU list for MADV_FREE pages could
-> > > > solve the issues. We can directly reclaim MADV_FREE pages without writting them
-> > > > out to swap, so the first issue could be fixed. If only MADV_FREE pages are in
-> > > > the new list, page reclaim can easily reclaim such pages without interference
-> > > > of file or anonymous pages. The memory pressure issue will disappear.
-> > > 
-> > > Do we actually need a new page flag and a special LRU for them? These
-> > > pages are basically like clean cache pages at that point. What do you
-> > > think about clearing their PG_swapbacked flag on MADV_FREE and moving
-> > > them to the inactive file list? The way isolate+putback works should
-> > > not even need much modification, something like clear_page_mlock().
-> > > 
-> > > When the reclaim scanner finds anon && dirty && !swapbacked, it can
-> > > again set PG_swapbacked and goto keep_locked to move the page back
-> > > into the anon LRU to get reclaimed according to swapping rules.
+> > > It doesn't have to same as isolate_movable_pages. We should just return
+> > > EBUSY when the page is no longer movable.
 > > 
-> > Interesting idea! Not sure though, the MADV_FREE pages are actually anonymous
-> > pages, this will introduce confusion. On the other hand, if the MADV_FREE pages
-> > are mixed with inactive file pages, page reclaim need to reclaim a lot of file
-> > pages first before reclaim the MADV_FREE pages. This doesn't look good. The
-> > point of a separate LRU is to avoid scan other anon/file pages.
+> > Why isolate_lru_page is okay to return -EBUSY in case of race while
+> > isolate_movable_page should return -EINVAL?
+> > What's the logic in your mind? I totally cannot understand.
 > 
-> The LRU code and the rest of VM already use independent page type
-> distinctions. That's because shmem pages are !PageAnon - they have a
-> page->mapping that points to a real address space, not an anon_vma -
-> but they are swapbacked and thus go through the anon LRU. This would
-> just do the reverse: put PageAnon pages on the file LRU when they
-> don't contain valid data and are thus not swapbacked.
-> 
-> As far as mixing with inactive file pages goes, it'd be possible to
-> link the MADV_FREE pages to the tail of the inactive list, rather than
-> the head. That said, I'm not sure reclaiming use-once filesystem cache
-> before MADV_FREE is such a bad policy. MADV_FREE retains the vmas for
-> the sole purpose of reusing them in the (near) future. That is
-> actually a stronger reuse signal than we have for use-once file pages.
-> If somebody does continuous writes to a logfile or a one-off search
-> through one or more files, we should actually reclaim that cache
-> before we go after MADV_FREE pages that are temporarily invalidated.
+> Let me rephrase. Both should return EBUSY.
 
-Yes, we should be careful on this issue. It was main arguable point.
-How about moving them to head of inactive file, not tail if we want to
-go with inactive file LRU?
+It means it's binary return value(success: 0 fail : -EBUSY) so IMO,
+bool is better and caller should return -EBUSY if that functions
+returns *false*. No need to make deeper propagation level.
+Anyway, it's trivial so I'm not against it if you want to make
+isolate_movable_page returns int. Insetad, please remove -EINVAL
+in this patch and just return -EBUSY for isolate_movable_page to
+be consistent with isolate_lru_page.
+Then, we don't need to fix any driver side, either. Even, no need to
+update any document because you don't add any new error value.
 
-With that, VM try to reclaim file pages first from the tail of list
-and if pages reclaimed were workingset, it could be activated by
-workingset_refault. Otherwise, we can discard use-once pages without
-puring *madv_free* pages so I think it's good compromise.
-
-What do you think?
+That's enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
