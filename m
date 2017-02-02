@@ -1,85 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE426B0033
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 02:31:08 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 204so9994288pge.5
-        for <linux-mm@kvack.org>; Wed, 01 Feb 2017 23:31:08 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id j17si16731134pgg.167.2017.02.01.23.31.06
+	by kanga.kvack.org (Postfix) with ESMTP id 57F126B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 03:48:22 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id d185so11893131pgc.2
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 00:48:22 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f7si21680856plm.190.2017.02.02.00.48.20
         for <linux-mm@kvack.org>;
-        Wed, 01 Feb 2017 23:31:07 -0800 (PST)
-Date: Thu, 2 Feb 2017 16:28:26 +0900
+        Thu, 02 Feb 2017 00:48:21 -0800 (PST)
+Date: Thu, 2 Feb 2017 17:48:18 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 1/4] mm/migration: make isolate_movable_page() return
- int type
-Message-ID: <20170202072826.GC11694@bbox>
-References: <1485867981-16037-1-git-send-email-ysxie@foxmail.com>
- <1485867981-16037-2-git-send-email-ysxie@foxmail.com>
- <20170201064821.GA10342@bbox>
- <20170201075924.GB5977@dhcp22.suse.cz>
- <20170201094636.GC10342@bbox>
- <20170201100022.GI5977@dhcp22.suse.cz>
+Subject: Re: [PATCH v7 11/12] zsmalloc: page migration support
+Message-ID: <20170202084818.GA20335@bbox>
+References: <20170119062158.GB9367@bbox>
+ <e0e1fcae-d2c4-9068-afa0-b838d57d8dff@samsung.com>
+ <20170123052244.GC11763@bbox>
+ <20170123053056.GB2327@jagdpanzerIV.localdomain>
+ <20170123054034.GA12327@bbox>
+ <7488422b-98d1-1198-70d5-47c1e2bac721@samsung.com>
+ <20170125052614.GB18289@bbox>
+ <CALZtONBRK10XwG7GkjSwsyGWw=X6LSjtNtPjJeZtMp671E5MOQ@mail.gmail.com>
+ <20170131001025.GD7942@bbox>
+ <CALZtONDQ5yQKV6-jpJGBg7gakV8-7XXmmAATSQq346Tby4WLsg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170201100022.GI5977@dhcp22.suse.cz>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CALZtONDQ5yQKV6-jpJGBg7gakV8-7XXmmAATSQq346Tby4WLsg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: ysxie@foxmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, arbab@linux.vnet.ibm.com, vkuznets@redhat.com, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Chulmin Kim <cmlaika.kim@samsung.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, Feb 01, 2017 at 11:00:23AM +0100, Michal Hocko wrote:
-> On Wed 01-02-17 18:46:36, Minchan Kim wrote:
-> > On Wed, Feb 01, 2017 at 08:59:24AM +0100, Michal Hocko wrote:
-> > > On Wed 01-02-17 15:48:21, Minchan Kim wrote:
-> > > > Hi Yisheng,
-> > > > 
-> > > > On Tue, Jan 31, 2017 at 09:06:18PM +0800, ysxie@foxmail.com wrote:
-> > > > > From: Yisheng Xie <xieyisheng1@huawei.com>
-> > > > > 
-> > > > > This patch changes the return type of isolate_movable_page()
-> > > > > from bool to int. It will return 0 when isolate movable page
-> > > > > successfully, return -EINVAL when the page is not a non-lru movable
-> > > > > page, and for other cases it will return -EBUSY.
-> > > > > 
-> > > > > There is no functional change within this patch but prepare
-> > > > > for later patch.
-> > > > > 
-> > > > > Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> > > > > Suggested-by: Michal Hocko <mhocko@kernel.org>
-> > > > 
-> > > > Sorry for missing this one you guys were discussing.
-> > > > I don't understand the patch's goal although I read later patches.
-> > > 
-> > > The point is that the failed isolation has to propagate error up the
-> > > call chain to the userspace which has initiated the migration.
-> > > 
-> > > > isolate_movable_pages returns success/fail so that's why I selected
-> > > > bool rather than int but it seems you guys want to propagate more
-> > > > detailed error to the user so added -EBUSY and -EINVAL.
-> > > > 
-> > > > But the question is why isolate_lru_pages doesn't have -EINVAL?
-> > > 
-> > > It doesn't have to same as isolate_movable_pages. We should just return
-> > > EBUSY when the page is no longer movable.
-> > 
-> > Why isolate_lru_page is okay to return -EBUSY in case of race while
-> > isolate_movable_page should return -EINVAL?
-> > What's the logic in your mind? I totally cannot understand.
+Hi Dan,
+
+On Tue, Jan 31, 2017 at 08:09:53AM -0500, Dan Streetman wrote:
+> On Mon, Jan 30, 2017 at 7:10 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > Hi Dan,
+> >
+> > On Thu, Jan 26, 2017 at 12:04:03PM -0500, Dan Streetman wrote:
+> >> On Wed, Jan 25, 2017 at 12:26 AM, Minchan Kim <minchan@kernel.org> wrote:
+> >> > On Tue, Jan 24, 2017 at 11:06:51PM -0500, Chulmin Kim wrote:
+> >> >> On 01/23/2017 12:40 AM, Minchan Kim wrote:
+> >> >> >On Mon, Jan 23, 2017 at 02:30:56PM +0900, Sergey Senozhatsky wrote:
+> >> >> >>On (01/23/17 14:22), Minchan Kim wrote:
+> >> >> >>[..]
+> >> >> >>>>Anyway, I will let you know the situation when it gets more clear.
+> >> >> >>>
+> >> >> >>>Yeb, Thanks.
+> >> >> >>>
+> >> >> >>>Perhaps, did you tried flush page before the writing?
+> >> >> >>>I think arm64 have no d-cache alising problem but worth to try it.
+> >> >> >>>Who knows :)
+> >> >> >>
+> >> >> >>I thought that flush_dcache_page() is only for cases when we write
+> >> >> >>to page (store that makes pages dirty), isn't it?
+> >> >> >
+> >> >> >I think we need both because to see recent stores done by the user.
+> >> >> >I'm not sure it should be done by block device driver rather than
+> >> >> >page cache. Anyway, brd added it so worth to try it, I thought. :)
+> >> >> >
+> >> >>
+> >> >> Thanks for the suggestion!
+> >> >> It might be helpful
+> >> >> though proving it is not easy as the problem appears rarely.
+> >> >>
+> >> >> Have you thought about
+> >> >> zram swap or zswap dealing with self modifying code pages (ex. JIT)?
+> >> >> (arm64 may have i-cache aliasing problem)
+> >> >
+> >> > It can happen, I think, although I don't know how arm64 handles it.
+> >> >
+> >> >>
+> >> >> If it is problematic,
+> >> >> especiallly zswap (without flush_dcache_page in zswap_frontswap_load()) may
+> >> >> provide the corrupted data
+> >> >> and even swap out (compressing) may see the corrupted data sooner or later,
+> >> >> i guess.
+> >> >
+> >> > try_to_unmap_one calls flush_cache_page which I hope to handle swap-out side
+> >> > but for swap-in, I think zswap need flushing logic because it's first
+> >> > touch of the user buffer so it's his resposibility.
+> >>
+> >> Hmm, I don't think zswap needs to, because all the cache aliases were
+> >> flushed when the page was written out.  After that, any access to the
+> >> page will cause a fault, and the fault will cause the page to be read
+> >> back in (via zswap).  I don't see how the page could be cached at any
+> >> time between the swap write-out and swap read-in, so there should be
+> >> no need to flush any caches when it's read back in; am I missing
+> >> something?
+> >
+> > Documentation/cachetlb.txt says
+> >
+> >   void flush_dcache_page(struct page *page)
+> >
+> >         Any time the kernel writes to a page cache page, _OR_
+> >         the kernel is about to read from a page cache page and
+> >         user space shared/writable mappings of this page potentially
+> >         exist, this routine is called.
+> >
+> > For swap-in side, I don't see any logic to prevent the aliasing
+> > problem. Let's consider other examples like cow_user_page->
+> > copy_user_highpage. For architectures which can make aliasing,
+> > it has arch specific functions which has flushing function.
 > 
-> Let me rephrase. Both should return EBUSY.
+> COW works with a page that has a physical backing.  swap-in does not.
+> COW pages can be accessed normally; swapped out pages cannot.
+> 
+> >
+> > IOW, if a kernel makes store operation to the page which will
+> > be mapped to user space address, kernel should call flush function.
+> > Otherwise, user space will miss recent update from kernel side.
+> 
+> as I said before, when it's swapped out caches are flushed, and the
+> page mapping invalidated, so it will cause a fault on any access, and
+> thus cause swap to re-load the page from disk (or zswap).  So how
+> would a cache of the page be created after swap-out, but before
+> swap-in?  It's not possible for user space to have any caches to the
+> page, unless (as I said) I'm missing something?
+> 
 
-It means it's binary return value(success: 0 fail : -EBUSY) so IMO,
-bool is better and caller should return -EBUSY if that functions
-returns *false*. No need to make deeper propagation level.
-Anyway, it's trivial so I'm not against it if you want to make
-isolate_movable_page returns int. Insetad, please remove -EINVAL
-in this patch and just return -EBUSY for isolate_movable_page to
-be consistent with isolate_lru_page.
-Then, we don't need to fix any driver side, either. Even, no need to
-update any document because you don't add any new error value.
+Let's assume VIVT architecture which get index and tag from virtual
+address.
 
-That's enough.
+In zswap_frontswap_load, let's assume dst is kernel virtual address,
+0xc0002000 so cacheline for 0xc0002000 has recent uptodate data.
+Now, VM mapped the page into user address space, 0x80003000, for
+example. In that case, userland application try to read data from
+0x80003000 but it is associated with another cacheline so it cannot
+see recent uptodate data written by zswap.
+
+flush_dcache_page will handle both kernel side and user side.
+I'm not sure how I explain well. :-(
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
