@@ -1,56 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC3956B0033
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 05:14:18 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id ez4so2845209wjd.2
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 02:14:18 -0800 (PST)
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 19B816B0033
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 05:44:27 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id jz4so2992813wjb.5
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 02:44:27 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h63si6891774wme.168.2017.02.02.02.14.17
+        by mx.google.com with ESMTPS id e56si28062048wre.332.2017.02.02.02.44.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Feb 2017 02:14:17 -0800 (PST)
-Date: Thu, 2 Feb 2017 11:14:15 +0100
+        Thu, 02 Feb 2017 02:44:25 -0800 (PST)
+Date: Thu, 2 Feb 2017 11:44:22 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, vmscan: account the number of isolated pages
- per zone
-Message-ID: <20170202101415.GE22806@dhcp22.suse.cz>
-References: <20170125101957.GA17632@lst.de>
- <20170125104605.GI32377@dhcp22.suse.cz>
- <201701252009.IHG13512.OFOJFSVLtOQMFH@I-love.SAKURA.ne.jp>
- <20170125130014.GO32377@dhcp22.suse.cz>
- <20170127144906.GB4148@dhcp22.suse.cz>
- <201701290027.AFB30799.FVtFLOOOJMSHQF@I-love.SAKURA.ne.jp>
- <20170130085546.GF8443@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <20170202104422.GF22806@dhcp22.suse.cz>
+References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
+ <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170130085546.GF8443@dhcp22.suse.cz>
+In-Reply-To: <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hch@lst.de, mgorman@suse.de, viro@ZenIV.linux.org.uk, linux-mm@kvack.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, minchan@kernel.org, shashim@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 30-01-17 09:55:46, Michal Hocko wrote:
-> On Sun 29-01-17 00:27:27, Tetsuo Handa wrote:
-[...]
-> > Regarding [1], it helped avoiding the too_many_isolated() issue. I can't
-> > tell whether it has any negative effect, but I got on the first trial that
-> > all allocating threads are blocked on wait_for_completion() from flush_work()
-> > in drain_all_pages() introduced by "mm, page_alloc: drain per-cpu pages from
-> > workqueue context". There was no warn_alloc() stall warning message afterwords.
+On Tue 31-01-17 14:32:08, Vinayak Menon wrote:
+> During global reclaim, the nr_reclaimed passed to vmpressure
+> includes the pages reclaimed from slab. But the corresponding
+> scanned slab pages is not passed. This can cause total reclaimed
+> pages to be greater than scanned, causing an unsigned underflow
+> in vmpressure resulting in a critical event being sent to root
+> cgroup. So do not consider reclaimed slab pages for vmpressure
+> calculation. The reclaimed pages from slab can be excluded because
+> the freeing of a page by slab shrinking depends on each slab's
+> object population, making the cost model (i.e. scan:free) different
+> from that of LRU.
+
+This might be true but what happens if the slab reclaim contributes
+significantly to the overal reclaim? This would be quite rare but not
+impossible.
+
+I am wondering why we cannot simply make cap nr_reclaimed to nr_scanned
+and be done with this all? Sure it will be imprecise but the same will
+be true with this approach.
+
+> Also, not every shrinker accounts the pages it
+> reclaims. This is a regression introduced by commit 6b4f7799c6a5
+> ("mm: vmscan: invoke slab shrinkers from shrink_zone()").
+
+We usually refer to the culprit comment as
+Fixes: 6b4f7799c6a5 ("mm: vmscan: invoke slab shrinkers from shrink_zone()")
+ 
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> ---
+>  mm/vmscan.c | 17 ++++++++++++-----
+>  1 file changed, 12 insertions(+), 5 deletions(-)
 > 
-> That patch is buggy and there is a follow up [1] which is not sitting in the
-> mmotm (and thus linux-next) yet. I didn't get to review it properly and
-> I cannot say I would be too happy about using WQ from the page
-> allocator. I believe even the follow up needs to have WQ_RECLAIM WQ.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 947ab6f..8969f8e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2594,16 +2594,23 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  				    sc->nr_scanned - nr_scanned,
+>  				    node_lru_pages);
+>  
+> +		/*
+> +		 * Record the subtree's reclaim efficiency. The reclaimed
+> +		 * pages from slab is excluded here because the corresponding
+> +		 * scanned pages is not accounted. Moreover, freeing a page
+> +		 * by slab shrinking depends on each slab's object population,
+> +		 * making the cost model (i.e. scan:free) different from that
+> +		 * of LRU.
+> +		 */
+> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+> +			   sc->nr_scanned - nr_scanned,
+> +			   sc->nr_reclaimed - nr_reclaimed);
+> +
+>  		if (reclaim_state) {
+>  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+>  			reclaim_state->reclaimed_slab = 0;
+>  		}
+>  
+> -		/* Record the subtree's reclaim efficiency */
+> -		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+> -			   sc->nr_scanned - nr_scanned,
+> -			   sc->nr_reclaimed - nr_reclaimed);
+> -
+>  		if (sc->nr_reclaimed - nr_reclaimed)
+>  			reclaimable = true;
+>  
+> -- 
+> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+> member of the Code Aurora Forum, hosted by The Linux Foundation
 > 
-> [1] http://lkml.kernel.org/r/20170125083038.rzb5f43nptmk7aed@techsingularity.net
 
-Did you get chance to test with this follow up patch? It would be
-interesting to see whether OOM situation can still starve the waiter.
-The current linux-next should contain this patch.
-
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
