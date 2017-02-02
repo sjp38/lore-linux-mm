@@ -1,132 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E4026B0069
-	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 11:01:50 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id an2so5210433wjc.3
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 08:01:50 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r29si29081253wra.194.2017.02.02.08.01.47
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B0996B026C
+	for <linux-mm@kvack.org>; Thu,  2 Feb 2017 13:02:53 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id h53so31056587qth.6
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 10:02:53 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l5si17331412qtf.58.2017.02.02.10.02.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Feb 2017 08:01:48 -0800 (PST)
-Date: Thu, 2 Feb 2017 17:01:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to
- vmpressure
-Message-ID: <20170202160145.GK22806@dhcp22.suse.cz>
-References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
- <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
- <20170202104422.GF22806@dhcp22.suse.cz>
- <20170202104808.GG22806@dhcp22.suse.cz>
- <CAOaiJ-nyZtgrCHjkGJeG3nhGFes5Y7go3zZwa3SxGrZV=LV0ag@mail.gmail.com>
- <20170202115222.GH22806@dhcp22.suse.cz>
- <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Feb 2017 10:02:51 -0800 (PST)
+Date: Thu, 2 Feb 2017 19:02:47 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2 4/5] userfaultfd: mcopy_atomic: return -ENOENT when no
+ compatible VMA found
+Message-ID: <20170202180247.GA32446@redhat.com>
+References: <1485542673-24387-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1485542673-24387-5-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
+In-Reply-To: <1485542673-24387-5-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayak menon <vinayakm.list@gmail.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 02-02-17 21:00:10, vinayak menon wrote:
-> On Thu, Feb 2, 2017 at 5:22 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 02-02-17 16:55:49, vinayak menon wrote:
-> >> On Thu, Feb 2, 2017 at 4:18 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> > On Thu 02-02-17 11:44:22, Michal Hocko wrote:
-> >> >> On Tue 31-01-17 14:32:08, Vinayak Menon wrote:
-> >> >> > During global reclaim, the nr_reclaimed passed to vmpressure
-> >> >> > includes the pages reclaimed from slab. But the corresponding
-> >> >> > scanned slab pages is not passed. This can cause total reclaimed
-> >> >> > pages to be greater than scanned, causing an unsigned underflow
-> >> >> > in vmpressure resulting in a critical event being sent to root
-> >> >> > cgroup. So do not consider reclaimed slab pages for vmpressure
-> >> >> > calculation. The reclaimed pages from slab can be excluded because
-> >> >> > the freeing of a page by slab shrinking depends on each slab's
-> >> >> > object population, making the cost model (i.e. scan:free) different
-> >> >> > from that of LRU.
-> >> >>
-> >> >> This might be true but what happens if the slab reclaim contributes
-> >> >> significantly to the overal reclaim? This would be quite rare but not
-> >> >> impossible.
-> >> >>
-> >> >> I am wondering why we cannot simply make cap nr_reclaimed to nr_scanned
-> >> >> and be done with this all? Sure it will be imprecise but the same will
-> >> >> be true with this approach.
-> >>
-> >> Thinking of a case where 100 LRU pages were scanned and only 10 were
-> >> reclaimed.  Now, say slab reclaimed 100 pages and we have no idea
-> >> how many were scanned.  The actual vmpressure of 90 will now be 0
-> >> because of the addition on 100 slab pages. So underflow was not the
-> >> only issue, but incorrect vmpressure.
-> >
-> > Is this actually a problem. The end result - enough pages being
-> > reclaimed should matter, no?
-> >
->
-> But vmpressure is incorrect now, no ?
+On Fri, Jan 27, 2017 at 08:44:32PM +0200, Mike Rapoport wrote:
+> -		err = -EINVAL;
+> +		err = -ENOENT;
+>  		dst_vma = find_vma(dst_mm, dst_start);
+>  		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
+>  			goto out_unlock;
+> +		/*
+> +		 * Only allow __mcopy_atomic_hugetlb on userfaultfd
+> +		 * registered ranges.
+> +		 */
+> +		if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> +			goto out_unlock;
+>  
+> +		err = -EINVAL;
+>  		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
+>  			goto out_unlock;
 
-What does it mean incorrect? vmpressure is just an approximation that
-tells us how much we struggle to reclaim memory. If we are making a
-progress then we shouldn't reach higher levels.
+That's correct, if a new vma emerges with a different page size it
+cannot have a not null dst_vma->vm_userfaultfd_ctx.ctx in the non
+cooperative case.
 
-> Because the scanned slab pages
-> is not included in nr_scanned (the cost). The 100 scanned and 10
-> reclaimed from LRU were a reasonable estimate as you said, and to that
-> we are adding a reclaimed value alone without scanned and thus making
-> it incorrect ? Because the cost of slab reclaim is not accounted.
+> @@ -219,12 +226,6 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+>  		goto out_unlock;
+>  
+>  	/*
+> -	 * Only allow __mcopy_atomic_hugetlb on userfaultfd registered ranges.
+> -	 */
+> -	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> -		goto out_unlock;
+> -
+> -	/*
 
-there are other costs which are not included. E.g. stalling because of
-dirty pages etc...
+but this is buggy and it shouldn't be removed, we need this check also
+if dst_vma was found not NULL.
 
-> But
-> I agree that the vmpressure value would have been more correct if it
-> could include both scanned and reclaimed from slab. And may be more
-> correct if we can include the scanned and reclaimed from all shrinkers
-> which I think is not the case right now (lowmemorykiller, zsmalloc
-> etc). But as Minchan was pointing out, since the cost model for slab
-> is different, would it be fine to just add reclaimed from slab to
-> vmpressure ?
+>  	 * Ensure the dst_vma has a anon_vma.
+>  	 */
+>  	err = -ENOMEM;
+> @@ -368,10 +369,23 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  	 * Make sure the vma is not shared, that the dst range is
+>  	 * both valid and fully within a single existing vma.
+>  	 */
+> -	err = -EINVAL;
+> +	err = -ENOENT;
+>  	dst_vma = find_vma(dst_mm, dst_start);
+>  	if (!dst_vma)
+>  		goto out_unlock;
+> +	/*
+> +	 * Be strict and only allow __mcopy_atomic on userfaultfd
+> +	 * registered ranges to prevent userland errors going
+> +	 * unnoticed. As far as the VM consistency is concerned, it
+> +	 * would be perfectly safe to remove this check, but there's
+> +	 * no useful usage for __mcopy_atomic ouside of userfaultfd
+> +	 * registered ranges. This is after all why these are ioctls
+> +	 * belonging to the userfaultfd and not syscalls.
+> +	 */
+> +	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> +		goto out_unlock;
+> +
+> +	err = -EINVAL;
+>  	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
+>  		goto out_unlock;
+>  	if (dst_start < dst_vma->vm_start ||
 
-Get back to your example. Do you really prefer seeing an alarm just
-because we had hard time reclaiming LRU pages which might be pinned due
-to reclaimable slab pages (e.g. fs metadata) when the slab reclaim can
-free enough of them?
+This isn't enough, the -ENOENT should be returned also if the address
+doesn't isn't in the range of the found vma, instead of -EINVAL. "vma"
+may be a completely different vma just it happen to be way above the
+fault address, and the vma previously covering the "addr" (which was
+below the found "vma") was already munmapped, so you'd be returning
+-EINVAL after munmap still unless the -EINVAL is moved down below.
 
-vmpressure never had a good semantic, it is just an approximation that
-happened to work for some workloads which it was proposed for.
+The check on !vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED
+instead can be shifted down below after setting err to -EINVAL as then
+we know the vma is really the one we were looking for but it's of a
+type we can't handle.
 
-[...]
-> >> Our
-> >> internal tests on Android actually shows the problem. When vmpressure
-> >> with slab reclaimed added is used to kill tasks, it does not kick in
-> >> at the right time.
-> >
-> > With the skewed reclaimed? How that happens? Could you elaborate more?
->
-> Yes. Because of the skewed reclaim. The observation is that the vmpressure
-> critical events are received late. Because of adding slab reclaimed without
-> corresponding scanned, the vmpressure values are diluted resulting in lesser
-> number of critical events at the beginning, resulting in tasks not
-> being chosen to be killed.
 
-Why would you like to chose and kill a task when the slab reclaim can
-still make sufficient progres? Are you sure that the slab contribution
-to the stats makes all the above happening?
+Now changing topic (aside from implementation comments above) I need
+to raise a big fat warning that this change breaks the userland ABI.
+There's definitely a 100% backwards compatible way to do this and it
+would be to introduce a new UFFDIO_COPY2 ioctl.
 
-> This increases the memory pressure and
-> finally result in late critical events, but by that time the task
-> launch latencies are impacted.
+However I think the above approach is ok because, userland should
+always crash dump if UFFDIO_COPY returns -EINVAL to be strict, so it
+means any app that is running into this corner case would currently be
+getting -EINVAL and it'd crash in the first place.
 
-I have seen vmpressure hitting critical events really quickly but that
-is mostly because the vmpressure uses only very simplistic
-approximation. Usually the reclaim goes well, until you hit to dirty
-or pinned pages. Then it can get really bad, so you can get from high
-effectiveness to 0 pretty quickly.
--- 
-Michal Hocko
-SUSE Labs
+For non cooperative usage, is very good that it will be allowed not to
+ignore -EINVAL errors, and it will only ignore -ENOENT retvals so it
+can be strict too (qemu will instead crash no matter if it gets
+-ENOENT or -ENOSPC or -EINVAL).
+
+I believe it's an acceptable ABI change with no risk to existing apps,
+the main current user of userfaultfd being the cooperative usage (non
+cooperative is still in -mm after all) and with David we reviewed qemu
+to never run into the -ENOENT/-ENOSPC case. It'd crash already if it
+would get -EINVAL (and it has to still crash with the more finegrined
+-ENOENT/-ENOSPC).
+
+So I'm positive about this ABI change as it can't break any existing
+app we know of, and I'm also positive the other one in 5/5 for the
+same reason (-ENOSPC) where I don't see implementation issues either.
+
+There have been major complains about breaking userland ABI retvals in
+the past, so I just want to give a big fat warning about these two
+patches 4/5 and 5/5, but I personally think it's an acceptable change
+as I don't see any risk of cooperative userland breaking because of it.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
