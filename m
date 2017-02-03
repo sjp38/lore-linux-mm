@@ -1,75 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f197.google.com (mail-wj0-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1E626B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 11:10:09 -0500 (EST)
-Received: by mail-wj0-f197.google.com with SMTP id gt1so6055803wjc.0
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 08:10:09 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r82si2663066wma.3.2017.02.03.08.10.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 47E8A6B0069
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 11:53:09 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id d123so28955764pfd.0
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 08:53:09 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s23si25947929pfg.121.2017.02.03.08.53.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Feb 2017 08:10:08 -0800 (PST)
-Date: Fri, 3 Feb 2017 17:10:05 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Avoid returning VM_FAULT_RETRY from ->page_mkwrite
- handlers
-Message-ID: <20170203161005.GB25586@quack2.suse.cz>
-References: <20170203150729.15863-1-jack@suse.cz>
- <20170203151356.GB2267@bombadil.infradead.org>
- <20170203154640.GA25586@quack2.suse.cz>
- <20170203155326.GE2267@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Feb 2017 08:53:08 -0800 (PST)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v13GoMWe048223
+	for <linux-mm@kvack.org>; Fri, 3 Feb 2017 11:53:07 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 28cvjbk2ja-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 03 Feb 2017 11:53:07 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 3 Feb 2017 16:53:04 -0000
+Date: Fri, 3 Feb 2017 18:52:57 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 4/5] userfaultfd: mcopy_atomic: return -ENOENT when no
+ compatible VMA found
+References: <1485542673-24387-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1485542673-24387-5-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170202180247.GA32446@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170203155326.GE2267@bombadil.infradead.org>
+In-Reply-To: <20170202180247.GA32446@redhat.com>
+Message-Id: <20170203165256.GB3183@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, lustre-devel@lists.lustre.org, cluster-devel@redhat.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mike Kravetz <mike.kravetz@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 03-02-17 07:53:26, Matthew Wilcox wrote:
-> On Fri, Feb 03, 2017 at 04:46:40PM +0100, Jan Kara wrote:
-> > On Fri 03-02-17 07:13:59, Matthew Wilcox wrote:
-> > > On Fri, Feb 03, 2017 at 04:07:29PM +0100, Jan Kara wrote:
-> > > > Some ->page_mkwrite handlers may return VM_FAULT_RETRY as its return
-> > > > code (GFS2 or Lustre can definitely do this). However VM_FAULT_RETRY
-> > > > from ->page_mkwrite is completely unhandled by the mm code and results
-> > > > in locking and writeably mapping the page which definitely is not what
-> > > > the caller wanted. Fix Lustre and block_page_mkwrite_ret() used by other
-> > > > filesystems (notably GFS2) to return VM_FAULT_NOPAGE instead which
-> > > > results in bailing out from the fault code, the CPU then retries the
-> > > > access, and we fault again effectively doing what the handler wanted.
-> > > 
-> > > Reading this commit message makes me wonder if this is the best fix.
-> > > It would seem logical that if I want the fault to be retried that I should
-> > > return VM_FAULT_RETRY, not VM_FAULT_NOPAGE.  Why don't we have the MM
-> > > treat VM_FAULT_RETRY the same way that it treats VM_FAULT_NOPAGE and give
-> > > driver / filesystem writers one fewer way to shoot themselves in the foot?
-> > 
-> > VM_FAULT_RETRY is special, it may be used only if FAULT_FLAG_ALLOW_RETRY
-> > was set in page fault flags and it means - we have dropped mmap_sem, we
-> > loaded page needed to satisfy the fault and now we need to try again (have
-> > a look at __lock_page_or_retry()). I have my reservations about this
-> > interface but it works...
+Hello Andrea,
+
+On Thu, Feb 02, 2017 at 07:02:47PM +0100, Andrea Arcangeli wrote:
+> On Fri, Jan 27, 2017 at 08:44:32PM +0200, Mike Rapoport wrote:
+> > -		err = -EINVAL;
+> > +		err = -ENOENT;
+> >  		dst_vma = find_vma(dst_mm, dst_start);
+> >  		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
+> >  			goto out_unlock;
+> > +		/*
+> > +		 * Only allow __mcopy_atomic_hugetlb on userfaultfd
+> > +		 * registered ranges.
+> > +		 */
+> > +		if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> > +			goto out_unlock;
+> >  
+> > +		err = -EINVAL;
+> >  		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
+> >  			goto out_unlock;
 > 
-> Oh, I understand what it's *supposed* to be used for ;-)  It's just
-> a bit of an attractive nuisance.  Maybe renaming it to something like
-> VM_FAULT_PAGE_RETRY would stop people from thinking that it meant "retry
-> the fault".  And we could #define VM_FAULT_RETRY VM_FAULT_NOPAGE so that
-> people who want to retry the fault in a normal way could use a return
-> value that sounds like it does what they want instead of a return value
-> that is supposed to be used to indicate that we put a PFN into the
-> page table?
+> That's correct, if a new vma emerges with a different page size it
+> cannot have a not null dst_vma->vm_userfaultfd_ctx.ctx in the non
+> cooperative case.
+> 
+> > @@ -219,12 +226,6 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+> >  		goto out_unlock;
+> >  
+> >  	/*
+> > -	 * Only allow __mcopy_atomic_hugetlb on userfaultfd registered ranges.
+> > -	 */
+> > -	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> > -		goto out_unlock;
+> > -
+> > -	/*
+> 
+> but this is buggy and it shouldn't be removed, we need this check also
+> if dst_vma was found not NULL.
 
-So a better name for VM_FAULT_RETRY and disentangling VM_FAULT_NOPAGE so
-that it is not misused for retrying the fault would be nice. But it is a
-much larger endeavor (I actually had a look into this some time ago) than
-this simple bugfix...
+The check for not-NULL uffd context is done in __mcopy_atomic, between
+find_vma and call to __mcopy_atomic_hugetlb. Sp, at this point we verified
+that dst_vma->vm_userfaultfd_ctx.ctx is not NULL either in the caller, or
+for the 'retry' case in the hunk above.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> >  	 * Ensure the dst_vma has a anon_vma.
+> >  	 */
+> >  	err = -ENOMEM;
+> > @@ -368,10 +369,23 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> >  	 * Make sure the vma is not shared, that the dst range is
+> >  	 * both valid and fully within a single existing vma.
+> >  	 */
+> > -	err = -EINVAL;
+> > +	err = -ENOENT;
+> >  	dst_vma = find_vma(dst_mm, dst_start);
+> >  	if (!dst_vma)
+> >  		goto out_unlock;
+> > +	/*
+> > +	 * Be strict and only allow __mcopy_atomic on userfaultfd
+> > +	 * registered ranges to prevent userland errors going
+> > +	 * unnoticed. As far as the VM consistency is concerned, it
+> > +	 * would be perfectly safe to remove this check, but there's
+> > +	 * no useful usage for __mcopy_atomic ouside of userfaultfd
+> > +	 * registered ranges. This is after all why these are ioctls
+> > +	 * belonging to the userfaultfd and not syscalls.
+> > +	 */
+> > +	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+> > +		goto out_unlock;
+> > +
+> > +	err = -EINVAL;
+> >  	if (!vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED)
+> >  		goto out_unlock;
+> >  	if (dst_start < dst_vma->vm_start ||
+> 
+> This isn't enough, the -ENOENT should be returned also if the address
+> doesn't isn't in the range of the found vma, instead of -EINVAL. "vma"
+> may be a completely different vma just it happen to be way above the
+> fault address, and the vma previously covering the "addr" (which was
+> below the found "vma") was already munmapped, so you'd be returning
+> -EINVAL after munmap still unless the -EINVAL is moved down below.
+
+Will fix, thanks.
+ 
+> The check on !vma_is_shmem(dst_vma) && dst_vma->vm_flags & VM_SHARED
+> instead can be shifted down below after setting err to -EINVAL as then
+> we know the vma is really the one we were looking for but it's of a
+> type we can't handle.
+
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
