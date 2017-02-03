@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B539F6B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 14:01:39 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id d185so32150611pgc.2
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 11:01:39 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e185si21467896pgc.284.2017.02.03.11.01.38
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D3DBB6B0069
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 14:07:17 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id v85so24935741oia.4
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 11:07:17 -0800 (PST)
+Received: from mail-ot0-x230.google.com (mail-ot0-x230.google.com. [2607:f8b0:4003:c0f::230])
+        by mx.google.com with ESMTPS id z18si11140964oia.147.2017.02.03.11.07.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Feb 2017 11:01:38 -0800 (PST)
-Date: Fri, 3 Feb 2017 12:01:37 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH] mm, dax: clear PMD or PUD size flags when in fall
- through path
-Message-ID: <20170203190137.GA17709@linux.intel.com>
-References: <148589842696.5820.16078080610311444794.stgit@djiang5-desk3.ch.intel.com>
+        Fri, 03 Feb 2017 11:07:17 -0800 (PST)
+Received: by mail-ot0-x230.google.com with SMTP id f9so21360572otd.1
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 11:07:17 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <148589842696.5820.16078080610311444794.stgit@djiang5-desk3.ch.intel.com>
+References: <148589842696.5820.16078080610311444794.stgit@djiang5-desk3.ch.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 3 Feb 2017 11:07:16 -0800
+Message-ID: <CAPcyv4i2Sgf+9Zj9D_A-BXfwftJiXywqR8Vut-56oGBiG3J+Uw@mail.gmail.com>
+Subject: Re: [PATCH] mm, dax: clear PMD or PUD size flags when in fall through path
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Jiang <dave.jiang@intel.com>
-Cc: akpm@linux-foundation.org, mawilcox@microsoft.com, linux-nvdimm@lists.01.org, dave.hansen@linux.intel.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, jack@suse.com, dan.j.williams@intel.com, linux-ext4@vger.kernel.org, ross.zwisler@linux.intel.com, vbabka@suse.cz
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Jan 31, 2017 at 02:33:47PM -0700, Dave Jiang wrote:
+On Tue, Jan 31, 2017 at 1:33 PM, Dave Jiang <dave.jiang@intel.com> wrote:
 > Ross reported that:
 > Running xfstests generic/030 with XFS + DAX gives me the following kernel BUG,
 > which I bisected to this commit: mm,fs,dax: Change ->pmd_fault to ->huge_fault
-> 
+>
 > [  370.086205] ------------[ cut here ]------------
 > [  370.087182] kernel BUG at arch/x86/mm/fault.c:1038!
 > [  370.088336] invalid opcode: 0000 [#3] PREEMPT SMP
@@ -61,7 +61,7 @@ On Tue, Jan 31, 2017 at 02:33:47PM -0700, Dave Jiang wrote:
 > [  370.112171] Code: 07 00 00 00 e8 a4 ee ff ff e9 11 ff ff ff 4c 89 ea 48 89 de 45 31 c0 31 c9 e8 8f f7 ff ff 48 83 c4 08 5b 41 5c 41 5d 41 5e 5d c3 <0f> 0b 41 8b 94 24 80 04 00 00 49 8d b4 24 b0 06 00 00 4c 89 e9
 > [  370.114823] RIP: mm_fault_error+0x15e/0x190 RSP: ffffc9001148fe60
 > [  370.115722] ---[ end trace 2ce10d930638254d ]---
-> 
+>
 > It appears that there are 2 issues. First, the size bits used for vm_fault
 > needs to be shifted over. Otherwise, FAULT_FLAG_SIZE_PMD is clobbering
 > FAULT_FLAG_INSTRUCTION. Second issue, after create_huge_pmd() is being
@@ -69,13 +69,56 @@ On Tue, Jan 31, 2017 at 02:33:47PM -0700, Dave Jiang wrote:
 > flag remains and that causes the dax fault handler to go towards the pmd
 > fault handler instead of the pte fault handler. Fixes are made for the pud
 > and pmd fall through paths.
-> 
+>
 > Reported-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 > Signed-off-by: Dave Jiang <dave.jiang@intel.com>
+> ---
+>  include/linux/mm.h |    8 ++++----
+>  mm/memory.c        |    4 ++++
+>  2 files changed, 8 insertions(+), 4 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index f50e730..6194aeb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -285,10 +285,10 @@ extern pgprot_t protection_map[16];
+>  #define FAULT_FLAG_REMOTE      0x80    /* faulting for non current tsk/mm */
+>  #define FAULT_FLAG_INSTRUCTION  0x100  /* The fault was during an instruction fetch */
+>
+> -#define FAULT_FLAG_SIZE_MASK   0x700   /* Support up to 8-level page tables */
+> -#define FAULT_FLAG_SIZE_PTE    0x000   /* First level (eg 4k) */
+> -#define FAULT_FLAG_SIZE_PMD    0x100   /* Second level (eg 2MB) */
+> -#define FAULT_FLAG_SIZE_PUD    0x200   /* Third level (eg 1GB) */
+> +#define FAULT_FLAG_SIZE_MASK   0x7000  /* Support up to 8-level page tables */
+> +#define FAULT_FLAG_SIZE_PTE    0x0000  /* First level (eg 4k) */
+> +#define FAULT_FLAG_SIZE_PMD    0x1000  /* Second level (eg 2MB) */
+> +#define FAULT_FLAG_SIZE_PUD    0x2000  /* Third level (eg 1GB) */
+>
+>  #define FAULT_FLAG_TRACE \
+>         { FAULT_FLAG_WRITE,             "WRITE" }, \
+> diff --git a/mm/memory.c b/mm/memory.c
+> index d465806..bdf1661 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3663,6 +3663,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>                 ret = create_huge_pud(&vmf);
+>                 if (!(ret & VM_FAULT_FALLBACK))
+>                         return ret;
+> +               /* fall through path, remove PUD flag */
+> +               vmf.flags &= ~FAULT_FLAG_SIZE_PUD;
+>         } else {
+>                 pud_t orig_pud = *vmf.pud;
+>
+> @@ -3693,6 +3695,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>                 ret = create_huge_pmd(&vmf);
+>                 if (!(ret & VM_FAULT_FALLBACK))
+>                         return ret;
+> +               /* fall through path, remove PMD flag */
+> +               vmf.flags &= ~FAULT_FLAG_SIZE_PMD;
 
-Yep, this seems to solve the issue for me.  Thanks!
-
-Tested-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Can we move the size to be an argument to the fault handler?
+Remembering to clear a flag in a context structure after a function
+call is error prone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
