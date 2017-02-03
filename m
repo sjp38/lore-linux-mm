@@ -1,18 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CBF86B0038
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 03:41:40 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id 65so11691605otq.2
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 00:41:40 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id x75si10583151oix.221.2017.02.03.00.41.37
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Feb 2017 00:41:39 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 808E56B0253
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 03:54:01 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id x84so11524556oix.7
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 00:54:01 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTP id 75si10611560oie.97.2017.02.03.00.53.57
+        for <linux-mm@kvack.org>;
+        Fri, 03 Feb 2017 00:54:00 -0800 (PST)
 From: <zhouxianrong@huawei.com>
 Subject: [PATCH] mm: extend zero pages to same element pages for zram
-Date: Fri, 3 Feb 2017 16:34:19 +0800
-Message-ID: <1486110859-95209-1-git-send-email-zhouxianrong@huawei.com>
+Date: Fri, 3 Feb 2017 16:42:27 +0800
+Message-ID: <1486111347-112972-1-git-send-email-zhouxianrong@huawei.com>
 In-Reply-To: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
 References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
@@ -39,12 +38,12 @@ MIN     0.645431905 0.004634398 0           0           0
 
 Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
 ---
- drivers/block/zram/zram_drv.c |  122 ++++++++++++++++++++++++++++++++---------
+ drivers/block/zram/zram_drv.c |  124 +++++++++++++++++++++++++++++++----------
  drivers/block/zram/zram_drv.h |   11 ++--
- 2 files changed, 102 insertions(+), 31 deletions(-)
+ 2 files changed, 103 insertions(+), 32 deletions(-)
 
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index e5ab7d9..e826d0d 100644
+index e5ab7d9..6a8c9c5 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
 @@ -95,6 +95,17 @@ static void zram_clear_flag(struct zram_meta *meta, u32 index,
@@ -188,6 +187,15 @@ index e5ab7d9..e826d0d 100644
  		zs_free(meta->mem_pool, handle);
  	}
  
+@@ -511,7 +575,7 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
+ {
+ 	size_t num_pages;
+-	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
++	struct zram_meta *meta = kzalloc(sizeof(*meta), GFP_KERNEL);
+ 
+ 	if (!meta)
+ 		return NULL;
 @@ -547,18 +611,20 @@ static void zram_free_page(struct zram *zram, size_t index)
  	struct zram_meta *meta = zram->meta;
  	unsigned long handle = meta->table[index].handle;
