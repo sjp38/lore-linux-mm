@@ -1,53 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C82756B0038
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 02:43:14 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f5so14276569pgi.1
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 23:43:14 -0800 (PST)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id j21si19994635pgg.373.2017.02.02.23.43.12
-        for <linux-mm@kvack.org>;
-        Thu, 02 Feb 2017 23:43:13 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20170202191957.22872-1-hannes@cmpxchg.org> <20170202191957.22872-7-hannes@cmpxchg.org>
-In-Reply-To: <20170202191957.22872-7-hannes@cmpxchg.org>
-Subject: Re: [PATCH 6/7] mm: vmscan: move dirty pages out of the way until they're flushed
-Date: Fri, 03 Feb 2017 15:42:55 +0800
-Message-ID: <006601d27df1$228a3940$679eabc0$@alibaba-inc.com>
+Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C556E6B025E
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 03:04:08 -0500 (EST)
+Received: by mail-wj0-f198.google.com with SMTP id kq3so2806733wjc.1
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 00:04:08 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id 108si31581592wrc.318.2017.02.03.00.04.05
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Feb 2017 00:04:06 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v6 2/4] mm/migration: make isolate_movable_page always defined
+Date: Fri, 3 Feb 2017 15:59:28 +0800
+Message-ID: <1486108770-630-3-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
+References: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Mel Gorman' <mgorman@suse.de>, 'Michal Hocko' <mhocko@suse.com>, 'Minchan Kim' <minchan.kim@gmail.com>, 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: mhocko@kernel.org, minchan@kernel.org, ak@linux.intel.com, guohanjun@huawei.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, arbab@linux.vnet.ibm.com, izumi.taku@jp.fujitsu.com, vkuznets@redhat.com, vbabka@suse.cz, qiuxishi@huawei.com
 
+Define isolate_movable_page as a static inline function when
+CONFIG_MIGRATION is not enable.  It should return -EBUSY here which means
+failed to isolate movable pages.
 
-On February 03, 2017 3:20 AM Johannes Weiner wrote: 
-> @@ -1063,7 +1063,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			    PageReclaim(page) &&
->  			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
->  				nr_immediate++;
-> -				goto keep_locked;
-> +				goto activate_locked;
+This patch do not have any functional change but prepare for later patch.
 
-Out of topic but relevant IMHO, I can't find where it is cleared by grepping:
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Suggested-by: Michal Hocko <mhocko@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+---
+ include/linux/migrate.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-$ grep -nr PGDAT_WRITEBACK  linux-4.9/mm
-linux-4.9/mm/vmscan.c:1019:	test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
-linux-4.9/mm/vmscan.c:1777:	set_bit(PGDAT_WRITEBACK, &pgdat->flags);
-
-It was removed in commit 1d82de618dd 
-("mm, vmscan: make kswapd reclaim in terms of nodes")
-
-Is it currently maintained somewhere else, Mel and John?
-
-thanks
-Hillf
-
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 43d5deb..fa76b51 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -56,6 +56,8 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		free_page_t free, unsigned long private, enum migrate_mode mode,
+ 		int reason)
+ 	{ return -ENOSYS; }
++static inline int isolate_movable_page(struct page *page, isolate_mode_t mode)
++	{ return -EBUSY; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
