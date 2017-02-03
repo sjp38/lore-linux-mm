@@ -1,67 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DF4F6B0038
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 00:26:44 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id g13so8664133otd.5
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 21:26:44 -0800 (PST)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id l125si10393547oif.45.2017.02.02.21.26.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Feb 2017 21:26:43 -0800 (PST)
-Received: by mail-oi0-x241.google.com with SMTP id u143so674365oif.3
-        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 21:26:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20170202160145.GK22806@dhcp22.suse.cz>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C4FF96B0038
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 01:17:40 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 204so12404966pge.5
+        for <linux-mm@kvack.org>; Thu, 02 Feb 2017 22:17:40 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 33si24576334plg.204.2017.02.02.22.17.38
+        for <linux-mm@kvack.org>;
+        Thu, 02 Feb 2017 22:17:39 -0800 (PST)
+Date: Fri, 3 Feb 2017 15:17:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <20170203061737.GA32372@bbox>
 References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
  <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
- <20170202104422.GF22806@dhcp22.suse.cz> <20170202104808.GG22806@dhcp22.suse.cz>
- <CAOaiJ-nyZtgrCHjkGJeG3nhGFes5Y7go3zZwa3SxGrZV=LV0ag@mail.gmail.com>
- <20170202115222.GH22806@dhcp22.suse.cz> <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
- <20170202160145.GK22806@dhcp22.suse.cz>
-From: vinayak menon <vinayakm.list@gmail.com>
-Date: Fri, 3 Feb 2017 10:56:42 +0530
-Message-ID: <CAOaiJ-=O_SkaYry4Lay8LidvC11sTukchE_p6P4mKm=fgJz1Dg@mail.gmail.com>
-Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to vmpressure
-Content-Type: text/plain; charset=UTF-8
+ <20170202104422.GF22806@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170202104422.GF22806@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, riel@redhat.com, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, shashim@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 2, 2017 at 9:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> Why would you like to chose and kill a task when the slab reclaim can
-> still make sufficient progres? Are you sure that the slab contribution
-> to the stats makes all the above happening?
->
-I agree that a task need not be killed if sufficient progress is made
-in reclaiming
-memory say from slab. But here it looks like we have an impact because of just
-increasing the reclaimed without touching the scanned. It could be because of
-disimilar costs or not adding adding cost. I agree that vmpressure is
-only a reasonable
-estimate which does not already include few other costs, but I am not
-sure whether it is ok
-to add another element which further increases that disparity.
-We noticed this problem when moving from 3.18 to 4.4 kernel version. With the
-same workload, the vmpressure events differ between 3.18 and 4.4 causing the
-above mentioned problem. And with this patch on 4.4 we get the same results
-as in 3,18. So the slab contribution to stats is making a difference.
+On Thu, Feb 02, 2017 at 11:44:22AM +0100, Michal Hocko wrote:
+> On Tue 31-01-17 14:32:08, Vinayak Menon wrote:
+> > During global reclaim, the nr_reclaimed passed to vmpressure
+> > includes the pages reclaimed from slab. But the corresponding
+> > scanned slab pages is not passed. This can cause total reclaimed
+> > pages to be greater than scanned, causing an unsigned underflow
+> > in vmpressure resulting in a critical event being sent to root
+> > cgroup. So do not consider reclaimed slab pages for vmpressure
+> > calculation. The reclaimed pages from slab can be excluded because
+> > the freeing of a page by slab shrinking depends on each slab's
+> > object population, making the cost model (i.e. scan:free) different
+> > from that of LRU.
+> 
+> This might be true but what happens if the slab reclaim contributes
+> significantly to the overal reclaim? This would be quite rare but not
+> impossible.
 
->> This increases the memory pressure and
->> finally result in late critical events, but by that time the task
->> launch latencies are impacted.
->
-
-> I have seen vmpressure hitting critical events really quickly but that
-> is mostly because the vmpressure uses only very simplistic
-> approximation. Usually the reclaim goes well, until you hit to dirty
-> or pinned pages. Then it can get really bad, so you can get from high
-> effectiveness to 0 pretty quickly.
-> --
-> Michal Hocko
-> SUSE Labs
+Of course, it is better for vmpressure to cover slab but it's not
+easy without page-based shrinking model, I think. It wold make
+vmpressure higher easily due to low reclaim efficiency compared to
+LRU pages. Yeah, vmpressure is not a perfect but no need to add
+more noises, either. It's regression since 6b4f7799c6a5 so I think
+this patch should go first and if someone want to cover slab really,
+he should spend a time to work it well. It's too much that Vinayak
+shuld make a effort for that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
