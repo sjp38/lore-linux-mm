@@ -1,143 +1,323 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8C06B0268
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 03:04:59 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id r141so2012432wmg.4
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 00:04:59 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTP id 91si31672461wrj.85.2017.02.03.00.04.56
-        for <linux-mm@kvack.org>;
-        Fri, 03 Feb 2017 00:04:58 -0800 (PST)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH v6 4/4] mm/hotplug: enable memory hotplug for non-lru movable pages
-Date: Fri, 3 Feb 2017 15:59:30 +0800
-Message-ID: <1486108770-630-5-git-send-email-xieyisheng1@huawei.com>
-In-Reply-To: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
-References: <1486108770-630-1-git-send-email-xieyisheng1@huawei.com>
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBF86B0038
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 03:41:40 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id 65so11691605otq.2
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 00:41:40 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id x75si10583151oix.221.2017.02.03.00.41.37
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Feb 2017 00:41:39 -0800 (PST)
+From: <zhouxianrong@huawei.com>
+Subject: [PATCH] mm: extend zero pages to same element pages for zram
+Date: Fri, 3 Feb 2017 16:34:19 +0800
+Message-ID: <1486110859-95209-1-git-send-email-zhouxianrong@huawei.com>
+In-Reply-To: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
+References: <1483692145-75357-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: mhocko@kernel.org, minchan@kernel.org, ak@linux.intel.com, guohanjun@huawei.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, arbab@linux.vnet.ibm.com, izumi.taku@jp.fujitsu.com, vkuznets@redhat.com, vbabka@suse.cz, qiuxishi@huawei.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, sergey.senozhatsky@gmail.com, minchan@kernel.org, willy@infradead.org, iamjoonsoo.kim@lge.com, ngupta@vflare.org, Mi.Sophia.Wang@huawei.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com
 
-We had considered all of the non-lru pages as unmovable before commit
-bda807d44454 ("mm: migrate: support non-lru movable page migration").  But
-now some of non-lru pages like zsmalloc, virtio-balloon pages also become
-movable.  So we can offline such blocks by using non-lru page migration.
+From: zhouxianrong <zhouxianrong@huawei.com>
 
-This patch straightforwardly adds non-lru migration code, which means
-adding non-lru related code to the functions which scan over pfn and
-collect pages to be migrated and isolate them before migration.
+test result as listed below:
 
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andi Kleen <ak@linux.intel.com>
-Cc: Hanjun Guo <guohanjun@huawei.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>
+zero   pattern_char pattern_short pattern_int pattern_long total   (unit)
+162989 14454        3534          23516       2769         3294399 (page)
+
+statistics for the result:
+
+        zero  pattern_char  pattern_short  pattern_int  pattern_long
+AVERAGE 0.745696298 0.085937175 0.015957701 0.131874915 0.020533911
+STDEV   0.035623777 0.016892402 0.004454534 0.021657123 0.019420072
+MAX     0.973813421 0.222222222 0.021409518 0.211812245 0.176512625
+MIN     0.645431905 0.004634398 0           0           0
+
+Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
 ---
- mm/memory_hotplug.c | 28 +++++++++++++++++-----------
- mm/page_alloc.c     |  8 ++++++--
- 2 files changed, 23 insertions(+), 13 deletions(-)
+ drivers/block/zram/zram_drv.c |  122 ++++++++++++++++++++++++++++++++---------
+ drivers/block/zram/zram_drv.h |   11 ++--
+ 2 files changed, 102 insertions(+), 31 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ca2723d..ea1be08 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1516,10 +1516,10 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index e5ab7d9..e826d0d 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -95,6 +95,17 @@ static void zram_clear_flag(struct zram_meta *meta, u32 index,
+ 	meta->table[index].value &= ~BIT(flag);
  }
  
- /*
-- * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
-- * and hugepages). We scan pfn because it's much easier than scanning over
-- * linked list. This function returns the pfn of the first found movable
-- * page if it's found, otherwise 0.
-+ * Scan pfn range [start,end) to find movable/migratable pages (LRU pages,
-+ * non-lru movable pages and hugepages). We scan pfn because it's much
-+ * easier than scanning over linked list. This function returns the pfn
-+ * of the first found movable page if it's found, otherwise 0.
-  */
- static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- {
-@@ -1530,6 +1530,8 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- 			page = pfn_to_page(pfn);
- 			if (PageLRU(page))
- 				return pfn;
-+			if (__PageMovable(page))
-+				return pfn;
- 			if (PageHuge(page)) {
- 				if (page_huge_active(page))
- 					return pfn;
-@@ -1606,21 +1608,25 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		if (!get_page_unless_zero(page))
- 			continue;
- 		/*
--		 * We can skip free pages. And we can only deal with pages on
--		 * LRU.
-+		 * We can skip free pages. And we can deal with pages on
-+		 * LRU and non-lru movable pages.
- 		 */
--		ret = isolate_lru_page(page);
-+		if (PageLRU(page))
-+			ret = isolate_lru_page(page);
-+		else
-+			ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
- 		if (!ret) { /* Success */
- 			put_page(page);
- 			list_add_tail(&page->lru, &source);
- 			move_pages--;
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+			if (!__PageMovable(page))
-+				inc_node_page_state(page, NR_ISOLATED_ANON +
-+						    page_is_file_cache(page));
- 
- 		} else {
- #ifdef CONFIG_DEBUG_VM
--			pr_alert("removing pfn %lx from LRU failed\n", pfn);
--			dump_page(page, "failed to remove from LRU");
-+			pr_alert("failed to isolate pfn %lx\n", pfn);
-+			dump_page(page, "isolation failed");
- #endif
- 			put_page(page);
- 			/* Because we don't have big zone->lock. we should
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f3e0c69..9c4e229 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7081,8 +7081,9 @@ void *__init alloc_large_system_hash(const char *tablename,
-  * If @count is not zero, it is okay to include less @count unmovable pages
-  *
-  * PageLRU check without isolation or lru_lock could race so that
-- * MIGRATE_MOVABLE block might include unmovable pages. It means you can't
-- * expect this function should be exact.
-+ * MIGRATE_MOVABLE block might include unmovable pages. And __PageMovable
-+ * check without lock_page also may miss some movable non-lru pages at
-+ * race condition. So you can't expect this function should be exact.
-  */
- bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 			 bool skip_hwpoisoned_pages)
-@@ -7138,6 +7139,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 		if (skip_hwpoisoned_pages && PageHWPoison(page))
- 			continue;
- 
-+		if (__PageMovable(page))
-+			continue;
++static inline void zram_set_element(struct zram_meta *meta, u32 index,
++			unsigned long element)
++{
++	meta->table[index].element = element;
++}
 +
- 		if (!PageLRU(page))
- 			found++;
- 		/*
++static inline void zram_clear_element(struct zram_meta *meta, u32 index)
++{
++	meta->table[index].element = 0;
++}
++
+ static size_t zram_get_obj_size(struct zram_meta *meta, u32 index)
+ {
+ 	return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
+@@ -167,31 +178,78 @@ static inline void update_used_max(struct zram *zram,
+ 	} while (old_max != cur_max);
+ }
+ 
+-static bool page_zero_filled(void *ptr)
++static inline void zram_fill_page(char *ptr, unsigned long value)
++{
++	int i;
++	unsigned long *page = (unsigned long *)ptr;
++
++	if (likely(value == 0)) {
++		clear_page(ptr);
++	} else {
++		for (i = 0; i < PAGE_SIZE / sizeof(*page); i++)
++			page[i] = value;
++	}
++}
++
++static inline void zram_fill_page_partial(char *ptr, unsigned int size,
++		unsigned long value)
++{
++	int i;
++	unsigned long *page;
++
++	if (likely(value == 0)) {
++		memset(ptr, 0, size);
++		return;
++	}
++
++	i = ((unsigned long)ptr) % sizeof(*page);
++	if (i) {
++		while (i < sizeof(*page)) {
++			*ptr++ = (value >> (i * 8)) & 0xff;
++			--size;
++			++i;
++		}
++	}
++
++	for (i = size / sizeof(*page); i > 0; --i) {
++		page = (unsigned long *)ptr;
++		*page = value;
++		ptr += sizeof(*page);
++		size -= sizeof(*page);
++	}
++
++	for (i = 0; i < size; ++i)
++		*ptr++ = (value >> (i * 8)) & 0xff;
++}
++
++static bool page_same_filled(void *ptr, unsigned long *element)
+ {
+ 	unsigned int pos;
+ 	unsigned long *page;
+ 
+ 	page = (unsigned long *)ptr;
+ 
+-	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
+-		if (page[pos])
++	for (pos = 0; pos < PAGE_SIZE / sizeof(*page) - 1; pos++) {
++		if (page[pos] != page[pos + 1])
+ 			return false;
+ 	}
+ 
++	*element = page[pos];
++
+ 	return true;
+ }
+ 
+-static void handle_zero_page(struct bio_vec *bvec)
++static void handle_same_page(struct bio_vec *bvec, unsigned long element)
+ {
+ 	struct page *page = bvec->bv_page;
+ 	void *user_mem;
+ 
+ 	user_mem = kmap_atomic(page);
+ 	if (is_partial_io(bvec))
+-		memset(user_mem + bvec->bv_offset, 0, bvec->bv_len);
++		zram_fill_page_partial(user_mem + bvec->bv_offset, bvec->bv_len,
++			element);
+ 	else
+-		clear_page(user_mem);
++		zram_fill_page(user_mem, element);
+ 	kunmap_atomic(user_mem);
+ 
+ 	flush_dcache_page(page);
+@@ -440,7 +498,7 @@ static ssize_t mm_stat_show(struct device *dev,
+ 			mem_used << PAGE_SHIFT,
+ 			zram->limit_pages << PAGE_SHIFT,
+ 			max_used << PAGE_SHIFT,
+-			(u64)atomic64_read(&zram->stats.zero_pages),
++			(u64)atomic64_read(&zram->stats.same_pages),
+ 			pool_stats.pages_compacted);
+ 	up_read(&zram->init_lock);
+ 
+@@ -473,7 +531,7 @@ static ssize_t debug_stat_show(struct device *dev,
+ ZRAM_ATTR_RO(failed_writes);
+ ZRAM_ATTR_RO(invalid_io);
+ ZRAM_ATTR_RO(notify_free);
+-ZRAM_ATTR_RO(zero_pages);
++ZRAM_ATTR_RO(same_pages);
+ ZRAM_ATTR_RO(compr_data_size);
+ 
+ static inline bool zram_meta_get(struct zram *zram)
+@@ -495,11 +553,17 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+ 
+ 	/* Free all pages that are still in this zram device */
+ 	for (index = 0; index < num_pages; index++) {
+-		unsigned long handle = meta->table[index].handle;
++		unsigned long handle;
++
++		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
++		handle = meta->table[index].handle;
+ 
+-		if (!handle)
++		if (!handle || zram_test_flag(meta, index, ZRAM_SAME)) {
++			bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 			continue;
++		}
+ 
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 		zs_free(meta->mem_pool, handle);
+ 	}
+ 
+@@ -547,18 +611,20 @@ static void zram_free_page(struct zram *zram, size_t index)
+ 	struct zram_meta *meta = zram->meta;
+ 	unsigned long handle = meta->table[index].handle;
+ 
+-	if (unlikely(!handle)) {
+-		/*
+-		 * No memory is allocated for zero filled pages.
+-		 * Simply clear zero page flag.
+-		 */
+-		if (zram_test_flag(meta, index, ZRAM_ZERO)) {
+-			zram_clear_flag(meta, index, ZRAM_ZERO);
+-			atomic64_dec(&zram->stats.zero_pages);
+-		}
++	/*
++	 * No memory is allocated for same element filled pages.
++	 * Simply clear same page flag.
++	 */
++	if (zram_test_flag(meta, index, ZRAM_SAME)) {
++		zram_clear_flag(meta, index, ZRAM_SAME);
++		zram_clear_element(meta, index);
++		atomic64_dec(&zram->stats.same_pages);
+ 		return;
+ 	}
+ 
++	if (unlikely(!handle))
++		return;
++
+ 	zs_free(meta->mem_pool, handle);
+ 
+ 	atomic64_sub(zram_get_obj_size(meta, index),
+@@ -581,9 +647,9 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+ 	handle = meta->table[index].handle;
+ 	size = zram_get_obj_size(meta, index);
+ 
+-	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
++	if (!handle || zram_test_flag(meta, index, ZRAM_SAME)) {
+ 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+-		clear_page(mem);
++		zram_fill_page(mem, meta->table[index].element);
+ 		return 0;
+ 	}
+ 
+@@ -619,9 +685,9 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+ 
+ 	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 	if (unlikely(!meta->table[index].handle) ||
+-			zram_test_flag(meta, index, ZRAM_ZERO)) {
++			zram_test_flag(meta, index, ZRAM_SAME)) {
+ 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+-		handle_zero_page(bvec);
++		handle_same_page(bvec, meta->table[index].element);
+ 		return 0;
+ 	}
+ 	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+@@ -669,6 +735,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 	struct zram_meta *meta = zram->meta;
+ 	struct zcomp_strm *zstrm = NULL;
+ 	unsigned long alloced_pages;
++	unsigned long element;
+ 
+ 	page = bvec->bv_page;
+ 	if (is_partial_io(bvec)) {
+@@ -697,16 +764,17 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		uncmem = user_mem;
+ 	}
+ 
+-	if (page_zero_filled(uncmem)) {
++	if (page_same_filled(uncmem, &element)) {
+ 		if (user_mem)
+ 			kunmap_atomic(user_mem);
+ 		/* Free memory associated with this sector now. */
+ 		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 		zram_free_page(zram, index);
+-		zram_set_flag(meta, index, ZRAM_ZERO);
++		zram_set_flag(meta, index, ZRAM_SAME);
++		zram_set_element(meta, index, element);
+ 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 
+-		atomic64_inc(&zram->stats.zero_pages);
++		atomic64_inc(&zram->stats.same_pages);
+ 		ret = 0;
+ 		goto out;
+ 	}
+@@ -1206,7 +1274,7 @@ static int zram_open(struct block_device *bdev, fmode_t mode)
+ 	&dev_attr_compact.attr,
+ 	&dev_attr_invalid_io.attr,
+ 	&dev_attr_notify_free.attr,
+-	&dev_attr_zero_pages.attr,
++	&dev_attr_same_pages.attr,
+ 	&dev_attr_orig_data_size.attr,
+ 	&dev_attr_compr_data_size.attr,
+ 	&dev_attr_mem_used_total.attr,
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 74fcf10..4bb92e1 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -60,8 +60,8 @@
+ 
+ /* Flags for zram pages (table[page_no].value) */
+ enum zram_pageflags {
+-	/* Page consists entirely of zeros */
+-	ZRAM_ZERO = ZRAM_FLAG_SHIFT,
++	/* Page consists entirely of same elements */
++	ZRAM_SAME = ZRAM_FLAG_SHIFT,
+ 	ZRAM_ACCESS,	/* page is now accessed */
+ 
+ 	__NR_ZRAM_PAGEFLAGS,
+@@ -71,7 +71,10 @@ enum zram_pageflags {
+ 
+ /* Allocated for each disk page */
+ struct zram_table_entry {
+-	unsigned long handle;
++	union {
++		unsigned long handle;
++		unsigned long element;
++	};
+ 	unsigned long value;
+ };
+ 
+@@ -83,7 +86,7 @@ struct zram_stats {
+ 	atomic64_t failed_writes;	/* can happen when memory is too low */
+ 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+ 	atomic64_t notify_free;	/* no. of swap slot free notifications */
+-	atomic64_t zero_pages;		/* no. of zero filled pages */
++	atomic64_t same_pages;		/* no. of same element filled pages */
+ 	atomic64_t pages_stored;	/* no. of pages currently stored */
+ 	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
+ 	atomic64_t writestall;		/* no. of write slow paths */
 -- 
-1.7.12.4
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
