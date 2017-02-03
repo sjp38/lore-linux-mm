@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EEA96B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 15:32:30 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x4so6077708wme.3
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 12:32:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g4si33545071wrg.265.2017.02.03.12.32.28
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E5FB6B0033
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 15:37:07 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id w20so38590302qtb.3
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 12:37:07 -0800 (PST)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id p1si20002359qtb.210.2017.02.03.12.37.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Feb 2017 12:32:28 -0800 (PST)
-Date: Fri, 3 Feb 2017 20:32:22 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm, vmscan: Clear PGDAT_WRITEBACK when zone is balanced
-Message-ID: <20170203203222.gq7hk66yc36lpgtb@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Feb 2017 12:37:06 -0800 (PST)
+Received: by mail-qt0-x244.google.com with SMTP id s58so6776183qtc.2
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 12:37:06 -0800 (PST)
+Subject: Re: [Resend PATCH 2/2] mm/memory_hotplug: set magic number to
+ page->freelsit instead of page->lru.next
+References: <b7ae8d10-da58-45cb-f088-f8adff299911@gmail.com>
+ <1d34eaa5-a506-8b7a-6471-490c345deef8@gmail.com>
+ <2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com>
+From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Message-ID: <722b1cc4-93ac-dd8b-2be2-7a7e313b3b0b@gmail.com>
+Date: Fri, 3 Feb 2017 15:37:23 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+In-Reply-To: <2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Michal Hocko' <mhocko@suse.com>, 'Minchan Kim' <minchan.kim@gmail.com>, 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, dave.hansen@linux.intel.com, vbabka@suse.cz, mgorman@techsingularity.net, qiuxishi@huawei.com
 
-Hillf Danton pointed out that since commit 1d82de618dd ("mm, vmscan:
-make kswapd reclaim in terms of nodes") that PGDAT_WRITEBACK is no longer
-cleared. It was not noticed as triggering it requires pages under writeback
-to cycle twice through the LRU and before kswapd gets stalled. Historically,
-such issues tended to occur on small machines writing heavily to slow
-storage such as a USB stick. Once kswapd stalls, direct reclaim stalls may
-be higher but due to the fact that memory pressure is requires, it would not
-be very noticable. Michal Hocko suggested removing the flag entirely but
-the conservative fix is to restore the intended PGDAT_WRITEBACK behaviour
-and clear the flag when a suitable zone is balanced.
+Hi Andrew,
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Please apply the following patch into your tree because patch
+("mm/memory_hotplug: set magic number to page->freelsit instead of page->lru.next")
+is not applied correctly.
+
 ---
- mm/vmscan.c | 1 +
- 1 file changed, 1 insertion(+)
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Date: Fri, 3 Feb 2017 15:18:03 -0500
+Subject: [PATCH] Remove unnecessary code from get_page_bootmem()
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 532a2a750952..3379fa5ce6d8 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3103,6 +3103,7 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
- 	 */
- 	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
- 	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
-+	clear_bit(PGDAT_WRITEBACK, &zone->zone_pgdat->flags);
- 
- 	return true;
- }
+The following patch is not applied correctly.
+http://lkml.kernel.org/r/2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com
 
+So the following unnecessary code still remains.
+
+get_page_bootmem()
+{
+...
+        page->lru.next = (struct list_head *)type;
+...
+
+The patch removei 1/2 ? this code from get_page_bootmem()
+
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+---
+  mm/memory_hotplug.c | 1 -
+  1 file changed, 1 deletion(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 19b460a..50b586c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -179,7 +179,6 @@ static void release_memory_resource(struct resource *res)
+  void get_page_bootmem(unsigned long info,  struct page *page,
+  		      unsigned long type)
+  {
+-	page->lru.next = (struct list_head *)type;
+  	page->freelist = (void *)type;
+  	SetPagePrivate(page);
+  	set_page_private(page, info);
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
