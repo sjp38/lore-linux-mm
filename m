@@ -1,64 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wj0-f198.google.com (mail-wj0-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE53F6B0253
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 09:59:53 -0500 (EST)
-Received: by mail-wj0-f198.google.com with SMTP id kq3so5464165wjc.1
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 06:59:53 -0800 (PST)
+Received: from mail-wj0-f200.google.com (mail-wj0-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8636B0033
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 10:07:48 -0500 (EST)
+Received: by mail-wj0-f200.google.com with SMTP id ez4so5536192wjd.2
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 07:07:48 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8si32763191wrb.169.2017.02.03.06.59.52
+        by mx.google.com with ESMTPS id s28si32767196wra.10.2017.02.03.07.07.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Feb 2017 06:59:52 -0800 (PST)
-Date: Fri, 3 Feb 2017 15:59:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2 v3] mm: vmscan: do not pass reclaimed slab to
- vmpressure
-Message-ID: <20170203145947.GD19325@dhcp22.suse.cz>
-References: <1485504817-3124-1-git-send-email-vinmenon@codeaurora.org>
- <1485853328-7672-1-git-send-email-vinmenon@codeaurora.org>
- <20170202104422.GF22806@dhcp22.suse.cz>
- <20170202104808.GG22806@dhcp22.suse.cz>
- <CAOaiJ-nyZtgrCHjkGJeG3nhGFes5Y7go3zZwa3SxGrZV=LV0ag@mail.gmail.com>
- <20170202115222.GH22806@dhcp22.suse.cz>
- <CAOaiJ-=pCUzaVbte-+QiQoN_XtB0KFbcB40yjU9r7OV8VOkmFg@mail.gmail.com>
- <20170202160145.GK22806@dhcp22.suse.cz>
- <CAOaiJ-=O_SkaYry4Lay8LidvC11sTukchE_p6P4mKm=fgJz1Dg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOaiJ-=O_SkaYry4Lay8LidvC11sTukchE_p6P4mKm=fgJz1Dg@mail.gmail.com>
+        Fri, 03 Feb 2017 07:07:47 -0800 (PST)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH] mm: Avoid returning VM_FAULT_RETRY from ->page_mkwrite handlers
+Date: Fri,  3 Feb 2017 16:07:29 +0100
+Message-Id: <20170203150729.15863-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayak menon <vinayakm.list@gmail.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Minchan Kim <minchan@kernel.org>, shashim@codeaurora.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, lustre-devel@lists.lustre.org, cluster-devel@redhat.com
 
-On Fri 03-02-17 10:56:42, vinayak menon wrote:
-> On Thu, Feb 2, 2017 at 9:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > Why would you like to chose and kill a task when the slab reclaim can
-> > still make sufficient progres? Are you sure that the slab contribution
-> > to the stats makes all the above happening?
-> >
-> I agree that a task need not be killed if sufficient progress is made
-> in reclaiming
-> memory say from slab. But here it looks like we have an impact because of just
-> increasing the reclaimed without touching the scanned. It could be because of
-> disimilar costs or not adding adding cost. I agree that vmpressure is
-> only a reasonable
-> estimate which does not already include few other costs, but I am not
-> sure whether it is ok
-> to add another element which further increases that disparity.
-> We noticed this problem when moving from 3.18 to 4.4 kernel version. With the
-> same workload, the vmpressure events differ between 3.18 and 4.4 causing the
-> above mentioned problem. And with this patch on 4.4 we get the same results
-> as in 3,18. So the slab contribution to stats is making a difference.
+Some ->page_mkwrite handlers may return VM_FAULT_RETRY as its return
+code (GFS2 or Lustre can definitely do this). However VM_FAULT_RETRY
+from ->page_mkwrite is completely unhandled by the mm code and results
+in locking and writeably mapping the page which definitely is not what
+the caller wanted. Fix Lustre and block_page_mkwrite_ret() used by other
+filesystems (notably GFS2) to return VM_FAULT_NOPAGE instead which
+results in bailing out from the fault code, the CPU then retries the
+access, and we fault again effectively doing what the handler wanted.
 
-Please document that in the changelog along with description of the
-workload that is affected. Ideally also add some data from /proc/vmstat
-so that we can see the reclaim activity.
+CC: lustre-devel@lists.lustre.org
+CC: cluster-devel@redhat.com
+Reported-by: Al Viro <viro@ZenIV.linux.org.uk>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ drivers/staging/lustre/lustre/llite/llite_mmap.c | 4 +---
+ include/linux/buffer_head.h                      | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/staging/lustre/lustre/llite/llite_mmap.c b/drivers/staging/lustre/lustre/llite/llite_mmap.c
+index ee01f20d8b11..9afa6bec3e6f 100644
+--- a/drivers/staging/lustre/lustre/llite/llite_mmap.c
++++ b/drivers/staging/lustre/lustre/llite/llite_mmap.c
+@@ -390,15 +390,13 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		result = VM_FAULT_LOCKED;
+ 		break;
+ 	case -ENODATA:
++	case -EAGAIN:
+ 	case -EFAULT:
+ 		result = VM_FAULT_NOPAGE;
+ 		break;
+ 	case -ENOMEM:
+ 		result = VM_FAULT_OOM;
+ 		break;
+-	case -EAGAIN:
+-		result = VM_FAULT_RETRY;
+-		break;
+ 	default:
+ 		result = VM_FAULT_SIGBUS;
+ 		break;
+diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+index d67ab83823ad..79591c3660cc 100644
+--- a/include/linux/buffer_head.h
++++ b/include/linux/buffer_head.h
+@@ -243,12 +243,10 @@ static inline int block_page_mkwrite_return(int err)
+ {
+ 	if (err == 0)
+ 		return VM_FAULT_LOCKED;
+-	if (err == -EFAULT)
++	if (err == -EFAULT || err == -EAGAIN)
+ 		return VM_FAULT_NOPAGE;
+ 	if (err == -ENOMEM)
+ 		return VM_FAULT_OOM;
+-	if (err == -EAGAIN)
+-		return VM_FAULT_RETRY;
+ 	/* -ENOSPC, -EDQUOT, -EIO ... */
+ 	return VM_FAULT_SIGBUS;
+ }
 -- 
-Michal Hocko
-SUSE Labs
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
