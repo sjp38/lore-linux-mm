@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4708A6B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 16:14:38 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id k15so40209358qtg.5
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 13:14:38 -0800 (PST)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id h35si20095057qtb.85.2017.02.03.13.14.37
+Received: from mail-wj0-f199.google.com (mail-wj0-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C866B0033
+	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 16:24:29 -0500 (EST)
+Received: by mail-wj0-f199.google.com with SMTP id an2so7944025wjc.3
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 13:24:29 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b203si3354258wme.154.2017.02.03.13.24.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Feb 2017 13:14:37 -0800 (PST)
-Received: by mail-qt0-x244.google.com with SMTP id n13so7037410qtc.0
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 13:14:37 -0800 (PST)
-Subject: Re: [Resend PATCH 2/2] mm/memory_hotplug: set magic number to
- page->freelsit instead of page->lru.next
-References: <b7ae8d10-da58-45cb-f088-f8adff299911@gmail.com>
- <1d34eaa5-a506-8b7a-6471-490c345deef8@gmail.com>
- <2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com>
- <722b1cc4-93ac-dd8b-2be2-7a7e313b3b0b@gmail.com>
-From: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Message-ID: <c743c454-92a6-ddb8-20e4-b5a602484742@gmail.com>
-Date: Fri, 3 Feb 2017 16:14:54 -0500
+        Fri, 03 Feb 2017 13:24:28 -0800 (PST)
+Date: Fri, 3 Feb 2017 16:24:11 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, vmscan: Clear PGDAT_WRITEBACK when zone is balanced
+Message-ID: <20170203212411.GA12133@cmpxchg.org>
+References: <20170203203222.gq7hk66yc36lpgtb@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <722b1cc4-93ac-dd8b-2be2-7a7e313b3b0b@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170203203222.gq7hk66yc36lpgtb@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, dave.hansen@linux.intel.com, vbabka@suse.cz, mgorman@techsingularity.net, qiuxishi@huawei.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, 'Michal Hocko' <mhocko@suse.com>, 'Minchan Kim' <minchan.kim@gmail.com>, 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Fri, Feb 03, 2017 at 08:32:22PM +0000, Mel Gorman wrote:
+> Hillf Danton pointed out that since commit 1d82de618dd ("mm, vmscan:
+> make kswapd reclaim in terms of nodes") that PGDAT_WRITEBACK is no longer
+> cleared. It was not noticed as triggering it requires pages under writeback
+> to cycle twice through the LRU and before kswapd gets stalled. Historically,
+> such issues tended to occur on small machines writing heavily to slow
+> storage such as a USB stick. Once kswapd stalls, direct reclaim stalls may
+> be higher but due to the fact that memory pressure is requires, it would not
+> be very noticable. Michal Hocko suggested removing the flag entirely but
+> the conservative fix is to restore the intended PGDAT_WRITEBACK behaviour
+> and clear the flag when a suitable zone is balanced.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-TAB was replaced to white spaces. So please apply this one.
-
----
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Date: Fri, 3 Feb 2017 15:18:03 -0500
-Subject: [PATCH] mm/memory_hotplug: Remove unnecessary code from get_page_bootmem()
-
-The following patch is not applied correctly.
-http://lkml.kernel.org/r/2c29bd9f-5b67-02d0-18a3-8828e78bbb6f@gmail.com
-
-So the following unnecessary code still remains.
-
-void get_page_bootmem()
-{
-...
-        page->lru.next = (struct list_head *)type;
-...
-
-The patch removes this code from get_page_bootmem()
----
-  mm/memory_hotplug.c | 1 -
-  1 file changed, 1 deletion(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7409f25..d67787d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -179,7 +179,6 @@ static void release_memory_resource(struct resource *res)
-  void get_page_bootmem(unsigned long info,  struct page *page,
-  		      unsigned long type)
-  {
--	page->lru.next = (struct list_head *)type;
-  	page->freelist = (void *)type;
-  	SetPagePrivate(page);
-  	set_page_private(page, info);
--- 
-1.8.3.1
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
