@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2172F6B0033
-	for <linux-mm@kvack.org>; Fri,  3 Feb 2017 23:35:46 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id d185so45450781pgc.2
-        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 20:35:46 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id g21si22610121pgj.268.2017.02.03.20.35.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Feb 2017 20:35:45 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH v6 kernel 3/5] virtio-balloon: speed up inflate/deflate
- process
-Date: Sat, 4 Feb 2017 04:35:41 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3C363988@shsmsx102.ccr.corp.intel.com>
-References: <1482303148-22059-1-git-send-email-liang.z.li@intel.com>
- <1482303148-22059-4-git-send-email-liang.z.li@intel.com>
- <20170120114809.GH2658@work-vm>
-In-Reply-To: <20170120114809.GH2658@work-vm>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 72EFD6B0033
+	for <linux-mm@kvack.org>; Sat,  4 Feb 2017 01:38:29 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 204so47950759pfx.1
+        for <linux-mm@kvack.org>; Fri, 03 Feb 2017 22:38:29 -0800 (PST)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTP id u88si27608997pfi.55.2017.02.03.22.38.27
+        for <linux-mm@kvack.org>;
+        Fri, 03 Feb 2017 22:38:28 -0800 (PST)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <cover.1486163864.git.shli@fb.com> <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com>
+In-Reply-To: <3914c9f53c343357c39cb891210da31aa30ad3a9.1486163864.git.shli@fb.com>
+Subject: Re: [PATCH V2 2/7] mm: move MADV_FREE pages into LRU_INACTIVE_FILE list
+Date: Sat, 04 Feb 2017 14:38:07 +0800
+Message-ID: <007e01d27eb1$3f98dee0$beca9ca0$@alibaba-inc.com>
 MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "mst@redhat.com" <mst@redhat.com>, "david@redhat.com" <david@redhat.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>
+To: 'Shaohua Li' <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Kernel-team@fb.com, danielmicay@gmail.com, mhocko@suse.com, minchan@kernel.org, hughd@google.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-> <snip>
->=20
-> > +static void free_extended_page_bitmap(struct virtio_balloon *vb) {
-> > +	int i, bmap_count =3D vb->nr_page_bmap;
-> > +
-> > +	for (i =3D 1; i < bmap_count; i++) {
-> > +		kfree(vb->page_bitmap[i]);
-> > +		vb->page_bitmap[i] =3D NULL;
-> > +		vb->nr_page_bmap--;
-> > +	}
-> > +}
-> > +
-> > +static void kfree_page_bitmap(struct virtio_balloon *vb) {
-> > +	int i;
-> > +
-> > +	for (i =3D 0; i < vb->nr_page_bmap; i++)
-> > +		kfree(vb->page_bitmap[i]);
-> > +}
->=20
-> It might be worth commenting that pair of functions to make it clear why
-> they are so different; I guess the kfree_page_bitmap is used just before =
-you
-> free the structure above it so you don't need to keep the count/pointers
-> updated?
->=20
+On February 04, 2017 7:33 AM Shaohua Li wrote: 
+> @@ -1404,6 +1401,8 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  		set_pmd_at(mm, addr, pmd, orig_pmd);
+>  		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+>  	}
+> +
+> +	mark_page_lazyfree(page);
+>  	ret = true;
+>  out:
+>  	spin_unlock(ptl);
 
-Yes. I will add some comments for that. Thanks!
+<snipped>
 
-Liang
-=20
-> Dave
-> --
-> Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> -void deactivate_page(struct page *page)
+> -{
+> -	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
+> -		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
+> +void mark_page_lazyfree(struct page *page)
+> + {
+> +	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
+> +	    !PageUnevictable(page)) {
+> +		struct pagevec *pvec = &get_cpu_var(lru_lazyfree_pvecs);
+> 
+>  		get_page(page);
+>  		if (!pagevec_add(pvec, page) || PageCompound(page))
+> -			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
+> -		put_cpu_var(lru_deactivate_pvecs);
+> +			pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
+> +		put_cpu_var(lru_lazyfree_pvecs);
+>  	}
+>  }
+
+You are not adding it but would you please try to fix or avoid flipping
+preempt count with page table lock hold?
+
+thanks
+Hillf
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
